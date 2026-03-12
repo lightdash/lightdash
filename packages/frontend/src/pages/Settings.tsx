@@ -485,6 +485,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/projectManagement/:projectUuid/queryHistory',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/projectManagement/:projectUuid/recentlyDeleted',
                 },
                 location.pathname,
@@ -861,6 +867,22 @@ const Settings: FC = () => {
                                             <MantineIcon icon={IconRefresh} />
                                         }
                                     />
+
+                                    {user.ability.can(
+                                        'manage',
+                                        'Organization',
+                                    ) && (
+                                        <RouterNavLink
+                                            label="Query history"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/queryHistory`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconHistory}
+                                                />
+                                            }
+                                        />
+                                    )}
 
                                     {health.preAggregates.enabled && (
                                         <RouterNavLink

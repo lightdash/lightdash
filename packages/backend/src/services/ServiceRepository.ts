@@ -41,6 +41,7 @@ import { PivotTableService } from './PivotTableService/PivotTableService';
 import { PreAggregateMaterializationService } from './PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectParametersService } from './ProjectParametersService';
+import { ProjectQueryHistoryService } from './ProjectQueryHistoryService/ProjectQueryHistoryService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { RenameService } from './RenameService/RenameService';
@@ -116,6 +117,7 @@ interface ServiceManifest {
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
     projectCompileLogService: ProjectCompileLogService;
+    projectQueryHistoryService: ProjectQueryHistoryService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     embedService: unknown;
@@ -1220,6 +1222,16 @@ export class ServiceRepository
                 new ProjectCompileLogService({
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
+                }),
+        );
+    }
+
+    public getProjectQueryHistoryService(): ProjectQueryHistoryService {
+        return this.getService(
+            'projectQueryHistoryService',
+            () =>
+                new ProjectQueryHistoryService({
+                    queryHistoryModel: this.models.getQueryHistoryModel(),
                 }),
         );
     }

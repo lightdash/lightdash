@@ -1,8 +1,13 @@
 import {
     Account,
+    AnyType,
     assertUnreachable,
     ForbiddenError,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     NotFoundError,
+    ProjectQueryHistoryItem,
+    ProjectQueryHistorySummary,
     QueryHistory,
     QueryHistoryStatus,
     sleep,
@@ -15,6 +20,21 @@ import {
     DbQueryHistoryUpdate,
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
+import KnexPaginate from '../../database/pagination';
+
+type QueryHistoryListRow = DbQueryHistory & {
+    user_name: string | null;
+};
+
+type QueryHistorySummaryRow = {
+    queue_length: string | number;
+    processing_count: string | number;
+    ready_count: string | number;
+    error_count: string | number;
+    cancelled_count: string | number;
+    avg_queue_time_ms: string | number | null;
+    avg_execution_time_ms: string | number | null;
+};
 
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
@@ -293,6 +313,130 @@ export class QueryHistoryModel {
         return result ? convertDbQueryHistoryToQueryHistory(result) : undefined;
     }
 
+    async getProjectQueryHistory({
+        organizationUuid,
+        projectUuid,
+        paginateArgs,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+    }): Promise<
+        KnexPaginatedData<{
+            queryHistory: ProjectQueryHistoryItem[];
+            summary: ProjectQueryHistorySummary;
+        }>
+    > {
+        const baseQuery = this.database(QueryHistoryTableName)
+            .leftJoin(
+                'users',
+                'query_history.created_by_user_uuid',
+                'users.user_uuid',
+            )
+            .where('query_history.organization_uuid', organizationUuid)
+            .where('query_history.project_uuid', projectUuid)
+            .select(
+                'query_history.*',
+                this.database.raw(
+                    "NULLIF(TRIM(CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, ''))), '') as user_name",
+                ),
+            )
+            .orderBy('query_history.created_at', 'desc');
+
+        const [paginatedRows, summary] = await Promise.all([
+            KnexPaginate.paginate(
+                baseQuery as unknown as Knex.QueryBuilder<
+                    AnyType,
+                    QueryHistoryListRow[]
+                >,
+                paginateArgs,
+            ),
+            this.getProjectQueryHistorySummary({
+                organizationUuid,
+                projectUuid,
+            }),
+        ]);
+
+        return {
+            pagination: paginatedRows.pagination,
+            data: {
+                queryHistory: paginatedRows.data.map((row) =>
+                    this.mapProjectQueryHistoryRow(row),
+                ),
+                summary,
+            },
+        };
+    }
+
+    async getProjectQueryHistorySummary({
+        organizationUuid,
+        projectUuid,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+    }): Promise<ProjectQueryHistorySummary> {
+        const row = await this.database(QueryHistoryTableName)
+            .where('organization_uuid', organizationUuid)
+            .where('project_uuid', projectUuid)
+            .select<QueryHistorySummaryRow>(
+                this.database.raw(
+                    `COUNT(*) FILTER (
+                        WHERE status = ? AND processing_started_at IS NULL
+                    ) AS queue_length`,
+                    [QueryHistoryStatus.PENDING],
+                ),
+                this.database.raw(
+                    `COUNT(*) FILTER (
+                        WHERE status = ? AND processing_started_at IS NOT NULL
+                    ) AS processing_count`,
+                    [QueryHistoryStatus.PENDING],
+                ),
+                this.database.raw(
+                    'COUNT(*) FILTER (WHERE status = ?) AS ready_count',
+                    [QueryHistoryStatus.READY],
+                ),
+                this.database.raw(
+                    'COUNT(*) FILTER (WHERE status = ?) AS error_count',
+                    [QueryHistoryStatus.ERROR],
+                ),
+                this.database.raw(
+                    'COUNT(*) FILTER (WHERE status = ?) AS cancelled_count',
+                    [QueryHistoryStatus.CANCELLED],
+                ),
+                this.database.raw(
+                    `AVG(
+                        EXTRACT(EPOCH FROM (processing_started_at - created_at)) * 1000
+                    ) FILTER (
+                        WHERE processing_started_at IS NOT NULL
+                    ) AS avg_queue_time_ms`,
+                ),
+                this.database.raw(
+                    `AVG(warehouse_execution_time_ms) FILTER (
+                        WHERE warehouse_execution_time_ms IS NOT NULL
+                    ) AS avg_execution_time_ms`,
+                ),
+            )
+            .first();
+
+        return {
+            queueLength: QueryHistoryModel.parseInteger(row?.queue_length),
+            processingCount: QueryHistoryModel.parseInteger(
+                row?.processing_count,
+            ),
+            readyCount: QueryHistoryModel.parseInteger(row?.ready_count),
+            errorCount: QueryHistoryModel.parseInteger(row?.error_count),
+            cancelledCount: QueryHistoryModel.parseInteger(
+                row?.cancelled_count,
+            ),
+            avgQueueTimeMs: QueryHistoryModel.parseNullableNumber(
+                row?.avg_queue_time_ms,
+            ),
+            avgExecutionTimeMs: QueryHistoryModel.parseNullableNumber(
+                row?.avg_execution_time_ms,
+            ),
+        };
+    }
+
     async pollForQueryCompletion({
         queryUuid,
         account,
@@ -417,5 +561,47 @@ export class QueryHistoryModel {
         }
 
         return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private mapProjectQueryHistoryRow(
+        row: QueryHistoryListRow,
+    ): ProjectQueryHistoryItem {
+        return {
+            queryUuid: row.query_uuid,
+            createdAt: row.created_at,
+            createdByName: row.user_name,
+            createdByUserUuid: row.created_by_user_uuid,
+            createdByAccount: row.created_by_account,
+            createdByActorType: row.created_by_actor_type,
+            context: row.context,
+            status: row.status,
+            processingStartedAt: row.processing_started_at,
+            warehouseExecutionTimeMs: row.warehouse_execution_time_ms,
+            totalRowCount: row.total_row_count,
+            warehouseQueryId: row.warehouse_query_id,
+            error: row.error,
+            compiledSql: row.compiled_sql,
+            preAggregateCompiledSql: row.pre_aggregate_compiled_sql,
+        };
+    }
+
+    private static parseInteger(value: string | number | undefined): number {
+        if (value === undefined) {
+            return 0;
+        }
+
+        return typeof value === 'number' ? value : parseInt(value, 10) || 0;
+    }
+
+    private static parseNullableNumber(
+        value: string | number | null | undefined,
+    ): number | null {
+        if (value === null || value === undefined) {
+            return null;
+        }
+
+        const parsed = typeof value === 'number' ? value : Number(value);
+        return Number.isNaN(parsed) ? null : parsed;
     }
 }

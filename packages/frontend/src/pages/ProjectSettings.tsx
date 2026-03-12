@@ -15,6 +15,7 @@ import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import QueryHistory from '../components/QueryHistory';
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
@@ -105,6 +106,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
+            },
+            {
+                path: `/queryHistory`,
+                element: <QueryHistory projectUuid={projectUuid} />,
             },
             {
                 path: `/preAggregates`,

@@ -9269,19 +9269,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "success",
                                                             "error"
                                                         ]
@@ -26603,6 +26590,210 @@
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
+            "AuthType": {
+                "type": "string",
+                "enum": ["session", "pat", "service-account", "jwt", "oauth"]
+            },
+            "QueryHistoryStatus": {
+                "enum": [
+                    "pending",
+                    "queued",
+                    "executing",
+                    "expired",
+                    "ready",
+                    "error",
+                    "cancelled"
+                ],
+                "type": "string"
+            },
+            "ProjectQueryHistoryItem": {
+                "properties": {
+                    "preAggregateCompiledSql": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "compiledSql": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "warehouseQueryId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "totalRowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "warehouseExecutionTimeMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "processingStartedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/QueryHistoryStatus"
+                    },
+                    "context": {
+                        "$ref": "#/components/schemas/QueryExecutionContext"
+                    },
+                    "createdByActorType": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AuthType"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdByAccount": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "preAggregateCompiledSql",
+                    "compiledSql",
+                    "error",
+                    "warehouseQueryId",
+                    "totalRowCount",
+                    "warehouseExecutionTimeMs",
+                    "processingStartedAt",
+                    "status",
+                    "context",
+                    "createdByActorType",
+                    "createdByAccount",
+                    "createdByUserUuid",
+                    "createdByName",
+                    "createdAt",
+                    "queryUuid"
+                ],
+                "type": "object"
+            },
+            "ProjectQueryHistorySummary": {
+                "properties": {
+                    "avgExecutionTimeMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "avgQueueTimeMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "cancelledCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "readyCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "processingCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "queueLength": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "avgExecutionTimeMs",
+                    "avgQueueTimeMs",
+                    "cancelledCount",
+                    "errorCount",
+                    "readyCount",
+                    "processingCount",
+                    "queueLength"
+                ],
+                "type": "object"
+            },
+            "ApiProjectQueryHistoryResults": {
+                "properties": {
+                    "summary": {
+                        "$ref": "#/components/schemas/ProjectQueryHistorySummary"
+                    },
+                    "queryHistory": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectQueryHistoryItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["summary", "queryHistory"],
+                "type": "object"
+            },
+            "KnexPaginatedData_ApiProjectQueryHistoryResults_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/ApiProjectQueryHistoryResults"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiProjectQueryHistoryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_ApiProjectQueryHistoryResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess_ProjectDefaults-or-undefined_": {
                 "properties": {
                     "results": {
@@ -28224,7 +28415,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2611.0",
+        "version": "0.2615.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -45820,6 +46011,65 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query-history": {
+            "get": {
+                "operationId": "getProjectQueryHistory",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectQueryHistoryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Retrieves paginated query history rows with summary metrics for a project",
+                "summary": "Get project query history",
+                "tags": ["v2", "Query History"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/defaults": {

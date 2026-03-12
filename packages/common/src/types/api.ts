@@ -153,7 +153,10 @@ import {
     type WarehouseCredentials,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
-import { type QueryHistoryStatus } from './queryHistory';
+import {
+    type ApiProjectQueryHistoryResponse,
+    type QueryHistoryStatus,
+} from './queryHistory';
 import { type ApiRenameFieldsResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
@@ -947,6 +950,7 @@ type ApiResults =
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiProjectCompileLogsResponse['results']
     | ApiProjectCompileLogResponse['results']
+    | ApiProjectQueryHistoryResponse['results']
     | ApiSingleValidationResponse['results']
     | ApiFavoriteItems['results']
     | ApiChartValidationResponse['results']

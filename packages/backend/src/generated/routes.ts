@@ -103,6 +103,8 @@ import { PreAggregateController } from './../controllers/v2/PreAggregateControll
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ProjectDefaultsController } from './../controllers/v2/ProjectDefaultsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { ProjectQueryHistoryController } from './../controllers/v2/ProjectQueryHistoryController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { QueryController } from './../controllers/v2/QueryController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SavedChartControllerV2 } from './../controllers/v2/SavedChartController';
@@ -7863,11 +7865,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8345,11 +8347,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8364,11 +8366,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8383,11 +8385,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8402,11 +8404,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8421,11 +8423,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -25448,6 +25450,224 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             ref: 'Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AuthType: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['session'] },
+                { dataType: 'enum', enums: ['pat'] },
+                { dataType: 'enum', enums: ['service-account'] },
+                { dataType: 'enum', enums: ['jwt'] },
+                { dataType: 'enum', enums: ['oauth'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryHistoryStatus: {
+        dataType: 'refEnum',
+        enums: [
+            'pending',
+            'queued',
+            'executing',
+            'expired',
+            'ready',
+            'error',
+            'cancelled',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectQueryHistoryItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                preAggregateCompiledSql: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                compiledSql: { dataType: 'string', required: true },
+                error: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                warehouseQueryId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                totalRowCount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                warehouseExecutionTimeMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                processingStartedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { ref: 'QueryHistoryStatus', required: true },
+                context: { ref: 'QueryExecutionContext', required: true },
+                createdByActorType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AuthType' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdByAccount: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdByName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                createdAt: { dataType: 'datetime', required: true },
+                queryUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectQueryHistorySummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                avgExecutionTimeMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                avgQueueTimeMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                cancelledCount: { dataType: 'double', required: true },
+                errorCount: { dataType: 'double', required: true },
+                readyCount: { dataType: 'double', required: true },
+                processingCount: { dataType: 'double', required: true },
+                queueLength: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiProjectQueryHistoryResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                summary: { ref: 'ProjectQueryHistorySummary', required: true },
+                queryHistory: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'ProjectQueryHistoryItem',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    KnexPaginatedData_ApiProjectQueryHistoryResults_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: { ref: 'ApiProjectQueryHistoryResults', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiProjectQueryHistoryResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'KnexPaginatedData_ApiProjectQueryHistoryResults_',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
             validators: {},
         },
     },
@@ -53332,6 +53552,69 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'scheduleDownloadResults',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectQueryHistoryController_getProjectQueryHistory: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/query-history',
+        ...fetchMiddlewares<RequestHandler>(ProjectQueryHistoryController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectQueryHistoryController.prototype.getProjectQueryHistory,
+        ),
+
+        async function ProjectQueryHistoryController_getProjectQueryHistory(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectQueryHistoryController_getProjectQueryHistory,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectQueryHistoryController>(
+                        ProjectQueryHistoryController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getProjectQueryHistory',
                     controller,
                     response,
                     next,

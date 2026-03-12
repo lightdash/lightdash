@@ -295,6 +295,17 @@ export default class App {
             );
         }
 
+        if (this.lightdashConfig.natsWorker.enabled) {
+            void this.clients
+                .getNatsClient()
+                .connect()
+                .catch((error) => {
+                    Logger.error(
+                        `Error connecting backend NATS client: ${getErrorMessage(error)}`,
+                    );
+                });
+        }
+
         try {
             const instanceConfigurationService =
                 this.serviceRepository.getInstanceConfigurationService<InstanceConfigurationService>();
@@ -871,6 +882,14 @@ export default class App {
 
     async stop() {
         this.prometheusMetrics.stop();
+        if (this.lightdashConfig.natsWorker.enabled) {
+            try {
+                await this.clients.getNatsClient().drain();
+                Logger.info('Stopped backend NATS client');
+            } catch (e) {
+                Logger.error('Error stopping backend NATS client', e);
+            }
+        }
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
                 await this.schedulerWorker.runner.stop();

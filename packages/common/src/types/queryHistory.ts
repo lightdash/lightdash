@@ -4,6 +4,7 @@ import type { QueryExecutionContext } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { AuthType } from './auth';
 import type { ItemsMap } from './field';
+import type { KnexPaginatedData } from './knex-paginate';
 import type { MetricQuery } from './metricQuery';
 import type { WarehouseTypes } from './projects';
 
@@ -61,4 +62,42 @@ export type QueryHistory = {
     originalColumns: ResultColumns | null; // columns from original SQL, before pivoting
     preAggregateCompiledSql: string | null; // DuckDB SQL for pre-aggregate execution path
     processingStartedAt: Date | null; // when the NATS worker picked up the job
+};
+
+export type ProjectQueryHistoryItem = {
+    queryUuid: string;
+    createdAt: Date;
+    createdByName: string | null;
+    createdByUserUuid: string | null;
+    createdByAccount: string | null;
+    createdByActorType: AuthType | null;
+    context: QueryExecutionContext;
+    status: QueryHistoryStatus;
+    processingStartedAt: Date | null;
+    warehouseExecutionTimeMs: number | null;
+    totalRowCount: number | null;
+    warehouseQueryId: string | null;
+    error: string | null;
+    compiledSql: string;
+    preAggregateCompiledSql: string | null;
+};
+
+export type ProjectQueryHistorySummary = {
+    queueLength: number;
+    processingCount: number;
+    readyCount: number;
+    errorCount: number;
+    cancelledCount: number;
+    avgQueueTimeMs: number | null;
+    avgExecutionTimeMs: number | null;
+};
+
+export type ApiProjectQueryHistoryResults = {
+    queryHistory: ProjectQueryHistoryItem[];
+    summary: ProjectQueryHistorySummary;
+};
+
+export type ApiProjectQueryHistoryResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<ApiProjectQueryHistoryResults>;
 };
