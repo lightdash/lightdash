@@ -1,3 +1,10 @@
+# [0.2611.0](https://github.com/lightdash/lightdash/compare/0.2610.3...0.2611.0) (2026-03-12)
+
+
+### Features
+
+* add dashboard config section with date zoom settings to documentation ([#21066](https://github.com/lightdash/lightdash/issues/21066)) ([48d2b8a](https://github.com/lightdash/lightdash/commit/48d2b8a16a287e1f3e9c29fa352d2391a5b4c61f))
+
 ## [0.2610.3](https://github.com/lightdash/lightdash/compare/0.2610.2...0.2610.3) (2026-03-12)
 
 
