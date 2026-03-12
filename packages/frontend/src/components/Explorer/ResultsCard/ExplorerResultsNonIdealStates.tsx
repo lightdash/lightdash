@@ -1,4 +1,7 @@
-import { type ApiErrorDetail } from '@lightdash/common';
+import {
+    type ApiErrorDetail,
+    type QueryHistoryStatus,
+} from '@lightdash/common';
 import { Anchor, Text } from '@mantine-8/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
@@ -12,6 +15,7 @@ import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import { RefreshButton } from '../../RefreshButton';
 import classes from './ExplorerResultsNonIdealStates.module.css';
+import { getQueryLoadingStateCopy } from './queryLoadingState';
 
 const ExploreDocumentationUrl =
     'https://docs.lightdash.com/get-started/exploring-data/using-explores/';
@@ -153,12 +157,21 @@ export const ExploreEmptyQueryState = () => (
     />
 );
 
-export const ExploreLoadingState = () => (
-    <EmptyStateLoader
-        title="Loading results"
-        data-testid="results-table-loading"
-    />
-);
+export const ExploreLoadingState = ({
+    queryStatus,
+}: {
+    queryStatus?: QueryHistoryStatus;
+}) => {
+    const { title, description } = getQueryLoadingStateCopy(queryStatus);
+
+    return (
+        <EmptyStateLoader
+            title={title}
+            description={description}
+            data-testid="results-table-loading"
+        />
+    );
+};
 
 export const ExploreErrorState = ({
     errorDetail,

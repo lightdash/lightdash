@@ -662,11 +662,15 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
 export type ApiGetAsyncQueryResults =
     | ReadyQueryResultsPage
     | {
-          status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
+          status:
+              | QueryHistoryStatus.PENDING
+              | QueryHistoryStatus.QUEUED
+              | QueryHistoryStatus.EXECUTING
+              | QueryHistoryStatus.CANCELLED;
           queryUuid: string;
       }
     | {
-          status: QueryHistoryStatus.ERROR;
+          status: QueryHistoryStatus.ERROR | QueryHistoryStatus.EXPIRED;
           queryUuid: string;
           error: string | null;
       };

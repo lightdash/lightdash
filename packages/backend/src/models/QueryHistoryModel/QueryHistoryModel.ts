@@ -184,11 +184,49 @@ export class QueryHistoryModel {
             : 'created_by_account';
         void query.andWhere(createdByColumn, account.user.id);
 
-        // only update pending queries to ready
+        // Only allow READY once the query has actually started executing.
         if (update.status === QueryHistoryStatus.READY) {
-            void query.andWhere('status', QueryHistoryStatus.PENDING);
+            void query.andWhere('status', QueryHistoryStatus.EXECUTING);
         }
         return query;
+    }
+
+    async updateStatusToQueued(queryUuid: string): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('status', QueryHistoryStatus.PENDING)
+            .update({
+                status: QueryHistoryStatus.QUEUED,
+            });
+    }
+
+    async updateStatusToExecuting(queryUuid: string): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+            ])
+            .update({
+                status: QueryHistoryStatus.EXECUTING,
+                processing_started_at: new Date(),
+            });
+    }
+
+    async updateStatusToExpired(
+        queryUuid: string,
+        error: string,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+            ])
+            .update({
+                status: QueryHistoryStatus.EXPIRED,
+                error,
+            });
     }
 
     async get(queryUuid: string, projectUuid: string, account: Account) {
@@ -247,12 +285,6 @@ export class QueryHistoryModel {
         };
     }
 
-    async updateProcessingStartedAt(queryUuid: string): Promise<void> {
-        await this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .update({ processing_started_at: new Date() });
-    }
-
     async getByQueryUuid(queryUuid: string): Promise<QueryHistory | undefined> {
         const result = await this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
@@ -301,6 +333,7 @@ export class QueryHistoryModel {
                     }
                     return queryHistory;
                 case QueryHistoryStatus.ERROR:
+                case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
                         throw new Error(
                             queryHistory.error ?? 'Warehouse query failed',
@@ -308,6 +341,8 @@ export class QueryHistoryModel {
                     }
                     return queryHistory;
                 case QueryHistoryStatus.PENDING:
+                case QueryHistoryStatus.QUEUED:
+                case QueryHistoryStatus.EXECUTING:
                     await sleep(backoffMs);
                     return poll(Math.min(backoffMs * 2, maxBackoffMs));
                 case QueryHistoryStatus.READY:

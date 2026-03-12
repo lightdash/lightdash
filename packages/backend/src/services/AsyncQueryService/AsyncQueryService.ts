@@ -20,6 +20,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    ExpiredQueryError,
     Explore,
     ExploreCompiler,
     ExploreType,
@@ -173,6 +174,8 @@ import {
 } from './types';
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
+export const QUEUED_QUERY_EXPIRED_MESSAGE =
+    'Your query expired while waiting in the queue. Please try again.';
 
 type PreAggregationRoutingDecision =
     | {
@@ -665,7 +668,10 @@ export class AsyncQueryService extends ProjectService {
             originalColumns,
         } = queryHistory;
 
-        if (status === QueryHistoryStatus.ERROR) {
+        if (
+            status === QueryHistoryStatus.ERROR ||
+            status === QueryHistoryStatus.EXPIRED
+        ) {
             return {
                 status,
                 queryUuid,
@@ -680,6 +686,8 @@ export class AsyncQueryService extends ProjectService {
                     queryUuid,
                 };
             case QueryHistoryStatus.PENDING:
+            case QueryHistoryStatus.QUEUED:
+            case QueryHistoryStatus.EXECUTING:
                 return {
                     status,
                     queryUuid,
@@ -857,12 +865,19 @@ export class AsyncQueryService extends ProjectService {
 
         const { status, resultsFileName } = queryHistory;
 
-        if (status === QueryHistoryStatus.ERROR) {
+        if (
+            status === QueryHistoryStatus.ERROR ||
+            status === QueryHistoryStatus.EXPIRED
+        ) {
             throw new Error(queryHistory.error ?? 'Warehouse query failed');
         }
 
-        if (status === QueryHistoryStatus.PENDING) {
-            throw new Error('Query is in pending state');
+        if (
+            status === QueryHistoryStatus.PENDING ||
+            status === QueryHistoryStatus.QUEUED ||
+            status === QueryHistoryStatus.EXECUTING
+        ) {
+            throw new Error(`Query is ${status}`);
         }
 
         if (status === QueryHistoryStatus.READY) {
@@ -1005,10 +1020,13 @@ export class AsyncQueryService extends ProjectService {
         switch (status) {
             case QueryHistoryStatus.CANCELLED:
                 throw new Error('Query was cancelled');
+            case QueryHistoryStatus.EXPIRED:
             case QueryHistoryStatus.ERROR:
                 throw new Error(queryHistory.error ?? 'Warehouse query failed');
             case QueryHistoryStatus.PENDING:
-                throw new Error('Query is in pending state');
+            case QueryHistoryStatus.QUEUED:
+            case QueryHistoryStatus.EXECUTING:
+                throw new Error(`Query is ${status}`);
             case QueryHistoryStatus.READY:
                 // Continue with execution
                 break;
@@ -1761,18 +1779,88 @@ export class AsyncQueryService extends ProjectService {
 
     public async runAsyncWarehouseQueryFromHistory(
         queryUuid: string,
-    ): Promise<void> {
-        await this.queryHistoryModel.updateProcessingStartedAt(queryUuid);
+        workerLabel: string,
+    ): Promise<boolean> {
+        const canRun = await this.prepareQueuedQueryForExecution(
+            queryUuid,
+            workerLabel,
+        );
+
+        if (!canRun) {
+            return false;
+        }
+
         const args = await this.buildWarehouseQueryArgs(queryUuid);
         await this.runAsyncWarehouseQuery(args);
+        return true;
     }
 
     public async runAsyncPreAggregateQueryFromHistory(
         queryUuid: string,
-    ): Promise<void> {
-        await this.queryHistoryModel.updateProcessingStartedAt(queryUuid);
+        workerLabel: string,
+    ): Promise<boolean> {
+        const canRun = await this.prepareQueuedQueryForExecution(
+            queryUuid,
+            workerLabel,
+        );
+
+        if (!canRun) {
+            return false;
+        }
+
         const args = await this.buildPreAggregateQueryArgs(queryUuid);
         await this.runAsyncPreAggregateQuery(args);
+        return true;
+    }
+
+    public async prepareQueuedQueryForExecution(
+        queryUuid: string,
+        workerLabel: string,
+    ): Promise<boolean> {
+        const queryHistory =
+            await this.queryHistoryModel.getByQueryUuid(queryUuid);
+
+        if (!queryHistory) {
+            this.logger.error(
+                `Worker ${workerLabel} could not find query history for async query ${queryUuid}`,
+            );
+            return false;
+        }
+
+        const isQueuedStatus =
+            queryHistory.status === QueryHistoryStatus.PENDING ||
+            queryHistory.status === QueryHistoryStatus.QUEUED;
+
+        if (!isQueuedStatus) {
+            this.logger.info(
+                `Worker ${workerLabel} skipped async query ${queryUuid} because status is ${queryHistory.status}`,
+            );
+            return false;
+        }
+
+        const timeInQueueMs =
+            Date.now() - new Date(queryHistory.createdAt).getTime();
+
+        if (timeInQueueMs > this.lightdashConfig.natsWorker.queueTimeoutMs) {
+            await this.expireQueuedQuery(
+                queryHistory,
+                timeInQueueMs,
+                workerLabel,
+            );
+            return false;
+        }
+
+        const updated =
+            await this.queryHistoryModel.updateStatusToExecuting(queryUuid);
+
+        if (updated === 0) {
+            this.logger.info(
+                `Worker ${workerLabel} skipped async query ${queryUuid} because it could not transition to executing`,
+            );
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -2230,6 +2318,50 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return query;
+    }
+
+    private async expireQueuedQuery(
+        queryHistory: QueryHistory,
+        timeInQueueMs: number,
+        workerLabel: string,
+    ): Promise<void> {
+        await this.queryHistoryModel.updateStatusToExpired(
+            queryHistory.queryUuid,
+            QUEUED_QUERY_EXPIRED_MESSAGE,
+        );
+
+        Sentry.withScope((scope) => {
+            scope.setTag('lightdash.queryUuid', queryHistory.queryUuid);
+            if (queryHistory.projectUuid) {
+                scope.setTag('lightdash.projectUuid', queryHistory.projectUuid);
+            }
+            scope.setContext('query_queue', {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid: queryHistory.projectUuid,
+                status: queryHistory.status,
+                queueTimeoutMs: this.lightdashConfig.natsWorker.queueTimeoutMs,
+                timeInQueueMs,
+            });
+            Sentry.captureException(
+                new ExpiredQueryError(QUEUED_QUERY_EXPIRED_MESSAGE, {
+                    queryUuid: queryHistory.queryUuid,
+                    organizationUuid: queryHistory.organizationUuid,
+                    projectUuid: queryHistory.projectUuid,
+                    timeInQueueMs,
+                    queueTimeoutMs:
+                        this.lightdashConfig.natsWorker.queueTimeoutMs,
+                }),
+            );
+        });
+
+        this.logger.warn(
+            `Worker ${workerLabel} expired async query ${queryHistory.queryUuid} after ${timeInQueueMs}ms in queue`,
+            {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid: queryHistory.projectUuid,
+                queueTimeoutMs: this.lightdashConfig.natsWorker.queueTimeoutMs,
+            },
+        );
     }
 
     private static getQueryHistoryActor(query: QueryHistory): {
@@ -2712,6 +2844,9 @@ export class AsyncQueryService extends ProjectService {
                     );
 
                     if (resultsCache.cacheHit) {
+                        await this.queryHistoryModel.updateStatusToExecuting(
+                            queryHistoryUuid,
+                        );
                         await this.queryHistoryModel.update(
                             queryHistoryUuid,
                             projectUuid,
@@ -2884,6 +3019,10 @@ export class AsyncQueryService extends ProjectService {
                             this.logger.info(
                                 `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,
                             );
+
+                            await this.queryHistoryModel.updateStatusToQueued(
+                                queryHistoryUuid,
+                            );
                         } catch (e) {
                             const errorMessage = getErrorMessage(e);
                             this.logger.error(
@@ -2917,6 +3056,10 @@ export class AsyncQueryService extends ProjectService {
                     } else {
                         this.logger.info(
                             `Executing query ${queryHistoryUuid} in the main loop`,
+                        );
+
+                        await this.queryHistoryModel.updateStatusToExecuting(
+                            queryHistoryUuid,
                         );
 
                         const { query: warehouseSql, ...sharedAsyncQueryArgs } =

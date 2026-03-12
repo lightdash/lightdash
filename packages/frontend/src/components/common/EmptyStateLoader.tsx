@@ -4,6 +4,7 @@ import SuboptimalState from './SuboptimalState/SuboptimalState';
 
 type EmptyStateLoaderProps = StackProps & {
     title?: string;
+    description?: string;
     'data-testid'?: string;
 };
 
@@ -11,8 +12,17 @@ type EmptyStateLoaderProps = StackProps & {
  * Reusable loading state built on SuboptimalState.
  * Use this whenever you need a centered loading indicator inside a container.
  */
-const EmptyStateLoader: FC<EmptyStateLoaderProps> = ({ title, ...rest }) => (
-    <SuboptimalState title={title} loading {...rest} />
+const EmptyStateLoader: FC<EmptyStateLoaderProps> = ({
+    title,
+    description,
+    ...rest
+}) => (
+    <SuboptimalState
+        title={title}
+        description={description}
+        loading
+        {...rest}
+    />
 );
 
 export default EmptyStateLoader;

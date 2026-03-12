@@ -24,7 +24,11 @@ export const pollForResults = async (
         body: undefined,
     });
 
-    if (results.status === QueryHistoryStatus.PENDING) {
+    if (
+        results.status === QueryHistoryStatus.PENDING ||
+        results.status === QueryHistoryStatus.QUEUED ||
+        results.status === QueryHistoryStatus.EXECUTING
+    ) {
         // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
         const nextBackoff = Math.min(backoffMs * 2, 1000);
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
@@ -49,7 +53,10 @@ export const executeSqlQuery = async (
 
     const query = await pollForResults(projectUuid, response.queryUuid);
 
-    if (query.status === QueryHistoryStatus.ERROR) {
+    if (
+        query.status === QueryHistoryStatus.ERROR ||
+        query.status === QueryHistoryStatus.EXPIRED
+    ) {
         throw new Error(query.error || 'Error executing SQL query');
     }
 
@@ -72,7 +79,10 @@ export const executeSqlQuery = async (
 const getPivotQueryResults = async (projectUuid: string, queryUuid: string) => {
     const query = await pollForResults(projectUuid, queryUuid);
 
-    if (query.status === QueryHistoryStatus.ERROR) {
+    if (
+        query.status === QueryHistoryStatus.ERROR ||
+        query.status === QueryHistoryStatus.EXPIRED
+    ) {
         throw new Error(query.error || 'Error executing SQL query');
     }
 

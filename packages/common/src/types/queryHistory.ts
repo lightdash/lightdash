@@ -20,6 +20,9 @@ export type WarehouseQueryMetadata = BigQueryWarehouseQueryMetadata;
 
 export enum QueryHistoryStatus {
     PENDING = 'pending',
+    QUEUED = 'queued',
+    EXECUTING = 'executing',
+    EXPIRED = 'expired',
     READY = 'ready',
     ERROR = 'error',
     CANCELLED = 'cancelled',

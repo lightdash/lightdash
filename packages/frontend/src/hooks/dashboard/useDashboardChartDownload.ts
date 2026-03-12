@@ -75,7 +75,10 @@ export const useDashboardChartDownload = (
                 executeQueryResponse.queryUuid,
             );
 
-            if (results.status === QueryHistoryStatus.ERROR) {
+            if (
+                results.status === QueryHistoryStatus.ERROR ||
+                results.status === QueryHistoryStatus.EXPIRED
+            ) {
                 throw new Error(results.error || 'Error executing SQL query');
             }
 

@@ -218,7 +218,7 @@ export class NatsWorker {
         );
 
         try {
-            await NatsWorker.runWithAckProgress(message, () =>
+            const didRun = await NatsWorker.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
                     {
                         sentryTrace: parsed.trace.traceHeader,
@@ -240,10 +240,17 @@ export class NatsWorker {
                             () =>
                                 this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
                                     parsed.payload.queryUuid,
+                                    workerLabel,
                                 ),
                         ),
                 ),
             );
+
+            if (!didRun) {
+                message.term();
+                return;
+            }
+
             message.ack();
             Logger.info(
                 `Worker ${workerLabel} completed warehouse query job ${parsed.jobId ?? '<unknown>'}`,
@@ -280,7 +287,7 @@ export class NatsWorker {
         );
 
         try {
-            await NatsWorker.runWithAckProgress(message, () =>
+            const didRun = await NatsWorker.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
                     {
                         sentryTrace: parsed.trace.traceHeader,
@@ -302,10 +309,17 @@ export class NatsWorker {
                             () =>
                                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
                                     parsed.payload.queryUuid,
+                                    workerLabel,
                                 ),
                         ),
                 ),
             );
+
+            if (!didRun) {
+                message.term();
+                return;
+            }
+
             message.ack();
             Logger.info(
                 `Worker ${workerLabel} completed pre-aggregate query job ${parsed.jobId ?? '<unknown>'}`,

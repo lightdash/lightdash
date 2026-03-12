@@ -576,6 +576,20 @@ export class ResultsExpiredError extends LightdashError {
     }
 }
 
+export class ExpiredQueryError extends LightdashError {
+    constructor(
+        message = 'Your query expired while waiting in the queue. Please try again.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'ExpiredQueryError',
+            statusCode: 408,
+            data,
+        });
+    }
+}
+
 export class TimeoutError extends LightdashError {
     constructor(message: string) {
         super({
