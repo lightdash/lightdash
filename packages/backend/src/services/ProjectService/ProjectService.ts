@@ -67,7 +67,6 @@ import {
     formatRows,
     getAvailableParametersFromTables,
     getDashboardFilterRulesForTables,
-    getDateDimension,
     getDimensions,
     getErrorMessage,
     getFields,
@@ -75,6 +74,7 @@ import {
     getItemId,
     getMetrics,
     getPreAggregateExploreName,
+    getTimeDimensionsMap,
     getTimezoneLabel,
     hasConnectionChanges,
     hasIntersection,
@@ -127,6 +127,7 @@ import {
     ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
+    resolveBaseDimension,
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -2836,20 +2837,7 @@ export class ProjectService extends BaseService {
         dateZoom?: DateZoom,
     ): { explore: Explore; dateZoomApplied: boolean } {
         if (dateZoom?.granularity) {
-            const timeDimensionsMap: Record<string, CompiledDimension> =
-                Object.values(explore.tables).reduce<
-                    Record<string, CompiledDimension>
-                >((acc, t) => {
-                    Object.values(t.dimensions).forEach((dim) => {
-                        if (
-                            dim.type === DimensionType.TIMESTAMP ||
-                            dim.type === DimensionType.DATE
-                        ) {
-                            acc[getItemId(dim)] = dim;
-                        }
-                    });
-                    return acc;
-                }, {});
+            const timeDimensionsMap = getTimeDimensionsMap(explore);
 
             let timeOrDateDimension = dateZoom?.xAxisFieldId;
 
@@ -2864,12 +2852,15 @@ export class ProjectService extends BaseService {
 
             if (timeOrDateDimension) {
                 const dimToOverride = timeDimensionsMap[timeOrDateDimension];
-                const { baseDimensionId } =
-                    getDateDimension(timeOrDateDimension);
-                const baseTimeDimension =
-                    dimToOverride.timeInterval && baseDimensionId
-                        ? timeDimensionsMap[baseDimensionId]
-                        : dimToOverride;
+                const baseTimeDimension = resolveBaseDimension(
+                    timeOrDateDimension,
+                    dimToOverride,
+                    timeDimensionsMap,
+                );
+
+                if (!baseTimeDimension) {
+                    return { explore, dateZoomApplied: false };
+                }
 
                 // Skip sub-day zoom for DATE-only dimensions (no time component)
                 if (
