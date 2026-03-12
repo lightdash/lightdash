@@ -1,3 +1,16 @@
+# [0.2614.0](https://github.com/lightdash/lightdash/compare/0.2613.0...0.2614.0) (2026-03-12)
+
+
+### Bug Fixes
+
+* exclude null config from dashboard download response ([#21081](https://github.com/lightdash/lightdash/issues/21081)) ([8c89b29](https://github.com/lightdash/lightdash/commit/8c89b297c54bfb4a17cab55298806fb190763e6e))
+
+
+### Features
+
+* add DateZoomCapabilities type, utility, and dateZoomApplied to query response ([#21059](https://github.com/lightdash/lightdash/issues/21059)) ([462837f](https://github.com/lightdash/lightdash/commit/462837f8807ab9723d5f093dbba7c36a21cc5880))
+* admin setting for user impersonation ([#21019](https://github.com/lightdash/lightdash/issues/21019)) ([6933f29](https://github.com/lightdash/lightdash/commit/6933f29e45aea01597f9ed49928ac57eec969adb))
+
 # [0.2613.0](https://github.com/lightdash/lightdash/compare/0.2612.0...0.2613.0) (2026-03-12)
 
 
