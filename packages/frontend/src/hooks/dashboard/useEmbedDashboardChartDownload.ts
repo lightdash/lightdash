@@ -59,10 +59,7 @@ export const useEmbedDashboardChartDownload = (
                 executeQueryResponse.queryUuid,
             );
 
-            if (
-                results.status === QueryHistoryStatus.ERROR ||
-                results.status === QueryHistoryStatus.EXPIRED
-            ) {
+            if (results.status === QueryHistoryStatus.ERROR) {
                 throw new Error(results.error || 'Error executing query');
             }
 

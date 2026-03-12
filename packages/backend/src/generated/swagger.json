@@ -9279,33 +9279,23 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "fieldType": {
+                                                                            "type": "string"
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -9313,17 +9303,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
-                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -9372,8 +9359,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -9417,15 +9404,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -9433,17 +9423,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
-                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9471,8 +9458,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -25900,24 +25887,12 @@
                 "enum": ["pending"],
                 "type": "string"
             },
-            "QueryHistoryStatus.QUEUED": {
-                "enum": ["queued"],
-                "type": "string"
-            },
-            "QueryHistoryStatus.EXECUTING": {
-                "enum": ["executing"],
-                "type": "string"
-            },
             "QueryHistoryStatus.CANCELLED": {
                 "enum": ["cancelled"],
                 "type": "string"
             },
             "QueryHistoryStatus.ERROR": {
                 "enum": ["error"],
-                "type": "string"
-            },
-            "QueryHistoryStatus.EXPIRED": {
-                "enum": ["expired"],
                 "type": "string"
             },
             "ApiGetAsyncQueryResults": {
@@ -25934,12 +25909,6 @@
                                 "anyOf": [
                                     {
                                         "$ref": "#/components/schemas/QueryHistoryStatus.PENDING"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.QUEUED"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.EXECUTING"
                                     },
                                     {
                                         "$ref": "#/components/schemas/QueryHistoryStatus.CANCELLED"
@@ -25960,14 +25929,7 @@
                                 "type": "string"
                             },
                             "status": {
-                                "anyOf": [
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/QueryHistoryStatus.EXPIRED"
-                                    }
-                                ]
+                                "$ref": "#/components/schemas/QueryHistoryStatus.ERROR"
                             }
                         },
                         "required": ["error", "queryUuid", "status"],
@@ -28224,7 +28186,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2611.0",
+        "version": "0.2610.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

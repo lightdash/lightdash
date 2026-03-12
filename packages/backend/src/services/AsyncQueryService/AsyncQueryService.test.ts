@@ -77,10 +77,7 @@ import {
     validExplore,
 } from '../ProjectService/ProjectService.mock';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import {
-    AsyncQueryService,
-    QUEUED_QUERY_EXPIRED_MESSAGE,
-} from './AsyncQueryService';
+import { AsyncQueryService } from './AsyncQueryService';
 import {
     PreAggregationDuckDbResolveReason,
     type PreAggregationDuckDbClient,
@@ -194,11 +191,7 @@ const getMockedAsyncQueryService = (
         queryHistoryModel: {
             create: jest.fn(async () => ({ queryUuid: 'queryUuid' })),
             get: jest.fn(async () => undefined),
-            getByQueryUuid: jest.fn(async () => undefined),
             update: jest.fn(),
-            updateStatusToQueued: jest.fn(async () => 1),
-            updateStatusToExecuting: jest.fn(async () => 1),
-            updateStatusToExpired: jest.fn(async () => 1),
         } as unknown as QueryHistoryModel,
         userModel: {} as UserModel,
         savedSqlModel: {} as SavedSqlModel,
@@ -394,13 +387,6 @@ describe('AsyncQueryService', () => {
                 sessionAccount,
             );
 
-            expect(
-                serviceWithCache.queryHistoryModel.updateStatusToExecuting,
-            ).toHaveBeenCalledWith('test-query-uuid');
-            expect(
-                serviceWithCache.queryHistoryModel.updateStatusToQueued,
-            ).not.toHaveBeenCalled();
-
             // THEN: runAsyncWarehouseQuery is NOT called
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
 
@@ -486,13 +472,6 @@ describe('AsyncQueryService', () => {
                     queryTags: { query_context: QueryExecutionContext.EXPLORE },
                 } satisfies Partial<RunAsyncWarehouseQueryArgs>),
             );
-
-            expect(
-                serviceWithCache.queryHistoryModel.updateStatusToExecuting,
-            ).toHaveBeenCalledWith('test-query-uuid');
-            expect(
-                serviceWithCache.queryHistoryModel.updateStatusToQueued,
-            ).not.toHaveBeenCalled();
 
             // THEN: Query history is NOT immediately updated to READY (async behavior)
             expect(
@@ -1223,28 +1202,6 @@ describe('AsyncQueryService', () => {
                 queryUuid: 'test-query-uuid',
             });
 
-            const expiredQuery = createMockQueryHistory(
-                QueryHistoryStatus.EXPIRED,
-                'Query expired in queue',
-            );
-            serviceWithCache.queryHistoryModel.get = jest
-                .fn()
-                .mockResolvedValue(expiredQuery);
-
-            const expiredResult = await serviceWithCache.getAsyncQueryResults({
-                account: sessionAccount,
-                projectUuid,
-                queryUuid: 'test-query-uuid',
-                page: 1,
-                pageSize: 10,
-            });
-
-            expect(expiredResult).toEqual({
-                error: 'Query expired in queue',
-                status: QueryHistoryStatus.EXPIRED,
-                queryUuid: 'test-query-uuid',
-            });
-
             // THEN: PENDING status: Returns PENDING status only
             const pendingQuery = createMockQueryHistory(
                 QueryHistoryStatus.PENDING,
@@ -1263,48 +1220,6 @@ describe('AsyncQueryService', () => {
 
             expect(pendingResult).toEqual({
                 status: QueryHistoryStatus.PENDING,
-                queryUuid: 'test-query-uuid',
-            });
-
-            const queuedQuery = createMockQueryHistory(
-                QueryHistoryStatus.QUEUED,
-            );
-            serviceWithCache.queryHistoryModel.get = jest
-                .fn()
-                .mockResolvedValue(queuedQuery);
-
-            const queuedResult = await serviceWithCache.getAsyncQueryResults({
-                account: sessionAccount,
-                projectUuid,
-                queryUuid: 'test-query-uuid',
-                page: 1,
-                pageSize: 10,
-            });
-
-            expect(queuedResult).toEqual({
-                status: QueryHistoryStatus.QUEUED,
-                queryUuid: 'test-query-uuid',
-            });
-
-            const executingQuery = createMockQueryHistory(
-                QueryHistoryStatus.EXECUTING,
-            );
-            serviceWithCache.queryHistoryModel.get = jest
-                .fn()
-                .mockResolvedValue(executingQuery);
-
-            const executingResult = await serviceWithCache.getAsyncQueryResults(
-                {
-                    account: sessionAccount,
-                    projectUuid,
-                    queryUuid: 'test-query-uuid',
-                    page: 1,
-                    pageSize: 10,
-                },
-            );
-
-            expect(executingResult).toEqual({
-                status: QueryHistoryStatus.EXECUTING,
                 queryUuid: 'test-query-uuid',
             });
 
@@ -1484,102 +1399,6 @@ describe('AsyncQueryService', () => {
             );
 
             // THEN: Test completed successfully - all critical behaviors verified
-        });
-    });
-
-    describe('prepareQueuedQueryForExecution', () => {
-        const createMockQueryHistory = (
-            status: QueryHistoryStatus,
-            createdAt: Date = new Date(),
-        ): QueryHistory => ({
-            createdAt,
-            organizationUuid: sessionAccount.organization.organizationUuid!,
-            createdByUserUuid: sessionAccount.user.id,
-            createdBy: sessionAccount.user.id,
-            createdByAccount: null,
-            createdByActorType: 'session',
-            queryUuid: 'test-query-uuid',
-            projectUuid,
-            status,
-            error: null,
-            metricQuery: metricQueryMock,
-            context: QueryExecutionContext.EXPLORE,
-            fields: validExplore.tables.a.dimensions,
-            compiledSql: 'SELECT * FROM test.table',
-            warehouseQueryId: 'test-warehouse-query-id',
-            warehouseQueryMetadata: null,
-            requestParameters: {} as ExecuteAsyncQueryRequestParams,
-            totalRowCount: null,
-            warehouseExecutionTimeMs: null,
-            defaultPageSize: 10,
-            cacheKey: 'test-query-key',
-            pivotConfiguration: null,
-            pivotTotalColumnCount: null,
-            pivotValuesColumns: null,
-            resultsFileName: null,
-            resultsCreatedAt: null,
-            resultsUpdatedAt: null,
-            resultsExpiresAt: null,
-            columns: null,
-            originalColumns: null,
-            preAggregateCompiledSql: null,
-            processingStartedAt: null,
-        });
-
-        test('transitions queued queries to executing', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock);
-            (
-                service.queryHistoryModel.getByQueryUuid as jest.Mock
-            ).mockResolvedValue(
-                createMockQueryHistory(QueryHistoryStatus.QUEUED),
-            );
-
-            const canRun = await service.prepareQueuedQueryForExecution(
-                'test-query-uuid',
-                'worker-1',
-            );
-
-            expect(canRun).toBe(true);
-            expect(
-                service.queryHistoryModel.updateStatusToExecuting,
-            ).toHaveBeenCalledWith('test-query-uuid');
-            expect(
-                service.queryHistoryModel.updateStatusToExpired,
-            ).not.toHaveBeenCalled();
-        });
-
-        test('expires stale queued queries', async () => {
-            const service = getMockedAsyncQueryService({
-                ...lightdashConfigMock,
-                natsWorker: {
-                    ...lightdashConfigMock.natsWorker,
-                    queueTimeoutMs: 1000,
-                },
-            });
-            (
-                service.queryHistoryModel.getByQueryUuid as jest.Mock
-            ).mockResolvedValue(
-                createMockQueryHistory(
-                    QueryHistoryStatus.QUEUED,
-                    new Date(Date.now() - 2000),
-                ),
-            );
-
-            const canRun = await service.prepareQueuedQueryForExecution(
-                'test-query-uuid',
-                'worker-1',
-            );
-
-            expect(canRun).toBe(false);
-            expect(
-                service.queryHistoryModel.updateStatusToExpired,
-            ).toHaveBeenCalledWith(
-                'test-query-uuid',
-                QUEUED_QUERY_EXPIRED_MESSAGE,
-            );
-            expect(
-                service.queryHistoryModel.updateStatusToExecuting,
-            ).not.toHaveBeenCalled();
         });
     });
 

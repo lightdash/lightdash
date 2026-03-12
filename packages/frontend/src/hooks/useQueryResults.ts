@@ -182,10 +182,7 @@ export const executeQueryAndWaitForResults = async (
 
     const results = await pollForResults(data.projectUuid, query.queryUuid);
 
-    if (
-        results.status === QueryHistoryStatus.ERROR ||
-        results.status === QueryHistoryStatus.EXPIRED
-    ) {
+    if (results.status === QueryHistoryStatus.ERROR) {
         throw new Error(results.error || 'Error executing SQL query');
     }
 
@@ -411,8 +408,7 @@ export const useInfiniteQueryResults = (
             const clientFetchTimeMs = performance.now() - startTime;
 
             switch (status) {
-                case QueryHistoryStatus.ERROR:
-                case QueryHistoryStatus.EXPIRED: {
+                case QueryHistoryStatus.ERROR: {
                     backoffRef.current = 250;
                     throw <ApiError>{
                         status: 'error',
@@ -436,9 +432,7 @@ export const useInfiniteQueryResults = (
                         },
                     };
                 }
-                case QueryHistoryStatus.PENDING:
-                case QueryHistoryStatus.QUEUED:
-                case QueryHistoryStatus.EXECUTING: {
+                case QueryHistoryStatus.PENDING: {
                     // Invalidate page. Note we can't use refetch as it bypasses the "enabled" check: https://github.com/TanStack/query/issues/1965
                     void sleep(backoffRef.current).then(() =>
                         queryClient.invalidateQueries([

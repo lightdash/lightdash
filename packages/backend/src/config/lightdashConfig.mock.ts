@@ -153,7 +153,6 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         url: undefined,
         workerConcurrency: 1,
-        queueTimeoutMs: 180000,
     },
     rudder: {
         writeKey: '',
