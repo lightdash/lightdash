@@ -879,7 +879,6 @@ export type LightdashConfig = {
         maxPageSize: number;
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
-        enableTableColumnCustomization: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
     };
     pivotTable: {
@@ -1710,10 +1709,6 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
-                : undefined,
-            enableTableColumnCustomization: process.env
-                .ENABLE_TABLE_COLUMN_CUSTOMIZATION
-                ? process.env.ENABLE_TABLE_COLUMN_CUSTOMIZATION === 'true'
                 : undefined,
             retryQueryOnTransientErrors: process.env
                 .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
