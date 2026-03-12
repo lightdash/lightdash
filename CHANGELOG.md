@@ -1,3 +1,10 @@
+## [0.2615.4](https://github.com/lightdash/lightdash/compare/0.2615.3...0.2615.4) (2026-03-12)
+
+
+### Bug Fixes
+
+* skip queued/executing lifecycle statuses when NATS is disabled ([#21103](https://github.com/lightdash/lightdash/issues/21103)) ([d63251e](https://github.com/lightdash/lightdash/commit/d63251e2835ed11661dae16f3da00ef27668dfb5))
+
 ## [0.2615.3](https://github.com/lightdash/lightdash/compare/0.2615.2...0.2615.3) (2026-03-12)
 
 
