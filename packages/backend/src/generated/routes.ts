@@ -2018,16 +2018,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DateGranularity: {
         dataType: 'refEnum',
-        enums: [
-            'Second',
-            'Minute',
-            'Hour',
-            'Day',
-            'Week',
-            'Month',
-            'Quarter',
-            'Year',
-        ],
+        enums: ['Day', 'Week', 'Month', 'Quarter', 'Year'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardConfig: {
@@ -6173,10 +6164,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        dateZoomApplied: {
-                            dataType: 'boolean',
-                            required: true,
-                        },
                         appliedDashboardFilters: {
                             ref: 'DashboardFilters',
                             required: true,
@@ -18864,7 +18851,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_': {
+    'Pick_Dashboard.name-or-description-or-tabs-or-slug_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -18882,13 +18869,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'DashboardTab' },
                     required: true,
-                },
-                config: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'DashboardConfig' },
-                        { dataType: 'undefined' },
-                    ],
                 },
             },
             validators: {},
@@ -19118,9 +19098,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'intersection',
             subSchemas: [
-                {
-                    ref: 'Pick_Dashboard.name-or-description-or-tabs-or-slug-or-config_',
-                },
+                { ref: 'Pick_Dashboard.name-or-description-or-tabs-or-slug_' },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -19596,13 +19574,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'array',
                         array: { dataType: 'refAlias', ref: 'DashboardTab' },
                         required: true,
-                    },
-                    config: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { ref: 'DashboardConfig' },
-                            { dataType: 'undefined' },
-                        ],
                     },
                     spaceSlug: { dataType: 'string', required: true },
                     downloadedAt: {
@@ -25589,24 +25560,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PreAggregateMaterializationWarning: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                threshold: { dataType: 'double', required: true },
-                rowCount: { dataType: 'double', required: true },
-                message: { dataType: 'string', required: true },
-                type: {
-                    dataType: 'enum',
-                    enums: ['row_count_exceeded'],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreAggregateMaterializationStatus: {
         dataType: 'refAlias',
         type: {
@@ -25710,14 +25663,6 @@ const models: TsoaRoute.Models = {
                         },
                         { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
-                },
-                warnings: {
-                    dataType: 'array',
-                    array: {
-                        dataType: 'refAlias',
-                        ref: 'PreAggregateMaterializationWarning',
-                    },
                     required: true,
                 },
                 definitionError: {
