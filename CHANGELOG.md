@@ -1,3 +1,10 @@
+# [0.2612.0](https://github.com/lightdash/lightdash/compare/0.2611.1...0.2612.0) (2026-03-12)
+
+
+### Features
+
+* add progress logging to parquet upload stream ([#21074](https://github.com/lightdash/lightdash/issues/21074)) ([219c057](https://github.com/lightdash/lightdash/commit/219c0578d2999c540a6a171dcc95f9bcaf1fd2aa))
+
 ## [0.2611.1](https://github.com/lightdash/lightdash/compare/0.2611.0...0.2611.1) (2026-03-12)
 
 
