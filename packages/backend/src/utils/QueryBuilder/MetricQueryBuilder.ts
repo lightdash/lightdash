@@ -1525,30 +1525,81 @@ export class MetricQueryBuilder {
     ): string {
         const { explore, warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const cteName = metricCtes[0]?.name;
 
-        const processedSql = metric.sql.replace(
+        // Phase 1: Replace ${TABLE}.column patterns with CTE dimension aliases.
+        // Inside nested_agg_results, only the CTE is in scope (FROM nested_agg),
+        // so ${TABLE}.column must resolve to e.g. nested_agg."my_table_category"
+        // instead of "my_table".category (GH-21089).
+        let processedSql = metric.sql;
+        if (cteName) {
+            const table = explore.tables[metric.table];
+            if (table) {
+                // Map raw column names to dimension aliases in the CTE
+                const columnToDimAlias = new Map<string, string>();
+                for (const [dimName, dim] of Object.entries(table.dimensions)) {
+                    const match = dim.sql.match(/^\$\{TABLE\}\.(\w+)$/);
+                    if (match) {
+                        const columnName = match[1];
+                        const dimId = getItemId({
+                            table: metric.table,
+                            name: dimName,
+                        });
+                        columnToDimAlias.set(columnName, dimId);
+                    }
+                }
+
+                processedSql = processedSql.replace(
+                    /\$\{TABLE\}\.(\w+)/g,
+                    (fullMatch, columnName) => {
+                        const dimAlias = columnToDimAlias.get(columnName);
+                        if (dimAlias) {
+                            return `${cteName}.${fieldQuoteChar}${dimAlias}${fieldQuoteChar}`;
+                        }
+                        return fullMatch;
+                    },
+                );
+            }
+        }
+
+        // Phase 2: Replace metric and dimension references with CTE references
+        processedSql = processedSql.replace(
             lightdashVariablePattern,
             (fullmatch, ref) => {
+                if (ref === 'TABLE') {
+                    // Standalone ${TABLE} not followed by .column — leave for
+                    // compileMetricSql to handle
+                    return fullmatch;
+                }
+
                 const { refTable, refName } = getParsedReference(
                     ref,
                     metric.table,
                 );
-                const metricId = getItemId({ table: refTable, name: refName });
+                const itemId = getItemId({ table: refTable, name: refName });
+
+                // Check if it's a metric in a CTE
                 const containingCte = metricCtes.find((cte) =>
-                    cte.metrics.includes(metricId),
+                    cte.metrics.includes(itemId),
                 );
                 if (containingCte) {
-                    // Replace the metric reference with CTE reference
-                    return `${containingCte.name}.${fieldQuoteChar}${metricId}${fieldQuoteChar}`;
+                    return `${containingCte.name}.${fieldQuoteChar}${itemId}${fieldQuoteChar}`;
                 }
+
+                // Check if it's a dimension — resolve to CTE alias
+                const referencedTable = explore.tables[refTable];
+                if (cteName && referencedTable?.dimensions[refName]) {
+                    return `${cteName}.${fieldQuoteChar}${itemId}${fieldQuoteChar}`;
+                }
+
                 return fullmatch;
             },
         );
 
-        // Handle any remaining reference that isn't in CTEs
+        // Handle any remaining references that weren't resolved above
         const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
         const compiledMetric = exploreCompiler.compileMetricSql(
-            { ...metric, sql: processedSql }, // use preprocessed SQL with CTE references resolved
+            { ...metric, sql: processedSql },
             explore.tables,
             Object.keys(this.args.parameterDefinitions),
         );
