@@ -2413,9 +2413,10 @@ const useEchartsCartesianConfig = (
         );
         const categoryColorOverrides =
             validCartesianConfig?.layout?.categoryColorOverrides;
-        const categoryFieldId = isHorizontal
-            ? validCartesianConfig?.layout?.yField?.[0]
-            : validCartesianConfig?.layout?.xField;
+        // xField is always the dimension (category) field regardless of flipAxes.
+        // flipAxes only swaps which axis renders which field via `encode`,
+        // it does NOT swap xField/yField in the layout.
+        const categoryFieldId = validCartesianConfig?.layout?.xField;
 
         // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
@@ -2566,7 +2567,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.colorByCategory,
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
-        validCartesianConfig?.layout?.yField,
         series,
         rows,
         validCartesianConfigLegend,
