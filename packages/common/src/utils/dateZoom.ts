@@ -1,9 +1,14 @@
 import type { Explore } from '../types/explore';
 import { DimensionType, type CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
-import type { DateZoomCapabilities } from '../types/savedCharts';
 import { getItemId } from './item';
 import { getDateDimension } from './timeFrames';
+
+export type DateZoomCapabilities = {
+    availableCustomGranularities: Record<string, string>;
+    hasTimestampDimension: boolean;
+    hasDateDimension: boolean;
+};
 
 export const getDateZoomCapabilities = (
     explore: Explore,
@@ -51,8 +56,7 @@ export const getDateZoomCapabilities = (
         for (const sibling of allDimensions) {
             if (
                 sibling.customTimeInterval &&
-                (sibling.timeIntervalBaseDimensionName === baseName ||
-                    sibling.name.startsWith(`${baseName}_`))
+                sibling.timeIntervalBaseDimensionName === baseName
             ) {
                 availableCustomGranularities[sibling.customTimeInterval] =
                     sibling.label;
