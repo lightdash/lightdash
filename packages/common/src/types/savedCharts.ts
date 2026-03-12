@@ -839,10 +839,6 @@ export type DateZoomCapabilities = {
     hasDateDimension: boolean;
 };
 
-export type SavedChartWithDateZoomCapabilities = SavedChart & {
-    dateZoomCapabilities?: DateZoomCapabilities;
-};
-
 type CreateChartBase = Pick<
     SavedChart,
     | 'name'
