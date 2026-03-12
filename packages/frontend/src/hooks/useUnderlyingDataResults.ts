@@ -52,6 +52,8 @@ export const getUnderlyingDataResults = async (
     while (
         !currentPage ||
         currentPage.status === QueryHistoryStatus.PENDING ||
+        currentPage.status === QueryHistoryStatus.QUEUED ||
+        currentPage.status === QueryHistoryStatus.EXECUTING ||
         (currentPage.status === QueryHistoryStatus.READY &&
             currentPage.nextPage)
     ) {
@@ -92,6 +94,7 @@ export const getUnderlyingDataResults = async (
                     },
                 };
             case QueryHistoryStatus.ERROR:
+            case QueryHistoryStatus.EXPIRED:
                 throw <ApiError>{
                     status: 'error',
                     error: {
@@ -105,6 +108,8 @@ export const getUnderlyingDataResults = async (
                 allRows = allRows.concat(currentPage.rows);
                 break;
             case QueryHistoryStatus.PENDING:
+            case QueryHistoryStatus.QUEUED:
+            case QueryHistoryStatus.EXECUTING:
                 await sleep(backoffMs);
                 // Implement backoff: 250ms -> 500ms -> 1000ms (then stay at 1000ms)
                 if (backoffMs < 1000) {

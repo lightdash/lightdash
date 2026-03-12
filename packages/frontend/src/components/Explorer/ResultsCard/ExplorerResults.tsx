@@ -31,6 +31,7 @@ import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
     EmptyStateNoTableData,
+    ExploreLoadingState,
     MissingRequiredParameters,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
@@ -122,6 +123,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 fetchMoreRows: () => {},
                 status: 'loading' as const,
                 apiError: undefined,
+                queryStatus: unpivotedQueryResults.queryStatus,
             };
         }
 
@@ -135,6 +137,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 fetchMoreRows: unpivotedQueryResults.fetchMoreRows,
                 status: getQueryStatus(unpivotedQuery, unpivotedQueryResults),
                 apiError: unpivotedQuery.error ?? unpivotedQueryResults.error,
+                queryStatus: unpivotedQueryResults.queryStatus,
             };
         }
 
@@ -146,6 +149,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             fetchMoreRows: queryResults.fetchMoreRows,
             status: finalStatus,
             apiError: query.error ?? queryResults.error,
+            queryStatus: queryResults.queryStatus,
         };
 
         return result;
@@ -166,6 +170,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         fetchMoreRows,
         status,
         apiError,
+        queryStatus,
     } = resultsData;
 
     // Grouped results data - uses the main query which has pivoted data when backend pivoting is enabled
@@ -407,6 +412,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         headerContextMenu={
                             isEditMode ? ColumnHeaderContextMenu : undefined
                         }
+                        loadingState={() => (
+                            <ExploreLoadingState queryStatus={queryStatus} />
+                        )}
                         idleState={IdleState}
                         pagination={pagination}
                         footer={footer}
