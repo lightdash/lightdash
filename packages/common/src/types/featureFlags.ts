@@ -79,11 +79,6 @@ export enum FeatureFlags {
     DefaultUserSpaces = 'default-user-spaces',
 
     /**
-     * Enable table column customization (resize, header wrap, tooltips)
-     */
-    EnableTableColumnCustomization = 'enable-table-column-customization',
-
-    /**
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
