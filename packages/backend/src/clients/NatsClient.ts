@@ -1,0 +1,309 @@
+import { assertUnreachable, getErrorMessage } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
+import {
+    AckPolicy,
+    connect,
+    DebugEvents,
+    Events,
+    nanos,
+    RetentionPolicy,
+    StorageType,
+    StringCodec,
+    type JetStreamClient,
+    type NatsConnection,
+    type Status,
+} from 'nats';
+import { v4 as uuidv4 } from 'uuid';
+import { type LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
+import {
+    STREAM_CONFIGS,
+    type AsyncQueryJobPayload,
+    type AsyncQueryNatsEnvelope,
+    type StreamConfig,
+} from '../nats/natsConfig';
+
+const ACK_WAIT_MS = 30_000;
+
+type EnqueueResult = Promise<{ jobId: string }>;
+
+export interface INatsClient {
+    enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+    enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+}
+
+type NatsClientArgs = {
+    lightdashConfig: LightdashConfig;
+};
+
+let connectionCount = 0;
+
+export class NatsClient implements INatsClient {
+    private readonly natsConfig: LightdashConfig['natsWorker'];
+
+    private readonly connectionId: number;
+
+    private readonly codec = StringCodec();
+
+    /**
+     * Lazy-init with retry-on-error: caches the connection promise so
+     * concurrent callers share one connection. On failure the cache is
+     * cleared so the next call retries a fresh connection.
+     */
+    private connectionPromise: Promise<NatsConnection> | undefined;
+
+    private connection: NatsConnection | undefined;
+
+    constructor(args: NatsClientArgs) {
+        this.natsConfig = args.lightdashConfig.natsWorker;
+        connectionCount += 1;
+        this.connectionId = connectionCount;
+        Logger.info(
+            `NatsClient #${this.connectionId} created (total: ${connectionCount})`,
+        );
+    }
+
+    // ── Connection ──────────────────────────────────────────────
+
+    /** Eagerly connect and ensure streams. Use from worker app startup. */
+    async connect(): Promise<void> {
+        await this.getOrCreateConnection();
+    }
+
+    getConnection(): NatsConnection {
+        if (!this.connection) {
+            throw new Error(
+                'NatsClient: connection not ready — await connect() first',
+            );
+        }
+        return this.connection;
+    }
+
+    jetstream(): JetStreamClient {
+        return this.getConnection().jetstream();
+    }
+
+    async isHealthy(): Promise<boolean> {
+        if (!this.connection) return false;
+
+        try {
+            if (this.connection.isClosed()) return false;
+            await this.connection.rtt();
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    async drain(): Promise<void> {
+        if (!this.connection) return;
+        try {
+            await this.connection.drain();
+        } catch {
+            // already closed
+        }
+    }
+
+    // ── Stream infrastructure ───────────────────────────────────
+
+    /** Idempotently create all streams + consumers from STREAM_CONFIGS. */
+    async ensureStreams(): Promise<void> {
+        const conn = this.getConnection();
+        const jsm = await conn.jetstreamManager();
+        await Promise.all(
+            Object.values(STREAM_CONFIGS).map(
+                async (config: StreamConfig): Promise<void> => {
+                    await jsm.streams.add({
+                        name: config.streamName,
+                        subjects: Object.values(config.subjects),
+                        retention: RetentionPolicy.Workqueue,
+                        storage: StorageType.Memory,
+                        num_replicas: 1,
+                    });
+
+                    // consumers.add with filter_subjects uses the old
+                    // DURABLE.CREATE API which is not idempotent — check first
+                    const consumerExists = await jsm.consumers
+                        .info(config.streamName, config.durableName)
+                        .then(() => true)
+                        .catch(() => false);
+
+                    if (!consumerExists) {
+                        await jsm.consumers.add(config.streamName, {
+                            durable_name: config.durableName,
+                            filter_subjects: Object.values(config.subjects),
+                            ack_policy: AckPolicy.Explicit,
+                            ack_wait: nanos(ACK_WAIT_MS),
+                            max_deliver: 1,
+                        });
+                    }
+                },
+            ),
+        );
+    }
+
+    // ── Publishing (INatsClient) ─────────────────────────────
+
+    async enqueueWarehouseQuery(
+        payload: AsyncQueryJobPayload,
+    ): Promise<{ jobId: string }> {
+        return this.enqueue(STREAM_CONFIGS.warehouse.subjects.query, payload);
+    }
+
+    async enqueuePreAggregateQuery(
+        payload: AsyncQueryJobPayload,
+    ): Promise<{ jobId: string }> {
+        return this.enqueue(
+            STREAM_CONFIGS['pre-aggregate'].subjects.query,
+            payload,
+        );
+    }
+
+    // ── Private ─────────────────────────────────────────────────
+
+    private async getOrCreateConnection(): Promise<NatsConnection> {
+        if (!this.connectionPromise) {
+            this.connectionPromise = this.doConnect().catch((error) => {
+                this.connectionPromise = undefined; // retry on next call
+                this.connection = undefined;
+                throw error;
+            });
+        }
+        return this.connectionPromise;
+    }
+
+    private async doConnect(): Promise<NatsConnection> {
+        const { url } = this.natsConfig;
+        if (!url) {
+            throw new Error('NATS URL is required but not configured');
+        }
+
+        const conn = await connect({
+            servers: url,
+            maxReconnectAttempts: -1,
+        });
+        this.connection = conn;
+        Logger.info(`NATS #${this.connectionId} connected to ${url}`);
+
+        await this.ensureStreams();
+        this.monitorStatus();
+
+        return conn;
+    }
+
+    private monitorStatus(): void {
+        const conn = this.getConnection();
+        void (async () => {
+            for await (const status of conn.status()) {
+                this.handleConnectionStatus(status);
+            }
+        })();
+    }
+
+    private handleConnectionStatus(status: Status): void {
+        const tag = `NATS #${this.connectionId}`;
+        switch (status.type) {
+            case Events.Disconnect:
+                Logger.info(`${tag} disconnected from ${status.data}`);
+                return;
+            case Events.Reconnect:
+                Logger.info(`${tag} reconnected to ${status.data}`);
+                this.ensureStreams().catch((error) => {
+                    Logger.error(
+                        `${tag} failed to re-ensure streams after reconnect: ${getErrorMessage(error)}`,
+                    );
+                    Sentry.captureException(error);
+                });
+                return;
+            case Events.Update:
+                Logger.info(`${tag} cluster update: ${status.data}`);
+                return;
+            case Events.LDM:
+                Logger.info(`${tag} server entering lame duck mode`);
+                return;
+            case Events.Error:
+                Logger.error(`${tag} async error: ${status.data}`);
+                return;
+            case DebugEvents.Reconnecting:
+                Logger.debug(`${tag} reconnecting...`);
+                return;
+            case DebugEvents.PingTimer:
+                // noisy — skip logging
+                return;
+            case DebugEvents.StaleConnection:
+                Logger.info(`${tag} stale connection detected`);
+                return;
+            case DebugEvents.ClientInitiatedReconnect:
+                Logger.info(`${tag} client-initiated reconnect`);
+                return;
+            default:
+                assertUnreachable(
+                    status.type,
+                    `Unknown NATS status type: ${status.type}`,
+                );
+        }
+    }
+
+    private async enqueue(
+        subject: string,
+        payload: AsyncQueryJobPayload,
+    ): Promise<{ jobId: string }> {
+        const jobId = uuidv4();
+
+        return Sentry.startSpan(
+            {
+                name: 'queue_producer',
+                op: 'queue.publish',
+                attributes: {
+                    'messaging.message.id': jobId,
+                    'messaging.destination.name': subject,
+                    'messaging.message.body.size': Buffer.byteLength(
+                        JSON.stringify(payload),
+                    ),
+                },
+            },
+            async (span) => {
+                const traceHeader = span
+                    ? Sentry.spanToTraceHeader(span)
+                    : undefined;
+                const baggageHeader = span
+                    ? Sentry.spanToBaggageHeader(span)
+                    : undefined;
+                const sentryMessageId = jobId;
+
+                const message: AsyncQueryNatsEnvelope<AsyncQueryJobPayload> = {
+                    jobId,
+                    payload,
+                    traceHeader,
+                    baggageHeader,
+                    sentryMessageId,
+                };
+
+                try {
+                    const conn = await this.getOrCreateConnection();
+                    const js = conn.jetstream();
+                    await js.publish(
+                        subject,
+                        this.codec.encode(JSON.stringify(message)),
+                    );
+                    return { jobId };
+                } catch (error) {
+                    // Only invalidate the connection if it's truly dead.
+                    // Publish timeouts during reconnection don't mean the
+                    // connection is gone — the nats library handles reconnect
+                    // internally and will fire Events.Reconnect when ready.
+                    if (this.connection?.isClosed()) {
+                        this.connectionPromise = undefined;
+                        this.connection = undefined;
+                    }
+                    Logger.error(
+                        `Failed to publish async query job ${jobId} to ${subject}: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                    throw error;
+                }
+            },
+        );
+    }
+}

@@ -20,7 +20,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import type { INatsJobClient } from '../../clients/NatsJobClient';
+import type { INatsClient } from '../../clients/NatsClient';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -173,14 +173,14 @@ const getMockedAsyncQueryService = (
         schedulerClient: {
             scheduleTask: jest.fn(),
         } as unknown as SchedulerClient,
-        natsJobClient: {
+        natsClient: {
             enqueueWarehouseQuery: jest.fn(async () => ({
                 jobId: 'test-nats-job-id',
             })),
             enqueuePreAggregateQuery: jest.fn(async () => ({
                 jobId: 'test-nats-pre-agg-job-id',
             })),
-        } as unknown as INatsJobClient,
+        } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
@@ -931,7 +931,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(service, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
             const enqueuePreAggregateSpy = jest.spyOn(
-                service.natsJobClient,
+                service.natsClient,
                 'enqueuePreAggregateQuery',
             );
 
@@ -1014,7 +1014,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(service, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
             const enqueueWarehouseSpy = jest.spyOn(
-                service.natsJobClient,
+                service.natsClient,
                 'enqueueWarehouseQuery',
             );
 

@@ -104,7 +104,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import type { INatsJobClient } from '../../clients/NatsJobClient';
+import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
@@ -219,7 +219,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
-    natsJobClient: INatsJobClient;
+    natsClient: INatsClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregationDuckDbClient: PreAggregationDuckDbClient;
@@ -247,7 +247,7 @@ export class AsyncQueryService extends ProjectService {
 
     schedulerClient: SchedulerClient;
 
-    natsJobClient: INatsJobClient;
+    natsClient: INatsClient;
 
     permissionsService: PermissionsService;
 
@@ -270,7 +270,7 @@ export class AsyncQueryService extends ProjectService {
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
         this.schedulerClient = args.schedulerClient;
-        this.natsJobClient = args.natsJobClient;
+        this.natsClient = args.natsClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
@@ -3010,10 +3010,10 @@ export class AsyncQueryService extends ProjectService {
 
                             const { jobId } =
                                 executionPlan.target === 'pre_aggregate'
-                                    ? await this.natsJobClient.enqueuePreAggregateQuery(
+                                    ? await this.natsClient.enqueuePreAggregateQuery(
                                           natsPayload,
                                       )
-                                    : await this.natsJobClient.enqueueWarehouseQuery(
+                                    : await this.natsClient.enqueueWarehouseQuery(
                                           natsPayload,
                                       );
 
