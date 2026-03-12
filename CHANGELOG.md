@@ -1,3 +1,10 @@
+## [0.2611.1](https://github.com/lightdash/lightdash/compare/0.2611.0...0.2611.1) (2026-03-12)
+
+
+### Bug Fixes
+
+* uppercase Snowflake identifiers from dbt Cloud Metadata API ([#21070](https://github.com/lightdash/lightdash/issues/21070)) ([957b2fc](https://github.com/lightdash/lightdash/commit/957b2fc3e7971c9a7c416c92dc9d095f705e8027))
+
 # [0.2611.0](https://github.com/lightdash/lightdash/compare/0.2610.3...0.2611.0) (2026-03-12)
 
 
