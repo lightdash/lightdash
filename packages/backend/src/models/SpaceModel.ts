@@ -1139,13 +1139,31 @@ export class SpaceModel {
     }
 
     async getDescendantSpaceUuids(spaceUuid: string): Promise<string[]> {
-        const space = await this.get(spaceUuid);
-        const rows = await this.database(SpaceTableName)
-            .select('space_uuid')
-            .whereRaw('path <@ ?::ltree', [space.path])
-            .andWhereNot('space_uuid', spaceUuid)
-            .whereNull('deleted_at');
-        return rows.map((r: { space_uuid: string }) => r.space_uuid);
+        // Walk children via parent_space_uuid FK instead of ltree path <@ joins.
+        // See SpacePermissionModel.getInheritanceChains for why ltree paths
+        // can't be trusted (lossy slug→path conversion creates duplicates).
+        const rows: { space_uuid: string }[] = await this.database
+            .raw(
+                `
+                WITH RECURSIVE descendants AS (
+                    SELECT space_uuid
+                    FROM ${SpaceTableName}
+                    WHERE parent_space_uuid = ?
+                      AND deleted_at IS NULL
+
+                    UNION ALL
+
+                    SELECT s.space_uuid
+                    FROM ${SpaceTableName} s
+                    JOIN descendants d ON s.parent_space_uuid = d.space_uuid
+                    WHERE s.deleted_at IS NULL
+                )
+                SELECT space_uuid FROM descendants
+                `,
+                [spaceUuid],
+            )
+            .then((res: { rows: { space_uuid: string }[] }) => res.rows);
+        return rows.map((r) => r.space_uuid);
     }
 
     async getChildSpaceUuids(
