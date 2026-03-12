@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     getAvailableParametersFromTables,
+    getDateZoomCapabilities,
     QueryExecutionContext,
     type ApiError,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -13,7 +14,6 @@ import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
-import { useDateZoomCapabilities } from '../useDateZoomCapabilities';
 import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
@@ -119,10 +119,10 @@ export const useDashboardChartReadyQuery = (
         }
     }, [explore, addParameterDefinitions]);
 
-    // Feed custom granularities from backend capabilities instead of explore scanning
-    const { data: dateZoomCapabilities } = useDateZoomCapabilities(
-        chartUuid ?? undefined,
-    );
+    const dateZoomCapabilities = useMemo(() => {
+        if (!chartQuery.data || !explore) return undefined;
+        return getDateZoomCapabilities(explore, chartQuery.data.metricQuery);
+    }, [chartQuery.data, explore]);
 
     useEffect(() => {
         if (!dateZoomCapabilities) return;
