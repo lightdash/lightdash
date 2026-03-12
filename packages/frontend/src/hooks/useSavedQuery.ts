@@ -125,7 +125,7 @@ export const useSavedQuery = ({
     useQueryOptions,
 }: Args = {}) =>
     useQuery<SavedChart, ApiError>({
-        queryKey: ['saved_query', id],
+        queryKey: ['saved_query', id, projectUuid],
         queryFn: () => getSavedQuery(id || '', projectUuid),
         enabled: id !== undefined,
         retry: false,
