@@ -849,44 +849,39 @@ export class SpaceModel {
             uuid: string;
         }[]
     > {
-        const space = await this.database(SpaceTableName)
-            .select('path', 'name', 'space_uuid')
-            .where('space_uuid', spaceUuid)
-            .first();
+        // Walk ancestors via parent_space_uuid FK instead of ltree path @> joins.
+        // See SpacePermissionModel.getInheritanceChains for why ltree paths
+        // can't be trusted (lossy slug→path conversion creates duplicates).
+        const rows: { name: string; space_uuid: string }[] = await this.database
+            .raw(
+                `
+                WITH RECURSIVE ancestors AS (
+                    SELECT space_uuid, name, parent_space_uuid, 0 AS depth
+                    FROM ${SpaceTableName}
+                    WHERE space_uuid = ?
+                      AND deleted_at IS NULL
 
-        if (!space) {
-            throw new NotFoundError(
-                `Space with uuid ${spaceUuid} does not exist`,
+                    UNION ALL
+
+                    SELECT s.space_uuid, s.name, s.parent_space_uuid, a.depth + 1
+                    FROM ${SpaceTableName} s
+                    JOIN ancestors a ON s.space_uuid = a.parent_space_uuid
+                    WHERE s.deleted_at IS NULL
+                )
+                SELECT space_uuid, name FROM ancestors
+                ORDER BY depth DESC
+                `,
+                [spaceUuid],
+            )
+            .then(
+                (res: { rows: { name: string; space_uuid: string }[] }) =>
+                    res.rows,
             );
-        }
 
-        const ancestorsNamesOrderByLevel = await this.database(SpaceTableName)
-            .leftJoin(
-                `${ProjectTableName}`,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereRaw('path @> ?::ltree AND path != ?::ltree', [
-                space.path,
-                space.path,
-            ])
-            .select<DbSpace[]>(
-                `${SpaceTableName}.name`,
-                `${SpaceTableName}.space_uuid`,
-                this.database.raw('nlevel(path) as level'),
-            )
-            .orderBy('level', 'asc');
-
-        const breadcrumbs = ancestorsNamesOrderByLevel
-            .map((ancestor) => ({
-                name: ancestor.name,
-                uuid: ancestor.space_uuid,
-            }))
-            .concat({
-                name: space.name,
-                uuid: space.space_uuid,
-            });
+        const breadcrumbs = rows.map((r) => ({
+            name: r.name,
+            uuid: r.space_uuid,
+        }));
 
         return breadcrumbs;
     }
