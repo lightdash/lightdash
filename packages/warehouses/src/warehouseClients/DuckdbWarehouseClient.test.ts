@@ -329,6 +329,62 @@ describe('DuckdbWarehouseClient', () => {
         expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
+    it('should serialize shared S3 secret bootstrap across concurrent sessions', async () => {
+        let releaseSecretCreation: (() => void) | undefined;
+        const secretCreationBlocked = new Promise<void>((resolve) => {
+            releaseSecretCreation = resolve;
+        });
+        const runMock = jest.fn(async (sql: string) => {
+            if (sql.includes('CREATE OR REPLACE SECRET __lightdash_s3')) {
+                await secretCreationBlocked;
+            }
+        });
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient({
+            s3Config: {
+                endpoint: 'localhost:9000',
+                region: 'us-east-1',
+                accessKey: 'key',
+                secretKey: 'secret',
+                forcePathStyle: true,
+                useSsl: false,
+            },
+        });
+
+        const firstQuery = client.runQuery('SELECT 1 AS val');
+        const secondQuery = client.runQuery('SELECT 1 AS val');
+
+        await new Promise((resolve) => setImmediate(resolve));
+
+        expect(
+            runMock.mock.calls.filter(([sql]) =>
+                (sql as string).includes(
+                    'CREATE OR REPLACE SECRET __lightdash_s3',
+                ),
+            ),
+        ).toHaveLength(1);
+
+        releaseSecretCreation?.();
+
+        await Promise.all([firstQuery, secondQuery]);
+
+        expect(
+            runMock.mock.calls.filter(([sql]) =>
+                (sql as string).includes(
+                    'CREATE OR REPLACE SECRET __lightdash_s3',
+                ),
+            ),
+        ).toHaveLength(1);
+        expect(streamMock).toHaveBeenCalledTimes(2);
+    });
+
     it('should log structured DuckDB profile metrics with query tags', async () => {
         const runMock = jest.fn(async (sql: string) => {
             const match = sql.match(/^PRAGMA profiling_output='(.+)';$/);
