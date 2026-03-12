@@ -23,6 +23,8 @@ const getEmbedFilterValues = async (options: {
     search: string;
     forceRefresh: boolean;
     filters: AndFilterGroup | undefined;
+    tableName: string | undefined;
+    fieldId: string;
 }) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
@@ -32,6 +34,8 @@ const getEmbedFilterValues = async (options: {
             limit: MAX_AUTOCOMPLETE_RESULTS,
             filters: options.filters,
             forceRefresh: options.forceRefresh,
+            tableName: options.tableName,
+            fieldId: options.fieldId,
         }),
     });
 };
@@ -139,6 +143,8 @@ export const useFieldValues = (
                     search: debouncedSearch,
                     forceRefresh,
                     filters,
+                    tableName,
+                    fieldId,
                 });
             } else {
                 return getFieldValues(

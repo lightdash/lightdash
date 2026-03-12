@@ -1712,6 +1712,8 @@ export class EmbedService extends BaseService {
         limit,
         filters,
         forceRefresh,
+        tableName: fallbackTableName,
+        fieldId: fallbackFieldId,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -1720,6 +1722,8 @@ export class EmbedService extends BaseService {
         limit: number;
         filters: AndFilterGroup | undefined;
         forceRefresh: boolean;
+        tableName?: string;
+        fieldId?: string;
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards } =
             await this.embedModel.get(projectUuid);
@@ -1742,16 +1746,22 @@ export class EmbedService extends BaseService {
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
-        if (!filter) {
+
+        // For SDK-injected filters, the UUID is dynamically generated and
+        // won't exist in saved dashboard filters. Fall back to tableName/fieldId
+        // from the request body.
+        const resolvedTableName = filter?.target.tableName ?? fallbackTableName;
+        const resolvedFieldId = filter?.target.fieldId ?? fallbackFieldId;
+
+        if (!resolvedTableName || !resolvedFieldId) {
             throw new ParameterError(`Filter ${filterUuid} not found`);
         }
 
-        const initialFieldId = filter.target.fieldId;
         const { metricQuery, explore, field } =
             await this.projectService._getFieldValuesMetricQuery({
                 projectUuid,
-                table: filter.target.tableName,
-                initialFieldId,
+                table: resolvedTableName,
+                initialFieldId: resolvedFieldId,
                 search,
                 limit,
                 filters,
