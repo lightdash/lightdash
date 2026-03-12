@@ -13,7 +13,7 @@ import { type NatsClient } from './clients/NatsClient';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { type NatsWorkerStream } from './nats/natsConfig';
+import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
 import { NatsWorker } from './nats/NatsWorker';
 import { IGNORE_ERRORS } from './sentry';
 import {
@@ -173,6 +173,9 @@ export default class NatsWorkerApp {
     }> {
         const natsClient = this.clients.getNatsClient();
         await natsClient.connect();
+        await natsClient.ensureStreams(
+            this.streams.map((stream) => STREAM_CONFIGS[stream]),
+        );
 
         const worker = this.natsWorkerFactory({
             lightdashConfig: this.lightdashConfig,

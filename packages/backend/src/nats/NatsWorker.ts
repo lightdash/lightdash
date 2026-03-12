@@ -71,7 +71,7 @@ export class NatsWorker {
     }
 
     public async run(): Promise<void> {
-        // Streams and consumers are already ensured by NatsClient.connect()
+        // Streams and consumers are ensured during NatsWorkerApp startup.
         const jetStream = this.natsClient.jetstream();
         this.messageStreams = [];
 

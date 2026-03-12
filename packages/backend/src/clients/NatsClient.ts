@@ -45,6 +45,8 @@ export class NatsClient implements INatsClient {
 
     private readonly codec = StringCodec();
 
+    private managedStreams: StreamConfig[] = [];
+
     /**
      * Lazy-init with retry-on-error: caches the connection promise so
      * concurrent callers share one connection. On failure the cache is
@@ -65,7 +67,7 @@ export class NatsClient implements INatsClient {
 
     // ── Connection ──────────────────────────────────────────────
 
-    /** Eagerly connect and ensure streams. Use from worker app startup. */
+    /** Eagerly connect. Worker startup can separately opt into stream setup. */
     async connect(): Promise<void> {
         await this.getOrCreateConnection();
     }
@@ -106,12 +108,15 @@ export class NatsClient implements INatsClient {
 
     // ── Stream infrastructure ───────────────────────────────────
 
-    /** Idempotently create all streams + consumers from STREAM_CONFIGS. */
-    async ensureStreams(): Promise<void> {
-        const conn = this.getConnection();
+    /** Idempotently create the selected streams + consumers for worker startup. */
+    async ensureStreams(streams: StreamConfig[]): Promise<void> {
+        this.managedStreams = streams;
+        if (this.managedStreams.length === 0) return;
+
+        const conn = await this.getOrCreateConnection();
         const jsm = await conn.jetstreamManager();
         await Promise.all(
-            Object.values(STREAM_CONFIGS).map(
+            this.managedStreams.map(
                 async (config: StreamConfig): Promise<void> => {
                     await jsm.streams.add({
                         name: config.streamName,
@@ -185,7 +190,6 @@ export class NatsClient implements INatsClient {
         this.connection = conn;
         Logger.info(`NATS #${this.connectionId} connected to ${url}`);
 
-        await this.ensureStreams();
         this.monitorStatus();
 
         return conn;
@@ -208,7 +212,7 @@ export class NatsClient implements INatsClient {
                 return;
             case Events.Reconnect:
                 Logger.info(`${tag} reconnected to ${status.data}`);
-                this.ensureStreams().catch((error) => {
+                this.reensureManagedStreams().catch((error) => {
                     Logger.error(
                         `${tag} failed to re-ensure streams after reconnect: ${getErrorMessage(error)}`,
                     );
@@ -216,7 +220,9 @@ export class NatsClient implements INatsClient {
                 });
                 return;
             case Events.Update:
-                Logger.info(`${tag} cluster update: ${status.data}`);
+                Logger.info(
+                    `${tag} cluster update: ${JSON.stringify(status.data)}`,
+                );
                 return;
             case Events.LDM:
                 Logger.info(`${tag} server entering lame duck mode`);
@@ -305,5 +311,10 @@ export class NatsClient implements INatsClient {
                 }
             },
         );
+    }
+
+    private async reensureManagedStreams(): Promise<void> {
+        if (this.managedStreams.length === 0) return;
+        await this.ensureStreams(this.managedStreams);
     }
 }
