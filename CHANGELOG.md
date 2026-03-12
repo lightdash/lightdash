@@ -1,3 +1,16 @@
+# [0.2613.0](https://github.com/lightdash/lightdash/compare/0.2612.0...0.2613.0) (2026-03-12)
+
+
+### Bug Fixes
+
+* spaces showing the wrong content in delete dialog ([#21078](https://github.com/lightdash/lightdash/issues/21078)) ([83a9e9d](https://github.com/lightdash/lightdash/commit/83a9e9dfd0c0d4b573d9c990a8037d16efa96475))
+
+
+### Features
+
+* add async query queue lifecycle statuses ([#21067](https://github.com/lightdash/lightdash/issues/21067)) ([e478600](https://github.com/lightdash/lightdash/commit/e4786001dbed885d2bb2141f4296c07bb9b93f51))
+* add build time column to pre-aggregate materializations table ([#21075](https://github.com/lightdash/lightdash/issues/21075)) ([2be8cdc](https://github.com/lightdash/lightdash/commit/2be8cdce378c0a0c73be963f5433569075a21d3a))
+
 # [0.2612.0](https://github.com/lightdash/lightdash/compare/0.2611.1...0.2612.0) (2026-03-12)
 
 
