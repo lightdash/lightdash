@@ -3,11 +3,7 @@ import { ExploreType } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
 import type { CompiledDimension } from '../types/field';
 import type { MetricQuery } from '../types/metricQuery';
-import {
-    getDateZoomCapabilities,
-    getTimeDimensionsMap,
-    resolveBaseDimension,
-} from './dateZoom';
+import { getDateZoomCapabilities } from './dateZoom';
 
 const makeDimension = (
     overrides: Partial<CompiledDimension> & {
@@ -68,198 +64,6 @@ const makeMetricQuery = (dimensions: string[]): MetricQuery =>
         limit: 500,
         tableCalculations: [],
     }) as unknown as MetricQuery;
-
-describe('getTimeDimensionsMap', () => {
-    it('returns only DATE and TIMESTAMP dimensions keyed by item ID', () => {
-        const dateDim = makeDimension({
-            name: 'order_date',
-            table: 'orders',
-            type: DimensionType.DATE,
-        });
-        const timestampDim = makeDimension({
-            name: 'created_at',
-            table: 'orders',
-            type: DimensionType.TIMESTAMP,
-        });
-        const stringDim = makeDimension({
-            name: 'status',
-            table: 'orders',
-            type: DimensionType.STRING,
-        });
-        const numberDim = makeDimension({
-            name: 'amount',
-            table: 'orders',
-            type: DimensionType.NUMBER,
-        });
-        const explore = makeExplore([
-            dateDim,
-            timestampDim,
-            stringDim,
-            numberDim,
-        ]);
-
-        const result = getTimeDimensionsMap(explore);
-
-        expect(Object.keys(result)).toEqual([
-            'orders_order_date',
-            'orders_created_at',
-        ]);
-        expect(result.orders_order_date).toBe(dateDim);
-        expect(result.orders_created_at).toBe(timestampDim);
-    });
-
-    it('returns an empty map when explore has no date/timestamp dimensions', () => {
-        const stringDim = makeDimension({
-            name: 'status',
-            table: 'orders',
-            type: DimensionType.STRING,
-        });
-        const explore = makeExplore([stringDim]);
-
-        const result = getTimeDimensionsMap(explore);
-
-        expect(result).toEqual({});
-    });
-
-    it('includes dimensions from multiple tables', () => {
-        const orderDate = makeDimension({
-            name: 'order_date',
-            table: 'orders',
-            type: DimensionType.DATE,
-        });
-        const userCreatedAt = makeDimension({
-            name: 'created_at',
-            table: 'users',
-            type: DimensionType.TIMESTAMP,
-        });
-
-        const explore: Explore = {
-            name: 'orders',
-            label: 'orders',
-            tags: [],
-            baseTable: 'orders',
-            joinedTables: [],
-            tables: {
-                orders: {
-                    name: 'orders',
-                    label: 'orders',
-                    database: 'test_db',
-                    schema: 'public',
-                    sqlTable: '"public"."orders"',
-                    dimensions: { order_date: orderDate },
-                    metrics: {},
-                    lineageGraph: {},
-                },
-                users: {
-                    name: 'users',
-                    label: 'users',
-                    database: 'test_db',
-                    schema: 'public',
-                    sqlTable: '"public"."users"',
-                    dimensions: { created_at: userCreatedAt },
-                    metrics: {},
-                    lineageGraph: {},
-                },
-            },
-            targetDatabase: 'postgres' as Explore['targetDatabase'],
-            type: ExploreType.DEFAULT,
-        } as Explore;
-
-        const result = getTimeDimensionsMap(explore);
-
-        expect(Object.keys(result).sort()).toEqual([
-            'orders_order_date',
-            'users_created_at',
-        ]);
-    });
-});
-
-describe('resolveBaseDimension', () => {
-    it('returns the dimension itself when it has no timeInterval', () => {
-        const dim = makeDimension({
-            name: 'order_date',
-            table: 'orders',
-            type: DimensionType.DATE,
-        });
-        const timeDimensionsMap = { orders_order_date: dim };
-
-        const result = resolveBaseDimension(
-            'orders_order_date',
-            dim,
-            timeDimensionsMap,
-        );
-
-        expect(result).toBe(dim);
-    });
-
-    it('resolves to the base dimension when timeInterval is set and base exists', () => {
-        const baseDim = makeDimension({
-            name: 'created_at',
-            table: 'orders',
-            type: DimensionType.TIMESTAMP,
-        });
-        const monthDim = makeDimension({
-            name: 'created_at_month',
-            table: 'orders',
-            type: DimensionType.DATE,
-            timeInterval: 'MONTH' as CompiledDimension['timeInterval'],
-            timeIntervalBaseDimensionName: 'created_at',
-        });
-        const timeDimensionsMap = {
-            orders_created_at: baseDim,
-            orders_created_at_month: monthDim,
-        };
-
-        const result = resolveBaseDimension(
-            'orders_created_at_month',
-            monthDim,
-            timeDimensionsMap,
-        );
-
-        expect(result).toBe(baseDim);
-    });
-
-    it('returns undefined when base dimension is not in the map', () => {
-        const monthDim = makeDimension({
-            name: 'created_at_month',
-            table: 'orders',
-            type: DimensionType.DATE,
-            timeInterval: 'MONTH' as CompiledDimension['timeInterval'],
-            timeIntervalBaseDimensionName: 'created_at',
-        });
-        const timeDimensionsMap = {
-            orders_created_at_month: monthDim,
-        };
-
-        const result = resolveBaseDimension(
-            'orders_created_at_month',
-            monthDim,
-            timeDimensionsMap,
-        );
-
-        expect(result).toBeUndefined();
-    });
-
-    it('returns the dimension itself when baseDimensionId cannot be parsed', () => {
-        // A dimension with timeInterval set but whose name doesn't end in a
-        // recognized time frame suffix — getDateDimension returns no baseDimensionId
-        const dim = makeDimension({
-            name: 'custom_field',
-            table: 'orders',
-            type: DimensionType.DATE,
-            timeInterval: 'MONTH' as CompiledDimension['timeInterval'],
-        });
-        const timeDimensionsMap = { orders_custom_field: dim };
-
-        const result = resolveBaseDimension(
-            'orders_custom_field',
-            dim,
-            timeDimensionsMap,
-        );
-
-        expect(result).toBe(dim);
-    });
-});
 
 describe('getDateZoomCapabilities', () => {
     it('returns empty capabilities when no date dimensions exist in explore', () => {
@@ -353,7 +157,7 @@ describe('getDateZoomCapabilities', () => {
         expect(result.hasDateDimension).toBe(false);
     });
 
-    it('skips dimension when base dimension is not found in explore', () => {
+    it('falls back to the derived dimension when base dimension is not found', () => {
         // Simulates a case where the base dimension is missing from the explore
         const monthDim = makeDimension({
             name: 'created_at_month',
@@ -367,8 +171,8 @@ describe('getDateZoomCapabilities', () => {
 
         const result = getDateZoomCapabilities(explore, metricQuery);
 
-        // Base dimension missing — dimension is skipped, no capabilities detected
-        expect(result.hasDateDimension).toBe(false);
+        // Falls back to the derived dim's own type (DATE)
+        expect(result.hasDateDimension).toBe(true);
         expect(result.hasTimestampDimension).toBe(false);
     });
 
