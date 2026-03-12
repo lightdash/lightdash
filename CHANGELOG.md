@@ -1,3 +1,10 @@
+## [0.2610.2](https://github.com/lightdash/lightdash/compare/0.2610.1...0.2610.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* account for duplicate paths in space inheritance ([#21041](https://github.com/lightdash/lightdash/issues/21041)) ([6933fdb](https://github.com/lightdash/lightdash/commit/6933fdbf1c768c5c398039ad5b79d60215462738))
+
 ## [0.2610.1](https://github.com/lightdash/lightdash/compare/0.2610.0...0.2610.1) (2026-03-11)
 
 
