@@ -9269,6 +9269,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "success",
                                                             "error"
                                                         ]
