@@ -5,7 +5,6 @@ import {
     type CreateSavedChart,
     type CreateSavedChartVersion,
     type SavedChart,
-    type SavedChartWithDateZoomCapabilities,
     type UpdateSavedChart,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -76,19 +75,12 @@ const updateSavedQuery = async (
     });
 };
 
-const getSavedQuery = async (
-    id: string,
-    includeDateZoomCapabilities?: boolean,
-): Promise<SavedChart | SavedChartWithDateZoomCapabilities> => {
-    const params = includeDateZoomCapabilities
-        ? '?includeDateZoomCapabilities=true'
-        : '';
-    return lightdashApi<SavedChart | SavedChartWithDateZoomCapabilities>({
-        url: `/saved/${id}${params}`,
+const getSavedQuery = async (id: string): Promise<SavedChart> =>
+    lightdashApi<SavedChart>({
+        url: `/saved/${id}`,
         method: 'GET',
         body: undefined,
     });
-};
 
 const addVersionSavedQuery = async ({
     uuid,
@@ -114,21 +106,13 @@ const addVersionSavedQuery = async ({
 
 interface Args {
     id?: string;
-    includeDateZoomCapabilities?: boolean;
-    useQueryOptions?: UseQueryOptions<
-        SavedChart | SavedChartWithDateZoomCapabilities,
-        ApiError
-    >;
+    useQueryOptions?: UseQueryOptions<SavedChart, ApiError>;
 }
 
-export const useSavedQuery = ({
-    id,
-    includeDateZoomCapabilities,
-    useQueryOptions,
-}: Args = {}) =>
-    useQuery<SavedChart | SavedChartWithDateZoomCapabilities, ApiError>({
-        queryKey: ['saved_query', id, { includeDateZoomCapabilities }],
-        queryFn: () => getSavedQuery(id || '', includeDateZoomCapabilities),
+export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
+    useQuery<SavedChart, ApiError>({
+        queryKey: ['saved_query', id],
+        queryFn: () => getSavedQuery(id || ''),
         enabled: id !== undefined,
         retry: false,
         ...useQueryOptions,
