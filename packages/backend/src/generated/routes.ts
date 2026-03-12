@@ -6173,6 +6173,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dateZoomApplied: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
                         appliedDashboardFilters: {
                             ref: 'DashboardFilters',
                             required: true,

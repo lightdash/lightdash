@@ -7481,6 +7481,9 @@
                     },
                     {
                         "properties": {
+                            "dateZoomApplied": {
+                                "type": "boolean"
+                            },
                             "appliedDashboardFilters": {
                                 "$ref": "#/components/schemas/DashboardFilters"
                             },
@@ -7492,6 +7495,7 @@
                             }
                         },
                         "required": [
+                            "dateZoomApplied",
                             "appliedDashboardFilters",
                             "fields",
                             "metricQuery"

@@ -629,6 +629,7 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         appliedDashboardFilters: DashboardFilters;
+        dateZoomApplied: boolean;
     };
 
 export type ApiExecuteAsyncSqlQueryResults =

@@ -2517,13 +2517,14 @@ export class AsyncQueryService extends ProjectService {
         );
         const availableParameters = Object.keys(availableParameterDefinitions);
 
-        const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
-            explore,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
-            dateZoom,
-        );
+        const { explore: exploreWithOverride, dateZoomApplied } =
+            ProjectService.updateExploreWithDateZoom(
+                explore,
+                metricQuery,
+                warehouseSqlBuilder,
+                availableParameters,
+                dateZoom,
+            );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
@@ -2537,7 +2538,7 @@ export class AsyncQueryService extends ProjectService {
             exploreWithOverride,
         );
 
-        return fields;
+        return { fields, dateZoomApplied };
     }
 
     private async prepareMetricQueryAsyncQueryArgs({
@@ -3412,7 +3413,7 @@ export class AsyncQueryService extends ProjectService {
             savedChartParameters,
         );
 
-        const fields = await this.getMetricQueryFields({
+        const { fields } = await this.getMetricQueryFields({
             metricQuery: metricQueryWithLimit,
             explore,
             warehouseSqlBuilder,
@@ -3702,7 +3703,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardParameters,
         );
 
-        const fields = await this.getMetricQueryFields({
+        const { fields, dateZoomApplied } = await this.getMetricQueryFields({
             metricQuery: metricQueryWithLimit,
             explore,
             warehouseSqlBuilder,
@@ -3796,6 +3797,7 @@ export class AsyncQueryService extends ProjectService {
             fields: fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: usedParameters,
+            dateZoomApplied,
         };
     }
 

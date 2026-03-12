@@ -215,6 +215,7 @@ export * from './utils/slack';
 export * from './utils/sleep';
 export * from './utils/slugs';
 export * from './utils/subtotals';
+export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
 export * from './utils/time';
 export * from './utils/timeFrames';
