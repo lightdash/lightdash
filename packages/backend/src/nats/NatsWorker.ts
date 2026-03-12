@@ -1,4 +1,9 @@
-import { getErrorMessage } from '@lightdash/common';
+import {
+    ExpiredQueryError,
+    getErrorMessage,
+    QueryHistoryStatus,
+    type QueryHistory,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     AckPolicy,
@@ -15,7 +20,10 @@ import {
 import { z } from 'zod';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import {
+    QUEUED_QUERY_EXPIRED_MESSAGE,
+    type AsyncQueryService,
+} from '../services/AsyncQueryService/AsyncQueryService';
 import {
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
@@ -217,6 +225,15 @@ export class NatsWorker {
             jobMetadata,
         );
 
+        const canRun = await this.prepareQueryForExecution(
+            parsed.payload.queryUuid,
+            workerLabel,
+        );
+        if (!canRun) {
+            message.ack();
+            return;
+        }
+
         try {
             await NatsWorker.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
@@ -279,6 +296,15 @@ export class NatsWorker {
             jobMetadata,
         );
 
+        const canRun = await this.prepareQueryForExecution(
+            parsed.payload.queryUuid,
+            workerLabel,
+        );
+        if (!canRun) {
+            message.ack();
+            return;
+        }
+
         try {
             await NatsWorker.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
@@ -318,6 +344,99 @@ export class NatsWorker {
             );
             message.nak();
         }
+    }
+
+    private async prepareQueryForExecution(
+        queryUuid: string,
+        workerLabel: string,
+    ): Promise<boolean> {
+        const queryHistory =
+            await this.asyncQueryService.queryHistoryModel.getByQueryUuid(
+                queryUuid,
+            );
+
+        if (!queryHistory) {
+            Logger.error(
+                `Worker ${workerLabel} could not find query history for async query ${queryUuid}`,
+            );
+            return false;
+        }
+
+        const isQueuedStatus =
+            queryHistory.status === QueryHistoryStatus.PENDING ||
+            queryHistory.status === QueryHistoryStatus.QUEUED;
+
+        if (!isQueuedStatus) {
+            Logger.info(
+                `Worker ${workerLabel} skipped async query ${queryUuid} because status is ${queryHistory.status}`,
+            );
+            return false;
+        }
+
+        const timeInQueueMs =
+            Date.now() - new Date(queryHistory.createdAt).getTime();
+
+        if (timeInQueueMs > this.natsConfig.queueTimeoutMs) {
+            await this.expireQuery(queryHistory, timeInQueueMs, workerLabel);
+            return false;
+        }
+
+        const updated =
+            await this.asyncQueryService.queryHistoryModel.updateStatusToExecuting(
+                queryUuid,
+            );
+
+        if (updated === 0) {
+            Logger.info(
+                `Worker ${workerLabel} skipped async query ${queryUuid} because it could not transition to executing`,
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    private async expireQuery(
+        queryHistory: QueryHistory,
+        timeInQueueMs: number,
+        workerLabel: string,
+    ): Promise<void> {
+        await this.asyncQueryService.queryHistoryModel.updateStatusToExpired(
+            queryHistory.queryUuid,
+            QUEUED_QUERY_EXPIRED_MESSAGE,
+        );
+
+        Sentry.withScope((scope) => {
+            scope.setTag('lightdash.queryUuid', queryHistory.queryUuid);
+            if (queryHistory.projectUuid) {
+                scope.setTag('lightdash.projectUuid', queryHistory.projectUuid);
+            }
+            scope.setContext('query_queue', {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid: queryHistory.projectUuid,
+                status: queryHistory.status,
+                queueTimeoutMs: this.natsConfig.queueTimeoutMs,
+                timeInQueueMs,
+            });
+            Sentry.captureException(
+                new ExpiredQueryError(QUEUED_QUERY_EXPIRED_MESSAGE, {
+                    queryUuid: queryHistory.queryUuid,
+                    organizationUuid: queryHistory.organizationUuid,
+                    projectUuid: queryHistory.projectUuid,
+                    timeInQueueMs,
+                    queueTimeoutMs: this.natsConfig.queueTimeoutMs,
+                }),
+            );
+        });
+
+        Logger.warn(
+            `Worker ${workerLabel} expired async query ${queryHistory.queryUuid} after ${timeInQueueMs}ms in queue`,
+            {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid: queryHistory.projectUuid,
+                queueTimeoutMs: this.natsConfig.queueTimeoutMs,
+            },
+        );
     }
 
     private async consumeLoop(
