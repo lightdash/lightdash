@@ -1,3 +1,10 @@
+## [0.2610.3](https://github.com/lightdash/lightdash/compare/0.2610.2...0.2610.3) (2026-03-12)
+
+
+### Bug Fixes
+
+* color by category in horizontal bar charts ([#21065](https://github.com/lightdash/lightdash/issues/21065)) ([1d96a20](https://github.com/lightdash/lightdash/commit/1d96a20e7fd940857bc9d0bffd4808827b52193e))
+
 ## [0.2610.2](https://github.com/lightdash/lightdash/compare/0.2610.1...0.2610.2) (2026-03-12)
 
 
