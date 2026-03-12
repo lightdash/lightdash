@@ -381,7 +381,7 @@ export class CoderService extends BaseService {
             filters: CoderService.getFiltersWithTileSlugs(dashboard),
             tabs: dashboard.tabs,
             slug: dashboard.slug,
-            config: dashboard.config,
+            ...(dashboard.config ? { config: dashboard.config } : {}),
 
             spaceSlug,
             version: currentVersion,
