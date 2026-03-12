@@ -51,6 +51,8 @@ export const createLocalParquetUploadStream = ({
     let firstWriteTime: number | null = null;
     let closed = false;
     let columns: ResultColumns | null = null;
+    let lastProgressLog = 0;
+    const PROGRESS_LOG_INTERVAL_MS = 30_000;
 
     const setColumns = (cols: ResultColumns) => {
         columns = cols;
@@ -66,6 +68,16 @@ export const createLocalParquetUploadStream = ({
             totalRowsWritten += 1;
             // eslint-disable-next-line no-await-in-loop
             await writeWithBackpressure(fileWriteStream, data);
+        }
+
+        const now = Date.now();
+        if (now - lastProgressLog >= PROGRESS_LOG_INTERVAL_MS) {
+            lastProgressLog = now;
+            const elapsedSec = Math.round((now - firstWriteTime!) / 1000);
+            const bytesWrittenMB = Math.round(totalBytesWritten / 1024 / 1024);
+            logger.info(
+                `Streaming progress: rows=${totalRowsWritten} bytes=${bytesWrittenMB}MB elapsed=${elapsedSec}s target=${parquetS3Uri}`,
+            );
         }
     };
 
