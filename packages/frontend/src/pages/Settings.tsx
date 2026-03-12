@@ -55,6 +55,7 @@ import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel'
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
+import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
@@ -114,6 +115,14 @@ const Settings: FC = () => {
         },
         user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
+
+    const { data: isUserImpersonationEnabled } = useServerFeatureFlag(
+        FeatureFlags.UserImpersonation,
+    );
+
+    const showImpersonationPanel =
+        isUserImpersonationEnabled?.enabled &&
+        user?.ability?.can('update', 'Organization');
 
     const isCustomRolesEnabled = health?.isCustomRolesEnabled;
 
@@ -270,6 +279,13 @@ const Settings: FC = () => {
                             <DefaultProjectPanel />
                         </SettingsGridCard>
 
+                        {showImpersonationPanel && (
+                            <SettingsGridCard>
+                                <Title order={4}>User impersonation</Title>
+                                <ImpersonationPanel />
+                            </SettingsGridCard>
+                        )}
+
                         {user.ability?.can('delete', 'Organization') && (
                             <SettingsGridCard>
                                 <div>
@@ -425,15 +441,18 @@ const Settings: FC = () => {
 
         return allowedRoutes;
     }, [
-        isServiceAccountsEnabled,
-        isScimTokenManagementEnabled?.enabled,
         allowPasswordAuthentication,
-        hasSocialLogin,
-        user,
+        user?.ability,
         organization,
         project,
-        health,
+        isScimTokenManagementEnabled?.enabled,
+        isServiceAccountsEnabled,
         isCustomRolesEnabled,
+        hasSocialLogin,
+        showImpersonationPanel,
+        health?.hasSlack,
+        health?.hasGithub,
+        health?.hasGitlab,
     ]);
     const routeElements = useRoutes(routes);
 

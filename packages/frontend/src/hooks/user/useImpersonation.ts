@@ -1,10 +1,12 @@
 import {
     type ApiError,
     type ApiImpersonationOrganizationSettingsResponse,
+    type UpdateImpersonationOrganizationSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import useApp from '../../providers/App/useApp';
+import useToaster from '../toaster/useToaster';
 
 const startImpersonation = async (targetUserUuid: string) =>
     lightdashApi<null>({
@@ -34,6 +36,40 @@ export const useImpersonationSettings = () => {
     >({
         queryKey: ['impersonation_settings'],
         queryFn: getImpersonationSettings,
+    });
+};
+
+const updateImpersonationSettings = async (
+    data: UpdateImpersonationOrganizationSettings,
+) =>
+    lightdashApi<ApiImpersonationOrganizationSettingsResponse['results']>({
+        url: `/org/impersonation`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
+export const useUpdateImpersonationSettings = () => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiImpersonationOrganizationSettingsResponse['results'],
+        ApiError,
+        UpdateImpersonationOrganizationSettings
+    >(updateImpersonationSettings, {
+        mutationKey: ['impersonation_settings_update'],
+        onSuccess: async () => {
+            showToastSuccess({
+                title: 'Impersonation settings updated',
+            });
+            await queryClient.invalidateQueries(['impersonation_settings']);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update impersonation settings',
+                apiError: error,
+            });
+        },
     });
 };
 

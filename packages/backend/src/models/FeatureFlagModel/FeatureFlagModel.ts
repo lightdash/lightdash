@@ -304,11 +304,20 @@ export class FeatureFlagModel {
     }
 
     private async getUserImpersonationEnabled({
+        user,
         featureFlagId,
     }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.userImpersonation.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.UserImpersonation, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
+                : false);
         return {
             id: featureFlagId,
-            enabled: this.lightdashConfig.userImpersonation.enabled,
+            enabled,
         };
     }
 }
