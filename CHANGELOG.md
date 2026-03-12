@@ -1,3 +1,10 @@
+## [0.2615.2](https://github.com/lightdash/lightdash/compare/0.2615.1...0.2615.2) (2026-03-12)
+
+
+### Bug Fixes
+
+* ClickHouse column types incorrectly resolve to STRING during lightdash generate ([#21087](https://github.com/lightdash/lightdash/issues/21087)) ([7fad0c5](https://github.com/lightdash/lightdash/commit/7fad0c53930d2ba0b3ff174ef7b0ea730e6e7c87)), closes [#21027](https://github.com/lightdash/lightdash/issues/21027)
+
 ## [0.2615.1](https://github.com/lightdash/lightdash/compare/0.2615.0...0.2615.1) (2026-03-12)
 
 
