@@ -87,6 +87,15 @@ type SchedulerServiceArguments = {
     spacePermissionService: SpacePermissionService;
 };
 
+const getLightdashJobUuid = (
+    payload: Record<string, unknown>,
+): string | undefined => {
+    const { jobUuid } = payload;
+    return typeof jobUuid === 'string' && jobUuid.length > 0
+        ? jobUuid
+        : undefined;
+};
+
 export class SchedulerService extends BaseService {
     lightdashConfig: LightdashConfig;
 
@@ -1623,10 +1632,27 @@ export class SchedulerService extends BaseService {
             ),
         );
 
-        // Update Lightdash job status to ERROR for compile project jobs
+        const lightdashJobUuids = jobsToLog.flatMap(({ job }) => {
+            const jobUuid = getLightdashJobUuid(job.payload);
+            return jobUuid ? [jobUuid] : [];
+        });
+
+        if (lightdashJobUuids.length !== jobsToLog.length) {
+            this.logger.info(
+                'Skipping Lightdash job status update for stuck jobs without jobUuid',
+                {
+                    jobIds: jobsToLog.map(({ job }) => job.id),
+                    taskIdentifiers: jobsToLog.map(
+                        ({ job }) => job.taskIdentifier,
+                    ),
+                },
+            );
+        }
+
+        // Update Lightdash job status to ERROR for tasks that track a Lightdash job row
         await Promise.all(
-            jobsToLog.map(({ job }) =>
-                this.jobModel.update(job.payload.jobUuid as string, {
+            lightdashJobUuids.map((jobUuid) =>
+                this.jobModel.update(jobUuid, {
                     jobStatus: JobStatusType.ERROR,
                 }),
             ),
