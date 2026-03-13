@@ -239,6 +239,35 @@ export const sensitiveCredentialsFieldNames = [
 -   `ProjectModel.get()` filters credentials using this array before returning to API controllers
 -   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
 
+## Slugs — Not Unique Identifiers
+
+**WARNING: Slugs are NOT guaranteed to be unique.** Do not treat them as reliable identifiers for lookups, deduplication, or foreign key relationships. Always use UUIDs for uniqueness guarantees.
+
+Slugs are human-readable URL identifiers for charts, dashboards, and spaces (e.g., `weekly-sales-report`). They are generated from the entity name via `generateSlug()` (`packages/common/src/utils/slugs.ts`), and uniqueness is enforced at creation time by `generateUniqueSlug*` functions (`packages/backend/src/utils/SlugUtils.ts`). However, **multiple code paths bypass these uniqueness checks**, resulting in duplicate slugs in production.
+
+**How slugs get duplicated:**
+
+1. **Content-as-code (`lightdash upload`)**: The `CoderService` uses `forceSlug: true` when creating charts and dashboards, which skips the `generateUniqueSlug` call entirely and inserts the slug from the YAML file as-is. If two YAML files with the same slug are uploaded, or a slug already exists in the target project, duplicates are created.
+
+2. **Promotion**: The `PromoteService` also uses `forceSlug: true` when creating content in the upstream project. Promoting the same content from multiple downstream projects, or re-promoting after manual creation in upstream, can create duplicates.
+
+3. **Lossy slug generation**: `generateSlug()` strips all non-alphanumeric characters to hyphens, so different names produce identical slugs. Examples:
+   - `"Sales Report (2024)"` and `"Sales Report 2024"` → `sales-report-2024`
+   - `"Q1 / Q2 Summary"` and `"Q1 - Q2 Summary"` → `q1-q2-summary`
+
+   The uniqueness check at creation time handles this by appending `-1`, `-2`, etc., but `forceSlug: true` paths bypass this.
+
+4. **Ltree path conversion is also lossy**: `getLtreePathFromSlug` converts hyphens to underscores, so `"my-space"` and `"my_space"` map to the same ltree path. This can cause space resolution collisions.
+
+**No database-level uniqueness constraint** exists for slugs on `saved_queries`, `dashboards`, or `spaces` tables. Only `saved_sql` has a `UNIQUE(project_uuid, slug)` DB constraint. All other uniqueness enforcement is application-level only.
+
+**What this means in practice:**
+
+- **API resolution picks first match**: `getByIdOrSlug()` queries use `LIMIT 1` — when duplicates exist, the result is non-deterministic. No error is thrown.
+- **Promotion fails on duplicates**: `PromoteService` throws an explicit error (`"There are multiple charts with the same identifier {slug}"`) when it finds duplicate slugs in the upstream project.
+- **Never use slugs as unique keys** in new code. Use UUIDs for any operation that requires uniqueness. Slugs are for URL display only.
+- **A REPL script exists** to fix duplicates: `packages/backend/src/ee/repl/scripts/fixDuplicateSlugs.ts`
+
 ## Development Troubleshooting
 
 -   If there are issues running dbt, make sure there is a python3 venv in the root of the repo, which has dbt-core and dbt-postgres installed
