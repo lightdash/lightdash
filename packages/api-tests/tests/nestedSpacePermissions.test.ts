@@ -41,7 +41,7 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             parentSpaceUuid = space.uuid;
 
             expect(space.inheritParentPermissions).toBe(false);
-            expect(space.inheritParentPermissions).toBe(false);
+            expect(space.inheritsFromOrgOrProject).toBe(false);
             expect(space.parentSpaceUuid).toBeNull();
         });
 
@@ -57,7 +57,7 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             parentSpaceUuid = space.uuid;
 
             expect(space.inheritParentPermissions).toBe(true);
-            expect(space.inheritParentPermissions).toBe(true);
+            expect(space.inheritsFromOrgOrProject).toBe(true);
             expect(space.parentSpaceUuid).toBeNull();
         });
 
