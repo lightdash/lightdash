@@ -68,7 +68,10 @@ describe('Lightdash API', () => {
         );
         expect(resp.status).toBe(200);
         expect(resp.body).toHaveProperty('status', 'ok');
-        expect(resp.body.results[0]).toHaveProperty('name', 'Jaffle dashboard');
+        const jaffleDashboard = resp.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
     });
 
     it('Should get success response (200) from POST runQuery', async () => {
@@ -101,12 +104,16 @@ describe('Lightdash API', () => {
 
     it('Should get success response (200) from PATCH dashboard', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/dashboards`,
-        );
+        const projectResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const jaffleDashboard = projectResponse.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
+        const dashboardUuid = jaffleDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
 
         const dashboardResponse = await admin.get<
@@ -136,12 +143,16 @@ describe('Lightdash API', () => {
 
     it('Should get success response (200) from GET savedChartRouter endpoints', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
-        );
+        const projectResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
         expect(projectResponse.status).toBe(200);
 
-        const savedChartUuid = projectResponse.body.results[0].uuid;
+        const seedChart = projectResponse.body.results.find(
+            (c) => c.name === 'How many orders we have over time ?',
+        );
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoints = [
             `/saved/${savedChartUuid}`,
             `/saved/${savedChartUuid}/availableFilters`,
@@ -190,12 +201,16 @@ describe('Lightdash API', () => {
 
     it('Should get success response (200) from GET dashboardRouter endpoints', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/dashboards`,
-        );
+        const projectResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const jaffleDashboard = projectResponse.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
+        const dashboardUuid = jaffleDashboard!.uuid;
         const endpoints = [`/dashboards/${dashboardUuid}`];
         for (const endpoint of endpoints) {
             const resp = await admin.get(`${apiUrl}${endpoint}`);
@@ -329,10 +344,14 @@ describe('Lightdash API forbidden tests', () => {
         const adminClient = await login();
         const projectUuid = SEED_PROJECT.project_uuid;
         const projectResponse = await adminClient.get<
-            Body<Array<{ uuid: string }>>
+            Body<Array<{ uuid: string; name: string }>>
         >(`${apiUrl}/projects/${projectUuid}/charts`);
         expect(projectResponse.status).toBe(200);
-        const savedChartUuid = projectResponse.body.results[0].uuid;
+        const seedChart = projectResponse.body.results.find(
+            (c) => c.name === 'How many orders we have over time ?',
+        );
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
 
         const endpoints = [
             `/saved/${savedChartUuid}`,
@@ -362,11 +381,15 @@ describe('Lightdash API forbidden tests', () => {
         const adminClient = await login();
         const projectUuid = SEED_PROJECT.project_uuid;
         const projectResponse = await adminClient.get<
-            Body<Array<{ uuid: string }>>
+            Body<Array<{ uuid: string; name: string }>>
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const jaffleDashboard = projectResponse.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
+        const dashboardUuid = jaffleDashboard!.uuid;
         const endpoints = [`/dashboards/${dashboardUuid}`];
         for (const endpoint of endpoints) {
             const resp = await other.get(`${apiUrl}${endpoint}`, {
@@ -380,11 +403,15 @@ describe('Lightdash API forbidden tests', () => {
         const adminClient = await login();
         const projectUuid = SEED_PROJECT.project_uuid;
         const projectResponse = await adminClient.get<
-            Body<Array<{ uuid: string }>>
+            Body<Array<{ uuid: string; name: string }>>
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const jaffleDashboard = projectResponse.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
+        const dashboardUuid = jaffleDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
 
         const resp = await other.patch(

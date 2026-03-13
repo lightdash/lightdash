@@ -95,33 +95,36 @@ describe('Embed Chart JWT API', () => {
         expect(configResp.status).toBe(200);
         const originalEmbedConfig = configResp.body.results;
 
-        // Fetch specific charts by their known slugs from seed data
-        const chartResp = await admin.get<Body<{ uuid: string }>>(
-            `/api/v1/saved/how-much-revenue-do-we-have-per-payment-method?projectUuid=${SEED_PROJECT.project_uuid}`,
-        );
-        expect(chartResp.status).toBe(200);
-        testChartUuid = chartResp.body.results.uuid;
-        expect(typeof testChartUuid).toBe('string');
+        // Fetch charts by listing and finding by name (avoids slug lookup 500s under load)
+        const chartsResp = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`/api/v1/projects/${SEED_PROJECT.project_uuid}/charts`);
+        expect(chartsResp.status).toBe(200);
+        const charts = chartsResp.body.results;
 
-        const anotherChartResp = await admin.get<Body<{ uuid: string }>>(
-            `/api/v1/saved/how-many-orders-we-have-over-time?projectUuid=${SEED_PROJECT.project_uuid}`,
+        const chart = charts.find(
+            (c) => c.name === 'How much revenue do we have per payment method?',
         );
-        expect(anotherChartResp.status).toBe(200);
-        testAnotherChartUuid = anotherChartResp.body.results.uuid;
-        expect(typeof testAnotherChartUuid).toBe('string');
+        expect(chart).toBeDefined();
+        testChartUuid = chart!.uuid;
 
-        const notEmbeddedChartResp = await admin.get<Body<{ uuid: string }>>(
-            `/api/v1/saved/what-s-our-total-revenue-to-date?projectUuid=${SEED_PROJECT.project_uuid}`,
+        const anotherChart = charts.find(
+            (c) => c.name === 'How many orders we have over time ?',
         );
-        expect(notEmbeddedChartResp.status).toBe(200);
-        testChartNotEmbeddedUuid = notEmbeddedChartResp.body.results.uuid;
-        expect(typeof testChartNotEmbeddedUuid).toBe('string');
+        expect(anotherChart).toBeDefined();
+        testAnotherChartUuid = anotherChart!.uuid;
 
-        // Update embed config to include the charts we're testing with
+        const notEmbeddedChart = charts.find(
+            (c) => c.name === "What's our total revenue to date?",
+        );
+        expect(notEmbeddedChart).toBeDefined();
+        testChartNotEmbeddedUuid = notEmbeddedChart!.uuid;
+
+        // Update embed config — use allowAllDashboards to avoid racing with embedDashboard tests
         const chartsToEmbed = [testChartUuid, testAnotherChartUuid];
         const updateResp = await updateEmbedConfig(admin, {
             dashboardUuids: originalEmbedConfig.dashboardUuids || [],
-            allowAllDashboards: originalEmbedConfig.allowAllDashboards || false,
+            allowAllDashboards: true,
             chartUuids: chartsToEmbed,
             allowAllCharts: false,
         });

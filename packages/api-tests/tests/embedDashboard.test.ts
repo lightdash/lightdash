@@ -95,25 +95,23 @@ describe('Embed Dashboard JWT API', () => {
         expect(configResp.status).toBe(200);
         const originalEmbedConfig = configResp.body.results;
 
-        // Get all dashboards from the project
-        const dashboardsResp = await admin.get<Body<Array<{ uuid: string }>>>(
-            `/api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-        );
+        // Get seed dashboard by name to avoid results[0] ordering issues
+        const dashboardsResp = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`/api/v1/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         expect(dashboardsResp.status).toBe(200);
-        const dashboards = dashboardsResp.body.results;
-        expect(dashboards.length).toBeGreaterThan(0);
+        const seedDashboard = dashboardsResp.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        testDashboardUuid = seedDashboard!.uuid;
 
-        // Store first dashboard for testing
-        testDashboardUuid = dashboards[0].uuid;
-        expect(typeof testDashboardUuid).toBe('string');
-        expect(testDashboardUuid.length).toBeGreaterThan(0);
-
-        // Update embed config to include the dashboard we're testing with
+        // Update embed config — use allowAllCharts to avoid racing with embedChart tests
         const updateResp = await updateEmbedConfig(admin, {
             dashboardUuids: [testDashboardUuid],
             allowAllDashboards: false,
             chartUuids: originalEmbedConfig.chartUuids || [],
-            allowAllCharts: originalEmbedConfig.allowAllCharts || false,
+            allowAllCharts: true,
         });
         expect(updateResp.status).toBe(200);
 
@@ -173,7 +171,7 @@ describe('Embed Dashboard JWT API', () => {
                     dashboardUuids: [testDashboardUuid],
                     allowAllDashboards: false,
                     chartUuids: config.chartUuids || [],
-                    allowAllCharts: config.allowAllCharts || false,
+                    allowAllCharts: true,
                 });
             }
 
