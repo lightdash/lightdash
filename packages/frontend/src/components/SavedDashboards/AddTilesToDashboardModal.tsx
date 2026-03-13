@@ -230,7 +230,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 if (isCreatingNewSpace) {
                     const newSpace = await createSpace({
                         name: spaceName,
-                        isPrivate: false,
+                        inheritParentPermissions: true,
                         access: [],
                     });
                     spaceUuid = newSpace.uuid;

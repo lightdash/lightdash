@@ -342,7 +342,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -468,7 +467,6 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -489,7 +487,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -596,7 +593,6 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -802,7 +798,6 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: !updatedSpace.inheritsFromOrgOrProject,
             inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
             access: updatedSpace.access,
         };
@@ -821,7 +816,6 @@ export class DashboardService
             );
         const existingDashboard = {
             ...existingDashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -947,7 +941,6 @@ export class DashboardService
                     );
                 return {
                     ...dashboard,
-                    isPrivate: !dashboardSpaceContext.inheritsFromOrgOrProject,
                     inheritsFromOrgOrProject:
                         dashboardSpaceContext.inheritsFromOrgOrProject,
                     access: dashboardSpaceContext.access,
@@ -1299,7 +1292,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };

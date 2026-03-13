@@ -764,7 +764,7 @@ describe('PromoteService promoting and mutating changes', () => {
 
         expect(changes.spaces.length).toBe(1);
         expect(changes.spaces[0].action).toBe('create');
-        expect(changes.spaces[0].data.isPrivate).toBe(true);
+        expect(changes.spaces[0].data.inheritParentPermissions).toBe(false);
 
         (
             spaceModel.createSpaceWithAncestors as jest.Mock
@@ -784,7 +784,6 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(spaceModel.createSpace).toHaveBeenCalledTimes(1);
         expect(spaceModel.createSpace).toHaveBeenCalledWith(
             {
-                isPrivate: true,
                 inheritParentPermissions: false,
                 name: 'Private space',
                 parentSpaceUuid: null,
@@ -820,7 +819,7 @@ describe('PromoteService promoting and mutating changes', () => {
 
         expect(changes.spaces.length).toBe(1);
         expect(changes.spaces[0].action).toBe('update');
-        expect(changes.spaces[0].data.isPrivate).toBe(false); // Existing space is not private, so it should be kept that way
+        expect(changes.spaces[0].data.inheritParentPermissions).toBe(true); // Existing space inherits permissions, so it should be kept that way
 
         await service.upsertSpaces(
             user,
@@ -1128,7 +1127,8 @@ describe('PromoteService promoting and mutating changes', () => {
                 organization_uuid: user.organizationUuid,
                 updated_at: new Date('2024-01-01T00:00:00.000Z'),
                 spaceName: existingUpstreamSqlChart.space.name,
-                space_is_private: existingUpstreamSqlChart.space.isPrivate,
+                space_inherit_parent_permissions:
+                    upstreamSpace!.inheritParentPermissions,
                 dashboardName: null,
                 created_by_user_uuid: user.userUuid,
                 created_by_user_first_name: user.firstName,

@@ -193,7 +193,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
                 if (values.newSpaceName) {
                     const newSpace = await spaceManagement.handleCreateNewSpace(
                         {
-                            isPrivate: false,
+                            inheritParentPermissions: true,
                         },
                     );
                     targetSpaceUuid = newSpace?.uuid || values.spaceUuid;

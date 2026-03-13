@@ -53,7 +53,6 @@ export type Space = {
     organizationUuid: string;
     uuid: string;
     name: string;
-    isPrivate: boolean;
     inheritsFromOrgOrProject: boolean;
     queries: SpaceQuery[];
     projectUuid: string;
@@ -83,7 +82,6 @@ export type SpaceSummaryBase = Pick<
     | 'projectUuid'
     | 'uuid'
     | 'name'
-    | 'isPrivate'
     | 'inheritParentPermissions'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
@@ -103,13 +101,13 @@ export type SpaceSummaryBase = Pick<
 };
 
 export type SpaceSummary = SpaceSummaryBase & {
+    inheritsFromOrgOrProject: boolean;
     userAccess: SpaceAccess | undefined;
     access: string[];
 };
 
 export type CreateSpace = {
     name: string;
-    isPrivate?: boolean;
     inheritParentPermissions?: boolean;
     access?: Pick<SpaceShare, 'userUuid' | 'role'>[];
     parentSpaceUuid?: string;
@@ -117,7 +115,6 @@ export type CreateSpace = {
 
 export type UpdateSpace = {
     name: string;
-    isPrivate?: boolean;
     inheritParentPermissions?: boolean;
 };
 

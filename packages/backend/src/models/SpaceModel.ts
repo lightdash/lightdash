@@ -139,7 +139,6 @@ export class SpaceModel {
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
                         name: `${SpaceTableName}.name`,
-                        isPrivate: `${SpaceTableName}.is_private`,
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
                         chartCount: trx
@@ -293,7 +292,6 @@ export class SpaceModel {
                     Pick<DBPinnedSpace, 'order'>)[]
             >([
                 `${SpaceTableName}.*`,
-                `${SpaceTableName}.is_private`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
 
@@ -308,7 +306,6 @@ export class SpaceModel {
         return {
             organizationUuid: row.organization_uuid,
             name: row.name,
-            isPrivate: row.is_private,
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
@@ -1021,7 +1018,6 @@ export class SpaceModel {
     async createSpace(
         spaceData: {
             name: string;
-            isPrivate: boolean;
             inheritParentPermissions: boolean;
             parentSpaceUuid: string | null;
         },
@@ -1077,7 +1073,6 @@ export class SpaceModel {
         const [space] = await trx(SpaceTableName)
             .insert({
                 project_id: project.project_id,
-                is_private: spaceData.isPrivate,
                 name: spaceData.name,
                 created_by_user_id: userId,
                 slug: spaceSlug,
@@ -1091,7 +1086,6 @@ export class SpaceModel {
         return {
             organizationUuid: space.organization_uuid,
             name: space.name,
-            isPrivate: space.is_private,
             uuid: space.space_uuid,
             projectUuid,
             pinnedListUuid: null,
@@ -1251,7 +1245,6 @@ export class SpaceModel {
         await this.database(SpaceTableName)
             .update({
                 name: space.name,
-                is_private: space.isPrivate,
                 inherit_parent_permissions: space.inheritParentPermissions,
             })
             .where('space_uuid', spaceUuid);
@@ -1298,7 +1291,6 @@ export class SpaceModel {
             await trx(SpaceTableName)
                 .update({
                     name: space.name,
-                    is_private: space.isPrivate,
                     inherit_parent_permissions: space.inheritParentPermissions,
                 })
                 .where('space_uuid', spaceUuid);

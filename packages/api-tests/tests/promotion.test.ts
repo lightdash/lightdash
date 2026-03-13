@@ -73,7 +73,7 @@ async function createSpace(
 ): Promise<string> {
     const resp = await client.post<Body<{ uuid: string }>>(
         `/api/v1/projects/${projectUuid}/spaces/`,
-        { name: spaceName, isPrivate: false },
+        { name: spaceName, inheritParentPermissions: true },
     );
     expect(resp.status).toBe(200);
     return resp.body.results.uuid;

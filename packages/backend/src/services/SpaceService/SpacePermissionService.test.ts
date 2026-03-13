@@ -36,7 +36,6 @@ const createMockSpacePermissionModel = () => ({
             Record<
                 string,
                 {
-                    isPrivate: boolean;
                     projectUuid: string;
                     organizationUuid: string;
                 }
@@ -102,7 +101,6 @@ describe('SpacePermissionService', () => {
             });
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: false,
                     projectUuid,
                     organizationUuid,
                 },
@@ -176,7 +174,6 @@ describe('SpacePermissionService', () => {
             });
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: true,
                     projectUuid,
                     organizationUuid,
                 },
@@ -230,7 +227,6 @@ describe('SpacePermissionService', () => {
             });
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: true,
                     projectUuid,
                     organizationUuid,
                 },
@@ -310,7 +306,6 @@ describe('SpacePermissionService', () => {
             );
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: true,
                     projectUuid,
                     organizationUuid,
                 },
@@ -376,7 +371,6 @@ describe('SpacePermissionService', () => {
             );
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: false,
                     projectUuid,
                     organizationUuid,
                 },
@@ -432,7 +426,6 @@ describe('SpacePermissionService', () => {
             );
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: true,
                     projectUuid,
                     organizationUuid,
                 },
@@ -507,7 +500,6 @@ describe('SpacePermissionService', () => {
             );
             mockPermissionModel.getSpaceInfo.mockResolvedValue({
                 [spaceUuid]: {
-                    isPrivate: true,
                     projectUuid,
                     organizationUuid,
                 },

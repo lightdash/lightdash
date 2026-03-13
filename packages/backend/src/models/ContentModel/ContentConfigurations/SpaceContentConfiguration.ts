@@ -24,7 +24,6 @@ type SpaceContentRow = SummaryContentRow<{
     schedulerCount: number;
     parentSpaceUuid: string | null;
     path: string;
-    isPrivate: boolean;
     inheritParentPermissions: boolean;
     pinnedListOrder: number;
 }>;
@@ -147,7 +146,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         ),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
-                        'isPrivate', ${SpaceTableName}.is_private,
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                         'pinnedListOrder', ${PinnedSpaceTableName}.order
                         ${
@@ -280,7 +278,6 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 firstViewedAt: value.first_viewed_at,
                 parentSpaceUuid: value.metadata.parentSpaceUuid,
                 path: value.metadata.path,
-                isPrivate: value.metadata.isPrivate,
                 inheritParentPermissions:
                     value.metadata.inheritParentPermissions,
                 dashboardCount: value.metadata.dashboardCount,

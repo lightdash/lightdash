@@ -889,7 +889,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
     },
     {
         name: 'Parent Space 2',
-        isPrivate: true,
+        inheritParentPermissions: false,
         children: [
             {
                 name: 'Child Space 2.1',
@@ -903,7 +903,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
     },
     {
         name: 'Parent Space 3',
-        isPrivate: true,
+        inheritParentPermissions: false,
         access: [
             // Admin will automatically be added, we only seed editor
             {
@@ -920,7 +920,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
     // Created by admin and added group access
     {
         name: 'Parent Space 5',
-        isPrivate: true,
+        inheritParentPermissions: false,
         access: [],
         groupAccess: [
             {
@@ -939,7 +939,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
 export const SPACE_TREE_2: TreeCreateSpace[] = [
     {
         name: 'Parent Space 4',
-        isPrivate: true,
+        inheritParentPermissions: false,
         access: [],
         children: [
             {

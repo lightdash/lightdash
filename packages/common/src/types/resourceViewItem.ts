@@ -65,7 +65,6 @@ export type ResourceViewSpaceItem = {
         | 'projectUuid'
         | 'uuid'
         | 'name'
-        | 'isPrivate'
         | 'pinnedListUuid'
         | 'pinnedListOrder'
         | 'organizationUuid'
@@ -127,13 +126,12 @@ export const wrapResourceView = (
     resources.map((resource) => wrapResource(resource, type));
 
 export const spaceToResourceViewItem = (
-    space: SpaceSummary,
+    space: Omit<SpaceSummary, 'inheritsFromOrgOrProject'>,
 ): ResourceViewSpaceItem['data'] => ({
     organizationUuid: space.organizationUuid,
     projectUuid: space.projectUuid,
     uuid: space.uuid,
     name: space.name,
-    isPrivate: space.isPrivate,
     inheritParentPermissions: space.inheritParentPermissions,
     pinnedListUuid: space.pinnedListUuid,
     pinnedListOrder: space.pinnedListOrder,
@@ -205,7 +203,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     projectUuid: content.project.uuid,
                     pinnedListUuid: content.pinnedList?.uuid || null,
                     pinnedListOrder: content.pinnedList?.order || null,
-                    userAccess: undefined, // This propery is not needed for the resource view item
+                    userAccess: undefined, // This property is not needed for the resource view item
                     parentSpaceUuid: content.parentSpaceUuid,
                     path: content.path,
                 }),

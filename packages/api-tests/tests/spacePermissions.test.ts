@@ -97,7 +97,7 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     it('Should create private space', async () => {
         const resp = await admin.post<
             Body<{
-                isPrivate: boolean;
+                inheritParentPermissions: boolean;
                 name: string;
                 projectUuid: string;
                 uuid: string;
@@ -106,7 +106,10 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
             name: 'private space',
         });
         expect(resp.status).toBe(200);
-        expect(resp.body.results).toHaveProperty('isPrivate', true);
+        expect(resp.body.results).toHaveProperty(
+            'inheritParentPermissions',
+            false,
+        );
         expect(resp.body.results).toHaveProperty('name', 'private space');
         expect(resp.body.results).toHaveProperty(
             'projectUuid',
@@ -119,7 +122,7 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     it('Should create chart in private space', async () => {
         const { space, chart } = await createPrivateChart(admin);
 
-        expect(space).toHaveProperty('isPrivate', true);
+        expect(space).toHaveProperty('inheritParentPermissions', false);
         expect(space).toHaveProperty('name', 'private space');
         expect(chart).toHaveProperty('spaceName', 'private space');
         expect(chart).toHaveProperty('spaceUuid', space.uuid);
@@ -130,7 +133,7 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     it('Should create dashboard in private space', async () => {
         const { space, dashboard } = await createPrivateDashboard(admin);
 
-        expect(space).toHaveProperty('isPrivate', true);
+        expect(space).toHaveProperty('inheritParentPermissions', false);
         expect(space).toHaveProperty('name', 'private space');
         expect(dashboard).toHaveProperty('spaceName', 'private space');
         expect(dashboard).toHaveProperty('spaceUuid', space.uuid);

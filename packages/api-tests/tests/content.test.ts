@@ -84,7 +84,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 `/api/v1/projects/${SEED_PROJECT.project_uuid}/spaces/`,
                 {
                     name: `Public space to promote ${now}`,
-                    isPrivate: false,
+                    inheritParentPermissions: true,
                 },
             );
             expect(spaceResp.status).toBe(200);

@@ -315,7 +315,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             if (saveDestination === SaveDestination.Space) {
                 let newSpace = values.newSpaceName
                     ? await handleCreateNewSpace({
-                          isPrivate: true,
+                          inheritParentPermissions: false,
                       })
                     : undefined;
 

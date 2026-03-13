@@ -53,9 +53,9 @@ describe('CaslAuditWrapper', () => {
             );
 
             // Forbidden rule with conditions
-            cannot('read', 'Dashboard', { isPrivate: true }).because(
-                'Private dashboards are not readable',
-            );
+            cannot('read', 'Dashboard', {
+                inheritsFromOrgOrProject: false,
+            }).because('Private dashboards are not readable');
 
             // Rule with multiple conditions
             can('manage', 'SavedChart', {
@@ -94,7 +94,9 @@ describe('CaslAuditWrapper', () => {
             const userDashboard = createDashboard('2', {
                 authorId: mockUser.userUuid,
             });
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
 
             // Test various scenarios
             expect(wrapper.can('read', publicDashboard)).toBe(
@@ -138,7 +140,9 @@ describe('CaslAuditWrapper', () => {
         it('should log the audit event with denied status when permission is denied', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
 
             // Act
             wrapper.can('read', privateDashboard);
@@ -226,7 +230,9 @@ describe('CaslAuditWrapper', () => {
             const userDashboard = createDashboard('2', {
                 authorId: mockUser.userUuid,
             });
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
 
             // Test various scenarios
             expect(wrapper.cannot('read', publicDashboard)).toBe(
@@ -246,7 +252,9 @@ describe('CaslAuditWrapper', () => {
         it('should log the audit event with denied status when permission is denied', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
 
             // Act
             wrapper.cannot('read', privateDashboard);
@@ -280,7 +288,9 @@ describe('CaslAuditWrapper', () => {
         it('should include the reason from cannot rules', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
 
             // Act
             wrapper.cannot('read', privateDashboard);

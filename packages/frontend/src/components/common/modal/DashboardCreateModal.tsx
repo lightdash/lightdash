@@ -127,7 +127,7 @@ const DashboardCreateModal: FC<DashboardCreateModalProps> = ({
 
             if (data.newSpaceName) {
                 newSpace = await spaceManagement.handleCreateNewSpace({
-                    isPrivate: false,
+                    inheritParentPermissions: true,
                 });
             }
 

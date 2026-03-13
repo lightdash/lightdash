@@ -3392,7 +3392,6 @@ export class ProjectService extends BaseService {
         return {
             chart: {
                 ...savedChart,
-                isPrivate: !spaceCtx.inheritsFromOrgOrProject,
                 inheritsFromOrgOrProject: spaceCtx.inheritsFromOrgOrProject,
                 access: spaceCtx.access,
             },
@@ -6261,6 +6260,7 @@ export class ProjectService extends BaseService {
                     directAccessMap[spaceSummary.uuid] ?? [];
                 return {
                     ...spaceSummary,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: directAccessUuids,
                     userAccess: ctx?.access.find(
                         (a) => a.userUuid === user.userUuid,

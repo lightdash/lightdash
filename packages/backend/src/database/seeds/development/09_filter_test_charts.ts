@@ -57,7 +57,6 @@ async function getOrCreateSpaceByName(
     const space = await spaceModel.createSpace(
         {
             name: spaceName,
-            isPrivate: false,
             inheritParentPermissions: true,
             parentSpaceUuid,
         },

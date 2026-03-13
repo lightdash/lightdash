@@ -125,7 +125,7 @@ async function createSpace(
         `${apiUrl}/projects/${projectUuid}/spaces`,
         {
             name: spaceName,
-            isPrivate: false,
+            inheritParentPermissions: true,
         },
     );
     expect(resp.status).toBe(200);

@@ -728,7 +728,7 @@ type SpaceEvent = BaseTrack & {
         name: string;
         spaceId: string;
         projectId: string;
-        isPrivate: boolean;
+        inheritParentPermissions: boolean;
         userAccessCount: number;
         isNested: boolean;
     };
