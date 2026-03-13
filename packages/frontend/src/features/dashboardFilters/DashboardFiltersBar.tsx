@@ -117,7 +117,11 @@ export const DashboardFiltersBar: FC<Props> = ({
 
                             {hasDashboardTiles && hasParameters && (
                                 <>
-                                    <Divider orientation="vertical" />
+                                    {(!isAddFilterDisabled ||
+                                        isEditMode ||
+                                        hasFilters) && (
+                                        <Divider orientation="vertical" />
+                                    )}
 
                                     <Parameters
                                         isEditMode={isEditMode}
