@@ -4,8 +4,8 @@ const ProjectTableName = 'projects';
 
 export async function up(knex: Knex): Promise<void> {
     if (await knex.schema.hasTable(ProjectTableName)) {
-        await knex.schema.alterTable(ProjectTableName, (table) => {
-            table.string('query_timezone').nullable();
+        await knex.schema.alterTable(ProjectTableName, (tableBuilder) => {
+            tableBuilder.string('query_timezone').nullable();
         });
     }
 }

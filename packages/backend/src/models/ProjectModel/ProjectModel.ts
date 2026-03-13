@@ -3082,13 +3082,22 @@ export class ProjectModel {
         return project.query_timezone;
     }
 
-    async updateQueryTimezone(projectUuid: string, timezone: string | null) {
+    async updateQueryTimezone(
+        projectUuid: string,
+        timezone: string | null,
+    ): Promise<DbProject> {
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
                 query_timezone: timezone,
             })
             .where('project_uuid', projectUuid)
             .returning('*');
+
+        if (!updatedProject) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
 
         return updatedProject;
     }
