@@ -1,3 +1,10 @@
+# [0.2619.0](https://github.com/lightdash/lightdash/compare/0.2618.1...0.2619.0) (2026-03-13)
+
+
+### Features
+
+* add default-users-spaces ff to posthog ([#21124](https://github.com/lightdash/lightdash/issues/21124)) ([dbe9dc5](https://github.com/lightdash/lightdash/commit/dbe9dc51db23ae3c69d1e5ba24befab9b905cf02))
+
 ## [0.2618.1](https://github.com/lightdash/lightdash/compare/0.2618.0...0.2618.1) (2026-03-13)
 
 
