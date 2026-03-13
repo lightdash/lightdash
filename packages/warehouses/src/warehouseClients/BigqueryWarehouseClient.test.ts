@@ -7,6 +7,7 @@ import {
     createJobResponse,
     credentials,
     getTableResponse,
+    rows,
 } from './BigqueryWarehouseClient.mock';
 import {
     config,
@@ -42,6 +43,68 @@ describe('BigqueryWarehouseClient', () => {
         );
         expect(getTableMock).toHaveBeenCalledTimes(1);
         expect(getTableResponse.getMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('batches async query result callbacks', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        type MockJob = {
+            id: string;
+            location: string;
+            metadata: {
+                statistics: {
+                    startTime: number;
+                    endTime: number;
+                };
+            };
+            getQueryResults: jest.Mock;
+            getQueryResultsStream: jest.Mock;
+            on: jest.Mock;
+        };
+
+        const job = {} as MockJob;
+        Object.assign(job, {
+            id: 'job-1',
+            location: 'US',
+            metadata: {
+                statistics: {
+                    startTime: 1,
+                    endTime: 11,
+                },
+            },
+            getQueryResults: jest.fn(() => [
+                rows,
+                undefined,
+                createJobResponse[0].getQueryResults()[2],
+            ]),
+            getQueryResultsStream: createJobResponse[0].getQueryResultsStream,
+            on: jest.fn((event, callback) => {
+                if (event === 'complete') callback();
+                return job;
+            }),
+        });
+
+        (warehouse.client.createQueryJob as jest.Mock) = jest.fn(() => [job]);
+
+        const callback = jest.fn();
+        const result = await warehouse.executeAsyncQuery(
+            {
+                sql: 'fake sql',
+                tags: {},
+            },
+            callback,
+        );
+
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback).toHaveBeenCalledWith([expectedRow], expectedFields);
+        expect(result).toEqual({
+            queryId: 'job-1',
+            queryMetadata: {
+                type: 'bigquery',
+                jobLocation: 'US',
+            },
+            totalRows: 1,
+            durationMs: 10,
+        });
     });
 });
 

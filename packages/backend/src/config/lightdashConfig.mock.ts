@@ -349,6 +349,7 @@ export const lightdashConfigMock: LightdashConfig = {
     preAggregates: {
         enabled: false,
         parquetEnabled: false,
+        bigqueryResultsBatchSize: 1000,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',

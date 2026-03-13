@@ -68,6 +68,7 @@ import {
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
+    WarehouseTypes,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -1377,6 +1378,7 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
+        resultsBatchSize,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1384,6 +1386,7 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
+        resultsBatchSize?: number;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1555,6 +1558,7 @@ export class AsyncQueryService extends ProjectService {
                     {
                         sql: query,
                         tags: queryTags,
+                        resultsBatchSize,
                     },
                     write ? writeAndTransformRowsIfPivot : undefined,
                 ),
@@ -1987,12 +1991,30 @@ export class AsyncQueryService extends ProjectService {
                     s3Config,
                     logger: this.logger,
                 });
+                this.logger.info(
+                    `Configured parquet materialization stream for query ${queryUuid}`,
+                    {
+                        queryUuid,
+                        executionSource,
+                        queryContext: queryTags.query_context,
+                        target: parquetS3Uri,
+                    },
+                );
             } else if (resultsStorageClient.isEnabled) {
                 // Default: stream JSONL to S3
                 stream = resultsStorageClient.createUploadStream(
                     S3ResultsFileStorageClient.sanitizeFileExtension(fileName),
                     {
                         contentType: 'application/jsonl',
+                    },
+                );
+                this.logger.info(
+                    `Configured JSONL results stream for query ${queryUuid}`,
+                    {
+                        queryUuid,
+                        executionSource,
+                        queryContext: queryTags.query_context,
+                        fileName,
                     },
                 );
             }
@@ -2016,6 +2038,25 @@ export class AsyncQueryService extends ProjectService {
                 },
             });
             queryStartTime = Date.now();
+            const resultsBatchSize =
+                queryTags.query_context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION &&
+                warehouseClient.credentials.type === WarehouseTypes.BIGQUERY
+                    ? this.lightdashConfig.preAggregates
+                          .bigqueryResultsBatchSize
+                    : undefined;
+
+            if (resultsBatchSize) {
+                this.logger.info(
+                    `Using BigQuery result batching for query ${queryUuid}: batchSize=${resultsBatchSize}`,
+                    {
+                        queryUuid,
+                        queryContext: queryTags.query_context,
+                        warehouseType: warehouseClient.credentials.type,
+                        batchSize: resultsBatchSize,
+                    },
+                );
+            }
             const {
                 warehouseResults: {
                     durationMs,
@@ -2045,6 +2086,7 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
+                        resultsBatchSize,
                     }),
             );
 
@@ -2086,6 +2128,15 @@ export class AsyncQueryService extends ProjectService {
             if (stream) {
                 // Wait for the file to be written before marking the query as ready
                 const s3UploadStart = Date.now();
+                this.logger.info(
+                    `Closing results stream for query ${queryUuid}`,
+                    {
+                        queryUuid,
+                        executionSource,
+                        queryContext: queryTags.query_context,
+                        totalRows: pivotDetails?.totalRows ?? totalRows,
+                    },
+                );
                 await Sentry.startSpan(
                     {
                         op: 's3.upload',
@@ -2110,6 +2161,15 @@ export class AsyncQueryService extends ProjectService {
                         executionSource,
                     );
                 }
+                this.logger.info(
+                    `Closed results stream for query ${queryUuid}`,
+                    {
+                        queryUuid,
+                        executionSource,
+                        queryContext: queryTags.query_context,
+                        closeMs: Date.now() - s3UploadStart,
+                    },
+                );
 
                 this.analytics.track({
                     ...analyticsIdentity,
@@ -2129,6 +2189,14 @@ export class AsyncQueryService extends ProjectService {
             }
 
             const dbUpdateStart = Date.now();
+            this.logger.info(
+                `Updating query history to READY for query ${queryUuid}`,
+                {
+                    queryUuid,
+                    executionSource,
+                    queryContext: queryTags.query_context,
+                },
+            );
             await this.queryHistoryModel.update(
                 queryUuid,
                 projectUuid,
@@ -2155,6 +2223,15 @@ export class AsyncQueryService extends ProjectService {
                 queryHistoryAccount,
             );
             const dbUpdateMs = Date.now() - dbUpdateStart;
+            this.logger.info(
+                `Updated query history to READY for query ${queryUuid}`,
+                {
+                    queryUuid,
+                    executionSource,
+                    queryContext: queryTags.query_context,
+                    dbUpdateMs,
+                },
+            );
 
             const totalMs = Date.now() - t0;
             const s3UploadCloseMs = stream

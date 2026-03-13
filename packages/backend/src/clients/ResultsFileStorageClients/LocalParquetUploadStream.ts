@@ -14,13 +14,35 @@ type LocalParquetUploadStreamArgs = {
     parquetS3Uri: string;
     s3Config: DuckdbS3SessionConfig;
     logger: typeof Logger;
+    closeTimeoutMs?: number;
 };
+
+const DEFAULT_PARQUET_CLOSE_TIMEOUT_MS = 10 * 60 * 1000;
 
 const cleanupDir = (dir: string) => {
     try {
         fs.rmSync(dir, { recursive: true, force: true });
     } catch {
         // best-effort cleanup
+    }
+};
+
+const withTimeout = async <T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string,
+): Promise<T> => {
+    let timer: NodeJS.Timeout | undefined;
+
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<T>((_, reject) => {
+                timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timer) clearTimeout(timer);
     }
 };
 
@@ -38,6 +60,7 @@ export const createLocalParquetUploadStream = ({
     parquetS3Uri,
     s3Config,
     logger,
+    closeTimeoutMs = DEFAULT_PARQUET_CLOSE_TIMEOUT_MS,
 }: LocalParquetUploadStreamArgs) => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightdash-parquet-'));
     const localJsonlPath = path.join(tmpDir, 'data.jsonl');
@@ -59,16 +82,14 @@ export const createLocalParquetUploadStream = ({
     };
 
     const write = async (rows: Record<string, unknown>[]): Promise<void> => {
+        if (rows.length === 0) return;
         if (firstWriteTime === null) firstWriteTime = Date.now();
         writeCalls += 1;
 
-        for (const row of rows) {
-            const data = `${JSON.stringify(row)}\n`;
-            totalBytesWritten += data.length;
-            totalRowsWritten += 1;
-            // eslint-disable-next-line no-await-in-loop
-            await writeWithBackpressure(fileWriteStream, data);
-        }
+        const data = `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`;
+        totalBytesWritten += Buffer.byteLength(data);
+        totalRowsWritten += rows.length;
+        await writeWithBackpressure(fileWriteStream, data);
 
         const now = Date.now();
         if (now - lastProgressLog >= PROGRESS_LOG_INTERVAL_MS) {
@@ -95,7 +116,12 @@ export const createLocalParquetUploadStream = ({
             return;
         }
 
+        logger.info(
+            `Completed local JSONL write: rows=${totalRowsWritten} bytes=${Math.round(totalBytesWritten / 1024 / 1024)}MB target=${parquetS3Uri}`,
+        );
+
         try {
+            const closeStartedAt = Date.now();
             const duckdb = new DuckdbWarehouseClient({
                 s3Config,
                 resourceLimits: { memoryLimit: '256MB', threads: 1 },
@@ -108,11 +134,19 @@ export const createLocalParquetUploadStream = ({
             );
             const copySql = `COPY (SELECT * FROM ${localJsonlSqlTable}) TO '${parquetS3Uri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
 
-            const metrics = await duckdb.runSqlWithMetrics(copySql);
+            logger.info(
+                `Starting Parquet conversion: rows=${totalRowsWritten} bytes=${Math.round(totalBytesWritten / 1024 / 1024)}MB timeoutMs=${closeTimeoutMs} target=${parquetS3Uri}`,
+            );
+
+            const metrics = await withTimeout(
+                duckdb.runSqlWithMetrics(copySql),
+                closeTimeoutMs,
+                `Parquet conversion timed out after ${closeTimeoutMs}ms`,
+            );
             const localFileSize = fs.statSync(localJsonlPath).size;
 
             logger.info(
-                `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${metrics.totalMs} target=${parquetS3Uri}`,
+                `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${metrics.totalMs} totalCloseMs=${Date.now() - closeStartedAt} target=${parquetS3Uri}`,
             );
         } catch (error) {
             logger.error(

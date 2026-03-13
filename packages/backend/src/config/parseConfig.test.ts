@@ -119,6 +119,14 @@ test('Should use explicit pre-aggregate S3 credentials when set', () => {
     });
 });
 
+test('Should parse pre-aggregate BigQuery results batch size from env', () => {
+    process.env.PRE_AGGREGATES_BIGQUERY_RESULTS_BATCH_SIZE = '2500';
+
+    const config = parseConfig();
+
+    expect(config.preAggregates.bigqueryResultsBatchSize).toBe(2500);
+});
+
 test('Should parse rudder config from env', () => {
     const expected = {
         dataPlaneUrl: 'customurl',

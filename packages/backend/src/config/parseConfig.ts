@@ -1106,6 +1106,7 @@ export type LightdashConfig = {
     preAggregates: {
         enabled: boolean;
         parquetEnabled: boolean;
+        bigqueryResultsBatchSize: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     userImpersonation: {
@@ -1382,6 +1383,10 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const preAggregatesBigqueryResultsBatchSize =
+        getIntegerFromEnvironmentVariable(
+            'PRE_AGGREGATES_BIGQUERY_RESULTS_BATCH_SIZE',
+        ) ?? 1000;
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -1391,6 +1396,12 @@ export const parseConfig = (): LightdashConfig => {
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (preAggregatesBigqueryResultsBatchSize <= 0) {
+        throw new ParseError(
+            'PRE_AGGREGATES_BIGQUERY_RESULTS_BATCH_SIZE must be greater than 0',
+            {},
+        );
     }
     if (natsWorkerEnabled && !natsWorkerUrl) {
         throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
@@ -2033,6 +2044,7 @@ export const parseConfig = (): LightdashConfig => {
             enabled: preAggregatesEnabled,
             parquetEnabled:
                 process.env.PRE_AGGREGATES_PARQUET_ENABLED === 'true',
+            bigqueryResultsBatchSize: preAggregatesBigqueryResultsBatchSize,
             s3: preAggregatesS3,
         },
         userImpersonation: {
