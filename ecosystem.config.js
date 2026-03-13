@@ -139,6 +139,25 @@ module.exports = {
         },
 
         // ─────────────────────────────────────────────────────────────────
+        // SDK Test Embed Page (port 3030)
+        // ─────────────────────────────────────────────────────────────────
+        {
+            name: 'lightdash-sdk-test',
+            script: 'node_modules/.bin/vite',
+            args: '--port 3030',
+            interpreter: 'none',
+            cwd: path.join(__dirname, 'examples/sdk-embed-test'),
+            env: {
+                NODE_ENV: 'development',
+            },
+            watch: false,
+            autorestart: false,
+            kill_timeout: 3000,
+            merge_logs: true,
+            time: true,
+        },
+
+        // ─────────────────────────────────────────────────────────────────
         // Spotlight.js Sidecar (Sentry Dev Debugging UI)
         // ─────────────────────────────────────────────────────────────────
         {

@@ -12,8 +12,10 @@ const CONNECTION = lightdashConfig.database.connectionUri
 
 export const DEFAULT_DB_MAX_CONNECTIONS = 10;
 
-// Condition to be removed once we require Postgres vector extension
+// Include EE migrations when a license key is present OR in development mode
 const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey;
+const includeEeMigrations =
+    hasEnterpriseLicense || process.env.NODE_ENV === 'development';
 
 const development: Knex.Config<Knex.PgConnectionConfig> = {
     client: 'pg',
@@ -33,7 +35,7 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
     migrations: {
         directory: [
             path.join(__dirname, './database/migrations'),
-            ...(hasEnterpriseLicense
+            ...(includeEeMigrations
                 ? [path.join(__dirname, './ee/database/migrations')]
                 : []),
         ],

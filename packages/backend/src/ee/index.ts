@@ -46,21 +46,31 @@ type EnterpriseAppArguments = Pick<
 >;
 
 export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
     if (!lightdashConfig.license.licenseKey) {
-        return {};
-    }
-
-    const licenseClient = new LicenseClient({});
-
-    const license = await licenseClient.get(lightdashConfig.license.licenseKey);
-    if (license.isValid) {
-        Logger.info(
-            `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
-        );
+        if (isDevelopment) {
+            Logger.info(
+                'No license key found — registering enterprise providers in development mode.',
+            );
+        } else {
+            return {};
+        }
     } else {
-        throw new ForbiddenError(
-            `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
+        const licenseClient = new LicenseClient({});
+
+        const license = await licenseClient.get(
+            lightdashConfig.license.licenseKey,
         );
+        if (license.isValid) {
+            Logger.info(
+                `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
+            );
+        } else {
+            throw new ForbiddenError(
+                `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
+            );
+        }
     }
 
     return {
