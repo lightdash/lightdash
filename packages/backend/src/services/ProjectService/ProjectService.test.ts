@@ -176,7 +176,12 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
-        featureFlagModel: {} as FeatureFlagModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({
+                id: '',
+                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
+            })),
+        } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,

@@ -333,7 +333,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: undefined,
     },
     defaultUserSpaces: {
-        enabled: false,
+        enabled: undefined,
     },
     persistentDownloadUrls: {
         enabled: false,
