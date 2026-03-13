@@ -53,9 +53,9 @@ describe('CaslAuditWrapper', () => {
             );
 
             // Forbidden rule with conditions
-            cannot('read', 'Dashboard', { isPrivate: true }).because(
-                'Private dashboards are not readable',
-            );
+            cannot('read', 'Dashboard', {
+                inheritsFromOrgOrProject: false,
+            }).because('Private dashboards are not readable');
 
             // Rule with multiple conditions
             can('manage', 'SavedChart', {
@@ -95,7 +95,7 @@ describe('CaslAuditWrapper', () => {
                 authorId: mockUser.userUuid,
             });
             const privateDashboard = createDashboard('3', {
-                isPrivate: true,
+                inheritsFromOrgOrProject: false,
             });
 
             // Test various scenarios
@@ -141,7 +141,7 @@ describe('CaslAuditWrapper', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
             const privateDashboard = createDashboard('3', {
-                isPrivate: true,
+                inheritsFromOrgOrProject: false,
             });
 
             // Act
@@ -231,7 +231,7 @@ describe('CaslAuditWrapper', () => {
                 authorId: mockUser.userUuid,
             });
             const privateDashboard = createDashboard('3', {
-                isPrivate: true,
+                inheritsFromOrgOrProject: false,
             });
 
             // Test various scenarios
@@ -253,7 +253,7 @@ describe('CaslAuditWrapper', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
             const privateDashboard = createDashboard('3', {
-                isPrivate: true,
+                inheritsFromOrgOrProject: false,
             });
 
             // Act
@@ -289,7 +289,7 @@ describe('CaslAuditWrapper', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
             const privateDashboard = createDashboard('3', {
-                isPrivate: true,
+                inheritsFromOrgOrProject: false,
             });
 
             // Act

@@ -257,6 +257,7 @@ export class SpaceService
                 name: space.name,
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
+                inheritParentPermissions,
                 userAccessCount: space.access?.length ?? 0,
                 isNested: !!space.parentSpaceUuid,
             },
@@ -346,6 +347,7 @@ export class SpaceService
                 name: space.name,
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
+                inheritParentPermissions: updatedSpace.inheritParentPermissions,
                 isNested,
                 // This used to rely on summary.access.length, which only contained direct user access and ignored direct group access
                 userAccessCount: directAccessCount,
