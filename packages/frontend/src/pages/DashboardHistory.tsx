@@ -30,6 +30,7 @@ import {
     useDashboardQuery,
     useDashboardVersionRollbackMutation,
 } from '../hooks/dashboard/useDashboard';
+import { useSlugRedirect } from '../hooks/useSlugRedirect';
 import { Can } from '../providers/Ability';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 
@@ -44,6 +45,8 @@ const DashboardHistory = () => {
 
     const dashboardQuery = useDashboardQuery(dashboardUuid);
     const historyQuery = useDashboardHistory(dashboardUuid);
+
+    useSlugRedirect(dashboardUuid, dashboardQuery.data?.uuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);
 

@@ -15,6 +15,7 @@ import {
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
+import { useSlugRedirect } from '../hooks/useSlugRedirect';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 
@@ -62,6 +63,8 @@ const SavedExplorer = () => {
     const { data, isInitialLoading, error } = useSavedQuery({
         id: savedQueryUuid,
     });
+
+    useSlugRedirect(savedQueryUuid, data?.uuid);
 
     useEffect(() => {
         // If the saved explore is part of a dashboard, set the dashboard chart info
