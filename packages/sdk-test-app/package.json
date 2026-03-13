@@ -6,7 +6,8 @@
     "scripts": {
         "start": "vite serve",
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "generate-embed-token": "node --import tsx generate-embed-token.ts"
     },
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
@@ -20,9 +21,15 @@
         "react-i18next": "^15.4.1"
     },
     "devDependencies": {
+        "@types/jsonwebtoken": "^9.0.0",
         "@types/react": "19.2.2",
         "@types/react-dom": "19.2.2",
         "@vitejs/plugin-react": "^4.3.4",
+        "dotenv": "^16.0.0",
+        "jsonwebtoken": "^9.0.0",
+        "knex": "^3.1.0",
+        "pg": "^8.0.0",
+        "pg-connection-string": "^2.0.0",
         "typescript": "6.0.0-beta",
         "vite": "^6.1.3"
     }

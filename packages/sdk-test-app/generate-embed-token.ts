@@ -6,7 +6,8 @@ import {
 } from 'crypto';
 import jwt from 'jsonwebtoken';
 import knex from 'knex';
-import { parse } from 'pg-connection-string';
+import pgConnectionString from 'pg-connection-string';
+const { parse } = pgConnectionString;
 import { config } from 'dotenv';
 import path from 'path';
 
@@ -15,6 +16,7 @@ config({ path: path.join(rootDir, '.env.development') });
 config({ path: path.join(rootDir, '.env.development.local'), override: true });
 
 const LIGHTDASH_SECRET = process.env.LIGHTDASH_SECRET || 'not very secret';
+const LIGHTDASH_URL = process.env.SITE_URL || 'http://localhost:8080';
 
 function encrypt(message: string, secret: string): Buffer {
     const saltLength = 64;
@@ -130,6 +132,7 @@ async function main() {
         };
 
         const token = jwt.sign(payload, rawSecret, { expiresIn: '24h' });
+        const embedUrl = `${LIGHTDASH_URL}/embed#${token}`;
 
         console.log(
             JSON.stringify(
@@ -137,12 +140,15 @@ async function main() {
                     projectUuid,
                     dashboardUuid,
                     dashboardName: dashboard.name,
-                    token,
+                    embedUrl,
                 },
                 null,
                 2,
             ),
         );
+
+        console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
+        console.log(`VITE_EMBED_URL="${embedUrl}"`);
     } finally {
         await db.destroy();
     }

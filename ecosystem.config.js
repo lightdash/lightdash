@@ -139,14 +139,14 @@ module.exports = {
         },
 
         // ─────────────────────────────────────────────────────────────────
-        // SDK Test Embed Page (port 3030)
+        // SDK Test App (port 3030)
         // ─────────────────────────────────────────────────────────────────
         {
             name: 'lightdash-sdk-test',
             script: 'node_modules/.bin/vite',
             args: '--port 3030',
             interpreter: 'none',
-            cwd: path.join(__dirname, 'examples/sdk-embed-test'),
+            cwd: path.join(__dirname, 'packages/sdk-test-app'),
             env: {
                 NODE_ENV: 'development',
             },
