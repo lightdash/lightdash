@@ -18,7 +18,7 @@ type SpaceSelectorProps = {
     selectedSpaceUuid: string | null;
     spaces:
         | Array<
-              Pick<SpaceSummary, 'inheritParentPermissions' | 'access'> &
+              Pick<SpaceSummary, 'inheritsFromOrgOrProject' | 'access'> &
                   NestableItem
           >
         | undefined;
@@ -60,7 +60,7 @@ const SpaceSelector = ({
             case 'shared':
                 return spaces.filter(
                     (space) =>
-                        space.inheritParentPermissions ||
+                        space.inheritsFromOrgOrProject ||
                         space.access.includes(user.data.userUuid),
                 );
             default:

@@ -101,6 +101,7 @@ export type SpaceSummaryBase = Pick<
 };
 
 export type SpaceSummary = SpaceSummaryBase & {
+    inheritsFromOrgOrProject: boolean;
     userAccess: SpaceAccess | undefined;
     access: string[];
 };

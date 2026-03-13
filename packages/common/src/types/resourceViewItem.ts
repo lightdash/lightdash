@@ -203,6 +203,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     projectUuid: content.project.uuid,
                     pinnedListUuid: content.pinnedList?.uuid || null,
                     pinnedListOrder: content.pinnedList?.order || null,
+                    inheritsFromOrgOrProject: content.inheritParentPermissions, // Approximation for content API items
                     userAccess: undefined, // This propery is not needed for the resource view item
                     parentSpaceUuid: content.parentSpaceUuid,
                     path: content.path,

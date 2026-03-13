@@ -322,7 +322,7 @@ const InfiniteResourceTable = ({
 
                 const space = spaces.find((s) => s.uuid === item.data.uuid);
                 if (!space) return false;
-                return space.inheritParentPermissions || !!space.userAccess;
+                return space.inheritsFromOrgOrProject || !!space.userAccess;
             });
     }, [data, userCanManageProject, spaces, selectedAdminContentType]);
 

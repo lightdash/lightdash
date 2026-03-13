@@ -6254,6 +6254,7 @@ export class ProjectService extends BaseService {
                     directAccessMap[spaceSummary.uuid] ?? [];
                 return {
                     ...spaceSummary,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: directAccessUuids,
                     userAccess: ctx?.access.find(
                         (a) => a.userUuid === user.userUuid,
