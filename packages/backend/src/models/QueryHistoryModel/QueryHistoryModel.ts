@@ -229,6 +229,7 @@ export class QueryHistoryModel {
             .update({
                 status: QueryHistoryStatus.EXPIRED,
                 error,
+                processing_started_at: new Date(),
             });
     }
 
