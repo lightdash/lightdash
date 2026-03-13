@@ -3,7 +3,6 @@ import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     getClientName,
-    getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -227,52 +226,57 @@ oauthRouter.post('/token', async (req, res, next) => {
 });
 
 // Token introspection endpoint
-oauthRouter.post('/introspect', async (req, res) => {
-    const { token } = req.body;
+oauthRouter.post(
+    '/introspect',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res) => {
+        const { token } = req.body;
 
-    if (!req.user) {
-        return res.status(401).json({ error: 'invalid_request' });
-    }
-    if (!token) {
-        return res.status(400).json({ error: 'invalid_request' });
-    }
-
-    try {
-        const oauthService = getOAuthService(req);
-        const oauthReq = new OAuth2Server.Request(req);
-        const oauthRes = new OAuth2Server.Response(res);
-
-        // Try to authenticate the token
-        const tokenData = await oauthService.authenticate(oauthReq, oauthRes);
-        if (tokenData && tokenData.accessTokenExpiresAt) {
-            const introspectResponse: OAuthIntrospectResponse = {
-                active: true,
-                scope: Array.isArray(tokenData.scope)
-                    ? tokenData.scope.join(' ')
-                    : tokenData.scope,
-                token_type: 'access_token',
-                exp: Math.floor(
-                    tokenData.accessTokenExpiresAt.getTime() / 1000, // Token expires timestamp
-                ),
-                iat: Math.floor(
-                    tokenData.accessTokenExpiresAt.getTime() / 1000 - 3600, // issued at: token cretaed timestamp
-                ),
-                sub: tokenData.user.userUuid, // subject: Unique user identifier
-                aud: tokenData.client.id, // audience: Client identifier
-                iss: 'lightdash', // issuer
-                jti: tokenData.accessToken, // JWT ID: Unique token identifier
-                client_id: DEFAULT_OAUTH_CLIENT_ID,
-                username: tokenData.user.userUuid,
-            };
-            return res.json(introspectResponse);
+        if (!token) {
+            return res.status(400).json({ error: 'invalid_request' });
         }
 
-        return res.json({ active: false });
-    } catch (error) {
-        Logger.error(`Introspection error: ${error}`);
-        return res.json({ active: false });
-    }
-});
+        try {
+            const oauthService = getOAuthService(req);
+            const oauthReq = new OAuth2Server.Request(req);
+            const oauthRes = new OAuth2Server.Response(res);
+
+            // Try to authenticate the token
+            const tokenData = await oauthService.authenticate(
+                oauthReq,
+                oauthRes,
+            );
+            if (tokenData && tokenData.accessTokenExpiresAt) {
+                const introspectResponse: OAuthIntrospectResponse = {
+                    active: true,
+                    scope: Array.isArray(tokenData.scope)
+                        ? tokenData.scope.join(' ')
+                        : tokenData.scope,
+                    token_type: 'access_token',
+                    exp: Math.floor(
+                        tokenData.accessTokenExpiresAt.getTime() / 1000,
+                    ),
+                    iat: Math.floor(
+                        tokenData.accessTokenExpiresAt.getTime() / 1000 - 3600,
+                    ),
+                    sub: tokenData.user.userUuid,
+                    aud: tokenData.client.id,
+                    iss: 'lightdash',
+                    jti: tokenData.accessToken,
+                    client_id: DEFAULT_OAUTH_CLIENT_ID,
+                    username: tokenData.user.userUuid,
+                };
+                return res.json(introspectResponse);
+            }
+
+            return res.json({ active: false });
+        } catch (error) {
+            Logger.error(`Introspection error: ${error}`);
+            return res.json({ active: false });
+        }
+    },
+);
 
 // Token revocation endpoint
 oauthRouter.post('/revoke', async (req, res) => {
@@ -289,66 +293,6 @@ oauthRouter.post('/revoke', async (req, res) => {
         Logger.error(`Revocation error: ${error}`);
     }
     return res.status(200).send();
-});
-
-// Dynamic Client Registration endpoint (RFC 7591)
-// This endpoint is used to register a new OAuth client
-// to be used with the MCP server
-// Scopes and grant types are hardcoded for now
-oauthRouter.post('/register', async (req, res) => {
-    try {
-        const { client_name, redirect_uris, scope, grantTypes } = req.body;
-
-        Logger.info(
-            `Registering Oauth client ${client_name} with redirect_uris ${redirect_uris} and scopes ${scope}`,
-        );
-
-        // Validate required fields
-        if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
-            return res.status(400).json({
-                error: 'invalid_client_metadata',
-                error_description: 'client_name and redirect_uris are required',
-            });
-        }
-
-        const scopes = typeof scope === 'string' ? scope.split(' ') : [];
-        /*
-        // Do not enforce client scopes for now until more MCP clients support this
-        const invalidScopes = scopes.filter((sc) => !sc.startsWith('mcp:'));
-        if (invalidScopes.length > 0 || scopes.length === 0) {
-            return res.status(400).json({
-                error: 'invalid_scope',
-                error_description: `Only scopes starting with 'mcp:' are allowed. Invalid scopes: ${invalidScopes.join(
-                    ', ',
-                )}`,
-            });
-        }
-        */
-
-        const client = await getOAuthService(req).registerClient({
-            clientName: client_name,
-            redirectUris: redirect_uris,
-            grantTypes,
-            scopes,
-        });
-
-        return res.status(201).json({
-            client_id: client.clientId,
-            client_secret: client.clientSecret,
-            client_name: client.clientName,
-            redirect_uris: client.redirectUris,
-            grant_types: client.grantTypes,
-            scope: client.scopes.join(' '),
-            client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
-        });
-    } catch (error) {
-        Logger.error(`Client registration error: ${getErrorMessage(error)}`);
-        return res.status(500).json({
-            error: 'server_error',
-            error_description:
-                'Internal server error during client registration',
-        });
-    }
 });
 
 // UserInfo endpoint (OpenID Connect)
@@ -408,6 +352,28 @@ oauthRouter.post(
     },
 );
 
+oauthRouter.patch(
+    '/clients/:clientId',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    unauthorisedInDemo,
+    async (req, res, next) => {
+        try {
+            const { clientId } = req.params;
+            const { clientName, redirectUris } = req.body;
+            const oauthService = getOAuthService(req);
+            const client = await oauthService.updateClient(
+                req.user!,
+                clientId,
+                { clientName, redirectUris },
+            );
+            return res.json({ status: 'ok', results: client });
+        } catch (error) {
+            return next(error);
+        }
+    },
+);
+
 oauthRouter.delete(
     '/clients/:clientId',
     allowApiKeyAuthentication,
@@ -426,9 +392,7 @@ oauthRouter.delete(
 );
 
 // OAuth2 Discovery endpoint
-// This endpoint should only be used for the MCP server to discover the OAuth2 server
-// To create new clients
-// We limit the scopes to MCP_READ and MCP_WRITE for now
+// This endpoint is used by MCP clients and other OAuth clients to discover the OAuth2 server
 export function oauthConfig(baseUrl: string) {
     return {
         issuer: baseUrl,
@@ -436,7 +400,6 @@ export function oauthConfig(baseUrl: string) {
         token_endpoint: `${baseUrl}/api/v1/oauth/token`,
         introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
         revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
-        registration_endpoint: `${baseUrl}/api/v1/oauth/register`,
         userinfo_endpoint: `${baseUrl}/api/v1/oauth/userinfo`,
         response_types_supported: ['code'],
         grant_types_supported: [

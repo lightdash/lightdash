@@ -99,35 +99,6 @@ export class OAuthService extends BaseService {
         return false;
     }
 
-    public async registerClient({
-        clientName,
-        redirectUris,
-        grantTypes,
-        scopes,
-    }: {
-        clientName: string;
-        redirectUris: string[];
-        grantTypes?: string[];
-        scopes?: string[];
-    }) {
-        // Validate redirect URIs
-        for (const uri of redirectUris) {
-            try {
-                // eslint-disable-next-line no-new
-                new URL(uri);
-            } catch {
-                throw new ParameterError(`Invalid redirect URI ${uri}`);
-            }
-        }
-
-        return this.oauthModel.createClient({
-            clientName,
-            redirectUris,
-            grantTypes,
-            scopes,
-        });
-    }
-
     public async listClients(user: SessionUser): Promise<OAuthClientSummary[]> {
         if (
             user.ability.cannot('manage', 'Organization') ||
@@ -174,6 +145,46 @@ export class OAuthService extends BaseService {
             organizationUuid: user.organizationUuid,
             createdByUserUuid: user.userUuid,
         });
+    }
+
+    public async updateClient(
+        user: SessionUser,
+        clientId: string,
+        {
+            clientName,
+            redirectUris,
+        }: {
+            clientName: string;
+            redirectUris: string[];
+        },
+    ): Promise<OAuthClientSummary> {
+        if (
+            user.ability.cannot('manage', 'Organization') ||
+            !user.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to manage OAuth clients',
+            );
+        }
+        // Validate redirect URIs
+        for (const uri of redirectUris) {
+            try {
+                // eslint-disable-next-line no-new
+                new URL(uri);
+            } catch {
+                throw new ParameterError(`Invalid redirect URI ${uri}`);
+            }
+        }
+
+        const updated = await this.oauthModel.updateClient(
+            clientId,
+            user.organizationUuid,
+            { clientName, redirectUris },
+        );
+        if (!updated) {
+            throw new NotFoundError('OAuth client not found');
+        }
+        return updated;
     }
 
     public async deleteClient(

@@ -1,15 +1,17 @@
 import { type OAuthClientSummary } from '@lightdash/common';
 import { ActionIcon, Group, Table, Text, Tooltip } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
+import { IconPencil, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useDeleteOAuthClient } from '../../../hooks/useOAuthClients';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+import { EditOAuthClientModal } from './EditOAuthClientModal';
 
 const OAuthClientRow: FC<{
     client: OAuthClientSummary;
 }> = ({ client }) => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const { mutate: deleteClient, isLoading: isDeleting } =
         useDeleteOAuthClient();
 
@@ -37,7 +39,15 @@ const OAuthClientRow: FC<{
                     </Text>
                 </Table.Td>
                 <Table.Td>
-                    <Group justify="flex-end">
+                    <Group justify="flex-end" gap="xs">
+                        <Tooltip label="Edit" position="left">
+                            <ActionIcon
+                                variant="subtle"
+                                onClick={() => setIsEditModalOpen(true)}
+                            >
+                                <MantineIcon icon={IconPencil} />
+                            </ActionIcon>
+                        </Tooltip>
                         <Tooltip label="Delete" position="left">
                             <ActionIcon
                                 variant="subtle"
@@ -50,6 +60,13 @@ const OAuthClientRow: FC<{
                     </Group>
                 </Table.Td>
             </Table.Tr>
+
+            {isEditModalOpen && (
+                <EditOAuthClientModal
+                    client={client}
+                    onClose={() => setIsEditModalOpen(false)}
+                />
+            )}
 
             <MantineModal
                 opened={isDeleteModalOpen}

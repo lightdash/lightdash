@@ -3,6 +3,7 @@ import {
     type CreateOAuthClientRequest,
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
+    type UpdateOAuthClientRequest,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -25,6 +26,16 @@ const createOAuthClient = async (data: CreateOAuthClientRequest) =>
     lightdashApi<CreateOAuthClientResponse>({
         url: `/oauth/clients`,
         method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const updateOAuthClient = async (
+    clientId: string,
+    data: UpdateOAuthClientRequest,
+) =>
+    lightdashApi<OAuthClientSummary>({
+        url: `/oauth/clients/${clientId}`,
+        method: 'PATCH',
         body: JSON.stringify(data),
     });
 
@@ -63,6 +74,30 @@ export const useCreateOAuthClient = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: `Failed to create OAuth application`,
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useUpdateOAuthClient = () => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        OAuthClientSummary,
+        ApiError,
+        { clientId: string; data: UpdateOAuthClientRequest }
+    >(({ clientId, data }) => updateOAuthClient(clientId, data), {
+        mutationKey: ['oauth_clients'],
+        onSuccess: async () => {
+            await queryClient.invalidateQueries(['oauth_clients']);
+            showToastSuccess({
+                title: `OAuth application updated`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to update OAuth application`,
                 apiError: error,
             });
         },

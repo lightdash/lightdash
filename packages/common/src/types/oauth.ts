@@ -142,3 +142,8 @@ export interface CreateOAuthClientRequest {
 export interface CreateOAuthClientResponse extends OAuthClientSummary {
     clientSecret: string;
 }
+
+export interface UpdateOAuthClientRequest {
+    clientName: string;
+    redirectUris: string[];
+}

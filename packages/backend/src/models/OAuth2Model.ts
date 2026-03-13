@@ -384,6 +384,38 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }));
     }
 
+    async updateClient(
+        clientId: string,
+        organizationUuid: string,
+        {
+            clientName,
+            redirectUris,
+        }: {
+            clientName: string;
+            redirectUris: string[];
+        },
+    ): Promise<OAuthClientSummary | null> {
+        const [updated] = await this.database('oauth2_clients')
+            .where('client_id', clientId)
+            .andWhere('organization_uuid', organizationUuid)
+            .update({
+                client_name: clientName,
+                redirect_uris: JSON.stringify(redirectUris),
+            })
+            .returning('*');
+
+        if (!updated) return null;
+
+        return {
+            clientId: updated.client_id,
+            clientName: updated.client_name,
+            redirectUris: updated.redirect_uris,
+            scopes: updated.scopes || [],
+            createdAt: updated.created_at,
+            createdByUserUuid: updated.created_by_user_uuid,
+        };
+    }
+
     async deleteClient(
         clientId: string,
         organizationUuid: string,
