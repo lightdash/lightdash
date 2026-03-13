@@ -173,6 +173,7 @@ export type DashboardDAO = Omit<
 
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
+    isAddFilterDisabled?: boolean;
     pinnedParameters?: string[];
     dateZoomGranularities?: (DateGranularity | string)[];
     defaultDateZoomGranularity?: DateGranularity | string;

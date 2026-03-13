@@ -17,6 +17,7 @@ filters:         # Dashboard-level filters
   dimensions: []
 config:          # Dashboard configuration (date zoom, etc.)
   isDateZoomDisabled: false
+  isAddFilterDisabled: false
 ```
 
 ## Tile Types
@@ -366,6 +367,7 @@ Control dashboard-level settings like date zoom behavior:
 ```yaml
 config:
   isDateZoomDisabled: false
+  isAddFilterDisabled: false
   dateZoomGranularities:
     - Day
     - Week
@@ -380,6 +382,7 @@ config:
 | Property | Type | Description |
 |----------|------|-------------|
 | `isDateZoomDisabled` | boolean | Disable the date zoom feature entirely |
+| `isAddFilterDisabled` | boolean | Disable the add filter button entirely |
 | `dateZoomGranularities` | string[] | Available granularity options (e.g., `Day`, `Week`, `Month`, `Quarter`, `Year`, or custom like `fiscal_quarter`) |
 | `defaultDateZoomGranularity` | string | The granularity selected by default when the dashboard loads |
 | `pinnedParameters` | string[] | List of pinned parameter names |
@@ -557,6 +560,7 @@ filters:
 
 config:
   isDateZoomDisabled: false
+  isAddFilterDisabled: false
   dateZoomGranularities:
     - Day
     - Week

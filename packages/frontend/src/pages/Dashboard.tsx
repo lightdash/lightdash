@@ -82,6 +82,9 @@ const Dashboard: FC = () => {
         (c) => c.setDashboardTemporaryFilters,
     );
     const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const isAddFilterDisabled = useDashboardContext(
+        (c) => c.isAddFilterDisabled,
+    );
     const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
@@ -104,6 +107,12 @@ const Dashboard: FC = () => {
             isDateZoomDisabled
         );
     }, [dashboard, isDateZoomDisabled]);
+    const hasAddFilterDisabledChanged = useMemo(() => {
+        return (
+            (dashboard?.config?.isAddFilterDisabled || false) !==
+            isAddFilterDisabled
+        );
+    }, [dashboard, isAddFilterDisabled]);
     const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
     const preAggregateStatuses = useDashboardContext(
         (c) => c.preAggregateStatuses,
@@ -654,6 +663,7 @@ const Dashboard: FC = () => {
             tabs: dashboardTabs,
             config: {
                 isDateZoomDisabled,
+                isAddFilterDisabled,
                 pinnedParameters,
                 dateZoomGranularities: haveDateZoomGranularitiesChanged
                     ? dateZoomGranularities
@@ -686,6 +696,7 @@ const Dashboard: FC = () => {
             hasTemporaryFilters ||
             haveTabsChanged ||
             hasDateZoomDisabledChanged ||
+            hasAddFilterDisabledChanged ||
             parametersHaveChanged ||
             havePinnedParametersChanged ||
             haveDateZoomGranularitiesChanged ||

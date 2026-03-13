@@ -1,5 +1,6 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import {
+    ActionIcon,
     Button,
     Divider,
     Group,
@@ -8,10 +9,11 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine-8/hooks';
-import { IconRotate2 } from '@tabler/icons-react';
+import { IconRotate2, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import styles from './AddFilterButton.module.css';
 import FilterConfiguration from './FilterConfiguration';
 
 type Props = {
@@ -34,6 +36,12 @@ const AddFilterButton: FC<Props> = ({
     onResetDashboardFilters,
 }) => {
     const popoverId = useId();
+    const isAddFilterDisabled = useDashboardContext(
+        (c) => c.isAddFilterDisabled,
+    );
+    const setIsAddFilterDisabled = useDashboardContext(
+        (c) => c.setIsAddFilterDisabled,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const allFilterableFields = useDashboardContext(
@@ -88,6 +96,20 @@ const AddFilterButton: FC<Props> = ({
 
     const showResetFiltersButton = !isEditMode && haveFiltersChanged;
 
+    if (isAddFilterDisabled) {
+        if (isEditMode)
+            return (
+                <Button
+                    variant="light"
+                    size="xs"
+                    onClick={() => setIsAddFilterDisabled(false)}
+                >
+                    Enable Add Filter
+                </Button>
+            );
+        return null;
+    }
+
     return (
         <Group gap={0}>
             <Popover
@@ -123,41 +145,55 @@ const AddFilterButton: FC<Props> = ({
                             </Text>
                         }
                     >
-                        <Button
-                            size="xs"
-                            variant="default"
-                            radius="md"
-                            disabled={disabled}
-                            loading={
-                                isLoadingDashboardFilters ||
-                                isFetchingDashboardFilters
-                            }
-                            styles={{
-                                root: {
-                                    borderStyle: 'dashed',
-                                    borderRadius: '100px',
-                                    ...(showResetFiltersButton
-                                        ? {
-                                              borderRightWidth: '0px',
-                                              borderTopRightRadius: '0px',
-                                              borderBottomRightRadius: '0px',
-                                          }
-                                        : {
-                                              borderRightStyle: 'dashed',
-                                              borderRightWidth: '1px',
-                                              borderTopRightRadius: '100px',
-                                              borderBottomRightRadius: '100px',
-                                          }),
-                                },
-                            }}
-                            onClick={() =>
-                                isPopoverOpen
-                                    ? handleClose()
-                                    : onPopoverOpen(popoverId)
-                            }
-                        >
-                            Add filter
-                        </Button>
+                        <Group gap={0} pos="relative">
+                            {isEditMode && (
+                                <ActionIcon
+                                    size="xs"
+                                    variant="default"
+                                    onClick={() => setIsAddFilterDisabled(true)}
+                                    className={styles.closeButton}
+                                >
+                                    <MantineIcon icon={IconX} size={12} />
+                                </ActionIcon>
+                            )}
+                            <Button
+                                size="xs"
+                                variant="default"
+                                radius="md"
+                                disabled={disabled}
+                                loading={
+                                    isLoadingDashboardFilters ||
+                                    isFetchingDashboardFilters
+                                }
+                                styles={{
+                                    root: {
+                                        borderStyle: 'dashed',
+                                        borderRadius: '100px',
+                                        ...(showResetFiltersButton
+                                            ? {
+                                                  borderRightWidth: '0px',
+                                                  borderTopRightRadius: '0px',
+                                                  borderBottomRightRadius:
+                                                      '0px',
+                                              }
+                                            : {
+                                                  borderRightStyle: 'dashed',
+                                                  borderRightWidth: '1px',
+                                                  borderTopRightRadius: '100px',
+                                                  borderBottomRightRadius:
+                                                      '100px',
+                                              }),
+                                    },
+                                }}
+                                onClick={() =>
+                                    isPopoverOpen
+                                        ? handleClose()
+                                        : onPopoverOpen(popoverId)
+                                }
+                            >
+                                Add filter
+                            </Button>
+                        </Group>
                     </Tooltip>
                 </Popover.Target>
 

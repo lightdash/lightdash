@@ -218,6 +218,16 @@ const DashboardProvider: React.FC<
         }
     }, [dashboard]);
 
+    // Allows users to disable add filter button on view mode,
+    // by default it is enabled
+    const [isAddFilterDisabled, setIsAddFilterDisabled] =
+        useState<boolean>(false);
+    useEffect(() => {
+        if (dashboard?.config?.isAddFilterDisabled === true) {
+            setIsAddFilterDisabled(true);
+        }
+    }, [dashboard]);
+
     const [parameterDefinitions, setParameterDefinitions] =
         useState<ParameterDefinitions>({});
 
@@ -1478,6 +1488,8 @@ const DashboardProvider: React.FC<
         requiredDashboardFilters,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
+        isAddFilterDisabled,
+        setIsAddFilterDisabled,
         setSavedParameters,
         parametersHaveChanged,
         dashboardParameters: parameters,

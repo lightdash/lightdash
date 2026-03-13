@@ -278,7 +278,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                     size="xs"
                     onClick={() => setIsDateZoomDisabled(false)}
                 >
-                    Add Date Zoom
+                    Enable Date Zoom
                 </Button>
             );
         return null;
