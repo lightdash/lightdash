@@ -4,6 +4,15 @@ models:
     config:
       tags: ["core", "ai"]
     meta:
+      parameters:
+        event_status:
+          label: "Event Status"
+          description: "Filter events by status type. Tests model-scoped ld.parameters.events.event_status Liquid syntax."
+          default: "all"
+          options:
+            - "all"
+            - "song_played"
+            - "add_to_cart"
       primary_key: event_id
       group_details:
         events:
@@ -132,6 +141,17 @@ models:
                 'Filtered: ' || ${TABLE}.event
               {% else %}
                 'All Events'
+              {% endif %}{% endraw %}
+      - name: filtered_event
+        description: "Filters events by the model-scoped event_status parameter using ld.parameters.events.event_status Liquid syntax."
+        meta:
+          dimension:
+            type: string
+            sql: >
+              {% raw %}{% if ld.parameters.events.event_status == 'all' %}
+                ${TABLE}.event
+              {% else %}
+                CASE WHEN ${TABLE}.event = '{{ ld.parameters.events.event_status }}' THEN ${TABLE}.event ELSE NULL END
               {% endif %}{% endraw %}
       - name: event
         description: ""
