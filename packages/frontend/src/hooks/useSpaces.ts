@@ -30,6 +30,7 @@ const getSpaceSummaries = async (projectUuid: string) => {
 
 export const useSpaceSummaries = (
     projectUuid?: string,
+    includePrivateSpaces: boolean = false,
     queryOptions?: UseQueryOptions<SpaceSummary[], ApiError>,
 ) => {
     const { data: account } = useAccount();
@@ -37,6 +38,15 @@ export const useSpaceSummaries = (
         ['projects', projectUuid, 'spaces'],
         () => getSpaceSummaries(projectUuid!),
         {
+            select: (data) =>
+                includePrivateSpaces
+                    ? data
+                    : data.filter(
+                          (space) =>
+                              !!account?.user &&
+                              (space.inheritsFromOrgOrProject ||
+                                  space.access.includes(account.user.id)),
+                      ),
             enabled: !!projectUuid && account?.isRegisteredUser(),
             ...queryOptions,
         },

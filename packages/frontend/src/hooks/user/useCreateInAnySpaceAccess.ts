@@ -13,7 +13,7 @@ const useCreateInAnySpaceAccess = (
 
     const isEmbedMode = !!embedToken;
 
-    const spaces = useSpaceSummaries(projectUuid, {
+    const spaces = useSpaceSummaries(projectUuid, true, {
         enabled: !!projectUuid && !isEmbedMode && (options?.enabled ?? true),
     });
 

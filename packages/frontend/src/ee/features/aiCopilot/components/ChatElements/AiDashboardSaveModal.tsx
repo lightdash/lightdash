@@ -109,7 +109,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
         data: spaces,
         isInitialLoading: isLoadingSpaces,
         isSuccess: isSpacesSuccess,
-    } = useSpaceSummaries(projectUuid, {
+    } = useSpaceSummaries(projectUuid, true, {
         staleTime: 0,
         select: (data) =>
             data.filter((space) =>

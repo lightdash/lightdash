@@ -64,8 +64,10 @@ export const UpdateSqlChartModal: FC<Props> = ({
         uuid: savedSqlUuid,
     });
 
-    const { data: spaces = [], isLoading: isSpacesLoading } =
-        useSpaceSummaries(projectUuid);
+    const { data: spaces = [], isLoading: isSpacesLoading } = useSpaceSummaries(
+        projectUuid,
+        true,
+    );
 
     const spaceManagement = useSpaceManagement({
         projectUuid,

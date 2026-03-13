@@ -108,6 +108,7 @@ const InfiniteResourceTable = ({
     const navigate = useNavigate();
     const { data: spaces = defaultSpaces } = useSpaceSummaries(
         filters.projectUuid,
+        true,
     );
     const { user } = useApp();
 

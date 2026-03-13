@@ -96,7 +96,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         data: spaces = [],
         isLoading: isLoadingSpace,
         isSuccess: isSuccessSpace,
-    } = useSpaceSummaries(projectUuid);
+    } = useSpaceSummaries(projectUuid, true);
 
     const spaceManagement = useSpaceManagement({
         projectUuid,

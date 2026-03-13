@@ -68,7 +68,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const organizationUuid = user.data?.organizationUuid;
-    const { data: spaces = [] } = useSpaceSummaries(projectUuid, {});
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
