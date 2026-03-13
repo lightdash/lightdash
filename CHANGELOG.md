@@ -1,3 +1,11 @@
+# [0.2618.0](https://github.com/lightdash/lightdash/compare/0.2617.1...0.2618.0) (2026-03-13)
+
+
+### Features
+
+* add nested object parameter access for Liquid templates ([#21121](https://github.com/lightdash/lightdash/issues/21121)) ([4d18a38](https://github.com/lightdash/lightdash/commit/4d18a3823a65fd32141a9fcbaf0446b60097c9a2))
+* add query_timezone field to projects ([#21114](https://github.com/lightdash/lightdash/issues/21114)) ([88a0887](https://github.com/lightdash/lightdash/commit/88a08877aa386965d9671b90e41809529775c8c1))
+
 ## [0.2617.1](https://github.com/lightdash/lightdash/compare/0.2617.0...0.2617.1) (2026-03-13)
 
 
