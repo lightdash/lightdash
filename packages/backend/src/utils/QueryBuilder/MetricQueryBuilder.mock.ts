@@ -2668,6 +2668,22 @@ export const EXPLORE_WITH_NESTED_AGG: Explore = {
                     tablesReferences: ['my_table'],
                     hidden: false,
                 },
+                // Window function wrapping aggregate metric + ${TABLE} reference
+                // Reproduces GH-21089: ${TABLE} resolves to base table alias
+                // inside nested_agg_results CTE where only nested_agg is in scope
+                window_sum_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'window_sum_of_max',
+                    label: 'window_sum_of_max',
+                    sql: 'SUM(${max_value}) OVER (PARTITION BY ${TABLE}.category)',
+                    compiledSql:
+                        'SUM(MAX("my_table".value)) OVER (PARTITION BY "my_table".category)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
                 // Product of aggregates - NO outer aggregation, valid SQL without CTE
                 product_of_aggregates: {
                     type: MetricType.NUMBER,
@@ -2789,6 +2805,21 @@ export const METRIC_QUERY_NESTED_AGG_MIXED: CompiledMetricQuery = {
     metrics: ['my_table_sum_of_max', 'my_table_product_of_aggregates'],
     filters: {},
     sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Window function metric with ${TABLE} reference wrapping aggregate metric
+// Reproduces GH-21089: ${TABLE} resolves to base table inside nested_agg_results CTE
+export const METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_window_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_window_sum_of_max', descending: true }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],

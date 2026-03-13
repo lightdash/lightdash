@@ -382,6 +382,13 @@ models:
             # Reproduces customer bug: sum(bare_column) / ${aggregate_metric}
             # Uses a bare column name (no ${} or ${TABLE}) like the customer's
             # sql: sum(prediction_d60_total)/nullif(${total_cost}, 0)
+            # GH-21089: window fn wrapping aggregate metric + ${TABLE} ref
+            # Before fix: ${TABLE}.event resolved to "events".event inside
+            # nested_agg_results CTE where only nested_agg is in scope
+            window_sum_of_max:
+              type: number
+              description: "Window sum of max event IDs partitioned by event type"
+              sql: SUM(${max_event_id}) OVER (PARTITION BY ${TABLE}.event)
             raw_agg_with_metric_ref:
               type: number
               description: "Raw column aggregation divided by aggregate metric ref"
