@@ -29,12 +29,14 @@ import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
-const getDashboard = async (id: string) =>
-    lightdashApi<Dashboard>({
-        url: `/dashboards/${id}`,
+const getDashboard = async (id: string, projectUuid?: string) => {
+    const query = projectUuid ? `?projectUuid=${projectUuid}` : '';
+    return lightdashApi<Dashboard>({
+        url: `/dashboards/${id}${query}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
     lightdashApi<Dashboard>({
@@ -128,15 +130,20 @@ export const useDashboardsAvailableFilters = (
         },
     );
 
-export const useDashboardQuery = (
-    id?: string,
-    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>,
-) => {
+export const useDashboardQuery = ({
+    uuidOrSlug,
+    projectUuid,
+    useQueryOptions,
+}: {
+    uuidOrSlug?: string;
+    projectUuid?: string;
+    useQueryOptions?: UseQueryOptions<Dashboard, ApiError>;
+} = {}) => {
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
-        queryKey: ['saved_dashboard_query', id],
-        queryFn: () => getDashboard(id || ''),
-        enabled: !!id,
+        queryKey: ['saved_dashboard_query', uuidOrSlug, projectUuid],
+        queryFn: () => getDashboard(uuidOrSlug || '', projectUuid),
+        enabled: !!uuidOrSlug,
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
@@ -150,7 +157,10 @@ export const useDashboardQuery = (
  * @param dashboardUuid The dashboard uuid
  * @returns The latest dashboard or null if the dashboard is up to date
  */
-export const useDashboardVersionRefresh = (dashboardUuid: string) => {
+export const useDashboardVersionRefresh = (
+    dashboardUuid: string,
+    projectUuid?: string,
+) => {
     const queryClient = useQueryClient();
 
     return useMutation<Dashboard | null, ApiError, Dashboard | undefined>({
@@ -161,7 +171,10 @@ export const useDashboardVersionRefresh = (dashboardUuid: string) => {
                     throw new Error('Current dashboard is undefined');
                 }
 
-                const latestDashboard = await getDashboard(dashboardUuid);
+                const latestDashboard = await getDashboard(
+                    dashboardUuid,
+                    projectUuid,
+                );
 
                 const currentTime = new Date(
                     currentDashboard.updatedAt,
@@ -177,7 +190,7 @@ export const useDashboardVersionRefresh = (dashboardUuid: string) => {
                 }
 
                 queryClient.setQueryData(
-                    ['saved_dashboard_query', dashboardUuid],
+                    ['saved_dashboard_query', dashboardUuid, projectUuid],
                     latestDashboard,
                 );
 

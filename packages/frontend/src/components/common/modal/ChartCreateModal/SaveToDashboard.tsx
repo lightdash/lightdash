@@ -60,9 +60,9 @@ export const SaveToDashboard: FC<Props> = ({
     });
     const { getEditingDashboardInfo } = useDashboardStorage();
     const editingDashboardInfo = getEditingDashboardInfo();
-    const { data: selectedDashboard } = useDashboardQuery(
-        dashboardUuid || undefined,
-    );
+    const { data: selectedDashboard } = useDashboardQuery({
+        uuidOrSlug: dashboardUuid || undefined,
+    });
     useEffect(() => {
         if (
             dashboardInfoFromStorage.name &&

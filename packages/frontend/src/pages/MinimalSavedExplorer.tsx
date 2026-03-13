@@ -146,11 +146,13 @@ const MinimalSavedExplorer: FC<Props> = ({
 }) => {
     const params = useParams<{
         savedQueryUuid: string;
+        projectUuid: string;
     }>();
     const savedQueryUuid = queryUuidProps || params.savedQueryUuid!;
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
-        id: savedQueryUuid,
+        uuidOrSlug: savedQueryUuid,
+        projectUuid: params.projectUuid,
     });
 
     useSlugRedirect(savedQueryUuid, data?.uuid);

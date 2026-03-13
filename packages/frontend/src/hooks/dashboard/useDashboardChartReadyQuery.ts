@@ -97,7 +97,7 @@ export const useDashboardChartReadyQuery = (
             ?.join(',') || '';
 
     const chartQuery = useSavedQuery({
-        id: chartUuid ?? undefined,
+        uuidOrSlug: chartUuid ?? undefined,
     });
 
     const { data: explore, error: exploreError } = useExplore(

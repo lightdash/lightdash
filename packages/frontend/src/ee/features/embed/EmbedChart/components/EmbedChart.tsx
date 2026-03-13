@@ -80,7 +80,7 @@ type Props = {
 
 const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
     const { data, isInitialLoading, isError, error } = useSavedQuery({
-        id: savedQueryUuid,
+        uuidOrSlug: savedQueryUuid,
     });
 
     if (isInitialLoading) {

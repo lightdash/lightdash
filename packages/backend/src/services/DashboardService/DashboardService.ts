@@ -331,9 +331,14 @@ export class DashboardService
     async getByIdOrSlug(
         user: SessionUser,
         dashboardUuidOrSlug: string,
+        options?: { projectUuid?: string },
     ): Promise<Dashboard> {
-        const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
 
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(

@@ -214,7 +214,7 @@ const MinimalDashboard: FC = () => {
         data: dashboard,
         isError: isDashboardError,
         error: dashboardError,
-    } = useDashboardQuery(dashboardUuid);
+    } = useDashboardQuery({ uuidOrSlug: dashboardUuid, projectUuid });
 
     useSlugRedirect(dashboardUuid, dashboard?.uuid);
 

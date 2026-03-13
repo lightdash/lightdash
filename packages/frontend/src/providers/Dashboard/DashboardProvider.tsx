@@ -112,7 +112,7 @@ const DashboardProvider: React.FC<
     const {
         mutateAsync: versionRefresh,
         isLoading: isRefreshingDashboardVersion,
-    } = useDashboardVersionRefresh(dashboardUuid);
+    } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
 
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
@@ -125,23 +125,27 @@ const DashboardProvider: React.FC<
         data: dashboard,
         isInitialLoading: isDashboardLoading,
         error: dashboardError,
-    } = useDashboardQuery(dashboardUuid, {
-        select: (d) => {
-            if (schedulerFilters) {
-                const overriddenDimensions = applyDimensionOverrides(
-                    d.filters,
-                    schedulerFilters,
-                );
+    } = useDashboardQuery({
+        uuidOrSlug: dashboardUuid,
+        projectUuid,
+        useQueryOptions: {
+            select: (d) => {
+                if (schedulerFilters) {
+                    const overriddenDimensions = applyDimensionOverrides(
+                        d.filters,
+                        schedulerFilters,
+                    );
 
-                return {
-                    ...d,
-                    filters: {
-                        ...d.filters,
-                        dimensions: overriddenDimensions,
-                    },
-                };
-            }
-            return d;
+                    return {
+                        ...d,
+                        filters: {
+                            ...d.filters,
+                            dimensions: overriddenDimensions,
+                        },
+                    };
+                }
+                return d;
+            },
         },
     });
 

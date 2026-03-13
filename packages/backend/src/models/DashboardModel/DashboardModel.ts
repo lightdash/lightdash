@@ -710,7 +710,7 @@ export class DashboardModel {
 
     async getByIdOrSlug(
         dashboardUuidOrSlug: string,
-        options?: { deleted?: boolean | 'any' },
+        options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): Promise<DashboardDAO> {
         const query = this.database(DashboardsTableName)
             .leftJoin(
@@ -817,6 +817,13 @@ export class DashboardModel {
             void query.where(
                 `${DashboardsTableName}.slug`,
                 dashboardUuidOrSlug,
+            );
+        }
+
+        if (options?.projectUuid) {
+            void query.where(
+                `${ProjectTableName}.project_uuid`,
+                options.projectUuid,
             );
         }
 

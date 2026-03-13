@@ -18,6 +18,12 @@ savedChartRouter.get(
             .get(
                 getObjectValue(req.params, 'savedQueryUuidOrSlug'),
                 req.account!,
+                {
+                    projectUuid:
+                        typeof req.query.projectUuid === 'string'
+                            ? req.query.projectUuid
+                            : undefined,
+                },
             )
             .then((results) => {
                 res.json({

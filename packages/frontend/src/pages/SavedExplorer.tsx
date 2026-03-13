@@ -51,8 +51,9 @@ const SavedExplorerContent = memo(() => {
 const SavedExplorer = () => {
     const { health } = useApp();
 
-    const { savedQueryUuid, mode } = useParams<{
+    const { savedQueryUuid, projectUuid, mode } = useParams<{
         savedQueryUuid: string;
+        projectUuid: string;
         mode?: string;
     }>();
 
@@ -61,7 +62,8 @@ const SavedExplorer = () => {
     const { setDashboardChartInfo } = useDashboardStorage();
 
     const { data, isInitialLoading, error } = useSavedQuery({
-        id: savedQueryUuid,
+        uuidOrSlug: savedQueryUuid,
+        projectUuid,
     });
 
     useSlugRedirect(savedQueryUuid, data?.uuid);
