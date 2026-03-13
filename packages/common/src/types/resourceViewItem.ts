@@ -71,6 +71,7 @@ export type ResourceViewSpaceItem = {
         | 'parentSpaceUuid'
         | 'path'
         | 'inheritParentPermissions'
+        | 'inheritsFromOrgOrProject'
     > & {
         access: string[];
         accessListLength: number;
@@ -133,6 +134,7 @@ export const spaceToResourceViewItem = (
     uuid: space.uuid,
     name: space.name,
     inheritParentPermissions: space.inheritParentPermissions,
+    inheritsFromOrgOrProject: space.inheritsFromOrgOrProject,
     pinnedListUuid: space.pinnedListUuid,
     pinnedListOrder: space.pinnedListOrder,
     accessListLength: space.access.length,
