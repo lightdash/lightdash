@@ -19,15 +19,31 @@ describe('buildLiquidContext', () => {
         });
     });
 
-    it('should expose dotted names via both full and short keys', () => {
+    it('should expose dotted names via full key, short key, and nested object', () => {
         const context = buildLiquidContext({ 'events.grain': 'week' });
         expect(context.ld.parameters).toEqual({
             'events.grain': 'week',
             grain: 'week',
+            events: { grain: 'week' },
         });
         expect(context.lightdash.parameters).toEqual({
             'events.grain': 'week',
             grain: 'week',
+            events: { grain: 'week' },
+        });
+    });
+
+    it('should group multiple dotted params under the same model', () => {
+        const context = buildLiquidContext({
+            'mymodel.grain': 'day',
+            'mymodel.currency': 'usd',
+        });
+        expect(context.ld.parameters).toEqual({
+            'mymodel.grain': 'day',
+            'mymodel.currency': 'usd',
+            grain: 'day',
+            currency: 'usd',
+            mymodel: { grain: 'day', currency: 'usd' },
         });
     });
 
@@ -168,7 +184,7 @@ describe('renderLiquidSql', () => {
         );
     });
 
-    it('should handle dotted parameter names from Lightdash format', () => {
+    it('should handle dotted parameter names via short name', () => {
         const sql = [
             '{% if ld.parameters.grain == "day" %}',
             '  "events".snapshot_date',
@@ -181,6 +197,34 @@ describe('renderLiquidSql', () => {
         expect(renderLiquidSql(sql, { 'events.grain': 'day' }).trim()).toBe(
             '"events".snapshot_date',
         );
+    });
+
+    it('should handle dotted parameter names via nested model.param access', () => {
+        const sql = [
+            '{% if ld.parameters.lookup_paid_search.date_granularity == "Day" %}',
+            '  ${cvr_same_day}',
+            '{% elsif ld.parameters.lookup_paid_search.date_granularity == "Week" %}',
+            '  ${cvr_same_7days}',
+            '{% else %}',
+            '  ${cvr_default}',
+            '{% endif %}',
+        ].join('\n');
+
+        expect(
+            renderLiquidSql(sql, {
+                'lookup_paid_search.date_granularity': 'Day',
+            }).trim(),
+        ).toBe('${cvr_same_day}');
+        expect(
+            renderLiquidSql(sql, {
+                'lookup_paid_search.date_granularity': 'Week',
+            }).trim(),
+        ).toBe('${cvr_same_7days}');
+        expect(
+            renderLiquidSql(sql, {
+                'lookup_paid_search.date_granularity': 'Other',
+            }).trim(),
+        ).toBe('${cvr_default}');
     });
 
     it('should preserve ${ld.parameters.*} references for later substitution', () => {

@@ -55,24 +55,48 @@ export const buildLiquidContext = (
     fieldsContext?: FieldsContext,
 ): {
     ld: {
-        parameters: Record<string, ParameterValue>;
+        parameters: Record<
+            string,
+            ParameterValue | Record<string, ParameterValue>
+        >;
         query: { fields: string[]; filters: string[] };
     };
     lightdash: {
-        parameters: Record<string, ParameterValue>;
+        parameters: Record<
+            string,
+            ParameterValue | Record<string, ParameterValue>
+        >;
         query: { fields: string[]; filters: string[] };
     };
 } => {
-    const parameters: Record<string, ParameterValue> = {};
+    const parameters: Record<
+        string,
+        ParameterValue | Record<string, ParameterValue>
+    > = {};
 
     for (const [key, value] of Object.entries(parameterValuesMap)) {
         parameters[key] = value;
 
-        // For dotted names like "model.grain", also expose as "grain"
+        // For dotted names like "model.grain":
+        // - expose as short name ("grain") for backwards compatibility
+        // - expose as nested object ({ model: { grain: value } }) so Liquid
+        //   dot access like ld.parameters.model.grain works
         const parts = key.split('.');
         const shortName = parts[parts.length - 1];
         if (shortName !== key) {
             parameters[shortName] = value;
+
+            const [tableName, paramName] = parts;
+            const existing = parameters[tableName];
+            if (
+                existing !== undefined &&
+                typeof existing === 'object' &&
+                !Array.isArray(existing)
+            ) {
+                existing[paramName] = value;
+            } else {
+                parameters[tableName] = { [paramName]: value };
+            }
         }
     }
 
