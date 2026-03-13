@@ -205,14 +205,15 @@ export const Series: FC<Props> = ({ items }) => {
         return seriesGroupedByField.some((group) => group.value.length > 1);
     }, [seriesGroupedByField]);
 
-    // Count total number of unique pivot values
+    // Count total number of unique pivot values (excluding filtered-out series)
     const totalGroups = useMemo(() => {
         if (!seriesGroupedByField || !hasPivotedSeries) return 0;
-        // Get the first grouped series and count its pivot values
+        // Get the first grouped series and count its non-filtered pivot values
         const groupedEntry = seriesGroupedByField.find(
             (group) => group.value.length > 1,
         );
-        return groupedEntry?.value.length ?? 0;
+        if (!groupedEntry) return 0;
+        return groupedEntry.value.filter((s) => !s.isFilteredOut).length;
     }, [seriesGroupedByField, hasPivotedSeries]);
 
     if (!isCartesianChart) return null;

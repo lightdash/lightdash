@@ -72,7 +72,7 @@ export const DataVizGroupLimitConfig: FC<Props> = ({
                     >
                         <MantineIcon
                             icon={IconInfoCircle}
-                            color="gray.6"
+                            color="ldGray.6"
                             size="sm"
                         />
                     </Tooltip>
@@ -95,9 +95,6 @@ export const DataVizGroupLimitConfig: FC<Props> = ({
                                 max={Math.max(1, totalGroups - 1)}
                                 onChange={handleMaxGroupsChange}
                                 size="xs"
-                                styles={{
-                                    label: { fontSize: 12 },
-                                }}
                             />
                             <TextInput
                                 label="'Other' label"
@@ -109,9 +106,6 @@ export const DataVizGroupLimitConfig: FC<Props> = ({
                                 }
                                 placeholder="Other"
                                 size="xs"
-                                styles={{
-                                    label: { fontSize: 12 },
-                                }}
                             />
                             {groupsInOther > 0 && (
                                 <Text size="xs" c="dimmed">
