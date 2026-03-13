@@ -8,6 +8,7 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
+    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -98,6 +99,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useClientFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 /**
@@ -262,7 +264,7 @@ const applyGroupLimit = (
         newRow[otherDataKey] = {
             value: {
                 raw: otherSum,
-                formatted: otherLabel, // Use the user's label for display
+                formatted: String(otherSum),
             },
         };
 
@@ -1396,6 +1398,19 @@ const getEchartsSeriesFromPivotedData = (
     const findMatchingColumnName = (series: Series): string | undefined => {
         if (isPivotReferenceWithValues(series.encode.yRef)) {
             const yRef = series.encode.yRef;
+
+            // For "Other" aggregated series (created by applyGroupLimit),
+            // the column isn't in pivotValuesColumnsMap (backend-provided).
+            // Use hashFieldReference directly since applyGroupLimit creates
+            // dataset columns keyed by that exact hash.
+            if (
+                yRef.pivotValues.some(
+                    (pv) => pv.value === OTHER_GROUP_PIVOT_VALUE,
+                )
+            ) {
+                return hashFieldReference(yRef);
+            }
+
             const valuesColumn = Object.values(
                 pivotValuesColumnsMap || {},
             ).find((col) => {
@@ -2473,6 +2488,10 @@ const useEchartsCartesianConfig = (
         colorPalette,
     } = useVisualizationContext();
 
+    const isGroupLimitEnabled = useClientFeatureFlag(
+        FeatureFlags.GroupLimitEnabled,
+    );
+
     const theme = useMantineTheme();
 
     const validCartesianConfig = useMemo(() => {
@@ -2541,7 +2560,7 @@ const useEchartsCartesianConfig = (
     const { rows, rowKeyMap, aggregatedKeys, otherKey, otherGroupPivotValues } =
         useMemo(() => {
             const groupLimit = validCartesianConfig?.layout?.groupLimit;
-            if (!groupLimit || !groupLimit.enabled) {
+            if (!isGroupLimitEnabled || !groupLimit || !groupLimit.enabled) {
                 return {
                     rows: rawRows,
                     rowKeyMap: rawRowKeyMap,
@@ -2554,7 +2573,12 @@ const useEchartsCartesianConfig = (
                 };
             }
             return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
-        }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
+        }, [
+            rawRows,
+            rawRowKeyMap,
+            validCartesianConfig?.layout?.groupLimit,
+            isGroupLimitEnabled,
+        ]);
 
     // Create a modified cartesian config that handles group limiting
     const effectiveCartesianConfig = useMemo(() => {
