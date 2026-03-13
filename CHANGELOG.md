@@ -1,3 +1,15 @@
+# [0.2616.0](https://github.com/lightdash/lightdash/compare/0.2615.5...0.2616.0) (2026-03-13)
+
+
+### Bug Fixes
+
+* **test:** add materialized config to manifest test fixture ([#21110](https://github.com/lightdash/lightdash/issues/21110)) ([cd7fb3d](https://github.com/lightdash/lightdash/commit/cd7fb3d8cc3ac871c67fefe2e2011aa5f170de68)), closes [#21064](https://github.com/lightdash/lightdash/issues/21064)
+
+
+### Features
+
+* allow editors to hide the Add filter button from dashboards ([#21093](https://github.com/lightdash/lightdash/issues/21093)) ([cfdc8a1](https://github.com/lightdash/lightdash/commit/cfdc8a1545f06ab503311b4c027157f23dc8f8a5))
+
 ## [0.2615.5](https://github.com/lightdash/lightdash/compare/0.2615.4...0.2615.5) (2026-03-13)
 
 
