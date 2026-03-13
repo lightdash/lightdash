@@ -3285,6 +3285,7 @@ export class AsyncQueryService extends ProjectService {
         assertIsAccountWithOrg(account);
 
         const savedChart = await this.savedChartModel.get(chartUuid, {
+            projectUuid,
             versionUuid,
         });
         const {

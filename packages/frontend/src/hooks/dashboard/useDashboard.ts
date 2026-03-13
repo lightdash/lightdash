@@ -161,7 +161,10 @@ export const useDashboardQuery = ({
  * @param dashboardUuid The dashboard uuid
  * @returns The latest dashboard or null if the dashboard is up to date
  */
-export const useDashboardVersionRefresh = (dashboardUuid: string) => {
+export const useDashboardVersionRefresh = (
+    dashboardUuid: string,
+    projectUuid?: string,
+) => {
     const queryClient = useQueryClient();
 
     return useMutation<Dashboard | null, ApiError, Dashboard | undefined>({
@@ -172,7 +175,10 @@ export const useDashboardVersionRefresh = (dashboardUuid: string) => {
                     throw new Error('Current dashboard is undefined');
                 }
 
-                const latestDashboard = await getDashboard(dashboardUuid);
+                const latestDashboard = await getDashboard(
+                    dashboardUuid,
+                    projectUuid,
+                );
 
                 const currentTime = new Date(
                     currentDashboard.updatedAt,
@@ -188,7 +194,7 @@ export const useDashboardVersionRefresh = (dashboardUuid: string) => {
                 }
 
                 queryClient.setQueryData(
-                    ['saved_dashboard_query', dashboardUuid],
+                    ['saved_dashboard_query', dashboardUuid, projectUuid],
                     latestDashboard,
                 );
 

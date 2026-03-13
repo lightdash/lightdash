@@ -112,7 +112,7 @@ const DashboardProvider: React.FC<
     const {
         mutateAsync: versionRefresh,
         isLoading: isRefreshingDashboardVersion,
-    } = useDashboardVersionRefresh(dashboardUuid);
+    } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
 
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 

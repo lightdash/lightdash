@@ -66,6 +66,7 @@ export const useDashboardChartReadyQuery = (
 ) => {
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
@@ -98,6 +99,7 @@ export const useDashboardChartReadyQuery = (
 
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid ?? undefined,
+        projectUuid,
     });
 
     const { data: explore, error: exploreError } = useExplore(

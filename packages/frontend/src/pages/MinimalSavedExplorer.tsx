@@ -144,12 +144,14 @@ const MinimalSavedExplorer: FC<Props> = ({
     savedQueryUuid: queryUuidProps,
 }) => {
     const params = useParams<{
+        projectUuid: string;
         savedQueryUuid: string;
     }>();
     const savedQueryUuid = queryUuidProps || params.savedQueryUuid!;
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
+        projectUuid: params.projectUuid,
     });
 
     // Create store once with useState
