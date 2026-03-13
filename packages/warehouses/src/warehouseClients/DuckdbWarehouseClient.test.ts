@@ -329,14 +329,19 @@ describe('DuckdbWarehouseClient', () => {
         expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should serialize shared S3 secret bootstrap across concurrent sessions', async () => {
+    it('should serialize S3 secret creation across concurrent sessions without skipping', async () => {
         let releaseSecretCreation: (() => void) | undefined;
         const secretCreationBlocked = new Promise<void>((resolve) => {
             releaseSecretCreation = resolve;
         });
+        let secretCreateCount = 0;
         const runMock = jest.fn(async (sql: string) => {
             if (sql.includes('CREATE OR REPLACE SECRET __lightdash_s3')) {
-                await secretCreationBlocked;
+                secretCreateCount += 1;
+                // Only block the first CREATE SECRET call
+                if (secretCreateCount === 1) {
+                    await secretCreationBlocked;
+                }
             }
         });
         const streamMock = jest.fn(async () =>
@@ -365,25 +370,22 @@ describe('DuckdbWarehouseClient', () => {
             setImmediate(resolve);
         });
 
-        expect(
-            runMock.mock.calls.filter(([sql]) =>
-                (sql as string).includes(
-                    'CREATE OR REPLACE SECRET __lightdash_s3',
-                ),
-            ),
-        ).toHaveLength(1);
+        // First CREATE SECRET is blocked; second should not have started yet
+        // (serialized via the shared bootstrap lock)
+        expect(secretCreateCount).toBe(1);
 
         releaseSecretCreation?.();
 
         await Promise.all([firstQuery, secondQuery]);
 
+        // Both connections should create the secret (one each, serialized)
         expect(
             runMock.mock.calls.filter(([sql]) =>
                 (sql as string).includes(
                     'CREATE OR REPLACE SECRET __lightdash_s3',
                 ),
             ),
-        ).toHaveLength(1);
+        ).toHaveLength(2);
         expect(streamMock).toHaveBeenCalledTimes(2);
     });
 
