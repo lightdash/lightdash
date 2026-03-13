@@ -913,14 +913,23 @@ const Settings: FC = () => {
                                         }
                                     />
 
-                                    <RouterNavLink
-                                        label="Query time zone"
-                                        exact
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/queryTimezone`}
-                                        leftSection={
-                                            <MantineIcon icon={IconClock} />
-                                        }
-                                    />
+                                    <Can
+                                        I="update"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
+                                            label="Query time zone"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/queryTimezone`}
+                                            leftSection={
+                                                <MantineIcon icon={IconClock} />
+                                            }
+                                        />
+                                    </Can>
 
                                     <Can
                                         I="manage"

@@ -27,19 +27,19 @@ type QueryTimezoneFormValues = z.infer<typeof queryTimezoneSchema>;
 
 const QueryTimezoneForm: FC<{
     isLoading: boolean;
-    project?: Project;
+    project: Project;
     onSubmit: (data: QueryTimezoneFormValues) => void;
 }> = ({ isLoading, project, onSubmit }) => {
     const form = useForm<QueryTimezoneFormValues>({
         validate: zodResolver(queryTimezoneSchema),
         initialValues: {
-            timezone: project?.queryTimezone ?? null,
+            timezone: project.queryTimezone ?? null,
         },
     });
 
     const hasChanged = useMemo(
-        () => form.values.timezone !== (project?.queryTimezone ?? null),
-        [form.values.timezone, project?.queryTimezone],
+        () => form.values.timezone !== (project.queryTimezone ?? null),
+        [form.values.timezone, project.queryTimezone],
     );
 
     return (
@@ -124,11 +124,13 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                     </Text>
                 </Stack>
                 <div>
-                    <QueryTimezoneForm
-                        isLoading={projectMutation.isLoading}
-                        project={project}
-                        onSubmit={handleSubmit}
-                    />
+                    {project && (
+                        <QueryTimezoneForm
+                            isLoading={projectMutation.isLoading}
+                            project={project}
+                            onSubmit={handleSubmit}
+                        />
+                    )}
                 </div>
             </SettingsGridCard>
         </Stack>
