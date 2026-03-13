@@ -79,6 +79,8 @@ export const DashboardFiltersBar: FC<Props> = ({
         />
     );
 
+    const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
+
     return (
         <div>
             <Group
@@ -92,9 +94,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                 <Group justify="apart" align="flex-start" wrap="nowrap" grow>
                     {hasTilesThatSupportFilters && (
                         <Group align="flex-start" gap="xs" wrap="wrap">
-                            {(!isAddFilterDisabled ||
-                                isEditMode ||
-                                hasFilters) && (
+                            {renderFilters && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
                                     tooltipLabel={
@@ -117,9 +117,7 @@ export const DashboardFiltersBar: FC<Props> = ({
 
                             {hasDashboardTiles && hasParameters && (
                                 <>
-                                    {(!isAddFilterDisabled ||
-                                        isEditMode ||
-                                        hasFilters) && (
+                                    {renderFilters && (
                                         <Divider orientation="vertical" />
                                     )}
 
