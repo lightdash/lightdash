@@ -14,8 +14,9 @@ Two main methods:
 - `can(action, actor, spaceUuids)` - returns `true` if the actor can perform the action on **all** given spaces
 - `getAccessibleSpaceUuids(action, actor, spaceUuids)` - filters a list of space UUIDs down to those the actor can access
 
-Both methods resolve nested spaces to their root space for permission evaluation,
-then delegate to CASL for the final check.
+Both methods walk the inheritance chain from each space up to the first ancestor
+with `inherit_parent_permissions=false` (or the root), aggregate direct access from
+all levels, and delegate to CASL for the final check.
 
 </howToUse>
 
@@ -45,17 +46,19 @@ const accessible = await spacePermissionService.getAccessibleSpaceUuids(
 
 <importantToKnow>
 
-- **Nested spaces inherit from root**: Permissions are always evaluated on the root space.
-  `SpaceModel.getSpaceRootFromCacheOrDB` resolves child spaces to their root (cached 30s).
+- **Chain-based inheritance (not root-based)**: `SpacePermissionModel.getInheritanceChains()`
+  walks from each leaf space up the hierarchy via `parent_space_uuid` (recursive CTE), stopping
+  at the first ancestor with `inherit_parent_permissions=false` or the root. Direct access is
+  aggregated from **all** spaces in the chain, so a user with access to a parent implicitly has
+  access to child spaces.
+- **`inheritsFromOrgOrProject`**: Replaces the old `isPrivate` boolean (inverted). When `true`,
+  project and org-level roles flow down to the space. Determined by whether the chain reaches a
+  root that inherits from the project/org.
 - **Data flow**: `SpacePermissionModel` fetches raw access rows from 3 layers (direct, project, org)
-  -> `resolveSpaceAccess` computes effective roles per user -> CASL checks the final permission.
-- **Not yet wired up**: This service is registered in `ServiceRepository` but not consumed by
-  any controller or other service yet. It's the intended replacement for inline permission
-  checks that use `SpaceModel._getSpaceAccess`.
-- **`isPrivate` is derived from the inheritance chain**: The `isPrivate` boolean passed to
-  `resolveSpaceAccess` will be replaced by `inheritsFromOrgOrProject` (inverted), computed by
-  `SpacePermissionModel.getInheritanceChain()`. See
-  @packages/common/src/authorization/space/CLAUDE.md for the full mental model and mapping.
+  -> `resolveSpaceAccess` computes effective roles per user across the chain -> CASL checks the
+  final permission.
+- **Wired up in EE**: Injected as a dependency into EE services via `ServiceRepository`.
+  See @packages/common/src/authorization/space/CLAUDE.md for the full mental model and mapping.
 
 **Why the old approach (`SpaceModel`) was bad:**
 
@@ -85,7 +88,8 @@ flowchart TB
     end
 
     subgraph "New: separated concerns"
-        N1[SpacePermissionModel] -->|"3 focused queries<br/>(direct, project, org)"| N2[resolveSpaceAccess]
+        N0[SpacePermissionModel.getInheritanceChains] -->|"recursive CTE<br/>leaf-to-root chain"| N1[SpacePermissionModel]
+        N1 -->|"3 focused queries<br/>(direct, project, org)"| N2[resolveSpaceAccess]
         N2 -->|"pure function,<br/>unit-testable"| N3[SpacePermissionService]
         N3 -->|"CASL check"| N4[ability.can]
     end

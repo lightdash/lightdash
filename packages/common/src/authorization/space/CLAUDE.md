@@ -10,13 +10,14 @@ access, and what role they inherited from. This is the single source of truth fo
 
 <howToUse>
 
-**Entry point:** `resolveSpaceAccess(input: SpaceAccessInput): SpaceAccess[]`
+**Entry point:** `resolveSpaceAccess(input: SpaceAccessWithInheritanceInput): SpaceAccess[]`
 
-Pass in all access data for a space and get back one `SpaceAccess` record per user
-who has valid access. Users without access are silently excluded from the result.
+Pass in all access data for a space (including direct access from all ancestors in the
+inheritance chain) and get back one `SpaceAccess` record per user who has valid access.
+Users without access are silently excluded from the result.
 
-The only consumer is `SpacePermissionService.getAccessContext()` in the backend,
-which gathers DB data and feeds it to this resolver.
+The only consumer is `SpacePermissionService.getSpacesCaslContext()` in the backend,
+which gathers DB data via inheritance chains and feeds it to this resolver.
 
 </howToUse>
 
@@ -27,9 +28,11 @@ import { resolveSpaceAccess } from './spaceAccessResolver';
 
 const access = resolveSpaceAccess({
     spaceUuid: 'space-123',
-    isPrivate: true,
-    directAccess: [
-        /* DirectSpaceAccess[] from user/group space memberships */
+    inheritsFromOrgOrProject: false, // true = org/project roles flow down
+    chainDirectAccess: [
+        // Direct access from each space in the inheritance chain (leaf to root)
+        { spaceUuid: 'space-123', directAccess: [/* DirectSpaceAccess[] */] },
+        { spaceUuid: 'parent-456', directAccess: [/* DirectSpaceAccess[] */] },
     ],
     projectAccess: [
         /* ProjectSpaceAccess[] from project memberships/groups */
@@ -62,10 +65,9 @@ const access = resolveSpaceAccess({
 - **Role conversions lose granularity:** `INTERACTIVE_VIEWER` → `VIEWER` and
   `DEVELOPER` → `EDITOR` when converting to space roles. See
   @packages/common/src/utils/projectMemberRole.ts for full mappings.
-- **`isPrivate` maps to `inheritsFromOrgOrProject` (inverted):** The `isPrivate` boolean
-  in `SpaceAccessInput` is the legacy way to express whether org/project roles flow into
-  a space. With the inheritance chain model, think of each space as a door in a
-  corridor. `inherit_parent_permissions` controls whether the door is open or closed:
+- **`inheritsFromOrgOrProject` controls org/project role flow:** Think of each space as
+  a door in a corridor. `inherit_parent_permissions` controls whether the door is open
+  or closed:
 
     ```text
     Organization role
@@ -76,24 +78,22 @@ const access = resolveSpaceAccess({
     ```
 
     If every door is open (`inherit_parent_permissions: true` all the way up including
-    root), org/project roles walk straight through → `inheritsFromOrgOrProject: true`
-    (= old `isPrivate: false`, "public"). If any door is closed, roles can't pass →
-    `inheritsFromOrgOrProject: false` (= old `isPrivate: true`, "private") — only
-    users with a key (direct access) get past the closed door.
+    root), org/project roles walk straight through → `inheritsFromOrgOrProject: true`.
+    If any door is closed, roles can't pass → `inheritsFromOrgOrProject: false` — only
+    users with direct access get past the closed door.
 
-    | Old (CASL)         | New (inheritance chain)           | Meaning                         |
-    | ------------------ | --------------------------------- | ------------------------------- |
-    | `isPrivate: false` | `inheritsFromOrgOrProject: true`  | Org/project roles flow down     |
-    | `isPrivate: true`  | `inheritsFromOrgOrProject: false` | Only direct access grants entry |
+    | `inheritsFromOrgOrProject` | Meaning                         |
+    | -------------------------- | ------------------------------- |
+    | `true`                     | Org/project roles flow down     |
+    | `false`                    | Only direct access grants entry |
 
-    The resolver's behavior is the same either way — only the source of the boolean changes.
-    See `SpacePermissionModel.getInheritanceChain()` for how the chain is evaluated.
+    See `SpacePermissionModel.getInheritanceChains()` for how the chain is evaluated.
 
 </importantToKnow>
 
 <links>
 
-- Types: @packages/common/src/types/space.ts (`SpaceAccessInput`, `DirectSpaceAccess`, etc.)
+- Types: @packages/common/src/types/space.ts (`SpaceAccessWithInheritanceInput`, `ChainSpaceDirectAccess`, `DirectSpaceAccess`, etc.)
 - Role utilities: @packages/common/src/utils/projectMemberRole.ts
 - Tests: @packages/common/src/authorization/space/spaceAccessResolver.test.ts
 - Consumer: @packages/backend/src/services/SpaceService/SpacePermissionService.ts
