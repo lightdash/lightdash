@@ -517,7 +517,6 @@ export class SavedChartService
 
         return {
             ...savedChart,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -594,7 +593,6 @@ export class SavedChartService
         }
         return {
             ...savedChart,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -693,7 +691,6 @@ export class SavedChartService
                     );
                 return {
                     ...savedChart,
-
                     inheritsFromOrgOrProject,
                     access,
                 };
@@ -943,7 +940,6 @@ export class SavedChartService
 
         return {
             ...savedChart,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -1080,7 +1076,6 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -1194,7 +1189,6 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -1424,7 +1418,6 @@ export class SavedChartService
             ...chartVersionSummary,
             chart: {
                 ...savedChart,
-
                 inheritsFromOrgOrProject,
                 access,
             },

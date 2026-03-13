@@ -342,7 +342,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -468,7 +467,6 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -489,7 +487,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -596,7 +593,6 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -820,7 +816,6 @@ export class DashboardService
             );
         const existingDashboard = {
             ...existingDashboardDao,
-
             inheritsFromOrgOrProject,
             access,
         };
@@ -1297,7 +1292,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-
             inheritsFromOrgOrProject,
             access,
         };
