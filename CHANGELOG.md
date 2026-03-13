@@ -1,3 +1,11 @@
+## [0.2617.1](https://github.com/lightdash/lightdash/compare/0.2617.0...0.2617.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* **cli:** poll for QUEUED and EXECUTING query statuses ([#21117](https://github.com/lightdash/lightdash/issues/21117)) ([48212f3](https://github.com/lightdash/lightdash/commit/48212f34913a3eaa9c0c506a581dac8839863969)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* set processing_started_at when marking query as expired ([#21116](https://github.com/lightdash/lightdash/issues/21116)) ([acfcc8b](https://github.com/lightdash/lightdash/commit/acfcc8b9b78a8288e26a77e49c8cc691208c66f0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2617.0](https://github.com/lightdash/lightdash/compare/0.2616.1...0.2617.0) (2026-03-13)
 
 
