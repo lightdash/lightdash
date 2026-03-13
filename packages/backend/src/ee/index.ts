@@ -46,21 +46,50 @@ type EnterpriseAppArguments = Pick<
 >;
 
 export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
     if (!lightdashConfig.license.licenseKey) {
-        return {};
-    }
-
-    const licenseClient = new LicenseClient({});
-
-    const license = await licenseClient.get(lightdashConfig.license.licenseKey);
-    if (license.isValid) {
-        Logger.info(
-            `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
-        );
+        if (isDevelopment) {
+            Logger.info(
+                'No license key found — registering enterprise providers in development mode.',
+            );
+        } else {
+            return {};
+        }
     } else {
-        throw new ForbiddenError(
-            `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
-        );
+        try {
+            const licenseClient = new LicenseClient({});
+            Logger.debug('Initializing license client for validation');
+
+            const license = await licenseClient.get(
+                lightdashConfig.license.licenseKey,
+            );
+
+            if (license.isValid) {
+                Logger.info(
+                    `Enterprise license for ${lightdashConfig.siteUrl} is valid.`,
+                );
+            } else {
+                Logger.error(
+                    `Enterprise license validation failed for ${lightdashConfig.siteUrl}: ${license.detail} [${license.code}]`,
+                );
+                throw new ForbiddenError(
+                    `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
+                );
+            }
+        } catch (error) {
+            if (error instanceof ForbiddenError) {
+                throw error;
+            }
+
+            Logger.error(
+                `Failed to validate enterprise license for ${lightdashConfig.siteUrl}:`,
+                error,
+            );
+            throw new Error(
+                `Unable to validate enterprise license: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
     }
 
     return {

@@ -1,6 +1,7 @@
 import {
     JWT_HEADER_NAME,
     LightdashRequestMethodHeader,
+    LightdashSdkVersionHeader,
     LightdashVersionHeader,
     RequestMethod,
     type AnyType,
@@ -15,16 +16,31 @@ import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 // TODO: import from common or fix the instantiation of the request module
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
+const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
 export const BASE_API_URL =
     import.meta.env.VITEST === 'true'
         ? `http://test.lightdash/`
         : import.meta.env.BASE_URL;
 
-const defaultHeaders = {
-    'Content-Type': 'application/json',
-    [LightdashRequestMethodHeader]: RequestMethod.WEB_APP,
-    [LightdashVersionHeader]: __APP_VERSION__,
+const getDefaultHeaders = (): Record<string, string> => {
+    const sdkVersion = getFromInMemoryStorage<string>(
+        LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY,
+    );
+
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        [LightdashRequestMethodHeader]: sdkVersion
+            ? RequestMethod.SDK
+            : RequestMethod.WEB_APP,
+        [LightdashVersionHeader]: __APP_VERSION__,
+    };
+
+    if (sdkVersion) {
+        headers[LightdashSdkVersionHeader] = sdkVersion;
+    }
+
+    return headers;
 };
 
 const isSafeToAddEmbedHeader = (
@@ -43,7 +59,7 @@ const finalizeHeaders = (
     sentryTrace: string | undefined,
 ): Record<string, string> => {
     const requestHeaders: Record<string, string> = {
-        ...defaultHeaders,
+        ...getDefaultHeaders(),
         ...headers,
     };
 
@@ -234,7 +250,7 @@ export const lightdashApiStream = ({
     return fetch(`${apiPrefix}${url}`, {
         method,
         headers: {
-            ...defaultHeaders,
+            ...getDefaultHeaders(),
             ...headers,
             ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
         },

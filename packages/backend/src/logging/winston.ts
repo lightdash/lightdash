@@ -1,4 +1,10 @@
-import { LightdashMode, SessionUser } from '@lightdash/common';
+import {
+    LightdashMode,
+    LightdashRequestMethodHeader,
+    LightdashSdkVersionHeader,
+    LightdashVersionHeader,
+    SessionUser,
+} from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
@@ -74,7 +80,14 @@ const printMessage = (
     const traceId = info.sentryTraceId ? `[${info.sentryTraceId}]` : '';
     const jobId = info.job?.id ? `[Job:${info.job.id}]` : '';
     const serviceName = info.serviceName ? `[${info.serviceName}]` : '';
-    return `${info.timestamp} [Lightdash]${traceId}${jobId}${serviceName} ${info.level}: ${info.message}`;
+    const clientVersion = info.sdkVersion || info.clientVersion;
+    let client = '';
+    if (info.requestMethod === 'SDK') {
+        client = `[SDK${clientVersion ? `:${clientVersion}` : ''}]`;
+    } else if (info.requestMethod === 'WEB_APP') {
+        client = `[WEB${clientVersion ? `:${clientVersion}` : ''}]`;
+    }
+    return `${info.timestamp} [Lightdash]${traceId}${jobId}${serviceName}${client} ${info.level}: ${info.message}`;
 };
 
 const formatters = {
@@ -165,6 +178,9 @@ export const expressWinstonMiddleware: express.RequestHandler =
             organizationUuid: req.user?.organizationUuid,
             impersonationAdmin: req.session?.impersonation?.adminUserUuid,
             impersonationTarget: req.session?.impersonation?.targetUserUuid,
+            requestMethod: req.header(LightdashRequestMethodHeader),
+            sdkVersion: req.header(LightdashSdkVersionHeader),
+            clientVersion: req.header(LightdashVersionHeader),
             includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],
