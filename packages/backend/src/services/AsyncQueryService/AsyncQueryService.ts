@@ -3355,6 +3355,7 @@ export class AsyncQueryService extends ProjectService {
         const savedChart = await this.savedChartModel.get(
             chartUuid,
             versionUuid,
+            { projectUuid },
         );
         const {
             uuid: savedChartUuid,
@@ -3636,12 +3637,16 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(chartUuid);
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            { projectUuid },
+        );
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 
         if (savedChartProjectUuid !== projectUuid) {
-            throw new ForbiddenError('Dashboard does not belong to project');
+            throw new ForbiddenError('Chart does not belong to project');
         }
 
         const [space, explore] = await Promise.all([
