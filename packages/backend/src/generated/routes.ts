@@ -2056,6 +2056,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                 },
+                isAddFilterDisabled: { dataType: 'boolean' },
                 isDateZoomDisabled: { dataType: 'boolean', required: true },
             },
             validators: {},
