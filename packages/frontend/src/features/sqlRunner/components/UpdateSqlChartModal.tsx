@@ -139,7 +139,6 @@ export const UpdateSqlChartModal: FC<Props> = ({
                 }
                 newSavedSqlChart.space = {
                     name: updatedSpace.name,
-                    isPrivate: updatedSpace.isPrivate,
                     userAccess:
                         'userAccess' in updatedSpace
                             ? updatedSpace.userAccess

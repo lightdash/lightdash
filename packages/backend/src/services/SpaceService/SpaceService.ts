@@ -213,13 +213,9 @@ export class SpaceService
             }
         }
 
-        // Derive inheritParentPermissions from either the new property or the
-        // legacy isPrivate property (kept in the API contract for backwards compat).
         let inheritParentPermissions: boolean;
         if (space.inheritParentPermissions !== undefined) {
             inheritParentPermissions = space.inheritParentPermissions;
-        } else if (space.isPrivate !== undefined) {
-            inheritParentPermissions = !space.isPrivate;
         } else if (space.parentSpaceUuid) {
             inheritParentPermissions = true;
         } else {
@@ -261,7 +257,6 @@ export class SpaceService
                 name: space.name,
                 spaceId: newSpace.uuid,
                 projectId: projectUuid,
-                isPrivate: !newSpace.inheritParentPermissions,
                 userAccessCount: space.access?.length ?? 0,
                 isNested: !!space.parentSpaceUuid,
             },
@@ -282,15 +277,7 @@ export class SpaceService
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
 
-        // Derive inheritParentPermissions from either the new property or the
-        // legacy isPrivate property (kept in the API contract for backwards compat).
-        let { inheritParentPermissions } = updateSpace;
-        if (
-            inheritParentPermissions === undefined &&
-            updateSpace.isPrivate !== undefined
-        ) {
-            inheritParentPermissions = !updateSpace.isPrivate;
-        }
+        const { inheritParentPermissions } = updateSpace;
 
         // When switching from inherit to not-inherit, copy inherited permissions
         // as direct access entries so users don't lose access.
@@ -359,7 +346,6 @@ export class SpaceService
                 name: space.name,
                 spaceId: spaceUuid,
                 projectId: space.projectUuid,
-                isPrivate: !space.inheritParentPermissions,
                 isNested,
                 // This used to rely on summary.access.length, which only contained direct user access and ignored direct group access
                 userAccessCount: directAccessCount,

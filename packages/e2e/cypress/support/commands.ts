@@ -506,7 +506,6 @@ Cypress.Commands.add(
             method: 'POST',
             body: {
                 name: spaceName,
-                isPrivate: false,
             },
         }).then((resp) => {
             expect(resp.status).to.eq(200);

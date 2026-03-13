@@ -517,7 +517,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            isPrivate: !inheritsFromOrgOrProject,
+
             inheritsFromOrgOrProject,
             access,
         };
@@ -594,7 +594,7 @@ export class SavedChartService
         }
         return {
             ...savedChart,
-            isPrivate: !inheritsFromOrgOrProject,
+
             inheritsFromOrgOrProject,
             access,
         };
@@ -693,7 +693,7 @@ export class SavedChartService
                     );
                 return {
                     ...savedChart,
-                    isPrivate: !inheritsFromOrgOrProject,
+
                     inheritsFromOrgOrProject,
                     access,
                 };
@@ -943,7 +943,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            isPrivate: !inheritsFromOrgOrProject,
+
             inheritsFromOrgOrProject,
             access,
         };
@@ -1080,7 +1080,7 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-            isPrivate: !inheritsFromOrgOrProject,
+
             inheritsFromOrgOrProject,
             access,
         };
@@ -1194,7 +1194,7 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-            isPrivate: !inheritsFromOrgOrProject,
+
             inheritsFromOrgOrProject,
             access,
         };
@@ -1424,7 +1424,7 @@ export class SavedChartService
             ...chartVersionSummary,
             chart: {
                 ...savedChart,
-                isPrivate: !inheritsFromOrgOrProject,
+
                 inheritsFromOrgOrProject,
                 access,
             },

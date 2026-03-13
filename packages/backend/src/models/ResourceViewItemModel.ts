@@ -301,7 +301,6 @@ const getAllSpaces = async (
             pinnedListOrder: row.order,
             uuid: row.space_uuid,
             name: row.name,
-            isPrivate: !row.inherit_parent_permissions,
             inheritParentPermissions: row.inherit_parent_permissions,
             dashboardCount: Number(row.dashboard_count),
             chartCount: Number(row.chart_count),

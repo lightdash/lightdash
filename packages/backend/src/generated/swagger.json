@@ -2245,10 +2245,6 @@
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
                     },
-                    "isPrivate": {
-                        "type": "boolean",
-                        "nullable": true
-                    },
                     "tabs": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTab"
@@ -2332,7 +2328,6 @@
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
-                    "isPrivate",
                     "tabs",
                     "pinnedListOrder",
                     "pinnedListUuid",
@@ -5755,9 +5750,6 @@
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
                     },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "colorPalette": {
                         "items": {
                             "type": "string"
@@ -5861,7 +5853,6 @@
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
-                    "isPrivate",
                     "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
@@ -14958,7 +14949,7 @@
                     }
                 ]
             },
-            "Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_": {
+            "Pick_SpaceSummary.uuid-or-name-or-userAccess_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -14968,12 +14959,9 @@
                     },
                     "userAccess": {
                         "$ref": "#/components/schemas/SpaceAccess"
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
                     }
                 },
-                "required": ["name", "uuid", "isPrivate"],
+                "required": ["name", "uuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -15041,7 +15029,7 @@
                         "nullable": true
                     },
                     "space": {
-                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_"
+                        "$ref": "#/components/schemas/Pick_SpaceSummary.uuid-or-name-or-userAccess_"
                     },
                     "lastUpdatedBy": {
                         "allOf": [
@@ -15338,7 +15326,7 @@
                 "enum": ["no changes", "create", "update", "delete"],
                 "type": "string"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -15351,9 +15339,6 @@
                     },
                     "uuid": {
                         "type": "string"
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
                     },
                     "inheritParentPermissions": {
                         "type": "boolean"
@@ -15383,7 +15368,6 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
-                    "isPrivate",
                     "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -15397,7 +15381,7 @@
             "SpaceSummaryBase": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
                     },
                     {
                         "properties": {
@@ -15449,7 +15433,7 @@
             "PromotedSpace": {
                 "$ref": "#/components/schemas/SpaceSummaryBase"
             },
-            "Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__": {
+            "Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -15578,12 +15562,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_": {
-                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__",
+            "Omit_Dashboard.inheritsFromOrgOrProject-or-access_": {
+                "$ref": "#/components/schemas/Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "DashboardDAO": {
-                "$ref": "#/components/schemas/Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_"
+                "$ref": "#/components/schemas/Omit_Dashboard.inheritsFromOrgOrProject-or-access_"
             },
             "PromotedDashboard": {
                 "allOf": [
@@ -15604,7 +15588,7 @@
                     }
                 ]
             },
-            "Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__": {
+            "Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -15749,12 +15733,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_": {
-                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__",
+            "Omit_SavedChart.inheritsFromOrgOrProject-or-access_": {
+                "$ref": "#/components/schemas/Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "SavedChartDAO": {
-                "$ref": "#/components/schemas/Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_"
+                "$ref": "#/components/schemas/Omit_SavedChart.inheritsFromOrgOrProject-or-access_"
             },
             "PromotedChart": {
                 "allOf": [
@@ -16457,9 +16441,6 @@
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
                     },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "name": {
                         "type": "string"
                     },
@@ -16484,7 +16465,6 @@
                     "projectUuid",
                     "queries",
                     "inheritsFromOrgOrProject",
-                    "isPrivate",
                     "name",
                     "uuid",
                     "organizationUuid"
@@ -16635,9 +16615,6 @@
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "name": {
                         "type": "string"
                     }
@@ -16648,9 +16625,6 @@
             "UpdateSpace": {
                 "properties": {
                     "inheritParentPermissions": {
-                        "type": "boolean"
-                    },
-                    "isPrivate": {
                         "type": "boolean"
                     },
                     "name": {
@@ -21503,7 +21477,7 @@
                 "enum": ["space"],
                 "type": "string"
             },
-            "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_": {
+            "Pick_Space.projectUuid-or-uuid-or-name-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -21516,9 +21490,6 @@
                     },
                     "uuid": {
                         "type": "string"
-                    },
-                    "isPrivate": {
-                        "type": "boolean"
                     },
                     "inheritParentPermissions": {
                         "type": "boolean"
@@ -21545,7 +21516,6 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
-                    "isPrivate",
                     "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
@@ -21560,7 +21530,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_"
+                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_"
                             },
                             {
                                 "properties": {
@@ -27571,9 +27541,6 @@
                         "format": "date-time",
                         "nullable": true
                     },
-                    "isPrivate": {
-                        "type": "boolean"
-                    },
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
@@ -27619,7 +27586,6 @@
                     "pinnedList",
                     "views",
                     "firstViewedAt",
-                    "isPrivate",
                     "inheritParentPermissions",
                     "dashboardCount",
                     "chartCount",
@@ -28224,7 +28190,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2611.0",
+        "version": "0.2615.5",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

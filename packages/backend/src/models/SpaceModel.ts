@@ -226,7 +226,6 @@ export class SpaceModel {
                         ...rest
                     }) => ({
                         ...rest,
-                        isPrivate: !rest.inheritParentPermissions,
                         ...(deletedAt
                             ? {
                                   deletedAt,
@@ -307,7 +306,6 @@ export class SpaceModel {
         return {
             organizationUuid: row.organization_uuid,
             name: row.name,
-            isPrivate: !row.inherit_parent_permissions,
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
@@ -1088,7 +1086,6 @@ export class SpaceModel {
         return {
             organizationUuid: space.organization_uuid,
             name: space.name,
-            isPrivate: !space.inherit_parent_permissions,
             uuid: space.space_uuid,
             projectUuid,
             pinnedListUuid: null,

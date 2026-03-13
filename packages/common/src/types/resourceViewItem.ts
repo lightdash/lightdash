@@ -65,7 +65,6 @@ export type ResourceViewSpaceItem = {
         | 'projectUuid'
         | 'uuid'
         | 'name'
-        | 'isPrivate'
         | 'pinnedListUuid'
         | 'pinnedListOrder'
         | 'organizationUuid'
@@ -133,7 +132,6 @@ export const spaceToResourceViewItem = (
     projectUuid: space.projectUuid,
     uuid: space.uuid,
     name: space.name,
-    isPrivate: space.isPrivate,
     inheritParentPermissions: space.inheritParentPermissions,
     pinnedListUuid: space.pinnedListUuid,
     pinnedListOrder: space.pinnedListOrder,

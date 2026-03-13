@@ -3391,7 +3391,6 @@ export class ProjectService extends BaseService {
         return {
             chart: {
                 ...savedChart,
-                isPrivate: !spaceCtx.inheritsFromOrgOrProject,
                 inheritsFromOrgOrProject: spaceCtx.inheritsFromOrgOrProject,
                 access: spaceCtx.access,
             },

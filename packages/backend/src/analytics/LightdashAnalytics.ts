@@ -728,7 +728,6 @@ type SpaceEvent = BaseTrack & {
         name: string;
         spaceId: string;
         projectId: string;
-        isPrivate: boolean;
         userAccessCount: number;
         isNested: boolean;
     };

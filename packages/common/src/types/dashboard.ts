@@ -168,7 +168,7 @@ export type DashboardTabWithUrls = DashboardTab & {
 
 export type DashboardDAO = Omit<
     Dashboard,
-    'isPrivate' | 'inheritsFromOrgOrProject' | 'access'
+    'inheritsFromOrgOrProject' | 'access'
 >;
 
 export type DashboardConfig = {
@@ -199,7 +199,6 @@ export type Dashboard = {
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     tabs: DashboardTab[];
-    isPrivate: boolean | null;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[] | null;
     slug: string;

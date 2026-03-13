@@ -2108,14 +2108,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
-                isPrivate: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 tabs: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'DashboardTab' },
@@ -4872,7 +4864,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
-                isPrivate: { dataType: 'boolean', required: true },
                 colorPalette: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -14077,7 +14068,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_': {
+    'Pick_SpaceSummary.uuid-or-name-or-userAccess_': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -14092,7 +14083,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                isPrivate: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -14154,7 +14144,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 space: {
-                    ref: 'Pick_SpaceSummary.uuid-or-name-or-isPrivate-or-userAccess_',
+                    ref: 'Pick_SpaceSummary.uuid-or-name-or-userAccess_',
                     required: true,
                 },
                 lastUpdatedBy: {
@@ -14424,7 +14414,7 @@ const models: TsoaRoute.Models = {
         enums: ['no changes', 'create', 'update', 'delete'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_':
+    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_':
         {
             dataType: 'refAlias',
             type: {
@@ -14434,7 +14424,6 @@ const models: TsoaRoute.Models = {
                     projectUuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
-                    isPrivate: { dataType: 'boolean', required: true },
                     inheritParentPermissions: {
                         dataType: 'boolean',
                         required: true,
@@ -14476,7 +14465,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_',
+                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
@@ -14514,7 +14503,7 @@ const models: TsoaRoute.Models = {
         type: { ref: 'SpaceSummaryBase', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__':
+    'Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__':
         {
             dataType: 'refAlias',
             type: {
@@ -14631,10 +14620,10 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_': {
+    'Omit_Dashboard.inheritsFromOrgOrProject-or-access_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_Dashboard.Exclude_keyofDashboard.isPrivate-or-inheritsFromOrgOrProject-or-access__',
+            ref: 'Pick_Dashboard.Exclude_keyofDashboard.inheritsFromOrgOrProject-or-access__',
             validators: {},
         },
     },
@@ -14642,7 +14631,7 @@ const models: TsoaRoute.Models = {
     DashboardDAO: {
         dataType: 'refAlias',
         type: {
-            ref: 'Omit_Dashboard.isPrivate-or-inheritsFromOrgOrProject-or-access_',
+            ref: 'Omit_Dashboard.inheritsFromOrgOrProject-or-access_',
             validators: {},
         },
     },
@@ -14665,7 +14654,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__':
+    'Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__':
         {
             dataType: 'refAlias',
             type: {
@@ -14803,10 +14792,10 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_': {
+    'Omit_SavedChart.inheritsFromOrgOrProject-or-access_': {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_SavedChart.Exclude_keyofSavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access__',
+            ref: 'Pick_SavedChart.Exclude_keyofSavedChart.inheritsFromOrgOrProject-or-access__',
             validators: {},
         },
     },
@@ -14814,7 +14803,7 @@ const models: TsoaRoute.Models = {
     SavedChartDAO: {
         dataType: 'refAlias',
         type: {
-            ref: 'Omit_SavedChart.isPrivate-or-inheritsFromOrgOrProject-or-access_',
+            ref: 'Omit_SavedChart.inheritsFromOrgOrProject-or-access_',
             validators: {},
         },
     },
@@ -15484,7 +15473,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
-                isPrivate: { dataType: 'boolean', required: true },
                 name: { dataType: 'string', required: true },
                 uuid: { dataType: 'string', required: true },
                 organizationUuid: { dataType: 'string', required: true },
@@ -15603,7 +15591,6 @@ const models: TsoaRoute.Models = {
                     },
                 },
                 inheritParentPermissions: { dataType: 'boolean' },
-                isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
@@ -15616,7 +15603,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 inheritParentPermissions: { dataType: 'boolean' },
-                isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
             },
             validators: {},
@@ -20301,7 +20287,7 @@ const models: TsoaRoute.Models = {
         enums: ['space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_':
+    'Pick_Space.projectUuid-or-uuid-or-name-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_':
         {
             dataType: 'refAlias',
             type: {
@@ -20311,7 +20297,6 @@ const models: TsoaRoute.Models = {
                     projectUuid: { dataType: 'string', required: true },
                     organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
-                    isPrivate: { dataType: 'boolean', required: true },
                     inheritParentPermissions: {
                         dataType: 'boolean',
                         required: true,
@@ -20355,7 +20340,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_',
+                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',
@@ -26401,7 +26386,6 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
-            isPrivate: { dataType: 'boolean', required: true },
             inheritParentPermissions: { dataType: 'boolean', required: true },
             dashboardCount: { dataType: 'double', required: true },
             chartCount: { dataType: 'double', required: true },

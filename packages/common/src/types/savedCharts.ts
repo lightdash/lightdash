@@ -781,7 +781,7 @@ export type SavedChartType = ChartType;
 
 export type SavedChartDAO = Omit<
     SavedChart,
-    'isPrivate' | 'inheritsFromOrgOrProject' | 'access'
+    'inheritsFromOrgOrProject' | 'access'
 >;
 
 export type SavedChart = {
@@ -820,7 +820,6 @@ export type SavedChart = {
     dashboardUuid: string | null;
     dashboardName: string | null;
     colorPalette: string[];
-    isPrivate: boolean;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
     /** Unique identifier slug for this chart */
@@ -873,7 +872,6 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
-    | 'isPrivate'
     | 'inheritsFromOrgOrProject'
     | 'access'
     | 'slug'

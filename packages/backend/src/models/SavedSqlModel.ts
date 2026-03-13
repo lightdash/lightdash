@@ -63,7 +63,7 @@ export class SavedSqlModel {
         SqlChart,
         'space'
     > & {
-        space: Pick<SpaceSummary, 'uuid' | 'name' | 'isPrivate'>;
+        space: Pick<SpaceSummary, 'uuid' | 'name'>;
     } {
         return {
             savedSqlUuid: row.saved_sql_uuid,
@@ -95,7 +95,6 @@ export class SavedSqlModel {
             space: {
                 uuid: row.space_uuid,
                 name: row.spaceName,
-                isPrivate: !row.space_inherit_parent_permissions,
             },
             project: {
                 projectUuid: row.project_uuid,

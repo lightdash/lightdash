@@ -53,8 +53,8 @@ describe('CaslAuditWrapper', () => {
             );
 
             // Forbidden rule with conditions
-            cannot('read', 'Dashboard', { isPrivate: true }).because(
-                'Private dashboards are not readable',
+            cannot('read', 'Dashboard', { isRestricted: true }).because(
+                'Restricted dashboards are not readable',
             );
 
             // Rule with multiple conditions
@@ -94,7 +94,9 @@ describe('CaslAuditWrapper', () => {
             const userDashboard = createDashboard('2', {
                 authorId: mockUser.userUuid,
             });
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const restrictedDashboard = createDashboard('3', {
+                isRestricted: true,
+            });
 
             // Test various scenarios
             expect(wrapper.can('read', publicDashboard)).toBe(
@@ -106,8 +108,8 @@ describe('CaslAuditWrapper', () => {
             expect(wrapper.can('update', publicDashboard)).toBe(
                 ability.can('update', publicDashboard),
             );
-            expect(wrapper.can('read', privateDashboard)).toBe(
-                ability.can('read', privateDashboard),
+            expect(wrapper.can('read', restrictedDashboard)).toBe(
+                ability.can('read', restrictedDashboard),
             );
         });
 
@@ -138,10 +140,12 @@ describe('CaslAuditWrapper', () => {
         it('should log the audit event with denied status when permission is denied', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const restrictedDashboard = createDashboard('3', {
+                isRestricted: true,
+            });
 
             // Act
-            wrapper.can('read', privateDashboard);
+            wrapper.can('read', restrictedDashboard);
 
             // Assert
             expect(mockLogger).toHaveBeenCalledTimes(1);
@@ -226,7 +230,9 @@ describe('CaslAuditWrapper', () => {
             const userDashboard = createDashboard('2', {
                 authorId: mockUser.userUuid,
             });
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const restrictedDashboard = createDashboard('3', {
+                isRestricted: true,
+            });
 
             // Test various scenarios
             expect(wrapper.cannot('read', publicDashboard)).toBe(
@@ -238,18 +244,20 @@ describe('CaslAuditWrapper', () => {
             expect(wrapper.cannot('update', publicDashboard)).toBe(
                 ability.cannot('update', publicDashboard),
             );
-            expect(wrapper.cannot('read', privateDashboard)).toBe(
-                ability.cannot('read', privateDashboard),
+            expect(wrapper.cannot('read', restrictedDashboard)).toBe(
+                ability.cannot('read', restrictedDashboard),
             );
         });
 
         it('should log the audit event with denied status when permission is denied', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const restrictedDashboard = createDashboard('3', {
+                isRestricted: true,
+            });
 
             // Act
-            wrapper.cannot('read', privateDashboard);
+            wrapper.cannot('read', restrictedDashboard);
 
             // Assert
             expect(mockLogger).toHaveBeenCalledTimes(1);
@@ -280,17 +288,19 @@ describe('CaslAuditWrapper', () => {
         it('should include the reason from cannot rules', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
-            const privateDashboard = createDashboard('3', { isPrivate: true });
+            const restrictedDashboard = createDashboard('3', {
+                isRestricted: true,
+            });
 
             // Act
-            wrapper.cannot('read', privateDashboard);
+            wrapper.cannot('read', restrictedDashboard);
 
             // Assert
             expect(mockLogger).toHaveBeenCalledTimes(1);
 
             const loggedEvent = mockLogger.mock.calls[0][0];
             expect(loggedEvent.reason).toBe(
-                'Private dashboards are not readable',
+                'Restricted dashboards are not readable',
             );
         });
     });

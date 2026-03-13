@@ -22,7 +22,7 @@ type TestSpaceParams = {
     spaceUuid?: string;
     organizationUuid?: string;
     projectUuid?: string;
-    isPrivate?: boolean;
+    inheritsFromOrgOrProject?: boolean;
 };
 
 type TestAccessParams = {
@@ -77,12 +77,10 @@ export const createTestSpace = ({
     spaceUuid = 'test-space-uuid',
     organizationUuid = 'test-org-uuid',
     projectUuid = 'test-project-uuid',
-    isPrivate = true,
 }: TestSpaceParams = {}) => ({
     uuid: spaceUuid,
     organizationUuid,
     projectUuid,
-    isPrivate,
 });
 
 export const createSpaceAccessContext = ({
