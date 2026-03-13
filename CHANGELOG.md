@@ -1,3 +1,10 @@
+## [0.2619.1](https://github.com/lightdash/lightdash/compare/0.2619.0...0.2619.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* format CLAUDE.md code example to pass oxfmt check ([#21132](https://github.com/lightdash/lightdash/issues/21132)) ([a8e9086](https://github.com/lightdash/lightdash/commit/a8e908667765e1d5d5b946617fe28df06a7caf8a))
+
 # [0.2619.0](https://github.com/lightdash/lightdash/compare/0.2618.1...0.2619.0) (2026-03-13)
 
 
