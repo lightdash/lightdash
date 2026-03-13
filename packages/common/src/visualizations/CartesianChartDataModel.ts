@@ -686,6 +686,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
+        options?: { skipGroupLimit?: boolean },
     ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
@@ -719,7 +720,11 @@ export class CartesianChartDataModel {
         let originalValues: Map<string, Map<string, number>> | undefined;
 
         const groupLimit = this.fieldConfig?.groupLimit;
-        if (groupLimit?.enabled && valuesColumnsToRender.length > 1) {
+        if (
+            groupLimit?.enabled &&
+            valuesColumnsToRender.length > 1 &&
+            !options?.skipGroupLimit
+        ) {
             const aggregationResult =
                 CartesianChartDataModel.aggregateSmallGroups(
                     valuesColumnsToRender,
