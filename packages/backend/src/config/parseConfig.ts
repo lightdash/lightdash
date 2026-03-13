@@ -1097,7 +1097,7 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     defaultUserSpaces: {
-        enabled: boolean;
+        enabled: boolean | undefined;
     };
     softDelete: {
         enabled: boolean;
@@ -2018,7 +2018,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         defaultUserSpaces: {
             enabled:
-                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true',
+                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true'
+                    ? true
+                    : undefined,
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',

@@ -242,11 +242,28 @@ export class FeatureFlagModel {
     }
 
     private async getDefaultUserSpacesEnabled({
+        user,
         featureFlagId,
     }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.defaultUserSpaces.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.DefaultUserSpaces,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                          organizationName: user.organizationName,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
         return {
             id: featureFlagId,
-            enabled: this.lightdashConfig.defaultUserSpaces.enabled,
+            enabled,
         };
     }
 

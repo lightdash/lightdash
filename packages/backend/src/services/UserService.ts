@@ -1602,7 +1602,11 @@ export class UserService extends BaseService {
     private async ensureDefaultUserSpaces(
         sessionUser: SessionUser,
     ): Promise<void> {
-        if (!this.lightdashConfig.defaultUserSpaces.enabled) return;
+        const { enabled } = await this.featureFlagModel.get({
+            user: sessionUser,
+            featureFlagId: FeatureFlags.DefaultUserSpaces,
+        });
+        if (!enabled) return;
         if (!sessionUser.organizationUuid) return;
 
         const projects =

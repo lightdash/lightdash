@@ -56,6 +56,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -6005,7 +6006,12 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateDefaultUserSpaces,
     ): Promise<void> {
-        if (!this.lightdashConfig.defaultUserSpaces.enabled) {
+        const { enabled: defaultUserSpacesEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.DefaultUserSpaces,
+            });
+        if (!defaultUserSpacesEnabled) {
             throw new ForbiddenError(
                 'Default user spaces feature is not enabled',
             );

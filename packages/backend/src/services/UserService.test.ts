@@ -116,7 +116,12 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
-        featureFlagModel: {} as FeatureFlagModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({
+                id: '',
+                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
+            })),
+        } as unknown as FeatureFlagModel,
     });
 
 jest.spyOn(analyticsMock, 'track');
