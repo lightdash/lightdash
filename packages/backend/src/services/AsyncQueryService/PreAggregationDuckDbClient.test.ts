@@ -50,7 +50,6 @@ describe('PreAggregationDuckDbClient', () => {
             getExploreFromCache: jest
                 .fn()
                 .mockResolvedValue(preAggregateExplore),
-            getQueryTimezone: jest.fn().mockResolvedValue(null),
         };
         const createDuckdbWarehouseClient = jest
             .fn()
@@ -78,6 +77,7 @@ describe('PreAggregationDuckDbClient', () => {
             ...metricQueryMock,
             tableCalculations: [],
         },
+        timezone: 'UTC',
         dateZoom: undefined,
         parameters: { region: 'us-east' },
         preAggregationRoute: {

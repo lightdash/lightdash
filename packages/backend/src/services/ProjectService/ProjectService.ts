@@ -6426,8 +6426,8 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async _getCalculateTotalQuery(
-        projectUuid: string,
+    static async _getCalculateTotalQuery(
+        timezone: string,
         userAttributes: UserAttributeValueMap,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         explore: Explore,
@@ -6459,8 +6459,6 @@ export class ProjectService extends BaseService {
                 'Totals cannot be correctly calculated with metric filters or table calculation filters',
             );
         }
-
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery: totalQuery,
@@ -6506,9 +6504,11 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         try {
-            const { query } = await this._getCalculateTotalQuery(
-                projectUuid,
+            const { query } = await ProjectService._getCalculateTotalQuery(
+                timezone,
                 userAttributes,
                 intrinsicUserAttributes,
                 explore,
@@ -6570,17 +6570,20 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         try {
-            const { query, totalQuery } = await this._getCalculateTotalQuery(
-                projectUuid,
-                userAttributes,
-                intrinsicUserAttributes,
-                explore,
-                metricQuery,
-                warehouseClient,
-                availableParameterDefinitions,
-                parameters,
-            );
+            const { query, totalQuery } =
+                await ProjectService._getCalculateTotalQuery(
+                    timezone,
+                    userAttributes,
+                    intrinsicUserAttributes,
+                    explore,
+                    metricQuery,
+                    warehouseClient,
+                    availableParameterDefinitions,
+                    parameters,
+                );
 
             const queryTags: RunQueryTags = {
                 ...this.getUserQueryTags(account),

@@ -39,10 +39,7 @@ import { type PreAggregationRoute } from './types';
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
-    projectModel: Pick<
-        ProjectModel,
-        'getExploreFromCache' | 'getQueryTimezone'
-    >;
+    projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
     prometheusMetrics?: PrometheusMetrics;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
@@ -54,6 +51,7 @@ export type ResolvePreAggregationDuckDbArgs = {
     queryUuid?: string;
     queryTags?: RunQueryTags;
     metricQuery: MetricQuery;
+    timezone: string;
     dateZoom: DateZoom | undefined;
     parameters: ParametersValuesMap | undefined;
     preAggregationRoute: PreAggregationRoute;
@@ -84,10 +82,7 @@ export class PreAggregationDuckDbClient {
         'getActiveMaterialization'
     >;
 
-    private readonly projectModel: Pick<
-        ProjectModel,
-        'getExploreFromCache' | 'getQueryTimezone'
-    >;
+    private readonly projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
 
     private readonly createDuckdbWarehouseClient: (args: {
         s3Config: DuckdbS3SessionConfig;
@@ -268,6 +263,7 @@ export class PreAggregationDuckDbClient {
             chartUuid: args.queryTags?.chart_uuid,
             dashboardUuid: args.queryTags?.dashboard_uuid,
             exploreName: args.queryTags?.explore_name,
+            timezone: args.timezone,
             preAggExploreName,
             materializationUuid: activeMaterialization.materializationUuid,
             materializationQueryUuid: activeMaterialization.queryUuid,
@@ -330,12 +326,6 @@ export class PreAggregationDuckDbClient {
             args.startOfWeek,
         );
 
-        const projectTimezone = await this.projectModel.getQueryTimezone(
-            args.projectUuid,
-        );
-        const timezone =
-            projectTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
-
         const fullQuery = await Sentry.startSpan(
             {
                 op: 'function',
@@ -349,7 +339,7 @@ export class PreAggregationDuckDbClient {
                     intrinsicUserAttributes:
                         args.userAccessControls.intrinsicUserAttributes,
                     userAttributes: args.userAccessControls.userAttributes,
-                    timezone,
+                    timezone: args.timezone,
                     dateZoom: args.dateZoom,
                     parameters: args.parameters,
                     availableParameterDefinitions:
