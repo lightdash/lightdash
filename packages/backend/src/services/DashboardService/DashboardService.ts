@@ -607,9 +607,14 @@ export class DashboardService
         user: SessionUser,
         dashboardUuidOrSlug: string,
         dashboard: UpdateDashboard,
+        options?: { projectUuid?: string },
     ): Promise<Dashboard> {
-        const existingDashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
 
         const currentSpace =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -959,10 +964,14 @@ export class DashboardService
     async delete(
         user: SessionUser,
         dashboardUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
-        const dashboardToDelete =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
 
