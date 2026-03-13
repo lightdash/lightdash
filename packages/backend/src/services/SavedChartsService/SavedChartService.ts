@@ -710,7 +710,7 @@ export class SavedChartService
     async delete(
         user: SessionUser,
         savedChartUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const {
             organizationUuid,
@@ -718,7 +718,9 @@ export class SavedChartService
             spaceUuid,
             metricQuery: { metrics, dimensions },
             tableName,
-        } = await this.savedChartModel.get(savedChartUuid);
+        } = await this.savedChartModel.get(savedChartUuid, undefined, {
+            projectUuid: options?.projectUuid,
+        });
 
         if (!options?.bypassPermissions) {
             const { inheritsFromOrgOrProject, access } =

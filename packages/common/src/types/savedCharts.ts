@@ -1230,6 +1230,11 @@ export type SkippedReplaceCustomFields = {
     };
 };
 
+export type ApiSavedChartResponse = {
+    status: 'ok';
+    results: SavedChart;
+};
+
 export type ApiSavedChartSchedulersResponse = {
     status: 'ok';
     results: SchedulerAndTargets[];
