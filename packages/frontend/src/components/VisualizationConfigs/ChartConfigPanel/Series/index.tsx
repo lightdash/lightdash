@@ -25,7 +25,13 @@ import {
     Text,
 } from '@mantine/core';
 import { produce } from 'immer';
-import React, { Fragment, useCallback, useMemo, type FC } from 'react';
+import React, {
+    Fragment,
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -169,10 +175,13 @@ export const Series: FC<Props> = ({ items }) => {
         resultsData?.rows,
     ]);
 
+    const [setAllColor, setSetAllColor] = useState<string | undefined>();
+
     // When colorByCategory is on, the top-level series color picker sets all categories
     const handleSetAllCategoryColors = useCallback(
         (color: string) => {
             if (!isCartesianChart) return;
+            setSetAllColor(color);
             const overrides: Record<string, string> = {};
             for (const rawKey of allRawKeys) {
                 overrides[rawKey] = color;
@@ -232,17 +241,6 @@ export const Series: FC<Props> = ({ items }) => {
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
     const categoryColorOverrides = dirtyLayout?.categoryColorOverrides ?? {};
-
-    // Wraps updateSingleSeries: when colorByCategory is on and a color is set,
-    // also apply that color to all category overrides
-    const colorByCategoryUpdateSingleSeries: typeof updateSingleSeries = (
-        updatedSeries,
-    ) => {
-        updateSingleSeries(updatedSeries);
-        if (colorByCategory && updatedSeries.color) {
-            handleSetAllCategoryColors(updatedSeries.color);
-        }
-    };
 
     return (
         <Stack spacing="md">
@@ -350,7 +348,7 @@ export const Series: FC<Props> = ({ items }) => {
                                                                 getSingleSeries
                                                             }
                                                             updateSingleSeries={
-                                                                colorByCategoryUpdateSingleSeries
+                                                                updateSingleSeries
                                                             }
                                                             dragHandleProps={
                                                                 dragHandleProps
@@ -385,91 +383,121 @@ export const Series: FC<Props> = ({ items }) => {
                                                             {colorByCategory &&
                                                                 uniqueCategories.length >
                                                                     0 && (
-                                                                    <Box
-                                                                        bg="ldGray.1"
-                                                                        p="xxs"
-                                                                        py="xs"
-                                                                        sx={(
-                                                                            theme,
-                                                                        ) => ({
-                                                                            borderRadius:
-                                                                                theme
-                                                                                    .radius
-                                                                                    .sm,
-                                                                        })}
-                                                                    >
-                                                                        <ScrollArea.Autosize
-                                                                            mah={
-                                                                                300
-                                                                            }
+                                                                    <>
+                                                                        <Divider />
+                                                                        <Group
+                                                                            spacing="xs"
+                                                                            noWrap
                                                                         >
-                                                                            <Stack spacing="xs">
-                                                                                {uniqueCategories.map(
-                                                                                    (
-                                                                                        [
-                                                                                            rawKey,
-                                                                                            label,
-                                                                                        ],
-                                                                                        idx,
-                                                                                    ) => (
-                                                                                        <Group
-                                                                                            key={
-                                                                                                rawKey
-                                                                                            }
-                                                                                            spacing="xs"
-                                                                                            noWrap
-                                                                                        >
-                                                                                            <ColorSelector
-                                                                                                color={
-                                                                                                    categoryColorOverrides[
-                                                                                                        rawKey
-                                                                                                    ] ??
-                                                                                                    colorPalette[
-                                                                                                        idx %
-                                                                                                            colorPalette.length
-                                                                                                    ]
+                                                                            <ColorSelector
+                                                                                color={
+                                                                                    setAllColor ??
+                                                                                    colorPalette[0]
+                                                                                }
+                                                                                swatches={
+                                                                                    colorPalette
+                                                                                }
+                                                                                onColorChange={
+                                                                                    handleSetAllCategoryColors
+                                                                                }
+                                                                            />
+                                                                            <Text
+                                                                                fz="xs"
+                                                                                fw={
+                                                                                    600
+                                                                                }
+                                                                                c="dimmed"
+                                                                            >
+                                                                                Set
+                                                                                all
+                                                                            </Text>
+                                                                        </Group>
+                                                                        <Box
+                                                                            bg="ldGray.1"
+                                                                            p="xxs"
+                                                                            py="xs"
+                                                                            sx={(
+                                                                                theme,
+                                                                            ) => ({
+                                                                                borderRadius:
+                                                                                    theme
+                                                                                        .radius
+                                                                                        .sm,
+                                                                            })}
+                                                                        >
+                                                                            <ScrollArea.Autosize
+                                                                                mah={
+                                                                                    300
+                                                                                }
+                                                                            >
+                                                                                <Stack spacing="xs">
+                                                                                    {uniqueCategories.map(
+                                                                                        (
+                                                                                            [
+                                                                                                rawKey,
+                                                                                                label,
+                                                                                            ],
+                                                                                            idx,
+                                                                                        ) => (
+                                                                                            <Group
+                                                                                                key={
+                                                                                                    rawKey
                                                                                                 }
-                                                                                                swatches={
-                                                                                                    colorPalette
-                                                                                                }
-                                                                                                onColorChange={(
-                                                                                                    c,
-                                                                                                ) =>
-                                                                                                    setCategoryColorOverride(
-                                                                                                        rawKey,
-                                                                                                        c,
-                                                                                                    )
-                                                                                                }
-                                                                                            />
-                                                                                            <Text
-                                                                                                fz="xs"
-                                                                                                truncate
+                                                                                                spacing="xs"
+                                                                                                noWrap
                                                                                             >
-                                                                                                {
-                                                                                                    label
-                                                                                                }
-                                                                                            </Text>
-                                                                                        </Group>
-                                                                                    ),
-                                                                                )}
-                                                                                {remainingCount >
-                                                                                    0 && (
-                                                                                    <Text
-                                                                                        fz="xs"
-                                                                                        c="dimmed"
-                                                                                        fs="italic"
-                                                                                    >
-                                                                                        {
-                                                                                            remainingCount
-                                                                                        }{' '}
-                                                                                        more
-                                                                                        colored
-                                                                                        automatically
-                                                                                    </Text>
-                                                                                )}
-                                                                            </Stack>
-                                                                        </ScrollArea.Autosize>
-                                                                    </Box>
+                                                                                                <ColorSelector
+                                                                                                    color={
+                                                                                                        categoryColorOverrides[
+                                                                                                            rawKey
+                                                                                                        ] ??
+                                                                                                        colorPalette[
+                                                                                                            idx %
+                                                                                                                colorPalette.length
+                                                                                                        ]
+                                                                                                    }
+                                                                                                    swatches={
+                                                                                                        colorPalette
+                                                                                                    }
+                                                                                                    onColorChange={(
+                                                                                                        c,
+                                                                                                    ) =>
+                                                                                                        setCategoryColorOverride(
+                                                                                                            rawKey,
+                                                                                                            c,
+                                                                                                        )
+                                                                                                    }
+                                                                                                />
+                                                                                                <Text
+                                                                                                    fz="xs"
+                                                                                                    truncate
+                                                                                                >
+                                                                                                    {
+                                                                                                        label
+                                                                                                    }
+                                                                                                </Text>
+                                                                                            </Group>
+                                                                                        ),
+                                                                                    )}
+                                                                                    {remainingCount >
+                                                                                        0 && (
+                                                                                        <Text
+                                                                                            fz="xs"
+                                                                                            c="dimmed"
+                                                                                            fs="italic"
+                                                                                        >
+                                                                                            {
+                                                                                                remainingCount
+                                                                                            }{' '}
+                                                                                            more
+                                                                                            colored
+                                                                                            automatically
+                                                                                        </Text>
+                                                                                    )}
+                                                                                </Stack>
+                                                                            </ScrollArea.Autosize>
+                                                                        </Box>
+                                                                    </>
                                                                 )}
                                                         </Stack>
                                                     )}
