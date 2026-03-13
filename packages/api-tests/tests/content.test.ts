@@ -2,6 +2,7 @@ import { AnyType, SEED_PROJECT } from '@lightdash/common';
 import type { Body } from '../helpers/api-client';
 import { login, loginAsEditor, loginAsViewer } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
+import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 type ContentResults = { data: AnyType[] };
 
@@ -10,9 +11,14 @@ const apiUrl = '/api/v2';
 describe('Lightdash catalog all tables and fields', () => {
     let admin: Awaited<ReturnType<typeof login>>;
     let content: AnyType[] = [];
+    const tracker = new TestResourceTracker();
 
     beforeAll(async () => {
         admin = await login();
+    });
+
+    afterAll(async () => {
+        await tracker.cleanup(admin);
     });
 
     it('Should list all content', async () => {
@@ -68,39 +74,44 @@ describe('Lightdash catalog all tables and fields', () => {
 
     describe('Filter by spaceUuids', () => {
         it('Filter by existing spaceUuid', async () => {
+            // Find a seed content item by known name to avoid relying on content[0] ordering
+            const seedItem = content.find(
+                (d: AnyType) => d.name === 'Jaffle dashboard',
+            );
+            expect(seedItem).toBeDefined();
             const resp = await admin.get<Body<ContentResults>>(
-                `${apiUrl}/content?spaceUuids=${content[0]?.space?.uuid}`,
+                `${apiUrl}/content?spaceUuids=${seedItem.space.uuid}`,
             );
             expect(resp.status).toBe(200);
             expect(resp.body.results.data.length).toBeGreaterThan(0);
             const uuids = resp.body.results.data.map((d: AnyType) => d.uuid);
-            expect(uuids).toContain(content[0].uuid);
+            expect(uuids).toContain(seedItem.uuid);
         });
 
         it('Filter by existing spaceUuid with new chart', async () => {
-            const now = Date.now();
-
             const spaceResp = await admin.post<Body<{ uuid: string }>>(
                 `/api/v1/projects/${SEED_PROJECT.project_uuid}/spaces/`,
                 {
-                    name: `Public space to promote ${now}`,
+                    name: uniqueName('Public space to promote'),
                     inheritParentPermissions: true,
                 },
             );
             expect(spaceResp.status).toBe(200);
             const spaceUuid = spaceResp.body.results.uuid;
+            tracker.trackSpace(spaceUuid);
 
             const chartResp = await admin.post<Body<{ uuid: string }>>(
                 `/api/v1/projects/${SEED_PROJECT.project_uuid}/saved`,
                 {
                     ...chartMock,
-                    name: `Chart to promote ${now}`,
+                    name: uniqueName('Chart to promote'),
                     spaceUuid,
                     dashboardUuid: null,
                 },
             );
             expect(chartResp.status).toBe(200);
             const chart = chartResp.body.results;
+            tracker.trackChart(chart.uuid);
 
             const resp = await admin.get<Body<ContentResults>>(
                 `${apiUrl}/content?spaceUuids=${spaceUuid}`,

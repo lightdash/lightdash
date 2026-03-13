@@ -9,12 +9,13 @@ import {
 } from '@lightdash/common';
 import { login, loginAsEditor } from '../helpers/auth';
 import { chartMock, dashboardMock } from '../helpers/mocks';
+import { uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
 describe('Saved chart space selection', () => {
-    const chartName = 'Chart space selection test';
-    const dashboardName = 'Dashboard for chart space selection test';
+    const chartName = uniqueName('Chart space selection');
+    const dashboardName = uniqueName('Dashboard for chart space');
 
     let admin: Awaited<ReturnType<typeof login>>;
     const createdChartUuids: string[] = [];

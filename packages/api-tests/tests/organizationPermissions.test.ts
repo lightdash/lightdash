@@ -122,11 +122,15 @@ describe('Lightdash API organization permission tests', () => {
     it('Should get forbidden error (403) from GET savedChart endpoints from another organization', async () => {
         const admin = await login();
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
-        );
+        const projectResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
         expect(projectResponse.status).toBe(200);
-        const savedChartUuid = projectResponse.body.results[0].uuid;
+        const seedChart = projectResponse.body.results.find(
+            (c) => c.name === 'How many orders we have over time ?',
+        );
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
 
         const endpoints = [
             `/saved/${savedChartUuid}`,
@@ -157,12 +161,16 @@ describe('Lightdash API organization permission tests', () => {
     it('Should get forbidden error (403) from GET dashboardRouter endpoints', async () => {
         const admin = await login();
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/dashboards`,
-        );
+        const projectResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoints = [`/dashboards/${dashboardUuid}`];
         // eslint-disable-next-line no-restricted-syntax
         for (const endpoint of endpoints) {
@@ -177,12 +185,16 @@ describe('Lightdash API organization permission tests', () => {
     it('Should get forbidden error (403) from PATCH dashboard', async () => {
         const admin = await login();
         const projectUuid = SEED_PROJECT.project_uuid;
-        const projectResponse = await admin.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/dashboards`,
-        );
+        const projectResponse = await admin.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
 
         const resp = await other.patch(

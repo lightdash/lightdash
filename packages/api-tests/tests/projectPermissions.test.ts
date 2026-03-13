@@ -98,7 +98,10 @@ describe('Lightdash API tests for member user with admin project permissions', (
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(resp.status).toBe(200);
         expect(resp.body).toHaveProperty('status', 'ok');
-        expect(resp.body.results[0]).toHaveProperty('name', 'Jaffle dashboard');
+        const jaffleDashboard = resp.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
     });
 
     it('Should get success response (200) from POST runQuery', async () => {
@@ -142,10 +145,15 @@ describe('Lightdash API tests for member user with admin project permissions', (
     it('Should get success response (200) from POST chart results', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const spacesResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
+        const spacesResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
+        const seedChart = spacesResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
         );
-        const savedChartUuid = spacesResponse.body.results[0].uuid;
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoint = `/saved/${savedChartUuid}/results`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.post(`${apiUrl}${endpoint}`, undefined);
@@ -156,10 +164,15 @@ describe('Lightdash API tests for member user with admin project permissions', (
     it('Should get success response (200) from POST chart-and-results with filters', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const spacesResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
+        const spacesResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
+        const seedChart = spacesResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
         );
-        const savedChartUuid = spacesResponse.body.results[0].uuid;
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoint = `/saved/${savedChartUuid}/chart-and-results`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.post(`${apiUrl}${endpoint}`, {
@@ -217,7 +230,11 @@ describe('Lightdash API tests for member user with admin project permissions', (
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
         // eslint-disable-next-line no-await-in-loop
         const dashboardResponse = await client.get<
@@ -249,12 +266,17 @@ describe('Lightdash API tests for member user with admin project permissions', (
     it('Should get success response (200) from GET savedChartRouter endpoints', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const projectResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
-        );
+        const projectResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
         expect(projectResponse.status).toBe(200);
 
-        const savedChartUuid = projectResponse.body.results[0].uuid;
+        const seedChart = projectResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
+        );
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoints = [
             `/saved/${savedChartUuid}`,
             `/saved/${savedChartUuid}/availableFilters`,
@@ -300,7 +322,11 @@ describe('Lightdash API tests for member user with admin project permissions', (
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoints = [`/dashboards/${dashboardUuid}`];
         for (const endpoint of endpoints) {
             // eslint-disable-next-line no-await-in-loop
@@ -379,12 +405,17 @@ describe('Lightdash API tests for member user with editor project permissions', 
     it('Should get success response (200) from GET savedChartRouter endpoints', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const projectResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
-        );
+        const projectResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
         expect(projectResponse.status).toBe(200);
 
-        const savedChartUuid = projectResponse.body.results[0].uuid;
+        const seedChart = projectResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
+        );
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoints = [
             `/saved/${savedChartUuid}`,
             `/saved/${savedChartUuid}/availableFilters`,
@@ -424,7 +455,10 @@ describe('Lightdash API tests for member user with editor project permissions', 
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(resp.status).toBe(200);
         expect(resp.body).toHaveProperty('status', 'ok');
-        expect(resp.body.results[0]).toHaveProperty('name', 'Jaffle dashboard');
+        const jaffleDashboard = resp.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
     });
 
     it('Should get success response (200) from POST downloadCsv', async () => {
@@ -499,7 +533,11 @@ describe('Lightdash API tests for member user with editor project permissions', 
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
         // eslint-disable-next-line no-await-in-loop
         const dashboardResponse = await client.get<
@@ -561,7 +599,11 @@ describe('Lightdash API tests for member user with editor project permissions', 
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoints = [`/dashboards/${dashboardUuid}`];
         for (const endpoint of endpoints) {
             // eslint-disable-next-line no-await-in-loop
@@ -705,10 +747,15 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
     it('Should get success response (200) from POST chart results', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const spacesResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
+        const spacesResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
+        const seedChart = spacesResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
         );
-        const savedChartUuid = spacesResponse.body.results[0].uuid;
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoint = `/saved/${savedChartUuid}/results`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.post(`${apiUrl}${endpoint}`, undefined);
@@ -719,10 +766,15 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
     it('Should get success response (200) from POST chart-and-results with filters', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const spacesResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
+        const spacesResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
+        const seedChart = spacesResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
         );
-        const savedChartUuid = spacesResponse.body.results[0].uuid;
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoint = `/saved/${savedChartUuid}/chart-and-results`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.post(`${apiUrl}${endpoint}`, {
@@ -772,7 +824,11 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.patch(
@@ -866,7 +922,10 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(resp.status).toBe(200);
         expect(resp.body).toHaveProperty('status', 'ok');
-        expect(resp.body.results[0]).toHaveProperty('name', 'Jaffle dashboard');
+        const jaffleDashboard = resp.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(jaffleDashboard).toBeDefined();
     });
 
     it('Should get forbidden (403) from PUT explores', async () => {
@@ -919,10 +978,15 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     it('Should get success response (200) from POST chart results', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const spacesResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
+        const spacesResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
+        const seedChart = spacesResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
         );
-        const savedChartUuid = spacesResponse.body.results[0].uuid;
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoint = `/saved/${savedChartUuid}/results`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.post(`${apiUrl}${endpoint}`, undefined);
@@ -933,10 +997,15 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     it('Should get success response (200) from POST chart-and-results with filters', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const spacesResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
+        const spacesResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
+        const seedChart = spacesResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
         );
-        const savedChartUuid = spacesResponse.body.results[0].uuid;
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoint = `/saved/${savedChartUuid}/chart-and-results`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.post(`${apiUrl}${endpoint}`, {
@@ -986,7 +1055,11 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoint = `${apiUrl}/dashboards/${dashboardUuid}`;
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.patch(
@@ -1009,12 +1082,17 @@ describe('Lightdash API tests for member user with viewer project permissions', 
     it('Should get success response (200) from GET savedChartRouter endpoints', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const projectResponse = await client.get<Body<Array<{ uuid: string }>>>(
-            `${apiUrl}/projects/${projectUuid}/charts`,
-        );
+        const projectResponse = await client.get<
+            Body<Array<{ uuid: string; name: string }>>
+        >(`${apiUrl}/projects/${projectUuid}/charts`);
         expect(projectResponse.status).toBe(200);
 
-        const savedChartUuid = projectResponse.body.results[0].uuid;
+        const seedChart = projectResponse.body.results.find(
+            (c: { name: string }) =>
+                c.name === 'How many orders we have over time ?',
+        );
+        expect(seedChart).toBeDefined();
+        const savedChartUuid = seedChart!.uuid;
         const endpoints = [
             `/saved/${savedChartUuid}`,
             `/saved/${savedChartUuid}/availableFilters`,
@@ -1060,7 +1138,11 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         >(`${apiUrl}/projects/${projectUuid}/dashboards`);
         expect(projectResponse.status).toBe(200);
 
-        const dashboardUuid = projectResponse.body.results[0].uuid;
+        const seedDashboard = projectResponse.body.results.find(
+            (d: { name: string }) => d.name === 'Jaffle dashboard',
+        );
+        expect(seedDashboard).toBeDefined();
+        const dashboardUuid = seedDashboard!.uuid;
         const endpoints = [`/dashboards/${dashboardUuid}`];
         for (const endpoint of endpoints) {
             // eslint-disable-next-line no-await-in-loop
