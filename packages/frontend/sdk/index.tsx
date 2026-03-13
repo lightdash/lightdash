@@ -8,6 +8,7 @@ import {
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
@@ -70,7 +71,7 @@ const persistInstanceUrl = (instanceUrl: string) => {
     );
 
     if (typeof __SDK_VERSION__ !== 'undefined') {
-        sessionStorage.setItem(
+        setToInMemoryStorage(
             LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY,
             __SDK_VERSION__,
         );

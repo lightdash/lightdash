@@ -24,7 +24,7 @@ export const BASE_API_URL =
         : import.meta.env.BASE_URL;
 
 const getDefaultHeaders = (): Record<string, string> => {
-    const sdkVersion = sessionStorage.getItem(
+    const sdkVersion = getFromInMemoryStorage<string>(
         LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY,
     );
 
