@@ -1,3 +1,10 @@
+## [0.2615.5](https://github.com/lightdash/lightdash/compare/0.2615.4...0.2615.5) (2026-03-13)
+
+
+### Bug Fixes
+
+* memoize ReactQuery client creation with useState ([#21105](https://github.com/lightdash/lightdash/issues/21105)) ([c69da95](https://github.com/lightdash/lightdash/commit/c69da95f011d8aa3731ccefb125fcc2f79cfec1d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2615.4](https://github.com/lightdash/lightdash/compare/0.2615.3...0.2615.4) (2026-03-12)
 
 
