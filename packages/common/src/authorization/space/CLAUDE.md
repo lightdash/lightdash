@@ -31,8 +31,18 @@ const access = resolveSpaceAccess({
     inheritsFromOrgOrProject: false, // true = org/project roles flow down
     chainDirectAccess: [
         // Direct access from each space in the inheritance chain (leaf to root)
-        { spaceUuid: 'space-123', directAccess: [/* DirectSpaceAccess[] */] },
-        { spaceUuid: 'parent-456', directAccess: [/* DirectSpaceAccess[] */] },
+        {
+            spaceUuid: 'space-123',
+            directAccess: [
+                /* DirectSpaceAccess[] */
+            ],
+        },
+        {
+            spaceUuid: 'parent-456',
+            directAccess: [
+                /* DirectSpaceAccess[] */
+            ],
+        },
     ],
     projectAccess: [
         /* ProjectSpaceAccess[] from project memberships/groups */
