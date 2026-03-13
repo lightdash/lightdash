@@ -7,18 +7,9 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Group,
-    ColorPicker as MantineColorPicker,
-    Popover,
-    Stack,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Group } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
-import { IconHash, IconPalette } from '@tabler/icons-react';
+import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
@@ -70,54 +61,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     />
 
                     {showColorPickerIcon ? (
-                        <Popover withinPortal shadow="md" withArrow>
-                            <Popover.Target>
-                                <Tooltip
-                                    label="Color all categories"
-                                    withinPortal
-                                >
-                                    <ActionIcon size="sm">
-                                        <MantineIcon
-                                            icon={IconPalette}
-                                            color="gray.6"
-                                        />
-                                    </ActionIcon>
-                                </Tooltip>
-                            </Popover.Target>
-                            <Popover.Dropdown p="xs">
-                                <Stack spacing="xs">
-                                    <MantineColorPicker
-                                        size="sm"
-                                        format="hex"
-                                        swatches={colorPalette}
-                                        swatchesPerRow={8}
-                                        value={colorPalette[0]}
-                                        onChange={(color) => {
-                                            updateSingleSeries({
-                                                ...series,
-                                                color,
-                                            });
-                                        }}
-                                    />
-                                    <TextInput
-                                        size="xs"
-                                        icon={<MantineIcon icon={IconHash} />}
-                                        placeholder="Type a custom HEX color"
-                                        onChange={(event) => {
-                                            const val =
-                                                event.currentTarget.value;
-                                            updateSingleSeries({
-                                                ...series,
-                                                color:
-                                                    val === ''
-                                                        ? val
-                                                        : `#${val}`,
-                                            });
-                                        }}
-                                    />
-                                </Stack>
-                            </Popover.Dropdown>
-                        </Popover>
+                        <MantineIcon size="sm" icon={IconPalette} />
                     ) : (
                         <ColorSelector
                             color={getSeriesColor(series)}
