@@ -22,7 +22,8 @@ Content-Type: application/json
 
 {
     "name": "test-dbt-project",
-    "description": "Test dbt project created via Lightdash API"
+    "description": "Test dbt project created via Lightdash API",
+    "isPrivate": true
 }
 
 
