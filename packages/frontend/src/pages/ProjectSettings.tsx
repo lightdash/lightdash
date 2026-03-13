@@ -15,6 +15,7 @@ import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
+import SettingsQueryTimezone from '../components/SettingsQueryTimezone';
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
@@ -101,6 +102,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/parameters`,
                 element: <ProjectParameters projectUuid={projectUuid} />,
+            },
+            {
+                path: `/queryTimezone`,
+                element: <SettingsQueryTimezone projectUuid={projectUuid} />,
             },
             {
                 path: `/compilationHistory`,

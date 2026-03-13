@@ -12,6 +12,7 @@ import {
     IconBuildingSkyscraper,
     IconCalendarStats,
     IconChecklist,
+    IconClock,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
@@ -909,6 +910,15 @@ const Settings: FC = () => {
                                         to={`/generalSettings/projectManagement/${project.projectUuid}/parameters`}
                                         leftSection={
                                             <MantineIcon icon={IconVariable} />
+                                        }
+                                    />
+
+                                    <RouterNavLink
+                                        label="Query time zone"
+                                        exact
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/queryTimezone`}
+                                        leftSection={
+                                            <MantineIcon icon={IconClock} />
                                         }
                                     />
 
