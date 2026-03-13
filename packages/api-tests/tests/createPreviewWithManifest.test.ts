@@ -29,7 +29,7 @@ const minimalManifest = {
             resource_type: 'model',
             alias: 'test_model',
             checksum: { name: 'sha256', checksum: 'abc123' },
-            config: {},
+            config: { materialized: 'table' },
             tags: [],
             refs: [],
             sources: [],
