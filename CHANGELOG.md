@@ -1,3 +1,10 @@
+## [0.2618.1](https://github.com/lightdash/lightdash/compare/0.2618.0...0.2618.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* resolve ${TABLE} refs to CTE alias in nested aggregates (GH-21089) ([#21092](https://github.com/lightdash/lightdash/issues/21092)) ([dcdecfe](https://github.com/lightdash/lightdash/commit/dcdecfe14005450a1e2c5ea692b5d6892bb9bce4)), closes [#21089](https://github.com/lightdash/lightdash/issues/21089)
+
 # [0.2618.0](https://github.com/lightdash/lightdash/compare/0.2617.1...0.2618.0) (2026-03-13)
 
 
