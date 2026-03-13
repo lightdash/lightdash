@@ -19,7 +19,10 @@ describe('Rename Chart API', () => {
         const now = Date.now();
         const spaceResp = await admin.post<Body<{ uuid: string }>>(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/`,
-            { name: `Public space to promote ${now}`, isPrivate: false },
+            {
+                name: `Public space to promote ${now}`,
+                inheritParentPermissions: true,
+            },
         );
         expect(spaceResp.status).toBe(200);
         const spaceUuid = spaceResp.body.results.uuid;

@@ -41,7 +41,7 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             parentSpaceUuid = space.uuid;
 
             expect(space.inheritParentPermissions).toBe(false);
-            expect(space.isPrivate).toBe(true);
+            expect(space.inheritParentPermissions).toBe(false);
             expect(space.parentSpaceUuid).toBeNull();
         });
 
@@ -57,7 +57,7 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             parentSpaceUuid = space.uuid;
 
             expect(space.inheritParentPermissions).toBe(true);
-            expect(space.isPrivate).toBe(false);
+            expect(space.inheritParentPermissions).toBe(true);
             expect(space.parentSpaceUuid).toBeNull();
         });
 
@@ -708,7 +708,7 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             // Create root (private, admin only)
             const rootResp = await admin.post<Body<Space>>(
                 `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
-                { name: `Root ${timestamp}`, isPrivate: true },
+                { name: `Root ${timestamp}`, inheritParentPermissions: false },
             );
             rootSpaceUuid = rootResp.body.results.uuid;
 
@@ -813,7 +813,10 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             // Create private root (admin only)
             const rootResp = await admin.post<Body<Space>>(
                 `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
-                { name: `Private Root ${timestamp}`, isPrivate: true },
+                {
+                    name: `Private Root ${timestamp}`,
+                    inheritParentPermissions: false,
+                },
             );
             rootSpaceUuid = rootResp.body.results.uuid;
 

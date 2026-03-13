@@ -25,14 +25,14 @@ async function createSpace(
     opts: {
         name: string;
         projectUuid: string;
-        isPrivate?: boolean;
+        inheritParentPermissions?: boolean;
     },
 ): Promise<Space> {
     const resp = await client.post<{ results: Space }>(
         `${apiUrl}/projects/${opts.projectUuid}/spaces`,
         {
             name: opts.name,
-            isPrivate: opts.isPrivate ?? true,
+            inheritParentPermissions: opts.inheritParentPermissions ?? false,
         },
     );
     expect(resp.status).toBe(200);
@@ -822,7 +822,7 @@ describe('Lightdash analytics - space access filtering', () => {
         privateSpace = await createSpace(admin, {
             name: `Private catalog test ${Date.now()}`,
             projectUuid,
-            isPrivate: true,
+            inheritParentPermissions: false,
         });
 
         const chart = await createChartInSpace(admin, projectUuid, {
