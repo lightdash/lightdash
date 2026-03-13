@@ -1044,6 +1044,7 @@ ${styles.bold('Examples:')}
         'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
         undefined,
     )
+    .option('--threads <number>')
     .option('--vars <vars>')
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option('--skip-existing', 'skip files that already exist', false)

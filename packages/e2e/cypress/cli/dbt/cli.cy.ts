@@ -38,7 +38,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate with --models', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --models orders customers`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads} --models orders customers`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -64,7 +64,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate with --select', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select orders customers`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads} --select orders customers`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -90,7 +90,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate with --select with + prefix', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select +orders`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads} --select +orders`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -117,7 +117,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate with --select with + postfix', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select stg_orders+`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads} --select stg_orders+`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -145,7 +145,7 @@ describe('CLI', () => {
     it.skip('Should lightdash generate with --exclude', () => {
         // skipping because product_events is not in the seed data
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --exclude events`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads} --exclude events`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -171,7 +171,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate with --select and --exclude', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --select +orders --exclude stg_orders stg_payments`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads} --select +orders --exclude stg_orders stg_payments`,
             {
                 failOnNonZeroExit: false,
                 env: {
@@ -198,7 +198,7 @@ describe('CLI', () => {
 
     it('Should lightdash generate all model', () => {
         cy.exec(
-            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir}`,
+            `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --threads ${dbtThreads}`,
             {
                 failOnNonZeroExit: false,
                 env: {
