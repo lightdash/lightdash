@@ -18,7 +18,6 @@ import {
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import { useSlugRedirect } from '../hooks/useSlugRedirect';
 import useApp from '../providers/App/useApp';
 import { ExplorerSection } from '../providers/Explorer/types';
 
@@ -154,8 +153,6 @@ const MinimalSavedExplorer: FC<Props> = ({
         uuidOrSlug: savedQueryUuid,
         projectUuid: params.projectUuid,
     });
-
-    useSlugRedirect(savedQueryUuid, data?.uuid);
 
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
