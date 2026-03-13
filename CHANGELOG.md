@@ -1,3 +1,10 @@
+# [0.2617.0](https://github.com/lightdash/lightdash/compare/0.2616.1...0.2617.0) (2026-03-13)
+
+
+### Features
+
+* transmit SDK version in request headers ([#21107](https://github.com/lightdash/lightdash/issues/21107)) ([34d0dc7](https://github.com/lightdash/lightdash/commit/34d0dc7ee00eef5d656fd61ef5240038b86f76e6))
+
 ## [0.2616.1](https://github.com/lightdash/lightdash/compare/0.2616.0...0.2616.1) (2026-03-13)
 
 
