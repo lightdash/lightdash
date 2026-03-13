@@ -556,6 +556,7 @@ export type CreateProject = Omit<
     | 'projectUuid'
     | 'organizationUuid'
     | 'schedulerTimezone'
+    | 'queryTimezone'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
 > & {
@@ -586,6 +587,7 @@ export type UpdateProject = Omit<
     | 'organizationUuid'
     | 'type'
     | 'schedulerTimezone'
+    | 'queryTimezone'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
 > & {

@@ -27,6 +27,7 @@ export type DbProject = {
     copied_from_project_uuid: string | null;
     dbt_version: string;
     scheduler_timezone: string;
+    query_timezone: string | null;
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
@@ -45,6 +46,7 @@ type CreateDbProject = Pick<
     | 'organization_warehouse_credentials_uuid'
 > & {
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
+    query_timezone?: string | null;
 };
 type UpdateDbProject = Partial<
     Pick<
@@ -58,6 +60,7 @@ type UpdateDbProject = Partial<
         | 'dbt_version'
         | 'copied_from_project_uuid'
         | 'scheduler_timezone'
+        | 'query_timezone'
         | 'has_default_user_spaces'
         | 'project_defaults'
     >

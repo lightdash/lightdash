@@ -500,6 +500,7 @@ export class ProjectModel {
                         ? {
                               scheduler_timezone:
                                   copiedProjects[0].scheduler_timezone,
+                              query_timezone: copiedProjects[0].query_timezone,
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
@@ -646,6 +647,7 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
+                  query_timezone: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -662,6 +664,7 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
+                  query_timezone: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -718,6 +721,9 @@ export class ProjectModel {
                             .ref('scheduler_timezone')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('query_timezone')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('created_by_user_uuid')
                             .withSchema(ProjectTableName),
                         this.database
@@ -764,6 +770,7 @@ export class ProjectModel {
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     schedulerTimezone: project.scheduler_timezone,
+                    queryTimezone: project.query_timezone,
                     createdByUserUuid: project.created_by_user_uuid,
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
@@ -966,6 +973,7 @@ export class ProjectModel {
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             schedulerTimezone: project.schedulerTimezone,
+            queryTimezone: project.queryTimezone,
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
@@ -3053,6 +3061,31 @@ export class ProjectModel {
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
                 scheduler_timezone: timezone,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
+    }
+
+    async getQueryTimezone(projectUuid: string): Promise<string | null> {
+        const [project] = await this.database(ProjectTableName)
+            .select('query_timezone')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return project.query_timezone;
+    }
+
+    async updateQueryTimezone(projectUuid: string, timezone: string | null) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                query_timezone: timezone,
             })
             .where('project_uuid', projectUuid)
             .returning('*');
