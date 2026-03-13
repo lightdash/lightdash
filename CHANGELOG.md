@@ -1,3 +1,10 @@
+## [0.2616.1](https://github.com/lightdash/lightdash/compare/0.2616.0...0.2616.1) (2026-03-13)
+
+
+### Bug Fixes
+
+* not found error on duckdb s3 file load ([#21113](https://github.com/lightdash/lightdash/issues/21113)) ([861a0e6](https://github.com/lightdash/lightdash/commit/861a0e6c9c174a98c06a448547550e2f1bb35aba))
+
 # [0.2616.0](https://github.com/lightdash/lightdash/compare/0.2615.5...0.2616.0) (2026-03-13)
 
 
