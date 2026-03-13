@@ -632,7 +632,8 @@ export class CartesianChartDataModel {
         const otherColumn: PivotChartData['valuesColumns'][number] = {
             referenceField: sharedReferenceField,
             pivotColumnName: otherColumnName,
-            aggregation: topGroups[0]?.column.aggregation || VizAggregationOptions.SUM,
+            aggregation:
+                topGroups[0]?.column.aggregation || VizAggregationOptions.SUM,
             pivotValues:
                 otherPivotValues.length > 0
                     ? otherPivotValues
@@ -763,8 +764,8 @@ export class CartesianChartDataModel {
               )
             : undefined;
 
-        let series: SqlRunnerEChartsSeries[] =
-            valuesColumnsToRender.map((seriesColumn, index) => {
+        let series: SqlRunnerEChartsSeries[] = valuesColumnsToRender.map(
+            (seriesColumn, index) => {
                 const seriesColumnId = seriesColumn.pivotColumnName;
 
                 // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
@@ -893,7 +894,8 @@ export class CartesianChartDataModel {
                     // Apply border radius for non-stacked bars
                     ...(itemStyle ? { itemStyle } : {}),
                 };
-            });
+            },
+        );
 
         // Apply rounded corners to stacked bars
         // Skip for 100% stacking to keep data in dataset mode for tooltips
