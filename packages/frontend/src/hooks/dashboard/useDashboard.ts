@@ -29,14 +29,13 @@ import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
-const getDashboard = async (id: string, projectUuid?: string) => {
-    const query = projectUuid ? `?projectUuid=${projectUuid}` : '';
-    return lightdashApi<Dashboard>({
-        url: `/dashboards/${id}${query}`,
+const getDashboard = async (id: string, projectUuid: string) =>
+    lightdashApi<Dashboard>({
+        url: `/projects/${projectUuid}/dashboards/${id}`,
+        version: 'v2',
         method: 'GET',
         body: undefined,
     });
-};
 
 const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
     lightdashApi<Dashboard>({
@@ -66,16 +65,22 @@ const duplicateDashboard = async (
         body: JSON.stringify(data),
     });
 
-const updateDashboard = async (id: string, data: UpdateDashboard) =>
+const updateDashboard = async (
+    id: string,
+    data: UpdateDashboard,
+    projectUuid: string,
+) =>
     lightdashApi<Dashboard>({
-        url: `/dashboards/${id}`,
+        url: `/projects/${projectUuid}/dashboards/${id}`,
+        version: 'v2',
         method: 'PATCH',
         body: JSON.stringify(data),
     });
 
-const deleteDashboard = async (id: string) =>
+const deleteDashboard = async (id: string, projectUuid: string) =>
     lightdashApi<null>({
-        url: `/dashboards/${id}`,
+        url: `/projects/${projectUuid}/dashboards/${id}`,
+        version: 'v2',
         method: 'DELETE',
         body: undefined,
     });
@@ -142,8 +147,8 @@ export const useDashboardQuery = ({
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', uuidOrSlug, projectUuid],
-        queryFn: () => getDashboard(uuidOrSlug || '', projectUuid),
-        enabled: !!uuidOrSlug,
+        queryFn: () => getDashboard(uuidOrSlug || '', projectUuid!),
+        enabled: !!uuidOrSlug && !!projectUuid,
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
@@ -169,6 +174,9 @@ export const useDashboardVersionRefresh = (
             try {
                 if (!currentDashboard) {
                     throw new Error('Current dashboard is undefined');
+                }
+                if (!projectUuid) {
+                    throw new Error('Project UUID is undefined');
                 }
 
                 const latestDashboard = await getDashboard(
@@ -368,22 +376,25 @@ export const useExportCsvDashboard = () => {
 };
 
 export const useUpdateDashboard = (
-    id?: string,
+    id: string | undefined,
+    projectUuid: string | undefined,
     showRedirectButton: boolean = false,
     onSuccessCallback?: (dashboard: Dashboard) => void,
 ) => {
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     const { clearDashboardStorage } = useDashboardStorage();
     return useMutation<Dashboard, ApiError, UpdateDashboard>(
         (data) => {
-            if (id === undefined) {
+            if (!id) {
                 throw new Error('Dashboard id is undefined');
             }
+            if (!projectUuid) {
+                throw new Error('Project UUID is undefined');
+            }
 
-            return updateDashboard(id, data);
+            return updateDashboard(id, data, projectUuid);
         },
         {
             mutationKey: ['dashboard_update'],
@@ -604,24 +615,30 @@ export const useDuplicateDashboardMutation = (
     );
 };
 
-export const useDashboardDeleteMutation = () => {
+export const useDashboardDeleteMutation = (projectUuid?: string) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, string>(deleteDashboard, {
-        onSuccess: async () => {
-            await invalidateContent(queryClient, projectUuid!);
-            await queryClient.invalidateQueries([
-                'dashboards-containing-chart',
-            ]);
-            await queryClient.invalidateQueries(['deletedContent']);
-            showToastSuccess({
-                title: `Deleted! Dashboard was deleted.`,
-                action:
-                    isSoftDeleteEnabled && projectUuid
+    return useMutation<null, ApiError, string>(
+        (id) => {
+            if (!projectUuid) {
+                throw new Error('Project UUID is undefined');
+            }
+            return deleteDashboard(id, projectUuid);
+        },
+        {
+            onSuccess: async () => {
+                if (!projectUuid) return;
+                await invalidateContent(queryClient, projectUuid);
+                await queryClient.invalidateQueries([
+                    'dashboards-containing-chart',
+                ]);
+                await queryClient.invalidateQueries(['deletedContent']);
+                showToastSuccess({
+                    title: `Deleted! Dashboard was deleted.`,
+                    action: isSoftDeleteEnabled
                         ? {
                               children: 'Go to recently deleted',
                               icon: IconArrowRight,
@@ -631,15 +648,16 @@ export const useDashboardDeleteMutation = () => {
                                   ),
                           }
                         : undefined,
-            });
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete dashboard`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to delete dashboard`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 const getDashboardHistory = async (

@@ -1,7 +1,8 @@
 import { Anchor, List, ScrollArea, type ModalProps } from '@mantine-8/core';
 import { type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link } from 'react-router';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
     useSavedQuery,
     useSavedQueryDeleteMutation,
@@ -20,20 +21,21 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
 
     const { data: chart, isInitialLoading } = useSavedQuery({
         uuidOrSlug: uuid,
+        projectUuid,
     });
     const {
         data: relatedDashboards,
         isInitialLoading: isLoadingRelatedDashboards,
     } = useDashboardsContainingChart(projectUuid, uuid);
     const { mutateAsync: deleteChart, isLoading: isDeleting } =
-        useSavedQueryDeleteMutation();
+        useSavedQueryDeleteMutation(projectUuid);
 
     if (
         isInitialLoading ||

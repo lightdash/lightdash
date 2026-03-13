@@ -204,7 +204,12 @@ const Dashboard: FC = () => {
         isSuccess,
         reset,
         isLoading: isSaving,
-    } = useUpdateDashboard(dashboardUuid, false, handleDashboardUpdateSuccess);
+    } = useUpdateDashboard(
+        dashboardUuid,
+        projectUuid,
+        false,
+        handleDashboardUpdateSuccess,
+    );
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);
