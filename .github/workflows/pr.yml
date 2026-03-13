@@ -492,7 +492,7 @@ jobs:
           python-version: "3.10.x"
       - run: pip install dbt-core~=1.9.0 dbt-postgres~=1.9.0
       - name: Seed DBT
-        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh --threads 4
         env:
           PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
           PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
@@ -503,7 +503,7 @@ jobs:
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle_cli_tests_${{ github.run_id }}
       - name: Run DBT
-        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh --threads 4
         env:
           PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
           PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
@@ -564,7 +564,7 @@ jobs:
             pip install dbt-core~=${{ matrix.dbt }}.0 dbt-postgres~=${{ matrix.dbt }}.0
           fi
       - name: Seed DBT
-        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        run: dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh --threads 4
         env:
           PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
           PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
@@ -575,7 +575,7 @@ jobs:
           PGDATABASE: postgres
           SEED_SCHEMA: jaffle_dbt_tests_${{ github.run_id }}_${{ strategy.job-index }}
       - name: Run DBT
-        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+        run: dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh --threads 4
         env:
           PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
           PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"

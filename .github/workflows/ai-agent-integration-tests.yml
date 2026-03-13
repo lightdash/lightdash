@@ -82,8 +82,8 @@ jobs:
             - name: Setup dbt and create tables
               run: |
                   dbt1.7 deps --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR
-                  dbt1.7 seed --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh
-                  dbt1.7 run --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh --exclude fanouts_sales_targets
+                  dbt1.7 seed --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh --threads 4
+                  dbt1.7 run --project-dir $PROJECT_DIR --profiles-dir $PROFILES_DIR --full-refresh --threads 4 --exclude fanouts_sales_targets
               env:
                   PROJECT_DIR: './examples/full-jaffle-shop-demo/dbt'
                   PROFILES_DIR: './examples/full-jaffle-shop-demo/profiles'
