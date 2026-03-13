@@ -27,6 +27,7 @@ import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 import { ModalsProvider } from '@mantine/modals';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
+const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
 type Props = {
     instanceUrl: string;
@@ -67,6 +68,13 @@ const persistInstanceUrl = (instanceUrl: string) => {
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
         instanceUrl,
     );
+
+    if (typeof __SDK_VERSION__ !== 'undefined') {
+        sessionStorage.setItem(
+            LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY,
+            __SDK_VERSION__,
+        );
+    }
 };
 
 const SdkProviders: FC<

@@ -1,4 +1,9 @@
-import { LightdashMode, SessionUser } from '@lightdash/common';
+import {
+    LightdashMode,
+    LightdashRequestMethodHeader,
+    LightdashSdkVersionHeader,
+    SessionUser,
+} from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
@@ -165,6 +170,8 @@ export const expressWinstonMiddleware: express.RequestHandler =
             organizationUuid: req.user?.organizationUuid,
             impersonationAdmin: req.session?.impersonation?.adminUserUuid,
             impersonationTarget: req.session?.impersonation?.targetUserUuid,
+            requestMethod: req.header(LightdashRequestMethodHeader),
+            sdkVersion: req.header(LightdashSdkVersionHeader),
             includesResponse: true,
         }),
         requestWhitelist: ['url', 'headers', 'method'],

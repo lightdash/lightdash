@@ -1,5 +1,9 @@
 /// <reference path="../@types/passport-openidconnect.d.ts" />
 /// <reference path="../@types/express-session.d.ts" />
+import {
+    LightdashRequestMethodHeader,
+    LightdashSdkVersionHeader,
+} from '@lightdash/common';
 import { setTag, setTags } from '@sentry/node';
 import { RequestHandler } from 'express';
 
@@ -13,6 +17,16 @@ export const sentrySetProjectUuidTagMiddleware: RequestHandler = (
     }
     if (req.params?.dashboardUuid) {
         setTag('dashboard.uuid', req.params.dashboardUuid);
+    }
+
+    const requestMethod = req.header(LightdashRequestMethodHeader);
+    if (requestMethod) {
+        setTag('lightdash.requestMethod', requestMethod);
+    }
+
+    const sdkVersion = req.header(LightdashSdkVersionHeader);
+    if (sdkVersion) {
+        setTag('lightdash.sdkVersion', sdkVersion);
     }
 
     if (req.user) {

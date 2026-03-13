@@ -211,6 +211,7 @@ export enum RequestMethod {
     CLI = 'CLI',
     CLI_CI = 'CLI_CI',
     WEB_APP = 'WEB_APP',
+    SDK = 'SDK',
     HEADLESS_BROWSER = 'HEADLESS_BROWSER',
     UNKNOWN = 'UNKNOWN',
     BACKEND = 'BACKEND',
