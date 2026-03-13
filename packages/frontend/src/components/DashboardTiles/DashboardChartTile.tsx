@@ -827,8 +827,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
             // Filter dimensions from explore that match dimensionNames
             // Only dimensions should be available for dashboard filtering - metrics are not supported
+            const dimNames =
+                e.dimensionNames ??
+                (e.data && !Array.isArray(e.data) ? Object.keys(e.data) : []);
             const exploreDimensions = allDimensions.filter((dimension) =>
-                e.dimensionNames.includes(getItemId(dimension)),
+                dimNames.includes(getItemId(dimension)),
             );
 
             // Helper to extract value from click event data

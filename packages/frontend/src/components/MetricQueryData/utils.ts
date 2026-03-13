@@ -3,6 +3,7 @@ import {
     getItemId,
     hashFieldReference,
     isDimension,
+    OTHER_GROUP_PIVOT_VALUE,
     type EChartsSeries,
     type ItemsMap,
     type ResultValue,
@@ -62,6 +63,21 @@ const getPivotColumnNames = (pivotReference: {
         names.push(`${pivotReference.field}_any_${pivotValue}`);
     }
 
+    // For "Other" aggregated series (multiple pivot values from group limit),
+    // also include the __other__ hash used as the dataset column key
+    if (pivotReference.pivotValues && pivotReference.pivotValues.length > 1) {
+        const otherRef = {
+            field: pivotReference.field,
+            pivotValues: [
+                {
+                    field: OTHER_GROUP_PIVOT_VALUE,
+                    value: OTHER_GROUP_PIVOT_VALUE,
+                },
+            ],
+        };
+        names.push(hashFieldReference(otherRef));
+    }
+
     return names;
 };
 
@@ -71,6 +87,9 @@ export const getDataFromChartClick = (
     series: EChartsSeries[],
 ): UnderlyingDataConfig => {
     const pivotReference = series[e.seriesIndex]?.pivotReference;
+    const dimNames =
+        e.dimensionNames ??
+        (e.data && !Array.isArray(e.data) ? Object.keys(e.data) : []);
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
             !isDimension(item) &&
@@ -79,11 +98,9 @@ export const getDataFromChartClick = (
         ) {
             // Check both old and new pivot column name formats
             const possibleNames = getPivotColumnNames(pivotReference);
-            return possibleNames.some((name) =>
-                e.dimensionNames.includes(name),
-            );
+            return possibleNames.some((name) => dimNames.includes(name));
         }
-        return e.dimensionNames.includes(getItemId(item));
+        return dimNames.includes(getItemId(item));
     });
     const selectedMetricsAndTableCalculations = selectedFields.filter(
         (item) => !isDimension(item),
@@ -101,7 +118,12 @@ export const getDataFromChartClick = (
     // For pivoted metrics, we need to find the value using any of the possible column names
     // and also ensure it's accessible via the hashFieldReference key
     let selectedValue: unknown;
-    if (selectedField && pivotReference) {
+    if (
+        selectedField &&
+        pivotReference &&
+        !isDimension(selectedField) &&
+        pivotReference.field === getItemId(selectedField)
+    ) {
         const possibleNames = getPivotColumnNames(pivotReference);
         const matchingName = possibleNames.find((name) => fieldValues[name]);
         if (matchingName) {

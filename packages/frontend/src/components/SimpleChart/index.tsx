@@ -48,7 +48,7 @@ export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
     // - Tuple format: { value: [...] } - for stacked bar charts
     data: Record<string, any> | any[];
     seriesIndex: number;
-    dimensionNames: string[];
+    dimensionNames?: string[];
     // encode maps x/y axes to indices in dimensionNames (e.g., {x: [0], y: [1]})
     encode?: { x?: number[]; y?: number[] };
     pivotReference?: PivotReference;
