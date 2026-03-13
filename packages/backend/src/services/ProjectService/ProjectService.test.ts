@@ -95,6 +95,7 @@ const projectModel = {
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
     updateTablesConfiguration: jest.fn(),
     getExploreFromCache: jest.fn(async () => validExplore),
+    getQueryTimezone: jest.fn(async () => null),
     findExploresFromCache: jest.fn(async () => allExplores),
     getAllExploreSummaries: jest.fn(async () =>
         allExplores.map(exploreToSummaryWithAttributes),

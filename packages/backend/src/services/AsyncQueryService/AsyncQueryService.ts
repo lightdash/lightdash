@@ -2568,13 +2568,15 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             dateZoom,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,

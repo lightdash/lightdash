@@ -842,13 +842,18 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
+        const projectTimezone =
+            await this.projectModel.getQueryTimezone(projectUuid);
+        const timezone =
+            projectTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore: filteredExplore,
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             dateZoom: dateZoomGranularity
                 ? {
                       granularity: dateZoomGranularity,
@@ -1347,6 +1352,7 @@ export class EmbedService extends BaseService {
         try {
             const { totalQuery: totalMetricQuery } =
                 await this.projectService._getCalculateTotalQuery(
+                    projectUuid,
                     userAttributes,
                     intrinsicUserAttributes,
                     explore,
@@ -1593,6 +1599,7 @@ export class EmbedService extends BaseService {
         try {
             const { totalQuery: totalMetricQuery } =
                 await this.projectService._getCalculateTotalQuery(
+                    projectUuid,
                     userAttributes,
                     intrinsicUserAttributes,
                     explore,

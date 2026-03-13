@@ -39,7 +39,10 @@ import { type PreAggregationRoute } from './types';
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
-    projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getExploreFromCache' | 'getQueryTimezone'
+    >;
     prometheusMetrics?: PrometheusMetrics;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
@@ -81,7 +84,10 @@ export class PreAggregationDuckDbClient {
         'getActiveMaterialization'
     >;
 
-    private readonly projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
+    private readonly projectModel: Pick<
+        ProjectModel,
+        'getExploreFromCache' | 'getQueryTimezone'
+    >;
 
     private readonly createDuckdbWarehouseClient: (args: {
         s3Config: DuckdbS3SessionConfig;
@@ -324,6 +330,12 @@ export class PreAggregationDuckDbClient {
             args.startOfWeek,
         );
 
+        const projectTimezone = await this.projectModel.getQueryTimezone(
+            args.projectUuid,
+        );
+        const timezone =
+            projectTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+
         const fullQuery = await Sentry.startSpan(
             {
                 op: 'function',
@@ -337,7 +349,7 @@ export class PreAggregationDuckDbClient {
                     intrinsicUserAttributes:
                         args.userAccessControls.intrinsicUserAttributes,
                     userAttributes: args.userAccessControls.userAttributes,
-                    timezone: this.lightdashConfig.query.timezone || 'UTC',
+                    timezone,
                     dateZoom: args.dateZoom,
                     parameters: args.parameters,
                     availableParameterDefinitions:

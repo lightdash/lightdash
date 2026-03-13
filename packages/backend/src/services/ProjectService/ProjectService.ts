@@ -3068,13 +3068,15 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
@@ -3835,13 +3837,16 @@ export class ProjectService extends BaseService {
                     const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
+                    const timezone =
+                        await this.getQueryTimezoneForProject(projectUuid);
+
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
                         explore,
                         warehouseSqlBuilder: warehouseClient,
                         intrinsicUserAttributes,
                         userAttributes: mergedUserAttributes,
-                        timezone: this.lightdashConfig.query.timezone || 'UTC',
+                        timezone,
                         dateZoom,
                         parameters,
                         availableParameterDefinitions,
@@ -4467,13 +4472,15 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const { query } = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes: mergedUserAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             parameters: combinedParameters,
             availableParameterDefinitions,
         });
@@ -6420,6 +6427,7 @@ export class ProjectService extends BaseService {
     }
 
     async _getCalculateTotalQuery(
+        projectUuid: string,
         userAttributes: UserAttributeValueMap,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         explore: Explore,
@@ -6452,13 +6460,15 @@ export class ProjectService extends BaseService {
             );
         }
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const { query } = await ProjectService._compileQuery({
             metricQuery: totalQuery,
             explore,
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             parameters,
             availableParameterDefinitions,
         });
@@ -6498,6 +6508,7 @@ export class ProjectService extends BaseService {
 
         try {
             const { query } = await this._getCalculateTotalQuery(
+                projectUuid,
                 userAttributes,
                 intrinsicUserAttributes,
                 explore,
@@ -6561,6 +6572,7 @@ export class ProjectService extends BaseService {
 
         try {
             const { query, totalQuery } = await this._getCalculateTotalQuery(
+                projectUuid,
                 userAttributes,
                 intrinsicUserAttributes,
                 explore,

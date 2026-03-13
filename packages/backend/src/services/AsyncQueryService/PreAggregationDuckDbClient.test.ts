@@ -50,6 +50,7 @@ describe('PreAggregationDuckDbClient', () => {
             getExploreFromCache: jest
                 .fn()
                 .mockResolvedValue(preAggregateExplore),
+            getQueryTimezone: jest.fn().mockResolvedValue(null),
         };
         const createDuckdbWarehouseClient = jest
             .fn()
