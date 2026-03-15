@@ -842,7 +842,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                     clusterMinPoints={
                                         mapConfig.clusterConfig.minPoints
                                     }
-                                    maxBubbleSize={mapConfig.maxBubbleSize}
                                 />
                             )
                         )}

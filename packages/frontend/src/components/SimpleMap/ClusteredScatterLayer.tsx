@@ -29,7 +29,6 @@ type ClusteredScatterLayerProps = {
     clusterEnabled: boolean;
     clusterRadius: number;
     clusterMinPoints: number;
-    maxBubbleSize: number;
 };
 
 const formatCount = (count: number): string => {
@@ -42,18 +41,18 @@ type ClusterMarkerProps = {
     lat: number;
     lon: number;
     pointCount: number;
-    maxBubbleSize: number;
     onClick: () => void;
 };
 
+const CLUSTER_BASE_SIZE = 15;
+const CLUSTER_MAX_SIZE = 40;
+
 const ClusterMarker: FC<ClusterMarkerProps> = memo(
-    ({ lat, lon, pointCount, maxBubbleSize, onClick }) => {
-        // Scale cluster size relative to the configured bubble size
-        // Base size is slightly larger than maxBubbleSize, grows logarithmically with point count
-        const baseSize = Math.max(maxBubbleSize * 1.5, 14);
+    ({ lat, lon, pointCount, onClick }) => {
+        // Fixed base size, grows logarithmically with point count
         const size = Math.min(
-            baseSize + Math.log2(pointCount) * (maxBubbleSize * 0.4),
-            baseSize * 3,
+            CLUSTER_BASE_SIZE + Math.log2(pointCount) * 5,
+            CLUSTER_MAX_SIZE,
         );
 
         const icon = useMemo(
@@ -91,7 +90,6 @@ const ClusteredScatterLayer: FC<ClusteredScatterLayerProps> = ({
     clusterEnabled,
     clusterRadius,
     clusterMinPoints,
-    maxBubbleSize,
 }) => {
     const map = useMap();
 
@@ -141,7 +139,6 @@ const ClusteredScatterLayer: FC<ClusteredScatterLayerProps> = ({
                             lat={item.lat}
                             lon={item.lon}
                             pointCount={item.pointCount}
-                            maxBubbleSize={maxBubbleSize}
                             onClick={() =>
                                 handleClusterClick(
                                     item.lat,
