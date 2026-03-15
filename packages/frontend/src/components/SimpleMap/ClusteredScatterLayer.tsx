@@ -107,10 +107,6 @@ const ClusteredScatterLayer: FC<ClusteredScatterLayerProps> = ({
             setZoom(map.getZoom());
             setBounds(map.getBounds());
         },
-        zoomend: () => {
-            setZoom(map.getZoom());
-            setBounds(map.getBounds());
-        },
     });
 
     const clusterData = useSupercluster(

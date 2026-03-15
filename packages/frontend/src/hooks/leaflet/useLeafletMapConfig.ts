@@ -1,4 +1,5 @@
 import {
+    CLUSTER_CONFIG_DEFAULTS,
     getItemLabelWithoutTableName,
     isNumericItem,
     MapChartLocation,
@@ -573,9 +574,9 @@ const useLeafletMapConfig = ({
                 opacity: heatmapConfig?.opacity ?? 0.6,
             },
             clusterConfig: {
-                enabled: clusterConfig?.enabled ?? true,
-                radius: clusterConfig?.radius ?? 60,
-                minPoints: clusterConfig?.minPoints ?? 3,
+                enabled: clusterConfig?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled,
+                radius: clusterConfig?.radius ?? CLUSTER_CONFIG_DEFAULTS.radius,
+                minPoints: clusterConfig?.minPoints ?? CLUSTER_CONFIG_DEFAULTS.minPoints,
             },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,

@@ -8,7 +8,7 @@ import type {
 import { getCopyValue, getFormattedValue } from './mapMarkerUtils';
 
 // Shared props for tooltip and popup content
-export type MapContentBaseProps = {
+type MapContentBaseProps = {
     tooltipFields: TooltipFieldInfo[];
     rowData: Record<string, any>;
     lat?: number;

@@ -1,4 +1,5 @@
 import {
+    CLUSTER_CONFIG_DEFAULTS,
     ECHARTS_DEFAULT_COLORS,
     getItemId,
     isCustomDimension,
@@ -470,7 +471,7 @@ export const Display: FC = memo(() => {
                             <Config.Label>Cluster nearby points</Config.Label>
                             <Switch
                                 checked={
-                                    validConfig.clusterConfig?.enabled ?? true
+                                    validConfig.clusterConfig?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled
                                 }
                                 onChange={(e) =>
                                     setClusterConfig({
@@ -479,7 +480,7 @@ export const Display: FC = memo(() => {
                                 }
                             />
                         </Config.Group>
-                        {(validConfig.clusterConfig?.enabled ?? true) && (
+                        {(validConfig.clusterConfig?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled) && (
                             <>
                                 <Text size="xs" mt="sm">
                                     Cluster radius
@@ -489,7 +490,7 @@ export const Display: FC = memo(() => {
                                     max={150}
                                     step={10}
                                     value={
-                                        validConfig.clusterConfig?.radius ?? 60
+                                        validConfig.clusterConfig?.radius ?? CLUSTER_CONFIG_DEFAULTS.radius
                                     }
                                     onChange={(value) =>
                                         setClusterConfig({ radius: value })
@@ -510,7 +511,7 @@ export const Display: FC = memo(() => {
                                     step={1}
                                     value={
                                         validConfig.clusterConfig?.minPoints ??
-                                        3
+                                        CLUSTER_CONFIG_DEFAULTS.minPoints
                                     }
                                     onChange={(value) =>
                                         setClusterConfig({

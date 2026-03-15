@@ -1,3 +1,4 @@
+import { CLUSTER_CONFIG_DEFAULTS } from '@lightdash/common';
 import type L from 'leaflet';
 import { useMemo } from 'react';
 import Supercluster from 'supercluster';
@@ -25,16 +26,15 @@ export type IndividualPoint = {
 
 export type ClusterOrPoint = ClusterPoint | IndividualPoint;
 
-const DEFAULT_CLUSTER_RADIUS = 60;
 const CLUSTER_MAX_ZOOM = 16;
 
 const useSupercluster = (
     scatterData: ScatterPoint[],
     zoom: number,
     bounds: L.LatLngBounds | null,
-    enabled: boolean = true,
-    radius: number = DEFAULT_CLUSTER_RADIUS,
-    minPoints: number = 3,
+    enabled: boolean = CLUSTER_CONFIG_DEFAULTS.enabled,
+    radius: number = CLUSTER_CONFIG_DEFAULTS.radius,
+    minPoints: number = CLUSTER_CONFIG_DEFAULTS.minPoints,
 ): ClusterOrPoint[] => {
     // Build the supercluster index when scatter data, radius, or minPoints changes (O(n log n))
     const index = useMemo(() => {
@@ -76,13 +76,7 @@ const useSupercluster = (
 
         if (!bounds) {
             // No bounds yet (initial render) — return all points unclustered
-            return scatterData.map(
-                (point, i): IndividualPoint => ({
-                    type: 'point',
-                    index: i,
-                    point,
-                }),
-            );
+            return asIndividualPoints();
         }
 
         const bbox: GeoJSON.BBox = [

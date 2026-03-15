@@ -1,5 +1,6 @@
 import {
     ChartType,
+    CLUSTER_CONFIG_DEFAULTS,
     MapChartLocation,
     MapChartType,
     MapTileBackground,
@@ -414,9 +415,9 @@ const useMapChartConfig = (
                 setClusterConfigState(undefined);
             } else {
                 setClusterConfigState((prev) => ({
-                    enabled: prev?.enabled ?? true,
-                    radius: prev?.radius ?? 60,
-                    minPoints: prev?.minPoints ?? 3,
+                    enabled: prev?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled,
+                    radius: prev?.radius ?? CLUSTER_CONFIG_DEFAULTS.radius,
+                    minPoints: prev?.minPoints ?? CLUSTER_CONFIG_DEFAULTS.minPoints,
                     ...config,
                 }));
             }

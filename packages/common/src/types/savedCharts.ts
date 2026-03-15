@@ -286,11 +286,11 @@ export type MapChart = {
     };
     /** Configuration for scatter point clustering */
     clusterConfig?: {
-        /** Whether clustering is enabled (default: true) */
+        /** Whether clustering is enabled */
         enabled?: boolean;
-        /** Cluster pixel radius — how aggressively points group (default: 60) */
+        /** Cluster pixel radius — how aggressively points group */
         radius?: number;
-        /** Minimum points required to form a cluster (default: 3) */
+        /** Minimum points required to form a cluster */
         minPoints?: number;
     };
     /** Data layer opacity (0.1 to 1) */
@@ -306,6 +306,12 @@ export type MapChart = {
     /** Save the current map zoom/position */
     saveMapExtent?: boolean;
 };
+
+export const CLUSTER_CONFIG_DEFAULTS = {
+    enabled: true,
+    radius: 60,
+    minPoints: 3,
+} as const;
 
 export enum FunnelChartDataInput {
     ROW = 'row',
