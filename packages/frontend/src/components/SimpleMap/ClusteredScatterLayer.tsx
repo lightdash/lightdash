@@ -41,19 +41,16 @@ type ClusterMarkerProps = {
     lat: number;
     lon: number;
     pointCount: number;
+    size: number;
     onClick: () => void;
 };
 
-const CLUSTER_BASE_SIZE = 15;
-const CLUSTER_MAX_SIZE = 40;
+const CLUSTER_MIN_SIZE = 30;
+const CLUSTER_SIZE_RANGE = 55 - CLUSTER_MIN_SIZE;
+const CLUSTER_MID_SIZE = CLUSTER_MIN_SIZE + CLUSTER_SIZE_RANGE * 0.5;
 
 const ClusterMarker: FC<ClusterMarkerProps> = memo(
-    ({ lat, lon, pointCount, onClick }) => {
-        // Fixed base size, grows logarithmically with point count
-        const size = Math.min(
-            CLUSTER_BASE_SIZE + Math.log2(pointCount) * 5,
-            CLUSTER_MAX_SIZE,
-        );
+    ({ lat, lon, pointCount, size, onClick }) => {
 
         const icon = useMemo(
             () =>
@@ -125,6 +122,25 @@ const ClusteredScatterLayer: FC<ClusteredScatterLayerProps> = ({
         [map],
     );
 
+    const clusterSizeScale = useMemo(() => {
+        let min = Infinity;
+        let max = -Infinity;
+        for (const item of clusterData) {
+            if (item.type === 'cluster') {
+                if (item.pointCount < min) min = item.pointCount;
+                if (item.pointCount > max) max = item.pointCount;
+            }
+        }
+        const logMin = Math.log(min === Infinity ? 1 : min);
+        const logMax = Math.log(max === -Infinity ? 1 : max);
+        const logRange = logMax - logMin;
+        return (pointCount: number): number => {
+            if (logRange <= 0) return CLUSTER_MID_SIZE;
+            const t = (Math.log(pointCount) - logMin) / logRange;
+            return CLUSTER_MIN_SIZE + t * CLUSTER_SIZE_RANGE;
+        };
+    }, [clusterData]);
+
     return (
         <>
             {clusterData.map((item) => {
@@ -135,6 +151,7 @@ const ClusteredScatterLayer: FC<ClusteredScatterLayerProps> = ({
                             lat={item.lat}
                             lon={item.lon}
                             pointCount={item.pointCount}
+                            size={clusterSizeScale(item.pointCount)}
                             onClick={() =>
                                 handleClusterClick(
                                     item.lat,
