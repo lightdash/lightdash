@@ -13,7 +13,7 @@ describe('getFormattedValue', () => {
         const rowData = {
             revenue: { value: { raw: 1000 } },
         };
-        expect(getFormattedValue(rowData, 'revenue')).toBe(1000);
+        expect(getFormattedValue(rowData, 'revenue')).toBe('1000');
     });
 
     it('returns empty string for missing field', () => {

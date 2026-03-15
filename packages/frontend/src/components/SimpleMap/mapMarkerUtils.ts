@@ -7,7 +7,7 @@ export const getFormattedValue = (
 ): string => {
     const field = rowData[fieldId];
     if (!field) return '';
-    return field.value?.formatted ?? field.value?.raw ?? '';
+    return String(field.value?.formatted ?? field.value?.raw ?? '');
 };
 
 export const getCopyValue = (
