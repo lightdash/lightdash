@@ -166,6 +166,34 @@
     height: 14px !important;
 }
 
+/* Cluster marker styles for supercluster scatter points */
+.clusterMarker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+
+    @mixin light {
+        background-color: alpha(var(--mantine-color-blue-6), 0.7);
+        color: var(--mantine-color-white);
+        box-shadow: 0 0 0 4px alpha(var(--mantine-color-blue-4), 0.3);
+    }
+
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-blue-5), 0.8);
+        color: var(--mantine-color-white);
+        box-shadow: 0 0 0 4px alpha(var(--mantine-color-blue-7), 0.3);
+    }
+
+    &:hover {
+        transform: scale(1.1);
+    }
+}
+
 /* Popup action button styles */
 /* Force light mode colors since Leaflet popups are always white background */
 .popupActionButton {

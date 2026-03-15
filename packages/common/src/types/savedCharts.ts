@@ -284,6 +284,15 @@ export type MapChart = {
         /** Opacity of the heatmap layer */
         opacity?: number;
     };
+    /** Configuration for scatter point clustering */
+    clusterConfig?: {
+        /** Whether clustering is enabled (default: true) */
+        enabled?: boolean;
+        /** Cluster pixel radius — how aggressively points group (default: 60) */
+        radius?: number;
+        /** Minimum points required to form a cluster (default: 3) */
+        minPoints?: number;
+    };
     /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;
     /** Map tile background style */

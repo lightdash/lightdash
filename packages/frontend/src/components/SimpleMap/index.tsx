@@ -16,11 +16,9 @@ import {
 } from 'react';
 import { renderToString } from 'react-dom/server';
 import {
-    CircleMarker,
     GeoJSON,
     MapContainer,
     TileLayer,
-    Tooltip,
     useMap,
 } from 'react-leaflet';
 import * as topojson from 'topojson-client';
@@ -31,7 +29,6 @@ import {
 } from '../../features/explorer/store';
 import useLeafletMapConfig, {
     type ScatterPoint,
-    type TooltipFieldInfo,
 } from '../../hooks/leaflet/useLeafletMapConfig';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { createMultiColorScale } from '../../utils/colorUtils';
@@ -39,9 +36,12 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import ClusteredScatterLayer from './ClusteredScatterLayer';
 import HeatmapLayer from './HeatmapLayer';
 import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
+import { MapTooltipContent } from './MapMarker';
+import { getCopyValue } from './mapMarkerUtils';
 
 // Types for Leaflet internals used in the monkey-patch below
 interface LeafletMapPrototype {
@@ -88,163 +88,6 @@ interface LeafletAugmentedContainer extends HTMLElement {
 import { MAP_FILL_NO_BASE_MAP_OPACITY } from './constants';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
-
-// Helper to get formatted value from row data
-const getFormattedValue = (
-    rowData: Record<string, any>,
-    fieldId: string,
-): string => {
-    const field = rowData[fieldId];
-    if (!field) return '';
-    return field.value?.formatted ?? field.value?.raw ?? '';
-};
-
-// Shared props for tooltip and popup content
-type MapContentBaseProps = {
-    tooltipFields: TooltipFieldInfo[];
-    rowData: Record<string, any>;
-    lat?: number;
-    lon?: number;
-    // For "no data" regions
-    noData?: {
-        locationLabel: string;
-        locationValue: string;
-    };
-};
-
-type MapTooltipContentProps = MapContentBaseProps;
-
-// NOTE: Using inline styles because this is rendered via renderToString
-// and Mantine styles won't be applied
-const MapTooltipContent: FC<MapTooltipContentProps> = ({
-    tooltipFields,
-    rowData,
-    lat,
-    lon,
-    noData,
-}) => {
-    const visibleFields = tooltipFields.filter((f) => f.visible);
-
-    if (noData) {
-        return (
-            <div style={{ padding: '4px 6px' }}>
-                <div style={{ fontSize: 14 }}>
-                    <strong>{noData.locationLabel}:</strong>{' '}
-                    {noData.locationValue}
-                </div>
-                <div
-                    style={{
-                        fontSize: 14,
-                        color: '#868e96',
-                        fontStyle: 'italic',
-                    }}
-                >
-                    No data
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div style={{ padding: '4px 6px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {visibleFields.map((field) => (
-                    <div key={field.fieldId} style={{ fontSize: 14 }}>
-                        <strong>{field.label}:</strong>{' '}
-                        {getFormattedValue(rowData, field.fieldId)}
-                    </div>
-                ))}
-            </div>
-            {lat !== undefined && lon !== undefined && (
-                <div
-                    style={{
-                        fontSize: 12,
-                        color: '#868e96',
-                        marginTop: 8,
-                    }}
-                >
-                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
-                </div>
-            )}
-        </div>
-    );
-};
-
-// MapMarker component for scatter points with tooltip/context menu behavior
-type MapMarkerProps = {
-    point: ScatterPoint;
-    radius: number;
-    color: string;
-    fillOpacity: number;
-    tooltipFields: TooltipFieldInfo[];
-    hideTooltip?: boolean;
-    onClick?: (
-        e: L.LeafletMouseEvent,
-        rowData: Record<string, any>,
-        copyValue: string,
-        lat: number,
-        lon: number,
-    ) => void;
-};
-
-const getCopyValue = (
-    tooltipFields: TooltipFieldInfo[],
-    rowData: Record<string, any>,
-): string => {
-    const visibleFields = tooltipFields.filter((f) => f.visible);
-    if (visibleFields.length === 0) return '';
-    if (visibleFields.length === 1)
-        return getFormattedValue(rowData, visibleFields[0].fieldId);
-    return visibleFields
-        .map((field) => getFormattedValue(rowData, field.fieldId))
-        .join(', ');
-};
-
-const MapMarker: FC<MapMarkerProps> = ({
-    point,
-    radius,
-    color,
-    fillOpacity,
-    tooltipFields,
-    hideTooltip,
-    onClick,
-}) => {
-    const handleClick = useCallback(
-        (e: L.LeafletMouseEvent) => {
-            const copyValue = getCopyValue(tooltipFields, point.rowData);
-            onClick?.(e, point.rowData, copyValue, point.lat, point.lon);
-        },
-        [onClick, point.rowData, point.lat, point.lon, tooltipFields],
-    );
-
-    return (
-        <CircleMarker
-            center={[point.lat, point.lon]}
-            radius={radius}
-            pathOptions={{
-                fillColor: color,
-                color: '#fff',
-                fillOpacity,
-                weight: 1,
-            }}
-            eventHandlers={{
-                click: handleClick,
-                contextmenu: handleClick,
-            }}
-        >
-            {!hideTooltip && (
-                <Tooltip>
-                    <MapTooltipContent
-                        tooltipFields={tooltipFields}
-                        rowData={point.rowData}
-                        lat={point.lat}
-                        lon={point.lon}
-                    />
-                </Tooltip>
-            )}
-        </CircleMarker>
-    );
-};
 
 // Component to capture the Leaflet map instance, store it in the ref, and handle cleanup
 const MapRefUpdater: FC<{ mapRef: RefObject<L.Map | null> }> = ({ mapRef }) => {
@@ -979,33 +822,29 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             />
                         ) : (
                             sizeScale &&
-                            (categoricalColorMap || scatterColorScale) &&
-                            scatterData.map((point, idx) => {
-                                const radius = sizeScale(point.sizeValue);
-                                // Use categorical color for string values, gradient for numeric, noDataColor for neither
-                                const color =
-                                    categoricalColorMap && point.stringValue
-                                        ? (categoricalColorMap.get(
-                                              point.stringValue,
-                                          ) ?? mapConfig.noDataColor)
-                                        : point.value !== null &&
-                                            scatterColorScale
-                                          ? scatterColorScale(point.value)
-                                          : mapConfig.noDataColor;
-
-                                return (
-                                    <MapMarker
-                                        key={idx}
-                                        point={point}
-                                        radius={radius}
-                                        color={color}
-                                        fillOpacity={fillOpacityWithData}
-                                        tooltipFields={mapConfig.tooltipFields}
-                                        hideTooltip={contextMenuOpened}
-                                        onClick={handleMapContextMenu}
-                                    />
-                                );
-                            })
+                            (categoricalColorMap || scatterColorScale) && (
+                                <ClusteredScatterLayer
+                                    scatterData={scatterData}
+                                    sizeScale={sizeScale}
+                                    scatterColorScale={scatterColorScale}
+                                    categoricalColorMap={categoricalColorMap}
+                                    fillOpacity={fillOpacityWithData}
+                                    noDataColor={mapConfig.noDataColor}
+                                    tooltipFields={mapConfig.tooltipFields}
+                                    hideTooltip={contextMenuOpened}
+                                    onPointClick={handleMapContextMenu}
+                                    clusterEnabled={
+                                        mapConfig.clusterConfig.enabled
+                                    }
+                                    clusterRadius={
+                                        mapConfig.clusterConfig.radius
+                                    }
+                                    clusterMinPoints={
+                                        mapConfig.clusterConfig.minPoints
+                                    }
+                                    maxBubbleSize={mapConfig.maxBubbleSize}
+                                />
+                            )
                         )}
                     </MapContainer>
                     {mapConfig.showLegend &&

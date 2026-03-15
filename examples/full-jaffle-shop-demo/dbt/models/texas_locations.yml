@@ -1,0 +1,34 @@
+version: 2
+models:
+  - name: texas_locations
+    description: |
+      # Texas Locations (100k points)
+
+      Randomly generated lat/long points within Texas for testing
+      map scatter chart clustering with large datasets.
+    columns:
+      - name: location_id
+        description: Unique identifier for each location
+
+      - name: latitude
+        description: Latitude coordinate (25.84 to 36.50)
+
+      - name: longitude
+        description: Longitude coordinate (-106.65 to -93.51)
+
+      - name: revenue_usd
+        description: Simulated annual revenue in USD (0 to 9999)
+        config:
+          meta:
+            metrics:
+              total_revenue:
+                type: sum
+                label: Total revenue
+                description: Sum of revenue across locations
+              avg_revenue:
+                type: average
+                label: Average revenue
+                description: Average revenue per location
+
+      - name: category
+        description: Business category (Retail, Warehouse, Office, Restaurant, Gas Station)

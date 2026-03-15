@@ -76,6 +76,11 @@ export type LeafletMapConfig = {
         blur: number;
         opacity: number;
     };
+    clusterConfig: {
+        enabled: boolean;
+        radius: number;
+        minPoints: number;
+    };
     tile: TileConfig;
     backgroundColor: string | null;
     // Color for regions with no matching data (area maps)
@@ -218,6 +223,7 @@ const useLeafletMapConfig = ({
             maxBubbleSize,
             sizeFieldId,
             heatmapConfig,
+            clusterConfig,
             tileBackground,
             backgroundColor,
             noDataColor,
@@ -565,6 +571,11 @@ const useLeafletMapConfig = ({
                 radius: heatmapConfig?.radius ?? 25,
                 blur: heatmapConfig?.blur ?? 15,
                 opacity: heatmapConfig?.opacity ?? 0.6,
+            },
+            clusterConfig: {
+                enabled: clusterConfig?.enabled ?? true,
+                radius: clusterConfig?.radius ?? 60,
+                minPoints: clusterConfig?.minPoints ?? 3,
             },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,
