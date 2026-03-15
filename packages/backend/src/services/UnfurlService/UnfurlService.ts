@@ -71,6 +71,124 @@ const createQueryEndpointRegex = /\/query/;
 // Matches /query/{uuid} but NOT /query/{uuid}/results (SQL chart endpoint)
 const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
 
+/**
+ * Crop a PDF to a clip area using a PDF incremental update (PDF spec §7.5.6).
+ * Appends a modified Page object with an updated MediaBox, leaving original
+ * bytes untouched. When Playwright adds native clip support for page.pdf(),
+ * this can be removed. See: https://github.com/microsoft/playwright/issues/39695
+ */
+function cropPdfToClipInternal(
+    buffer: Buffer,
+    clip: { x: number; y: number; width: number; height: number },
+): Buffer {
+    const PX_TO_PT = 72 / 96;
+    const pdfStr = buffer.toString('binary');
+
+    // Find startxref to get the previous xref offset
+    const startxrefIdx = pdfStr.lastIndexOf('startxref');
+    if (startxrefIdx === -1) return buffer;
+    const newlineAfter = pdfStr.indexOf('\n', startxrefIdx + 10);
+    const prevXrefOffset = parseInt(
+        pdfStr.substring(startxrefIdx + 10, newlineAfter),
+        10,
+    );
+
+    // Find the Page object ("/Type /Page" but not "/Type /Pages")
+    let pageObjNum = -1;
+    let pageObjContent = '';
+    let searchPos = 0;
+    while (searchPos < pdfStr.length) {
+        const objIdx = pdfStr.indexOf(' 0 obj\n', searchPos);
+        if (objIdx === -1) break;
+        const lineStart = pdfStr.lastIndexOf('\n', objIdx - 1) + 1;
+        const endObjIdx = pdfStr.indexOf('endobj', objIdx);
+        if (endObjIdx === -1) {
+            searchPos = objIdx + 7;
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+        const content = pdfStr.substring(lineStart, endObjIdx + 6);
+        const typeIdx = content.indexOf('/Type /Page');
+        if (typeIdx !== -1) {
+            const charAfter = content[typeIdx + 11];
+            if (!charAfter || /[\n\r/>]/.test(charAfter)) {
+                pageObjNum = parseInt(pdfStr.substring(lineStart, objIdx), 10);
+                pageObjContent = content;
+                break;
+            }
+        }
+        searchPos = endObjIdx + 6;
+    }
+    if (pageObjNum === -1) return buffer;
+
+    // Get page height from existing MediaBox
+    const mediaBoxMatch = pageObjContent.match(
+        /\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/,
+    );
+    if (!mediaBoxMatch) return buffer;
+    const pageHeightPt = parseFloat(mediaBoxMatch[4]);
+
+    // New MediaBox (PDF coords: origin at bottom-left, Y up)
+    const llx = clip.x * PX_TO_PT;
+    const lly = pageHeightPt - (clip.y + clip.height) * PX_TO_PT;
+    const urx = (clip.x + clip.width) * PX_TO_PT;
+    const ury = pageHeightPt - clip.y * PX_TO_PT;
+    const newMediaBox = `[${llx.toFixed(2)} ${lly.toFixed(2)} ${urx.toFixed(2)} ${ury.toFixed(2)}]`;
+
+    // Replace MediaBox in Page object
+    const bracketStart = pageObjContent.indexOf(
+        '[',
+        pageObjContent.indexOf('/MediaBox'),
+    );
+    const bracketEnd = pageObjContent.indexOf(']', bracketStart);
+    if (bracketStart === -1 || bracketEnd === -1) return buffer;
+    const newPageObj =
+        pageObjContent.substring(0, bracketStart) +
+        newMediaBox +
+        pageObjContent.substring(bracketEnd + 1);
+
+    // Parse trailer
+    const trailerIdx = pdfStr.lastIndexOf('trailer');
+    if (trailerIdx === -1) return buffer;
+    const tStart = pdfStr.indexOf('<<', trailerIdx);
+    const tEnd = pdfStr.indexOf('>>', tStart);
+    if (tStart === -1 || tEnd === -1) return buffer;
+    const tDict = pdfStr.substring(tStart + 2, tEnd);
+
+    const sizeMatch = tDict.match(/\/Size\s+(\d+)/);
+    const rootMatch = tDict.match(/\/Root\s+\d+\s+0\s+R/);
+    const infoMatch = tDict.match(/\/Info\s+\d+\s+0\s+R/);
+    if (!sizeMatch || !rootMatch) return buffer;
+
+    // Build incremental update
+    const newObjOffset = buffer.length + 1;
+    let appendix = '\n';
+    appendix += `${newPageObj}\n`;
+    const newXrefOffset = buffer.length + appendix.length;
+    appendix += `xref\n${pageObjNum} 1\n`;
+    appendix += `${String(newObjOffset).padStart(10, '0')} 00000 n \n`;
+    appendix += `trailer\n<</Size ${sizeMatch[1]} ${rootMatch[0]}`;
+    if (infoMatch) appendix += ` ${infoMatch[0]}`;
+    appendix += ` /Prev ${prevXrefOffset}>>\n`;
+    appendix += `startxref\n${newXrefOffset}\n%%EOF\n`;
+
+    return Buffer.from(pdfStr + appendix, 'binary');
+}
+
+function cropPdfToClip(
+    buffer: Buffer,
+    clip: { x: number; y: number; width: number; height: number },
+): Buffer {
+    try {
+        return cropPdfToClipInternal(buffer, clip);
+    } catch (e) {
+        Logger.warn(
+            `Failed to crop PDF, returning uncropped: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return buffer;
+    }
+}
+
 const viewport = {
     width: 1400,
     height: 768,
@@ -372,6 +490,7 @@ export class UnfurlService extends BaseService {
         authUserUuid,
         gridWidth,
         withPdf = false,
+        pdfOnly = false,
         selector = undefined,
         context,
         contextId,
@@ -385,6 +504,7 @@ export class UnfurlService extends BaseService {
         authUserUuid: string;
         gridWidth?: number | undefined;
         withPdf?: boolean;
+        pdfOnly?: boolean;
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
@@ -397,6 +517,112 @@ export class UnfurlService extends BaseService {
     }> {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url, selectedTabs);
+
+        // PDF-only mode: render the page directly as PDF via page.pdf()
+        if (pdfOnly) {
+            const pdfBuffer = await this.saveScreenshot({
+                authUserUuid,
+                imageId,
+                cookie,
+                url,
+                lightdashPage,
+                chartType: details?.chartType,
+                organizationUuid: details?.organizationUuid,
+                gridWidth,
+                resourceUuid: details?.resourceUuid,
+                resourceName: details?.title,
+                selector,
+                chartTileUuids: details?.chartTileUuids,
+                sqlChartTileUuids: details?.sqlChartTileUuids,
+                loomTileUuids: details?.loomTileUuids,
+                context,
+                contextId,
+                selectedTabs,
+                sendNowSchedulerFilters,
+                sendNowSchedulerParameters,
+                outputFormat: 'pdf',
+            });
+
+            let pdfFile;
+            if (pdfBuffer !== undefined) {
+                if (this.fileStorageClient.isEnabled()) {
+                    const uploadResult = await this.fileStorageClient.uploadPdf(
+                        pdfBuffer,
+                        imageId,
+                    );
+                    pdfFile = {
+                        source: uploadResult.url,
+                        fileName:
+                            uploadResult.fileName ??
+                            `${details?.title ?? 'report'}.pdf`,
+                    };
+                } else {
+                    const filePath = `/tmp/${imageId}.pdf`;
+                    await fsPromise.writeFile(filePath, pdfBuffer);
+                    const downloadFileId = useNanoid();
+                    await this.downloadFileModel.createDownloadFile(
+                        downloadFileId,
+                        filePath,
+                        DownloadFileType.IMAGE,
+                    );
+                    pdfFile = {
+                        source: new URL(
+                            `/api/v1/slack/image/${downloadFileId}`,
+                            this.lightdashConfig.siteUrl,
+                        ).href,
+                        fileName: `${details?.title ?? 'report'}.pdf`,
+                    };
+                }
+            }
+
+            // Also generate a preview image for email/Slack
+            const imageBuffer = await this.saveScreenshot({
+                authUserUuid,
+                imageId: `${imageId}-preview`,
+                cookie,
+                url,
+                lightdashPage,
+                chartType: details?.chartType,
+                organizationUuid: details?.organizationUuid,
+                gridWidth,
+                resourceUuid: details?.resourceUuid,
+                resourceName: details?.title,
+                selector,
+                chartTileUuids: details?.chartTileUuids,
+                sqlChartTileUuids: details?.sqlChartTileUuids,
+                loomTileUuids: details?.loomTileUuids,
+                context,
+                contextId,
+                selectedTabs,
+                sendNowSchedulerFilters,
+                sendNowSchedulerParameters,
+            });
+
+            let imageUrl;
+            if (imageBuffer !== undefined) {
+                if (this.fileStorageClient.isEnabled()) {
+                    imageUrl = await this.fileStorageClient.uploadImage(
+                        imageBuffer,
+                        imageId,
+                    );
+                } else {
+                    const filePath = `/tmp/${imageId}.png`;
+                    await fsPromise.writeFile(filePath, imageBuffer);
+                    const downloadFileId = useNanoid();
+                    await this.downloadFileModel.createDownloadFile(
+                        downloadFileId,
+                        filePath,
+                        DownloadFileType.IMAGE,
+                    );
+                    imageUrl = new URL(
+                        `/api/v1/slack/image/${downloadFileId}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href;
+                }
+            }
+
+            return { imageUrl, pdfFile };
+        }
 
         const buffer = await this.saveScreenshot({
             authUserUuid,
@@ -624,6 +850,7 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
+        outputFormat = 'image',
     }: {
         imageId: string;
         cookie: string;
@@ -645,6 +872,7 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        outputFormat?: 'image' | 'pdf';
     }): Promise<Buffer | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -1115,6 +1343,59 @@ export class UnfurlService extends BaseService {
                         // Viewport changes can trigger layout shifts - wait for things to settle
                         // before taking the shot 📸
                         await page.waitForTimeout(100);
+                    }
+
+                    // PDF output: use page.pdf() for native PDF rendering
+                    if (outputFormat === 'pdf') {
+                        const pdfWidth = gridWidth ?? viewport.width;
+
+                        // Measure actual content bottom from child elements
+                        // (grid container's CSS height is larger than content)
+                        const contentBottom = await page.evaluate(
+                            (sel: string) => {
+                                const container = document.querySelector(sel);
+                                if (!container) return 800;
+                                let maxBottom = 0;
+                                for (const child of Array.from(
+                                    container.children,
+                                )) {
+                                    const rect = child.getBoundingClientRect();
+                                    if (
+                                        rect.height > 0 &&
+                                        rect.bottom > maxBottom
+                                    )
+                                        maxBottom = rect.bottom;
+                                }
+                                return Math.ceil(maxBottom || 800);
+                            },
+                            finalSelector,
+                        );
+
+                        const clip = {
+                            x: 0,
+                            y: 0,
+                            width: pdfWidth,
+                            height: contentBottom + 10,
+                        };
+
+                        // Set page size large enough to contain clip area
+                        // in a single page, then crop via incremental update
+                        // (same approach as Playwright's proposed clip option,
+                        // see: https://github.com/microsoft/playwright/issues/39695)
+                        const pdfBuffer = await page.pdf({
+                            width: `${clip.width}px`,
+                            height: `${clip.height}px`,
+                            printBackground: true,
+                            pageRanges: '1',
+                            margin: {
+                                top: 0,
+                                right: 0,
+                                bottom: 0,
+                                left: 0,
+                            },
+                        });
+
+                        return cropPdfToClip(Buffer.from(pdfBuffer), clip);
                     }
 
                     if (

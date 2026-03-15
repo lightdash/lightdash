@@ -12,6 +12,7 @@ import {
     IconCircleCheckFilled,
     IconClockFilled,
     IconCsv,
+    IconFileTypePdf,
     IconFileTypeXls,
     IconPhoto,
     IconProgress,
@@ -53,6 +54,8 @@ export const getSchedulerIconRaw = (item: { format: SchedulerFormat }) => {
             return IconPhoto;
         case SchedulerFormat.GSHEETS:
             return GSheetsIconFilled;
+        case SchedulerFormat.PDF:
+            return IconFileTypePdf;
         default:
             return assertUnreachable(
                 item.format,
@@ -77,6 +80,8 @@ export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
             );
         case SchedulerFormat.GSHEETS:
             return <IconBox icon={getSchedulerIconRaw(item)} color="green" />;
+        case SchedulerFormat.PDF:
+            return <IconBox icon={getSchedulerIconRaw(item)} color="red.6" />;
         default:
             return assertUnreachable(
                 item.format,
