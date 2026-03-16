@@ -1,6 +1,7 @@
 import {
     type ApiDashboardResponse,
     type ApiErrorPayload,
+    type ApiGetComments,
     type ApiSuccessEmpty,
     type UpdateDashboard,
 } from '@lightdash/common';
@@ -107,6 +108,30 @@ export class ProjectDashboardControllerV2 extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Gets all comments for a dashboard within a project
+     * @summary Get comments
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{dashboardUuidOrSlug}/comments')
+    @OperationId('getProjectDashboardComments')
+    async getComments(
+        @Path() projectUuid: string,
+        @Path() dashboardUuidOrSlug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetComments> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCommentService()
+                .findCommentsForDashboard(req.user!, dashboardUuidOrSlug, {
+                    projectUuid,
+                }),
         };
     }
 }

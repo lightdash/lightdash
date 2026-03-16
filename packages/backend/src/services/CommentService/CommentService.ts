@@ -214,11 +214,16 @@ export class CommentService extends BaseService {
     async findCommentsForDashboard(
         user: SessionUser,
         dashboardUuidOrSlug: string,
+        options?: { projectUuid?: string },
     ): Promise<Record<string, Comment[]>> {
         await this.isFeatureEnabled(user);
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
 
         if (
             user.ability.cannot(
