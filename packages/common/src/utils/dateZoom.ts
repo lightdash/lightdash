@@ -50,6 +50,54 @@ export type DateZoomCapabilities = {
     hasDateDimension: boolean;
 };
 
+/**
+ * Collects all dimensions from an explore, keyed by item ID.
+ */
+export const getAllDimensionsMap = (
+    explore: Explore,
+): Record<string, CompiledDimension> => {
+    const map: Record<string, CompiledDimension> = {};
+    for (const table of Object.values(explore.tables)) {
+        for (const dim of Object.values(table.dimensions)) {
+            map[getItemId(dim)] = dim;
+        }
+    }
+    return map;
+};
+
+/**
+ * Resolves any dimension from the metric query to its base time dimension.
+ * Handles three cases:
+ * - Standard time-interval dims (e.g. order_date_month) → resolves via getDateDimension
+ * - Custom granularity dims (e.g. order_date_fiscal_quarter) → resolves via timeIntervalBaseDimensionName
+ * - Plain date/timestamp dims → returns the dimension itself
+ */
+export const resolveToBaseTimeDimension = (
+    dimId: string,
+    allDimensionsMap: Record<string, CompiledDimension>,
+    timeDimensionsMap: Record<string, CompiledDimension>,
+): CompiledDimension | undefined => {
+    const dim = allDimensionsMap[dimId];
+    if (!dim) return undefined;
+
+    // Custom granularity or non-date time-interval dimension (e.g. QUARTER_NAME
+    // is STRING-typed) — resolve via timeIntervalBaseDimensionName
+    if (dim.timeIntervalBaseDimensionName) {
+        return timeDimensionsMap[
+            getItemId({
+                table: dim.table,
+                name: dim.timeIntervalBaseDimensionName,
+            })
+        ];
+    }
+
+    // Only process DATE/TIMESTAMP dimensions from here
+    const timeDim = timeDimensionsMap[dimId];
+    if (!timeDim) return undefined;
+
+    return resolveBaseDimension(dimId, timeDim, timeDimensionsMap);
+};
+
 export const getDateZoomCapabilities = (
     explore: Explore,
     metricQuery: MetricQuery,
@@ -58,19 +106,19 @@ export const getDateZoomCapabilities = (
         Object.values(t.dimensions),
     );
 
+    const allDimensionsMap = getAllDimensionsMap(explore);
     const timeDimensionsMap = getTimeDimensionsMap(explore);
-
-    const dateDimensions = metricQuery.dimensions.filter(
-        (d) => !!timeDimensionsMap[d],
-    );
 
     let hasTimestampDimension = false;
     let hasDateDimension = false;
     const availableCustomGranularities: Record<string, string> = {};
 
-    for (const dimId of dateDimensions) {
-        const dim = timeDimensionsMap[dimId];
-        const baseDim = resolveBaseDimension(dimId, dim, timeDimensionsMap);
+    for (const dimId of metricQuery.dimensions) {
+        const baseDim = resolveToBaseTimeDimension(
+            dimId,
+            allDimensionsMap,
+            timeDimensionsMap,
+        );
 
         if (baseDim) {
             if (baseDim.type === DimensionType.TIMESTAMP) {

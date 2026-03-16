@@ -489,6 +489,125 @@ describe('getDateZoomCapabilities', () => {
         expect(result.hasTimestampDimension).toBe(false);
     });
 
+    it('collects custom granularities when the metric query uses a STRING-typed custom granularity dimension', () => {
+        const baseDim = makeDimension({
+            name: 'order_date',
+            table: 'orders',
+            type: DimensionType.DATE,
+            isIntervalBase: true,
+        });
+        const customFiscalQuarter = makeDimension({
+            name: 'order_date_fiscal_quarter',
+            table: 'orders',
+            type: DimensionType.STRING,
+            customTimeInterval: 'fiscal_quarter',
+            timeIntervalBaseDimensionName: 'order_date',
+            label: 'Fiscal Quarter',
+        });
+        const customFiscalYear = makeDimension({
+            name: 'order_date_fiscal_year',
+            table: 'orders',
+            type: DimensionType.STRING,
+            customTimeInterval: 'fiscal_year',
+            timeIntervalBaseDimensionName: 'order_date',
+            label: 'Fiscal Year',
+        });
+        const explore = makeExplore([
+            baseDim,
+            customFiscalQuarter,
+            customFiscalYear,
+        ]);
+        // The chart already uses fiscal_quarter — should still discover all custom granularities
+        const metricQuery = makeMetricQuery([
+            'orders_order_date_fiscal_quarter',
+        ]);
+
+        const result = getDateZoomCapabilities(explore, metricQuery);
+
+        expect(result.hasDateDimension).toBe(true);
+        expect(result.availableCustomGranularities).toEqual({
+            fiscal_quarter: 'Fiscal Quarter',
+            fiscal_year: 'Fiscal Year',
+        });
+    });
+
+    it('collects custom granularities when the metric query uses a DATE-typed custom granularity dimension', () => {
+        const baseDim = makeDimension({
+            name: 'order_date',
+            table: 'orders',
+            type: DimensionType.DATE,
+            isIntervalBase: true,
+        });
+        const customBiweekly = makeDimension({
+            name: 'order_date_biweekly',
+            table: 'orders',
+            type: DimensionType.DATE,
+            customTimeInterval: 'biweekly',
+            timeIntervalBaseDimensionName: 'order_date',
+            label: 'Bi-weekly',
+        });
+        const customFiscalQuarter = makeDimension({
+            name: 'order_date_fiscal_quarter',
+            table: 'orders',
+            type: DimensionType.STRING,
+            customTimeInterval: 'fiscal_quarter',
+            timeIntervalBaseDimensionName: 'order_date',
+            label: 'Fiscal Quarter',
+        });
+        const explore = makeExplore([
+            baseDim,
+            customBiweekly,
+            customFiscalQuarter,
+        ]);
+        // The chart uses a DATE-typed custom granularity
+        const metricQuery = makeMetricQuery(['orders_order_date_biweekly']);
+
+        const result = getDateZoomCapabilities(explore, metricQuery);
+
+        expect(result.hasDateDimension).toBe(true);
+        expect(result.availableCustomGranularities).toEqual({
+            biweekly: 'Bi-weekly',
+            fiscal_quarter: 'Fiscal Quarter',
+        });
+    });
+
+    it('resolves STRING-typed standard time-interval dimension (e.g. QUARTER_NAME) to its base', () => {
+        const baseDim = makeDimension({
+            name: 'order_date',
+            table: 'orders',
+            type: DimensionType.DATE,
+            isIntervalBase: true,
+        });
+        const quarterNameDim = makeDimension({
+            name: 'order_date_quarter_name',
+            table: 'orders',
+            type: DimensionType.STRING,
+            timeInterval: 'QUARTER_NAME' as CompiledDimension['timeInterval'],
+            timeIntervalBaseDimensionName: 'order_date',
+        });
+        const customFiscalQuarter = makeDimension({
+            name: 'order_date_fiscal_quarter',
+            table: 'orders',
+            type: DimensionType.STRING,
+            customTimeInterval: 'fiscal_quarter',
+            timeIntervalBaseDimensionName: 'order_date',
+            label: 'Fiscal Quarter',
+        });
+        const explore = makeExplore([
+            baseDim,
+            quarterNameDim,
+            customFiscalQuarter,
+        ]);
+        const metricQuery = makeMetricQuery(['orders_order_date_quarter_name']);
+
+        const result = getDateZoomCapabilities(explore, metricQuery);
+
+        expect(result.hasDateDimension).toBe(true);
+        expect(result.availableCustomGranularities).toEqual({
+            fiscal_quarter: 'Fiscal Quarter',
+        });
+    });
+
     it('does not include custom granularities from unrelated base dimensions', () => {
         const orderDate = makeDimension({
             name: 'order_date',
