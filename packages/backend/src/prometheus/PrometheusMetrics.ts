@@ -14,6 +14,7 @@ import prometheus from 'prom-client';
 import { z } from 'zod';
 import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
+import { QueryHistoryTableName } from '../database/entities/queryHistory';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
@@ -715,6 +716,221 @@ export default class PrometheusMetrics {
                         },
                     );
                     this.set(0);
+                }
+            },
+        });
+    }
+
+    public monitorQueryHistory(knex: Knex) {
+        const { enabled, ...rest } = this.config;
+        if (!enabled) {
+            return;
+        }
+
+        const WINDOW_MS = 60 * 1000; // 1 minute
+
+        // Metric 1: Current backlog — in-flight queries by status
+        const backlogGauge = new prometheus.Gauge({
+            name: 'query_history_backlog',
+            help: 'Current count of in-flight queries by status',
+            labelNames: ['status'],
+            ...rest,
+            async collect() {
+                try {
+                    const rows = await knex(QueryHistoryTableName)
+                        .select('status')
+                        .count({ count: '*' })
+                        .whereIn('status', [
+                            QueryHistoryStatus.PENDING,
+                            QueryHistoryStatus.QUEUED,
+                            QueryHistoryStatus.EXECUTING,
+                        ])
+                        .groupBy('status');
+                    this.reset();
+                    for (const row of rows) {
+                        this.set(
+                            { status: String(row.status) },
+                            Number(row.count ?? 0),
+                        );
+                    }
+                } catch (error) {
+                    Logger.error(
+                        'Failed to collect query_history_backlog metric',
+                        {
+                            error:
+                                error instanceof Error ? error.message : error,
+                        },
+                    );
+                    this.reset();
+                }
+            },
+        });
+
+        // Metric 2: Status distribution in last 1 minute
+        const statusCountGauge = new prometheus.Gauge({
+            name: 'query_history_status_count_1m',
+            help: 'Count of queries by status created in the last 1 minute',
+            labelNames: ['status'],
+            ...rest,
+            async collect() {
+                try {
+                    const cutoff = new Date(Date.now() - WINDOW_MS);
+                    const rows = await knex(QueryHistoryTableName)
+                        .select('status')
+                        .count({ count: '*' })
+                        .where('created_at', '>', cutoff)
+                        .groupBy('status');
+                    this.reset();
+                    for (const row of rows) {
+                        this.set(
+                            { status: String(row.status) },
+                            Number(row.count ?? 0),
+                        );
+                    }
+                } catch (error) {
+                    Logger.error(
+                        'Failed to collect query_history_status_count_1m metric',
+                        {
+                            error:
+                                error instanceof Error ? error.message : error,
+                        },
+                    );
+                    this.reset();
+                }
+            },
+        });
+
+        // Metric 3: Queue wait time percentiles (processing_started_at - created_at)
+        const queueWaitGauge = new prometheus.Gauge({
+            name: 'query_history_queue_wait_ms',
+            help: 'Queue wait time percentiles in ms (processing_started_at - created_at) for queries in the last 1 minute',
+            labelNames: ['percentile'],
+            ...rest,
+            async collect() {
+                try {
+                    const cutoff = new Date(Date.now() - WINDOW_MS);
+                    const result = await knex(QueryHistoryTableName)
+                        .select(
+                            knex.raw(
+                                `percentile_cont(0.50) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (processing_started_at - created_at)) * 1000) as p50`,
+                            ),
+                            knex.raw(
+                                `percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (processing_started_at - created_at)) * 1000) as p95`,
+                            ),
+                        )
+                        .where('created_at', '>', cutoff)
+                        .whereNotNull('processing_started_at')
+                        .first<{ p50: string | null; p95: string | null }>();
+                    this.reset();
+                    if (result) {
+                        this.set(
+                            { percentile: 'p50' },
+                            Number(result.p50 ?? 0),
+                        );
+                        this.set(
+                            { percentile: 'p95' },
+                            Number(result.p95 ?? 0),
+                        );
+                    }
+                } catch (error) {
+                    Logger.error(
+                        'Failed to collect query_history_queue_wait_ms metric',
+                        {
+                            error:
+                                error instanceof Error ? error.message : error,
+                        },
+                    );
+                    this.reset();
+                }
+            },
+        });
+
+        // Metric 4: Total time percentiles (results_updated_at - created_at)
+        const totalTimeGauge = new prometheus.Gauge({
+            name: 'query_history_total_time_ms',
+            help: 'Total query time percentiles in ms (results_updated_at - created_at) for queries in the last 1 minute',
+            labelNames: ['percentile'],
+            ...rest,
+            async collect() {
+                try {
+                    const cutoff = new Date(Date.now() - WINDOW_MS);
+                    const result = await knex(QueryHistoryTableName)
+                        .select(
+                            knex.raw(
+                                `percentile_cont(0.50) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (results_updated_at - created_at)) * 1000) as p50`,
+                            ),
+                            knex.raw(
+                                `percentile_cont(0.95) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (results_updated_at - created_at)) * 1000) as p95`,
+                            ),
+                        )
+                        .where('created_at', '>', cutoff)
+                        .whereNotNull('results_updated_at')
+                        .first<{ p50: string | null; p95: string | null }>();
+                    this.reset();
+                    if (result) {
+                        this.set(
+                            { percentile: 'p50' },
+                            Number(result.p50 ?? 0),
+                        );
+                        this.set(
+                            { percentile: 'p95' },
+                            Number(result.p95 ?? 0),
+                        );
+                    }
+                } catch (error) {
+                    Logger.error(
+                        'Failed to collect query_history_total_time_ms metric',
+                        {
+                            error:
+                                error instanceof Error ? error.message : error,
+                        },
+                    );
+                    this.reset();
+                }
+            },
+        });
+
+        // Metric 5: Warehouse execution time percentiles
+        const warehouseExecGauge = new prometheus.Gauge({
+            name: 'query_history_warehouse_execution_ms',
+            help: 'Warehouse execution time percentiles in ms for queries in the last 1 minute',
+            labelNames: ['percentile'],
+            ...rest,
+            async collect() {
+                try {
+                    const cutoff = new Date(Date.now() - WINDOW_MS);
+                    const result = await knex(QueryHistoryTableName)
+                        .select(
+                            knex.raw(
+                                `percentile_cont(0.50) WITHIN GROUP (ORDER BY warehouse_execution_time_ms) as p50`,
+                            ),
+                            knex.raw(
+                                `percentile_cont(0.95) WITHIN GROUP (ORDER BY warehouse_execution_time_ms) as p95`,
+                            ),
+                        )
+                        .where('created_at', '>', cutoff)
+                        .whereNotNull('warehouse_execution_time_ms')
+                        .first<{ p50: string | null; p95: string | null }>();
+                    this.reset();
+                    if (result) {
+                        this.set(
+                            { percentile: 'p50' },
+                            Number(result.p50 ?? 0),
+                        );
+                        this.set(
+                            { percentile: 'p95' },
+                            Number(result.p95 ?? 0),
+                        );
+                    }
+                } catch (error) {
+                    Logger.error(
+                        'Failed to collect query_history_warehouse_execution_ms metric',
+                        {
+                            error:
+                                error instanceof Error ? error.message : error,
+                        },
+                    );
+                    this.reset();
                 }
             },
         });
