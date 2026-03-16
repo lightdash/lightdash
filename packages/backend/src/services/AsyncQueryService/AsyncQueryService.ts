@@ -572,13 +572,16 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
-        // Dec in-flight gauge for the previous status
+        // Track state transition to cancelled
         if (
             previousStatus === QueryHistoryStatus.PENDING ||
             previousStatus === QueryHistoryStatus.QUEUED ||
             previousStatus === QueryHistoryStatus.EXECUTING
         ) {
-            this.prometheusMetrics?.decQueryInFlight(previousStatus);
+            this.prometheusMetrics?.trackQueryStateTransition(
+                previousStatus,
+                QueryHistoryStatus.CANCELLED,
+            );
         }
 
         // Track cancelled query in Prometheus
@@ -1876,8 +1879,10 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        this.prometheusMetrics?.decQueryInFlight('queued');
-        this.prometheusMetrics?.incQueryInFlight('executing');
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXECUTING,
+        );
         this.prometheusMetrics?.observeQueueWaitDuration(timeInQueueMs);
 
         return true;
@@ -2194,7 +2199,10 @@ export class AsyncQueryService extends ProjectService {
             );
 
             // Track successful query in Prometheus
-            this.prometheusMetrics?.decQueryInFlight('executing');
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.EXECUTING,
+                QueryHistoryStatus.READY,
+            );
             this.trackQueryTerminalStatus(
                 QueryHistoryStatus.READY,
                 queryCreatedAt,
@@ -2238,7 +2246,10 @@ export class AsyncQueryService extends ProjectService {
             );
 
             // Track error query in Prometheus
-            this.prometheusMetrics?.decQueryInFlight('executing');
+            this.prometheusMetrics?.trackQueryStateTransition(
+                QueryHistoryStatus.EXECUTING,
+                QueryHistoryStatus.ERROR,
+            );
             this.trackQueryTerminalStatus(
                 QueryHistoryStatus.ERROR,
                 queryCreatedAt,
@@ -2367,7 +2378,10 @@ export class AsyncQueryService extends ProjectService {
             QUEUED_QUERY_EXPIRED_MESSAGE,
         );
 
-        this.prometheusMetrics?.decQueryInFlight('queued');
+        this.prometheusMetrics?.trackQueryStateTransition(
+            QueryHistoryStatus.QUEUED,
+            QueryHistoryStatus.EXPIRED,
+        );
         this.trackQueryTerminalStatus(
             QueryHistoryStatus.EXPIRED,
             queryHistory.createdAt,
@@ -2856,7 +2870,10 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
                     const historyCreateMs = Date.now() - historyCreateStart;
-                    this.prometheusMetrics?.incQueryInFlight('pending');
+                    this.prometheusMetrics?.trackQueryStateTransition(
+                        'new',
+                        QueryHistoryStatus.PENDING,
+                    );
 
                     this.analytics.trackAccount(account, {
                         event: 'query.executed',
@@ -2923,7 +2940,10 @@ export class AsyncQueryService extends ProjectService {
                         );
 
                         // Track successful query in Prometheus
-                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.prometheusMetrics?.trackQueryStateTransition(
+                            QueryHistoryStatus.PENDING,
+                            QueryHistoryStatus.READY,
+                        );
                         this.trackQueryTerminalStatus(
                             QueryHistoryStatus.READY,
                             queryCreatedAt,
@@ -2951,7 +2971,10 @@ export class AsyncQueryService extends ProjectService {
                             },
                             account,
                         );
-                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.prometheusMetrics?.trackQueryStateTransition(
+                            QueryHistoryStatus.PENDING,
+                            QueryHistoryStatus.ERROR,
+                        );
                         this.trackQueryTerminalStatus(
                             QueryHistoryStatus.ERROR,
                             queryCreatedAt,
@@ -3020,7 +3043,10 @@ export class AsyncQueryService extends ProjectService {
                             },
                             account,
                         );
-                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.prometheusMetrics?.trackQueryStateTransition(
+                            QueryHistoryStatus.PENDING,
+                            QueryHistoryStatus.ERROR,
+                        );
                         this.trackQueryTerminalStatus(
                             QueryHistoryStatus.ERROR,
                             queryCreatedAt,
@@ -3088,8 +3114,10 @@ export class AsyncQueryService extends ProjectService {
                             await this.queryHistoryModel.updateStatusToQueued(
                                 queryHistoryUuid,
                             );
-                            this.prometheusMetrics?.decQueryInFlight('pending');
-                            this.prometheusMetrics?.incQueryInFlight('queued');
+                            this.prometheusMetrics?.trackQueryStateTransition(
+                                QueryHistoryStatus.PENDING,
+                                QueryHistoryStatus.QUEUED,
+                            );
                         } catch (e) {
                             const errorMessage = getErrorMessage(e);
                             this.logger.error(
@@ -3107,7 +3135,10 @@ export class AsyncQueryService extends ProjectService {
                                 account,
                             );
 
-                            this.prometheusMetrics?.decQueryInFlight('pending');
+                            this.prometheusMetrics?.trackQueryStateTransition(
+                                QueryHistoryStatus.PENDING,
+                                QueryHistoryStatus.ERROR,
+                            );
                             this.trackQueryTerminalStatus(
                                 QueryHistoryStatus.ERROR,
                                 queryCreatedAt,
@@ -3124,8 +3155,10 @@ export class AsyncQueryService extends ProjectService {
                         this.logger.info(
                             `Executing query ${queryHistoryUuid} in the main loop`,
                         );
-                        this.prometheusMetrics?.decQueryInFlight('pending');
-                        this.prometheusMetrics?.incQueryInFlight('executing');
+                        this.prometheusMetrics?.trackQueryStateTransition(
+                            QueryHistoryStatus.PENDING,
+                            QueryHistoryStatus.EXECUTING,
+                        );
 
                         const { query: warehouseSql, ...sharedAsyncQueryArgs } =
                             warehouseArgs;

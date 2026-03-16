@@ -93,7 +93,9 @@ export default class PrometheusMetrics {
         null;
 
     // Query history pipeline metrics
-    private queryInFlightGauge: prometheus.Gauge<'status'> | null = null;
+    private queryStateTransitionCounter: prometheus.Counter<
+        'from' | 'to'
+    > | null = null;
 
     private queueWaitHistogram: prometheus.Histogram | null = null;
 
@@ -133,10 +135,10 @@ export default class PrometheusMetrics {
                 });
 
                 // Query history pipeline metrics
-                this.queryInFlightGauge = new prometheus.Gauge({
-                    name: 'query_history_in_flight',
-                    help: 'Number of in-flight queries by status (pending, queued, executing)',
-                    labelNames: ['status'],
+                this.queryStateTransitionCounter = new prometheus.Counter({
+                    name: 'query_history_state_transitions_total',
+                    help: 'Query state transitions (monotonic, safe across processes)',
+                    labelNames: ['from', 'to'],
                     ...rest,
                 });
 
@@ -758,12 +760,22 @@ export default class PrometheusMetrics {
         });
     }
 
-    public incQueryInFlight(status: string) {
-        this.queryInFlightGauge?.inc({ status });
-    }
-
-    public decQueryInFlight(status: string) {
-        this.queryInFlightGauge?.dec({ status });
+    public trackQueryStateTransition(
+        from:
+            | 'new'
+            | QueryHistoryStatus.PENDING
+            | QueryHistoryStatus.QUEUED
+            | QueryHistoryStatus.EXECUTING,
+        to:
+            | QueryHistoryStatus.PENDING
+            | QueryHistoryStatus.QUEUED
+            | QueryHistoryStatus.EXECUTING
+            | QueryHistoryStatus.READY
+            | QueryHistoryStatus.ERROR
+            | QueryHistoryStatus.EXPIRED
+            | QueryHistoryStatus.CANCELLED,
+    ) {
+        this.queryStateTransitionCounter?.inc({ from, to });
     }
 
     public observeQueueWaitDuration(durationMs: number) {
