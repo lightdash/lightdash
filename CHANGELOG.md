@@ -1,3 +1,10 @@
+# [0.2624.0](https://github.com/lightdash/lightdash/compare/0.2623.1...0.2624.0) (2026-03-16)
+
+
+### Features
+
+* add V2 project-scoped dashboard endpoints (GET/PATCH/DELETE) ([#21135](https://github.com/lightdash/lightdash/issues/21135)) ([f8974cf](https://github.com/lightdash/lightdash/commit/f8974cff1cc4b8a8f9ce0dd20b19925e959e641e))
+
 ## [0.2623.1](https://github.com/lightdash/lightdash/compare/0.2623.0...0.2623.1) (2026-03-16)
 
 
