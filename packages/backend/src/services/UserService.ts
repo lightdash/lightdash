@@ -1668,12 +1668,26 @@ export class UserService extends BaseService {
      */
     async resolveSessionUser(
         passportUser: { id: string; organization: string },
-        impersonation: { targetUserUuid: string } | undefined,
+        impersonation:
+            | { targetUserUuid: string; startedAt: string }
+            | undefined,
         clearImpersonation: () => void,
     ): Promise<SessionUser> {
         const requestUser = await this.findSessionUser(passportUser);
 
         if (!impersonation) {
+            return requestUser;
+        }
+
+        // Check if impersonation has exceeded TTL (15 minutes)
+        const IMPERSONATION_TTL_MS = 15 * 60 * 1000;
+        const elapsed =
+            Date.now() - new Date(impersonation.startedAt).getTime();
+        if (elapsed > IMPERSONATION_TTL_MS) {
+            this.logger.info(
+                `Impersonation TTL exceeded for admin ${passportUser.id} (elapsed: ${Math.round(elapsed / 1000)}s), clearing impersonation`,
+            );
+            clearImpersonation();
             return requestUser;
         }
 
