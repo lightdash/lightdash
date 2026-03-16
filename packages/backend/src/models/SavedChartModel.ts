@@ -1357,13 +1357,32 @@ export class SavedChartModel {
         qb: Knex.QueryBuilder,
         projectUuid: string,
     ) {
-        // Use a derived table for MAX version instead of a correlated subquery per row.
-        // This lets PostgreSQL compute all max versions in a single pass (HashAggregate)
-        // rather than doing N index lookups for N charts.
+        // First, get all chart IDs that belong to this project
+        const projectChartIds = this.database
+            .select('sq.saved_query_id')
+            .from(`${SavedChartsTableName} as sq`)
+            .leftJoin(`${DashboardsTableName} as d`, function joinDashboards() {
+                this.on('d.dashboard_uuid', '=', 'sq.dashboard_uuid').andOnNull(
+                    'd.deleted_at',
+                );
+            })
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} as s ON s.space_id = COALESCE(sq.space_id, d.space_id) AND s.deleted_at IS NULL`,
+            )
+            .innerJoin(
+                `${ProjectTableName} as p`,
+                'p.project_id',
+                's.project_id',
+            )
+            .where('p.project_uuid', projectUuid)
+            .whereNull('sq.deleted_at');
+
+        // Select latest versions for charts in this project
         const latestVersions = this.database
             .select('saved_query_id')
             .max('saved_queries_version_id as max_version_id')
             .from(SavedChartVersionsTableName)
+            .whereIn('saved_query_id', projectChartIds)
             .groupBy('saved_query_id')
             .as('latest');
 
