@@ -1797,17 +1797,17 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string,
         workerLabel: string,
     ): Promise<boolean> {
-        const queryCreatedAt = await this.prepareQueuedQueryForExecution(
+        const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
             workerLabel,
         );
 
-        if (!queryCreatedAt) {
+        if (!canRun) {
             return false;
         }
 
         const args = await this.buildWarehouseQueryArgs(queryUuid);
-        await this.runAsyncWarehouseQuery({ ...args, queryCreatedAt });
+        await this.runAsyncWarehouseQuery(args);
         return true;
     }
 
@@ -1815,24 +1815,24 @@ export class AsyncQueryService extends ProjectService {
         queryUuid: string,
         workerLabel: string,
     ): Promise<boolean> {
-        const queryCreatedAt = await this.prepareQueuedQueryForExecution(
+        const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
             workerLabel,
         );
 
-        if (!queryCreatedAt) {
+        if (!canRun) {
             return false;
         }
 
         const args = await this.buildPreAggregateQueryArgs(queryUuid);
-        await this.runAsyncPreAggregateQuery({ ...args, queryCreatedAt });
+        await this.runAsyncPreAggregateQuery(args);
         return true;
     }
 
     public async prepareQueuedQueryForExecution(
         queryUuid: string,
         workerLabel: string,
-    ): Promise<Date | null> {
+    ): Promise<boolean> {
         const queryHistory =
             await this.queryHistoryModel.getByQueryUuid(queryUuid);
 
@@ -1840,7 +1840,7 @@ export class AsyncQueryService extends ProjectService {
             this.logger.error(
                 `Worker ${workerLabel} could not find query history for async query ${queryUuid}`,
             );
-            return null;
+            return false;
         }
 
         const isQueuedStatus =
@@ -1851,7 +1851,7 @@ export class AsyncQueryService extends ProjectService {
             this.logger.info(
                 `Worker ${workerLabel} skipped async query ${queryUuid} because status is ${queryHistory.status}`,
             );
-            return null;
+            return false;
         }
 
         const timeInQueueMs =
@@ -1863,7 +1863,7 @@ export class AsyncQueryService extends ProjectService {
                 timeInQueueMs,
                 workerLabel,
             );
-            return null;
+            return false;
         }
 
         const updated =
@@ -1873,14 +1873,14 @@ export class AsyncQueryService extends ProjectService {
             this.logger.info(
                 `Worker ${workerLabel} skipped async query ${queryUuid} because it could not transition to executing`,
             );
-            return null;
+            return false;
         }
 
         this.prometheusMetrics?.decQueryInFlight('queued');
         this.prometheusMetrics?.incQueryInFlight('executing');
         this.prometheusMetrics?.observeQueueWaitDuration(timeInQueueMs);
 
-        return queryHistory.createdAt;
+        return true;
     }
 
     /**

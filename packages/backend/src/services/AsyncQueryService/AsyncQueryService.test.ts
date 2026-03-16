@@ -1541,7 +1541,7 @@ describe('AsyncQueryService', () => {
                 'worker-1',
             );
 
-            expect(canRun).toBeInstanceOf(Date);
+            expect(canRun).toBe(true);
             expect(
                 service.queryHistoryModel.updateStatusToExecuting,
             ).toHaveBeenCalledWith('test-query-uuid');
@@ -1572,7 +1572,7 @@ describe('AsyncQueryService', () => {
                 'worker-1',
             );
 
-            expect(canRun).toBeNull();
+            expect(canRun).toBe(false);
             expect(
                 service.queryHistoryModel.updateStatusToExpired,
             ).toHaveBeenCalledWith(
