@@ -349,6 +349,7 @@ export default class SchedulerTask {
         } = scheduler;
 
         let imageUrl;
+        let imageLocalPath;
         let csvUrl;
         let csvUrls;
         let pdfFile;
@@ -433,6 +434,7 @@ export default class SchedulerTask {
                     }
                     pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
+                    imageLocalPath = `/tmp/${imageId}.png`;
 
                     if (this.fileStorageClient.isEnabled() && imageUrl) {
                         imageUrl =
@@ -891,6 +893,7 @@ export default class SchedulerTask {
             details,
             organizationUuid,
             imageUrl,
+            imageLocalPath,
             csvUrl,
             csvUrls,
             pdfFile,
@@ -2326,6 +2329,7 @@ export default class SchedulerTask {
                 details,
                 pageType,
                 imageUrl,
+                imageLocalPath,
                 csvUrl,
                 csvUrls,
                 pdfFile,
@@ -2383,6 +2387,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
+                    imageLocalPath,
                 );
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl === undefined) {
@@ -2405,6 +2410,8 @@ export default class SchedulerTask {
                     includeLinks,
                     pdfFile?.source,
                     Math.ceil(emailExpiration / 86400),
+                    undefined, // deliveryType
+                    imageLocalPath,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
