@@ -24,7 +24,11 @@ export function useSlugRedirect(
         if (urlParam === resolvedUuid) return;
         if (isValidUuid(urlParam)) return;
 
-        const newPath = location.pathname.replace(urlParam, resolvedUuid);
+        const segments = location.pathname.split('/');
+        const idx = segments.lastIndexOf(urlParam);
+        if (idx === -1) return;
+        segments[idx] = resolvedUuid;
+        const newPath = segments.join('/');
         void navigate(newPath + location.search + location.hash, {
             replace: true,
         });
