@@ -1,7 +1,12 @@
 import Lightdash from '@lightdash/sdk';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SavedChart } from '../../common/src';
+import { getFromInMemoryStorage } from '../../frontend/src/utils/inMemoryStorage';
+import {
+    EMBED_KEY,
+    type InMemoryEmbed,
+} from '../../frontend/src/ee/providers/Embed/types';
 
 const EMBED_URL = import.meta.env.VITE_EMBED_URL || '';
 
@@ -214,6 +219,13 @@ function App() {
     );
 
     const [inputsOpen, setInputsOpen] = useState(false);
+    const [remountKey, setRemountKey] = useState(0);
+    const [inMemoryToken, setInMemoryToken] = useState<string | null>(null);
+
+    const readInMemoryToken = useCallback(() => {
+        const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+        setInMemoryToken(embed?.token ?? null);
+    }, []);
 
     const [savedChart, setSavedChart] = useState<SavedChart | null>();
     const handleExploreClick = (options: { chart: SavedChart }) => {
@@ -352,6 +364,181 @@ function App() {
                     )}
                 </header>
 
+                {lightdashUrl && lightdashToken && (
+                    <div
+                        style={{
+                            fontFamily: mono,
+                            fontSize: '12px',
+                            margin: '16px 0',
+                            border: '1px solid #e5e5e5',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <div
+                            style={{
+                                padding: '10px 16px',
+                                backgroundColor: '#fafafa',
+                                borderBottom: '1px solid #e5e5e5',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                            }}
+                        >
+                            <span
+                                style={{
+                                    fontFamily: sans,
+                                    fontWeight: 600,
+                                    fontSize: '12px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                    color: '#525252',
+                                }}
+                            >
+                                Token Refresh Debug
+                            </span>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    gap: '6px',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <input
+                                    type="text"
+                                    placeholder="Paste new JWT to swap..."
+                                    id="token-swap-input"
+                                    style={{
+                                        ...inputStyle,
+                                        fontSize: '11px',
+                                        padding: '5px 8px',
+                                        width: '220px',
+                                    }}
+                                />
+                                <button
+                                    style={{
+                                        ...buttonStyle,
+                                        fontSize: '11px',
+                                        padding: '5px 12px',
+                                    }}
+                                    onClick={() => {
+                                        const input =
+                                            document.getElementById(
+                                                'token-swap-input',
+                                            ) as HTMLInputElement;
+                                        const newToken =
+                                            input?.value?.trim();
+                                        if (newToken && lightdashUrl) {
+                                            const newUrl = `${lightdashUrl}embed#${newToken}`;
+                                            setEmbedUrl(newUrl);
+                                            setDraftUrl(newUrl);
+                                            localStorage.setItem(
+                                                'embedUrl',
+                                                newUrl,
+                                            );
+                                            input.value = '';
+                                        }
+                                    }}
+                                >
+                                    1. Swap Token
+                                </button>
+                                <button
+                                    style={{
+                                        ...buttonSecondaryStyle,
+                                        fontSize: '11px',
+                                        padding: '5px 12px',
+                                    }}
+                                    onClick={readInMemoryToken}
+                                >
+                                    2. Read In-Memory Store
+                                </button>
+                                <button
+                                    style={{
+                                        ...buttonSecondaryStyle,
+                                        fontSize: '11px',
+                                        padding: '5px 12px',
+                                    }}
+                                    onClick={() => {
+                                        setSavedChart(null);
+                                        setRemountKey((k) => k + 1);
+                                    }}
+                                >
+                                    3. Force Refetch
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: '0',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    padding: '10px 16px',
+                                    borderRight: '1px solid #e5e5e5',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        color: '#737373',
+                                        marginBottom: '4px',
+                                    }}
+                                >
+                                    React prop token (what SDK receives)
+                                </div>
+                                <div style={{ color: '#171717' }}>
+                                    ...{lightdashToken.slice(-10)}
+                                </div>
+                            </div>
+                            <div
+                                style={{
+                                    padding: '10px 16px',
+                                    backgroundColor:
+                                        inMemoryToken === null
+                                            ? 'transparent'
+                                            : inMemoryToken ===
+                                                lightdashToken
+                                              ? '#f0fdf4'
+                                              : '#fef2f2',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        color: '#737373',
+                                        marginBottom: '4px',
+                                    }}
+                                >
+                                    In-memory store token (what API calls
+                                    use)
+                                </div>
+                                <div
+                                    style={{
+                                        color:
+                                            inMemoryToken === null
+                                                ? '#a3a3a3'
+                                                : inMemoryToken ===
+                                                    lightdashToken
+                                                  ? '#15803d'
+                                                  : '#dc2626',
+                                    }}
+                                >
+                                    {inMemoryToken === null
+                                        ? 'Click "Read In-Memory Store"'
+                                        : `...${inMemoryToken.slice(-10)}`}
+                                    {inMemoryToken !== null &&
+                                        inMemoryToken === lightdashToken &&
+                                        ' (synced)'}
+                                    {inMemoryToken !== null &&
+                                        inMemoryToken !== lightdashToken &&
+                                        ' (STALE - bug!)'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {lightdashUrl && lightdashToken ? (
                     <main>
                         <h2 style={sectionTitleStyle}>
@@ -386,7 +573,7 @@ function App() {
                                 />
                             ) : (
                                 <Lightdash.Dashboard
-                                    key={i18n.language}
+                                    key={`${i18n.language}-${remountKey}`}
                                     instanceUrl={lightdashUrl}
                                     token={lightdashToken}
                                     styles={{
