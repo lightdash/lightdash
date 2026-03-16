@@ -3073,6 +3073,13 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        // Combine default parameter values with request parameters
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
+        );
+
         const timezone = await this.getQueryTimezoneForProject(projectUuid);
 
         const compiledQuery = await ProjectService._compileQuery({
@@ -3082,7 +3089,7 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes,
             timezone,
-            parameters,
+            parameters: combinedParameters,
             availableParameterDefinitions,
             pivotConfiguration,
             pivotDimensions,
