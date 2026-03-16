@@ -142,6 +142,7 @@ export default defineConfig({
         },
         allowedHosts: [
             'lightdash-dev', // for local development with docker
+            'host.docker.internal', // for headless browser in docker (scheduled deliveries)
             '.lightdash.dev', // for cloudflared tunnels,
             ...(FE_HOST ? [FE_HOST] : []),
         ],

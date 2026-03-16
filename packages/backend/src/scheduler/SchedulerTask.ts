@@ -109,6 +109,7 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import pLimit from 'p-limit';
+import path from 'path';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import {
@@ -2336,6 +2337,24 @@ export default class SchedulerTask {
                 failures,
             } = notificationPageData;
 
+            let imageBuffer: Buffer | undefined;
+            if (
+                this.lightdashConfig.smtp?.inlineImageCid === true &&
+                imageLocalPath &&
+                this.fileStorageClient.isEnabled()
+            ) {
+                const s3Key = path.basename(imageLocalPath);
+                const stream =
+                    await this.fileStorageClient.getFileStream(s3Key);
+                const chunks: Buffer[] = [];
+                for await (const chunk of stream) {
+                    chunks.push(
+                        Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                    );
+                }
+                imageBuffer = Buffer.concat(chunks);
+            }
+
             const schedulerUrl = `${url}?${setUuidParam(
                 'scheduler_uuid',
                 schedulerUuid,
@@ -2387,7 +2406,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
-                    imageLocalPath,
+                    imageBuffer,
                 );
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl === undefined) {
@@ -2411,7 +2430,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     Math.ceil(emailExpiration / 86400),
                     undefined, // deliveryType
-                    imageLocalPath,
+                    imageBuffer,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
