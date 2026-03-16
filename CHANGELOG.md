@@ -1,3 +1,10 @@
+# [0.2620.0](https://github.com/lightdash/lightdash/compare/0.2619.1...0.2620.0) (2026-03-16)
+
+
+### Features
+
+* add Prometheus monitoring to NATS worker app ([#21147](https://github.com/lightdash/lightdash/issues/21147)) ([3c12f06](https://github.com/lightdash/lightdash/commit/3c12f06e31d33763a6da58a83b13ba6cb57c52d3)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2619.1](https://github.com/lightdash/lightdash/compare/0.2619.0...0.2619.1) (2026-03-13)
 
 
