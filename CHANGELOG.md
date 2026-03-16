@@ -1,3 +1,12 @@
+# [0.2622.0](https://github.com/lightdash/lightdash/compare/0.2621.2...0.2622.0) (2026-03-16)
+
+
+### Features
+
+* add 15 min TTL for user impersonations ([#21157](https://github.com/lightdash/lightdash/issues/21157)) ([64de507](https://github.com/lightdash/lightdash/commit/64de507eb6db07703f76dc50da01b1d123d1afe2))
+* add project timezone placeholder to ExplorerHeader timezone picker ([#21133](https://github.com/lightdash/lightdash/issues/21133)) ([73c69cf](https://github.com/lightdash/lightdash/commit/73c69cf0fcb110e362b89d20e387cb9212b762c3))
+* add query timezone settings component to project settings ([#21131](https://github.com/lightdash/lightdash/issues/21131)) ([77166e2](https://github.com/lightdash/lightdash/commit/77166e25d2b1fcf5e122dd9f48be7c6962eabf24))
+
 ## [0.2621.2](https://github.com/lightdash/lightdash/compare/0.2621.1...0.2621.2) (2026-03-16)
 
 
