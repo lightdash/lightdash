@@ -1,3 +1,11 @@
+## [0.2625.1](https://github.com/lightdash/lightdash/compare/0.2625.0...0.2625.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* apply parameter defaults in compileQuery endpoint ([#21167](https://github.com/lightdash/lightdash/issues/21167)) ([0257653](https://github.com/lightdash/lightdash/commit/02576538b7d937e20cb489a4d09ad90d8359385d))
+* resolve custom granularity dimensions in date zoom ([#21173](https://github.com/lightdash/lightdash/issues/21173)) ([deb3f95](https://github.com/lightdash/lightdash/commit/deb3f95abc3b118e0bf37e70a8fd763f46ab5c3d))
+
 # [0.2625.0](https://github.com/lightdash/lightdash/compare/0.2624.0...0.2625.0) (2026-03-16)
 
 
