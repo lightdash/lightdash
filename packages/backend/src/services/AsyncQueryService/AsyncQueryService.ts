@@ -2292,6 +2292,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
             originalColumns: query.originalColumns ?? undefined,
+            queryCreatedAt: query.createdAt,
             query: query.compiledSql,
         };
     }
@@ -2324,6 +2325,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
             originalColumns: query.originalColumns ?? undefined,
+            queryCreatedAt: query.createdAt,
             preAggregateQuery: query.preAggregateCompiledSql,
             warehouseQuery: query.compiledSql,
         };

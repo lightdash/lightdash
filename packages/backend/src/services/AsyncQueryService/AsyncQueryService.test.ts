@@ -1741,6 +1741,7 @@ describe('AsyncQueryService', () => {
                     cacheKey: 'test-cache-key',
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
+                    queryCreatedAt: new Date(),
                 };
 
                 // WHEN: runAsyncWarehouseQuery is called
@@ -1835,6 +1836,7 @@ describe('AsyncQueryService', () => {
                 cacheKey: 'test-cache-key',
                 pivotConfiguration: undefined,
                 originalColumns: undefined,
+                queryCreatedAt: new Date(),
             };
 
             // WHEN: runAsyncWarehouseQuery is called

@@ -169,7 +169,7 @@ export type RunAsyncWarehouseQueryArgs = {
     pivotConfiguration?: PivotConfiguration;
     originalColumns?: ResultColumns;
     query: string;
-    queryCreatedAt?: Date;
+    queryCreatedAt: Date;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<
