@@ -128,7 +128,7 @@ export default class PrometheusMetrics {
                 this.queryStatusCounter = new prometheus.Counter({
                     name: 'query_status_total',
                     help: 'Total number of queries by status',
-                    labelNames: ['status', 'warehouse_type', 'context'],
+                    labelNames: ['status'],
                     ...rest,
                 });
 
@@ -440,17 +440,9 @@ export default class PrometheusMetrics {
         }
     }
 
-    public incrementQueryStatus(
-        status: QueryHistoryStatus,
-        warehouseType?: string,
-        context?: string,
-    ) {
+    public incrementQueryStatus(status: QueryHistoryStatus) {
         if (this.queryStatusCounter) {
-            this.queryStatusCounter.inc({
-                status,
-                warehouse_type: warehouseType || 'unknown',
-                context: context || 'unknown',
-            });
+            this.queryStatusCounter.inc({ status });
         }
     }
 

@@ -582,10 +582,9 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Track cancelled query in Prometheus
-        this.prometheusMetrics?.incrementQueryStatus(
+        this.trackQueryTerminalStatus(
             QueryHistoryStatus.CANCELLED,
-            queryHistory.warehouseQueryMetadata?.type || 'unknown',
-            queryHistory.context,
+            queryHistory.createdAt,
         );
     }
 
@@ -2204,16 +2203,10 @@ export class AsyncQueryService extends ProjectService {
                 );
 
                 // Track successful query in Prometheus
-                this.prometheusMetrics?.incrementQueryStatus(
+                this.trackQueryTerminalStatus(
                     QueryHistoryStatus.READY,
-                    warehouseClient.credentials.type,
-                    queryTags.query_context,
+                    queryCreatedAt,
                 );
-                if (queryCreatedAt) {
-                    this.prometheusMetrics?.observeQueryTotalDuration(
-                        Date.now() - queryCreatedAt.getTime(),
-                    );
-                }
             } catch (e) {
                 this.logger.error(
                     `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
@@ -2253,10 +2246,9 @@ export class AsyncQueryService extends ProjectService {
                 );
 
                 // Track error query in Prometheus
-                this.prometheusMetrics?.incrementQueryStatus(
+                this.trackQueryTerminalStatus(
                     QueryHistoryStatus.ERROR,
-                    warehouseCredentialsType,
-                    queryTags.query_context,
+                    queryCreatedAt,
                 );
 
                 // Re-throw when using an override client (e.g. DuckDB pre-agg)
@@ -2361,6 +2353,18 @@ export class AsyncQueryService extends ProjectService {
         return query;
     }
 
+    private trackQueryTerminalStatus(
+        status: QueryHistoryStatus,
+        queryCreatedAt?: Date | null,
+    ) {
+        this.prometheusMetrics?.incrementQueryStatus(status);
+        if (queryCreatedAt) {
+            this.prometheusMetrics?.observeQueryTotalDuration(
+                Date.now() - queryCreatedAt.getTime(),
+            );
+        }
+    }
+
     private async expireQueuedQuery(
         queryHistory: QueryHistory,
         timeInQueueMs: number,
@@ -2372,10 +2376,9 @@ export class AsyncQueryService extends ProjectService {
         );
 
         this.prometheusMetrics?.decQueryInFlight('queued');
-        this.prometheusMetrics?.incrementQueryStatus(
+        this.trackQueryTerminalStatus(
             QueryHistoryStatus.EXPIRED,
-            'unknown',
-            queryHistory.context,
+            queryHistory.createdAt,
         );
 
         Sentry.withScope((scope) => {
@@ -2929,13 +2932,9 @@ export class AsyncQueryService extends ProjectService {
 
                         // Track successful query in Prometheus
                         this.prometheusMetrics?.decQueryInFlight('pending');
-                        this.prometheusMetrics?.incrementQueryStatus(
+                        this.trackQueryTerminalStatus(
                             QueryHistoryStatus.READY,
-                            warehouseCredentialsType,
-                            queryTags.query_context,
-                        );
-                        this.prometheusMetrics?.observeQueryTotalDuration(
-                            Date.now() - queryCreatedAt.getTime(),
+                            queryCreatedAt,
                         );
 
                         return {
@@ -3109,10 +3108,9 @@ export class AsyncQueryService extends ProjectService {
                             );
 
                             this.prometheusMetrics?.decQueryInFlight('pending');
-                            this.prometheusMetrics?.incrementQueryStatus(
+                            this.trackQueryTerminalStatus(
                                 QueryHistoryStatus.ERROR,
-                                warehouseCredentialsType,
-                                queryTags.query_context,
+                                queryCreatedAt,
                             );
 
                             return {
