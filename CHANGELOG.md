@@ -1,3 +1,11 @@
+## [0.2623.1](https://github.com/lightdash/lightdash/compare/0.2623.0...0.2623.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* add ORDER BY fallback for offset functions to prevent Snowflake errors ([#21165](https://github.com/lightdash/lightdash/issues/21165)) ([da05f26](https://github.com/lightdash/lightdash/commit/da05f2681375971f3c2c9f439897a08b17516c58))
+* introduce slug redirect so chart/dashboard lookup by slug is deduplicated ([#21127](https://github.com/lightdash/lightdash/issues/21127)) ([75192bf](https://github.com/lightdash/lightdash/commit/75192bfa8d435bd854115c9a795f68fd3a89e875))
+
 # [0.2623.0](https://github.com/lightdash/lightdash/compare/0.2622.1...0.2623.0) (2026-03-16)
 
 
