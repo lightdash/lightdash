@@ -63,6 +63,8 @@ import {
     METRIC_QUERY_NESTED_AGG_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_PRODUCT,
     METRIC_QUERY_NESTED_AGG_RAW_COL,
+    METRIC_QUERY_NESTED_AGG_TRANSITIVE,
+    METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED,
     METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF,
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SQL,
@@ -4747,5 +4749,52 @@ describe('Nested aggregate metrics', () => {
         expect(result.query).toContain(
             'PARTITION BY nested_agg."my_table_category"',
         );
+    });
+
+    test('should handle transitive nested aggregates (type:number → type:number with agg → type:max)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_TRANSITIVE,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use nested CTE to break apart the transitive nesting
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+
+        // CTE 1 should pre-compute the inner aggregate metric (max_value)
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+
+        // Final SQL should NOT contain nested aggregates like SUM(CASE WHEN MAX(...))
+        expect(result.query).not.toContain('SUM(CASE WHEN MAX(');
+    });
+
+    test('should handle transitive nested aggregates mixed with other nested metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use nested CTE
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+
+        // CTE 1 should pre-compute leaf aggregates only
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+
+        // No nested aggregation in the query (no SUM wrapping MAX)
+        expect(result.query).not.toContain('SUM(CASE WHEN MAX(');
+
+        // ratio_of_sum_case should reference CTE columns, not base table
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
     });
 });
