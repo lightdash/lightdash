@@ -1,3 +1,10 @@
+## [0.2620.1](https://github.com/lightdash/lightdash/compare/0.2620.0...0.2620.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* optimize SavedChartModel query to filter by project scope ([#21145](https://github.com/lightdash/lightdash/issues/21145)) ([81627ec](https://github.com/lightdash/lightdash/commit/81627ec01142341c76dc938a37432b7ec3b08a00))
+
 # [0.2620.0](https://github.com/lightdash/lightdash/compare/0.2619.1...0.2620.0) (2026-03-16)
 
 
