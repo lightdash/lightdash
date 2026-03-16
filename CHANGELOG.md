@@ -1,3 +1,12 @@
+# [0.2621.0](https://github.com/lightdash/lightdash/compare/0.2620.1...0.2621.0) (2026-03-16)
+
+
+### Features
+
+* add CID inline image embedding for email notifications ([#21149](https://github.com/lightdash/lightdash/issues/21149)) ([4a0580c](https://github.com/lightdash/lightdash/commit/4a0580c2f27006169c0b82f4b6082c4be5ac57ce)), closes [#13363](https://github.com/lightdash/lightdash/issues/13363)
+* add query timezone settings endpoint for projects ([#21118](https://github.com/lightdash/lightdash/issues/21118)) ([1df1959](https://github.com/lightdash/lightdash/commit/1df1959d5b83da26a867fda95aed45d35e6ad714))
+* add run_sql tool to MCP server ([#21151](https://github.com/lightdash/lightdash/issues/21151)) ([5a5dd9e](https://github.com/lightdash/lightdash/commit/5a5dd9e863c88c33654a65b087a4ed20b27982db))
+
 ## [0.2620.1](https://github.com/lightdash/lightdash/compare/0.2620.0...0.2620.1) (2026-03-16)
 
 
