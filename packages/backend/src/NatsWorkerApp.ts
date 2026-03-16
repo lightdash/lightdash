@@ -1,6 +1,5 @@
 import { createTerminus } from '@godaddy/terminus';
 import * as Sentry from '@sentry/node';
-import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
@@ -15,6 +14,7 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
 import { NatsWorker } from './nats/NatsWorker';
+import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
@@ -79,6 +79,8 @@ export default class NatsWorkerApp {
 
     private readonly natsWorkerFactory: typeof natsWorkerFactory;
 
+    private readonly prometheusMetrics: PrometheusMetrics;
+
     constructor(args: NatsWorkerAppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
@@ -93,7 +95,6 @@ export default class NatsWorkerApp {
                     !!this.lightdashConfig.rudder.writeKey &&
                     !!this.lightdashConfig.rudder.dataPlaneUrl,
             },
-            eventEmitter: new EventEmitter(),
         });
 
         this.database = knex(
@@ -122,6 +123,9 @@ export default class NatsWorkerApp {
             }),
             models,
         });
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
 
         this.clients = clients;
         this.modelRepository = models;
@@ -135,12 +139,15 @@ export default class NatsWorkerApp {
             clients,
             models,
             utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
         this.streams = args.streams;
         this.natsWorkerFactory = args.natsWorkerFactory || natsWorkerFactory;
     }
 
     public async start() {
+        this.prometheusMetrics.start();
+        this.prometheusMetrics.monitorDatabase(this.database);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
         BigInt.prototype.toJSON = function () {
@@ -210,6 +217,8 @@ export default class NatsWorkerApp {
                 Logger.info('Shutting down NATS worker gracefully');
             },
             onSignal: async () => {
+                Logger.info('Stopping Prometheus metrics');
+                this.prometheusMetrics.stop();
                 Logger.info('Stopping NATS worker');
                 await worker.stop();
                 await natsClient.drain();
