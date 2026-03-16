@@ -1415,6 +1415,7 @@ export class CatalogService<
             },
             tablesConfiguration:
                 await this.projectModel.getTablesConfiguration(projectUuid),
+            hasTimeDimension: true,
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1433,6 +1434,77 @@ export class CatalogService<
         });
 
         return getAvailableCompareMetrics(allMetrics);
+    }
+
+    async getPaginatedMetricsWithTimeDimensions(
+        user: SessionUser,
+        projectUuid: string,
+        context: CatalogSearchContext,
+        paginateArgs: KnexPaginateArgs,
+        sortArgs?: ApiSort,
+        tableName?: string,
+        categoryNames?: string[],
+        tags?: string[],
+    ): Promise<KnexPaginatedData<CatalogField[]>> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const catalogTags =
+            categoryNames && categoryNames.length > 0
+                ? await this.tagsModel.getUuidsByYamlReferences(
+                      projectUuid,
+                      categoryNames,
+                  )
+                : undefined;
+
+        // Categories were requested but none matched — no results possible
+        if (catalogTags && catalogTags.length === 0) {
+            return {
+                data: [],
+                pagination: {
+                    page: paginateArgs.page,
+                    pageSize: paginateArgs.pageSize,
+                    totalResults: 0,
+                    totalPageCount: 0,
+                },
+            };
+        }
+
+        const results = await this.catalogModel.search({
+            projectUuid,
+            userAttributes,
+            ...(tableName ? { exploreName: tableName } : {}),
+            context,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Metrics,
+                catalogTags,
+            },
+            tablesConfiguration:
+                await this.projectModel.getTablesConfiguration(projectUuid),
+            hasTimeDimension: true,
+            tags,
+            paginateArgs,
+            sortArgs,
+        });
+
+        // Safe cast: search is called with type: CatalogType.Field + filter: CatalogFilter.Metrics,
+        // so the DB only returns CatalogField items.
+        return results as KnexPaginatedData<CatalogField[]>;
     }
 
     async getFilterDimensions(
