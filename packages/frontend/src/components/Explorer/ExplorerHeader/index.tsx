@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, isTimeZone } from '@lightdash/common';
+import { FeatureFlags, getTimezoneLabel, isTimeZone } from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine-8/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
@@ -17,6 +17,7 @@ import {
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
+import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -131,6 +132,16 @@ const ExplorerHeader: FC = memo(() => {
         FeatureFlags.EnableUserTimezones,
     );
 
+    const { data: project } = useProject(projectUuid);
+    const timezonePlaceholder = useMemo(() => {
+        const tz = project?.queryTimezone;
+        if (tz) {
+            const label = getTimezoneLabel(tz);
+            return label ? `Project: ${label}` : `Project: ${tz}`;
+        }
+        return 'Select timezone';
+    }, [project?.queryTimezone]);
+
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
 
     return (
@@ -184,6 +195,7 @@ const ExplorerHeader: FC = memo(() => {
                     <TimeZonePicker
                         onChange={handleSetTimeZone}
                         value={selectedTimezone as string}
+                        placeholder={timezonePlaceholder}
                     />
                 )}
 
