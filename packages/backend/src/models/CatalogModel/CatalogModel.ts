@@ -14,6 +14,7 @@ import {
     convertToAiHints,
     Explore,
     FieldType,
+    getAvailableTimeDimensionsFromTables,
     isExploreError,
     NotFoundError,
     TableSelectionType,
@@ -418,6 +419,12 @@ export class CatalogModel {
                                         return null;
                                     }
 
+                                    // Check if this metric has time dimensions available
+                                    const hasTimeDimension =
+                                        getAvailableTimeDimensionsFromTables(
+                                            cachedExploreTable.tables,
+                                        ).length > 0;
+
                                     const [result] = await trx(CatalogTableName)
                                         .insert({
                                             name: metricData.name,
@@ -438,6 +445,8 @@ export class CatalogModel {
                                             spotlight_show: true,
                                             joined_tables: [],
                                             owner_user_uuid: null,
+                                            has_time_dimension:
+                                                hasTimeDimension,
                                         })
                                         .returning('*');
 
@@ -763,6 +772,7 @@ export class CatalogModel {
         fullTextSearchOperator = 'AND',
         filteredExplores,
         changeset,
+        hasTimeDimension,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -776,6 +786,7 @@ export class CatalogModel {
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplores?: Explore[];
         changeset?: ChangesetWithChanges;
+        hasTimeDimension?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         // Use websearch_to_tsquery for AI Agent queries for better natural language support
         const useWebSearch =
@@ -991,6 +1002,13 @@ export class CatalogModel {
                     FieldType.METRIC,
                 );
             }
+        }
+
+        if (hasTimeDimension !== undefined) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.has_time_dimension`,
+                hasTimeDimension,
+            );
         }
 
         if (catalogTags) {

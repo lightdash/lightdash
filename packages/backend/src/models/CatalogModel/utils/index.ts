@@ -5,6 +5,8 @@ import {
     Explore,
     FieldType,
     friendlyName,
+    getAvailableTimeDimensionsFromTables,
+    getDefaultTimeDimension,
     getItemId,
     isExploreError,
     isMetric,
@@ -13,6 +15,7 @@ import {
     type ChartFieldChanges,
     type ChartFieldUpdates,
     type ChartFieldUsageChanges,
+    type CompiledMetric,
     type ExploreError,
     type Metric,
 } from '@lightdash/common';
@@ -100,6 +103,10 @@ export const convertExploresToCatalog = (
             const baseTable = explore?.tables?.[explore.baseTable];
             const isAdditionalExplore = explore.name !== explore.baseTable;
 
+            // Pre-compute whether this explore has any available time dimensions
+            const exploreHasTimeDimensions =
+                getAvailableTimeDimensionsFromTables(explore.tables).length > 0;
+
             const table: CatalogInsertWithYamlTags = {
                 project_uuid: projectUuid,
                 cached_explore_uuid: explore.cachedExploreUuid,
@@ -119,6 +126,7 @@ export const convertExploresToCatalog = (
                 ai_hints: convertToAiHints(explore.aiHint) ?? null,
                 joined_tables: explore.joinedTables.map((t) => t.table),
                 ownerEmail: null, // Tables don't have owners (only metrics)
+                has_time_dimension: false, // Tables don't need this flag
             };
 
             let dimensionsAndMetrics = [
@@ -186,6 +194,15 @@ export const convertExploresToCatalog = (
                     const owner =
                         metricOwner ?? explore.spotlight?.owner ?? null;
 
+                    // For metrics, check if they have usable time dimensions
+                    const hasTimeDimension =
+                        fieldIsMetric &&
+                        (getDefaultTimeDimension(
+                            field as CompiledMetric,
+                            baseTable,
+                        ) !== undefined ||
+                            exploreHasTimeDimensions);
+
                     return {
                         project_uuid: projectUuid,
                         cached_explore_uuid: explore.cachedExploreUuid,
@@ -215,6 +232,7 @@ export const convertExploresToCatalog = (
                         ai_hints: convertToAiHints(field.aiHint) ?? null,
                         joined_tables: null,
                         ownerEmail: owner,
+                        has_time_dimension: hasTimeDimension,
                     };
                 },
             );
