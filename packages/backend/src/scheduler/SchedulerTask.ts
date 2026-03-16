@@ -2342,15 +2342,21 @@ export default class SchedulerTask {
                 imageS3Key &&
                 this.fileStorageClient.isEnabled()
             ) {
-                const stream =
-                    await this.fileStorageClient.getFileStream(imageS3Key);
-                const chunks: Buffer[] = [];
-                for await (const chunk of stream) {
-                    chunks.push(
-                        Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                try {
+                    const stream =
+                        await this.fileStorageClient.getFileStream(imageS3Key);
+                    const chunks: Buffer[] = [];
+                    for await (const chunk of stream) {
+                        chunks.push(
+                            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                        );
+                    }
+                    imageBuffer = Buffer.concat(chunks);
+                } catch (e) {
+                    Logger.warn(
+                        `Failed to stream CID inline image from S3 (key: ${imageS3Key}), falling back to external image URL: ${e}`,
                     );
                 }
-                imageBuffer = Buffer.concat(chunks);
             }
 
             const schedulerUrl = `${url}?${setUuidParam(
