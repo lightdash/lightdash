@@ -75,12 +75,17 @@ const updateSavedQuery = async (
     });
 };
 
-const getSavedQuery = async (id: string): Promise<SavedChart> =>
-    lightdashApi<SavedChart>({
-        url: `/saved/${id}`,
+const getSavedQuery = async (
+    id: string,
+    projectUuid?: string,
+): Promise<SavedChart> => {
+    const query = projectUuid ? `?projectUuid=${projectUuid}` : '';
+    return lightdashApi<SavedChart>({
+        url: `/saved/${id}${query}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 const addVersionSavedQuery = async ({
     uuid,
@@ -105,15 +110,20 @@ const addVersionSavedQuery = async ({
 };
 
 interface Args {
-    id?: string;
+    uuidOrSlug?: string;
+    projectUuid?: string;
     useQueryOptions?: UseQueryOptions<SavedChart, ApiError>;
 }
 
-export const useSavedQuery = ({ id, useQueryOptions }: Args = {}) =>
+export const useSavedQuery = ({
+    uuidOrSlug,
+    projectUuid,
+    useQueryOptions,
+}: Args = {}) =>
     useQuery<SavedChart, ApiError>({
-        queryKey: ['saved_query', id],
-        queryFn: () => getSavedQuery(id || ''),
-        enabled: id !== undefined,
+        queryKey: ['saved_query', uuidOrSlug, projectUuid],
+        queryFn: () => getSavedQuery(uuidOrSlug || '', projectUuid),
+        enabled: uuidOrSlug !== undefined,
         retry: false,
         ...useQueryOptions,
     });

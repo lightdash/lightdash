@@ -29,7 +29,9 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
-    const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
+    const { data: dashboard, isInitialLoading } = useDashboardQuery({
+        uuidOrSlug: uuid,
+    });
     const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
 
     const form = useForm<FormState>({

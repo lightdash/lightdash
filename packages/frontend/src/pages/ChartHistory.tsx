@@ -36,6 +36,7 @@ import {
     useChartVersionRollbackMutation,
     useSavedQuery,
 } from '../hooks/useSavedQuery';
+import { useSlugRedirect } from '../hooks/useSlugRedirect';
 import { Can } from '../providers/Ability';
 import { ExplorerSection } from '../providers/Explorer/types';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
@@ -105,9 +106,12 @@ const ChartHistory = () => {
     const [selectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
     const chartQuery = useSavedQuery({
-        id: savedQueryUuid,
+        uuidOrSlug: savedQueryUuid,
+        projectUuid,
     });
     const historyQuery = useChartHistory(savedQueryUuid);
+
+    useSlugRedirect(savedQueryUuid, chartQuery.data?.uuid);
 
     useEffect(() => {
         const currentVersion = historyQuery.data?.history[0];

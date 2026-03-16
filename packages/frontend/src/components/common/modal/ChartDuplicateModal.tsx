@@ -31,7 +31,9 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
         useDuplicateChartMutation({
             showRedirectButton: true,
         });
-    const { data: savedQuery, isInitialLoading } = useSavedQuery({ id: uuid });
+    const { data: savedQuery, isInitialLoading } = useSavedQuery({
+        uuidOrSlug: uuid,
+    });
 
     const form = useForm<FormState>();
 

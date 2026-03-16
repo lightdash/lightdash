@@ -25,7 +25,9 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
 
-    const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
+    const { data: chart, isInitialLoading } = useSavedQuery({
+        uuidOrSlug: uuid,
+    });
     const {
         data: relatedDashboards,
         isInitialLoading: isLoadingRelatedDashboards,
