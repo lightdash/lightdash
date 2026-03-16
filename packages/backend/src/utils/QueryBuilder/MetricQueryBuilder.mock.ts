@@ -2684,6 +2684,39 @@ export const EXPLORE_WITH_NESTED_AGG: Explore = {
                     tablesReferences: ['my_table'],
                     hidden: false,
                 },
+                // Transitive nested aggregate: type:number referencing another type:number
+                // which itself wraps an aggregate metric.
+                // sum_case_of_max.sql = SUM(CASE WHEN ${max_value} > 100 THEN 1 ELSE 0 END)
+                //   → compiles to SUM(CASE WHEN MAX("my_table".value) > 100 THEN 1 ELSE 0 END)
+                // Then ratio_of_sum_case.sql = ${sum_case_of_max} / NULLIF(${count_records}, 0)
+                //   → compiles to SUM(CASE WHEN MAX(...) > 100 ...) / NULLIF(COUNT(...), 0)
+                // The nesting is two levels deep: ratio → sum_case → max
+                sum_case_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'sum_case_of_max',
+                    label: 'sum_case_of_max',
+                    sql: 'SUM(CASE WHEN ${max_value} > 100 THEN 1 ELSE 0 END)',
+                    compiledSql:
+                        'SUM(CASE WHEN MAX("my_table".value) > 100 THEN 1 ELSE 0 END)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                ratio_of_sum_case: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'ratio_of_sum_case',
+                    label: 'ratio_of_sum_case',
+                    sql: '${sum_case_of_max} / NULLIF(${count_records}, 0)',
+                    compiledSql:
+                        'SUM(CASE WHEN MAX("my_table".value) > 100 THEN 1 ELSE 0 END) / NULLIF(COUNT("my_table".id), 0)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
                 // Product of aggregates - NO outer aggregation, valid SQL without CTE
                 product_of_aggregates: {
                     type: MetricType.NUMBER,
@@ -2820,6 +2853,39 @@ export const METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF: CompiledMetricQuery = {
     metrics: ['my_table_window_sum_of_max'],
     filters: {},
     sorts: [{ fieldId: 'my_table_window_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Transitive nested aggregate: type:number → type:number (with agg) → type:max
+// The outer metric (ratio_of_sum_case) has no SQL aggregation itself,
+// but its compiledSql contains SUM(CASE WHEN MAX(...)) via transitive inlining.
+// Only ratio_of_sum_case is selected — sum_case_of_max is NOT directly selected.
+export const METRIC_QUERY_NESTED_AGG_TRANSITIVE: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_ratio_of_sum_case'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_ratio_of_sum_case', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Transitive nested aggregate mixed with other nested metrics.
+// Reproduces bug where ratio_of_sum_case fails when combined with
+// other nested metrics like conditional_sum_of_max.
+export const METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: [],
+    metrics: ['my_table_ratio_of_sum_case', 'my_table_conditional_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_ratio_of_sum_case', descending: true }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],

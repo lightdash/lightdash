@@ -389,6 +389,22 @@ models:
               type: number
               description: "Window sum of max event IDs partitioned by event type"
               sql: SUM(${max_event_id}) OVER (PARTITION BY ${TABLE}.event)
+            # --- Transitive nested aggregate test metrics ---
+            # Reproduces customer bug: type:number → type:number (with agg) → type:max
+            # count_if_of_max wraps max_event_id in COUNT_IF, then
+            # ratio_of_count_if references count_if_of_max without any outer aggregation.
+            # The compiled SQL ends up as COUNT_IF(MAX(...)) / NULLIF(COUNT(...), 0)
+            # which is invalid (nested aggregates) but the detection misses it because
+            # ratio_of_count_if's raw SQL has no aggregation — only transitive inlining
+            # introduces the nesting.
+            sum_case_of_max:
+              type: number
+              description: "Count of groups where max event ID is above threshold"
+              sql: SUM(CASE WHEN ${max_event_id} > 100 THEN 1 ELSE 0 END)
+            ratio_of_sum_case:
+              type: number
+              description: "Ratio of sum_case_of_max to total count - transitive nested aggregate"
+              sql: ${sum_case_of_max} / NULLIF(${count}, 0)
             raw_agg_with_metric_ref:
               type: number
               description: "Raw column aggregation divided by aggregate metric ref"
