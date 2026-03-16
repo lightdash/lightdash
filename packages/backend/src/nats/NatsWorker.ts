@@ -1,6 +1,6 @@
 import { getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { StringCodec, type ConsumerMessages, type JsMsg } from 'nats';
+import { StringCodec, type Consumer, type JsMsg } from 'nats';
 import { z } from 'zod';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
@@ -38,7 +38,7 @@ type NatsWorkerArgs = {
     workerConcurrency: number;
 };
 
-const CONSUME_MAX_MESSAGES = 1;
+const FETCH_EXPIRES_MS = 30 * 1000;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
 
 export class NatsWorker {
@@ -49,8 +49,6 @@ export class NatsWorker {
     private readonly codec = StringCodec();
 
     private readonly activeConfigs: StreamConfig[];
-
-    private messageStreams: ConsumerMessages[] = [];
 
     private consumePromise: Promise<void> | undefined;
 
@@ -73,7 +71,7 @@ export class NatsWorker {
     public async run(): Promise<void> {
         // Streams and consumers are ensured during NatsWorkerApp startup.
         const jetStream = this.natsClient.jetstream();
-        this.messageStreams = [];
+        this.isRunning = true;
 
         const workerLoops = (
             await Promise.all(
@@ -95,8 +93,6 @@ export class NatsWorker {
             )
         ).flat();
 
-        this.isRunning = true;
-
         const streamNames = this.activeConfigs.map((c) => c.streamName);
         Logger.info(
             `NATS worker started. streams=${streamNames.join(',')}, concurrency=${this.workerConcurrency}`,
@@ -111,7 +107,6 @@ export class NatsWorker {
 
     public async stop(): Promise<void> {
         this.isRunning = false;
-        this.messageStreams.forEach((messages) => messages.stop());
         await this.consumePromise;
     }
 
@@ -273,40 +268,35 @@ export class NatsWorker {
         }
     }
 
-    private async consumeLoop(
-        messages: ConsumerMessages,
-        workerId: string,
-    ): Promise<void> {
-        for await (const message of messages) {
-            await this.handleMessage(message, workerId);
-        }
-        Logger.info(`Async query worker ${workerId} stopped`);
-    }
-
     private async spawnWorkerLoop(
-        consumer: {
-            consume: (opts: {
-                max_messages: number;
-            }) => Promise<ConsumerMessages>;
-        },
+        consumer: Consumer,
         workerId: string,
     ): Promise<void> {
         Logger.info(
             `Async query worker ${workerId} spawned (concurrency=${this.workerConcurrency})`,
         );
 
-        const messages = await consumer.consume({
-            max_messages: CONSUME_MAX_MESSAGES,
-        });
-        this.messageStreams.push(messages);
+        while (this.isRunning) {
+            try {
+                // eslint-disable-next-line no-await-in-loop -- intentionally sequential: fetch one message, process it, repeat
+                const messages = await consumer.fetch({
+                    max_messages: 1,
+                    expires: FETCH_EXPIRES_MS,
+                });
+                // eslint-disable-next-line no-await-in-loop
+                for await (const message of messages) {
+                    await this.handleMessage(message, workerId); // eslint-disable-line no-await-in-loop
+                }
+            } catch (error) {
+                if (!this.isRunning) break;
+                Logger.error(
+                    `Async query worker ${workerId} fetch error`,
+                    error,
+                );
+            }
+        }
 
-        await this.consumeLoop(messages, workerId).catch((error) => {
-            Logger.error(
-                `Async query worker ${workerId} stopped unexpectedly`,
-                error,
-            );
-            throw error;
-        });
+        Logger.info(`Async query worker ${workerId} stopped`);
     }
 
     private parseMessage(message: JsMsg): ParsedMessage | null {
