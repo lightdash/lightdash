@@ -957,11 +957,15 @@ describe('tableCalculationFunctions', () => {
                     expect(compiled).toBe('revenue');
                 });
 
-                it('should compile offset without sorts', () => {
+                it('should compile offset without sorts, falling back to column as ORDER BY', () => {
                     const sql = 'offset(revenue, -1)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
-                    expect(compiled).toBe('LAG(revenue, 1) OVER ()');
+                    // When no sorts are defined, offset() falls back to ORDER BY the column itself
+                    // This prevents Snowflake errors: "LEAD/LAG requires ORDER BY in window specification"
+                    expect(compiled).toBe(
+                        'LAG(revenue, 1) OVER (ORDER BY revenue)',
+                    );
                 });
 
                 it('should compile offset in complex expression', () => {
