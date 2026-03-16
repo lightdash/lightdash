@@ -1,4 +1,4 @@
-import { AnyType, SEED_PROJECT } from '@lightdash/common';
+import { AnyType, SEED_PROJECT, type Space } from '@lightdash/common';
 import type { Body } from '../helpers/api-client';
 import { login, loginAsEditor, loginAsViewer } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
@@ -7,6 +7,7 @@ import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 type ContentResults = { data: AnyType[] };
 
 const apiUrl = '/api/v2';
+const apiV1Url = '/api/v1';
 
 describe('Lightdash catalog all tables and fields', () => {
     let admin: Awaited<ReturnType<typeof login>>;
@@ -277,5 +278,57 @@ describe('Permission tests', () => {
                 .map((d: AnyType) => d.name)
                 .includes('Child Space 1.3'),
         ).toBe(true);
+    });
+
+    it('Non-inheriting private child space should be hidden from users without direct access in content listing', async () => {
+        const admin = await login();
+        const editor = await loginAsEditor();
+        const timestamp = Date.now();
+
+        // Create a public parent space (inherits from org, everyone can see it)
+        const parentResp = await admin.post<Body<Space>>(
+            `${apiV1Url}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            { name: `Parent ${timestamp}`, isPrivate: false },
+        );
+        const parentUuid = parentResp.body.results.uuid;
+
+        try {
+            // Create a private non-inheriting child (only admin has access)
+            const childResp = await admin.post<Body<Space>>(
+                `${apiV1Url}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                {
+                    name: `Private Child ${timestamp}`,
+                    parentSpaceUuid: parentUuid,
+                    inheritParentPermissions: false,
+                },
+            );
+            const childUuid = childResp.body.results.uuid;
+
+            // Admin should see the child when listing parent contents
+            const adminRes = await admin.get<Body<ContentResults>>(
+                `${apiUrl}/content?spaceUuids=${parentUuid}&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999`,
+            );
+            expect(adminRes.status).toBe(200);
+            expect(
+                adminRes.body.results.data.some(
+                    (d: AnyType) => d.uuid === childUuid,
+                ),
+            ).toBe(true);
+
+            // Editor should NOT see the private non-inheriting child
+            const editorRes = await editor.get<Body<ContentResults>>(
+                `${apiUrl}/content?spaceUuids=${parentUuid}&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999`,
+            );
+            expect(editorRes.status).toBe(200);
+            expect(
+                editorRes.body.results.data.some(
+                    (d: AnyType) => d.uuid === childUuid,
+                ),
+            ).toBe(false);
+        } finally {
+            await admin.delete(
+                `${apiV1Url}/projects/${SEED_PROJECT.project_uuid}/spaces/${parentUuid}`,
+            );
+        }
     });
 });

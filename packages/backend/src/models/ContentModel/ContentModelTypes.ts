@@ -25,6 +25,12 @@ export type ContentFilters = {
     search?: string;
     space?: {
         rootSpaces: boolean;
+        /**
+         * For nested views: child space UUIDs the user can access.
+         * Filters `WHERE space_uuid IN (...)` so inaccessible
+         * children are excluded before pagination.
+         */
+        accessibleChildSpaceUuids?: string[];
     };
     deleted?: boolean;
     deletedByUserUuids?: string[];

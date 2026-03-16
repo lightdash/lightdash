@@ -89,6 +89,17 @@ export class SpaceModel {
         return spaces.map((s: { space_uuid: string }) => s.space_uuid);
     }
 
+    async getChildSpaceUuidsForParents(
+        parentSpaceUuids: string[],
+    ): Promise<string[]> {
+        if (parentSpaceUuids.length === 0) return [];
+        const rows = await this.database(SpaceTableName)
+            .whereIn(`${SpaceTableName}.parent_space_uuid`, parentSpaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(`${SpaceTableName}.space_uuid`);
+        return rows.map((r: { space_uuid: string }) => r.space_uuid);
+    }
+
     async find(
         filters: {
             projectUuid?: string;
