@@ -1,3 +1,17 @@
+# [0.2625.0](https://github.com/lightdash/lightdash/compare/0.2624.0...0.2625.0) (2026-03-16)
+
+
+### Bug Fixes
+
+* fetch nats messages dont consume ([#21148](https://github.com/lightdash/lightdash/issues/21148)) ([3e878ea](https://github.com/lightdash/lightdash/commit/3e878ea4144039a0780bde814c26358361770411))
+* fetch projects when default project is not found ([#21169](https://github.com/lightdash/lightdash/issues/21169)) ([43237ac](https://github.com/lightdash/lightdash/commit/43237ac23988cbcee56fba43ea252808c46016a9))
+
+
+### Features
+
+* add Prometheus monitoring for query history metrics ([#21158](https://github.com/lightdash/lightdash/issues/21158)) ([6bdd306](https://github.com/lightdash/lightdash/commit/6bdd306d3b30f183cab36a65ce7380f10dacd0ba))
+* add V2 project-scoped chart endpoints (GET/DELETE) ([#21136](https://github.com/lightdash/lightdash/issues/21136)) ([5b157f0](https://github.com/lightdash/lightdash/commit/5b157f07b3c507811663f0c73ecdad27e29987b0))
+
 # [0.2624.0](https://github.com/lightdash/lightdash/compare/0.2623.1...0.2624.0) (2026-03-16)
 
 
