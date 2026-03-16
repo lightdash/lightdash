@@ -1,3 +1,10 @@
+# [0.2626.0](https://github.com/lightdash/lightdash/compare/0.2625.1...0.2626.0) (2026-03-16)
+
+
+### Features
+
+* add V2 project-scoped comments endpoint ([#21137](https://github.com/lightdash/lightdash/issues/21137)) ([e19c42b](https://github.com/lightdash/lightdash/commit/e19c42b7698293983905f4191d6719374549f69f))
+
 ## [0.2625.1](https://github.com/lightdash/lightdash/compare/0.2625.0...0.2625.1) (2026-03-16)
 
 
