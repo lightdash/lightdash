@@ -15,6 +15,7 @@ import {
 import { ApiClient } from '../helpers/api-client';
 import { login, loginWithEmail, loginWithPermissions } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
+import { TestResourceTracker } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
@@ -695,9 +696,14 @@ describe('Lightdash catalog search', () => {
 
 describe('Lightdash analytics', () => {
     let admin: ApiClient;
+    const tracker = new TestResourceTracker();
 
     beforeAll(async () => {
         admin = await login();
+    });
+
+    afterAll(async () => {
+        await tracker.cleanup(admin);
     });
 
     it('Should get analytics for customers table', async () => {
@@ -755,6 +761,7 @@ describe('Lightdash analytics', () => {
             tiles: [],
             tabs: [],
         });
+        tracker.trackDashboard(newDashboard.uuid);
 
         // update dashboard with chart
         const { dashboard: updatedDashboard } =
