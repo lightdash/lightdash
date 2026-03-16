@@ -66,6 +66,7 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
+    getAllDimensionsMap,
     getAvailableParametersFromTables,
     getDashboardFilterRulesForTables,
     getDimensions,
@@ -130,6 +131,7 @@ import {
     replaceDimensionInExplore,
     RequestMethod,
     resolveBaseDimension,
+    resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -2837,24 +2839,27 @@ export class ProjectService extends BaseService {
         dateZoom?: DateZoom,
     ): { explore: Explore; dateZoomApplied: boolean } {
         if (dateZoom?.granularity) {
+            const allDimensionsMap = getAllDimensionsMap(explore);
             const timeDimensionsMap = getTimeDimensionsMap(explore);
 
             let timeOrDateDimension = dateZoom?.xAxisFieldId;
 
             if (!timeOrDateDimension) {
-                const firstTimeDimensionIdInMetricQuery =
-                    metricQuery.dimensions.find(
-                        (dimension) => !!timeDimensionsMap[dimension],
-                    );
-
-                timeOrDateDimension = firstTimeDimensionIdInMetricQuery;
+                timeOrDateDimension = metricQuery.dimensions.find(
+                    (dimension) =>
+                        !!resolveToBaseTimeDimension(
+                            dimension,
+                            allDimensionsMap,
+                            timeDimensionsMap,
+                        ),
+                );
             }
 
             if (timeOrDateDimension) {
-                const dimToOverride = timeDimensionsMap[timeOrDateDimension];
-                const baseTimeDimension = resolveBaseDimension(
+                const dimToOverride = allDimensionsMap[timeOrDateDimension];
+                const baseTimeDimension = resolveToBaseTimeDimension(
                     timeOrDateDimension,
-                    dimToOverride,
+                    allDimensionsMap,
                     timeDimensionsMap,
                 );
 
