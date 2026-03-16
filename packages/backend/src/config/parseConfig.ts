@@ -1308,6 +1308,7 @@ export type SmtpConfig = {
         name: string;
         email: string;
     };
+    inlineImageCid: boolean;
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
@@ -1447,6 +1448,8 @@ export const parseConfig = (): LightdashConfig => {
                       name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
                       email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
                   },
+                  inlineImageCid:
+                      process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
               }
             : undefined,
         posthog: process.env.POSTHOG_PROJECT_API_KEY

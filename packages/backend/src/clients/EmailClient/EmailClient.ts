@@ -557,7 +557,37 @@ export default class EmailClient {
         pdfFile?: string,
         expirationDays?: number,
         deliveryType: string = 'Scheduled delivery',
+        imageLocalPath?: string,
     ) {
+        const useCidImage =
+            this.lightdashConfig.smtp?.inlineImageCid === true &&
+            imageLocalPath !== undefined;
+
+        const attachments: Array<{
+            filename: string;
+            path: string;
+            contentType?: string;
+            cid?: string;
+            contentDisposition?: 'inline' | 'attachment';
+        }> = [];
+
+        if (useCidImage) {
+            attachments.push({
+                filename: 'chart-image.png',
+                path: imageLocalPath,
+                cid: 'chart-image',
+                contentDisposition: 'inline',
+            });
+        }
+
+        if (pdfFile) {
+            attachments.push({
+                filename: `${title}.pdf`,
+                path: pdfFile,
+                contentType: 'application/pdf',
+            });
+        }
+
         return this.sendEmail({
             to: recipient,
             subject,
@@ -566,7 +596,7 @@ export default class EmailClient {
                 title,
                 hasMessage: !!message,
                 message: message && marked(message),
-                imageUrl,
+                imageUrl: useCidImage ? 'cid:chart-image' : imageUrl,
                 description,
                 date,
                 frequency,
@@ -582,15 +612,7 @@ export default class EmailClient {
                 includeLinks,
             },
             text: title,
-            attachments: pdfFile
-                ? [
-                      {
-                          filename: `${title}.pdf`,
-                          path: pdfFile,
-                          contentType: 'application/pdf',
-                      },
-                  ]
-                : undefined,
+            attachments: attachments.length > 0 ? attachments : undefined,
         });
     }
 

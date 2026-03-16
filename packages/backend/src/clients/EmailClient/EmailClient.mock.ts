@@ -43,6 +43,7 @@ const smtpBase: SmtpConfig = {
         email: 'email',
     },
     allowInvalidCertificate: false,
+    inlineImageCid: false,
 };
 
 export const lightdashConfigWithBasicSMTP: Pick<
