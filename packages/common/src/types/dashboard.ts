@@ -366,6 +366,11 @@ export type ApiDashboardSchedulersResponse = {
     results: SchedulerAndTargets[];
 };
 
+export type ApiDashboardResponse = {
+    status: 'ok';
+    results: Dashboard;
+};
+
 export type ApiDashboardPaginatedSchedulersResponse = {
     status: 'ok';
     results: KnexPaginatedData<SchedulerAndTargets[]>;
