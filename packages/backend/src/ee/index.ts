@@ -365,6 +365,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),
                     projectService: repository.getProjectService(),
+                    savedSqlService: repository.getSavedSqlService(),
+                    schedulerService: repository.getSchedulerService(),
                     shareService: repository.getShareService(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
