@@ -78,8 +78,10 @@ export const useGetComments = (
 ) =>
     useQuery<ApiGetComments['results'], ApiError>(
         ['comments', dashboardUuid, projectUuid],
-        () =>
-            getDashboardComments({ dashboardUuid, projectUuid: projectUuid! }),
+        async () => {
+            if (!projectUuid) throw new Error('projectUuid is required');
+            return getDashboardComments({ dashboardUuid, projectUuid });
+        },
         {
             refetchInterval: 3 * 60 * 1000, // 3 minutes
             retry: (_, error) => error.error.statusCode !== 403,

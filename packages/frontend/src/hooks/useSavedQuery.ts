@@ -122,7 +122,10 @@ export const useSavedQuery = ({
 }: Args) =>
     useQuery<SavedChart, ApiError>({
         queryKey: ['saved_query', uuidOrSlug, projectUuid],
-        queryFn: () => getSavedQuery(uuidOrSlug || '', projectUuid!),
+        queryFn: async () => {
+            if (!projectUuid) throw new Error('projectUuid is required');
+            return getSavedQuery(uuidOrSlug || '', projectUuid);
+        },
         enabled: uuidOrSlug !== undefined && !!projectUuid,
         retry: false,
         ...useQueryOptions,

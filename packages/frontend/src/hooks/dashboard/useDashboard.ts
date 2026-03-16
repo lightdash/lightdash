@@ -147,7 +147,10 @@ export const useDashboardQuery = ({
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: ['saved_dashboard_query', uuidOrSlug, projectUuid],
-        queryFn: () => getDashboard(uuidOrSlug || '', projectUuid!),
+        queryFn: async () => {
+            if (!projectUuid) throw new Error('projectUuid is required');
+            return getDashboard(uuidOrSlug || '', projectUuid);
+        },
         enabled: !!uuidOrSlug && !!projectUuid,
         retry: false,
         onError: (result) => setErrorResponse(result),
