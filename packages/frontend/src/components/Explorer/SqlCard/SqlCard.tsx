@@ -81,8 +81,8 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 language: getLanguage(project?.warehouseConnection?.type),
             });
         } catch (e) {
-            console.error(
-                'Error rendering SQL:',
+            console.warn(
+                'Error formatting SQL:',
                 e instanceof Error ? e.message : 'Unknown error occurred',
             );
             return selectedSql;
