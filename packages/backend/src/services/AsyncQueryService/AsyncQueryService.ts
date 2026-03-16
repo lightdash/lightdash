@@ -1591,6 +1591,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         warehouseQuery,
         metricQuery,
+        timezone,
         dateZoom,
         parameters,
         preAggregationRoute,
@@ -1604,6 +1605,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         warehouseQuery: string;
         metricQuery: MetricQuery;
+        timezone: string;
         dateZoom: ExecuteAsyncMetricQueryArgs['dateZoom'];
         parameters: ExecuteAsyncMetricQueryArgs['parameters'];
         preAggregationRoute?: PreAggregationRoute;
@@ -1651,6 +1653,7 @@ export class AsyncQueryService extends ProjectService {
                   projectUuid,
                   queryUuid,
                   metricQuery,
+                  timezone,
                   dateZoom,
                   parameters,
                   preAggregationRoute,
@@ -2568,13 +2571,15 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             dateZoom,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
@@ -2624,6 +2629,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
+            timezone,
         };
     }
 
@@ -2636,6 +2642,7 @@ export class AsyncQueryService extends ProjectService {
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
+            timezone?: string;
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
             availableParameterDefinitions?: ParameterDefinitions;
@@ -2660,6 +2667,7 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     pivotConfiguration,
                     parameters,
+                    timezone: resolvedTimezone,
                     preAggregationRoute,
                     userAccessControls,
                     availableParameterDefinitions,
@@ -2916,6 +2924,7 @@ export class AsyncQueryService extends ProjectService {
                             projectUuid,
                             warehouseQuery: query,
                             metricQuery,
+                            timezone: resolvedTimezone ?? 'UTC',
                             dateZoom,
                             parameters,
                             preAggregationRoute,
@@ -3196,6 +3205,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            timezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3246,6 +3256,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone,
                 pivotConfiguration,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,

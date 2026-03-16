@@ -51,6 +51,7 @@ export type ResolvePreAggregationDuckDbArgs = {
     queryUuid?: string;
     queryTags?: RunQueryTags;
     metricQuery: MetricQuery;
+    timezone: string;
     dateZoom: DateZoom | undefined;
     parameters: ParametersValuesMap | undefined;
     preAggregationRoute: PreAggregationRoute;
@@ -262,6 +263,7 @@ export class PreAggregationDuckDbClient {
             chartUuid: args.queryTags?.chart_uuid,
             dashboardUuid: args.queryTags?.dashboard_uuid,
             exploreName: args.queryTags?.explore_name,
+            timezone: args.timezone,
             preAggExploreName,
             materializationUuid: activeMaterialization.materializationUuid,
             materializationQueryUuid: activeMaterialization.queryUuid,
@@ -337,7 +339,7 @@ export class PreAggregationDuckDbClient {
                     intrinsicUserAttributes:
                         args.userAccessControls.intrinsicUserAttributes,
                     userAttributes: args.userAccessControls.userAttributes,
-                    timezone: this.lightdashConfig.query.timezone || 'UTC',
+                    timezone: args.timezone,
                     dateZoom: args.dateZoom,
                     parameters: args.parameters,
                     availableParameterDefinitions:

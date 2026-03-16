@@ -807,6 +807,7 @@ export class EmbedService extends BaseService {
         explore,
         queryTags,
         account,
+        timezone,
         dateZoomGranularity,
         combinedParameters,
     }: {
@@ -823,6 +824,7 @@ export class EmbedService extends BaseService {
             dashboard_uuid?: string; // optional for standalone chart embeds
         };
         account: AnonymousAccount;
+        timezone: string;
         dateZoomGranularity?: DateGranularity | string;
         combinedParameters?: ParametersValuesMap;
     }) {
@@ -848,7 +850,7 @@ export class EmbedService extends BaseService {
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             dateZoom: dateZoomGranularity
                 ? {
                       granularity: dateZoomGranularity,
@@ -1146,6 +1148,9 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
+        const timezone =
+            await this.projectService.getQueryTimezoneForProject(projectUuid);
+
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
             metricQuery: metricQueryWithDashboardOverrides,
@@ -1161,6 +1166,7 @@ export class EmbedService extends BaseService {
                 query_context: QueryExecutionContext.EMBED,
             },
             account,
+            timezone,
             dateZoomGranularity,
             combinedParameters,
         });
@@ -1344,9 +1350,13 @@ export class EmbedService extends BaseService {
             explore,
         );
 
+        const timezone =
+            await this.projectService.getQueryTimezoneForProject(projectUuid);
+
         try {
             const { totalQuery: totalMetricQuery } =
-                await this.projectService._getCalculateTotalQuery(
+                await ProjectService._getCalculateTotalQuery(
+                    timezone,
                     userAttributes,
                     intrinsicUserAttributes,
                     explore,
@@ -1371,6 +1381,7 @@ export class EmbedService extends BaseService {
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
                 account,
+                timezone,
                 combinedParameters,
             });
 
@@ -1484,6 +1495,9 @@ export class EmbedService extends BaseService {
             },
         });
 
+        const timezone =
+            await this.projectService.getQueryTimezoneForProject(projectUuid);
+
         // Run the query for each dimension group using embed query runner
         const subtotalsPromises = dimensionGroupsToSubtotal.map<
             Promise<[string, Record<string, unknown>[]]>
@@ -1514,6 +1528,7 @@ export class EmbedService extends BaseService {
                         query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
                     },
                     account,
+                    timezone,
                     combinedParameters,
                     dateZoomGranularity: dateZoom?.granularity,
                 });
@@ -1590,9 +1605,13 @@ export class EmbedService extends BaseService {
             explore,
         );
 
+        const timezone =
+            await this.projectService.getQueryTimezoneForProject(projectUuid);
+
         try {
             const { totalQuery: totalMetricQuery } =
-                await this.projectService._getCalculateTotalQuery(
+                await ProjectService._getCalculateTotalQuery(
+                    timezone,
                     userAttributes,
                     intrinsicUserAttributes,
                     explore,
@@ -1616,6 +1635,7 @@ export class EmbedService extends BaseService {
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
                 account,
+                timezone,
                 combinedParameters,
             });
 
@@ -1737,6 +1757,9 @@ export class EmbedService extends BaseService {
                 filters,
             });
 
+        const timezone =
+            await this.projectService.getQueryTimezoneForProject(projectUuid);
+
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,
             metricQuery,
@@ -1751,6 +1774,7 @@ export class EmbedService extends BaseService {
                 query_context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
             },
             account,
+            timezone,
         });
 
         return {

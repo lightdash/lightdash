@@ -77,6 +77,7 @@ describe('PreAggregationDuckDbClient', () => {
             ...metricQueryMock,
             tableCalculations: [],
         },
+        timezone: 'UTC',
         dateZoom: undefined,
         parameters: { region: 'us-east' },
         preAggregationRoute: {
