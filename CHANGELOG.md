@@ -1,3 +1,10 @@
+# [0.2627.0](https://github.com/lightdash/lightdash/compare/0.2626.1...0.2627.0) (2026-03-16)
+
+
+### Features
+
+* replace query in-flight gauge with state transition counter ([#21176](https://github.com/lightdash/lightdash/issues/21176)) ([b06fc64](https://github.com/lightdash/lightdash/commit/b06fc6421cd7153b3486d9d3610ab16d5700b568))
+
 ## [0.2626.1](https://github.com/lightdash/lightdash/compare/0.2626.0...0.2626.1) (2026-03-16)
 
 
