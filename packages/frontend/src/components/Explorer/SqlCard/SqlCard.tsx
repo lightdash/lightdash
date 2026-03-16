@@ -9,7 +9,16 @@ import {
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
-import { lazy, memo, Suspense, useCallback, useState, type FC } from 'react';
+import {
+    lazy,
+    memo,
+    Suspense,
+    useCallback,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
+import { format } from 'sql-formatter';
 import {
     explorerActions,
     selectIsSqlExpanded,
@@ -17,7 +26,9 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { getLanguage } from '../../../features/sqlRunner/store/sqlRunnerSlice';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
+import { useProject } from '../../../hooks/useProject';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -53,6 +64,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         [dispatch],
     );
     const { user } = useApp();
+    const { data: project } = useProject(projectUuid);
 
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName,
@@ -61,6 +73,21 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const hasPivotQuery = !!data?.pivotQuery;
     const selectedSql =
         selectedView === 'pivotQuery' ? data?.pivotQuery : data?.query;
+
+    const formattedSql = useMemo(() => {
+        if (!selectedSql) return '';
+        try {
+            return format(selectedSql, {
+                language: getLanguage(project?.warehouseConnection?.type),
+            });
+        } catch (e) {
+            console.warn(
+                'Error formatting SQL:',
+                e instanceof Error ? e.message : 'Unknown error occurred',
+            );
+            return selectedSql;
+        }
+    }, [selectedSql, project?.warehouseConnection?.type]);
 
     return (
         <CollapsableCard
@@ -72,7 +99,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             disabled={!unsavedChartVersionTableName}
             headerElement={
                 (hovered || sqlIsOpen) && data && isSuccess ? (
-                    <CopyButton value={selectedSql ?? ''} timeout={2000}>
+                    <CopyButton value={formattedSql} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
                                 variant="xs"
@@ -131,7 +158,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                         >
                             <OpenInSqlRunnerButton
                                 projectUuid={projectUuid}
-                                sql={selectedSql}
+                                sql={formattedSql}
                                 disabled={isInitialLoading || !!error}
                             />
                         </Can>
