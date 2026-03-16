@@ -65,7 +65,7 @@ const getDashboardComments = async ({
     projectUuid,
 }: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'>) =>
     lightdashApi<ApiGetComments['results']>({
-        url: `/projects/${projectUuid}/comments/dashboards/${dashboardUuid}`,
+        url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments`,
         version: 'v2',
         method: 'GET',
         body: undefined,
