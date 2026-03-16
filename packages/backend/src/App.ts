@@ -257,7 +257,6 @@ export default class App {
         this.prometheusMetrics.start();
         this.prometheusMetrics.monitorDatabase(this.database);
         this.prometheusMetrics.monitorPreAggregates(this.database);
-        this.prometheusMetrics.monitorQueryHistory(this.database);
         this.prometheusMetrics.monitorEventMetrics(this.analyticsEventEmitter);
         // @ts-ignore
         // eslint-disable-next-line no-extend-native, func-names
