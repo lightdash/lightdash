@@ -1,3 +1,10 @@
+## [0.2621.1](https://github.com/lightdash/lightdash/compare/0.2621.0...0.2621.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* handle transitive nested aggregate metrics in CTE generation ([#21155](https://github.com/lightdash/lightdash/issues/21155)) ([be2e286](https://github.com/lightdash/lightdash/commit/be2e28662553a3f1d9e50e867e18512105c4adca))
+
 # [0.2621.0](https://github.com/lightdash/lightdash/compare/0.2620.1...0.2621.0) (2026-03-16)
 
 
