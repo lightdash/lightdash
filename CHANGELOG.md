@@ -1,3 +1,10 @@
+## [0.2621.2](https://github.com/lightdash/lightdash/compare/0.2621.1...0.2621.2) (2026-03-16)
+
+
+### Bug Fixes
+
+* use project-specific timezone instead of global config in query compilation ([#21120](https://github.com/lightdash/lightdash/issues/21120)) ([8559970](https://github.com/lightdash/lightdash/commit/855997043f714e813f0da0850ca6c20ee83597b8))
+
 ## [0.2621.1](https://github.com/lightdash/lightdash/compare/0.2621.0...0.2621.1) (2026-03-16)
 
 
