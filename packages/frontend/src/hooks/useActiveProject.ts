@@ -113,7 +113,8 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         isLastProjectUuidFetched &&
         !lastProject &&
         !isLoadingOrg &&
-        !organization?.defaultProjectUuid;
+        (!organization?.defaultProjectUuid ||
+            (!isLoadingDefaultProject && !defaultProject));
 
     const { data: projects, isInitialLoading: isLoadingProjects } = useProjects(
         {
