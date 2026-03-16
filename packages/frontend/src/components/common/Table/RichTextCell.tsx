@@ -3,12 +3,27 @@ import MarkdownPreview from '@uiw/react-markdown-preview';
 import type { Root } from 'hast';
 import React, { type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import type { Plugin } from 'unified';
 import styles from './RichTextCell.module.css';
 
 interface RichTextCellProps {
     content: string;
 }
+
+// Custom sanitization schema that blocks iframes and other potentially dangerous elements
+const sanitizeSchema = {
+    ...defaultSchema,
+    tagNames: [
+        ...(defaultSchema.tagNames || []).filter((tag) => tag !== 'iframe'),
+        // Explicitly allow common tags but exclude iframe
+    ],
+    attributes: {
+        ...defaultSchema.attributes,
+        // Remove any iframe-specific attributes
+        iframe: undefined,
+    },
+};
 
 // Custom rehype plugin to trim leading/trailing newlines from text nodes
 // This helps with multi-line HTML in templates while preserving content structure
@@ -56,6 +71,7 @@ const RichTextCell: FC<RichTextCellProps> = ({ content }) => {
                 source={content}
                 rehypePlugins={[
                     rehypeRemoveLineBreaks,
+                    [rehypeSanitize, sanitizeSchema],
                     [rehypeExternalLinks, { target: '_blank' }],
                 ]}
             />
