@@ -9273,33 +9273,23 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "fieldType": {
+                                                                            "type": "string"
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -9307,17 +9297,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
-                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -9366,8 +9353,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -9411,15 +9398,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -9427,17 +9417,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
-                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9465,8 +9452,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -18899,6 +18886,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "queryTimezone": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "schedulerTimezone": {
                         "type": "string"
                     },
@@ -18933,6 +18924,7 @@
                 "required": [
                     "hasDefaultUserSpaces",
                     "createdByUserUuid",
+                    "queryTimezone",
                     "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
@@ -19695,6 +19687,16 @@
                     }
                 },
                 "required": ["schedulerTimezone"],
+                "type": "object"
+            },
+            "UpdateQueryTimezoneSettings": {
+                "properties": {
+                    "queryTimezone": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["queryTimezone"],
                 "type": "object"
             },
             "ApiCreateTagResponse": {
@@ -28196,7 +28198,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2616.1",
+        "version": "0.2617.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37254,6 +37256,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateSchedulerSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/queryTimezoneSettings": {
+            "patch": {
+                "operationId": "updateQueryTimezoneSettings",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update query timezone settings for a project",
+                "summary": "Update query timezone settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateQueryTimezoneSettings"
                             }
                         }
                     }

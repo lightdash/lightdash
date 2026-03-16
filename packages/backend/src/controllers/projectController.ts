@@ -50,6 +50,7 @@ import {
     type DuplicateDashboardParams,
     type Tag,
     type UpdateMultipleDashboards,
+    type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import {
@@ -850,6 +851,35 @@ export class ProjectController extends BaseController {
 
             throw e;
         }
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Update query timezone settings for a project
+     * @summary Update query timezone settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/queryTimezoneSettings')
+    @OperationId('updateQueryTimezoneSettings')
+    async updateQueryTimezoneSettings(
+        @Path() projectUuid: string,
+        @Body() body: UpdateQueryTimezoneSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateQueryTimezone(req.user!, projectUuid, body.queryTimezone);
 
         return {
             status: 'ok',

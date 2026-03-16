@@ -93,6 +93,7 @@ import {
     isStandardDateGranularity,
     isSubDayGranularity,
     isUserWithOrg,
+    isValidTimezone,
     ItemsMap,
     Job,
     JobStatusType,
@@ -7283,6 +7284,43 @@ export class ProjectService extends BaseService {
         });
 
         return updatedProject;
+    }
+
+    async updateQueryTimezone(
+        user: SessionUser,
+        projectUuid: string,
+        queryTimezone: string | null,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        if (queryTimezone !== null && !isValidTimezone(queryTimezone)) {
+            throw new ParameterError(`Invalid timezone: "${queryTimezone}"`);
+        }
+
+        await this.projectModel.updateQueryTimezone(projectUuid, queryTimezone);
+
+        this.analytics.track({
+            event: 'query_timezone.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationUuid: project.organizationUuid,
+                queryTimezone:
+                    queryTimezone !== null
+                        ? getTimezoneLabel(queryTimezone)
+                        : null,
+            },
+        });
+    }
+
+    async getQueryTimezoneForProject(projectUuid: string): Promise<string> {
+        const projectTimezone =
+            await this.projectModel.getQueryTimezone(projectUuid);
+        return projectTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
     }
 
     async createTag(
