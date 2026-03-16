@@ -109,7 +109,6 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
 import pLimit from 'p-limit';
-import path from 'path';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
 import {
@@ -350,7 +349,7 @@ export default class SchedulerTask {
         } = scheduler;
 
         let imageUrl;
-        let imageLocalPath;
+        let imageS3Key;
         let csvUrl;
         let csvUrls;
         let pdfFile;
@@ -435,7 +434,7 @@ export default class SchedulerTask {
                     }
                     pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
-                    imageLocalPath = `/tmp/${imageId}.png`;
+                    imageS3Key = `${imageId}.png`;
 
                     if (this.fileStorageClient.isEnabled() && imageUrl) {
                         imageUrl =
@@ -894,7 +893,7 @@ export default class SchedulerTask {
             details,
             organizationUuid,
             imageUrl,
-            imageLocalPath,
+            imageS3Key,
             csvUrl,
             csvUrls,
             pdfFile,
@@ -2330,7 +2329,7 @@ export default class SchedulerTask {
                 details,
                 pageType,
                 imageUrl,
-                imageLocalPath,
+                imageS3Key,
                 csvUrl,
                 csvUrls,
                 pdfFile,
@@ -2340,12 +2339,11 @@ export default class SchedulerTask {
             let imageBuffer: Buffer | undefined;
             if (
                 this.lightdashConfig.smtp?.inlineImageCid === true &&
-                imageLocalPath &&
+                imageS3Key &&
                 this.fileStorageClient.isEnabled()
             ) {
-                const s3Key = path.basename(imageLocalPath);
                 const stream =
-                    await this.fileStorageClient.getFileStream(s3Key);
+                    await this.fileStorageClient.getFileStream(imageS3Key);
                 const chunks: Buffer[] = [];
                 for await (const chunk of stream) {
                     chunks.push(
