@@ -1,3 +1,15 @@
+# [0.2623.0](https://github.com/lightdash/lightdash/compare/0.2622.1...0.2623.0) (2026-03-16)
+
+
+### Bug Fixes
+
+* add HTML sanitization to RichTextCell to block iframes ([#21163](https://github.com/lightdash/lightdash/issues/21163)) ([31ec485](https://github.com/lightdash/lightdash/commit/31ec48569a4076a6d7e428621e310e9907be0a58))
+
+
+### Features
+
+* hide spaces users dont have access to ([#21126](https://github.com/lightdash/lightdash/issues/21126)) ([3c1c9fe](https://github.com/lightdash/lightdash/commit/3c1c9fea787f8d9e2db435faa5cc23a073f3406f))
+
 ## [0.2622.1](https://github.com/lightdash/lightdash/compare/0.2622.0...0.2622.1) (2026-03-16)
 
 
