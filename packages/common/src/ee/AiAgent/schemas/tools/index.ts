@@ -11,6 +11,7 @@ export * from './toolImproveContextArgs';
 export * from './toolProposeChangeArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';
+export * from './toolRunSqlArgs';
 export * from './toolSearchFieldValuesArgs';
 export * from './toolTableVizArgs';
 export * from './toolTimeSeriesArgs';
