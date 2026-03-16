@@ -1,3 +1,10 @@
+## [0.2626.1](https://github.com/lightdash/lightdash/compare/0.2626.0...0.2626.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* pass projectUuid for slug resolution in async queries ([#21138](https://github.com/lightdash/lightdash/issues/21138)) ([9216449](https://github.com/lightdash/lightdash/commit/9216449e40203f38f0a0fb8c37d823ba1de1b2b0))
+
 # [0.2626.0](https://github.com/lightdash/lightdash/compare/0.2625.1...0.2626.0) (2026-03-16)
 
 
