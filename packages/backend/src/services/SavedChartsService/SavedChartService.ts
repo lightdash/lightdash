@@ -713,6 +713,7 @@ export class SavedChartService
         options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const {
+            uuid: resolvedUuid,
             organizationUuid,
             projectUuid,
             spaceUuid,
@@ -744,11 +745,11 @@ export class SavedChartService
         }
 
         if (this.lightdashConfig.softDelete.enabled) {
-            await this.softDelete(user, savedChartUuid, {
+            await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         } else {
-            await this.permanentDelete(user, savedChartUuid, {
+            await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         }

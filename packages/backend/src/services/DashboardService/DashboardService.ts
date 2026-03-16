@@ -1047,12 +1047,13 @@ export class DashboardService
             }
         }
 
+        const resolvedUuid = dashboardToDelete.uuid;
         if (this.lightdashConfig.softDelete.enabled) {
-            await this.softDelete(user, dashboardUuid, {
+            await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         } else {
-            await this.permanentDelete(user, dashboardUuid, {
+            await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         }
