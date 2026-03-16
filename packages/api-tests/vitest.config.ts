@@ -9,6 +9,6 @@ export default defineConfig({
         globals: true,
         setupFiles: ['vitest.setup.ts'],
         pool: 'forks',
-        fileParallelism: true,
+        fileParallelism: false,
     },
 });
