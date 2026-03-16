@@ -561,6 +561,8 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
+        const previousStatus = queryHistory.status;
+
         await this.queryHistoryModel.update(
             queryHistory.queryUuid,
             projectUuid,
@@ -570,11 +572,19 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
+        // Dec in-flight gauge for the previous status
+        if (
+            previousStatus === QueryHistoryStatus.PENDING ||
+            previousStatus === QueryHistoryStatus.QUEUED ||
+            previousStatus === QueryHistoryStatus.EXECUTING
+        ) {
+            this.prometheusMetrics?.decQueryInFlight(previousStatus);
+        }
+
         // Track cancelled query in Prometheus
-        this.prometheusMetrics?.incrementQueryStatus(
+        this.trackQueryTerminalStatus(
             QueryHistoryStatus.CANCELLED,
-            queryHistory.warehouseQueryMetadata?.type || 'unknown',
-            queryHistory.context,
+            queryHistory.createdAt,
         );
     }
 
@@ -1724,6 +1734,7 @@ export class AsyncQueryService extends ProjectService {
         originalColumns,
         preAggregateQuery,
         warehouseQuery,
+        queryCreatedAt,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
             const duckDbWarehouseClient =
@@ -1742,6 +1753,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseCredentialsOverrides,
                 pivotConfiguration,
                 originalColumns,
+                queryCreatedAt,
                 warehouseClientOverride: duckDbWarehouseClient,
                 warehouseCredentialsTypeOverride:
                     duckDbWarehouseClient.credentials.type,
@@ -1776,6 +1788,7 @@ export class AsyncQueryService extends ProjectService {
                 warehouseCredentialsOverrides,
                 pivotConfiguration,
                 originalColumns,
+                queryCreatedAt,
             });
         }
     }
@@ -1863,6 +1876,10 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
+        this.prometheusMetrics?.decQueryInFlight('queued');
+        this.prometheusMetrics?.incQueryInFlight('executing');
+        this.prometheusMetrics?.observeQueueWaitDuration(timeInQueueMs);
+
         return true;
     }
 
@@ -1882,6 +1899,7 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         pivotConfiguration,
         originalColumns,
+        queryCreatedAt,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
     }: RunAsyncWarehouseQueryArgs & {
@@ -2065,6 +2083,8 @@ export class AsyncQueryService extends ProjectService {
                 );
             }
 
+            this.prometheusMetrics?.observeWarehouseDuration(durationMs);
+
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.ready',
@@ -2174,10 +2194,10 @@ export class AsyncQueryService extends ProjectService {
             );
 
             // Track successful query in Prometheus
-            this.prometheusMetrics?.incrementQueryStatus(
+            this.prometheusMetrics?.decQueryInFlight('executing');
+            this.trackQueryTerminalStatus(
                 QueryHistoryStatus.READY,
-                warehouseClient.credentials.type,
-                queryTags.query_context,
+                queryCreatedAt,
             );
         } catch (e) {
             this.logger.error(
@@ -2218,10 +2238,10 @@ export class AsyncQueryService extends ProjectService {
             );
 
             // Track error query in Prometheus
-            this.prometheusMetrics?.incrementQueryStatus(
+            this.prometheusMetrics?.decQueryInFlight('executing');
+            this.trackQueryTerminalStatus(
                 QueryHistoryStatus.ERROR,
-                warehouseCredentialsType,
-                queryTags.query_context,
+                queryCreatedAt,
             );
 
             // Re-throw when using an override client (e.g. DuckDB pre-agg)
@@ -2272,6 +2292,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
             originalColumns: query.originalColumns ?? undefined,
+            queryCreatedAt: query.createdAt,
             query: query.compiledSql,
         };
     }
@@ -2304,6 +2325,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentialsOverrides,
             pivotConfiguration: query.pivotConfiguration ?? undefined,
             originalColumns: query.originalColumns ?? undefined,
+            queryCreatedAt: query.createdAt,
             preAggregateQuery: query.preAggregateCompiledSql,
             warehouseQuery: query.compiledSql,
         };
@@ -2323,6 +2345,18 @@ export class AsyncQueryService extends ProjectService {
         return query;
     }
 
+    private trackQueryTerminalStatus(
+        status: QueryHistoryStatus,
+        queryCreatedAt?: Date | null,
+    ) {
+        this.prometheusMetrics?.incrementQueryStatus(status);
+        if (queryCreatedAt) {
+            this.prometheusMetrics?.observeQueryTotalDuration(
+                Date.now() - queryCreatedAt.getTime(),
+            );
+        }
+    }
+
     private async expireQueuedQuery(
         queryHistory: QueryHistory,
         timeInQueueMs: number,
@@ -2331,6 +2365,12 @@ export class AsyncQueryService extends ProjectService {
         await this.queryHistoryModel.updateStatusToExpired(
             queryHistory.queryUuid,
             QUEUED_QUERY_EXPIRED_MESSAGE,
+        );
+
+        this.prometheusMetrics?.decQueryInFlight('queued');
+        this.trackQueryTerminalStatus(
+            QueryHistoryStatus.EXPIRED,
+            queryHistory.createdAt,
         );
 
         Sentry.withScope((scope) => {
@@ -2802,6 +2842,7 @@ export class AsyncQueryService extends ProjectService {
                     const cacheCheckMs = Date.now() - cacheCheckStart;
 
                     const historyCreateStart = Date.now();
+                    const queryCreatedAt = new Date();
                     const { queryUuid: queryHistoryUuid } =
                         await this.queryHistoryModel.create(account, {
                             projectUuid,
@@ -2815,6 +2856,7 @@ export class AsyncQueryService extends ProjectService {
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
                     const historyCreateMs = Date.now() - historyCreateStart;
+                    this.prometheusMetrics?.incQueryInFlight('pending');
 
                     this.analytics.trackAccount(account, {
                         event: 'query.executed',
@@ -2881,10 +2923,10 @@ export class AsyncQueryService extends ProjectService {
                         );
 
                         // Track successful query in Prometheus
-                        this.prometheusMetrics?.incrementQueryStatus(
+                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.trackQueryTerminalStatus(
                             QueryHistoryStatus.READY,
-                            warehouseCredentialsType,
-                            queryTags.query_context,
+                            queryCreatedAt,
                         );
 
                         return {
@@ -2908,6 +2950,11 @@ export class AsyncQueryService extends ProjectService {
                                 )}`,
                             },
                             account,
+                        );
+                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.trackQueryTerminalStatus(
+                            QueryHistoryStatus.ERROR,
+                            queryCreatedAt,
                         );
 
                         return {
@@ -2973,6 +3020,11 @@ export class AsyncQueryService extends ProjectService {
                             },
                             account,
                         );
+                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.trackQueryTerminalStatus(
+                            QueryHistoryStatus.ERROR,
+                            queryCreatedAt,
+                        );
 
                         return {
                             queryUuid: queryHistoryUuid,
@@ -2995,6 +3047,7 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
+                        queryCreatedAt,
                     };
 
                     if (executionPlan.target === 'pre_aggregate') {
@@ -3035,6 +3088,8 @@ export class AsyncQueryService extends ProjectService {
                             await this.queryHistoryModel.updateStatusToQueued(
                                 queryHistoryUuid,
                             );
+                            this.prometheusMetrics?.decQueryInFlight('pending');
+                            this.prometheusMetrics?.incQueryInFlight('queued');
                         } catch (e) {
                             const errorMessage = getErrorMessage(e);
                             this.logger.error(
@@ -3052,10 +3107,10 @@ export class AsyncQueryService extends ProjectService {
                                 account,
                             );
 
-                            this.prometheusMetrics?.incrementQueryStatus(
+                            this.prometheusMetrics?.decQueryInFlight('pending');
+                            this.trackQueryTerminalStatus(
                                 QueryHistoryStatus.ERROR,
-                                warehouseCredentialsType,
-                                queryTags.query_context,
+                                queryCreatedAt,
                             );
 
                             return {
@@ -3069,6 +3124,8 @@ export class AsyncQueryService extends ProjectService {
                         this.logger.info(
                             `Executing query ${queryHistoryUuid} in the main loop`,
                         );
+                        this.prometheusMetrics?.decQueryInFlight('pending');
+                        this.prometheusMetrics?.incQueryInFlight('executing');
 
                         const { query: warehouseSql, ...sharedAsyncQueryArgs } =
                             warehouseArgs;

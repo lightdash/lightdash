@@ -92,6 +92,15 @@ export default class PrometheusMetrics {
     public preAggregateParquetConversionDurationHistogram: prometheus.Histogram<string> | null =
         null;
 
+    // Query history pipeline metrics
+    private queryInFlightGauge: prometheus.Gauge<'status'> | null = null;
+
+    private queueWaitHistogram: prometheus.Histogram | null = null;
+
+    private totalDurationHistogram: prometheus.Histogram | null = null;
+
+    private warehouseDurationHistogram: prometheus.Histogram | null = null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -119,7 +128,44 @@ export default class PrometheusMetrics {
                 this.queryStatusCounter = new prometheus.Counter({
                     name: 'query_status_total',
                     help: 'Total number of queries by status',
-                    labelNames: ['status', 'warehouse_type', 'context'],
+                    labelNames: ['status'],
+                    ...rest,
+                });
+
+                // Query history pipeline metrics
+                this.queryInFlightGauge = new prometheus.Gauge({
+                    name: 'query_history_in_flight',
+                    help: 'Number of in-flight queries by status (pending, queued, executing)',
+                    labelNames: ['status'],
+                    ...rest,
+                });
+
+                this.queueWaitHistogram = new prometheus.Histogram({
+                    name: 'query_history_queue_wait_duration_ms',
+                    help: 'Time spent waiting in queue before execution (ms)',
+                    buckets: [
+                        100, 500, 1000, 2500, 5000, 10000, 30000, 60000, 120000,
+                        300000,
+                    ],
+                    ...rest,
+                });
+
+                this.totalDurationHistogram = new prometheus.Histogram({
+                    name: 'query_history_total_duration_ms',
+                    help: 'Total query duration from creation to results ready (ms)',
+                    buckets: [
+                        500, 1000, 2500, 5000, 10000, 30000, 60000, 120000,
+                        300000, 600000,
+                    ],
+                    ...rest,
+                });
+
+                this.warehouseDurationHistogram = new prometheus.Histogram({
+                    name: 'query_history_warehouse_duration_ms',
+                    help: 'Warehouse query execution duration (ms)',
+                    buckets: [
+                        100, 500, 1000, 2500, 5000, 10000, 30000, 60000, 120000,
+                    ],
                     ...rest,
                 });
 
@@ -394,17 +440,9 @@ export default class PrometheusMetrics {
         }
     }
 
-    public incrementQueryStatus(
-        status: QueryHistoryStatus,
-        warehouseType?: string,
-        context?: string,
-    ) {
+    public incrementQueryStatus(status: QueryHistoryStatus) {
         if (this.queryStatusCounter) {
-            this.queryStatusCounter.inc({
-                status,
-                warehouse_type: warehouseType || 'unknown',
-                context: context || 'unknown',
-            });
+            this.queryStatusCounter.inc({ status });
         }
     }
 
@@ -718,6 +756,26 @@ export default class PrometheusMetrics {
                 }
             },
         });
+    }
+
+    public incQueryInFlight(status: string) {
+        this.queryInFlightGauge?.inc({ status });
+    }
+
+    public decQueryInFlight(status: string) {
+        this.queryInFlightGauge?.dec({ status });
+    }
+
+    public observeQueueWaitDuration(durationMs: number) {
+        this.queueWaitHistogram?.observe(durationMs);
+    }
+
+    public observeQueryTotalDuration(durationMs: number) {
+        this.totalDurationHistogram?.observe(durationMs);
+    }
+
+    public observeWarehouseDuration(durationMs: number) {
+        this.warehouseDurationHistogram?.observe(durationMs);
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {
