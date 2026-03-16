@@ -188,6 +188,33 @@ export default class EmailClient {
         });
     }
 
+    private static readonly STATIC_CID_IMAGES = [
+        {
+            filename: 'lightdash-logo.png',
+            cid: 'lightdash-logo',
+            contextKey: 'logoSrc',
+            hostPath: '/lightdash-logo.png',
+        },
+        {
+            filename: 'twitter.png',
+            cid: 'twitter-logo',
+            contextKey: 'twitterSrc',
+            hostPath: '/twitter.png',
+        },
+        {
+            filename: 'github.png',
+            cid: 'github-logo',
+            contextKey: 'githubSrc',
+            hostPath: '/github.png',
+        },
+        {
+            filename: 'linkedin.png',
+            cid: 'linkedin-logo',
+            contextKey: 'linkedinSrc',
+            hostPath: '/linkedin.png',
+        },
+    ] as const;
+
     private async sendEmail(
         options: Mail.Options & EmailTemplate,
     ): Promise<void> {
@@ -195,13 +222,44 @@ export default class EmailClient {
             await this.initPromise;
         }
         if (this.transporter) {
+            const useCid = this.lightdashConfig.smtp?.inlineImageCid === true;
+            const host = this.lightdashConfig.siteUrl;
+
+            const imageSources: Record<string, string> = {};
+            for (const img of EmailClient.STATIC_CID_IMAGES) {
+                imageSources[img.contextKey] = useCid
+                    ? `cid:${img.cid}`
+                    : `${host}${img.hostPath}`;
+            }
+
+            const emailOptions: Mail.Options & EmailTemplate = {
+                ...options,
+                context: { ...options.context, ...imageSources },
+                attachments: [
+                    ...(Array.isArray(options.attachments)
+                        ? options.attachments
+                        : []),
+                    ...(useCid
+                        ? EmailClient.STATIC_CID_IMAGES.map((img) => ({
+                              filename: img.filename,
+                              path: path.join(
+                                  __dirname,
+                                  `../../../../frontend/public/${img.filename}`,
+                              ),
+                              cid: img.cid,
+                              contentDisposition: 'inline' as const,
+                          }))
+                        : []),
+                ],
+            };
+
             const maxRetries = 3;
             const baseDelay = 1000; // 1 second
 
             /* eslint-disable no-await-in-loop */
             for (let attempt = 1; attempt <= maxRetries; attempt += 1) {
                 try {
-                    const info = await this.transporter.sendMail(options);
+                    const info = await this.transporter.sendMail(emailOptions);
                     Logger.debug(`Email sent: ${info.messageId}`);
                     return; // Success, exit retry loop
                 } catch (error) {
