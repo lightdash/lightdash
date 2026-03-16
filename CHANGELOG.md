@@ -1,3 +1,11 @@
+## [0.2622.1](https://github.com/lightdash/lightdash/compare/0.2622.0...0.2622.1) (2026-03-16)
+
+
+### Bug Fixes
+
+* enable pointer events on FieldReferenceSelect right section ([#21162](https://github.com/lightdash/lightdash/issues/21162)) ([7a268b5](https://github.com/lightdash/lightdash/commit/7a268b518e8ff707d8390f5bababcf1b34b41eee))
+* remove broken async expect wrapper in AppProvider test ([#21164](https://github.com/lightdash/lightdash/issues/21164)) ([568757a](https://github.com/lightdash/lightdash/commit/568757a759775f788b511453860e6f03dbe32b86))
+
 # [0.2622.0](https://github.com/lightdash/lightdash/compare/0.2621.2...0.2622.0) (2026-03-16)
 
 
