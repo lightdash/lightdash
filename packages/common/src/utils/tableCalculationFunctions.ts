@@ -1073,6 +1073,10 @@ export class TableCalculationFunctionCompiler {
         // Try to parse the offset as a number
         const offsetNum = parseInt(rowOffset, 10);
 
+        // LEAD/LAG require ORDER BY on Snowflake (and it's good practice on all warehouses).
+        // If no sorts are defined in the query, fall back to ordering by the column itself.
+        const effectiveOrderBy = orderByClause ?? column;
+
         if (!Number.isNaN(offsetNum)) {
             // It's a valid number, use the original logic
             if (offsetNum === 0) {
@@ -1080,12 +1084,12 @@ export class TableCalculationFunctionCompiler {
             }
             const windowFunction = offsetNum < 0 ? 'LAG' : 'LEAD';
             const offsetValue = Math.abs(offsetNum);
-            return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+            return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(effectiveOrderBy)}`;
         }
 
         // Not a number - it's an expression, assume negative offset (LAG)
         // Most dynamic offsets are for period-over-period comparisons (looking backwards)
-        return `LAG(${column}, ${rowOffset}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+        return `LAG(${column}, ${rowOffset}) ${TableCalculationFunctionCompiler.buildOrderByWindow(effectiveOrderBy)}`;
     }
 
     private static compileIndex(
