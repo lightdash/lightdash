@@ -93,8 +93,7 @@ export class HealthService extends BaseService {
             defaultProject: undefined,
             isAuthenticated,
             requiresOrgRegistration,
-            hasGzipSupport:
-                process.env.LIGHTDASH_DISABLE_COMPRESSION !== 'true',
+            hasGzipSupport: !this.lightdashConfig.disableCompression,
             latest: { version: dockerHubVersion },
             rudder: this.lightdashConfig.rudder,
             sentry: {
