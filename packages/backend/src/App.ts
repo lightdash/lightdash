@@ -367,7 +367,7 @@ export default class App {
         expressApp.use(
             express.json({
                 limit: this.lightdashConfig.maxPayloadSize,
-                inflate: process.env.LIGHTDASH_DISABLE_COMPRESSION !== 'true',
+                inflate: !this.lightdashConfig.disableCompression,
             }),
         );
         expressApp.use(
