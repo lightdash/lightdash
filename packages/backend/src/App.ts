@@ -63,7 +63,7 @@ import {
     expressWinstonPreResponseMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
-import { createGzipMetricsMiddleware } from './middlewares/decompressGzip';
+import { createGzipMetricsMiddleware } from './middlewares/gzipMetrics';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
