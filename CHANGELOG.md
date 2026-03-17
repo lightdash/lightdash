@@ -1,3 +1,10 @@
+# [0.2628.0](https://github.com/lightdash/lightdash/compare/0.2627.3...0.2628.0) (2026-03-17)
+
+
+### Features
+
+* switch frontend to V2 project-scoped endpoints ([#21139](https://github.com/lightdash/lightdash/issues/21139)) ([a233cb5](https://github.com/lightdash/lightdash/commit/a233cb5a9ae4badb103e326a37638e6f2d9d2547))
+
 ## [0.2627.3](https://github.com/lightdash/lightdash/compare/0.2627.2...0.2627.3) (2026-03-17)
 
 
