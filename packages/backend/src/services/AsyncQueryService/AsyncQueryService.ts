@@ -2088,7 +2088,10 @@ export class AsyncQueryService extends ProjectService {
                 );
             }
 
-            this.prometheusMetrics?.observeWarehouseDuration(durationMs);
+            this.prometheusMetrics?.observeWarehouseDuration(
+                durationMs,
+                warehouseCredentialsType || 'unknown',
+            );
 
             this.analytics.track({
                 ...analyticsIdentity,

@@ -249,7 +249,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 );
                 this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
                     { status: 'failed', trigger: args.trigger },
-                    durationMs,
+                    durationMs / 1000,
                 );
 
                 return {
@@ -387,7 +387,7 @@ export class PreAggregateMaterializationService extends BaseService {
             });
             this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
                 { status, trigger: args.trigger },
-                durationMs,
+                durationMs / 1000,
             );
 
             return {
