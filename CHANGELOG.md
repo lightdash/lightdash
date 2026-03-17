@@ -1,3 +1,11 @@
+# [0.2630.0](https://github.com/lightdash/lightdash/compare/0.2629.2...0.2630.0) (2026-03-17)
+
+
+### Features
+
+* add detailed Prometheus metrics for materialization and DuckDB profiling ([#21192](https://github.com/lightdash/lightdash/issues/21192)) ([6a2215f](https://github.com/lightdash/lightdash/commit/6a2215ff736156b3a93e88483d827f722a181f7b))
+* add gzip compression to CLI deploy requests ([#21178](https://github.com/lightdash/lightdash/issues/21178)) ([2a3edbc](https://github.com/lightdash/lightdash/commit/2a3edbc8b1c900e7aa7ce83de2022594849aafd5))
+
 ## [0.2629.2](https://github.com/lightdash/lightdash/compare/0.2629.1...0.2629.2) (2026-03-17)
 
 
