@@ -31,6 +31,7 @@ import {
 import { useEffect, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useDeleteSlack,
     useGetSlack,
@@ -72,6 +73,7 @@ const formSchema = z.object({
 
 const SlackSettingsPanel: FC = () => {
     const { activeProjectUuid } = useActiveProjectUuid();
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
@@ -80,6 +82,10 @@ const SlackSettingsPanel: FC = () => {
     );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
+    const isAiCopilotEnabledOrTrial =
+        !!aiCopilotFlag?.enabled ||
+        !!aiOrganizationSettingsQuery.data?.isCopilotEnabled ||
+        !!aiOrganizationSettingsQuery.data?.isTrial;
 
     const isSlackMultiAgentChannelEnabled = !!multiAgentChannelFlag?.enabled;
 
@@ -235,7 +241,7 @@ const SlackSettingsPanel: FC = () => {
                                     }
                                 />
                             </Group>
-                            {aiCopilotFlag?.enabled && (
+                            {isAiCopilotEnabledOrTrial && (
                                 <Stack gap="sm">
                                     <Group gap="two">
                                         <Title order={6} fw={500}>
