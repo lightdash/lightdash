@@ -1,3 +1,11 @@
+## [0.2629.1](https://github.com/lightdash/lightdash/compare/0.2629.0...0.2629.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* conditional for showing Slack Agent settings ([#21190](https://github.com/lightdash/lightdash/issues/21190)) ([56149d3](https://github.com/lightdash/lightdash/commit/56149d3f3065b4ac4e96c819a400910304babb58))
+* slack agent thumbs up/down failing with OAuth errors ([#21191](https://github.com/lightdash/lightdash/issues/21191)) ([5944091](https://github.com/lightdash/lightdash/commit/5944091c298e63a0da5851cd45950db93c709d3c))
+
 # [0.2629.0](https://github.com/lightdash/lightdash/compare/0.2628.0...0.2629.0) (2026-03-17)
 
 
