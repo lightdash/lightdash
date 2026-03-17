@@ -345,6 +345,7 @@ export type HealthState = {
     isOrganizationWarehouseCredentialsEnabled: boolean;
     isAthenaWarehouseIamRoleAuthEnabled: boolean;
     isSaveCredentialsFormEnabled: boolean;
+    hasGzipSupport?: boolean;
     latest: {
         version?: string;
     };
