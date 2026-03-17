@@ -242,10 +242,9 @@ export default class EmailClient {
                     ...(useCid
                         ? EmailClient.STATIC_CID_IMAGES.map((img) => ({
                               filename: img.filename,
-                              // Safe: frontend and backend are co-located in the same pod
                               path: path.join(
                                   __dirname,
-                                  `../../../../frontend/public/${img.filename}`,
+                                  `./templates/${img.filename}`,
                               ),
                               cid: img.cid,
                               contentDisposition: 'inline' as const,
