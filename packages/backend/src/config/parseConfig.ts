@@ -1064,6 +1064,8 @@ export type LightdashConfig = {
     };
     mcp: {
         enabled: boolean;
+        sqlBlockedPatterns: string[];
+        sqlBlockedPatternsSanitise: boolean;
     };
     customRoles: {
         enabled: boolean;
@@ -1985,6 +1987,13 @@ export const parseConfig = (): LightdashConfig => {
         updateSetup: getUpdateSetupConfig(),
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
+            sqlBlockedPatterns: process.env.MCP_SQL_BLOCKED_PATTERNS
+                ? process.env.MCP_SQL_BLOCKED_PATTERNS.split(',').filter(
+                      (p) => p.trim().length > 0,
+                  )
+                : [],
+            sqlBlockedPatternsSanitise:
+                process.env.MCP_SQL_BLOCKED_PATTERNS_SANITISE !== 'false',
         },
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
