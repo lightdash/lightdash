@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
+import { gzipSync } from 'zlib';
 import { getConfig } from '../../config';
 import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
@@ -23,6 +24,12 @@ type LightdashApiProps = {
     url: string;
     body: BodyInit | undefined;
 };
+
+let serverSupportsGzip = false;
+
+const MIN_GZIP_SIZE = 1024;
+const GZIP_DISABLED = process.env.LIGHTDASH_DISABLE_GZIP === 'true';
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
@@ -38,7 +45,30 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
-    return fetch(fullUrl, { method, headers, body })
+    let requestBody: BodyInit | undefined = body;
+    if (
+        !GZIP_DISABLED &&
+        serverSupportsGzip &&
+        body &&
+        typeof body === 'string' &&
+        Buffer.byteLength(body) > MIN_GZIP_SIZE
+    ) {
+        try {
+            const uncompressedSize = Buffer.byteLength(body);
+            const compressed = gzipSync(Buffer.from(body));
+            GlobalState.debug(
+                `> Compressed request body: ${uncompressedSize} bytes → ${compressed.byteLength} bytes (${Math.round((1 - compressed.byteLength / uncompressedSize) * 100)}% reduction)`,
+            );
+            requestBody = compressed;
+            headers['Content-Encoding'] = 'gzip';
+        } catch (err) {
+            GlobalState.debug(
+                `> Gzip compression failed, sending uncompressed: ${err}`,
+            );
+        }
+    }
+
+    return fetch(fullUrl, { method, headers, body: requestBody })
         .then((r) => {
             GlobalState.debug(`> HTTP request returned status: ${r.status}`);
 
@@ -194,6 +224,18 @@ export const checkLightdashVersion = async (): Promise<void> => {
             url: `/api/v1/health`,
             body: undefined,
         });
+
+        serverSupportsGzip = health.hasGzipSupport === true;
+        if (GZIP_DISABLED) {
+            GlobalState.debug(
+                `> Server version: ${health.version}, gzip compression: disabled (LIGHTDASH_DISABLE_GZIP=true)`,
+            );
+        } else {
+            GlobalState.debug(
+                `> Server version: ${health.version}, gzip compression: ${serverSupportsGzip ? 'enabled' : 'disabled (server does not support gzip)'}`,
+            );
+        }
+
         if (health.version !== CLI_VERSION) {
             const config = await getConfig();
             console.error(
