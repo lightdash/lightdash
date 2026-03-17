@@ -1,6 +1,7 @@
 import {
     AnyType,
     PreAggregateMissReason,
+    QueryExecutionContext,
     QueryHistoryStatus,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
@@ -36,6 +37,24 @@ const prometheusEventMetricsConfigSchema = z.object({
     ),
 });
 
+const SCHEDULED_CONTEXTS: ReadonlySet<string> = new Set<string>([
+    QueryExecutionContext.AUTOREFRESHED_DASHBOARD,
+    QueryExecutionContext.ALERT,
+    QueryExecutionContext.SCHEDULED_DELIVERY,
+    QueryExecutionContext.SCHEDULED_GSHEETS_CHART,
+    QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+    QueryExecutionContext.SCHEDULED_CHART,
+    QueryExecutionContext.SCHEDULED_DASHBOARD,
+    QueryExecutionContext.CLI,
+    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+]);
+
+export function getQueryContextLabel(
+    context: string,
+): 'interactive' | 'scheduled' {
+    return SCHEDULED_CONTEXTS.has(context) ? 'scheduled' : 'interactive';
+}
+
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
 
@@ -67,10 +86,6 @@ export default class PrometheusMetrics {
         null;
 
     public preAggregateActiveMaterializationsGauge: prometheus.Gauge | null =
-        null;
-
-    // Pre-aggregate query execution metrics
-    public queryExecutionDurationHistogram: prometheus.Histogram<string> | null =
         null;
 
     public duckdbResolutionCounter: prometheus.Counter<string> | null = null;
@@ -115,7 +130,7 @@ export default class PrometheusMetrics {
 
     // Query history pipeline metrics
     private queryStateTransitionCounter: prometheus.Counter<
-        'from' | 'to'
+        'from' | 'to' | 'context'
     > | null = null;
 
     private queueWaitHistogram: prometheus.Histogram | null = null;
@@ -123,6 +138,8 @@ export default class PrometheusMetrics {
     private totalDurationHistogram: prometheus.Histogram | null = null;
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
+
+    private overheadDurationHistogram: prometheus.Histogram | null = null;
 
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
@@ -151,7 +168,7 @@ export default class PrometheusMetrics {
                 this.queryStatusCounter = new prometheus.Counter({
                     name: 'lightdash_query_status_total',
                     help: 'Total number of queries by terminal status',
-                    labelNames: ['status'],
+                    labelNames: ['status', 'context'],
                     ...rest,
                 });
 
@@ -159,13 +176,14 @@ export default class PrometheusMetrics {
                 this.queryStateTransitionCounter = new prometheus.Counter({
                     name: 'lightdash_query_state_transitions_total',
                     help: 'Query state transitions (monotonic, safe across processes)',
-                    labelNames: ['from', 'to'],
+                    labelNames: ['from', 'to', 'context'],
                     ...rest,
                 });
 
                 this.queueWaitHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_queue_wait_duration_seconds',
                     help: 'Time spent waiting in queue before execution',
+                    labelNames: ['context'],
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300],
                     ...rest,
                 });
@@ -173,6 +191,7 @@ export default class PrometheusMetrics {
                 this.totalDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_total_duration_seconds',
                     help: 'Total query duration from creation to results ready',
+                    labelNames: ['context'],
                     buckets: [0.5, 1, 2.5, 5, 10, 30, 60, 120, 300, 600],
                     ...rest,
                 });
@@ -180,8 +199,16 @@ export default class PrometheusMetrics {
                 this.warehouseDurationHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_warehouse_duration_seconds',
                     help: 'Warehouse query execution duration',
-                    labelNames: ['warehouse_type'],
+                    labelNames: ['warehouse_type', 'context'],
                     buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                    ...rest,
+                });
+
+                this.overheadDurationHistogram = new prometheus.Histogram({
+                    name: 'lightdash_query_overhead_duration_seconds',
+                    help: 'Lightdash overhead: total duration minus warehouse execution time',
+                    labelNames: ['context'],
+                    buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
 
@@ -314,19 +341,6 @@ export default class PrometheusMetrics {
                         buckets: [1, 5, 10, 30, 60, 120, 300, 600, 900, 1800],
                         ...rest,
                     });
-
-                // Pre-aggregate query execution metrics
-                this.queryExecutionDurationHistogram = new prometheus.Histogram(
-                    {
-                        name: 'lightdash_query_execution_duration_seconds',
-                        help: 'Query execution duration by source',
-                        labelNames: ['source', 'context', 'status'],
-                        buckets: [
-                            0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300, 600,
-                        ],
-                        ...rest,
-                    },
-                );
 
                 this.duckdbResolutionCounter = new prometheus.Counter({
                     name: 'lightdash_pre_aggregate_duckdb_resolution_total',
@@ -480,9 +494,12 @@ export default class PrometheusMetrics {
         }
     }
 
-    public incrementQueryStatus(status: QueryHistoryStatus) {
+    public incrementQueryStatus(status: QueryHistoryStatus, context: string) {
         if (this.queryStatusCounter) {
-            this.queryStatusCounter.inc({ status });
+            this.queryStatusCounter.inc({
+                status,
+                context: getQueryContextLabel(context),
+            });
         }
     }
 
@@ -717,18 +734,6 @@ export default class PrometheusMetrics {
         }
     }
 
-    public observeQueryExecutionDuration(
-        durationMs: number,
-        source: 'warehouse' | 'pre_aggregate_duckdb',
-        context: string,
-        status: 'success' | 'error',
-    ) {
-        this.queryExecutionDurationHistogram?.observe(
-            { source, context, status },
-            durationMs / 1000,
-        );
-    }
-
     public trackDuckdbResolution(
         resolved: boolean,
         reason: string | undefined,
@@ -818,21 +823,52 @@ export default class PrometheusMetrics {
             | QueryHistoryStatus.ERROR
             | QueryHistoryStatus.EXPIRED
             | QueryHistoryStatus.CANCELLED,
+        context: string,
     ) {
-        this.queryStateTransitionCounter?.inc({ from, to });
+        this.queryStateTransitionCounter?.inc({
+            from,
+            to,
+            context: getQueryContextLabel(context),
+        });
     }
 
-    public observeQueueWaitDuration(durationMs: number) {
-        this.queueWaitHistogram?.observe(durationMs / 1000);
+    public observeQueueWaitDuration(durationMs: number, context: string) {
+        this.queueWaitHistogram?.observe(
+            { context: getQueryContextLabel(context) },
+            durationMs / 1000,
+        );
     }
 
-    public observeQueryTotalDuration(durationMs: number) {
-        this.totalDurationHistogram?.observe(durationMs / 1000);
+    public observeQueryTotalDuration(durationMs: number, context: string) {
+        this.totalDurationHistogram?.observe(
+            { context: getQueryContextLabel(context) },
+            durationMs / 1000,
+        );
     }
 
-    public observeWarehouseDuration(durationMs: number, warehouseType: string) {
+    public observeWarehouseDuration(
+        durationMs: number,
+        warehouseType: string,
+        context: string,
+    ) {
         this.warehouseDurationHistogram?.observe(
-            { warehouse_type: warehouseType },
+            {
+                warehouse_type: warehouseType,
+                context: getQueryContextLabel(context),
+            },
+            durationMs / 1000,
+        );
+    }
+
+    public observeOverheadDuration(durationMs: number, context: string) {
+        if (durationMs < 0) {
+            Logger.warn(
+                `Negative query overhead detected: ${durationMs}ms (context=${context}). Warehouse reported longer than wall clock.`,
+            );
+            return;
+        }
+        this.overheadDurationHistogram?.observe(
+            { context: getQueryContextLabel(context) },
             durationMs / 1000,
         );
     }
