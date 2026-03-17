@@ -822,12 +822,16 @@ const Dashboard: FC = () => {
 };
 
 const DashboardPage: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid, dashboardUuid } = useParams<{
+        projectUuid: string;
+        dashboardUuid: string;
+    }>();
     const { user } = useApp();
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
 
     return (
         <DashboardProvider
+            key={dashboardUuid}
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
