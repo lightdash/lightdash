@@ -1,3 +1,10 @@
+## [0.2630.2](https://github.com/lightdash/lightdash/compare/0.2630.1...0.2630.2) (2026-03-17)
+
+
+### Bug Fixes
+
+* virtual view edit modal cut off by navbar ([#21200](https://github.com/lightdash/lightdash/issues/21200)) ([62171a5](https://github.com/lightdash/lightdash/commit/62171a5c8c0a695595e5a6f98b3ff92c3731a8bd))
+
 ## [0.2630.1](https://github.com/lightdash/lightdash/compare/0.2630.0...0.2630.1) (2026-03-17)
 
 
