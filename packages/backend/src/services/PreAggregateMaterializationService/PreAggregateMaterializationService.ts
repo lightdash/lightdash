@@ -191,6 +191,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 },
             );
 
+            const pollStart = Date.now();
             const queryHistory = await Sentry.startSpan(
                 {
                     op: 'preaggregate',
@@ -213,6 +214,7 @@ export class PreAggregateMaterializationService extends BaseService {
                         throwOnError: false,
                     }),
             );
+            const pollDurationMs = Date.now() - pollStart;
 
             this.logger.info(
                 `pollForQueryCompletion completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
@@ -288,7 +290,8 @@ export class PreAggregateMaterializationService extends BaseService {
                 ? Object.keys(queryHistory.columns).length
                 : null;
 
-            // Get file size from S3 for the active format
+            // Get file size from S3 and promote to active — timed together
+            const promoteStart = Date.now();
             const totalBytes = await Sentry.startSpan(
                 {
                     op: 'preaggregate',
@@ -345,6 +348,7 @@ export class PreAggregateMaterializationService extends BaseService {
                         totalBytes,
                     }),
             );
+            const promoteDurationMs = Date.now() - promoteStart;
 
             if (
                 queryHistory.totalRowCount != null &&
@@ -388,6 +392,25 @@ export class PreAggregateMaterializationService extends BaseService {
             this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
                 { status, trigger: args.trigger },
                 durationMs / 1000,
+            );
+
+            // Sub-step metrics
+            this.prometheusMetrics?.observeMaterializationPollDuration(
+                pollDurationMs,
+                status,
+                args.trigger,
+            );
+            if (queryHistory.warehouseExecutionTimeMs != null) {
+                this.prometheusMetrics?.observeMaterializationWarehouseDuration(
+                    queryHistory.warehouseExecutionTimeMs,
+                    status,
+                    args.trigger,
+                );
+            }
+            this.prometheusMetrics?.observeMaterializationPromoteDuration(
+                promoteDurationMs,
+                status,
+                args.trigger,
             );
 
             return {

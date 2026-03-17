@@ -103,6 +103,11 @@ export class PreAggregationDuckDbClient {
                 new DuckdbWarehouseClient({
                     ...warehouseArgs,
                     logger: Logger,
+                    onQueryProfile: (profile) => {
+                        this.prometheusMetrics?.observeDuckdbQueryProfile(
+                            profile,
+                        );
+                    },
                 }));
     }
 
