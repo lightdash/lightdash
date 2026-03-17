@@ -63,7 +63,6 @@ import {
     expressWinstonPreResponseMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
-import { createGzipMetricsMiddleware } from './middlewares/gzipMetrics';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
@@ -365,13 +364,7 @@ export default class App {
         );
 
         expressApp.use(
-            express.json({
-                limit: this.lightdashConfig.maxPayloadSize,
-            }),
-        );
-        expressApp.use(
-            '/api',
-            createGzipMetricsMiddleware(this.prometheusMetrics),
+            express.json({ limit: this.lightdashConfig.maxPayloadSize }),
         );
 
         const reportUris: URL[] = [];
