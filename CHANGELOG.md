@@ -1,3 +1,11 @@
+## [0.2631.1](https://github.com/lightdash/lightdash/compare/0.2631.0...0.2631.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* improve query timezone setting description text clarity ([#21212](https://github.com/lightdash/lightdash/issues/21212)) ([7f6fbea](https://github.com/lightdash/lightdash/commit/7f6fbea7c1474ebcf1443418b5c34cc4bf61ec1a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* resolve all series pivot references in custom tooltips ([#21194](https://github.com/lightdash/lightdash/issues/21194)) ([a33f06a](https://github.com/lightdash/lightdash/commit/a33f06ad6cd375d74c7fa4830298b6d3a21d1560))
+
 # [0.2631.0](https://github.com/lightdash/lightdash/compare/0.2630.3...0.2631.0) (2026-03-17)
 
 
