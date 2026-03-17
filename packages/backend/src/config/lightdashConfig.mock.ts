@@ -132,7 +132,6 @@ export const lightdashConfigMock: LightdashConfig = {
         filePath: '',
     },
     maxPayloadSize: '',
-    enableCompression: false,
     pivotTable: { maxColumnLimit: 0 },
     posthog: undefined,
     s3: {
