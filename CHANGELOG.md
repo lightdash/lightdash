@@ -1,3 +1,10 @@
+## [0.2627.3](https://github.com/lightdash/lightdash/compare/0.2627.2...0.2627.3) (2026-03-17)
+
+
+### Bug Fixes
+
+* move email logo assets to backend templates directory ([#21183](https://github.com/lightdash/lightdash/issues/21183)) ([d33e46d](https://github.com/lightdash/lightdash/commit/d33e46dc5e83dfaf60b5bec3dab5a100df03fce4))
+
 ## [0.2627.2](https://github.com/lightdash/lightdash/compare/0.2627.1...0.2627.2) (2026-03-17)
 
 
