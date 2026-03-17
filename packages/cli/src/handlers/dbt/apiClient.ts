@@ -28,7 +28,11 @@ type LightdashApiProps = {
 let serverSupportsGzip = false;
 
 const MIN_GZIP_SIZE = 1024;
-const GZIP_DISABLED = process.env.LIGHTDASH_DISABLE_COMPRESSION === 'true';
+let gzipEnabled = process.env.LIGHTDASH_ENABLE_COMPRESSION === 'true';
+
+export const setGzipEnabled = (enabled: boolean) => {
+    gzipEnabled = enabled;
+};
 
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
@@ -47,7 +51,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
 
     let requestBody: BodyInit | undefined = body;
     if (
-        !GZIP_DISABLED &&
+        gzipEnabled &&
         serverSupportsGzip &&
         body &&
         typeof body === 'string' &&
@@ -226,17 +230,17 @@ export const checkLightdashVersion = async (): Promise<void> => {
         });
 
         serverSupportsGzip = health.hasGzipSupport === true;
-        if (GZIP_DISABLED) {
-            GlobalState.debug(
-                `> Server version: ${health.version}, gzip compression: disabled (LIGHTDASH_DISABLE_COMPRESSION=true)`,
-            );
-        } else if (serverSupportsGzip) {
+        if (gzipEnabled && serverSupportsGzip) {
             GlobalState.debug(
                 `> Server version: ${health.version}, gzip compression: enabled`,
             );
-        } else {
+        } else if (gzipEnabled && !serverSupportsGzip) {
             GlobalState.debug(
                 `> Server version: ${health.version}, gzip compression: disabled (server does not support gzip)`,
+            );
+        } else {
+            GlobalState.debug(
+                `> Server version: ${health.version}, gzip compression: disabled (set LIGHTDASH_ENABLE_COMPRESSION=true to enable)`,
             );
         }
 

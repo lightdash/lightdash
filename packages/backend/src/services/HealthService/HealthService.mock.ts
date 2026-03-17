@@ -11,7 +11,7 @@ export const BaseResponse: HealthState = {
     mode: LightdashMode.DEFAULT,
     isAuthenticated: false,
     requiresOrgRegistration: false,
-    hasGzipSupport: true,
+    hasGzipSupport: false,
     localDbtEnabled: true,
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',

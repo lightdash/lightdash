@@ -871,7 +871,7 @@ export type LightdashConfig = {
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
-    disableCompression: boolean;
+    enableCompression: boolean;
     query: {
         maxLimit: number;
         defaultLimit: number;
@@ -1690,8 +1690,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
-        disableCompression:
-            process.env.LIGHTDASH_DISABLE_COMPRESSION === 'true',
+        enableCompression: process.env.LIGHTDASH_ENABLE_COMPRESSION === 'true',
         query: {
             maxLimit:
                 getIntegerFromEnvironmentVariable(
