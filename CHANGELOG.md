@@ -1,3 +1,10 @@
+## [0.2629.2](https://github.com/lightdash/lightdash/compare/0.2629.1...0.2629.2) (2026-03-17)
+
+
+### Bug Fixes
+
+* prevent dashboard placeholder creation race condition in chart downloads ([#21195](https://github.com/lightdash/lightdash/issues/21195)) ([b45630f](https://github.com/lightdash/lightdash/commit/b45630ff7ee2d62f0582dcfb2661ed7d22381a65))
+
 ## [0.2629.1](https://github.com/lightdash/lightdash/compare/0.2629.0...0.2629.1) (2026-03-17)
 
 
