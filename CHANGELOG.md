@@ -1,3 +1,11 @@
+## [0.2627.2](https://github.com/lightdash/lightdash/compare/0.2627.1...0.2627.2) (2026-03-17)
+
+
+### Bug Fixes
+
+* add isNonAggregateMetricType helper and display metric type/SQL in CustomMetricModal ([#21179](https://github.com/lightdash/lightdash/issues/21179)) ([8cb1a98](https://github.com/lightdash/lightdash/commit/8cb1a98f1c83bc46bdba9e39a14089472b70a345))
+* path to delete in the service was passing slug and adds tests ([#21175](https://github.com/lightdash/lightdash/issues/21175)) ([1bf8ea1](https://github.com/lightdash/lightdash/commit/1bf8ea13ff7b1bde440aac51c5f81a4cb6f8c6a4))
+
 ## [0.2627.1](https://github.com/lightdash/lightdash/compare/0.2627.0...0.2627.1) (2026-03-17)
 
 
