@@ -8,6 +8,7 @@ import {
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Group,
     Indicator,
@@ -24,6 +25,7 @@ import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
     IconChartHistogram,
+    IconCode,
     IconGripHorizontal,
 } from '@tabler/icons-react';
 import {
@@ -56,6 +58,7 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
+import { formatSql } from '../../../utils/sqlFormatter';
 import { Parameters, useParameters } from '../../parameters';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';
@@ -77,6 +80,7 @@ import {
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
     setEditorHighlightError,
+    setSql,
     setSqlLimit,
     updateParameterValue,
 } from '../store/sqlRunnerSlice';
@@ -104,6 +108,9 @@ export const ContentPanel: FC = () => {
     const queryError = useAppSelector((state) => state.sqlRunner.queryError);
     const editorHighlightError = useAppSelector(
         (state) => state.sqlRunner.editorHighlightError,
+    );
+    const warehouseConnectionType = useAppSelector(
+        (state) => state.sqlRunner.warehouseConnectionType,
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
@@ -210,6 +217,11 @@ export const ContentPanel: FC = () => {
             notifications.clean();
         }
     }, [queryError, showToastError]);
+
+    const handleFormatSql = useCallback(() => {
+        if (!sql) return;
+        dispatch(setSql(formatSql(sql, warehouseConnectionType)));
+    }, [sql, warehouseConnectionType, dispatch]);
 
     // Run query on cmd + enter
     useHotkeys([
@@ -536,6 +548,22 @@ export const ContentPanel: FC = () => {
                                       }
                                     : {})}
                             />
+                            {activeEditorTab === EditorTabs.SQL && (
+                                <Tooltip
+                                    variant="xs"
+                                    label="Format SQL"
+                                    withArrow
+                                    position="bottom"
+                                >
+                                    <ActionIcon
+                                        onClick={handleFormatSql}
+                                        disabled={!sql}
+                                        variant="default"
+                                    >
+                                        <MantineIcon icon={IconCode} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
                             {activeEditorTab === EditorTabs.VISUALIZATION &&
                             !isVizTableConfig(currentVizConfig) &&
                             selectedChartType ? (

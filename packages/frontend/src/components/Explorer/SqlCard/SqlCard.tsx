@@ -18,7 +18,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { format } from 'sql-formatter';
 import {
     explorerActions,
     selectIsSqlExpanded,
@@ -26,12 +25,12 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { getLanguage } from '../../../features/sqlRunner/store/sqlRunnerSlice';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useProject } from '../../../hooks/useProject';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { formatSql } from '../../../utils/sqlFormatter';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { type SqlViewType } from '../../RenderedSql';
@@ -74,20 +73,13 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const selectedSql =
         selectedView === 'pivotQuery' ? data?.pivotQuery : data?.query;
 
-    const formattedSql = useMemo(() => {
-        if (!selectedSql) return '';
-        try {
-            return format(selectedSql, {
-                language: getLanguage(project?.warehouseConnection?.type),
-            });
-        } catch (e) {
-            console.warn(
-                'Error formatting SQL:',
-                e instanceof Error ? e.message : 'Unknown error occurred',
-            );
-            return selectedSql;
-        }
-    }, [selectedSql, project?.warehouseConnection?.type]);
+    const formattedSql = useMemo(
+        () =>
+            selectedSql
+                ? formatSql(selectedSql, project?.warehouseConnection?.type)
+                : '',
+        [selectedSql, project?.warehouseConnection?.type],
+    );
 
     return (
         <CollapsableCard
