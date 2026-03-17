@@ -92,6 +92,27 @@ export default class PrometheusMetrics {
     public preAggregateParquetConversionDurationHistogram: prometheus.Histogram<string> | null =
         null;
 
+    // Materialization sub-step metrics
+    private materializationPollDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    private materializationWarehouseDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    private materializationPromoteDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    // DuckDB query profiling metrics
+    private duckdbQueryLatencyHistogram: prometheus.Histogram | null = null;
+
+    private duckdbParquetReadDurationHistogram: prometheus.Histogram | null =
+        null;
+
+    private duckdbBytesReadHistogram: prometheus.Histogram | null = null;
+
+    private duckdbScanAmplificationHistogram: prometheus.Histogram | null =
+        null;
+
     // Query history pipeline metrics
     private queryStateTransitionCounter: prometheus.Counter<
         'from' | 'to'
@@ -353,6 +374,81 @@ export default class PrometheusMetrics {
                         help: 'Duration of JSONL to Parquet conversion',
                         labelNames: ['status'],
                         buckets: [0.5, 1, 2, 5, 10, 30, 60, 120],
+                        ...rest,
+                    });
+
+                // Materialization sub-step histograms
+                const materializationSubStepBuckets = [
+                    1, 5, 10, 30, 60, 120, 300, 600, 900, 1800,
+                ];
+
+                this.materializationPollDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_pre_aggregate_materialization_poll_duration_seconds',
+                        help: 'Time spent polling for materialization query completion (seconds)',
+                        labelNames: ['status', 'trigger'],
+                        buckets: materializationSubStepBuckets,
+                        ...rest,
+                    });
+
+                this.materializationWarehouseDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_pre_aggregate_materialization_warehouse_duration_seconds',
+                        help: 'Warehouse execution time during materialization (seconds)',
+                        labelNames: ['status', 'trigger'],
+                        buckets: materializationSubStepBuckets,
+                        ...rest,
+                    });
+
+                this.materializationPromoteDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_pre_aggregate_materialization_promote_duration_seconds',
+                        help: 'Time to check file size and promote materialization to active (seconds)',
+                        labelNames: ['status', 'trigger'],
+                        buckets: materializationSubStepBuckets,
+                        ...rest,
+                    });
+
+                // DuckDB query profiling histograms
+                this.duckdbQueryLatencyHistogram = new prometheus.Histogram({
+                    name: 'lightdash_pre_aggregate_duckdb_query_latency_seconds',
+                    help: 'Total DuckDB query latency (seconds)',
+                    buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30],
+                    ...rest,
+                });
+
+                this.duckdbParquetReadDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_pre_aggregate_duckdb_parquet_read_duration_seconds',
+                        help: 'Time spent in READ_PARQUET operators (seconds)',
+                        buckets: [
+                            0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30,
+                        ],
+                        ...rest,
+                    });
+
+                this.duckdbBytesReadHistogram = new prometheus.Histogram({
+                    name: 'lightdash_pre_aggregate_duckdb_bytes_read',
+                    help: 'Bytes read from S3/parquet by DuckDB queries',
+                    buckets: [
+                        1024, // 1KB
+                        10240, // 10KB
+                        102400, // 100KB
+                        1048576, // 1MB
+                        10485760, // 10MB
+                        52428800, // 50MB
+                        104857600, // 100MB
+                        524288000, // 500MB
+                        1073741824, // 1GB
+                    ],
+                    ...rest,
+                });
+
+                this.duckdbScanAmplificationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_pre_aggregate_duckdb_scan_amplification',
+                        help: 'Ratio of rows scanned to rows returned in DuckDB queries',
+                        buckets: [1, 1.5, 2, 5, 10, 25, 50, 100],
                         ...rest,
                     });
 
@@ -739,6 +835,61 @@ export default class PrometheusMetrics {
             { warehouse_type: warehouseType },
             durationMs / 1000,
         );
+    }
+
+    public observeMaterializationPollDuration(
+        durationMs: number,
+        status: string,
+        trigger: string,
+    ) {
+        this.materializationPollDurationHistogram?.observe(
+            { status, trigger },
+            durationMs / 1000,
+        );
+    }
+
+    public observeMaterializationWarehouseDuration(
+        durationMs: number,
+        status: string,
+        trigger: string,
+    ) {
+        this.materializationWarehouseDurationHistogram?.observe(
+            { status, trigger },
+            durationMs / 1000,
+        );
+    }
+
+    public observeMaterializationPromoteDuration(
+        durationMs: number,
+        status: string,
+        trigger: string,
+    ) {
+        this.materializationPromoteDurationHistogram?.observe(
+            { status, trigger },
+            durationMs / 1000,
+        );
+    }
+
+    public observeDuckdbQueryProfile(profile: {
+        latencyMs: number;
+        readParquetMs: number | null;
+        bytesRead: number | null;
+        scanAmplification: number | null;
+    }) {
+        this.duckdbQueryLatencyHistogram?.observe(profile.latencyMs / 1000);
+        if (profile.readParquetMs != null) {
+            this.duckdbParquetReadDurationHistogram?.observe(
+                profile.readParquetMs / 1000,
+            );
+        }
+        if (profile.bytesRead != null) {
+            this.duckdbBytesReadHistogram?.observe(profile.bytesRead);
+        }
+        if (profile.scanAmplification != null) {
+            this.duckdbScanAmplificationHistogram?.observe(
+                profile.scanAmplification,
+            );
+        }
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {

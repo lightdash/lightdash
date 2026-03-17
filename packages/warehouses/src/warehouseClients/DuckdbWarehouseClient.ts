@@ -71,12 +71,24 @@ export type DuckdbLogger = {
     info: (message: string, metadata?: Record<string, unknown>) => void;
 };
 
+export type DuckdbQueryProfileMetrics = {
+    latencyMs: number;
+    cpuMs: number;
+    waitMs: number;
+    readParquetMs: number | null;
+    bytesRead: number | null;
+    rowsReturned: number | null;
+    rowsScanned: number | null;
+    scanAmplification: number | null;
+};
+
 export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
     resourceLimits?: DuckdbResourceLimits;
     bufferPoolSize?: string; // e.g. '256MB' — controls DuckDB's buffer_pool_size for parquet/HTTP caching
     logger?: DuckdbLogger;
+    onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
 };
 
 const DUCKDB_INTERNAL_CREDENTIALS: CreatePostgresCredentials = {
@@ -236,6 +248,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private readonly logger?: DuckdbLogger;
 
+    private readonly onQueryProfile?: (
+        profile: DuckdbQueryProfileMetrics,
+    ) => void;
+
     constructor(args: DuckdbWarehouseClientArgs = {}) {
         super(DUCKDB_INTERNAL_CREDENTIALS, new DuckdbSqlBuilder());
         this.databasePath = args.databasePath ?? ':memory:';
@@ -243,6 +259,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         this.resourceLimits = args.resourceLimits;
         this.bufferPoolSize = args.bufferPoolSize;
         this.logger = args.logger;
+        this.onQueryProfile = args.onQueryProfile;
     }
 
     async close(): Promise<void> {
@@ -445,7 +462,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return undefined;
     }
 
-    private static async logQueryProfile(
+    private async logQueryProfile(
         profilePath: string,
         logger: DuckdbLogger,
         tags?: Record<string, string>,
@@ -522,6 +539,17 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                     scanAmplification,
                 },
             );
+
+            this.onQueryProfile?.({
+                latencyMs,
+                cpuMs,
+                waitMs,
+                readParquetMs,
+                bytesRead,
+                rowsReturned,
+                rowsScanned,
+                scanAmplification,
+            });
         } catch {
             // profiling output not available, skip
         } finally {
@@ -661,7 +689,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             }
 
             if (profilePath) {
-                await DuckdbWarehouseClient.logQueryProfile(
+                await this.logQueryProfile(
                     profilePath,
                     this.logger!,
                     options?.tags,
