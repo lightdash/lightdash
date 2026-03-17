@@ -1,3 +1,10 @@
+## [0.2627.1](https://github.com/lightdash/lightdash/compare/0.2627.0...0.2627.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* stream CID inline image from S3 instead of local filesystem path ([#21177](https://github.com/lightdash/lightdash/issues/21177)) ([2edce00](https://github.com/lightdash/lightdash/commit/2edce001f4e48fef6e3edd72dafe380dfb4bf6bf))
+
 # [0.2627.0](https://github.com/lightdash/lightdash/compare/0.2626.1...0.2627.0) (2026-03-16)
 
 
