@@ -1,3 +1,10 @@
+## [0.2630.3](https://github.com/lightdash/lightdash/compare/0.2630.2...0.2630.3) (2026-03-17)
+
+
+### Bug Fixes
+
+* **skills:** enforce tab uuids ([#21202](https://github.com/lightdash/lightdash/issues/21202)) ([2a769a4](https://github.com/lightdash/lightdash/commit/2a769a46e1b789bacc963f4a4188d0d2f2dbe605))
+
 ## [0.2630.2](https://github.com/lightdash/lightdash/compare/0.2630.1...0.2630.2) (2026-03-17)
 
 
