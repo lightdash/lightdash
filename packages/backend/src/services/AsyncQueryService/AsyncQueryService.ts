@@ -573,6 +573,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         // Track state transition to cancelled
+        const queryContext = queryHistory.context || 'unknown';
         if (
             previousStatus === QueryHistoryStatus.PENDING ||
             previousStatus === QueryHistoryStatus.QUEUED ||
@@ -581,6 +582,7 @@ export class AsyncQueryService extends ProjectService {
             this.prometheusMetrics?.trackQueryStateTransition(
                 previousStatus,
                 QueryHistoryStatus.CANCELLED,
+                queryContext,
             );
         }
 
@@ -588,6 +590,7 @@ export class AsyncQueryService extends ProjectService {
         this.trackQueryTerminalStatus(
             QueryHistoryStatus.CANCELLED,
             queryHistory.createdAt,
+            queryContext,
         );
     }
 
@@ -1879,11 +1882,16 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
+        const queryContext = queryHistory.context || 'unknown';
         this.prometheusMetrics?.trackQueryStateTransition(
             QueryHistoryStatus.QUEUED,
             QueryHistoryStatus.EXECUTING,
+            queryContext,
         );
-        this.prometheusMetrics?.observeQueueWaitDuration(timeInQueueMs);
+        this.prometheusMetrics?.observeQueueWaitDuration(
+            timeInQueueMs,
+            queryContext,
+        );
 
         return true;
     }
@@ -2074,23 +2082,10 @@ export class AsyncQueryService extends ProjectService {
                     }),
             );
 
-            // Track query execution duration — scoped to pre-aggregate DuckDB queries by default
-            // Set LIGHTDASH_PROMETHEUS_ALL_QUERY_METRICS_ENABLED=true to track all queries
-            if (
-                executionSource === 'pre_aggregate_duckdb' ||
-                this.lightdashConfig.prometheus.allQueryMetricsEnabled
-            ) {
-                this.prometheusMetrics?.observeQueryExecutionDuration(
-                    durationMs,
-                    executionSource,
-                    queryTags.query_context || 'unknown',
-                    'success',
-                );
-            }
-
             this.prometheusMetrics?.observeWarehouseDuration(
                 durationMs,
                 warehouseCredentialsType || 'unknown',
+                queryTags.query_context || 'unknown',
             );
 
             this.analytics.track({
@@ -2205,27 +2200,17 @@ export class AsyncQueryService extends ProjectService {
             this.prometheusMetrics?.trackQueryStateTransition(
                 QueryHistoryStatus.EXECUTING,
                 QueryHistoryStatus.READY,
+                queryTags.query_context || 'unknown',
             );
             this.trackQueryTerminalStatus(
                 QueryHistoryStatus.READY,
                 queryCreatedAt,
+                queryTags.query_context || 'unknown',
             );
         } catch (e) {
             this.logger.error(
                 `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
             );
-            if (
-                executionSource === 'pre_aggregate_duckdb' ||
-                this.lightdashConfig.prometheus.allQueryMetricsEnabled
-            ) {
-                this.prometheusMetrics?.observeQueryExecutionDuration(
-                    Date.now() - queryStartTime,
-                    executionSource,
-                    queryTags.query_context || 'unknown',
-                    'error',
-                );
-            }
-
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.error',
@@ -2252,10 +2237,12 @@ export class AsyncQueryService extends ProjectService {
             this.prometheusMetrics?.trackQueryStateTransition(
                 QueryHistoryStatus.EXECUTING,
                 QueryHistoryStatus.ERROR,
+                queryTags.query_context || 'unknown',
             );
             this.trackQueryTerminalStatus(
                 QueryHistoryStatus.ERROR,
                 queryCreatedAt,
+                queryTags.query_context || 'unknown',
             );
 
             // Re-throw when using an override client (e.g. DuckDB pre-agg)
@@ -2361,12 +2348,14 @@ export class AsyncQueryService extends ProjectService {
 
     private trackQueryTerminalStatus(
         status: QueryHistoryStatus,
-        queryCreatedAt?: Date | null,
+        queryCreatedAt: Date | null | undefined,
+        context: string,
     ) {
-        this.prometheusMetrics?.incrementQueryStatus(status);
+        this.prometheusMetrics?.incrementQueryStatus(status, context);
         if (queryCreatedAt) {
             this.prometheusMetrics?.observeQueryTotalDuration(
                 Date.now() - queryCreatedAt.getTime(),
+                context,
             );
         }
     }
@@ -2381,13 +2370,16 @@ export class AsyncQueryService extends ProjectService {
             QUEUED_QUERY_EXPIRED_MESSAGE,
         );
 
+        const queryContext = queryHistory.context || 'unknown';
         this.prometheusMetrics?.trackQueryStateTransition(
             QueryHistoryStatus.QUEUED,
             QueryHistoryStatus.EXPIRED,
+            queryContext,
         );
         this.trackQueryTerminalStatus(
             QueryHistoryStatus.EXPIRED,
             queryHistory.createdAt,
+            queryContext,
         );
 
         Sentry.withScope((scope) => {
@@ -2876,6 +2868,7 @@ export class AsyncQueryService extends ProjectService {
                     this.prometheusMetrics?.trackQueryStateTransition(
                         'new',
                         QueryHistoryStatus.PENDING,
+                        context,
                     );
 
                     this.analytics.trackAccount(account, {
@@ -2946,10 +2939,12 @@ export class AsyncQueryService extends ProjectService {
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
                             QueryHistoryStatus.READY,
+                            context,
                         );
                         this.trackQueryTerminalStatus(
                             QueryHistoryStatus.READY,
                             queryCreatedAt,
+                            context,
                         );
 
                         return {
@@ -2977,10 +2972,12 @@ export class AsyncQueryService extends ProjectService {
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
                             QueryHistoryStatus.ERROR,
+                            context,
                         );
                         this.trackQueryTerminalStatus(
                             QueryHistoryStatus.ERROR,
                             queryCreatedAt,
+                            context,
                         );
 
                         return {
@@ -3049,10 +3046,12 @@ export class AsyncQueryService extends ProjectService {
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
                             QueryHistoryStatus.ERROR,
+                            context,
                         );
                         this.trackQueryTerminalStatus(
                             QueryHistoryStatus.ERROR,
                             queryCreatedAt,
+                            context,
                         );
 
                         return {
@@ -3120,6 +3119,7 @@ export class AsyncQueryService extends ProjectService {
                             this.prometheusMetrics?.trackQueryStateTransition(
                                 QueryHistoryStatus.PENDING,
                                 QueryHistoryStatus.QUEUED,
+                                context,
                             );
                         } catch (e) {
                             const errorMessage = getErrorMessage(e);
@@ -3141,10 +3141,12 @@ export class AsyncQueryService extends ProjectService {
                             this.prometheusMetrics?.trackQueryStateTransition(
                                 QueryHistoryStatus.PENDING,
                                 QueryHistoryStatus.ERROR,
+                                context,
                             );
                             this.trackQueryTerminalStatus(
                                 QueryHistoryStatus.ERROR,
                                 queryCreatedAt,
+                                context,
                             );
 
                             return {
@@ -3161,6 +3163,11 @@ export class AsyncQueryService extends ProjectService {
                         this.prometheusMetrics?.trackQueryStateTransition(
                             QueryHistoryStatus.PENDING,
                             QueryHistoryStatus.EXECUTING,
+                            context,
+                        );
+                        this.prometheusMetrics?.observeQueueWaitDuration(
+                            0,
+                            context,
                         );
 
                         const { query: warehouseSql, ...sharedAsyncQueryArgs } =
