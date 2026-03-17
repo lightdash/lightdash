@@ -13,11 +13,16 @@ import {
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
+import { defaultContext } from '@tanstack/react-query';
+import { useContext } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
+import { getFromInMemoryStorage } from '../../utils/inMemoryStorage';
 import { useGoogleLoginPopup } from '../gdrive/useGdrive';
 import useHealth from '../health/useHealth';
+
+const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
 const CopyErrorButton = ({
     value,
@@ -61,7 +66,42 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     );
 };
 
-const ApiErrorDisplay = ({
+const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
+    switch (apiError.name) {
+        case 'GoogleSheetsScopeError':
+            return <span>{apiError.message}</span>;
+        default:
+            break;
+    }
+
+    if (apiError.sentryEventId || apiError.sentryTraceId) {
+        return (
+            <Stack spacing="xxs">
+                <Text mb={0}>{apiError.message}</Text>
+                <Text mb={0} weight="bold">
+                    Contact support with the following information:
+                </Text>
+                <Group spacing="xxs" align="flex-start">
+                    <Text mb={0} weight="bold">
+                        Error ID: {apiError.sentryEventId || 'n/a'}
+                        <br />
+                        Trace ID: {apiError.sentryTraceId || 'n/a'}
+                    </Text>
+                    <CopyErrorButton
+                        value={`${apiError.message}\nError ID: ${
+                            apiError.sentryEventId || 'n/a'
+                        }\nTrace ID: ${apiError.sentryTraceId || 'n/a'}`}
+                        color="gray.7"
+                    />
+                </Group>
+            </Stack>
+        );
+    }
+
+    return <span>{apiError.message}</span>;
+};
+
+const ApiErrorDisplayWithHealth = ({
     apiError,
     onClose,
 }: {
@@ -187,6 +227,26 @@ const ApiErrorDisplay = ({
     }
 
     return <span>{apiError.message}</span>;
+};
+
+const ApiErrorDisplay = ({
+    apiError,
+    onClose,
+}: {
+    apiError: ApiErrorDetail;
+    onClose?: () => void;
+}) => {
+    const queryClient = useContext(defaultContext);
+    const isSdk =
+        getFromInMemoryStorage<string>(
+            LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY,
+        ) !== undefined;
+
+    if (isSdk || !queryClient) {
+        return <ApiErrorDisplayStatic apiError={apiError} />;
+    }
+
+    return <ApiErrorDisplayWithHealth apiError={apiError} onClose={onClose} />;
 };
 
 export default ApiErrorDisplay;
