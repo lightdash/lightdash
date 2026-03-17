@@ -358,6 +358,7 @@ const MinimalDashboard: FC = () => {
 
     return (
         <DashboardProvider
+            projectUuid={projectUuid}
             schedulerFilters={schedulerFilters}
             schedulerParameters={schedulerParameters}
             schedulerTabsSelected={schedulerTabsSelected}
