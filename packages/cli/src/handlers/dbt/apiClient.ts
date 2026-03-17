@@ -55,7 +55,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     ) {
         try {
             const uncompressedSize = Buffer.byteLength(body);
-            const compressed = gzipSync(Buffer.from(body));
+            const compressed = gzipSync(body);
             GlobalState.debug(
                 `> Compressed request body: ${uncompressedSize} bytes → ${compressed.byteLength} bytes (${Math.round((1 - compressed.byteLength / uncompressedSize) * 100)}% reduction)`,
             );
