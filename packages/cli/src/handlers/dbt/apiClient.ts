@@ -226,10 +226,6 @@ export const checkLightdashVersion = async (): Promise<void> => {
             body: undefined,
         });
 
-        GlobalState.debug(
-            `> Server version: ${health.version}, gzip compression: ${gzipEnabled ? 'enabled' : 'disabled'}`,
-        );
-
         if (health.version !== CLI_VERSION) {
             const config = await getConfig();
             console.error(
