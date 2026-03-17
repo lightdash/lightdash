@@ -858,6 +858,9 @@ export const AggregateMetricTypes = [
 export const isAggregateMetricType = (type: MetricType): boolean =>
     (AggregateMetricTypes as readonly MetricType[]).includes(type);
 
+export const isNonAggregateMetricType = (type: MetricType): boolean =>
+    NonAggregateMetricTypes.includes(type);
+
 export const isPostCalculationMetricType = (type: MetricType): boolean =>
     PostCalculationMetricTypes.includes(type);
 
