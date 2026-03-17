@@ -496,7 +496,7 @@ export type NotificationPayloadBase = {
         pageType: LightdashPage;
         organizationUuid: string;
         imageUrl?: string;
-        imageLocalPath?: string;
+        imageS3Key?: string;
         csvUrl?: {
             path: string;
             filename: string;

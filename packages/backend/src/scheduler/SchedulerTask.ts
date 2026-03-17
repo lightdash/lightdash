@@ -349,7 +349,7 @@ export default class SchedulerTask {
         } = scheduler;
 
         let imageUrl;
-        let imageLocalPath;
+        let imageS3Key;
         let csvUrl;
         let csvUrls;
         let pdfFile;
@@ -434,7 +434,7 @@ export default class SchedulerTask {
                     }
                     pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
-                    imageLocalPath = `/tmp/${imageId}.png`;
+                    imageS3Key = `${imageId}.png`;
 
                     if (this.fileStorageClient.isEnabled() && imageUrl) {
                         imageUrl =
@@ -893,7 +893,7 @@ export default class SchedulerTask {
             details,
             organizationUuid,
             imageUrl,
-            imageLocalPath,
+            imageS3Key,
             csvUrl,
             csvUrls,
             pdfFile,
@@ -2329,12 +2329,35 @@ export default class SchedulerTask {
                 details,
                 pageType,
                 imageUrl,
-                imageLocalPath,
+                imageS3Key,
                 csvUrl,
                 csvUrls,
                 pdfFile,
                 failures,
             } = notificationPageData;
+
+            let imageBuffer: Buffer | undefined;
+            if (
+                this.lightdashConfig.smtp?.inlineImageCid === true &&
+                imageS3Key &&
+                this.fileStorageClient.isEnabled()
+            ) {
+                try {
+                    const stream =
+                        await this.fileStorageClient.getFileStream(imageS3Key);
+                    const chunks: Buffer[] = [];
+                    for await (const chunk of stream) {
+                        chunks.push(
+                            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                        );
+                    }
+                    imageBuffer = Buffer.concat(chunks);
+                } catch (e) {
+                    Logger.warn(
+                        `Failed to stream CID inline image from S3 (key: ${imageS3Key}), falling back to external image URL: ${e}`,
+                    );
+                }
+            }
 
             const schedulerUrl = `${url}?${setUuidParam(
                 'scheduler_uuid',
@@ -2387,7 +2410,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
-                    imageLocalPath,
+                    imageBuffer,
                 );
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl === undefined) {
@@ -2411,7 +2434,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     Math.ceil(emailExpiration / 86400),
                     undefined, // deliveryType
-                    imageLocalPath,
+                    imageBuffer,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
