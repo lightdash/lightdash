@@ -1,3 +1,16 @@
+# [0.2631.0](https://github.com/lightdash/lightdash/compare/0.2630.3...0.2631.0) (2026-03-17)
+
+
+### Bug Fixes
+
+* add partial compilation support for set validation errors ([#21203](https://github.com/lightdash/lightdash/issues/21203)) ([cdac9f7](https://github.com/lightdash/lightdash/commit/cdac9f7b010334b4caae5ac25e8adbafe149488f))
+* dashboard content doesn't update when navigating ([#21201](https://github.com/lightdash/lightdash/issues/21201)) ([8bfeb0d](https://github.com/lightdash/lightdash/commit/8bfeb0d888a61eef42456e416235294b64a2d56d))
+
+
+### Features
+
+* add tableName and fieldId fallback parameters to embed filter search ([#21095](https://github.com/lightdash/lightdash/issues/21095)) ([c35f449](https://github.com/lightdash/lightdash/commit/c35f449ccc3710e84f4da2353a180d6ec6de6962))
+
 ## [0.2630.3](https://github.com/lightdash/lightdash/compare/0.2630.2...0.2630.3) (2026-03-17)
 
 
