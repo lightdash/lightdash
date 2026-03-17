@@ -70,6 +70,7 @@ export enum InlineErrorType {
     MISSING_TABLE = 'MISSING_TABLE',
     FIELD_ERROR = 'FIELD_ERROR',
     SET_VALIDATION_ERROR = 'SET_VALIDATION_ERROR',
+    INVALID_PARAMETER = 'INVALID_PARAMETER',
 }
 
 export type InlineError = {

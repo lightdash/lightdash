@@ -2,6 +2,10 @@
  * Utility functions for handling SQL parameter references
  */
 
+import Ajv from 'ajv';
+import AjvErrors from 'ajv-errors';
+import betterAjvErrors from 'better-ajv-errors';
+import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
@@ -161,4 +165,41 @@ export const validateParameterNames = (
         isInvalid: invalidParameters.length > 0,
         invalidParameters,
     };
+};
+
+// Extract the parameters schema from the dbt YAML schema and compile once
+const parametersSchema =
+    lightdashDbtYamlSchema.$defs.modelMeta.properties.parameters;
+const ajv = new Ajv({
+    coerceTypes: true,
+    allowUnionTypes: true,
+    allErrors: true,
+});
+AjvErrors(ajv);
+const validateParametersSchema = ajv.compile(parametersSchema);
+
+/**
+ * Validate parameter configuration using AJV against the JSON schema.
+ */
+export const validateParameterConfiguration = (
+    parameters: Record<string, LightdashProjectParameter> | undefined,
+): { isValid: boolean; error: string | null } => {
+    if (!parameters || Object.keys(parameters).length === 0) {
+        return { isValid: true, error: null };
+    }
+
+    if (!validateParametersSchema(parameters)) {
+        const error = betterAjvErrors(
+            parametersSchema,
+            parameters,
+            validateParametersSchema.errors || [],
+            { indent: 2 },
+        );
+        return {
+            isValid: false,
+            error: error ?? 'Invalid parameter configuration',
+        };
+    }
+
+    return { isValid: true, error: null };
 };

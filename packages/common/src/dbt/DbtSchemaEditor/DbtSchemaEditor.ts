@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+import AjvErrors from 'ajv-errors';
 import betterAjvErrors from 'better-ajv-errors';
 import {
     isMap,
@@ -61,7 +62,9 @@ export default class DbtSchemaEditor {
         const ajvCompiler = new Ajv({
             coerceTypes: true,
             allowUnionTypes: true,
+            allErrors: true,
         });
+        AjvErrors(ajvCompiler);
         const validate = ajvCompiler.compile<YamlSchema>(
             lightdashDbtYamlSchema,
         );

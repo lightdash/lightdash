@@ -52,613 +52,7 @@
                         }
                     },
                     "meta": {
-                        "type": "object",
-                        "properties": {
-                            "joins": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "join": {
-                                            "type": "string"
-                                        },
-                                        "sql_on": {
-                                            "type": "string"
-                                        },
-                                        "always": {
-                                            "type": "boolean"
-                                        },
-                                        "type": {
-                                            "type": "string",
-                                            "enum": [
-                                                "inner",
-                                                "left",
-                                                "right",
-                                                "full"
-                                            ]
-                                        },
-                                        "hidden": {
-                                            "type": "boolean"
-                                        },
-                                        "alias": {
-                                            "type": "string"
-                                        },
-                                        "label": {
-                                            "type": "string"
-                                        },
-                                        "fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "relationship": {
-                                            "type": "string",
-                                            "enum": [
-                                                "one-to-many",
-                                                "many-to-one",
-                                                "one-to-one",
-                                                "many-to-many"
-                                            ]
-                                        }
-                                    },
-                                    "required": ["join", "sql_on"]
-                                }
-                            },
-                            "order_fields_by": {
-                                "type": "string",
-                                "enum": ["index", "label"]
-                            },
-                            "group_details": {
-                                "type": "object",
-                                "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 3 levels",
-                                "patternProperties": {
-                                    "^[a-zA-Z0-9_]+$": {
-                                        "type": "object",
-                                        "properties": {
-                                            "label": {
-                                                "type": "string",
-                                                "minLength": 1
-                                            },
-                                            "description": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        "required": ["label"]
-                                    }
-                                }
-                            },
-                            "metrics": {
-                                "type": "object",
-                                "patternProperties": {
-                                    "^[a-z0-9_]+$": {
-                                        "type": "object",
-                                        "properties": {
-                                            "type": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "percentile",
-                                                    "median",
-                                                    "average",
-                                                    "boolean",
-                                                    "count",
-                                                    "count_distinct",
-                                                    "date",
-                                                    "max",
-                                                    "min",
-                                                    "number",
-                                                    "string",
-                                                    "sum",
-                                                    "percent_of_previous",
-                                                    "percent_of_total",
-                                                    "running_total"
-                                                ]
-                                            },
-                                            "label": {
-                                                "type": "string",
-                                                "minLength": 1
-                                            },
-                                            "description": {
-                                                "type": "string",
-                                                "minLength": 1
-                                            },
-                                            "sql": {
-                                                "type": "string",
-                                                "minLength": 1
-                                            },
-                                            "hidden": {
-                                                "type": "boolean"
-                                            },
-                                            "round": {
-                                                "description": "Rounds the metric to the specified number of decimal places",
-                                                "type": "number",
-                                                "minimum": 0
-                                            },
-                                            "format": {
-                                                "type": "string"
-                                            },
-                                            "percentile": {
-                                                "type": "number"
-                                            },
-                                            "compact": {
-                                                "type": "string",
-                                                "enum": [
-                                                    "thousands",
-                                                    "millions",
-                                                    "billions",
-                                                    "trillions",
-                                                    "thousand",
-                                                    "million",
-                                                    "billion",
-                                                    "trillion",
-                                                    "K",
-                                                    "M",
-                                                    "B",
-                                                    "T",
-                                                    "kilobytes",
-                                                    "megabytes",
-                                                    "gigabytes",
-                                                    "terabytes",
-                                                    "petabytes",
-                                                    "kilobyte",
-                                                    "megabyte",
-                                                    "gigabyte",
-                                                    "terabyte",
-                                                    "petabyte",
-                                                    "KB",
-                                                    "MB",
-                                                    "GB",
-                                                    "TB",
-                                                    "PB",
-                                                    "kibibytes",
-                                                    "mebibytes",
-                                                    "gibibytes",
-                                                    "tebibytes",
-                                                    "pebibytes",
-                                                    "kibibyte",
-                                                    "mebibyte",
-                                                    "gibibyte",
-                                                    "tebibyte",
-                                                    "pebibyte",
-                                                    "KiB",
-                                                    "MiB",
-                                                    "GiB",
-                                                    "TiB",
-                                                    "PiB"
-                                                ]
-                                            },
-                                            "urls": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "url": {
-                                                            "type": "string",
-                                                            "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
-                                                        },
-                                                        "label": {
-                                                            "type": "string"
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "image": {
-                                                "type": "object",
-                                                "description": "Displays the dimension value as an image",
-                                                "properties": {
-                                                    "url": {
-                                                        "type": "string",
-                                                        "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
-                                                    },
-                                                    "width": {
-                                                        "type": "number"
-                                                    },
-                                                    "height": {
-                                                        "type": "number"
-                                                    },
-                                                    "fit": {
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "required": ["url"]
-                                            },
-                                            "tags": {
-                                                "oneOf": [
-                                                    {
-                                                        "type": "string"
-                                                    },
-                                                    {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string"
-                                                        }
-                                                    }
-                                                ]
-                                            },
-                                            "show_underlying_values": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string"
-                                                }
-                                            },
-                                            "groups": {
-                                                "type": "array",
-                                                "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
-                                                "items": {
-                                                    "type": "string",
-                                                    "minLength": 1
-                                                },
-                                                "maxItems": 3
-                                            },
-                                            "default_time_dimension": {
-                                                "type": "object",
-                                                "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
-                                                "properties": {
-                                                    "field": {
-                                                        "type": "string",
-                                                        "description": "The name of the field to use as the default time dimension"
-                                                    },
-                                                    "interval": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "DAY",
-                                                            "WEEK",
-                                                            "MONTH",
-                                                            "YEAR"
-                                                        ],
-                                                        "description": "The default time interval to use when analyzing this time dimension"
-                                                    }
-                                                },
-                                                "required": [
-                                                    "field",
-                                                    "interval"
-                                                ]
-                                            },
-                                            "spotlight": {
-                                                "type": "object",
-                                                "description": "Set the visibility and/or categories of a metric in Spotlight",
-                                                "properties": {
-                                                    "visibility": {
-                                                        "type": "string",
-                                                        "enum": ["show", "hide"]
-                                                    },
-                                                    "categories": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "description": "An array of categories for the metric in Spotlight"
-                                                    },
-                                                    "filter_by": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
-                                                    },
-                                                    "segment_by": {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
-                                                    },
-                                                    "owner": {
-                                                        "type": "string",
-                                                        "description": "Email of the metric owner"
-                                                    }
-                                                },
-                                                "anyOf": [
-                                                    {
-                                                        "required": [
-                                                            "visibility"
-                                                        ]
-                                                    },
-                                                    {
-                                                        "required": [
-                                                            "categories"
-                                                        ]
-                                                    },
-                                                    {
-                                                        "required": [
-                                                            "filter_by"
-                                                        ]
-                                                    },
-                                                    {
-                                                        "required": [
-                                                            "segment_by"
-                                                        ]
-                                                    },
-                                                    {
-                                                        "required": ["owner"]
-                                                    }
-                                                ]
-                                            },
-                                            "drivers": {
-                                                "type": "array",
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
-                                            }
-                                        },
-                                        "required": ["type", "sql"]
-                                    }
-                                }
-                            },
-                            "default_time_dimension": {
-                                "type": "object",
-                                "description": "Specifies the default time dimension field and interval to use for time-based analysis (on any metric in the model). If specified, both field and interval are required.",
-                                "properties": {
-                                    "field": {
-                                        "type": "string",
-                                        "description": "The name of the field to use as the default time dimension"
-                                    },
-                                    "interval": {
-                                        "type": "string",
-                                        "enum": [
-                                            "DAY",
-                                            "WEEK",
-                                            "MONTH",
-                                            "YEAR"
-                                        ],
-                                        "description": "The default time interval to use when analyzing this time dimension"
-                                    }
-                                },
-                                "required": ["field", "interval"]
-                            },
-                            "default_show_underlying_values": {
-                                "type": "array",
-                                "items": {
-                                    "type": "string"
-                                },
-                                "description": "Default show underlying values configuration that will be applied to all metrics in this model that don't have their own show_underlying_values defined"
-                            },
-                            "spotlight": {
-                                "type": "object",
-                                "description": "Set the visibility and/or categories of a metric in Spotlight",
-                                "properties": {
-                                    "visibility": {
-                                        "type": "string",
-                                        "enum": ["show", "hide"]
-                                    },
-                                    "categories": {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "description": "An optional array of categories for all metrics in this model in Spotlight"
-                                    },
-                                    "owner": {
-                                        "type": "string",
-                                        "description": "Email of the model owner (inherited by all metrics)"
-                                    }
-                                },
-                                "anyOf": [
-                                    { "required": ["visibility"] },
-                                    { "required": ["categories"] },
-                                    { "required": ["owner"] }
-                                ]
-                            },
-                            "primary_key": {
-                                "oneOf": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "array",
-                                        "items": {
-                                            "type": "string"
-                                        }
-                                    }
-                                ]
-                            },
-                            "owner": {
-                                "type": "string",
-                                "description": "Email of the model owner (inherited by all metrics). spotlight.owner takes precedence."
-                            },
-                            "sql_where": {
-                                "type": "string"
-                            },
-                            "sql_filter": {
-                                "type": "string"
-                            },
-                            "sql_from": {
-                                "type": "string"
-                            },
-                            "required_attributes": {
-                                "type": "object",
-                                "properties": {},
-                                "additionalProperties": {
-                                    "oneOf": [
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        {
-                                            "type": "string"
-                                        }
-                                    ]
-                                }
-                            },
-                            "any_attributes": {
-                                "type": "object",
-                                "properties": {},
-                                "additionalProperties": {
-                                    "oneOf": [
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            }
-                                        },
-                                        {
-                                            "type": "string"
-                                        }
-                                    ]
-                                }
-                            },
-                            "parameters": {
-                                "type": ["object", "null"],
-                                "description": "Define parameters that can be used in SQL queries",
-                                "patternProperties": {
-                                    "^[a-zA-Z0-9_-]+$": {
-                                        "type": "object",
-                                        "properties": {
-                                            "label": {
-                                                "description": "The label of the parameter as it will be displayed in the UI",
-                                                "type": "string"
-                                            },
-                                            "type": {
-                                                "description": "The data type of the parameter (defaults to 'string' for backwards compatibility)",
-                                                "type": "string",
-                                                "enum": [
-                                                    "string",
-                                                    "number",
-                                                    "date"
-                                                ],
-                                                "default": "string"
-                                            },
-                                            "description": {
-                                                "description": "A description of the parameter",
-                                                "type": "string"
-                                            },
-                                            "options": {
-                                                "description": "A list of possible values for the parameter",
-                                                "type": "array",
-                                                "items": {
-                                                    "type": ["string", "number"]
-                                                }
-                                            },
-                                            "default": {
-                                                "description": "The default value(s) for the parameter",
-                                                "oneOf": [
-                                                    {
-                                                        "type": [
-                                                            "string",
-                                                            "number"
-                                                        ]
-                                                    },
-                                                    {
-                                                        "type": "array",
-                                                        "items": {
-                                                            "type": [
-                                                                "string",
-                                                                "number"
-                                                            ]
-                                                        }
-                                                    }
-                                                ]
-                                            },
-                                            "multiple": {
-                                                "description": "Whether the parameter input will be a multi select",
-                                                "type": "boolean"
-                                            },
-                                            "allow_custom_values": {
-                                                "description": "Whether users can input custom values beyond predefined options",
-                                                "type": "boolean"
-                                            },
-                                            "options_from_dimension": {
-                                                "description": "Get parameter options from a dimension in a model",
-                                                "type": "object",
-                                                "properties": {
-                                                    "model": {
-                                                        "description": "The model containing the dimension",
-                                                        "type": "string"
-                                                    },
-                                                    "dimension": {
-                                                        "description": "The dimension to get options from",
-                                                        "type": "string"
-                                                    }
-                                                },
-                                                "required": [
-                                                    "model",
-                                                    "dimension"
-                                                ]
-                                            }
-                                        },
-                                        "required": ["label"]
-                                    }
-                                }
-                            },
-                            "default_filters": {
-                                "type": "array",
-                                "description": "Default filters that are automatically applied when exploring this model",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "properties": {
-                                        "required": {
-                                            "type": "boolean",
-                                            "description": "If true, this filter cannot be removed by users"
-                                        }
-                                    }
-                                }
-                            },
-                            "required_filters": {
-                                "type": "array",
-                                "description": "Alias for default_filters (deprecated, use default_filters instead)",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    },
-                                    "properties": {
-                                        "required": {
-                                            "type": "boolean",
-                                            "description": "If true, this filter cannot be removed by users"
-                                        }
-                                    }
-                                }
-                            },
-                            "explores": {
-                                "type": "object",
-                                "description": "Defines custom explores for this model",
-                                "patternProperties": {
-                                    "^[a-zA-Z0-9_]+$": {
-                                        "type": "object",
-                                        "properties": {
-                                            "default_filters": {
-                                                "type": "array",
-                                                "description": "Default filters that are automatically applied when exploring this explore",
-                                                "items": {
-                                                    "type": "object",
-                                                    "additionalProperties": {
-                                                        "type": "string"
-                                                    },
-                                                    "properties": {
-                                                        "required": {
-                                                            "type": "boolean",
-                                                            "description": "If true, this filter cannot be removed by users"
-                                                        }
-                                                    }
-                                                }
-                                            },
-                                            "required_filters": {
-                                                "type": "array",
-                                                "description": "Alias for default_filters (deprecated, use default_filters instead)",
-                                                "items": {
-                                                    "type": "object",
-                                                    "additionalProperties": {
-                                                        "type": "string"
-                                                    },
-                                                    "properties": {
-                                                        "required": {
-                                                            "type": "boolean",
-                                                            "description": "If true, this filter cannot be removed by users"
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        "$ref": "#/$defs/modelMeta"
                     },
                     "columns": {
                         "type": "array",
@@ -707,706 +101,24 @@
                                     }
                                 },
                                 "meta": {
+                                    "$ref": "#/$defs/columnMeta"
+                                },
+                                "config": {
                                     "type": "object",
                                     "properties": {
-                                        "metrics": {
-                                            "type": "object",
-                                            "patternProperties": {
-                                                "^[a-z0-9_]+$": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "type": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "percentile",
-                                                                "median",
-                                                                "average",
-                                                                "boolean",
-                                                                "count",
-                                                                "count_distinct",
-                                                                "date",
-                                                                "max",
-                                                                "min",
-                                                                "number",
-                                                                "string",
-                                                                "sum",
-                                                                "percent_of_previous",
-                                                                "percent_of_total",
-                                                                "running_total"
-                                                            ]
-                                                        },
-                                                        "label": {
-                                                            "type": "string",
-                                                            "minLength": 1
-                                                        },
-                                                        "description": {
-                                                            "type": "string",
-                                                            "minLength": 1
-                                                        },
-                                                        "sql": {
-                                                            "type": "string",
-                                                            "minLength": 1
-                                                        },
-                                                        "hidden": {
-                                                            "type": "boolean"
-                                                        },
-                                                        "round": {
-                                                            "type": "number",
-                                                            "minimum": 0
-                                                        },
-                                                        "format": {
-                                                            "type": "string"
-                                                        },
-                                                        "percentile": {
-                                                            "type": "number"
-                                                        },
-                                                        "compact": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "thousands",
-                                                                "millions",
-                                                                "billions",
-                                                                "trillions",
-                                                                "thousand",
-                                                                "million",
-                                                                "billion",
-                                                                "trillion",
-                                                                "K",
-                                                                "M",
-                                                                "B",
-                                                                "T",
-                                                                "kilobytes",
-                                                                "megabytes",
-                                                                "gigabytes",
-                                                                "terabytes",
-                                                                "petabytes",
-                                                                "kilobyte",
-                                                                "megabyte",
-                                                                "gigabyte",
-                                                                "terabyte",
-                                                                "petabyte",
-                                                                "KB",
-                                                                "MB",
-                                                                "GB",
-                                                                "TB",
-                                                                "PB",
-                                                                "kibibytes",
-                                                                "mebibytes",
-                                                                "gibibytes",
-                                                                "tebibytes",
-                                                                "pebibytes",
-                                                                "kibibyte",
-                                                                "mebibyte",
-                                                                "gibibyte",
-                                                                "tebibyte",
-                                                                "pebibyte",
-                                                                "KiB",
-                                                                "MiB",
-                                                                "GiB",
-                                                                "TiB",
-                                                                "PiB"
-                                                            ]
-                                                        },
-                                                        "urls": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "url": {
-                                                                        "type": "string",
-                                                                        "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
-                                                                    },
-                                                                    "label": {
-                                                                        "type": "string"
-                                                                    }
-                                                                }
-                                                            }
-                                                        },
-                                                        "image": {
-                                                            "type": "object",
-                                                            "description": "Displays the dimension value as an image",
-                                                            "properties": {
-                                                                "url": {
-                                                                    "type": "string",
-                                                                    "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
-                                                                }
-                                                            },
-                                                            "required": ["url"]
-                                                        },
-                                                        "tags": {
-                                                            "oneOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "string"
-                                                                    }
-                                                                }
-                                                            ]
-                                                        },
-                                                        "show_underlying_values": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "string"
-                                                            }
-                                                        },
-                                                        "groups": {
-                                                            "type": "array",
-                                                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
-                                                            "items": {
-                                                                "type": "string",
-                                                                "minLength": 1
-                                                            },
-                                                            "maxItems": 3
-                                                        },
-                                                        "default_time_dimension": {
-                                                            "type": "object",
-                                                            "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
-                                                            "properties": {
-                                                                "field": {
-                                                                    "type": "string",
-                                                                    "description": "The name of the field to use as the default time dimension"
-                                                                },
-                                                                "interval": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "DAY",
-                                                                        "WEEK",
-                                                                        "MONTH",
-                                                                        "YEAR"
-                                                                    ],
-                                                                    "description": "The default time interval to use when analyzing this time dimension"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "field",
-                                                                "interval"
-                                                            ]
-                                                        },
-                                                        "spotlight": {
-                                                            "type": "object",
-                                                            "description": "Set the visibility and/or categories of a metric in Spotlight",
-                                                            "properties": {
-                                                                "visibility": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "show",
-                                                                        "hide"
-                                                                    ]
-                                                                },
-                                                                "categories": {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "description": "An array of categories for the metric in Spotlight"
-                                                                },
-                                                                "filter_by": {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
-                                                                },
-                                                                "segment_by": {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "string"
-                                                                    },
-                                                                    "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
-                                                                },
-                                                                "owner": {
-                                                                    "type": "string",
-                                                                    "description": "Email of the metric owner"
-                                                                }
-                                                            },
-                                                            "anyOf": [
-                                                                {
-                                                                    "required": [
-                                                                        "visibility"
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    "required": [
-                                                                        "categories"
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    "required": [
-                                                                        "filter_by"
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    "required": [
-                                                                        "segment_by"
-                                                                    ]
-                                                                },
-                                                                {
-                                                                    "required": [
-                                                                        "owner"
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        },
-                                                        "drivers": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "string"
-                                                            },
-                                                            "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
-                                                        }
-                                                    },
-                                                    "required": ["type"]
-                                                }
-                                            }
-                                        },
-                                        "dimension": {
-                                            "type": "object",
-                                            "properties": {
-                                                "type": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "string",
-                                                        "number",
-                                                        "timestamp",
-                                                        "date",
-                                                        "boolean"
-                                                    ]
-                                                },
-                                                "label": {
-                                                    "type": "string",
-                                                    "minLength": 1
-                                                },
-                                                "description": {
-                                                    "type": "string",
-                                                    "minLength": 1
-                                                },
-                                                "sql": {
-                                                    "type": "string",
-                                                    "minLength": 1
-                                                },
-                                                "hidden": {
-                                                    "type": "boolean"
-                                                },
-                                                "round": {
-                                                    "type": "number",
-                                                    "minimum": 0
-                                                },
-                                                "format": {
-                                                    "type": "string"
-                                                },
-                                                "time_intervals": {
-                                                    "anyOf": [
-                                                        {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "anyOf": [
-                                                                    {
-                                                                        "type": "string",
-                                                                        "enum": [
-                                                                            "RAW",
-                                                                            "DAY",
-                                                                            "WEEK",
-                                                                            "MONTH",
-                                                                            "QUARTER",
-                                                                            "YEAR",
-                                                                            "HOUR",
-                                                                            "MINUTE",
-                                                                            "SECOND",
-                                                                            "MILLISECOND",
-                                                                            "WEEK_NUM",
-                                                                            "MONTH_NUM",
-                                                                            "MONTH_NAME",
-                                                                            "DAY_OF_WEEK_NAME",
-                                                                            "QUARTER_NAME",
-                                                                            "DAY_OF_WEEK_INDEX",
-                                                                            "DAY_OF_MONTH_NUM",
-                                                                            "DAY_OF_YEAR_NUM",
-                                                                            "QUARTER_NUM",
-                                                                            "YEAR_NUM",
-                                                                            "HOUR_OF_DAY_NUM",
-                                                                            "MINUTE_OF_HOUR_NUM"
-                                                                        ]
-                                                                    },
-                                                                    {
-                                                                        "type": "string"
-                                                                    }
-                                                                ]
-                                                            }
-                                                        },
-                                                        {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "default",
-                                                                "OFF"
-                                                            ]
-                                                        }
-                                                    ]
-                                                },
-                                                "groups": {
-                                                    "type": "array",
-                                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
-                                                    "items": {
-                                                        "type": "string",
-                                                        "minLength": 1
-                                                    },
-                                                    "maxItems": 3
-                                                },
-                                                "compact": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "thousands",
-                                                        "millions",
-                                                        "billions",
-                                                        "trillions",
-                                                        "thousand",
-                                                        "million",
-                                                        "billion",
-                                                        "trillion",
-                                                        "K",
-                                                        "M",
-                                                        "B",
-                                                        "T",
-                                                        "kilobytes",
-                                                        "megabytes",
-                                                        "gigabytes",
-                                                        "terabytes",
-                                                        "petabytes",
-                                                        "kilobyte",
-                                                        "megabyte",
-                                                        "gigabyte",
-                                                        "terabyte",
-                                                        "petabyte",
-                                                        "KB",
-                                                        "MB",
-                                                        "GB",
-                                                        "TB",
-                                                        "PB",
-                                                        "kibibytes",
-                                                        "mebibytes",
-                                                        "gibibytes",
-                                                        "tebibytes",
-                                                        "pebibytes",
-                                                        "kibibyte",
-                                                        "mebibyte",
-                                                        "gibibyte",
-                                                        "tebibyte",
-                                                        "pebibyte",
-                                                        "KiB",
-                                                        "MiB",
-                                                        "GiB",
-                                                        "TiB",
-                                                        "PiB"
-                                                    ]
-                                                },
-                                                "urls": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "type": "object",
-                                                        "properties": {
-                                                            "url": {
-                                                                "type": "string",
-                                                                "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
-                                                            },
-                                                            "label": {
-                                                                "type": "string"
-                                                            }
-                                                        }
-                                                    }
-                                                },
-                                                "image": {
-                                                    "type": "object",
-                                                    "description": "Displays the dimension value as an image",
-                                                    "properties": {
-                                                        "url": {
-                                                            "type": "string",
-                                                            "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
-                                                        }
-                                                    },
-                                                    "required": ["url"]
-                                                },
-                                                "tags": {
-                                                    "oneOf": [
-                                                        {
-                                                            "type": "string"
-                                                        },
-                                                        {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "string"
-                                                            }
-                                                        }
-                                                    ]
-                                                },
-                                                "required_attributes": {
-                                                    "type": "object",
-                                                    "properties": {},
-                                                    "additionalProperties": {
-                                                        "oneOf": [
-                                                            {
-                                                                "type": "array",
-                                                                "items": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            {
-                                                                "type": "string"
-                                                            }
-                                                        ]
-                                                    }
-                                                },
-                                                "any_attributes": {
-                                                    "type": "object",
-                                                    "properties": {},
-                                                    "additionalProperties": {
-                                                        "oneOf": [
-                                                            {
-                                                                "type": "array",
-                                                                "items": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            {
-                                                                "type": "string"
-                                                            }
-                                                        ]
-                                                    }
-                                                },
-                                                "spotlight": {
-                                                    "type": "object",
-                                                    "description": "Configure dimension visibility in the Metrics Explorer",
-                                                    "properties": {
-                                                        "filter_by": {
-                                                            "type": "boolean",
-                                                            "description": "Whether this dimension can be used for filtering in the Metrics Explorer. Defaults to true."
-                                                        },
-                                                        "segment_by": {
-                                                            "type": "boolean",
-                                                            "description": "Whether this dimension can be used for segmenting in the Metrics Explorer. Defaults to true."
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        "additional_dimensions": {
-                                            "type": "object",
-                                            "patternProperties": {
-                                                "^[a-z0-9_]+$": {
-                                                    "type": "object",
-                                                    "properties": {
-                                                        "type": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "string",
-                                                                "number",
-                                                                "timestamp",
-                                                                "date",
-                                                                "boolean"
-                                                            ]
-                                                        },
-                                                        "label": {
-                                                            "type": "string",
-                                                            "minLength": 1
-                                                        },
-                                                        "description": {
-                                                            "type": "string",
-                                                            "minLength": 1
-                                                        },
-                                                        "sql": {
-                                                            "type": "string",
-                                                            "minLength": 1
-                                                        },
-                                                        "time_intervals": {
-                                                            "anyOf": [
-                                                                {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "anyOf": [
-                                                                            {
-                                                                                "type": "string",
-                                                                                "enum": [
-                                                                                    "RAW",
-                                                                                    "DAY",
-                                                                                    "WEEK",
-                                                                                    "MONTH",
-                                                                                    "QUARTER",
-                                                                                    "YEAR",
-                                                                                    "HOUR",
-                                                                                    "MINUTE",
-                                                                                    "SECOND",
-                                                                                    "MILLISECOND",
-                                                                                    "WEEK_NUM",
-                                                                                    "MONTH_NUM",
-                                                                                    "MONTH_NAME",
-                                                                                    "DAY_OF_WEEK_NAME",
-                                                                                    "QUARTER_NAME",
-                                                                                    "DAY_OF_WEEK_INDEX",
-                                                                                    "DAY_OF_MONTH_NUM",
-                                                                                    "DAY_OF_YEAR_NUM",
-                                                                                    "QUARTER_NUM",
-                                                                                    "YEAR_NUM",
-                                                                                    "HOUR_OF_DAY_NUM",
-                                                                                    "MINUTE_OF_HOUR_NUM"
-                                                                                ]
-                                                                            },
-                                                                            {
-                                                                                "type": "string"
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                },
-                                                                {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "default",
-                                                                        "OFF"
-                                                                    ]
-                                                                }
-                                                            ]
-                                                        },
-                                                        "hidden": {
-                                                            "type": "boolean"
-                                                        },
-                                                        "round": {
-                                                            "type": "number",
-                                                            "minimum": 0
-                                                        },
-                                                        "format": {
-                                                            "type": "string"
-                                                        },
-                                                        "compact": {
-                                                            "type": "string",
-                                                            "enum": [
-                                                                "thousands",
-                                                                "millions",
-                                                                "billions",
-                                                                "trillions",
-                                                                "thousand",
-                                                                "million",
-                                                                "billion",
-                                                                "trillion",
-                                                                "K",
-                                                                "M",
-                                                                "B",
-                                                                "T",
-                                                                "kilobytes",
-                                                                "megabytes",
-                                                                "gigabytes",
-                                                                "terabytes",
-                                                                "petabytes",
-                                                                "kilobyte",
-                                                                "megabyte",
-                                                                "gigabyte",
-                                                                "terabyte",
-                                                                "petabyte",
-                                                                "KB",
-                                                                "MB",
-                                                                "GB",
-                                                                "TB",
-                                                                "PB",
-                                                                "kibibytes",
-                                                                "mebibytes",
-                                                                "gibibytes",
-                                                                "tebibytes",
-                                                                "pebibytes",
-                                                                "kibibyte",
-                                                                "mebibyte",
-                                                                "gibibyte",
-                                                                "tebibyte",
-                                                                "pebibyte",
-                                                                "KiB",
-                                                                "MiB",
-                                                                "GiB",
-                                                                "TiB",
-                                                                "PiB"
-                                                            ]
-                                                        },
-                                                        "group_label": {
-                                                            "type": "string",
-                                                            "deprecated": true,
-                                                            "description": "Deprecated: use groups instead"
-                                                        },
-                                                        "urls": {
-                                                            "type": "array",
-                                                            "items": {
-                                                                "type": "object",
-                                                                "properties": {
-                                                                    "url": {
-                                                                        "type": "string",
-                                                                        "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
-                                                                    },
-                                                                    "label": {
-                                                                        "type": "string"
-                                                                    }
-                                                                }
-                                                            }
-                                                        },
-                                                        "image": {
-                                                            "type": "object",
-                                                            "description": "Displays the dimension value as an image",
-                                                            "properties": {
-                                                                "url": {
-                                                                    "type": "string",
-                                                                    "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
-                                                                }
-                                                            },
-                                                            "required": ["url"]
-                                                        },
-                                                        "tags": {
-                                                            "oneOf": [
-                                                                {
-                                                                    "type": "string"
-                                                                },
-                                                                {
-                                                                    "type": "array",
-                                                                    "items": {
-                                                                        "type": "string"
-                                                                    }
-                                                                }
-                                                            ]
-                                                        },
-                                                        "required_attributes": {
-                                                            "type": "object",
-                                                            "properties": {},
-                                                            "additionalProperties": {
-                                                                "oneOf": [
-                                                                    {
-                                                                        "type": "array",
-                                                                        "items": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    {
-                                                                        "type": "string"
-                                                                    }
-                                                                ]
-                                                            }
-                                                        },
-                                                        "any_attributes": {
-                                                            "type": "object",
-                                                            "properties": {},
-                                                            "additionalProperties": {
-                                                                "oneOf": [
-                                                                    {
-                                                                        "type": "array",
-                                                                        "items": {
-                                                                            "type": "string"
-                                                                        }
-                                                                    },
-                                                                    {
-                                                                        "type": "string"
-                                                                    }
-                                                                ]
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                        "meta": {
+                                            "$ref": "#/$defs/columnMeta"
                                         }
                                     }
                                 }
+                            }
+                        }
+                    },
+                    "config": {
+                        "type": "object",
+                        "properties": {
+                            "meta": {
+                                "$ref": "#/$defs/modelMeta"
                             }
                         }
                     }
@@ -1619,11 +331,21 @@
                                     }
                                 },
                                 "anyOf": [
-                                    { "required": ["visibility"] },
-                                    { "required": ["categories"] },
-                                    { "required": ["filter_by"] },
-                                    { "required": ["segment_by"] },
-                                    { "required": ["owner"] }
+                                    {
+                                        "required": ["visibility"]
+                                    },
+                                    {
+                                        "required": ["categories"]
+                                    },
+                                    {
+                                        "required": ["filter_by"]
+                                    },
+                                    {
+                                        "required": ["segment_by"]
+                                    },
+                                    {
+                                        "required": ["owner"]
+                                    }
                                 ]
                             }
                         }
@@ -1682,5 +404,1287 @@
         }
     },
     "additionalProperties": false,
-    "required": []
+    "required": [],
+    "$defs": {
+        "modelMeta": {
+            "type": "object",
+            "properties": {
+                "joins": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "join": {
+                                "type": "string"
+                            },
+                            "sql_on": {
+                                "type": "string"
+                            },
+                            "always": {
+                                "type": "boolean"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["inner", "left", "right", "full"]
+                            },
+                            "hidden": {
+                                "type": "boolean"
+                            },
+                            "alias": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "fields": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "relationship": {
+                                "type": "string",
+                                "enum": [
+                                    "one-to-many",
+                                    "many-to-one",
+                                    "one-to-one",
+                                    "many-to-many"
+                                ]
+                            }
+                        },
+                        "required": ["join", "sql_on"]
+                    }
+                },
+                "order_fields_by": {
+                    "type": "string",
+                    "enum": ["index", "label"]
+                },
+                "group_details": {
+                    "type": "object",
+                    "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 3 levels",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_]+$": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "description": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["label"]
+                        }
+                    }
+                },
+                "metrics": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-z0-9_]+$": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "percentile",
+                                        "median",
+                                        "average",
+                                        "boolean",
+                                        "count",
+                                        "count_distinct",
+                                        "date",
+                                        "max",
+                                        "min",
+                                        "number",
+                                        "string",
+                                        "sum",
+                                        "percent_of_previous",
+                                        "percent_of_total",
+                                        "running_total"
+                                    ]
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "sql": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "hidden": {
+                                    "type": "boolean"
+                                },
+                                "round": {
+                                    "description": "Rounds the metric to the specified number of decimal places",
+                                    "type": "number",
+                                    "minimum": 0
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "percentile": {
+                                    "type": "number"
+                                },
+                                "compact": {
+                                    "type": "string",
+                                    "enum": [
+                                        "thousands",
+                                        "millions",
+                                        "billions",
+                                        "trillions",
+                                        "thousand",
+                                        "million",
+                                        "billion",
+                                        "trillion",
+                                        "K",
+                                        "M",
+                                        "B",
+                                        "T",
+                                        "kilobytes",
+                                        "megabytes",
+                                        "gigabytes",
+                                        "terabytes",
+                                        "petabytes",
+                                        "kilobyte",
+                                        "megabyte",
+                                        "gigabyte",
+                                        "terabyte",
+                                        "petabyte",
+                                        "KB",
+                                        "MB",
+                                        "GB",
+                                        "TB",
+                                        "PB",
+                                        "kibibytes",
+                                        "mebibytes",
+                                        "gibibytes",
+                                        "tebibytes",
+                                        "pebibytes",
+                                        "kibibyte",
+                                        "mebibyte",
+                                        "gibibyte",
+                                        "tebibyte",
+                                        "pebibyte",
+                                        "KiB",
+                                        "MiB",
+                                        "GiB",
+                                        "TiB",
+                                        "PiB"
+                                    ]
+                                },
+                                "urls": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "url": {
+                                                "type": "string",
+                                                "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                },
+                                "image": {
+                                    "type": "object",
+                                    "description": "Displays the dimension value as an image",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string",
+                                            "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
+                                        },
+                                        "width": {
+                                            "type": "number"
+                                        },
+                                        "height": {
+                                            "type": "number"
+                                        },
+                                        "fit": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["url"]
+                                },
+                                "tags": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "show_underlying_values": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "groups": {
+                                    "type": "array",
+                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
+                                    "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    },
+                                    "maxItems": 3
+                                },
+                                "default_time_dimension": {
+                                    "type": "object",
+                                    "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                    "properties": {
+                                        "field": {
+                                            "type": "string",
+                                            "description": "The name of the field to use as the default time dimension"
+                                        },
+                                        "interval": {
+                                            "type": "string",
+                                            "enum": [
+                                                "DAY",
+                                                "WEEK",
+                                                "MONTH",
+                                                "YEAR"
+                                            ],
+                                            "description": "The default time interval to use when analyzing this time dimension"
+                                        }
+                                    },
+                                    "required": ["field", "interval"]
+                                },
+                                "spotlight": {
+                                    "type": "object",
+                                    "description": "Set the visibility and/or categories of a metric in Spotlight",
+                                    "properties": {
+                                        "visibility": {
+                                            "type": "string",
+                                            "enum": ["show", "hide"]
+                                        },
+                                        "categories": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "An array of categories for the metric in Spotlight"
+                                        },
+                                        "filter_by": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
+                                        },
+                                        "segment_by": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                        },
+                                        "owner": {
+                                            "type": "string",
+                                            "description": "Email of the metric owner"
+                                        }
+                                    },
+                                    "anyOf": [
+                                        {
+                                            "required": ["visibility"]
+                                        },
+                                        {
+                                            "required": ["categories"]
+                                        },
+                                        {
+                                            "required": ["filter_by"]
+                                        },
+                                        {
+                                            "required": ["segment_by"]
+                                        },
+                                        {
+                                            "required": ["owner"]
+                                        }
+                                    ]
+                                },
+                                "drivers": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
+                                }
+                            },
+                            "required": ["type", "sql"]
+                        }
+                    }
+                },
+                "default_time_dimension": {
+                    "type": "object",
+                    "description": "Specifies the default time dimension field and interval to use for time-based analysis (on any metric in the model). If specified, both field and interval are required.",
+                    "properties": {
+                        "field": {
+                            "type": "string",
+                            "description": "The name of the field to use as the default time dimension"
+                        },
+                        "interval": {
+                            "type": "string",
+                            "enum": ["DAY", "WEEK", "MONTH", "YEAR"],
+                            "description": "The default time interval to use when analyzing this time dimension"
+                        }
+                    },
+                    "required": ["field", "interval"]
+                },
+                "default_show_underlying_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Default show underlying values configuration that will be applied to all metrics in this model that don't have their own show_underlying_values defined"
+                },
+                "spotlight": {
+                    "type": "object",
+                    "description": "Set the visibility and/or categories of a metric in Spotlight",
+                    "properties": {
+                        "visibility": {
+                            "type": "string",
+                            "enum": ["show", "hide"]
+                        },
+                        "categories": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "An optional array of categories for all metrics in this model in Spotlight"
+                        },
+                        "owner": {
+                            "type": "string",
+                            "description": "Email of the model owner (inherited by all metrics)"
+                        }
+                    },
+                    "anyOf": [
+                        {
+                            "required": ["visibility"]
+                        },
+                        {
+                            "required": ["categories"]
+                        },
+                        {
+                            "required": ["owner"]
+                        }
+                    ]
+                },
+                "primary_key": {
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
+                },
+                "owner": {
+                    "type": "string",
+                    "description": "Email of the model owner (inherited by all metrics). spotlight.owner takes precedence."
+                },
+                "sql_where": {
+                    "type": "string"
+                },
+                "sql_filter": {
+                    "type": "string"
+                },
+                "sql_from": {
+                    "type": "string"
+                },
+                "required_attributes": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    }
+                },
+                "any_attributes": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": {
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    }
+                },
+                "parameters": {
+                    "type": ["object", "null"],
+                    "description": "Define parameters that can be used in SQL queries",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_-]+$": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "description": "The label of the parameter as it will be displayed in the UI",
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "description": "The data type of the parameter (defaults to 'string' for backwards compatibility)",
+                                    "type": "string",
+                                    "enum": ["string", "number", "date"],
+                                    "default": "string"
+                                },
+                                "description": {
+                                    "description": "A description of the parameter",
+                                    "type": "string"
+                                },
+                                "options": {
+                                    "description": "A list of possible values for the parameter",
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": ["string", "number"]
+                                    }
+                                },
+                                "default": {
+                                    "description": "The default value(s) for the parameter",
+                                    "oneOf": [
+                                        {
+                                            "type": ["string", "number"]
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": ["string", "number"]
+                                            }
+                                        }
+                                    ]
+                                },
+                                "multiple": {
+                                    "description": "Whether the parameter input will be a multi select",
+                                    "type": "boolean"
+                                },
+                                "allow_custom_values": {
+                                    "description": "Whether users can input custom values beyond predefined options",
+                                    "type": "boolean"
+                                },
+                                "options_from_dimension": {
+                                    "description": "Get parameter options from a dimension in a model",
+                                    "type": "object",
+                                    "properties": {
+                                        "model": {
+                                            "description": "The model containing the dimension",
+                                            "type": "string"
+                                        },
+                                        "dimension": {
+                                            "description": "The dimension to get options from",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["model", "dimension"]
+                                }
+                            },
+                            "required": ["label"],
+                            "anyOf": [
+                                {
+                                    "required": ["options_from_dimension"],
+                                    "errorMessage": "Must have one of the following properties: allow_custom_values, options, options_from_dimension"
+                                },
+                                {
+                                    "required": ["options"],
+                                    "errorMessage": "Must have one of the following properties: allow_custom_values, options, options_from_dimension"
+                                },
+                                {
+                                    "properties": {
+                                        "allow_custom_values": {
+                                            "enum": [true]
+                                        }
+                                    },
+                                    "required": ["allow_custom_values"],
+                                    "errorMessage": "Must have one of the following properties: allow_custom_values, options, options_from_dimension"
+                                }
+                            ]
+                        }
+                    }
+                },
+                "default_filters": {
+                    "type": "array",
+                    "description": "Default filters that are automatically applied when exploring this model",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "properties": {
+                            "required": {
+                                "type": "boolean",
+                                "description": "If true, this filter cannot be removed by users"
+                            }
+                        }
+                    }
+                },
+                "required_filters": {
+                    "type": "array",
+                    "description": "Alias for default_filters (deprecated, use default_filters instead)",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "properties": {
+                            "required": {
+                                "type": "boolean",
+                                "description": "If true, this filter cannot be removed by users"
+                            }
+                        }
+                    }
+                },
+                "explores": {
+                    "type": "object",
+                    "description": "Defines custom explores for this model",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_]+$": {
+                            "type": "object",
+                            "properties": {
+                                "default_filters": {
+                                    "type": "array",
+                                    "description": "Default filters that are automatically applied when exploring this explore",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        },
+                                        "properties": {
+                                            "required": {
+                                                "type": "boolean",
+                                                "description": "If true, this filter cannot be removed by users"
+                                            }
+                                        }
+                                    }
+                                },
+                                "required_filters": {
+                                    "type": "array",
+                                    "description": "Alias for default_filters (deprecated, use default_filters instead)",
+                                    "items": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        },
+                                        "properties": {
+                                            "required": {
+                                                "type": "boolean",
+                                                "description": "If true, this filter cannot be removed by users"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "columnMeta": {
+            "type": "object",
+            "properties": {
+                "metrics": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-z0-9_]+$": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "percentile",
+                                        "median",
+                                        "average",
+                                        "boolean",
+                                        "count",
+                                        "count_distinct",
+                                        "date",
+                                        "max",
+                                        "min",
+                                        "number",
+                                        "string",
+                                        "sum",
+                                        "percent_of_previous",
+                                        "percent_of_total",
+                                        "running_total"
+                                    ]
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "sql": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "hidden": {
+                                    "type": "boolean"
+                                },
+                                "round": {
+                                    "type": "number",
+                                    "minimum": 0
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "percentile": {
+                                    "type": "number"
+                                },
+                                "compact": {
+                                    "type": "string",
+                                    "enum": [
+                                        "thousands",
+                                        "millions",
+                                        "billions",
+                                        "trillions",
+                                        "thousand",
+                                        "million",
+                                        "billion",
+                                        "trillion",
+                                        "K",
+                                        "M",
+                                        "B",
+                                        "T",
+                                        "kilobytes",
+                                        "megabytes",
+                                        "gigabytes",
+                                        "terabytes",
+                                        "petabytes",
+                                        "kilobyte",
+                                        "megabyte",
+                                        "gigabyte",
+                                        "terabyte",
+                                        "petabyte",
+                                        "KB",
+                                        "MB",
+                                        "GB",
+                                        "TB",
+                                        "PB",
+                                        "kibibytes",
+                                        "mebibytes",
+                                        "gibibytes",
+                                        "tebibytes",
+                                        "pebibytes",
+                                        "kibibyte",
+                                        "mebibyte",
+                                        "gibibyte",
+                                        "tebibyte",
+                                        "pebibyte",
+                                        "KiB",
+                                        "MiB",
+                                        "GiB",
+                                        "TiB",
+                                        "PiB"
+                                    ]
+                                },
+                                "urls": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "url": {
+                                                "type": "string",
+                                                "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                },
+                                "image": {
+                                    "type": "object",
+                                    "description": "Displays the dimension value as an image",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string",
+                                            "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
+                                        }
+                                    },
+                                    "required": ["url"]
+                                },
+                                "tags": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "show_underlying_values": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "groups": {
+                                    "type": "array",
+                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
+                                    "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    },
+                                    "maxItems": 3
+                                },
+                                "default_time_dimension": {
+                                    "type": "object",
+                                    "description": "Specifies the default time dimension field and interval to use for time-based analysis on this metric. If specified, both field and interval are required. If there is already a default time dimension set in the model, this will override it.",
+                                    "properties": {
+                                        "field": {
+                                            "type": "string",
+                                            "description": "The name of the field to use as the default time dimension"
+                                        },
+                                        "interval": {
+                                            "type": "string",
+                                            "enum": [
+                                                "DAY",
+                                                "WEEK",
+                                                "MONTH",
+                                                "YEAR"
+                                            ],
+                                            "description": "The default time interval to use when analyzing this time dimension"
+                                        }
+                                    },
+                                    "required": ["field", "interval"]
+                                },
+                                "spotlight": {
+                                    "type": "object",
+                                    "description": "Set the visibility and/or categories of a metric in Spotlight",
+                                    "properties": {
+                                        "visibility": {
+                                            "type": "string",
+                                            "enum": ["show", "hide"]
+                                        },
+                                        "categories": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "An array of categories for the metric in Spotlight"
+                                        },
+                                        "filter_by": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
+                                        },
+                                        "segment_by": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                        },
+                                        "owner": {
+                                            "type": "string",
+                                            "description": "Email of the metric owner"
+                                        }
+                                    },
+                                    "anyOf": [
+                                        {
+                                            "required": ["visibility"]
+                                        },
+                                        {
+                                            "required": ["categories"]
+                                        },
+                                        {
+                                            "required": ["filter_by"]
+                                        },
+                                        {
+                                            "required": ["segment_by"]
+                                        },
+                                        {
+                                            "required": ["owner"]
+                                        }
+                                    ]
+                                },
+                                "drivers": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
+                                }
+                            },
+                            "required": ["type"]
+                        }
+                    }
+                },
+                "dimension": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "enum": [
+                                "string",
+                                "number",
+                                "timestamp",
+                                "date",
+                                "boolean"
+                            ]
+                        },
+                        "label": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "description": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "sql": {
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "hidden": {
+                            "type": "boolean"
+                        },
+                        "round": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "format": {
+                            "type": "string"
+                        },
+                        "time_intervals": {
+                            "anyOf": [
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "anyOf": [
+                                            {
+                                                "type": "string",
+                                                "enum": [
+                                                    "RAW",
+                                                    "DAY",
+                                                    "WEEK",
+                                                    "MONTH",
+                                                    "QUARTER",
+                                                    "YEAR",
+                                                    "HOUR",
+                                                    "MINUTE",
+                                                    "SECOND",
+                                                    "MILLISECOND",
+                                                    "WEEK_NUM",
+                                                    "MONTH_NUM",
+                                                    "MONTH_NAME",
+                                                    "DAY_OF_WEEK_NAME",
+                                                    "QUARTER_NAME",
+                                                    "DAY_OF_WEEK_INDEX",
+                                                    "DAY_OF_MONTH_NUM",
+                                                    "DAY_OF_YEAR_NUM",
+                                                    "QUARTER_NUM",
+                                                    "YEAR_NUM",
+                                                    "HOUR_OF_DAY_NUM",
+                                                    "MINUTE_OF_HOUR_NUM"
+                                                ]
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["default", "OFF"]
+                                }
+                            ]
+                        },
+                        "groups": {
+                            "type": "array",
+                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
+                            "items": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "maxItems": 3
+                        },
+                        "compact": {
+                            "type": "string",
+                            "enum": [
+                                "thousands",
+                                "millions",
+                                "billions",
+                                "trillions",
+                                "thousand",
+                                "million",
+                                "billion",
+                                "trillion",
+                                "K",
+                                "M",
+                                "B",
+                                "T",
+                                "kilobytes",
+                                "megabytes",
+                                "gigabytes",
+                                "terabytes",
+                                "petabytes",
+                                "kilobyte",
+                                "megabyte",
+                                "gigabyte",
+                                "terabyte",
+                                "petabyte",
+                                "KB",
+                                "MB",
+                                "GB",
+                                "TB",
+                                "PB",
+                                "kibibytes",
+                                "mebibytes",
+                                "gibibytes",
+                                "tebibytes",
+                                "pebibytes",
+                                "kibibyte",
+                                "mebibyte",
+                                "gibibyte",
+                                "tebibyte",
+                                "pebibyte",
+                                "KiB",
+                                "MiB",
+                                "GiB",
+                                "TiB",
+                                "PiB"
+                            ]
+                        },
+                        "urls": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "url": {
+                                        "type": "string",
+                                        "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
+                                    },
+                                    "label": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "image": {
+                            "type": "object",
+                            "description": "Displays the dimension value as an image",
+                            "properties": {
+                                "url": {
+                                    "type": "string",
+                                    "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
+                                }
+                            },
+                            "required": ["url"]
+                        },
+                        "tags": {
+                            "oneOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            ]
+                        },
+                        "required_attributes": {
+                            "type": "object",
+                            "properties": {},
+                            "additionalProperties": {
+                                "oneOf": [
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "any_attributes": {
+                            "type": "object",
+                            "properties": {},
+                            "additionalProperties": {
+                                "oneOf": [
+                                    {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ]
+                            }
+                        },
+                        "spotlight": {
+                            "type": "object",
+                            "description": "Configure dimension visibility in the Metrics Explorer",
+                            "properties": {
+                                "filter_by": {
+                                    "type": "boolean",
+                                    "description": "Whether this dimension can be used for filtering in the Metrics Explorer. Defaults to true."
+                                },
+                                "segment_by": {
+                                    "type": "boolean",
+                                    "description": "Whether this dimension can be used for segmenting in the Metrics Explorer. Defaults to true."
+                                }
+                            }
+                        }
+                    }
+                },
+                "additional_dimensions": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-z0-9_]+$": {
+                            "type": "object",
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "number",
+                                        "timestamp",
+                                        "date",
+                                        "boolean"
+                                    ]
+                                },
+                                "label": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "description": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "sql": {
+                                    "type": "string",
+                                    "minLength": 1
+                                },
+                                "time_intervals": {
+                                    "anyOf": [
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "anyOf": [
+                                                    {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "RAW",
+                                                            "DAY",
+                                                            "WEEK",
+                                                            "MONTH",
+                                                            "QUARTER",
+                                                            "YEAR",
+                                                            "HOUR",
+                                                            "MINUTE",
+                                                            "SECOND",
+                                                            "MILLISECOND",
+                                                            "WEEK_NUM",
+                                                            "MONTH_NUM",
+                                                            "MONTH_NAME",
+                                                            "DAY_OF_WEEK_NAME",
+                                                            "QUARTER_NAME",
+                                                            "DAY_OF_WEEK_INDEX",
+                                                            "DAY_OF_MONTH_NUM",
+                                                            "DAY_OF_YEAR_NUM",
+                                                            "QUARTER_NUM",
+                                                            "YEAR_NUM",
+                                                            "HOUR_OF_DAY_NUM",
+                                                            "MINUTE_OF_HOUR_NUM"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    }
+                                                ]
+                                            }
+                                        },
+                                        {
+                                            "type": "string",
+                                            "enum": ["default", "OFF"]
+                                        }
+                                    ]
+                                },
+                                "hidden": {
+                                    "type": "boolean"
+                                },
+                                "round": {
+                                    "type": "number",
+                                    "minimum": 0
+                                },
+                                "format": {
+                                    "type": "string"
+                                },
+                                "compact": {
+                                    "type": "string",
+                                    "enum": [
+                                        "thousands",
+                                        "millions",
+                                        "billions",
+                                        "trillions",
+                                        "thousand",
+                                        "million",
+                                        "billion",
+                                        "trillion",
+                                        "K",
+                                        "M",
+                                        "B",
+                                        "T",
+                                        "kilobytes",
+                                        "megabytes",
+                                        "gigabytes",
+                                        "terabytes",
+                                        "petabytes",
+                                        "kilobyte",
+                                        "megabyte",
+                                        "gigabyte",
+                                        "terabyte",
+                                        "petabyte",
+                                        "KB",
+                                        "MB",
+                                        "GB",
+                                        "TB",
+                                        "PB",
+                                        "kibibytes",
+                                        "mebibytes",
+                                        "gibibytes",
+                                        "tebibytes",
+                                        "pebibytes",
+                                        "kibibyte",
+                                        "mebibyte",
+                                        "gibibyte",
+                                        "tebibyte",
+                                        "pebibyte",
+                                        "KiB",
+                                        "MiB",
+                                        "GiB",
+                                        "TiB",
+                                        "PiB"
+                                    ]
+                                },
+                                "group_label": {
+                                    "type": "string",
+                                    "deprecated": true,
+                                    "description": "Deprecated: use groups instead"
+                                },
+                                "urls": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "url": {
+                                                "type": "string",
+                                                "description": "Liquidjs template for the URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}"
+                                            },
+                                            "label": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                },
+                                "image": {
+                                    "type": "object",
+                                    "description": "Displays the dimension value as an image",
+                                    "properties": {
+                                        "url": {
+                                            "type": "string",
+                                            "description": "Liquidjs template for the image URL. Available variables: ${value.raw}, ${value.formatted}, ${row.table_name.field_name.raw}, ${row.table_name.field_name.formatted}. Only fields selected in the query are available in row context."
+                                        }
+                                    },
+                                    "required": ["url"]
+                                },
+                                "tags": {
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "required_attributes": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                        "oneOf": [
+                                            {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                },
+                                "any_attributes": {
+                                    "type": "object",
+                                    "properties": {},
+                                    "additionalProperties": {
+                                        "oneOf": [
+                                            {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
