@@ -8,20 +8,36 @@ Lightdash is an open-source business intelligence tool (Looker alternative) that
 
 ## Architecture
 
-**Monorepo Structure** (pnpm workspaces):
+### Monorepo Structure (pnpm workspaces)
 
 -   `packages/common/` - Shared utilities, types, and business logic
--   `packages/backend/` - Node.js/Express API server with database layer
+-   `packages/backend/` - Node.js/Express API server, scheduler worker, and all backend services
 -   `packages/frontend/` - React web application with Vite build system
 -   `packages/warehouses/` - Data warehouse client adapters (BigQuery, Snowflake, Postgres, etc.)
 -   `packages/cli/` - Command-line interface for dbt project management
 -   `packages/e2e/` - Cypress end-to-end tests
 
-**Key Technologies:**
+### Key Technologies
 
 -   Backend: Express.js, Knex.js ORM, PostgreSQL, TSOA (OpenAPI generation)
 -   Frontend: React 19, Mantine v8 UI, Emotion styling, TanStack Query
 -   Build: pnpm workspaces, TypeScript project references, Vite
+
+### Runtime Services
+
+The backend, scheduler worker, and headless browser run as separate services that may be on different pods/containers. They do not share a local filesystem. When working with files that are produced by one service and consumed by another, consider how that file will be accessible across service boundaries:
+
+-   **Dynamic/generated files** (screenshots, PDFs, CSVs): Upload to S3 via `FileStorageClient` and retrieve by S3 key. See `packages/backend/src/clients/FileStorage/FileStorageClient.ts`.
+-   **Static files** (templates, assets): Commit to the repo and use a `postbuild` step in `package.json` to copy them into the build output so they're available in the container image.
+
+| Service | Purpose | Key Files |
+|---------|---------|-----------|
+| **Backend API** | Express.js REST server, handles all HTTP endpoints | `packages/backend/src/` |
+| **Scheduler Worker** | Graphile Worker — processes background jobs (emails, Slack, exports) | `SchedulerWorker.ts`, `SchedulerTask.ts` |
+| **Headless Browser** | Separate Chromium container, takes screenshots/PDFs via CDP | `docker/Dockerfile.headless-browser`, `UnfurlService.ts` |
+| **PostgreSQL** | All application state + Graphile Worker job queue | Knex migrations in `src/database/migrations/` |
+| **S3 / MinIO** | Object storage for screenshots, PDFs, CSVs, result caching | `FileStorageClient.ts`, `S3Client.ts` |
+| **NATS** | Optional message queue for async query processing | `NatsClient.ts` |
 
 ## Common Development Commands
 
@@ -91,7 +107,9 @@ pnpm -F backend rollback-last
 -   Express.js with session-based authentication
 -   Database migrations in `src/database/migrations/`
 -   Controllers use TSOA decorators for API generation
--   Background jobs with node-cron scheduler
+-   Background jobs via Graphile Worker (PostgreSQL-based job queue, not node-cron)
+-   Scheduler enabled/disabled via `SCHEDULER_ENABLED` env var
+-   File storage through `FileStorageClient` → S3/MinIO (never local filesystem for cross-service sharing)
 
 **Frontend (`packages/frontend/`):**
 
