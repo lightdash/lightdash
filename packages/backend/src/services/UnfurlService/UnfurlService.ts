@@ -74,8 +74,8 @@ const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
 /**
  * Crop a PDF to a clip area using a PDF incremental update (PDF spec §7.5.6).
  * Appends a modified Page object with an updated MediaBox, leaving original
- * bytes untouched. When Playwright adds native clip support for page.pdf(),
- * this can be removed. See: https://github.com/microsoft/playwright/issues/39695
+ * bytes untouched. This is the standard mechanism PDF editors use for
+ * modifications without rewriting the entire file.
  */
 function cropPdfToClipInternal(
     buffer: Buffer,
@@ -1380,8 +1380,6 @@ export class UnfurlService extends BaseService {
 
                         // Set page size large enough to contain clip area
                         // in a single page, then crop via incremental update
-                        // (same approach as Playwright's proposed clip option,
-                        // see: https://github.com/microsoft/playwright/issues/39695)
                         const pdfBuffer = await page.pdf({
                             width: `${clip.width}px`,
                             height: `${clip.height}px`,
