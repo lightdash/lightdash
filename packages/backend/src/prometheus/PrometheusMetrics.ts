@@ -103,6 +103,11 @@ export default class PrometheusMetrics {
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
+    public gzipDecompressionCounter: prometheus.Counter<string> | null = null;
+
+    public gzipDecompressionBytesHistogram: prometheus.Histogram<string> | null =
+        null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
     }
@@ -355,6 +360,31 @@ export default class PrometheusMetrics {
                         buckets: [0.5, 1, 2, 5, 10, 30, 60, 120],
                         ...rest,
                     });
+
+                this.gzipDecompressionCounter = new prometheus.Counter({
+                    name: 'gzip_decompression_total',
+                    help: 'Total gzip decompression attempts by result',
+                    labelNames: ['result'],
+                    ...rest,
+                });
+
+                this.gzipDecompressionBytesHistogram = new prometheus.Histogram(
+                    {
+                        name: 'gzip_decompression_bytes',
+                        help: 'Decompressed request body size in bytes',
+                        buckets: [
+                            1024, // 1KB
+                            10240, // 10KB
+                            102400, // 100KB
+                            524288, // 512KB
+                            1048576, // 1MB
+                            5242880, // 5MB
+                            10485760, // 10MB
+                            52428800, // 50MB
+                        ],
+                        ...rest,
+                    },
+                );
 
                 this.queryCacheHitCounter = new prometheus.Counter({
                     name: 'lightdash_query_cache_hit_total',
