@@ -147,14 +147,12 @@ export const findPivotColumnFromSeriesRef = (
     // Search all pivot references for one matching the requested ref AND whose
     // pivot values match the hovered context. This allows hidden series (e.g., a
     // table calculation with its chart series hidden) to be resolved in custom tooltips.
-    if (!hoveredPivotValues) return undefined;
-
-    const hovered = hoveredPivotValues;
+    const hovered = hoveredPivotValues ?? [];
     const matchingRef = pivotRefsToSearch.find((pivotRef) => {
         if (pivotRef.field !== ref) return false;
-        const seriesPivotValues = pivotRef.pivotValues;
+        const seriesPivotValues = pivotRef.pivotValues ?? [];
         return (
-            seriesPivotValues?.length === hovered.length &&
+            seriesPivotValues.length === hovered.length &&
             seriesPivotValues.every((pv, i) => pv.value === hovered[i]?.value)
         );
     });
