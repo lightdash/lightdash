@@ -103,11 +103,6 @@ export default class PrometheusMetrics {
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
-    public gzipDecompressionCounter: prometheus.Counter<string> | null = null;
-
-    public gzipDecompressionFailureCounter: prometheus.Counter<string> | null =
-        null;
-
     public gzipDecompressionBytesHistogram: prometheus.Histogram<string> | null =
         null;
 
@@ -364,22 +359,10 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
-                this.gzipDecompressionCounter = new prometheus.Counter({
-                    name: 'gzip_decompression_total',
-                    help: 'Total successful gzip decompression requests',
-                    ...rest,
-                });
-
-                this.gzipDecompressionFailureCounter = new prometheus.Counter({
-                    name: 'gzip_decompression_failures_total',
-                    help: 'Total failed gzip decompression requests',
-                    ...rest,
-                });
-
                 this.gzipDecompressionBytesHistogram = new prometheus.Histogram(
                     {
                         name: 'gzip_decompression_bytes',
-                        help: 'Decompressed request body size in bytes',
+                        help: 'Approximate decompressed request body size in bytes (re-serialized from parsed JSON)',
                         buckets: [
                             1024, // 1KB
                             10240, // 10KB

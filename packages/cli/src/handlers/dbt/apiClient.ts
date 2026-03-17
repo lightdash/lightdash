@@ -231,8 +231,8 @@ export const checkLightdashVersion = async (): Promise<void> => {
                 `> Server version: ${health.version}, gzip compression: disabled (LIGHTDASH_DISABLE_COMPRESSION=true)`,
             );
         } else if (serverSupportsGzip) {
-            console.error(
-                `${styles.title('Info')}: Gzip compression enabled for large request payloads`,
+            GlobalState.debug(
+                `> Server version: ${health.version}, gzip compression: enabled`,
             );
         } else {
             GlobalState.debug(
