@@ -3716,23 +3716,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await ack();
                 const { user } = body;
                 const { teamId } = context;
-
-                // Auth check: require linked Lightdash account to vote
-                const openIdIdentity =
-                    await this.openIdIdentityModel.findIdentityByOpenId(
-                        OpenIdIdentityIssuerType.SLACK,
-                        user.id,
+                const organizationUuid =
+                    await this.getSlackVoteOrganizationUuid({
                         teamId,
-                    );
+                        userId: user.id,
+                        channelId:
+                            body.type === 'block_actions'
+                                ? body.channel?.id
+                                : undefined,
+                        client,
+                    });
 
-                if (!openIdIdentity) {
-                    if (body.type === 'block_actions' && body.channel?.id) {
-                        await client.chat.postEphemeral({
-                            channel: body.channel.id,
-                            user: user.id,
-                            text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
-                        });
-                    }
+                if (organizationUuid === null) {
                     return;
                 }
 
@@ -3752,11 +3747,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         if (!promptUuid) {
                             return;
                         }
-                        const organizationUuid = teamId
-                            ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
-                                  teamId,
-                              )
-                            : undefined;
                         await this.updateHumanScoreForSlackPrompt(
                             user.id,
                             organizationUuid,
@@ -3789,23 +3779,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await ack();
                 const { user } = body;
                 const { teamId } = context;
-
-                // Auth check: require linked Lightdash account to vote
-                const openIdIdentity =
-                    await this.openIdIdentityModel.findIdentityByOpenId(
-                        OpenIdIdentityIssuerType.SLACK,
-                        user.id,
+                const organizationUuid =
+                    await this.getSlackVoteOrganizationUuid({
                         teamId,
-                    );
+                        userId: user.id,
+                        channelId:
+                            body.type === 'block_actions'
+                                ? body.channel?.id
+                                : undefined,
+                        client,
+                    });
 
-                if (!openIdIdentity) {
-                    if (body.type === 'block_actions' && body.channel?.id) {
-                        await client.chat.postEphemeral({
-                            channel: body.channel.id,
-                            user: user.id,
-                            text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
-                        });
-                    }
+                if (organizationUuid === null) {
                     return;
                 }
 
@@ -3825,13 +3810,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         if (!promptUuid) {
                             return;
                         }
-
-                        const organizationUuid = teamId
-                            ? await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
-                                  teamId,
-                              )
-                            : undefined;
-
                         await this.updateHumanScoreForSlackPrompt(
                             user.id,
                             organizationUuid,
@@ -4553,6 +4531,59 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             createdThread,
             say,
         );
+    }
+
+    private async getSlackVoteOrganizationUuid({
+        teamId,
+        userId,
+        channelId,
+        client,
+    }: {
+        teamId?: string;
+        userId: string;
+        channelId?: string;
+        client: WebClient;
+    }): Promise<string | undefined | null> {
+        if (!teamId) {
+            return undefined;
+        }
+
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+
+        const slackSettings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!slackSettings?.aiRequireOAuth) {
+            return organizationUuid;
+        }
+
+        // TODO: Legacy Slack-linked users can still fail here if team_id was never
+        // populated on their OpenID identity.
+        const openIdIdentity =
+            await this.openIdIdentityModel.findIdentityByOpenId(
+                OpenIdIdentityIssuerType.SLACK,
+                userId,
+                teamId,
+            );
+
+        if (openIdIdentity) {
+            return organizationUuid;
+        }
+
+        if (channelId) {
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: userId,
+                text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+            });
+        }
+
+        return null;
     }
 
     public handleAgentSelection(app: App) {
