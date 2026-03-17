@@ -147,15 +147,15 @@ export const findPivotColumnFromSeriesRef = (
     // Search all pivot references for one matching the requested ref AND whose
     // pivot values match the hovered context. This allows hidden series (e.g., a
     // table calculation with its chart series hidden) to be resolved in custom tooltips.
+    if (!hoveredPivotValues) return undefined;
+
+    const hovered = hoveredPivotValues;
     const matchingRef = pivotRefsToSearch.find((pivotRef) => {
         if (pivotRef.field !== ref) return false;
         const seriesPivotValues = pivotRef.pivotValues;
         return (
-            hoveredPivotValues &&
-            seriesPivotValues?.length === hoveredPivotValues.length &&
-            seriesPivotValues.every(
-                (pv, i) => pv.value === hoveredPivotValues![i].value,
-            )
+            seriesPivotValues?.length === hovered.length &&
+            seriesPivotValues.every((pv, i) => pv.value === hovered[i]?.value)
         );
     });
 
@@ -1180,7 +1180,7 @@ export const buildCartesianTooltipFormatter =
                         if (translatedKey) keysToTry.push(translatedKey);
 
                         // Also check if ref is a simple metric name that has been pivoted
-                        // Use allSeries to also resolve hidden series (e.g., hidden table calcs)
+                        // Also resolves hidden series via hiddenSeriesPivotRefs
                         const pivotColumnFromSeries =
                             findPivotColumnFromSeriesRef(
                                 ref,
@@ -1255,7 +1255,7 @@ export const buildCartesianTooltipFormatter =
                         }
                     }
                     // Fallback: check if ref is a simple metric name that has been pivoted
-                    // Use allSeries to also resolve hidden series (e.g., hidden table calcs)
+                    // Also resolves hidden series via hiddenSeriesPivotRefs
                     if (val === undefined) {
                         const pivotColumnFromSeries =
                             findPivotColumnFromSeriesRef(
