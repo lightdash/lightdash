@@ -1,3 +1,10 @@
+# [0.2632.0](https://github.com/lightdash/lightdash/compare/0.2631.1...0.2632.0) (2026-03-17)
+
+
+### Features
+
+* add context and overhead metrics, remove redundant query metrics ([#21196](https://github.com/lightdash/lightdash/issues/21196)) ([eadecd4](https://github.com/lightdash/lightdash/commit/eadecd4801af61a13b6f55285b46b813b7135128))
+
 ## [0.2631.1](https://github.com/lightdash/lightdash/compare/0.2631.0...0.2631.1) (2026-03-17)
 
 
