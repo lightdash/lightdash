@@ -1,3 +1,15 @@
+# [0.2629.0](https://github.com/lightdash/lightdash/compare/0.2628.0...0.2629.0) (2026-03-17)
+
+
+### Bug Fixes
+
+* show export limit options in embedded view underlying data ([#21182](https://github.com/lightdash/lightdash/issues/21182)) ([b985b74](https://github.com/lightdash/lightdash/commit/b985b743bbfe6aab4ae377eb57ef5f48fabf5df7))
+
+
+### Features
+
+* add SDK-specific error display handling ([#21185](https://github.com/lightdash/lightdash/issues/21185)) ([0133070](https://github.com/lightdash/lightdash/commit/013307004f82df175520fe54343ddd1be81cff10))
+
 # [0.2628.0](https://github.com/lightdash/lightdash/compare/0.2627.3...0.2628.0) (2026-03-17)
 
 
