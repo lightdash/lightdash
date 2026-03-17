@@ -1,3 +1,10 @@
+## [0.2630.1](https://github.com/lightdash/lightdash/compare/0.2630.0...0.2630.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* Scheduled Deliveries: Custom message body not saving or visible in UI ([#21198](https://github.com/lightdash/lightdash/issues/21198)) ([7d5a80d](https://github.com/lightdash/lightdash/commit/7d5a80df895acd8310bcfea8c82a3381000dccdc)), closes [#21002](https://github.com/lightdash/lightdash/issues/21002)
+
 # [0.2630.0](https://github.com/lightdash/lightdash/compare/0.2629.2...0.2630.0) (2026-03-17)
 
 
