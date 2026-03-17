@@ -1,3 +1,10 @@
+## [0.2632.1](https://github.com/lightdash/lightdash/compare/0.2632.0...0.2632.1) (2026-03-17)
+
+
+### Bug Fixes
+
+* stop dropping models without config.materialized ([#21213](https://github.com/lightdash/lightdash/issues/21213)) ([8dda768](https://github.com/lightdash/lightdash/commit/8dda7688466ecf3c13b4a9630975b2d2019fbf41)), closes [#21064](https://github.com/lightdash/lightdash/issues/21064)
+
 # [0.2632.0](https://github.com/lightdash/lightdash/compare/0.2631.1...0.2632.0) (2026-03-17)
 
 
