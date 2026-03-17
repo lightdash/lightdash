@@ -63,7 +63,10 @@ import {
     expressWinstonPreResponseMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
-import { createGzipMetricsMiddleware } from './middlewares/decompressGzip';
+import {
+    createGzipErrorMiddleware,
+    createGzipMetricsMiddleware,
+} from './middlewares/decompressGzip';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
@@ -367,8 +370,12 @@ export default class App {
         expressApp.use(
             express.json({
                 limit: this.lightdashConfig.maxPayloadSize,
-                inflate: process.env.LIGHTDASH_DISABLE_GZIP !== 'true',
+                inflate: process.env.LIGHTDASH_DISABLE_COMPRESSION !== 'true',
             }),
+        );
+        expressApp.use(
+            '/api',
+            createGzipErrorMiddleware(this.prometheusMetrics),
         );
         expressApp.use(
             '/api',

@@ -105,6 +105,9 @@ export default class PrometheusMetrics {
 
     public gzipDecompressionCounter: prometheus.Counter<string> | null = null;
 
+    public gzipDecompressionFailureCounter: prometheus.Counter<string> | null =
+        null;
+
     public gzipDecompressionBytesHistogram: prometheus.Histogram<string> | null =
         null;
 
@@ -363,8 +366,13 @@ export default class PrometheusMetrics {
 
                 this.gzipDecompressionCounter = new prometheus.Counter({
                     name: 'gzip_decompression_total',
-                    help: 'Total gzip decompression attempts by result',
-                    labelNames: ['result'],
+                    help: 'Total successful gzip decompression requests',
+                    ...rest,
+                });
+
+                this.gzipDecompressionFailureCounter = new prometheus.Counter({
+                    name: 'gzip_decompression_failures_total',
+                    help: 'Total failed gzip decompression requests',
                     ...rest,
                 });
 
