@@ -773,6 +773,7 @@ program
         false,
     )
     .option('--validate', 'Validate charts and dashboards after upload', false)
+    .option('--gzip', 'Enable gzip compression for request bodies', false)
     .action(uploadHandler);
 
 program
@@ -888,6 +889,7 @@ program
         'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
     )
+    .option('--gzip', 'Enable gzip compression for request bodies', false)
     .action(deployHandler);
 
 program

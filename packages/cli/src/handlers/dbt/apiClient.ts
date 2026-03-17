@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
+import { gzipSync } from 'zlib';
 import { getConfig } from '../../config';
 import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
@@ -23,6 +24,14 @@ type LightdashApiProps = {
     url: string;
     body: BodyInit | undefined;
 };
+
+const MIN_GZIP_SIZE = 1024;
+let gzipEnabled = false;
+
+export const setGzipEnabled = (enabled: boolean) => {
+    gzipEnabled = enabled;
+};
+
 export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
@@ -38,7 +47,29 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
-    return fetch(fullUrl, { method, headers, body })
+    let requestBody: BodyInit | undefined = body;
+    if (
+        gzipEnabled &&
+        body &&
+        typeof body === 'string' &&
+        Buffer.byteLength(body) > MIN_GZIP_SIZE
+    ) {
+        try {
+            const uncompressedSize = Buffer.byteLength(body);
+            const compressed = gzipSync(body);
+            GlobalState.debug(
+                `> Compressed request body: ${uncompressedSize} bytes → ${compressed.byteLength} bytes (${Math.round((1 - compressed.byteLength / uncompressedSize) * 100)}% reduction)`,
+            );
+            requestBody = compressed;
+            headers['Content-Encoding'] = 'gzip';
+        } catch (err) {
+            GlobalState.debug(
+                `> Gzip compression failed, sending uncompressed: ${err}`,
+            );
+        }
+    }
+
+    return fetch(fullUrl, { method, headers, body: requestBody })
         .then((r) => {
             GlobalState.debug(`> HTTP request returned status: ${r.status}`);
 
@@ -194,6 +225,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
             url: `/api/v1/health`,
             body: undefined,
         });
+
         if (health.version !== CLI_VERSION) {
             const config = await getConfig();
             console.error(
@@ -209,6 +241,6 @@ export const checkLightdashVersion = async (): Promise<void> => {
             );
         }
     } catch (err) {
-        // do nothing
+        GlobalState.debug(`> Health check failed: ${err}`);
     }
 };

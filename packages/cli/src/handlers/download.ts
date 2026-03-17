@@ -28,7 +28,11 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import {
+    checkLightdashVersion,
+    lightdashApi,
+    setGzipEnabled,
+} from './dbt/apiClient';
 import { logSelectedProject, selectProject } from './selectProject';
 
 export type DownloadHandlerOptions = {
@@ -45,6 +49,7 @@ export type DownloadHandlerOptions = {
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
+    gzip?: boolean;
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -1056,6 +1061,9 @@ export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    if (options.gzip) {
+        setGzipEnabled(true);
+    }
     await checkLightdashVersion();
     const config = await getConfig();
     if (!config.context?.apiKey || !config.context.serverUrl) {

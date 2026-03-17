@@ -11,6 +11,7 @@ enum TokenType {
 
 type RequestHeader = {
     'Content-Type': 'application/json';
+    'Content-Encoding'?: string;
     Authorization: string;
     'Proxy-Authorization'?: string;
     [LightdashRequestMethodHeader]: RequestMethod;
