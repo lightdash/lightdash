@@ -101,13 +101,15 @@ See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Refere
 
 1. **Download**: `lightdash download --charts chart-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Upload**: `lightdash upload --charts chart-slug`
+3. **Lint**: `lightdash lint` to validate before uploading
+4. **Upload**: `lightdash upload --charts chart-slug`
 
 ### Editing Dashboards
 
 1. **Download**: `lightdash download --dashboards dashboard-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Upload**: `lightdash upload --dashboards dashboard-slug`
+3. **Lint**: `lightdash lint` to validate before uploading
+4. **Upload**: `lightdash upload --dashboards dashboard-slug`
 
 ### Creating New Content
 
@@ -116,7 +118,8 @@ Charts and dashboards are typically created in the UI first, then managed as cod
 1. Create in UI
 2. `lightdash download` to pull as YAML
 3. Edit and version control
-4. `lightdash upload` to sync changes
+4. `lightdash lint` to validate before uploading
+5. `lightdash upload` to sync changes
 
 ### Testing with Preview
 
