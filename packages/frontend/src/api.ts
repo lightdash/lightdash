@@ -95,6 +95,19 @@ const handleError = (err: any): ApiError => {
         }
         return err;
     }
+    if (typeof err?.status === 'number') {
+        return {
+            status: 'error',
+            error: {
+                name: err.statusText || 'HttpError',
+                statusCode: err.status,
+                message:
+                    err.statusText ||
+                    `Request failed with status ${err.status}`,
+                data: {},
+            },
+        };
+    }
     return {
         status: 'error',
         error: {
@@ -170,9 +183,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     })
         .then((r) => {
             if (!r.ok) {
-                return r.json().then((d) => {
-                    throw d;
-                });
+                throw r;
             }
             return r;
         })

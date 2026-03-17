@@ -91,4 +91,36 @@ describe('api', () => {
 
         clearInMemoryStorage();
     });
+
+    it('surfaces http status from non-json error responses instead of masking them as network errors', async () => {
+        const scope = nock(BASE_API_URL)
+            .post('/api/v1/embed/test-project/dashboard')
+            .reply(
+                404,
+                '<!DOCTYPE html><html><body><pre>Cannot POST /embed/test-project</pre></body></html>',
+                {
+                    'Content-Type': 'text/html; charset=utf-8',
+                },
+            );
+
+        await expect(
+            lightdashApi({
+                method: 'POST',
+                url: '/embed/test-project/dashboard',
+                body: undefined,
+                headers: undefined,
+            }),
+        ).rejects.toEqual({
+            status: 'error',
+            error: {
+                name: 'Not Found',
+                statusCode: 404,
+                message: 'Not Found',
+                data: {},
+            },
+        });
+
+        scope.done();
+        expect(scope.isDone()).toBe(true);
+    });
 });
