@@ -107,9 +107,12 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                 <Stack gap="xs">
                     <Title order={4}>Query time zone</Title>
                     <Text c="ldGray.6" fz="sm">
-                        Sets the default time zone for date/time filter
-                        boundaries and relative date calculations in queries.
-                        Individual queries can still override this.
+                        Controls what &quot;today&quot;, &quot;this week&quot;,
+                        and other &quot;in the current&quot; date filters mean.
+                        For example, if set to US/Eastern, &quot;today&quot;
+                        means midnight-to-midnight New York time instead of UTC.
+                        This does not change your database&apos;s session time
+                        zone.
                     </Text>
                     <Text c="ldGray.6" fz="xs">
                         Learn more in our{' '}
