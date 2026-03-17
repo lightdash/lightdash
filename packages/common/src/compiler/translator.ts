@@ -26,6 +26,7 @@ import {
     InlineErrorType,
     type Explore,
     type ExploreError,
+    type InlineError,
     type Table,
 } from '../types/explore';
 import {
@@ -455,41 +456,67 @@ function validateSets(
     allMetrics: Record<string, Metric>,
     model: DbtModelNode,
     meta: DbtModelNode['meta'],
-) {
+    allowPartialCompilation?: boolean,
+): InlineError[] {
+    const warnings: InlineError[] = [];
     const allFieldNames = new Set([
         ...Object.keys(dimensions),
         ...Object.keys(allMetrics),
     ]);
 
-    if (!meta.sets) return;
+    if (!meta.sets) return warnings;
 
     Object.entries(meta.sets).forEach(([setName, setDef]) => {
         // Validate set name doesn't conflict with field names
         if (allFieldNames.has(setName)) {
-            throw new ParseError(
-                `Set name "${setName}" in model "${model.name}" conflicts with an existing field name. Set names must be unique from dimension and metric names.`,
-            );
+            const errorMessage = `Set name "${setName}" in model "${model.name}" conflicts with an existing field name. Set names must be unique from dimension and metric names.`;
+            if (allowPartialCompilation) {
+                warnings.push({
+                    type: InlineErrorType.SET_VALIDATION_ERROR,
+                    message: errorMessage,
+                });
+                return; // Skip this set
+            }
+            throw new ParseError(errorMessage);
         }
 
         // Validate set definition structure
         if (!setDef.fields || !Array.isArray(setDef.fields)) {
-            throw new ParseError(
-                `Set "${setName}" in model "${model.name}" must have a "fields" array`,
-            );
+            const errorMessage = `Set "${setName}" in model "${model.name}" must have a "fields" array`;
+            if (allowPartialCompilation) {
+                warnings.push({
+                    type: InlineErrorType.SET_VALIDATION_ERROR,
+                    message: errorMessage,
+                });
+                return; // Skip this set
+            }
+            throw new ParseError(errorMessage);
         }
 
         if (setDef.fields.length === 0) {
-            throw new ParseError(
-                `Set "${setName}" in model "${model.name}" cannot be empty`,
-            );
+            const errorMessage = `Set "${setName}" in model "${model.name}" cannot be empty`;
+            if (allowPartialCompilation) {
+                warnings.push({
+                    type: InlineErrorType.SET_VALIDATION_ERROR,
+                    message: errorMessage,
+                });
+                return; // Skip this set
+            }
+            throw new ParseError(errorMessage);
         }
 
         // Validate field names don't have invalid characters
         setDef.fields.forEach((field) => {
             if (typeof field !== 'string') {
-                throw new ParseError(
-                    `Set "${setName}" in model "${model.name}" contains non-string field: ${field}`,
-                );
+                const errorMessage = `Set "${setName}" in model "${model.name}" contains non-string field: ${field}`;
+                if (allowPartialCompilation) {
+                    warnings.push({
+                        type: InlineErrorType.SET_VALIDATION_ERROR,
+                        message: errorMessage,
+                    });
+                    return; // Skip this field
+                }
+                throw new ParseError(errorMessage);
             }
 
             // Allow field references ending with * (set references)
@@ -499,9 +526,15 @@ function validateSets(
             // Validate that the clean field name follows the lightdash variable pattern
             // (letters, numbers, underscores, and dots only)
             if (cleanField && !/^[a-zA-Z0-9_.]+$/.test(cleanField)) {
-                throw new ParseError(
-                    `Set "${setName}" in model "${model.name}" contains invalid field name "${field}". Field names must contain only letters, numbers, underscores, and dots.`,
-                );
+                const errorMessage = `Set "${setName}" in model "${model.name}" contains invalid field name "${field}". Field names must contain only letters, numbers, underscores, and dots.`;
+                if (allowPartialCompilation) {
+                    warnings.push({
+                        type: InlineErrorType.SET_VALIDATION_ERROR,
+                        message: errorMessage,
+                    });
+                    return; // Skip this field
+                }
+                throw new ParseError(errorMessage);
             }
 
             const isModelFieldName =
@@ -518,14 +551,26 @@ function validateSets(
                     const allJoinNames = joins.map((j) => j.alias || j.join);
 
                     if (!allJoinNames.includes(joinName)) {
-                        throw new ParseError(
-                            `Set "${setName}" in model "${model.name}" references non-existent join model "${joinName}".`,
-                        );
+                        const errorMessage = `Set "${setName}" in model "${model.name}" references non-existent join model "${joinName}".`;
+                        if (allowPartialCompilation) {
+                            warnings.push({
+                                type: InlineErrorType.SET_VALIDATION_ERROR,
+                                message: errorMessage,
+                            });
+                            return; // Skip this field
+                        }
+                        throw new ParseError(errorMessage);
                     }
                 } else if (!allFieldNames.has(fieldName)) {
-                    throw new ParseError(
-                        `Set "${setName}" in model "${model.name}" references non-existent model field "${field}". Fields must correspond to actual dimensions or metrics in the model.`,
-                    );
+                    const errorMessage = `Set "${setName}" in model "${model.name}" references non-existent model field "${field}". Fields must correspond to actual dimensions or metrics in the model.`;
+                    if (allowPartialCompilation) {
+                        warnings.push({
+                            type: InlineErrorType.SET_VALIDATION_ERROR,
+                            message: errorMessage,
+                        });
+                        return; // Skip this field
+                    }
+                    throw new ParseError(errorMessage);
                 }
             }
 
@@ -536,9 +581,15 @@ function validateSets(
                 depth: number,
             ) => {
                 if (depth > 3) {
-                    throw new ParseError(
-                        `Set "${setName}" in model "${model.name}" exceeds the maximum nesting level of 3.`,
-                    );
+                    const errorMessage = `Set "${setName}" in model "${model.name}" exceeds the maximum nesting level of 3.`;
+                    if (allowPartialCompilation) {
+                        warnings.push({
+                            type: InlineErrorType.SET_VALIDATION_ERROR,
+                            message: errorMessage,
+                        });
+                        return; // Stop checking nesting
+                    }
+                    throw new ParseError(errorMessage);
                 }
 
                 fields.forEach((f) => {
@@ -567,6 +618,8 @@ function validateSets(
             }
         });
     });
+
+    return warnings;
 }
 
 export const convertTable = (
@@ -577,6 +630,7 @@ export const convertTable = (
     startOfWeek?: WeekDay | null,
     disableTimestampConversion?: boolean,
     customGranularities?: Record<string, CustomGranularity>,
+    allowPartialCompilation?: boolean,
 ): Omit<Table, 'lineageGraph'> => {
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
@@ -902,7 +956,17 @@ export const convertTable = (
     }
 
     if (meta.sets) {
-        validateSets(dimensions, allMetrics, model, meta);
+        const warnings = validateSets(
+            dimensions,
+            allMetrics,
+            model,
+            meta,
+            allowPartialCompilation,
+        );
+        // Add set validation warnings to table warnings
+        warnings.forEach((warning) => {
+            tableWarnings.push(warning.message);
+        });
     }
 
     const sqlTable = meta.sql_from || model.relation_name;
@@ -1034,6 +1098,7 @@ export const convertExplores = async (
                     warehouseSqlBuilder.getStartOfWeek(),
                     disableTimestampConversion,
                     lightdashProjectConfig.custom_granularities,
+                    allowPartialCompilation,
                 );
 
                 // add lineage

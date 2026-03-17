@@ -69,6 +69,7 @@ export enum InlineErrorType {
     SKIPPED_JOIN = 'SKIPPED_JOIN',
     MISSING_TABLE = 'MISSING_TABLE',
     FIELD_ERROR = 'FIELD_ERROR',
+    SET_VALIDATION_ERROR = 'SET_VALIDATION_ERROR',
 }
 
 export type InlineError = {
