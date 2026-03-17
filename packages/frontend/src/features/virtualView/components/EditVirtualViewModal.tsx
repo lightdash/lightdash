@@ -1,4 +1,4 @@
-import { type Explore } from '@lightdash/common';
+import { ProjectType, type Explore } from '@lightdash/common';
 import { Button, Center, Loader, Modal, Stack, Text } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import {
@@ -14,11 +14,18 @@ import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
 import {
+    BANNER_HEIGHT,
+    NAVBAR_HEIGHT,
+} from '../../../components/common/Page/constants';
+import {
     explorerActions,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useProject } from '../../../hooks/useProject';
+import { useImpersonation } from '../../../hooks/user/useImpersonation';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 
@@ -41,6 +48,14 @@ export const EditVirtualViewModal: FC<Props> = ({
     const dispatch = useExplorerDispatch();
     const navigate = useNavigate();
     const tableName = useExplorerSelector(selectTableName);
+
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+    const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
+    const { isImpersonating } = useImpersonation();
+    const navbarHeight =
+        NAVBAR_HEIGHT +
+        (isCurrentProjectPreview || isImpersonating ? BANNER_HEIGHT : 0);
 
     const [modalStep, setModalStep] = useState<
         'unsavedChanges' | 'editVirtualView' | undefined
@@ -96,7 +111,7 @@ export const EditVirtualViewModal: FC<Props> = ({
             onClose={handleClose}
             size="97vw"
             centered={false}
-            yOffset="3vh"
+            yOffset={navbarHeight + 10}
             xOffset="2vw"
             closeOnClickOutside={false}
         >
