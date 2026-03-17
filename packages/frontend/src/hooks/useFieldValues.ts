@@ -24,7 +24,7 @@ const getEmbedFilterValues = async (options: {
     forceRefresh: boolean;
     filters: AndFilterGroup | undefined;
     tableName: string | undefined;
-    fieldId: string;
+    fieldId: string | undefined;
 }) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
