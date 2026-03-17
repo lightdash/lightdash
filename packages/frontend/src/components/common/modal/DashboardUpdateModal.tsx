@@ -13,6 +13,7 @@ import {
     useDashboardQuery,
     useUpdateDashboard,
 } from '../../../hooks/dashboard/useDashboard';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineModal from '../MantineModal';
 
 interface DashboardUpdateModalProps {
@@ -29,10 +30,15 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const projectUuid = useProjectUuid();
     const { data: dashboard, isInitialLoading } = useDashboardQuery({
         uuidOrSlug: uuid,
+        projectUuid,
     });
-    const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(uuid);
+    const { mutateAsync, isLoading: isUpdating } = useUpdateDashboard(
+        uuid,
+        projectUuid,
+    );
 
     const form = useForm<FormState>({
         initialValues: {

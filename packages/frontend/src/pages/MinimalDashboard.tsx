@@ -31,7 +31,6 @@ import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
-import { useSlugRedirect } from '../hooks/useSlugRedirect';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import '../styles/react-grid.css';
@@ -214,9 +213,10 @@ const MinimalDashboard: FC = () => {
         data: dashboard,
         isError: isDashboardError,
         error: dashboardError,
-    } = useDashboardQuery({ uuidOrSlug: dashboardUuid, projectUuid });
-
-    useSlugRedirect(dashboardUuid, dashboard?.uuid);
+    } = useDashboardQuery({
+        uuidOrSlug: dashboardUuid,
+        projectUuid,
+    });
 
     const [activeTab, setActiveTab] = useState<DashboardTab | null>(null);
 
@@ -358,6 +358,7 @@ const MinimalDashboard: FC = () => {
 
     return (
         <DashboardProvider
+            projectUuid={projectUuid}
             schedulerFilters={schedulerFilters}
             schedulerParameters={schedulerParameters}
             schedulerTabsSelected={schedulerTabsSelected}

@@ -96,8 +96,10 @@ export const useDashboardChartReadyQuery = (
             ?.map((ds) => `${ds.fieldId}.${ds.descending}`)
             ?.join(',') || '';
 
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid ?? undefined,
+        projectUuid,
     });
 
     const { data: explore, error: exploreError } = useExplore(

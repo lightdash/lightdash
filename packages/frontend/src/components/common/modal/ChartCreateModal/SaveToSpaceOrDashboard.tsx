@@ -210,6 +210,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid ?? undefined,
+        projectUuid,
     );
     const {
         data: selectedDashboard,
@@ -218,6 +219,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         error: selectedDashboardError,
     } = useDashboardQuery({
         uuidOrSlug: form.values.dashboardUuid ?? undefined,
+        projectUuid,
     });
 
     // Handle dashboard selection errors

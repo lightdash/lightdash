@@ -53,9 +53,10 @@ const duplicateSavedQuery = async (
         body: JSON.stringify(data),
     });
 
-const deleteSavedQuery = async (id: string) =>
+const deleteSavedQuery = async (id: string, projectUuid: string) =>
     lightdashApi<null>({
-        url: `/saved/${id}`,
+        url: `/projects/${projectUuid}/saved/${id}`,
+        version: 'v2',
         method: 'DELETE',
         body: undefined,
     });
@@ -77,15 +78,14 @@ const updateSavedQuery = async (
 
 const getSavedQuery = async (
     id: string,
-    projectUuid?: string,
-): Promise<SavedChart> => {
-    const query = projectUuid ? `?projectUuid=${projectUuid}` : '';
-    return lightdashApi<SavedChart>({
-        url: `/saved/${id}${query}`,
+    projectUuid: string,
+): Promise<SavedChart> =>
+    lightdashApi<SavedChart>({
+        url: `/projects/${projectUuid}/saved/${id}`,
+        version: 'v2',
         method: 'GET',
         body: undefined,
     });
-};
 
 const addVersionSavedQuery = async ({
     uuid,
@@ -119,11 +119,14 @@ export const useSavedQuery = ({
     uuidOrSlug,
     projectUuid,
     useQueryOptions,
-}: Args = {}) =>
+}: Args) =>
     useQuery<SavedChart, ApiError>({
         queryKey: ['saved_query', uuidOrSlug, projectUuid],
-        queryFn: () => getSavedQuery(uuidOrSlug || '', projectUuid),
-        enabled: uuidOrSlug !== undefined,
+        queryFn: async () => {
+            if (!projectUuid) throw new Error('projectUuid is required');
+            return getSavedQuery(uuidOrSlug || '', projectUuid);
+        },
+        enabled: uuidOrSlug !== undefined && !!projectUuid,
         retry: false,
         ...useQueryOptions,
     });
@@ -204,37 +207,39 @@ export const useChartVersionRollbackMutation = (
     );
 };
 
-export const useSavedQueryDeleteMutation = () => {
+export const useSavedQueryDeleteMutation = (projectUuid?: string) => {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { health } = useApp();
     const isSoftDeleteEnabled = health.data?.softDelete.enabled ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         async (data) => {
+            if (!projectUuid) {
+                throw new Error('Project UUID is undefined');
+            }
             queryClient.removeQueries(['savedChartResults', data]);
-            return deleteSavedQuery(data);
+            return deleteSavedQuery(data, projectUuid);
         },
         {
             mutationKey: ['saved_query_create'],
             onSuccess: async () => {
-                await invalidateContent(queryClient, projectUuid!);
+                if (!projectUuid) return;
+                await invalidateContent(queryClient, projectUuid);
                 await queryClient.invalidateQueries(['deletedContent']);
 
                 showToastSuccess({
                     title: `Success! Chart was deleted.`,
-                    action:
-                        isSoftDeleteEnabled && projectUuid
-                            ? {
-                                  children: 'Go to recently deleted',
-                                  icon: IconArrowRight,
-                                  onClick: () =>
-                                      navigate(
-                                          `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
-                                      ),
-                              }
-                            : undefined,
+                    action: isSoftDeleteEnabled
+                        ? {
+                              children: 'Go to recently deleted',
+                              icon: IconArrowRight,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${projectUuid}/recentlyDeleted`,
+                                  ),
+                          }
+                        : undefined,
                 });
             },
             onError: ({ error }) => {

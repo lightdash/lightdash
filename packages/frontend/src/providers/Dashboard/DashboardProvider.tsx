@@ -151,6 +151,7 @@ const DashboardProvider: React.FC<
 
     const { data: dashboardComments } = useGetComments(
         dashboardUuid,
+        projectUuid,
         !!dashboardCommentsCheck &&
             !!dashboardCommentsCheck.canViewDashboardComments,
     );
