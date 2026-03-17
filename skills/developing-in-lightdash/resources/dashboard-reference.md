@@ -166,22 +166,24 @@ x: 27, y: 0, w: 9, h: 3
 
 Organize tiles into multiple views:
 
+**IMPORTANT:** Tab `uuid` values must be valid UUIDs (e.g., `"a1b2c3d4-e5f6-7890-abcd-ef1234567890"`), not friendly names. The linter will reject non-UUID values. Generate UUIDs with `python3 -c "import uuid; print(uuid.uuid4())"`.
+
 ```yaml
 tabs:
-  - uuid: "overview-tab"
+  - uuid: "b3f1a2c4-d5e6-4f78-9abc-def012345678"
     name: "Overview"
     order: 0
-  - uuid: "details-tab"
+  - uuid: "c4d2b3e5-f6a7-4089-bcde-f12345678901"
     name: "Details"
     order: 1
-  - uuid: "trends-tab"
+  - uuid: "d5e3c4f6-a7b8-4190-cdef-234567890123"
     name: "Trends"
     order: 2
 
 tiles:
   # Overview tab tiles
   - type: saved_chart
-    tabUuid: "overview-tab"
+    tabUuid: "b3f1a2c4-d5e6-4f78-9abc-def012345678"
     x: 0
     y: 0
     w: 36
@@ -191,7 +193,7 @@ tiles:
 
   # Details tab tiles
   - type: saved_chart
-    tabUuid: "details-tab"
+    tabUuid: "c4d2b3e5-f6a7-4089-bcde-f12345678901"
     x: 0
     y: 0
     w: 36
@@ -399,20 +401,20 @@ spaceSlug: leadership
 description: "High-level sales performance metrics for leadership team"
 
 tabs:
-  - uuid: "overview"
+  - uuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     name: "Overview"
     order: 0
-  - uuid: "regional"
+  - uuid: "f7a5e6b8-c9d0-4312-ef01-456789012345"
     name: "By Region"
     order: 1
-  - uuid: "products"
+  - uuid: "a8b6f7c9-d0e1-4423-f012-567890123456"
     name: "By Product"
     order: 2
 
 tiles:
   # Row 1: KPIs (Overview tab)
   - type: saved_chart
-    tabUuid: "overview"
+    tabUuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     x: 0
     y: 0
     w: 9
@@ -422,7 +424,7 @@ tiles:
       title: "Total Revenue"
 
   - type: saved_chart
-    tabUuid: "overview"
+    tabUuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     x: 9
     y: 0
     w: 9
@@ -432,7 +434,7 @@ tiles:
       title: "Total Orders"
 
   - type: saved_chart
-    tabUuid: "overview"
+    tabUuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     x: 18
     y: 0
     w: 9
@@ -442,7 +444,7 @@ tiles:
       title: "New Customers"
 
   - type: saved_chart
-    tabUuid: "overview"
+    tabUuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     x: 27
     y: 0
     w: 9
@@ -453,7 +455,7 @@ tiles:
 
   # Row 2: Main chart (Overview tab)
   - type: saved_chart
-    tabUuid: "overview"
+    tabUuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     x: 0
     y: 3
     w: 24
@@ -464,7 +466,7 @@ tiles:
 
   # Row 2: Notes (Overview tab)
   - type: markdown
-    tabUuid: "overview"
+    tabUuid: "e6f4d5a7-b8c9-4201-def0-345678901234"
     x: 24
     y: 3
     w: 12
@@ -486,7 +488,7 @@ tiles:
 
   # Regional tab
   - type: heading
-    tabUuid: "regional"
+    tabUuid: "f7a5e6b8-c9d0-4312-ef01-456789012345"
     x: 0
     y: 0
     w: 36
@@ -495,7 +497,7 @@ tiles:
       text: "Regional Performance"
 
   - type: saved_chart
-    tabUuid: "regional"
+    tabUuid: "f7a5e6b8-c9d0-4312-ef01-456789012345"
     x: 0
     y: 1
     w: 18
@@ -504,7 +506,7 @@ tiles:
       chartSlug: revenue-by-region
 
   - type: saved_chart
-    tabUuid: "regional"
+    tabUuid: "f7a5e6b8-c9d0-4312-ef01-456789012345"
     x: 18
     y: 1
     w: 18
@@ -514,7 +516,7 @@ tiles:
 
   # Products tab
   - type: saved_chart
-    tabUuid: "products"
+    tabUuid: "a8b6f7c9-d0e1-4423-f012-567890123456"
     x: 0
     y: 0
     w: 36
@@ -523,7 +525,7 @@ tiles:
       chartSlug: revenue-by-product-category
 
   - type: saved_chart
-    tabUuid: "products"
+    tabUuid: "a8b6f7c9-d0e1-4423-f012-567890123456"
     x: 0
     y: 6
     w: 36
