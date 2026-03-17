@@ -2377,6 +2377,18 @@ const useEchartsCartesianConfig = (
         parameters,
     ]);
 
+    // Pivot references from hidden series, used for resolving custom tooltip references
+    // to fields that are on the Y axis but have their chart series hidden.
+    const hiddenSeriesPivotRefs = useMemo(() => {
+        const allConfigSeries =
+            validCartesianConfig?.eChartsConfig?.series ?? [];
+        return allConfigSeries
+            .filter(
+                (s) => s.hidden && isPivotReferenceWithValues(s.encode.yRef),
+            )
+            .map((s) => s.encode.yRef);
+    }, [validCartesianConfig?.eChartsConfig?.series]);
+
     const resultsAndMinsAndMaxes = useMemo(
         () => getResultValueArray(rows, true, true),
         [rows],
@@ -2875,6 +2887,7 @@ const useEchartsCartesianConfig = (
                 xFieldId: validCartesianConfig?.layout?.xField,
                 originalValues,
                 series,
+                hiddenSeriesPivotRefs,
                 tooltipHtmlTemplate: tooltipConfig,
                 tooltipSort: tooltipSortConfig,
                 pivotValuesColumnsMap,
@@ -2893,6 +2906,7 @@ const useEchartsCartesianConfig = (
         originalValues,
         parameters,
         series,
+        hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
     ]);
