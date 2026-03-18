@@ -9,16 +9,20 @@ import {
     isTableCalculation,
     lightdashVariablePattern,
     normalizeIndexColumns,
+    OTHER_GROUP_DISPLAY_VALUE,
     ParameterError,
     parseTableCalculationFunctions,
     SortByDirection,
     TableCalculationFunctionCompiler,
     TimeFrames,
+    VizAggregationOptions,
     VizSortBy,
     WarehouseSqlBuilder,
+    type GroupLimitConfig,
     type ItemsMap,
     type PivotConfiguration,
     type TableCalculation,
+    type ValuesColumn,
 } from '@lightdash/common';
 import {
     applyLimitToSqlQuery,
@@ -299,6 +303,122 @@ export class PivotQueryBuilder {
         const multiplier = shouldMultiplyByValues ? ` * ${valuesCount}` : '';
 
         return `SELECT COUNT(*)${multiplier} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
+    }
+
+    private static shouldApplyOtherGrouping(
+        groupLimit: GroupLimitConfig | undefined,
+        groupByColumns: PivotConfiguration['groupByColumns'],
+        valuesColumns: PivotConfiguration['valuesColumns'],
+    ): boolean {
+        if (
+            !groupLimit?.enabled ||
+            !groupByColumns ||
+            groupByColumns.length === 0
+        ) {
+            return false;
+        }
+        const hasUnsupported = valuesColumns.some(
+            (col) => col.otherAggregation === null,
+        );
+        return !hasUnsupported;
+    }
+
+    private getGroupRankingCTEs(
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        maxGroups: number,
+    ): string[] {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const groupByRefs = groupByColumns.map(
+            (col) => `${q}${col.reference}${q}`,
+        );
+
+        const rankingMetric =
+            valuesColumns.length > 0
+                ? PivotQueryBuilder.getValueColumnFieldName(
+                      valuesColumns[0].reference,
+                      valuesColumns[0].aggregation,
+                  )
+                : null;
+
+        const rankingExpr = rankingMetric
+            ? `SUM(ABS(${q}${rankingMetric}${q}))`
+            : 'COUNT(*)';
+
+        const groupTotalsCTE = `__group_totals AS (SELECT ${groupByRefs.join(', ')}, ${rankingExpr} AS __ranking_value FROM pre_group_by GROUP BY ${groupByRefs.join(', ')})`;
+
+        const groupRankingCTE = `__group_ranking AS (SELECT ${groupByRefs.join(', ')}, ROW_NUMBER() OVER (ORDER BY __ranking_value DESC) AS __group_rn FROM __group_totals)`;
+
+        return [groupTotalsCTE, groupRankingCTE];
+    }
+
+    private getGroupByQueryWithOtherSQL(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        maxGroups: number,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        const groupByRefs = groupByColumns.map(
+            (col) => `${q}${col.reference}${q}`,
+        );
+        const indexRefs = indexColumns.map((col) => `${q}${col.reference}${q}`);
+
+        const caseWhens = groupByColumns.map(
+            (col) =>
+                `CASE WHEN gr.__group_rn <= ${maxGroups} THEN o.${q}${col.reference}${q} ELSE '${OTHER_GROUP_DISPLAY_VALUE}' END`,
+        );
+
+        const caseWhenAliases = groupByColumns.map(
+            (col, i) => `${caseWhens[i]} AS ${q}${col.reference}${q}`,
+        );
+
+        const indexSelects = indexColumns.map(
+            (col) => `o.${q}${col.reference}${q}`,
+        );
+
+        const sortedBinRefs = this.getSortedBinDimensionReferences([
+            ...groupByColumns,
+            ...indexColumns,
+        ]);
+        const orderSelects = Array.from(sortedBinRefs).map(
+            (ref) => `MIN(o.${q}${ref}_order${q}) AS ${q}${ref}_order${q}`,
+        );
+
+        const joinConditions = groupByColumns.map(
+            (col) => `o.${q}${col.reference}${q} = gr.${q}${col.reference}${q}`,
+        );
+
+        const metricSelects = valuesColumns.map((col) => {
+            const agg =
+                col.otherAggregation !== undefined &&
+                col.otherAggregation !== null
+                    ? col.otherAggregation
+                    : col.aggregation;
+            const aggregationField = getAggregatedField(
+                this.warehouseSqlBuilder,
+                agg,
+                col.reference,
+            );
+            const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                col.reference,
+                col.aggregation,
+            );
+            return `${aggregationField} AS ${q}${fieldName}${q}`;
+        });
+
+        const selectParts = [
+            ...caseWhenAliases,
+            ...indexSelects,
+            ...orderSelects,
+            ...metricSelects,
+        ];
+
+        const groupByParts = [...caseWhens, ...indexRefs];
+
+        return `SELECT ${selectParts.join(', ')} FROM original_query o LEFT JOIN __group_ranking gr ON ${joinConditions.join(' AND ')} GROUP BY ${groupByParts.join(', ')}`;
     }
 
     /**
@@ -1242,7 +1362,15 @@ export class PivotQueryBuilder {
             'filtered_rows',
         );
 
+        const { groupLimit } = this.pivotConfiguration;
+        const applyOther = PivotQueryBuilder.shouldApplyOtherGrouping(
+            groupLimit,
+            groupByColumns,
+            valuesColumns,
+        );
+
         // Build CTEs in correct dependency order:
+        // 0. (optional) pre_group_by, __group_totals, __group_ranking (for "Other" aggregation)
         // 1. original_query, group_by_query (base data)
         // 2. column anchor CTEs (for column ordering)
         // 3. column_ranking, anchor_column (for metric-based row sorting - identifies first pivot column)
@@ -1250,16 +1378,38 @@ export class PivotQueryBuilder {
         // 5. row_ranking (when precomputed rankings are used)
         // 6. pivot_query, filtered_rows, total_columns
         // 7. pivot_table_calculations (if there are any pivot table calculations)
-        const ctes = [
-            `original_query AS (${userSql})`,
-            `group_by_query AS (${groupByQuery})`,
+        const ctes: string[] = [`original_query AS (${userSql})`];
+
+        if (applyOther && groupLimit) {
+            const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
+            ctes.push(`pre_group_by AS (${groupByQuery})`);
+            ctes.push(
+                ...this.getGroupRankingCTEs(
+                    groupByColumns,
+                    valuesColumns,
+                    indexColumns,
+                    maxGroups,
+                ),
+            );
+            const otherGroupByQuery = this.getGroupByQueryWithOtherSQL(
+                indexColumns,
+                valuesColumns,
+                groupByColumns,
+                maxGroups,
+            );
+            ctes.push(`group_by_query AS (${otherGroupByQuery})`);
+        } else {
+            ctes.push(`group_by_query AS (${groupByQuery})`);
+        }
+
+        ctes.push(
             ...columnAnchorCTEs,
             ...(columnRankingCTE ? [columnRankingCTE] : []),
             ...(anchorColumnCTE ? [anchorColumnCTE] : []),
             ...rowAnchorCTEs,
             ...(rowRankingCTE ? [rowRankingCTE] : []),
             `pivot_query AS (${pivotQuery})`,
-        ];
+        );
 
         // Reference the appropriate table for filtered_rows and final select
         let pivotTableRef = 'pivot_query';

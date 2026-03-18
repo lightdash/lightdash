@@ -145,6 +145,7 @@ export type SqlRunnerPayload = TraceTaskBase & {
 export type ValuesColumn = {
     reference: string;
     aggregation: VizAggregationOptions;
+    otherAggregation?: VizAggregationOptions | null;
 };
 
 export type GroupByColumn = {

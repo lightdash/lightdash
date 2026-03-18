@@ -400,6 +400,8 @@ export const DEFAULT_GROUP_LIMIT_CONFIG: GroupLimitConfig = {
     maxGroups: 5,
 };
 
+export const OTHER_GROUP_DISPLAY_VALUE = 'Other';
+
 export type PivotValue = {
     /** Pivot field ID */
     field: string;

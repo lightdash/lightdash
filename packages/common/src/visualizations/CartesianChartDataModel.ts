@@ -14,7 +14,6 @@ import {
     CartesianSeriesType,
     ChartKind,
     ECHARTS_DEFAULT_COLORS,
-    type GroupLimitConfig,
 } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
 import {
@@ -568,67 +567,10 @@ export class CartesianChartDataModel {
         );
     }
 
-    /**
-     * Aggregates groups that exceed the maxGroups limit into an "Other" category.
-     * Groups are ranked by their total value (sum across all rows).
-     *
-     * @param valuesColumns - The pivot value columns (one per group)
-     * @param results - The data rows
-     * @param groupLimit - Configuration for group limiting
-     * @returns Modified valuesColumns and results with excess groups removed
-     */
-    static filterToTopGroups(
-        valuesColumns: PivotChartData['valuesColumns'],
-        results: RawResultRow[],
-        groupLimit: GroupLimitConfig,
-    ): {
-        filteredValuesColumns: PivotChartData['valuesColumns'];
-        filteredResults: RawResultRow[];
-    } {
-        const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
-
-        if (valuesColumns.length <= maxGroups) {
-            return {
-                filteredValuesColumns: valuesColumns,
-                filteredResults: results,
-            };
-        }
-
-        const columnTotals = valuesColumns.map((col) => {
-            const total = results.reduce((sum, row) => {
-                const value = row[col.pivotColumnName];
-                const numValue =
-                    typeof value === 'number'
-                        ? value
-                        : parseFloat(String(value)) || 0;
-                return sum + Math.abs(numValue);
-            }, 0);
-            return { column: col, total };
-        });
-
-        columnTotals.sort((a, b) => b.total - a.total);
-
-        const topGroups = columnTotals.slice(0, maxGroups);
-        const droppedGroups = columnTotals.slice(maxGroups);
-
-        const filteredResults = results.map((row) => {
-            const newRow = { ...row };
-            droppedGroups.forEach(({ column }) => {
-                delete newRow[column.pivotColumnName];
-            });
-            return newRow;
-        });
-
-        return {
-            filteredValuesColumns: topGroups.map((g) => g.column),
-            filteredResults,
-        };
-    }
-
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
-        options?: { applyGroupLimit?: boolean },
+        _options?: { applyGroupLimit?: boolean },
     ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
@@ -656,25 +598,9 @@ export class CartesianChartDataModel {
             transformedData?.indexColumn,
         )?.reference;
 
-        // Apply group limiting to filter to top N groups
-        let valuesColumnsToRender = transformedData.valuesColumns;
+        const valuesColumnsToRender = transformedData.valuesColumns;
         let dataToRender = transformedData.results;
         let originalValues: Map<string, Map<string, number>> | undefined;
-
-        const groupLimit = this.fieldConfig?.groupLimit;
-        if (
-            groupLimit?.enabled &&
-            valuesColumnsToRender.length > 1 &&
-            options?.applyGroupLimit
-        ) {
-            const filterResult = CartesianChartDataModel.filterToTopGroups(
-                valuesColumnsToRender,
-                dataToRender,
-                groupLimit,
-            );
-            valuesColumnsToRender = filterResult.filteredValuesColumns;
-            dataToRender = filterResult.filteredResults;
-        }
 
         // Apply 100% stacking transformation if needed
         if (shouldStack100 && xAxisReference) {

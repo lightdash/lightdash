@@ -12,6 +12,7 @@ export type UnderlyingDataConfig = {
     dimensions?: string[];
     pivotReference?: PivotReference;
     dateZoom?: DateZoom;
+    topGroupValues?: Record<string, string[]>;
 };
 
 export type DrillDownConfig = {

@@ -11,6 +11,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    OTHER_GROUP_DISPLAY_VALUE,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -184,19 +185,35 @@ const UnderlyingDataModalContent: FC = () => {
                   },
               ];
 
+        const topGroupValues = underlyingDataConfig.topGroupValues;
         const pivotFilter: FilterRule[] = (
             pivotReference?.pivotValues || []
-        ).map((pivot) => ({
-            id: uuidv4(),
-            target: {
-                fieldId: pivot.field,
-            },
-            operator:
-                pivot.value === null
-                    ? FilterOperator.NULL
-                    : FilterOperator.EQUALS,
-            values: pivot.value === null ? undefined : [pivot.value],
-        }));
+        ).map((pivot) => {
+            if (
+                pivot.value === OTHER_GROUP_DISPLAY_VALUE &&
+                topGroupValues?.[pivot.field]
+            ) {
+                return {
+                    id: uuidv4(),
+                    target: {
+                        fieldId: pivot.field,
+                    },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: topGroupValues[pivot.field],
+                };
+            }
+            return {
+                id: uuidv4(),
+                target: {
+                    fieldId: pivot.field,
+                },
+                operator:
+                    pivot.value === null
+                        ? FilterOperator.NULL
+                        : FilterOperator.EQUALS,
+                values: pivot.value === null ? undefined : [pivot.value],
+            };
+        });
 
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;

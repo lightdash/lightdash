@@ -8,7 +8,6 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
-    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -59,7 +58,6 @@ import {
     type CustomDimension,
     type EChartsSeries,
     type Field,
-    type GroupLimitConfig,
     type Item,
     type ItemsMap,
     type MarkLine,
@@ -98,88 +96,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import { useClientFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
-
-/**
- * Result of filtering to top N groups.
- */
-type GroupLimitResult = {
-    rows: ResultRow[];
-    rowKeyMap: RowKeyMap;
-    /** Keys that were dropped */
-    droppedKeys: string[];
-};
-
-/**
- * Filters to the top N groups by total absolute value, dropping the rest.
- */
-const filterToTopGroups = (
-    rows: ResultRow[],
-    rowKeyMap: RowKeyMap,
-    groupLimit: GroupLimitConfig,
-): GroupLimitResult => {
-    if (!groupLimit.enabled || rows.length === 0) {
-        return { rows, rowKeyMap, droppedKeys: [] };
-    }
-
-    const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
-
-    const pivotKeys = Object.keys(rowKeyMap).filter((key) => {
-        const ref = rowKeyMap[key];
-        return (
-            typeof ref === 'object' &&
-            'pivotValues' in ref &&
-            ref.pivotValues &&
-            ref.pivotValues.length > 0
-        );
-    });
-
-    if (pivotKeys.length <= maxGroups) {
-        return { rows, rowKeyMap, droppedKeys: [] };
-    }
-
-    const pivotTotals = pivotKeys.map((key) => {
-        const total = rows.reduce((sum, row) => {
-            const cell = row[key];
-            if (!cell || cell.value === undefined || cell.value === null) {
-                return sum;
-            }
-            const rawValue =
-                typeof cell.value === 'object' && 'raw' in cell.value
-                    ? cell.value.raw
-                    : cell.value;
-            const numValue =
-                typeof rawValue === 'number'
-                    ? rawValue
-                    : parseFloat(String(rawValue)) || 0;
-            return sum + Math.abs(numValue);
-        }, 0);
-        return { key, total };
-    });
-
-    pivotTotals.sort((a, b) => b.total - a.total);
-
-    const droppedKeys = pivotTotals.slice(maxGroups).map((g) => g.key);
-    const droppedKeysSet = new Set(droppedKeys);
-
-    const newRowKeyMap: RowKeyMap = {};
-    for (const key of Object.keys(rowKeyMap)) {
-        if (!droppedKeysSet.has(key)) {
-            newRowKeyMap[key] = rowKeyMap[key];
-        }
-    }
-
-    const newRows = rows.map((row) => {
-        const newRow = { ...row };
-        for (const key of droppedKeys) {
-            delete newRow[key];
-        }
-        return newRow;
-    });
-
-    return { rows: newRows, rowKeyMap: newRowKeyMap, droppedKeys };
-};
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -2363,10 +2280,6 @@ const useEchartsCartesianConfig = (
         colorPalette,
     } = useVisualizationContext();
 
-    const isGroupLimitEnabled = useClientFeatureFlag(
-        FeatureFlags.GroupLimitEnabled,
-    );
-
     const theme = useMantineTheme();
 
     const validCartesianConfig = useMemo(() => {
@@ -2431,76 +2344,11 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
-    // Apply group limit to filter to top N groups
-    const { rows, rowKeyMap, droppedKeys } = useMemo(() => {
-        const groupLimit = validCartesianConfig?.layout?.groupLimit;
-        if (!isGroupLimitEnabled || !groupLimit || !groupLimit.enabled) {
-            return {
-                rows: rawRows,
-                rowKeyMap: rawRowKeyMap,
-                droppedKeys: [] as string[],
-            };
-        }
-        return filterToTopGroups(rawRows, rawRowKeyMap, groupLimit);
-    }, [
-        rawRows,
-        rawRowKeyMap,
-        validCartesianConfig?.layout?.groupLimit,
-        isGroupLimitEnabled,
-    ]);
-
-    // Create a modified cartesian config that removes dropped series
-    const effectiveCartesianConfig = useMemo(() => {
-        if (!validCartesianConfig || droppedKeys.length === 0) {
-            return validCartesianConfig;
-        }
-
-        const originalSeries = validCartesianConfig.eChartsConfig.series || [];
-        const droppedKeysSet = new Set(droppedKeys);
-
-        const filteredSeries = originalSeries.filter((s) => {
-            if (isPivotReferenceWithValues(s.encode.yRef)) {
-                if (pivotValuesColumnsMap) {
-                    const yRef = s.encode.yRef;
-                    const matchingColumn = Object.values(
-                        pivotValuesColumnsMap,
-                    ).find(
-                        (col) =>
-                            col.referenceField === yRef.field &&
-                            col.pivotValues.length ===
-                                yRef.pivotValues.length &&
-                            col.pivotValues.every(
-                                (pv, idx) =>
-                                    pv.value === yRef.pivotValues[idx].value,
-                            ),
-                    );
-                    if (
-                        matchingColumn &&
-                        droppedKeysSet.has(matchingColumn.pivotColumnName)
-                    ) {
-                        return false;
-                    }
-                } else {
-                    const yFieldHash = hashFieldReference(s.encode.yRef);
-                    if (droppedKeysSet.has(yFieldHash)) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        });
-
-        return {
-            ...validCartesianConfig,
-            eChartsConfig: {
-                ...validCartesianConfig.eChartsConfig,
-                series: filteredSeries,
-            },
-        };
-    }, [validCartesianConfig, droppedKeys, pivotValuesColumnsMap]);
+    const rows = rawRows;
+    const rowKeyMap = rawRowKeyMap;
 
     const series = useMemo(() => {
-        if (!itemsMap || !effectiveCartesianConfig || !resultsData) {
+        if (!itemsMap || !validCartesianConfig || !resultsData) {
             return [];
         }
 
@@ -2508,7 +2356,7 @@ const useEchartsCartesianConfig = (
         if (resultsData?.pivotDetails && rowKeyMap) {
             return getEchartsSeriesFromPivotedData(
                 itemsMap,
-                effectiveCartesianConfig,
+                validCartesianConfig,
                 rowKeyMap,
                 pivotValuesColumnsMap,
                 parameters,
@@ -2518,12 +2366,12 @@ const useEchartsCartesianConfig = (
         // Legacy implementation
         return getEchartsSeries(
             itemsMap,
-            effectiveCartesianConfig,
+            validCartesianConfig,
             pivotDimensions,
             parameters,
         );
     }, [
-        effectiveCartesianConfig,
+        validCartesianConfig,
         resultsData,
         itemsMap,
         pivotDimensions,
