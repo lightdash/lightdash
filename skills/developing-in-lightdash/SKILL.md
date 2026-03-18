@@ -101,8 +101,21 @@ See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Refere
 
 1. **Download**: `lightdash download --charts chart-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Lint**: `lightdash lint` to validate before uploading
-4. **Upload**: `lightdash upload --charts chart-slug`
+3. **Update dashboard tiles**: If you changed the chart's name or purpose, download any dashboards that reference it and update their tile `title` and `chartName` properties to match
+4. **Lint**: `lightdash lint` to validate before uploading
+5. **Upload**: `lightdash upload --charts chart-slug` (and any modified dashboards)
+
+**Dashboard tiles have their own titles.** A `saved_chart` tile's `title` and `chartName` properties are independent overrides — they do NOT auto-update when you rename the chart. If you change a chart from "Total Revenue" to "Gross Profit" but don't update the dashboard tile, the dashboard will still display "Total Revenue". Always download the dashboard, find tiles with matching `chartSlug`, and update their `title` and `chartName` to match.
+
+```yaml
+# Dashboard tile — title and chartName must be updated manually when chart changes
+tiles:
+  - type: saved_chart
+    properties:
+      chartSlug: total-revenue-kpi
+      title: "Gross Profit"        # ← Update this when chart name/purpose changes
+      chartName: "Gross Profit"    # ← Update this too
+```
 
 ### Editing Dashboards
 
