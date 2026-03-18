@@ -250,9 +250,10 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">
-                    <Title order={4}>Preview & code snippet</Title>
+                    <Title order={4}>Preview & embed code</Title>
                     <Text c="dimmed" fz="sm">
-                        Preview your embed URL and copy it to your clipboard.
+                        Configure your content, preview it, and copy the right
+                        embed code for your integration method.
                     </Text>
                 </Stack>
                 <Tabs defaultValue="dashboards" keepMounted>
