@@ -1,3 +1,10 @@
+## [0.2638.1](https://github.com/lightdash/lightdash/compare/0.2638.0...0.2638.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* improve chart renaming by being aware of the dashboard struture ([#21242](https://github.com/lightdash/lightdash/issues/21242)) ([bc3a3b3](https://github.com/lightdash/lightdash/commit/bc3a3b3c29b4fe6e81a56b6ac34004d455feea4d))
+
 # [0.2638.0](https://github.com/lightdash/lightdash/compare/0.2637.0...0.2638.0) (2026-03-18)
 
 
