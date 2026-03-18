@@ -1,9 +1,12 @@
-Manage Docker dev environment. Args: (none) = start, `reset` = reset db, `stop` = stop services.
+Manage Docker dev environment. Args: (none) = start, `reset` = reset db from snapshot, `hard-reset` = full rebuild, `stop` = stop services.
+
+**NEVER use `scripts/reset-db.sh`** — it requires a local `psql` client which is not available. Instead, use `docker exec docker-db-dev-1 psql` to run SQL commands inside the container, then run migrate/seed via pnpm.
 
 ## Arguments
 
-- **No arguments**: Auto-detect state and run what's needed (fresh setup, migrations, or just start)
-- **`reset`**: Force reset database and rebuild dbt models
+- **No arguments**: Auto-detect state and run what's needed (fresh setup, migrations, or just start). Automatically snapshots the db volume after initial setup.
+- **`reset`**: Restore database from volume snapshot (fast, ~3 seconds). Fails if no snapshot exists — run initial setup or `hard-reset` first.
+- **`hard-reset`**: Purge the snapshot volume, then do a full database reset (drop schema, migrate, seed, dbt). Automatically takes a new snapshot when done.
 - **`stop`**: Stop Docker services (preserves data volumes)
 
 ## State Detection
@@ -37,6 +40,9 @@ docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELEC
 
 # Check 8: dbt models built (requires Docker running)
 docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders') THEN 'built' ELSE 'not_built' END" 2>&1 | grep -q "^built" && echo "OK: dbt models built" || echo "NEED: Build dbt models"
+
+# Check 9: Volume snapshot exists (for fast resets)
+docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1 && echo "OK: Volume snapshot exists" || echo "NEED: No volume snapshot (will be created after setup completes)"
 ```
 
 **How to interpret the output:**
@@ -179,7 +185,7 @@ pnpm -F common build && pnpm -F warehouses build
 python3 -m venv venv
 source venv/bin/activate
 pip install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0'
-ln -sf venv/bin/dbt venv/bin/dbt1.7
+ln -sf dbt venv/bin/dbt1.7
 ```
 
 ### Run Migrations
@@ -207,11 +213,83 @@ PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=post
   "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
-## Reset Steps (When `reset` Argument Provided)
+### Auto-Snapshot After Initial Setup
 
-If the user passes `reset` as an argument, force a full database reset regardless of current state:
+After all setup steps complete successfully and no snapshot exists yet, **automatically take a volume snapshot** (see "Taking a Snapshot" below). This ensures future `/docker-dev reset` calls use the fast path.
+
+## Volume Snapshot & Restore
+
+### Volume Names
+
+The Docker Compose project name determines the volume prefix. The compose file is at `docker/docker-compose.dev.mini.yml`, so Docker prefixes volumes with `docker_`:
+
+- **Live volume**: `docker_postgres_data`
+- **Snapshot volume**: `docker_postgres_data_snapshot`
+
+### Taking a Snapshot
+
+Run this after initial setup completes or after a hard-reset. **The db container MUST be stopped before snapshotting** to ensure data consistency (PostgreSQL needs a clean shutdown):
 
 ```bash
+# Stop only the db container (clean PostgreSQL shutdown)
+docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
+
+# Remove any existing snapshot volume
+docker volume rm docker_postgres_data_snapshot 2>/dev/null || true
+
+# Create fresh snapshot volume
+docker volume create docker_postgres_data_snapshot
+
+# Clone the data using a temporary Alpine container
+docker run --rm \
+  -v docker_postgres_data:/source:ro \
+  -v docker_postgres_data_snapshot:/snapshot \
+  alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
+
+# Restart the db container
+docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+```
+
+## Reset Steps (When `reset` Argument Provided)
+
+Restore the database from the volume snapshot. This is fast (~3 seconds).
+
+**If no snapshot exists, tell the user** to run `/docker-dev` (initial setup) or `/docker-dev hard-reset` first. Do NOT fall back to a full reset automatically.
+
+```bash
+# Verify snapshot exists
+if ! docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1; then
+  echo "ERROR: No snapshot volume found. Run /docker-dev (initial setup) or /docker-dev hard-reset first."
+  exit 1
+fi
+
+# Stop only the db container
+docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
+
+# Wipe the live volume and restore from snapshot
+docker run --rm \
+  -v docker_postgres_data:/target \
+  -v docker_postgres_data_snapshot:/snapshot:ro \
+  alpine sh -c "rm -rf /target/* && cd /snapshot && tar cf - . | (cd /target && tar xf -)"
+
+# Restart the db container
+docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+```
+
+Wait a few seconds for PostgreSQL to start accepting connections, then verify:
+
+```bash
+docker exec docker-db-dev-1 pg_isready -U postgres
+```
+
+## Hard Reset Steps (When `hard-reset` Argument Provided)
+
+Purge the snapshot volume, then do a full database reset from scratch. Automatically takes a new snapshot when done.
+
+```bash
+# Purge existing snapshot
+docker volume rm docker_postgres_data_snapshot 2>/dev/null || true
+
 # Ensure Docker is running first
 docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development up -d
 
@@ -219,8 +297,12 @@ docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development
 export PATH="$(pwd)/venv/bin:$PATH"
 export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
 
-# Reset database, run migrations, and seed
-PGHOST=localhost pnpx dotenv-cli -e .env.development -- ./scripts/reset-db.sh
+# Drop and recreate the public schema via docker exec (NEVER use scripts/reset-db.sh — it requires local psql)
+docker exec docker-db-dev-1 psql -U postgres -c 'drop schema public cascade; create schema public;'
+
+# Run migrations and seed
+PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
+PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
 
 # Rebuild dbt models
 PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
@@ -228,6 +310,8 @@ PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=post
 PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
   "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
+
+**After hard-reset completes, automatically take a snapshot** using the snapshot steps below.
 
 ## Stop Steps (When `stop` Argument Provided)
 
