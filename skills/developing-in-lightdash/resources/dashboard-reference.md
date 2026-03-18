@@ -35,9 +35,11 @@ tiles:
     h: 6              # Height in grid units
     properties:
       chartSlug: monthly-revenue
-      title: "Monthly Revenue"      # Optional override
+      title: "Monthly Revenue"      # Optional override — does NOT auto-update when chart is renamed
       hideTitle: false
 ```
+
+**WARNING:** The `title` property is independent of the chart's own name. When you rename or repurpose a chart, you MUST also update the `title` in every dashboard tile that references it via `chartSlug`. Forgetting this leaves stale titles on the dashboard.
 
 ### SQL Chart Tile
 
