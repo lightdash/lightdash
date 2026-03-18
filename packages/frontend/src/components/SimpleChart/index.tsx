@@ -280,9 +280,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                                                 const dim =
                                                     param.encode?.x?.[0] !==
                                                     undefined
-                                                        ? param.dimensionNames[
+                                                        ? (param
+                                                              .dimensionNames?.[
                                                               param.encode?.x[0]
-                                                          ]
+                                                          ] ?? '')
                                                         : '';
 
                                                 const axisValue =
