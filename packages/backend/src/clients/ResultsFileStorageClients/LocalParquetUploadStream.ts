@@ -81,8 +81,10 @@ export const createLocalParquetUploadStream = ({
         }
     };
 
-    const close = async (): Promise<void> => {
-        if (closed) return;
+    const close = async (): Promise<{
+        parquetConversionMs?: number;
+    }> => {
+        if (closed) return {};
         closed = true;
 
         await new Promise<void>((resolve, reject) => {
@@ -92,7 +94,7 @@ export const createLocalParquetUploadStream = ({
 
         if (totalRowsWritten === 0) {
             cleanupDir(tmpDir);
-            return;
+            return {};
         }
 
         try {
@@ -108,12 +110,16 @@ export const createLocalParquetUploadStream = ({
             );
             const copySql = `COPY (SELECT * FROM ${localJsonlSqlTable}) TO '${parquetS3Uri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
 
+            const conversionStart = Date.now();
             const metrics = await duckdb.runSqlWithMetrics(copySql);
+            const parquetConversionMs = Date.now() - conversionStart;
             const localFileSize = fs.statSync(localJsonlPath).size;
 
             logger.info(
                 `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${metrics.totalMs} target=${parquetS3Uri}`,
             );
+
+            return { parquetConversionMs };
         } catch (error) {
             logger.error(
                 `Failed to convert local JSONL to Parquet: ${getErrorMessage(error)}`,

@@ -1929,7 +1929,7 @@ export class AsyncQueryService extends ProjectService {
         let stream:
             | {
                   write: (rows: Record<string, unknown>[]) => void;
-                  close: () => Promise<void>;
+                  close: () => Promise<void | { parquetConversionMs?: number }>;
                   setColumns?: (cols: ResultColumns) => void;
                   getStreamMetrics?: () => StreamMetrics;
               }
@@ -2112,7 +2112,7 @@ export class AsyncQueryService extends ProjectService {
             if (stream) {
                 // Wait for the file to be written before marking the query as ready
                 const s3UploadStart = Date.now();
-                await Sentry.startSpan(
+                const closeResult = await Sentry.startSpan(
                     {
                         op: 's3.upload',
                         name: 's3.results.upload',
@@ -2134,6 +2134,17 @@ export class AsyncQueryService extends ProjectService {
                     this.prometheusMetrics?.observeS3ResultsUploadDuration(
                         Date.now() - s3UploadStart,
                         executionSource,
+                    );
+                }
+                if (
+                    closeResult &&
+                    typeof closeResult === 'object' &&
+                    'parquetConversionMs' in closeResult &&
+                    closeResult.parquetConversionMs != null
+                ) {
+                    this.prometheusMetrics?.observeParquetConversionDuration(
+                        closeResult.parquetConversionMs,
+                        'success',
                     );
                 }
 
