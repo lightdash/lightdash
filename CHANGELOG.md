@@ -1,3 +1,10 @@
+# [0.2635.0](https://github.com/lightdash/lightdash/compare/0.2634.2...0.2635.0) (2026-03-18)
+
+
+### Features
+
+* improve explore search for nested field groups ([#21224](https://github.com/lightdash/lightdash/issues/21224)) ([965da21](https://github.com/lightdash/lightdash/commit/965da21598508ffffcb3f0627086e5bfcfcac4c6)), closes [#19635](https://github.com/lightdash/lightdash/issues/19635)
+
 ## [0.2634.2](https://github.com/lightdash/lightdash/compare/0.2634.1...0.2634.2) (2026-03-18)
 
 
