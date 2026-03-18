@@ -24,6 +24,7 @@ import {
 import {
     IconAlertTriangle,
     IconFilter,
+    IconHierarchyOff,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -46,6 +47,7 @@ import {
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailPreview } from '../ItemDetailPreview';
+import { MAX_GROUP_DEPTH } from './constants';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
 import useTableTree from './useTableTree';
@@ -254,7 +256,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                     withinPortal
                     maw={300}
                     multiline
-                    label={messages.join('\n')}
+                    label={messages.map((m) => m.message).join('\n')}
                 >
                     <MantineIcon
                         icon={alertIcon}
@@ -265,6 +267,17 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             );
         });
     }, [alerts]);
+
+    const isTruncated = useMemo(() => {
+        if (!isField(item)) return false;
+        const groups = item.groups ?? [];
+        return groups.length > MAX_GROUP_DEPTH;
+    }, [item]);
+
+    const truncatedActualDepth = useMemo(() => {
+        if (!isField(item)) return 0;
+        return (item.groups ?? []).length;
+    }, [item]);
 
     // Apply indentation for virtualized mode only
     // Non-virtualized mode uses NavLink's built-in nesting with childrenOffset
@@ -336,6 +349,20 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         </HoverCard.Dropdown>
                     </HoverCard>
                     {renderAlerts}
+                    {isTruncated && (
+                        <Tooltip
+                            withinPortal
+                            maw={300}
+                            multiline
+                            label={`Located ${truncatedActualDepth} levels deep`}
+                        >
+                            <MantineIcon
+                                icon={IconHierarchyOff}
+                                color="ldGray.6"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    )}
                     {showFilterAction && (
                         <Tooltip
                             withinPortal
