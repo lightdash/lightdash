@@ -1,3 +1,16 @@
+# [0.2638.0](https://github.com/lightdash/lightdash/compare/0.2637.0...0.2638.0) (2026-03-18)
+
+
+### Bug Fixes
+
+* prevent duplicate nested aggregate metrics in fanout queries ([#21236](https://github.com/lightdash/lightdash/issues/21236)) ([4ebb617](https://github.com/lightdash/lightdash/commit/4ebb617dccc5b341120d45a4d2f058b10bba7375)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* validate model-level parameters require options or allow_custom_values ([#21206](https://github.com/lightdash/lightdash/issues/21206)) ([e38c16c](https://github.com/lightdash/lightdash/commit/e38c16c37a003e6a1f743e0fe5f871b086eee900))
+
+
+### Features
+
+* add nested aggregate fanout reproduction metrics ([#21235](https://github.com/lightdash/lightdash/issues/21235)) ([8d3a0e5](https://github.com/lightdash/lightdash/commit/8d3a0e54ee750ce5a67d267928080b1de0422be9))
+
 # [0.2637.0](https://github.com/lightdash/lightdash/compare/0.2636.0...0.2637.0) (2026-03-18)
 
 
