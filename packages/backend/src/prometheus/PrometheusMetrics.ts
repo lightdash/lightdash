@@ -101,7 +101,7 @@ export default class PrometheusMetrics {
 
     public queryCacheHitCounter: prometheus.Counter<string> | null = null;
 
-    public preAggregateMaterializationFileSizeGauge: prometheus.Gauge<string> | null =
+    public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
 
     public preAggregateParquetConversionDurationHistogram: prometheus.Histogram<string> | null =
@@ -374,11 +374,22 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
-                this.preAggregateMaterializationFileSizeGauge =
-                    new prometheus.Gauge({
+                this.preAggregateMaterializationFileSizeHistogram =
+                    new prometheus.Histogram({
                         name: 'lightdash_pre_aggregate_materialization_file_size_bytes',
                         help: 'File size of pre-aggregate materialization in bytes',
                         labelNames: ['format'],
+                        buckets: [
+                            1024, // 1KB
+                            10240, // 10KB
+                            102400, // 100KB
+                            1048576, // 1MB
+                            10485760, // 10MB
+                            52428800, // 50MB
+                            104857600, // 100MB
+                            524288000, // 500MB
+                            1073741824, // 1GB
+                        ],
                         ...rest,
                     });
 
@@ -902,6 +913,26 @@ export default class PrometheusMetrics {
     ) {
         this.materializationPromoteDurationHistogram?.observe(
             { status, trigger },
+            durationMs / 1000,
+        );
+    }
+
+    public observeMaterializationFileSize(
+        totalBytes: number,
+        format: 'jsonl' | 'parquet',
+    ) {
+        this.preAggregateMaterializationFileSizeHistogram?.observe(
+            { format },
+            totalBytes,
+        );
+    }
+
+    public observeParquetConversionDuration(
+        durationMs: number,
+        status: 'success' | 'error',
+    ) {
+        this.preAggregateParquetConversionDurationHistogram?.observe(
+            { status },
             durationMs / 1000,
         );
     }

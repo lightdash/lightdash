@@ -412,6 +412,12 @@ export class PreAggregateMaterializationService extends BaseService {
                 status,
                 args.trigger,
             );
+            if (totalBytes != null) {
+                this.prometheusMetrics?.observeMaterializationFileSize(
+                    totalBytes,
+                    this.getMaterializationFormat(),
+                );
+            }
 
             return {
                 materializationUuid,
