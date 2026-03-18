@@ -1,3 +1,10 @@
+# [0.2633.0](https://github.com/lightdash/lightdash/compare/0.2632.1...0.2633.0) (2026-03-18)
+
+
+### Features
+
+* add has_time_dimension field to catalog table ([#21170](https://github.com/lightdash/lightdash/issues/21170)) ([bcd8183](https://github.com/lightdash/lightdash/commit/bcd81830072bbeb6cae2ddea2a5916a03376c560))
+
 ## [0.2632.1](https://github.com/lightdash/lightdash/compare/0.2632.0...0.2632.1) (2026-03-17)
 
 
