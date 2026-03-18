@@ -2,14 +2,7 @@ import {
     DEFAULT_GROUP_LIMIT_CONFIG,
     type GroupLimitConfig as GroupLimitConfigType,
 } from '@lightdash/common';
-import {
-    NumberInput,
-    Stack,
-    Switch,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { NumberInput, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
@@ -31,33 +24,8 @@ export const GroupLimitConfig: FC<Props> = ({
     const isEnabled = groupLimit?.enabled ?? false;
     const maxGroups =
         groupLimit?.maxGroups ?? DEFAULT_GROUP_LIMIT_CONFIG.maxGroups;
-    const otherLabel =
-        groupLimit?.otherLabel ?? DEFAULT_GROUP_LIMIT_CONFIG.otherLabel;
 
-    // Calculate how many groups will be aggregated into "Other"
-    const groupsInOther = isEnabled ? Math.max(0, totalGroups - maxGroups) : 0;
-
-    const handleEnabledChange = (checked: boolean) => {
-        setGroupLimitEnabled(checked);
-    };
-
-    const handleMaxGroupsChange = (value: number | '') => {
-        if (typeof value === 'number' && value >= 1) {
-            setGroupLimit({
-                enabled: true,
-                maxGroups: value,
-                otherLabel: otherLabel,
-            });
-        }
-    };
-
-    const handleOtherLabelChange = (value: string) => {
-        setGroupLimit({
-            enabled: true,
-            maxGroups: maxGroups,
-            otherLabel: value || DEFAULT_GROUP_LIMIT_CONFIG.otherLabel,
-        });
-    };
+    const groupsHidden = isEnabled ? Math.max(0, totalGroups - maxGroups) : 0;
 
     return (
         <Config>
@@ -66,7 +34,7 @@ export const GroupLimitConfig: FC<Props> = ({
                     <Config.Heading>Limit groups</Config.Heading>
                     <Tooltip
                         variant="xs"
-                        label="Show only the top N groups and aggregate the rest into an 'Other' category"
+                        label="Show only the top N groups by value, hiding the rest"
                         multiline
                         w={200}
                     >
@@ -82,7 +50,7 @@ export const GroupLimitConfig: FC<Props> = ({
                         label="Limit visible groups"
                         checked={isEnabled}
                         onChange={(event) =>
-                            handleEnabledChange(event.currentTarget.checked)
+                            setGroupLimitEnabled(event.currentTarget.checked)
                         }
                         size="xs"
                     />
@@ -93,25 +61,22 @@ export const GroupLimitConfig: FC<Props> = ({
                                 value={maxGroups}
                                 min={1}
                                 max={Math.max(1, totalGroups - 1)}
-                                onChange={handleMaxGroupsChange}
+                                onChange={(value) => {
+                                    if (typeof value === 'number' && value >= 1)
+                                        setGroupLimit({
+                                            enabled: true,
+                                            maxGroups: value,
+                                            otherLabel:
+                                                DEFAULT_GROUP_LIMIT_CONFIG.otherLabel,
+                                        });
+                                }}
                                 size="xs"
                             />
-                            <TextInput
-                                label="'Other' label"
-                                value={otherLabel}
-                                onChange={(event) =>
-                                    handleOtherLabelChange(
-                                        event.currentTarget.value,
-                                    )
-                                }
-                                placeholder="Other"
-                                size="xs"
-                            />
-                            {groupsInOther > 0 && (
+                            {groupsHidden > 0 && (
                                 <Text size="xs" c="dimmed">
-                                    {groupsInOther} group
-                                    {groupsInOther !== 1 ? 's' : ''} will be
-                                    combined into "{otherLabel}"
+                                    {groupsHidden} group
+                                    {groupsHidden !== 1 ? 's' : ''} will be
+                                    hidden
                                 </Text>
                             )}
                         </>

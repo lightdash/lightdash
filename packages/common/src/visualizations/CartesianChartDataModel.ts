@@ -14,7 +14,6 @@ import {
     CartesianSeriesType,
     ChartKind,
     ECHARTS_DEFAULT_COLORS,
-    OTHER_GROUP_PIVOT_VALUE,
     type GroupLimitConfig,
 } from '../types/savedCharts';
 import { type SqlRunnerQuery } from '../types/sqlRunner';
@@ -576,27 +575,25 @@ export class CartesianChartDataModel {
      * @param valuesColumns - The pivot value columns (one per group)
      * @param results - The data rows
      * @param groupLimit - Configuration for group limiting
-     * @returns Modified valuesColumns and results with "Other" aggregation applied
+     * @returns Modified valuesColumns and results with excess groups removed
      */
-    static aggregateSmallGroups(
+    static filterToTopGroups(
         valuesColumns: PivotChartData['valuesColumns'],
         results: RawResultRow[],
         groupLimit: GroupLimitConfig,
     ): {
         filteredValuesColumns: PivotChartData['valuesColumns'];
-        aggregatedResults: RawResultRow[];
+        filteredResults: RawResultRow[];
     } {
-        const { maxGroups, otherLabel } = groupLimit;
+        const { maxGroups } = groupLimit;
 
-        // If we have fewer groups than the limit, no aggregation needed
         if (valuesColumns.length <= maxGroups) {
             return {
                 filteredValuesColumns: valuesColumns,
-                aggregatedResults: results,
+                filteredResults: results,
             };
         }
 
-        // Calculate total value for each column (group) across all rows
         const columnTotals = valuesColumns.map((col) => {
             const total = results.reduce((sum, row) => {
                 const value = row[col.pivotColumnName];
@@ -604,82 +601,27 @@ export class CartesianChartDataModel {
                     typeof value === 'number'
                         ? value
                         : parseFloat(String(value)) || 0;
-                return sum + Math.abs(numValue); // Use absolute value for ranking
+                return sum + Math.abs(numValue);
             }, 0);
             return { column: col, total };
         });
 
-        // Sort by total (descending) to get top groups
         columnTotals.sort((a, b) => b.total - a.total);
 
-        // Split into top groups and "other" groups
         const topGroups = columnTotals.slice(0, maxGroups);
-        const otherGroups = columnTotals.slice(maxGroups);
+        const droppedGroups = columnTotals.slice(maxGroups);
 
-        // Create the "Other" column definition
-        // Use the same referenceField as the top groups so stacking works correctly
-        // (stack ID is based on referenceField: `stack-${referenceField}`)
-        const otherColumnName = otherLabel;
-        const sharedReferenceField =
-            topGroups[0]?.column.referenceField || OTHER_GROUP_PIVOT_VALUE;
-
-        // Collect pivot values from aggregated groups for view-underlying-data
-        // This allows filtering by the actual group values when clicking "Other"
-        const otherPivotValues = otherGroups.flatMap(
-            ({ column }) => column.pivotValues,
-        );
-
-        const otherColumn: PivotChartData['valuesColumns'][number] = {
-            referenceField: sharedReferenceField,
-            pivotColumnName: otherColumnName,
-            aggregation:
-                topGroups[0]?.column.aggregation || VizAggregationOptions.SUM,
-            pivotValues:
-                otherPivotValues.length > 0
-                    ? otherPivotValues
-                    : [
-                          {
-                              referenceField: OTHER_GROUP_PIVOT_VALUE,
-                              value: OTHER_GROUP_PIVOT_VALUE,
-                              formatted: otherLabel,
-                          },
-                      ],
-        };
-
-        // Aggregate "Other" values in the results
-        const aggregatedResults = results.map((row) => {
+        const filteredResults = results.map((row) => {
             const newRow = { ...row };
-
-            // Sum up all the "other" group values
-            const otherValue = otherGroups.reduce((sum, { column }) => {
-                const value = row[column.pivotColumnName];
-                const numValue =
-                    typeof value === 'number'
-                        ? value
-                        : parseFloat(String(value)) || 0;
-                return sum + numValue;
-            }, 0);
-
-            // Add the "Other" column value
-            newRow[otherColumnName] = otherValue;
-
-            // Remove the individual "other" group columns
-            otherGroups.forEach(({ column }) => {
+            droppedGroups.forEach(({ column }) => {
                 delete newRow[column.pivotColumnName];
             });
-
             return newRow;
         });
 
-        // Return top groups + "Other" column
-        const filteredValuesColumns = [
-            ...topGroups.map((g) => g.column),
-            otherColumn,
-        ];
-
         return {
-            filteredValuesColumns,
-            aggregatedResults,
+            filteredValuesColumns: topGroups.map((g) => g.column),
+            filteredResults,
         };
     }
 
@@ -714,7 +656,7 @@ export class CartesianChartDataModel {
             transformedData?.indexColumn,
         )?.reference;
 
-        // Apply group limiting to aggregate small groups into "Other"
+        // Apply group limiting to filter to top N groups
         let valuesColumnsToRender = transformedData.valuesColumns;
         let dataToRender = transformedData.results;
         let originalValues: Map<string, Map<string, number>> | undefined;
@@ -725,14 +667,13 @@ export class CartesianChartDataModel {
             valuesColumnsToRender.length > 1 &&
             !options?.skipGroupLimit
         ) {
-            const aggregationResult =
-                CartesianChartDataModel.aggregateSmallGroups(
-                    valuesColumnsToRender,
-                    dataToRender,
-                    groupLimit,
-                );
-            valuesColumnsToRender = aggregationResult.filteredValuesColumns;
-            dataToRender = aggregationResult.aggregatedResults;
+            const filterResult = CartesianChartDataModel.filterToTopGroups(
+                valuesColumnsToRender,
+                dataToRender,
+                groupLimit,
+            );
+            valuesColumnsToRender = filterResult.filteredValuesColumns;
+            dataToRender = filterResult.filteredResults;
         }
 
         // Apply 100% stacking transformation if needed

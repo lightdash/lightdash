@@ -476,17 +476,6 @@ export const cartesianChartConfigSlice = createSlice({
             };
             fieldConfig.groupLimit.maxGroups = Math.max(1, action.payload);
         },
-        setGroupLimitOtherLabel: (
-            { fieldConfig },
-            action: PayloadAction<string>,
-        ) => {
-            if (!fieldConfig) return;
-            fieldConfig.groupLimit = fieldConfig.groupLimit || {
-                ...DEFAULT_GROUP_LIMIT_CONFIG,
-            };
-            fieldConfig.groupLimit.otherLabel =
-                action.payload || DEFAULT_GROUP_LIMIT_CONFIG.otherLabel;
-        },
         setGroupLimitConfig: (
             { fieldConfig },
             action: PayloadAction<GroupLimitConfig | undefined>,
