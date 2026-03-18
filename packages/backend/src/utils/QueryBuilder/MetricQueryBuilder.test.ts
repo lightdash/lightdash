@@ -133,6 +133,104 @@ const POP_TEST_POP_METRIC_NAME = 'total_order_amount__pop__year_1__testpop';
 const POP_TEST_POP_METRIC_ID = `orders_${POP_TEST_POP_METRIC_NAME}`;
 const POP_TEST_FANOUT_POP_METRIC_NAME = 'metric_amount__pop__year_1__fanout';
 const POP_TEST_FANOUT_POP_METRIC_ID = `table2_${POP_TEST_FANOUT_POP_METRIC_NAME}`;
+const EXPLORE_WITH_NESTED_AGG_AND_FANOUT: Explore = {
+    ...EXPLORE_WITH_NESTED_AGG,
+    joinedTables: [
+        {
+            table: 'fanout_users',
+            sqlOn: '${my_table.id} = ${fanout_users.account_id}',
+            compiledSqlOn: '("my_table".id) = ("fanout_users".account_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['my_table', 'fanout_users'],
+        },
+    ],
+    tables: {
+        ...EXPLORE_WITH_NESTED_AGG.tables,
+        my_table: {
+            ...EXPLORE_WITH_NESTED_AGG.tables.my_table,
+            metrics: {
+                ...EXPLORE_WITH_NESTED_AGG.tables.my_table.metrics,
+                cross_table_sum_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'cross_table_sum_of_max',
+                    label: 'cross_table_sum_of_max',
+                    sql: 'sum(${max_value}) / NULLIF(${fanout_users.count_users}, 0)',
+                    compiledSql:
+                        'SUM(MAX("my_table".value)) / NULLIF(COUNT("fanout_users".id), 0)',
+                    tablesReferences: ['my_table', 'fanout_users'],
+                    hidden: false,
+                },
+            },
+        },
+        fanout_users: {
+            name: 'fanout_users',
+            label: 'fanout_users',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."fanout_users"',
+            primaryKey: ['id'],
+            dimensions: {
+                title: {
+                    type: DimensionType.STRING,
+                    name: 'title',
+                    label: 'title',
+                    table: 'fanout_users',
+                    tableLabel: 'fanout_users',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.title',
+                    compiledSql: '"fanout_users".title',
+                    tablesReferences: ['fanout_users'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                count_users: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'fanout_users',
+                    tableLabel: 'fanout_users',
+                    name: 'count_users',
+                    label: 'count_users',
+                    sql: '${TABLE}.id',
+                    compiledSql: 'COUNT("fanout_users".id)',
+                    tablesReferences: ['fanout_users'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+const METRIC_QUERY_NESTED_AGG_WITH_FANOUT: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['fanout_users_title'],
+    metrics: ['my_table_sum_of_max', 'my_table_count_records'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+const METRIC_QUERY_NESTED_AGG_WITH_FANOUT_CROSS_TABLE: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['fanout_users_title'],
+    metrics: ['my_table_cross_table_sum_of_max', 'my_table_count_records'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_cross_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
 
 const POP_TEST_EXPLORE: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
@@ -4796,5 +4894,42 @@ describe('Nested aggregate metrics', () => {
 
         // ratio_of_sum_case should reference CTE columns, not base table
         expect(result.query).toContain('nested_agg."my_table_max_value"');
+    });
+
+    test('should emit nested aggregate metric only once when fanout CTEs are also generated', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG_AND_FANOUT,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_WITH_FANOUT,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('cte_metrics_my_table AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+        expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
+    });
+
+    test('should emit cross-table nested aggregate metric only once when fanout CTEs are also generated', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG_AND_FANOUT,
+            compiledMetricQuery:
+                METRIC_QUERY_NESTED_AGG_WITH_FANOUT_CROSS_TABLE,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('cte_metrics_my_table AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_cross_table_sum_of_max"',
+        );
+        expect(
+            result.query.match(/AS "my_table_cross_table_sum_of_max"/g),
+        ).toHaveLength(1);
     });
 });
