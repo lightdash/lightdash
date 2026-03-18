@@ -55,6 +55,7 @@ import {
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    OTHER_GROUP_DISPLAY_VALUE,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -1505,17 +1506,24 @@ export class AsyncQueryService extends ProjectService {
                       const pivotValues =
                           groupByColumns?.map((c) => {
                               const field = itemsMap[c.reference];
-                              const rawValue = formatRawValue(
-                                  field,
-                                  row[c.reference],
-                              );
-                              const formattedValue = field
-                                  ? formatItemValue(
-                                        field,
-                                        row[c.reference],
-                                        false,
-                                    )
-                                  : String(rawValue);
+                              const cellValue = row[c.reference];
+                              const isOtherGroup =
+                                  cellValue === OTHER_GROUP_DISPLAY_VALUE;
+                              const rawValue = isOtherGroup
+                                  ? OTHER_GROUP_DISPLAY_VALUE
+                                  : formatRawValue(field, cellValue);
+                              let formattedValue: string;
+                              if (isOtherGroup) {
+                                  formattedValue = OTHER_GROUP_DISPLAY_VALUE;
+                              } else if (field) {
+                                  formattedValue = formatItemValue(
+                                      field,
+                                      cellValue,
+                                      false,
+                                  );
+                              } else {
+                                  formattedValue = String(rawValue);
+                              }
                               return {
                                   referenceField: c.reference,
                                   // value needs to be raw formatted so that dates match the subtotals and the formatted rows

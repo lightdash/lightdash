@@ -1,6 +1,7 @@
 import {
     formatItemValue,
     hashFieldReference,
+    OTHER_GROUP_DISPLAY_VALUE,
     type ApiQueryResults,
     type FieldId,
     type ItemsMap,
@@ -137,7 +138,10 @@ export const getPivotedDataFromPivotDetails = (
                     ...acc[value.referenceField],
                     [String(value.value)]: {
                         raw: value.value,
-                        formatted: formatItemValue(field, value.value),
+                        formatted:
+                            value.value === OTHER_GROUP_DISPLAY_VALUE
+                                ? OTHER_GROUP_DISPLAY_VALUE
+                                : formatItemValue(field, value.value),
                     },
                 };
             });
