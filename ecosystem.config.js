@@ -79,6 +79,8 @@ module.exports = {
                 SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
                 // Override PORT to avoid conflict with API (which uses 8080)
                 PORT: '8081',
+                // Override Prometheus port to avoid conflict with API (which uses 9090)
+                LIGHTDASH_PROMETHEUS_PORT: '9091',
             },
             watch: false,
             autorestart: true,
