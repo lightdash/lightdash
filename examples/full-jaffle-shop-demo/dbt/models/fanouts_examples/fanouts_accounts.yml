@@ -49,6 +49,33 @@ models:
           sql_on: ${fanouts_users.user_id} = ${fanouts_tracks.user_id}
           type: left
           fields: [ id, user_id, event_count, name, timestamp, days_since_user_created, event_count]
+      metrics:
+        nested_agg_fanout_repro:
+          type: number
+          label: "Repro: Nested agg + fanout"
+          description: "Reproduction metric for nested aggregate + fanout CTE compilation. Example repro: fanouts_accounts explored by fanouts_users.job_title, metric nested_agg_fanout_repro, sorted DESC by the same metric."
+          sql: |
+            CASE
+              WHEN ${total_estimated_annual_recurring_revenue} IS NULL THEN NULL
+              ELSE 1 + (
+                0.99 * COALESCE(
+                  100.0 * (
+                    MAX(${total_estimated_annual_recurring_revenue}) OVER () - ${total_estimated_annual_recurring_revenue}
+                  ) / NULLIF(
+                    MAX(${total_estimated_annual_recurring_revenue}) OVER () - MIN(${total_estimated_annual_recurring_revenue}) OVER (),
+                    0
+                  ),
+                  0
+                )
+              )
+            END
+        nested_agg_cross_table_fanout_repro:
+          type: number
+          label: "Repro: Cross-table nested agg + fanout"
+          description: "Reproduction metric for nested aggregate + fanout CTE duplication via a joined metric reference. Example repro: fanouts_accounts explored by fanouts_users.job_title, metric nested_agg_cross_table_fanout_repro, sorted DESC by the same metric."
+          sql: |
+            SUM(${total_estimated_annual_recurring_revenue})
+            / NULLIF(${fanouts_users.unique_user_count}, 0)
     columns:
       - name: account_id
         description: "The Account ID from our database"
