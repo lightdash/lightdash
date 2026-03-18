@@ -438,6 +438,9 @@ export class CatalogModel {
                                             spotlight_show: true,
                                             joined_tables: [],
                                             owner_user_uuid: null,
+                                            // changeset-created metrics don't have the full compiled metric here, so we default has_time_dimension to false.
+                                            // This means we will skip these metrics if search looks for metrics with dimension
+                                            has_time_dimension: false,
                                         })
                                         .returning('*');
 
@@ -763,6 +766,7 @@ export class CatalogModel {
         fullTextSearchOperator = 'AND',
         filteredExplores,
         changeset,
+        hasTimeDimension,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -776,6 +780,7 @@ export class CatalogModel {
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplores?: Explore[];
         changeset?: ChangesetWithChanges;
+        hasTimeDimension?: boolean;
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         // Use websearch_to_tsquery for AI Agent queries for better natural language support
         const useWebSearch =
@@ -991,6 +996,13 @@ export class CatalogModel {
                     FieldType.METRIC,
                 );
             }
+        }
+
+        if (hasTimeDimension !== undefined) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.has_time_dimension`,
+                hasTimeDimension,
+            );
         }
 
         if (catalogTags) {
