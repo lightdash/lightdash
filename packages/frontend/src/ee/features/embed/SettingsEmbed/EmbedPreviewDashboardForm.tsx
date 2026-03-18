@@ -27,14 +27,14 @@ import {
 import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { useCallback, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useAsyncClipboard } from '../../../../hooks/useAsyncClipboard';
 import useUser from '../../../../hooks/user/useUser';
-import EmbedCodeSnippet from './EmbedCodeSnippet';
+import EmbedCodeSnippet, { type EmbedMethod } from './EmbedCodeSnippet';
 import EmbedFiltersInteractivity from './EmbedFiltersInteractivity';
 
 const useEmbedUrlCreateMutation = (projectUuid: string) => {
@@ -85,6 +85,7 @@ const EmbedPreviewDashboardForm: FC<{
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const { data: user } = useUser(true);
+    const [embedMethod, setEmbedMethod] = useState<EmbedMethod>('iframe');
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -415,13 +416,34 @@ const EmbedPreviewDashboardForm: FC<{
 
             <Stack gap="md" mb="md">
                 <Stack gap="xs">
-                    <Title order={5}>Code snippet</Title>
+                    <Text size="sm" fw={500}>
+                        Embed method
+                    </Text>
+                    <SegmentedControl
+                        value={embedMethod}
+                        onChange={(value) =>
+                            setEmbedMethod(value as EmbedMethod)
+                        }
+                        data={[
+                            { label: 'Iframe', value: 'iframe' },
+                            { label: 'SDK', value: 'sdk' },
+                        ]}
+                    />
+                </Stack>
+                <Stack gap="xs">
+                    <Title order={5}>
+                        {embedMethod === 'iframe'
+                            ? 'Iframe embed code'
+                            : 'React SDK code'}
+                    </Title>
                     <Text c="dimmed" fz="sm">
-                        Copy and paste this code snippet into your application
-                        to generate embed URLs.
+                        {embedMethod === 'iframe'
+                            ? 'Use this for iframe or direct embedding with a full embed URL.'
+                            : 'Use this for React SDK embedding with a backend-generated JWT.'}
                     </Text>
                 </Stack>
                 <EmbedCodeSnippet
+                    mode={embedMethod}
                     projectUuid={projectUuid}
                     siteUrl={siteUrl}
                     data={convertFormValuesToCreateEmbedJwt(formValues)}
