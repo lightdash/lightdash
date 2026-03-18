@@ -1,3 +1,10 @@
+## [0.2634.2](https://github.com/lightdash/lightdash/compare/0.2634.1...0.2634.2) (2026-03-18)
+
+
+### Bug Fixes
+
+* field processing logic in GoogleDriveClient ([cb36722](https://github.com/lightdash/lightdash/commit/cb3672249584d121efd8571e2f3081ecd0fc6f7f))
+
 ## [0.2634.1](https://github.com/lightdash/lightdash/compare/0.2634.0...0.2634.1) (2026-03-18)
 
 
