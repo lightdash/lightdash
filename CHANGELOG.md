@@ -1,3 +1,10 @@
+# [0.2637.0](https://github.com/lightdash/lightdash/compare/0.2636.0...0.2637.0) (2026-03-18)
+
+
+### Features
+
+* add React SDK code snippets ([#21217](https://github.com/lightdash/lightdash/issues/21217)) ([eea560a](https://github.com/lightdash/lightdash/commit/eea560a731497b02f03343323a22759916714ac4))
+
 # [0.2636.0](https://github.com/lightdash/lightdash/compare/0.2635.0...0.2636.0) (2026-03-18)
 
 
