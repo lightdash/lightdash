@@ -5,6 +5,7 @@ import {
     ChartAsCode,
     ChartAsCodeInternalization,
     ChartSummary,
+    ContentAsCodeType,
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
@@ -180,6 +181,7 @@ export class CoderService extends BaseService {
             tableConfig: chart.tableConfig,
             spaceSlug,
             version: currentVersion,
+            contentType: ContentAsCodeType.CHART,
             downloadedAt: new Date(),
             parameters: chart.parameters,
         };
@@ -211,6 +213,7 @@ export class CoderService extends BaseService {
             updatedAt: sqlChart.lastUpdatedAt,
             spaceSlug,
             version: currentVersion,
+            contentType: ContentAsCodeType.SQL_CHART,
             downloadedAt: new Date(),
         };
     }
@@ -385,6 +388,7 @@ export class CoderService extends BaseService {
 
             spaceSlug,
             version: currentVersion,
+            contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
         };
 

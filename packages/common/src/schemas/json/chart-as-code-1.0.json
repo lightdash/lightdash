@@ -726,6 +726,10 @@
                 }
             ]
         },
+        "ContentAsCodeType.CHART": {
+            "enum": ["chart"],
+            "type": "string"
+        },
         "CustomBinDimension": {
             "anyOf": [
                 {
@@ -3159,6 +3163,10 @@
                 }
             ],
             "type": "object"
+        },
+        "contentType": {
+            "$ref": "#/$defs/ContentAsCodeType.CHART",
+            "description": "Content type discriminator"
         },
         "dashboardSlug": {
             "description": "Slug of the dashboard this chart belongs to (if any)",
