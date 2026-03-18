@@ -32,6 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     # Required by node-canvas prebuilt binaries for font rendering in chart images
     fontconfig \
+    # Required so headless chart screenshots can render CJK glyphs
+    fonts-noto-cjk \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -338,6 +340,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     # Required by node-canvas prebuilt binaries for font rendering in chart images
     fontconfig \
+    # Required so headless chart screenshots can render CJK glyphs
+    fonts-noto-cjk \
     dumb-init \
     # Optional: jemalloc allocator reduces native memory fragmentation vs glibc malloc.
     # Dormant unless activated via LD_PRELOAD env var per customer.

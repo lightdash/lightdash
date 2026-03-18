@@ -16,7 +16,7 @@ type GetCommonEChartsConfigParams = {
     showTooltip?: boolean;
 };
 
-const FONT_FAMILY = 'Inter, sans-serif';
+const FONT_FAMILY = '"Inter", "Noto Sans JP", "Noto Sans CJK JP", sans-serif';
 
 /**
  * Generates common echarts config for all chart types
