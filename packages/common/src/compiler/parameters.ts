@@ -168,21 +168,35 @@ export const validateParameterNames = (
 };
 
 // Lazy-initialized AJV validator to avoid module-level side effects
-let cachedValidator: ReturnType<Ajv['compile']> | null = null;
+let cached: {
+    schema: object;
+    validator: ReturnType<Ajv['compile']>;
+} | null = null;
 
-const getParametersValidator = () => {
-    if (!cachedValidator) {
+const getParametersSchemaAndValidator = ():
+    | { schema: object; validator: ReturnType<Ajv['compile']> }
+    | undefined => {
+    if (!cached) {
         const parametersSchema =
-            lightdashDbtYamlSchema.$defs.modelMeta.properties.parameters;
+            lightdashDbtYamlSchema.$defs?.modelMeta?.properties?.parameters;
+        if (!parametersSchema) {
+            console.warn(
+                'Parameters schema not found in lightdash-dbt-2.0.json — expected $defs.modelMeta.properties.parameters. Skipping parameter config validation.',
+            );
+            return undefined;
+        }
         const ajv = new Ajv({
             coerceTypes: true,
             allowUnionTypes: true,
             allErrors: true,
         });
         AjvErrors(ajv);
-        cachedValidator = ajv.compile(parametersSchema);
+        cached = {
+            schema: parametersSchema,
+            validator: ajv.compile(parametersSchema),
+        };
     }
-    return cachedValidator;
+    return cached;
 };
 
 /**
@@ -195,15 +209,18 @@ export const validateParameterConfiguration = (
         return { isValid: true, error: null };
     }
 
-    const parametersSchema =
-        lightdashDbtYamlSchema.$defs.modelMeta.properties.parameters;
-    const validateParametersSchema = getParametersValidator();
+    const schemaAndValidator = getParametersSchemaAndValidator();
+    if (!schemaAndValidator) {
+        return { isValid: true, error: null };
+    }
 
-    if (!validateParametersSchema(parameters)) {
+    const { schema, validator } = schemaAndValidator;
+
+    if (!validator(parameters)) {
         const error = betterAjvErrors(
-            parametersSchema,
+            schema,
             parameters,
-            validateParametersSchema.errors || [],
+            validator.errors || [],
             { indent: 2 },
         );
         return {
