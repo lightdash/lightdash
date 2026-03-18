@@ -585,7 +585,7 @@ export class CartesianChartDataModel {
         filteredValuesColumns: PivotChartData['valuesColumns'];
         filteredResults: RawResultRow[];
     } {
-        const { maxGroups } = groupLimit;
+        const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
 
         if (valuesColumns.length <= maxGroups) {
             return {

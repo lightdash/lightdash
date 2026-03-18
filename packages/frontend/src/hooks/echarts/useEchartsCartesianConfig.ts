@@ -123,7 +123,7 @@ const filterToTopGroups = (
         return { rows, rowKeyMap, droppedKeys: [] };
     }
 
-    const { maxGroups } = groupLimit;
+    const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
 
     const pivotKeys = Object.keys(rowKeyMap).filter((key) => {
         const ref = rowKeyMap[key];
