@@ -6,8 +6,6 @@ import {
     ForbiddenError,
     formatDate,
     getErrorMessage,
-    getItemLabel,
-    getItemLabelWithoutTableName,
     GoogleSheetsQuotaError,
     GoogleSheetsScopeError,
     GoogleSheetsTransientError,
@@ -23,6 +21,7 @@ import {
 import { google, sheets_v4 } from 'googleapis';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
+import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 
 type GoogleDriveClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -384,21 +383,15 @@ export class GoogleDriveClient {
             return;
         }
 
-        const sortedFieldIds = Object.keys(csvContent[0])
-            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
-            .filter((id) => !hiddenFields.includes(id));
-
-        const csvHeader = sortedFieldIds.map((id) => {
-            if (customLabels[id]) {
-                return customLabels[id];
-            }
-            if (itemMap[id]) {
-                return showTableNames
-                    ? getItemLabel(itemMap[id])
-                    : getItemLabelWithoutTableName(itemMap[id]);
-            }
-            return id;
-        });
+        const { sortedFieldIds, headers: csvHeader } = processFieldsForExport(
+            itemMap,
+            {
+                showTableNames,
+                customLabels,
+                columnOrder,
+                hiddenFields,
+            },
+        );
 
         const values = csvContent.map((row) =>
             sortedFieldIds.map((fieldId) => {
