@@ -1988,9 +1988,9 @@ export const parseConfig = (): LightdashConfig => {
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
             sqlBlockedPatterns: process.env.MCP_SQL_BLOCKED_PATTERNS
-                ? process.env.MCP_SQL_BLOCKED_PATTERNS.split(',').filter(
-                      (p) => p.trim().length > 0,
-                  )
+                ? process.env.MCP_SQL_BLOCKED_PATTERNS.split(',')
+                      .map((p) => p.trim())
+                      .filter((p) => p.length > 0)
                 : [],
             sqlBlockedPatternsSanitise:
                 process.env.MCP_SQL_BLOCKED_PATTERNS_SANITISE !== 'false',
