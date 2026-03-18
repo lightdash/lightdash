@@ -1,9 +1,10 @@
-import Lightdash from '@lightdash/sdk';
-import { useEffect, useRef, useState } from 'react';
+import Lightdash, { FilterOperator } from '@lightdash/sdk';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SavedChart } from '../../common/src';
 
 const EMBED_URL = import.meta.env.VITE_EMBED_URL || '';
+console.log('Using embed URL:', EMBED_URL);
 
 const mono = `'SF Mono', 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace`;
 const sans = `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
@@ -16,6 +17,28 @@ interface EmbedUrlInputProps {
     lightdashUrl?: string;
     lightdashToken?: string;
 }
+
+const sdkOperatorOptions: Array<`${FilterOperator}`> = [
+    FilterOperator.EQUALS,
+    FilterOperator.NOT_EQUALS,
+    FilterOperator.LESS_THAN,
+    FilterOperator.LESS_THAN_OR_EQUAL,
+    FilterOperator.GREATER_THAN,
+    FilterOperator.GREATER_THAN_OR_EQUAL,
+    FilterOperator.INCLUDE,
+    FilterOperator.NOT_INCLUDE,
+    FilterOperator.STARTS_WITH,
+    FilterOperator.ENDS_WITH,
+    FilterOperator.IN_BETWEEN,
+    FilterOperator.NOT_IN_BETWEEN,
+    FilterOperator.NULL,
+    FilterOperator.NOT_NULL,
+    FilterOperator.IN_THE_PAST,
+    FilterOperator.NOT_IN_THE_PAST,
+    FilterOperator.IN_THE_NEXT,
+    FilterOperator.IN_THE_CURRENT,
+    FilterOperator.NOT_IN_THE_CURRENT,
+];
 
 const inputStyle: React.CSSProperties = {
     fontFamily: mono,
@@ -201,6 +224,45 @@ const langButtonStyle: React.CSSProperties = {
     transition: 'border-color 0.15s ease',
 };
 
+const checkboxLabelStyle: React.CSSProperties = {
+    fontFamily: sans,
+    fontSize: '14px',
+    color: '#171717',
+};
+
+const hintTextStyle: React.CSSProperties = {
+    fontFamily: sans,
+    fontSize: '12px',
+    lineHeight: 1.5,
+    color: '#737373',
+    margin: 0,
+};
+
+const panelStyle: React.CSSProperties = {
+    border: '1px solid #e5e5e5',
+    borderRadius: '8px',
+    padding: '16px',
+    backgroundColor: '#fafafa',
+};
+
+const decodeJwtPayload = (token: string) => {
+    const [, payload] = token.split('.');
+
+    if (!payload) return undefined;
+
+    try {
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(
+            normalized.length + ((4 - (normalized.length % 4)) % 4),
+            '=',
+        );
+
+        return JSON.parse(atob(padded));
+    } catch {
+        return undefined;
+    }
+};
+
 function App() {
     const { t, i18n } = useTranslation();
 
@@ -214,6 +276,29 @@ function App() {
     );
 
     const [inputsOpen, setInputsOpen] = useState(false);
+    const [sdkFilterEnabled, setSdkFilterEnabled] = useState<boolean>(
+        localStorage.getItem('sdkFilterEnabled') === 'true',
+    );
+    const [sdkFilterModel, setSdkFilterModel] = useState<string>(
+        localStorage.getItem('sdkFilterModel') || '',
+    );
+    const [sdkFilterField, setSdkFilterField] = useState<string>(
+        localStorage.getItem('sdkFilterField') || '',
+    );
+    const [sdkFilterOperator, setSdkFilterOperator] =
+        useState<`${FilterOperator}`>(
+            (localStorage.getItem(
+                'sdkFilterOperator',
+            ) as `${FilterOperator}`) || FilterOperator.LESS_THAN,
+        );
+    const [sdkFilterValue, setSdkFilterValue] = useState<string>(
+        localStorage.getItem('sdkFilterValue') || '',
+    );
+    const [sdkFilterUseCustomUi, setSdkFilterUseCustomUi] = useState<boolean>(
+        localStorage.getItem('sdkFilterUseCustomUi') === 'true',
+    );
+    const [sdkFilterSelectedValue, setSdkFilterSelectedValue] =
+        useState<string>(localStorage.getItem('sdkFilterSelectedValue') || '');
 
     const [savedChart, setSavedChart] = useState<SavedChart | null>();
     const handleExploreClick = (options: { chart: SavedChart }) => {
@@ -231,6 +316,120 @@ function App() {
         setLightdashUrl(lightdashUrl);
         setLightdashToken(lightdashToken);
     }, [embedUrl]);
+
+    useEffect(() => {
+        localStorage.setItem('sdkFilterEnabled', String(sdkFilterEnabled));
+    }, [sdkFilterEnabled]);
+
+    useEffect(() => {
+        localStorage.setItem('sdkFilterModel', sdkFilterModel);
+    }, [sdkFilterModel]);
+
+    useEffect(() => {
+        localStorage.setItem('sdkFilterField', sdkFilterField);
+    }, [sdkFilterField]);
+
+    useEffect(() => {
+        localStorage.setItem('sdkFilterOperator', sdkFilterOperator);
+    }, [sdkFilterOperator]);
+
+    useEffect(() => {
+        localStorage.setItem('sdkFilterValue', sdkFilterValue);
+    }, [sdkFilterValue]);
+
+    useEffect(() => {
+        localStorage.setItem(
+            'sdkFilterUseCustomUi',
+            String(sdkFilterUseCustomUi),
+        );
+    }, [sdkFilterUseCustomUi]);
+
+    useEffect(() => {
+        localStorage.setItem('sdkFilterSelectedValue', sdkFilterSelectedValue);
+    }, [sdkFilterSelectedValue]);
+
+    const sdkFilterOptions = useMemo(
+        () =>
+            sdkFilterValue
+                .split(',')
+                .map((value) => value.trim())
+                .filter((value) => value.length > 0),
+        [sdkFilterValue],
+    );
+
+    useEffect(() => {
+        if (
+            sdkFilterSelectedValue &&
+            !sdkFilterOptions.includes(sdkFilterSelectedValue)
+        ) {
+            setSdkFilterSelectedValue('');
+        }
+    }, [sdkFilterOptions, sdkFilterSelectedValue]);
+
+    const sdkFilters = useMemo(() => {
+        if (
+            !sdkFilterEnabled ||
+            sdkFilterModel.trim().length === 0 ||
+            sdkFilterField.trim().length === 0
+        ) {
+            return undefined;
+        }
+
+        const values = sdkFilterUseCustomUi
+            ? sdkFilterSelectedValue
+                ? [sdkFilterSelectedValue]
+                : []
+            : sdkFilterOptions;
+
+        return [
+            {
+                model: sdkFilterModel.trim(),
+                field: sdkFilterField.trim(),
+                operator: sdkFilterOperator,
+                value: values,
+            },
+        ];
+    }, [
+        sdkFilterEnabled,
+        sdkFilterField,
+        sdkFilterModel,
+        sdkFilterOptions,
+        sdkFilterOperator,
+        sdkFilterSelectedValue,
+        sdkFilterUseCustomUi,
+        sdkFilterValue,
+    ]);
+
+    const decodedJwtPayload = useMemo(
+        () =>
+            lightdashToken ? decodeJwtPayload(lightdashToken) : undefined,
+        [lightdashToken],
+    );
+
+    const jwtConfigSnippet = useMemo(
+        () =>
+            JSON.stringify(decodedJwtPayload?.content ?? null, null, 2) ??
+            'null',
+        [decodedJwtPayload],
+    );
+
+    const dashboardComponentSnippet = useMemo(() => {
+        const filtersProp = sdkFilterEnabled
+            ? `\n  filters={${JSON.stringify(sdkFilters ?? [], null, 2)
+                  .split('\n')
+                  .join('\n  ')}}`
+            : '';
+
+        return `<Lightdash.Dashboard
+  instanceUrl="${lightdashUrl ?? 'http://localhost:3000/'}"
+  token={token}${filtersProp}
+  styles={{
+    backgroundColor: 'transparent',
+  }}
+  contentOverrides={translations}
+  onExplore={handleExploreClick}
+/>`;
+    }, [lightdashUrl, sdkFilterEnabled, sdkFilters]);
 
     return (
         <div style={containerStyle}>
@@ -348,6 +547,214 @@ function App() {
                                 lightdashUrl={lightdashUrl}
                                 lightdashToken={lightdashToken}
                             />
+
+                            <div
+                                style={{
+                                    marginTop: '24px',
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr',
+                                    gap: '16px',
+                                }}
+                            >
+                                <div>
+                                    <label style={labelStyle}>
+                                        JWT config
+                                    </label>
+                                    <pre
+                                        style={{
+                                            ...codeDisplayStyle,
+                                            whiteSpace: 'pre-wrap',
+                                        }}
+                                    >
+                                        {jwtConfigSnippet}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            <div
+                                style={{
+                                    marginTop: '24px',
+                                    paddingTop: '20px',
+                                    borderTop: '1px solid #e5e5e5',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '16px',
+                                }}
+                            >
+                                <div>
+                                    <label style={labelStyle}>
+                                        SDK Filter Test
+                                    </label>
+                                    <p style={hintTextStyle}>
+                                        Pass a runtime <code>filters</code> prop
+                                        to the dashboard. Use the custom UI demo
+                                        below to simulate a dropdown with
+                                        suggested values and an empty default
+                                        state.
+                                    </p>
+                                </div>
+
+                                <label
+                                    style={{
+                                        ...checkboxLabelStyle,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                    }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={sdkFilterEnabled}
+                                        onChange={(e) =>
+                                            setSdkFilterEnabled(
+                                                e.target.checked,
+                                            )
+                                        }
+                                    />
+                                    Enable SDK filter override
+                                </label>
+
+                                {sdkFilterEnabled && (
+                                    <>
+                                        <label
+                                            style={{
+                                                ...checkboxLabelStyle,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={sdkFilterUseCustomUi}
+                                                onChange={(e) =>
+                                                    setSdkFilterUseCustomUi(
+                                                        e.target.checked,
+                                                    )
+                                                }
+                                            />
+                                            Drive filter from custom select demo
+                                        </label>
+
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr',
+                                                gap: '16px',
+                                            }}
+                                        >
+                                            <div>
+                                                <label style={labelStyle}>
+                                                    Model
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={sdkFilterModel}
+                                                    onChange={(e) =>
+                                                        setSdkFilterModel(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="e.g. orders"
+                                                    style={{
+                                                        ...inputStyle,
+                                                        width: '100%',
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>
+                                                    Field
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={sdkFilterField}
+                                                    onChange={(e) =>
+                                                        setSdkFilterField(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="e.g. created_day"
+                                                    style={{
+                                                        ...inputStyle,
+                                                        width: '100%',
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr 1fr',
+                                                gap: '16px',
+                                            }}
+                                        >
+                                            <div>
+                                                <label style={labelStyle}>
+                                                    Operator
+                                                </label>
+                                                <select
+                                                    value={sdkFilterOperator}
+                                                    onChange={(e) =>
+                                                        setSdkFilterOperator(
+                                                            e.target
+                                                                .value as `${FilterOperator}`,
+                                                        )
+                                                    }
+                                                    style={{
+                                                        ...inputStyle,
+                                                        width: '100%',
+                                                    }}
+                                                >
+                                                    {sdkOperatorOptions.map(
+                                                        (operator) => (
+                                                            <option
+                                                                key={operator}
+                                                                value={operator}
+                                                            >
+                                                                {operator}
+                                                            </option>
+                                                        ),
+                                                    )}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label style={labelStyle}>
+                                                    Suggested values
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={sdkFilterValue}
+                                                    onChange={(e) =>
+                                                        setSdkFilterValue(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="2025-09,2025-10,2025-11"
+                                                    style={{
+                                                        ...inputStyle,
+                                                        width: '100%',
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label style={labelStyle}>
+                                                Active SDK filters prop
+                                            </label>
+                                            <pre style={codeDisplayStyle}>
+                                                {JSON.stringify(
+                                                    sdkFilters ?? [],
+                                                    null,
+                                                    2,
+                                                )}
+                                            </pre>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     )}
                 </header>
@@ -376,6 +783,96 @@ function App() {
                             </button>
                         )}
 
+                        {sdkFilterEnabled && sdkFilterUseCustomUi && (
+                            <div
+                                style={{ ...panelStyle, marginBottom: '16px' }}
+                            >
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '12px',
+                                    }}
+                                >
+                                    <div>
+                                        <label style={labelStyle}>
+                                            Custom External Filter Demo
+                                        </label>
+                                        <p style={hintTextStyle}>
+                                            This dropdown is rendered by the
+                                            demo app, not by Lightdash. Choosing
+                                            a value updates the SDK{' '}
+                                            <code>filters</code> prop. Leaving
+                                            it empty sends{' '}
+                                            <code>value: []</code>.
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr auto',
+                                            gap: '12px',
+                                            alignItems: 'end',
+                                        }}
+                                    >
+                                        <div>
+                                            <label style={labelStyle}>
+                                                Selected value
+                                            </label>
+                                            <select
+                                                value={sdkFilterSelectedValue}
+                                                onChange={(e) =>
+                                                    setSdkFilterSelectedValue(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                style={{
+                                                    ...inputStyle,
+                                                    width: '100%',
+                                                }}
+                                            >
+                                                <option value="">
+                                                    Any value
+                                                </option>
+                                                {sdkFilterOptions.map(
+                                                    (option) => (
+                                                        <option
+                                                            key={option}
+                                                            value={option}
+                                                        >
+                                                            {option}
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </select>
+                                        </div>
+                                        <button
+                                            style={buttonSecondaryStyle}
+                                            onClick={() =>
+                                                setSdkFilterSelectedValue('')
+                                            }
+                                        >
+                                            Clear
+                                        </button>
+                                    </div>
+
+                                    <p style={hintTextStyle}>
+                                        To hide the built-in Lightdash filter
+                                        pills completely, generate the embed
+                                        token with{' '}
+                                        <code>
+                                            dashboardFiltersInteractivity:
+                                            {' { '}
+                                            enabled: 'all', hidden: true
+                                            {' }'}
+                                        </code>
+                                        .
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         <div style={chartContainerStyle}>
                             {savedChart ? (
                                 <Lightdash.Explore
@@ -386,12 +883,13 @@ function App() {
                                 />
                             ) : (
                                 <Lightdash.Dashboard
-                                    key={i18n.language}
+                                    key={`${i18n.language}-${JSON.stringify(sdkFilters ?? [])}`}
                                     instanceUrl={lightdashUrl}
                                     token={lightdashToken}
                                     styles={{
                                         backgroundColor: 'transparent',
                                     }}
+                                    filters={sdkFilters}
                                     contentOverrides={i18n.getResourceBundle(
                                         i18n.language,
                                         'translation',
@@ -399,6 +897,18 @@ function App() {
                                     onExplore={handleExploreClick}
                                 />
                             )}
+                        </div>
+
+                        <div style={{ marginTop: '16px' }}>
+                            <label style={labelStyle}>Dashboard component</label>
+                            <pre
+                                style={{
+                                    ...codeDisplayStyle,
+                                    whiteSpace: 'pre-wrap',
+                                }}
+                            >
+                                {dashboardComponentSnippet}
+                            </pre>
                         </div>
 
                         <div style={infoBoxStyle}>
