@@ -107,6 +107,30 @@ const AddFilterButton: FC<Props> = ({
                     Enable Add Filter
                 </Button>
             );
+        if (showResetFiltersButton)
+            return (
+                <Tooltip label="Reset all filters" withinPortal>
+                    <Button
+                        aria-label="Reset all filters"
+                        size="xs"
+                        variant="default"
+                        radius="md"
+                        color="gray"
+                        onClick={() => {
+                            setHaveFiltersChanged(false);
+                            onResetDashboardFilters();
+                        }}
+                        styles={{
+                            root: {
+                                borderRadius: '100px',
+                                borderStyle: 'dashed',
+                            },
+                        }}
+                    >
+                        <MantineIcon icon={IconRotate2} />
+                    </Button>
+                </Tooltip>
+            );
         return null;
     }
 
