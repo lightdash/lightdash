@@ -1,3 +1,10 @@
+## [0.2634.1](https://github.com/lightdash/lightdash/compare/0.2634.0...0.2634.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* pre-agg prom metrics ([#21218](https://github.com/lightdash/lightdash/issues/21218)) ([0400b06](https://github.com/lightdash/lightdash/commit/0400b062f66aeb564938e2ea221d0ddc88c6b39a))
+
 # [0.2634.0](https://github.com/lightdash/lightdash/compare/0.2633.0...0.2634.0) (2026-03-18)
 
 
