@@ -189,6 +189,7 @@ export const Layout: FC<Props> = ({ items }) => {
         setXField,
         setStacking,
         setFlipAxis,
+        setTrellis,
         updateYField,
         removeSingleSeries,
         addSingleSeries,
@@ -463,6 +464,54 @@ export const Layout: FC<Props> = ({ items }) => {
                             </Group>
                         </Tooltip>
                     )}
+                </Config.Section>
+            </Config>
+
+            <Config>
+                <Config.Section>
+                    <Config.Group>
+                        <Config.Heading>Trellis</Config.Heading>
+                        {dirtyLayout?.trellis && (
+                            <CloseButton
+                                size="sm"
+                                onClick={() => setTrellis(undefined)}
+                            />
+                        )}
+                    </Config.Group>
+                    {!dirtyLayout?.trellis &&
+                    availableGroupByDimensions.length > 0 ? (
+                        <FieldSelect
+                            placeholder="Split chart by dimension"
+                            item={undefined}
+                            items={availableGroupByDimensions}
+                            onChange={(newValue) => {
+                                if (newValue) {
+                                    setTrellis(getItemId(newValue));
+                                }
+                            }}
+                            hasGrouping
+                        />
+                    ) : dirtyLayout?.trellis ? (
+                        <FieldSelect
+                            item={availableDimensions.find(
+                                (item) =>
+                                    getItemId(item) ===
+                                    dirtyLayout.trellis?.fieldId,
+                            )}
+                            items={availableGroupByDimensions}
+                            onChange={(newValue) => {
+                                setTrellis(
+                                    newValue ? getItemId(newValue) : undefined,
+                                );
+                            }}
+                            rightSection={
+                                <CloseButton
+                                    onClick={() => setTrellis(undefined)}
+                                />
+                            }
+                            hasGrouping
+                        />
+                    ) : null}
                 </Config.Section>
             </Config>
         </Stack>
