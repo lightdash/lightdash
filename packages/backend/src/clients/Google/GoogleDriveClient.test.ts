@@ -1,3 +1,4 @@
+import { DimensionType, FieldType } from '@lightdash/common';
 import { GoogleDriveClient } from './GoogleDriveClient';
 
 describe('GoogleDriveClient', () => {
@@ -87,6 +88,56 @@ describe('GoogleDriveClient', () => {
             const truncatedObject = GoogleDriveClient.formatCell(largeObject);
             expect(truncatedObject).toHaveLength(50000);
             expect(truncatedObject).toMatch(/\.\.\. \[TRUNCATED\]$/);
+        });
+    });
+
+    describe('appendToSheet', () => {
+        test('should only export selected fields from the results table', async () => {
+            const client = new GoogleDriveClient({
+                lightdashConfig: {
+                    auth: {
+                        google: {
+                            oauth2ClientId: 'client-id',
+                            oauth2ClientSecret: 'client-secret',
+                        },
+                    },
+                },
+            } as never);
+
+            const appendCsvToSheet = jest
+                .spyOn(client, 'appendCsvToSheet')
+                .mockResolvedValue(undefined);
+
+            await client.appendToSheet(
+                'refresh-token',
+                'file-id',
+                [
+                    {
+                        orders_total_revenue: 120,
+                        orders_normalized_charges: 150,
+                    },
+                ],
+                {
+                    orders_total_revenue: {
+                        name: 'total_revenue',
+                        label: 'Total revenue',
+                        type: DimensionType.NUMBER,
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        fieldType: FieldType.METRIC,
+                        sql: '${TABLE}.total_revenue',
+                        hidden: false,
+                    },
+                },
+                false,
+            );
+
+            expect(appendCsvToSheet).toHaveBeenCalledWith(
+                'refresh-token',
+                'file-id',
+                [['Total revenue'], [120]],
+                undefined,
+            );
         });
     });
 });
