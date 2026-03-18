@@ -1,3 +1,16 @@
+# [0.2636.0](https://github.com/lightdash/lightdash/compare/0.2635.0...0.2636.0) (2026-03-18)
+
+
+### Bug Fixes
+
+* Japanese characters in Slack AI chart screenshots ([#21199](https://github.com/lightdash/lightdash/issues/21199)) ([a55da49](https://github.com/lightdash/lightdash/commit/a55da49d26f5c23c87b18e93f536f3c1094dfbe6))
+
+
+### Features
+
+* add named snapshot management to docker-dev skill ([#21232](https://github.com/lightdash/lightdash/issues/21232)) ([f21e84a](https://github.com/lightdash/lightdash/commit/f21e84aa4a5287473bf96f234954b3619f73fdb2))
+* generate api ([#21229](https://github.com/lightdash/lightdash/issues/21229)) ([c40d131](https://github.com/lightdash/lightdash/commit/c40d131e70b5be59e275bd76cefe77ad21ceab87))
+
 # [0.2635.0](https://github.com/lightdash/lightdash/compare/0.2634.2...0.2635.0) (2026-03-18)
 
 
