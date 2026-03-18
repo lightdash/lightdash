@@ -2494,7 +2494,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('__group_totals AS');
             expect(normalized).toContain('__group_ranking AS');
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN o."region" ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
             );
             expect(normalized).toContain('LEFT JOIN __group_ranking gr ON');
         });
@@ -2560,7 +2560,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('count("count") AS "count_count"');
         });
 
-        test('Should fall back to normal grouping when otherAggregation is null for any column', () => {
+        test('Should use drop mode (WHERE filter, no "Other" row) when otherAggregation is null', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -2583,9 +2583,13 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
 
             const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
 
-            expect(result).not.toContain('pre_group_by');
-            expect(result).not.toContain('__group_ranking');
+            expect(normalized).toContain('pre_group_by AS');
+            expect(normalized).toContain('__group_totals AS');
+            expect(normalized).toContain('__group_ranking AS');
+            expect(normalized).toContain('WHERE gr.__group_rn <= 3');
+            expect(normalized).toContain('INNER JOIN __group_ranking gr ON');
             expect(result).not.toContain('Other');
         });
 
@@ -2646,10 +2650,10 @@ SELECT * FROM group_by_query LIMIT 50`);
             const normalized = replaceWhitespace(result);
 
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN o."region" ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
             );
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN o."category" ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."category" AS TEXT) ELSE \'Other\' END',
             );
             expect(normalized).toContain(
                 'o."region" = gr."region" AND o."category" = gr."category"',
@@ -2713,6 +2717,119 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             expect(normalized).toContain(
                 'SUM(ABS("revenue_sum")) AS __ranking_value',
+            );
+        });
+
+        test('Should create Other bucket for COUNT_DISTINCT using SUM', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain('pre_group_by AS');
+            expect(normalized).toContain('__group_ranking AS');
+            expect(normalized).toContain(
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
+            );
+            expect(normalized).toContain(
+                'sum("unique_users") AS "unique_users_sum"',
+            );
+        });
+
+        test('Should use drop mode when mixing SUM and unsupported aggregation', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'avg_price',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: null,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain('pre_group_by AS');
+            expect(normalized).toContain('__group_ranking AS');
+            expect(normalized).toContain('WHERE gr.__group_rn <= 3');
+            expect(normalized).toContain('INNER JOIN __group_ranking gr ON');
+            expect(result).not.toContain('Other');
+        });
+
+        test('Should use Other mode for COUNT_DISTINCT + SUM together', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain('pre_group_by AS');
+            expect(normalized).toContain('__group_ranking AS');
+            expect(normalized).toContain(
+                'CASE WHEN gr.__group_rn <= 2 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
+            );
+            expect(normalized).toContain('sum("revenue") AS "revenue_sum"');
+            expect(normalized).toContain(
+                'sum("unique_users") AS "unique_users_sum"',
             );
         });
     });

@@ -166,6 +166,7 @@ function getOtherAggregationForMetric(
         case MetricType.RUNNING_TOTAL:
             return VizAggregationOptions.SUM;
         case MetricType.COUNT:
+        case MetricType.COUNT_DISTINCT:
             return VizAggregationOptions.SUM;
         case MetricType.MIN:
             return VizAggregationOptions.MIN;
@@ -173,7 +174,6 @@ function getOtherAggregationForMetric(
             return VizAggregationOptions.MAX;
         case MetricType.AVERAGE:
         case MetricType.AVERAGE_DISTINCT:
-        case MetricType.COUNT_DISTINCT:
         case MetricType.PERCENTILE:
         case MetricType.MEDIAN:
         case MetricType.PERCENT_OF_PREVIOUS:

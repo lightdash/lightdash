@@ -305,22 +305,22 @@ export class PivotQueryBuilder {
         return `SELECT COUNT(*)${multiplier} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
     }
 
-    private static shouldApplyOtherGrouping(
+    private static getGroupingMode(
         groupLimit: GroupLimitConfig | undefined,
         groupByColumns: PivotConfiguration['groupByColumns'],
         valuesColumns: PivotConfiguration['valuesColumns'],
-    ): boolean {
+    ): 'other' | 'drop' | 'none' {
         if (
             !groupLimit?.enabled ||
             !groupByColumns ||
             groupByColumns.length === 0
         ) {
-            return false;
+            return 'none';
         }
         const hasUnsupported = valuesColumns.some(
             (col) => col.otherAggregation === null,
         );
-        return !hasUnsupported;
+        return hasUnsupported ? 'drop' : 'other';
     }
 
     private getGroupRankingCTEs(
@@ -368,7 +368,7 @@ export class PivotQueryBuilder {
 
         const caseWhens = groupByColumns.map(
             (col) =>
-                `CASE WHEN gr.__group_rn <= ${maxGroups} THEN o.${q}${col.reference}${q} ELSE '${OTHER_GROUP_DISPLAY_VALUE}' END`,
+                `CASE WHEN gr.__group_rn <= ${maxGroups} THEN CAST(o.${q}${col.reference}${q} AS TEXT) ELSE '${OTHER_GROUP_DISPLAY_VALUE}' END`,
         );
 
         const caseWhenAliases = groupByColumns.map(
@@ -419,6 +419,18 @@ export class PivotQueryBuilder {
         const groupByParts = [...caseWhens, ...indexRefs];
 
         return `SELECT ${selectParts.join(', ')} FROM original_query o LEFT JOIN __group_ranking gr ON ${joinConditions.join(' AND ')} GROUP BY ${groupByParts.join(', ')}`;
+    }
+
+    private getGroupByQueryWithDropSQL(
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        maxGroups: number,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const joinConditions = groupByColumns.map(
+            (col) =>
+                `pg.${q}${col.reference}${q} = gr.${q}${col.reference}${q}`,
+        );
+        return `SELECT pg.* FROM pre_group_by pg INNER JOIN __group_ranking gr ON ${joinConditions.join(' AND ')} WHERE gr.__group_rn <= ${maxGroups}`;
     }
 
     /**
@@ -1363,14 +1375,14 @@ export class PivotQueryBuilder {
         );
 
         const { groupLimit } = this.pivotConfiguration;
-        const applyOther = PivotQueryBuilder.shouldApplyOtherGrouping(
+        const groupingMode = PivotQueryBuilder.getGroupingMode(
             groupLimit,
             groupByColumns,
             valuesColumns,
         );
 
         // Build CTEs in correct dependency order:
-        // 0. (optional) pre_group_by, __group_totals, __group_ranking (for "Other" aggregation)
+        // 0. (optional) pre_group_by, __group_totals, __group_ranking (for "Other"/"drop" modes)
         // 1. original_query, group_by_query (base data)
         // 2. column anchor CTEs (for column ordering)
         // 3. column_ranking, anchor_column (for metric-based row sorting - identifies first pivot column)
@@ -1380,7 +1392,7 @@ export class PivotQueryBuilder {
         // 7. pivot_table_calculations (if there are any pivot table calculations)
         const ctes: string[] = [`original_query AS (${userSql})`];
 
-        if (applyOther && groupLimit) {
+        if (groupingMode === 'other' && groupLimit) {
             const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
             ctes.push(`pre_group_by AS (${groupByQuery})`);
             ctes.push(
@@ -1398,6 +1410,22 @@ export class PivotQueryBuilder {
                 maxGroups,
             );
             ctes.push(`group_by_query AS (${otherGroupByQuery})`);
+        } else if (groupingMode === 'drop' && groupLimit) {
+            const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
+            ctes.push(`pre_group_by AS (${groupByQuery})`);
+            ctes.push(
+                ...this.getGroupRankingCTEs(
+                    groupByColumns,
+                    valuesColumns,
+                    indexColumns,
+                    maxGroups,
+                ),
+            );
+            const dropGroupByQuery = this.getGroupByQueryWithDropSQL(
+                groupByColumns,
+                maxGroups,
+            );
+            ctes.push(`group_by_query AS (${dropGroupByQuery})`);
         } else {
             ctes.push(`group_by_query AS (${groupByQuery})`);
         }
