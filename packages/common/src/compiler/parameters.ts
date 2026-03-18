@@ -167,16 +167,23 @@ export const validateParameterNames = (
     };
 };
 
-// Extract the parameters schema from the dbt YAML schema and compile once
-const parametersSchema =
-    lightdashDbtYamlSchema.$defs.modelMeta.properties.parameters;
-const ajv = new Ajv({
-    coerceTypes: true,
-    allowUnionTypes: true,
-    allErrors: true,
-});
-AjvErrors(ajv);
-const validateParametersSchema = ajv.compile(parametersSchema);
+// Lazy-initialized AJV validator to avoid module-level side effects
+let cachedValidator: ReturnType<Ajv['compile']> | null = null;
+
+const getParametersValidator = () => {
+    if (!cachedValidator) {
+        const parametersSchema =
+            lightdashDbtYamlSchema.$defs.modelMeta.properties.parameters;
+        const ajv = new Ajv({
+            coerceTypes: true,
+            allowUnionTypes: true,
+            allErrors: true,
+        });
+        AjvErrors(ajv);
+        cachedValidator = ajv.compile(parametersSchema);
+    }
+    return cachedValidator;
+};
 
 /**
  * Validate parameter configuration using AJV against the JSON schema.
@@ -188,6 +195,10 @@ export const validateParameterConfiguration = (
         return { isValid: true, error: null };
     }
 
+    const parametersSchema =
+        lightdashDbtYamlSchema.$defs.modelMeta.properties.parameters;
+    const validateParametersSchema = getParametersValidator();
+
     if (!validateParametersSchema(parameters)) {
         const error = betterAjvErrors(
             parametersSchema,
@@ -197,7 +208,7 @@ export const validateParameterConfiguration = (
         );
         return {
             isValid: false,
-            error: error ?? 'Invalid parameter configuration',
+            error: error || 'Invalid parameter configuration',
         };
     }
 
