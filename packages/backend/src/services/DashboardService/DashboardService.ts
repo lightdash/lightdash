@@ -1602,6 +1602,7 @@ export class DashboardService
             throw new NotFoundError('Dashboard version not found');
         }
 
+        // Rollback dashboard version first
         await this.dashboardModel.addVersion(
             dashboardUuid,
             {
@@ -1613,6 +1614,59 @@ export class DashboardService
             },
             user,
             dashboardDao.projectUuid,
+        );
+
+        // Rollback charts to their state at the target version's creation time
+        const chartUuids = targetVersion.tiles
+            .filter(
+                (tile) =>
+                    isDashboardChartTileType(tile) &&
+                    tile.properties.savedChartUuid,
+            )
+            .map((tile) =>
+                isDashboardChartTileType(tile)
+                    ? tile.properties.savedChartUuid!
+                    : null,
+            )
+            .filter((uuid): uuid is string => uuid !== null);
+
+        // Get unique chart UUIDs
+        const uniqueChartUuids = [...new Set(chartUuids)];
+
+        // Rollback each chart to its version at the target dashboard version time
+        await Promise.all(
+            uniqueChartUuids.map(async (chartUuid) => {
+                try {
+                    // Get the chart version that was active when the dashboard version was created
+                    const chartVersion =
+                        await this.savedChartModel.getVersionAtTimestamp(
+                            chartUuid,
+                            targetVersion.updatedAt,
+                        );
+
+                    if (chartVersion) {
+                        // Rollback the chart to that version
+                        await this.savedChartModel.rollbackToVersion(
+                            chartUuid,
+                            chartVersion.saved_queries_version_id,
+                            user.userUuid,
+                        );
+
+                        this.logger.info(
+                            `Rolled back chart ${chartUuid} to version ${chartVersion.saved_queries_version_id}`,
+                        );
+                    } else {
+                        this.logger.warn(
+                            `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}`,
+                        );
+                    }
+                } catch (error) {
+                    // Log error but continue with other charts
+                    this.logger.error(
+                        `Failed to rollback chart ${chartUuid}: ${error}`,
+                    );
+                }
+            }),
         );
 
         this.analytics.track({

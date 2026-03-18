@@ -2130,4 +2130,95 @@ export class SavedChartModel {
             throw new NotFoundError('Deleted chart not found');
         }
     }
+
+    /**
+     * Get the chart version that was active at a specific timestamp
+     * Returns the most recent version where created_at <= targetTimestamp
+     */
+    async getVersionAtTimestamp(
+        savedChartUuid: string,
+        targetTimestamp: Date,
+    ): Promise<{ saved_queries_version_id: number } | undefined> {
+        const chart = await this.database(SavedChartsTableName)
+            .select('saved_query_id')
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at')
+            .first();
+
+        if (!chart) {
+            throw new NotFoundError('Chart not found');
+        }
+
+        const version = await this.database(SavedChartVersionsTableName)
+            .select('saved_queries_version_id', 'created_at')
+            .where('saved_query_id', chart.saved_query_id)
+            .where('created_at', '<=', targetTimestamp)
+            .orderBy('created_at', 'desc')
+            .limit(1)
+            .first();
+
+        return version;
+    }
+
+    /**
+     * Rollback a chart to a specific version
+     */
+    async rollbackToVersion(
+        savedChartUuid: string,
+        versionId: number,
+        userUuid: string,
+        tx?: Knex.Transaction,
+    ): Promise<void> {
+        const trx = tx || this.database;
+
+        // Get the chart
+        const chart = await trx(SavedChartsTableName)
+            .select('saved_query_id')
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNull('deleted_at')
+            .first();
+
+        if (!chart) {
+            throw new NotFoundError('Chart not found');
+        }
+
+        // Get the version data
+        const targetVersion = await trx(SavedChartVersionsTableName)
+            .select('*')
+            .where('saved_queries_version_id', versionId)
+            .where('saved_query_id', chart.saved_query_id)
+            .first();
+
+        if (!targetVersion) {
+            throw new NotFoundError('Chart version not found');
+        }
+
+        // Create a new version with the old data
+        // Simply copy the core version fields
+        await trx(SavedChartVersionsTableName)
+            .insert({
+                saved_query_id: chart.saved_query_id,
+                explore_name: targetVersion.explore_name,
+                filters: targetVersion.filters,
+                row_limit: targetVersion.row_limit,
+                chart_type: targetVersion.chart_type,
+                chart_config: targetVersion.chart_config,
+                pivot_dimensions: targetVersion.pivot_dimensions,
+                timezone: targetVersion.timezone,
+                metric_overrides: targetVersion.metric_overrides,
+                dimension_overrides: targetVersion.dimension_overrides,
+                parameters: targetVersion.parameters,
+                updated_by_user_uuid: userUuid,
+            })
+            .returning('saved_queries_version_id');
+
+        // Note: For a complete rollback, we would also need to copy related tables:
+        // - saved_queries_version_fields
+        // - saved_queries_version_sorts
+        // - saved_queries_version_table_calculations
+        // - saved_queries_version_additional_metrics
+        // - saved_queries_version_custom_dimensions
+        // - saved_queries_version_custom_sql_dimensions
+        // However, the core chart config should be sufficient for dashboard rollback
+    }
 }
