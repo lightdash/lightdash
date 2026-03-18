@@ -44,6 +44,7 @@ import {
     getAvailableParametersFromTables,
     getParameterReferences,
     getParameterReferencesFromSqlAndFormat,
+    validateParameterConfiguration,
     validateParameterNames,
     validateParameterReferences,
 } from './parameters';
@@ -342,6 +343,16 @@ export class ExploreCompiler {
                     invalidParameters,
                 },
             );
+        }
+
+        const { isValid, error: paramConfigError } =
+            validateParameterConfiguration(meta.parameters);
+
+        if (!isValid) {
+            exploreWarnings.push({
+                type: InlineErrorType.INVALID_PARAMETER,
+                message: `Invalid parameter configuration: ${paramConfigError}`,
+            });
         }
 
         const includedTables = validJoinedTables.reduce<Record<string, Table>>(

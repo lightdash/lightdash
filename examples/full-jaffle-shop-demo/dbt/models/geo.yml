@@ -86,7 +86,7 @@ models:
           meta:
             dimension:
               type: number
-              hidden: yes
+              hidden: true
       - name: custom_geo_area
         description: ""
         config:

@@ -2,6 +2,10 @@
  * Utility functions for handling SQL parameter references
  */
 
+import Ajv from 'ajv';
+import AjvErrors from 'ajv-errors';
+import betterAjvErrors from 'better-ajv-errors';
+import lightdashDbtYamlSchema from '../schemas/json/lightdash-dbt-2.0.json';
 import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
@@ -161,4 +165,69 @@ export const validateParameterNames = (
         isInvalid: invalidParameters.length > 0,
         invalidParameters,
     };
+};
+
+// Lazy-initialized AJV validator to avoid module-level side effects
+let cached: {
+    schema: object;
+    validator: ReturnType<Ajv['compile']>;
+} | null = null;
+
+const getParametersSchemaAndValidator = ():
+    | { schema: object; validator: ReturnType<Ajv['compile']> }
+    | undefined => {
+    if (!cached) {
+        const parametersSchema =
+            lightdashDbtYamlSchema.$defs?.modelMeta?.properties?.parameters;
+        if (!parametersSchema) {
+            console.warn(
+                'Parameters schema not found in lightdash-dbt-2.0.json — expected $defs.modelMeta.properties.parameters. Skipping parameter config validation.',
+            );
+            return undefined;
+        }
+        const ajv = new Ajv({
+            coerceTypes: true,
+            allowUnionTypes: true,
+            allErrors: true,
+        });
+        AjvErrors(ajv);
+        cached = {
+            schema: parametersSchema,
+            validator: ajv.compile(parametersSchema),
+        };
+    }
+    return cached;
+};
+
+/**
+ * Validate parameter configuration using AJV against the JSON schema.
+ */
+export const validateParameterConfiguration = (
+    parameters: Record<string, LightdashProjectParameter> | undefined,
+): { isValid: boolean; error: string | null } => {
+    if (!parameters || Object.keys(parameters).length === 0) {
+        return { isValid: true, error: null };
+    }
+
+    const schemaAndValidator = getParametersSchemaAndValidator();
+    if (!schemaAndValidator) {
+        return { isValid: true, error: null };
+    }
+
+    const { schema, validator } = schemaAndValidator;
+
+    if (!validator(parameters)) {
+        const error = betterAjvErrors(
+            schema,
+            parameters,
+            validator.errors || [],
+            { indent: 2 },
+        );
+        return {
+            isValid: false,
+            error: error || 'Invalid parameter configuration',
+        };
+    }
+
+    return { isValid: true, error: null };
 };
