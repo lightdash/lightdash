@@ -66,8 +66,6 @@ export const GroupLimitConfig: FC<Props> = ({
                                         setGroupLimit({
                                             enabled: true,
                                             maxGroups: value,
-                                            otherLabel:
-                                                DEFAULT_GROUP_LIMIT_CONFIG.otherLabel,
                                         });
                                 }}
                                 size="xs"

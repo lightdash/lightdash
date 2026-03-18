@@ -21,7 +21,6 @@ describe('CartesianChartDataModel.filterToTopGroups', () => {
     const defaultGroupLimit = {
         enabled: true,
         maxGroups: 3,
-        otherLabel: 'Other',
     };
 
     it('returns data unchanged when fewer groups than limit', () => {

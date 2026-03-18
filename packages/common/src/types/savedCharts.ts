@@ -384,27 +384,21 @@ export enum CartesianSeriesType {
 }
 
 /**
- * Configuration for limiting the number of visible groups in a chart
- * and aggregating the rest into an "Other" category.
+ * Configuration for limiting the number of visible groups in a chart.
+ * Groups beyond maxGroups are hidden (ranked by total absolute value).
  */
 export type GroupLimitConfig = {
     /** Whether group limiting is enabled */
     enabled: boolean;
-    /** Maximum number of groups to show individually (the rest are aggregated into "Other") */
+    /** Maximum number of groups to show (the rest are hidden) */
     maxGroups: number;
-    /** Label for the aggregated "Other" group */
-    otherLabel: string;
 };
 
 /** Default configuration for group limiting */
 export const DEFAULT_GROUP_LIMIT_CONFIG: GroupLimitConfig = {
     enabled: false,
     maxGroups: 5,
-    otherLabel: 'Other',
 };
-
-/** Identifier used for the "Other" aggregated group in pivot values */
-export const OTHER_GROUP_PIVOT_VALUE = '__other__';
 
 export type PivotValue = {
     /** Pivot field ID */
