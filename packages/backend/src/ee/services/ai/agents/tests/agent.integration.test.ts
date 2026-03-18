@@ -44,11 +44,11 @@ describeOrSkip.concurrent('agent integration tests', () => {
     const { model: judge, callOptions } = getOpenaiGptmodel(
         {
             apiKey: process.env.OPENAI_API_KEY!,
-            modelName: 'gpt-5.2',
+            modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
         },
-        getModelPreset('openai', 'gpt-5.2')!,
+        getModelPreset('openai', 'gpt-5.4')!,
     );
 
     beforeAll(async () => {
