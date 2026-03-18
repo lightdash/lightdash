@@ -1899,17 +1899,21 @@ export class AsyncQueryService extends ProjectService {
                 `Running query ${queryUuid} source=${executionSource}`,
             );
 
-            const fileName =
-                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
-            const resultsStorageClient = this.getResultsStorageClientForContext(
-                queryTags.query_context,
-            );
-
             // Create upload stream for storing results
             const isParquetMaterialization =
                 this.lightdashConfig.preAggregates.parquetEnabled &&
                 queryTags.query_context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+
+            const fileName = QueryHistoryModel.createUniqueResultsFileName(
+                cacheKey,
+                {
+                    sqlSafe: isParquetMaterialization,
+                },
+            );
+            const resultsStorageClient = this.getResultsStorageClientForContext(
+                queryTags.query_context,
+            );
 
             if (isParquetMaterialization) {
                 const s3Config = getDuckdbRuntimeConfig(
