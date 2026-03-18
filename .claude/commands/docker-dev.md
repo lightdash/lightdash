@@ -1,4 +1,4 @@
-Manage Docker dev environment. Args: (none) = start, `reset` = reset db from snapshot, `hard-reset` = full rebuild, `stop` = stop services.
+Manage Docker dev environment. Args: (none) = start, `reset` = reset db from snapshot, `hard-reset` = full rebuild, `stop` = stop services, `snapshot [name]` = save named snapshot (auto-names if omitted), `list-snapshots` = list saved snapshots, `use-snapshot <name>` = restore a named snapshot.
 
 **NEVER use `scripts/reset-db.sh`** — it requires a local `psql` client which is not available. Instead, use `docker exec docker-db-dev-1 psql` to run SQL commands inside the container, then run migrate/seed via pnpm.
 
@@ -8,6 +8,9 @@ Manage Docker dev environment. Args: (none) = start, `reset` = reset db from sna
 - **`reset`**: Restore database from volume snapshot (fast, ~3 seconds). Fails if no snapshot exists — run initial setup or `hard-reset` first.
 - **`hard-reset`**: Purge the snapshot volume, then do a full database reset (drop schema, migrate, seed, dbt). Automatically takes a new snapshot when done.
 - **`stop`**: Stop Docker services (preserves data volumes)
+- **`snapshot [name]`**: Save a named snapshot of the current database state. Name is optional — if omitted, auto-generate a descriptive name based on what the user is currently working on (e.g., `pre-migration-auth-refactor`, `after-seed-with-test-orgs`). The name must be alphanumeric with hyphens/underscores only. Creates a Docker volume named `docker_postgres_data_snapshot_<name>`.
+- **`list-snapshots`**: List all named snapshots with their creation dates and sizes.
+- **`use-snapshot <name>`**: Restore the database from a named snapshot. Does NOT overwrite the default snapshot used by `reset`.
 
 ## State Detection
 
@@ -281,6 +284,107 @@ Wait a few seconds for PostgreSQL to start accepting connections, then verify:
 ```bash
 docker exec docker-db-dev-1 pg_isready -U postgres
 ```
+
+## Named Snapshot Steps (When `snapshot [name]` Argument Provided)
+
+Save the current database state as a named snapshot. This is useful for preserving specific states (e.g., after importing test data, before a migration, etc.).
+
+**If no name is provided**, auto-generate one based on the current context. Use these signals to pick a good name:
+- The current git branch name (e.g., `charliedowler/auth-refactor` → `auth-refactor`)
+- What the user has been working on in this conversation (e.g., "after adding test orgs" → `after-test-orgs`)
+- Prefix with `pre-` or `post-` if the snapshot is being taken before/after a specific operation (e.g., `pre-migration`, `post-seed`)
+- Keep it short, descriptive, and lowercase with hyphens (e.g., `clean-seed`, `with-custom-roles`, `pre-auth-migration`)
+
+```bash
+# Validate the snapshot name (alphanumeric, hyphens, underscores only)
+SNAPSHOT_NAME="<chosen-or-provided-name>"
+if ! echo "$SNAPSHOT_NAME" | grep -qE '^[a-zA-Z0-9_-]+$'; then
+  echo "ERROR: Snapshot name must contain only alphanumeric characters, hyphens, and underscores."
+  exit 1
+fi
+
+SNAPSHOT_VOLUME="docker_postgres_data_snapshot_${SNAPSHOT_NAME}"
+
+# Check if a snapshot with this name already exists
+if docker volume inspect "$SNAPSHOT_VOLUME" >/dev/null 2>&1; then
+  echo "ERROR: Snapshot '$SNAPSHOT_NAME' already exists. Remove it first or choose a different name."
+  echo "To overwrite, run: docker volume rm $SNAPSHOT_VOLUME"
+  exit 1
+fi
+
+# Stop the db container for a consistent snapshot
+docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
+
+# Create the named snapshot volume
+docker volume create "$SNAPSHOT_VOLUME"
+
+# Clone the data
+docker run --rm \
+  -v docker_postgres_data:/source:ro \
+  -v "${SNAPSHOT_VOLUME}:/snapshot" \
+  alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
+
+# Restart the db container
+docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+```
+
+Report the snapshot name and confirm it was created successfully.
+
+## List Snapshots Steps (When `list-snapshots` Argument Provided)
+
+List all named snapshots that have been saved.
+
+```bash
+# List all Docker volumes matching the named snapshot pattern
+docker volume ls --format '{{.Name}}' | grep '^docker_postgres_data_snapshot_' | while read vol; do
+  # Strip the prefix to get the snapshot name
+  name="${vol#docker_postgres_data_snapshot_}"
+  # Get creation date and size
+  created=$(docker volume inspect "$vol" --format '{{.CreatedAt}}' | cut -d'T' -f1)
+  # Get actual disk size using a temporary container
+  size=$(docker run --rm -v "${vol}:/data" alpine du -sh /data 2>/dev/null | cut -f1)
+  echo "  $name  (created: $created, size: $size)"
+done
+```
+
+If no snapshots are found (no output), report: "No named snapshots found. Use `/docker-dev snapshot <name>` to create one."
+
+Also note whether the default snapshot (`docker_postgres_data_snapshot`) exists, as a separate line.
+
+## Use Snapshot Steps (When `use-snapshot <name>` Argument Provided)
+
+Restore the database from a named snapshot. This does NOT affect the default snapshot used by `reset`.
+
+```bash
+SNAPSHOT_NAME="$1"
+SNAPSHOT_VOLUME="docker_postgres_data_snapshot_${SNAPSHOT_NAME}"
+
+# Verify the named snapshot exists
+if ! docker volume inspect "$SNAPSHOT_VOLUME" >/dev/null 2>&1; then
+  echo "ERROR: Snapshot '$SNAPSHOT_NAME' not found. Use /docker-dev list-snapshots to see available snapshots."
+  exit 1
+fi
+
+# Stop the db container
+docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
+
+# Wipe the live volume and restore from the named snapshot
+docker run --rm \
+  -v docker_postgres_data:/target \
+  -v "${SNAPSHOT_VOLUME}:/snapshot:ro" \
+  alpine sh -c "rm -rf /target/* && cd /snapshot && tar cf - . | (cd /target && tar xf -)"
+
+# Restart the db container
+docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+```
+
+Wait for PostgreSQL to be ready:
+
+```bash
+docker exec docker-db-dev-1 pg_isready -U postgres
+```
+
+Report which snapshot was restored and that the database is ready.
 
 ## Hard Reset Steps (When `hard-reset` Argument Provided)
 
