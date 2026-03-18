@@ -146,7 +146,7 @@ export const useSavedSqlChartResults = (
                         chart.config.display,
                         organization?.chartColors,
                         {
-                            skipGroupLimit: !isGroupLimitEnabled,
+                            applyGroupLimit: isGroupLimitEnabled,
                         },
                     ),
                     fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?

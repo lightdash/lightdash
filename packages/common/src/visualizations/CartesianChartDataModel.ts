@@ -628,7 +628,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
-        options?: { skipGroupLimit?: boolean },
+        options?: { applyGroupLimit?: boolean },
     ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
@@ -665,7 +665,7 @@ export class CartesianChartDataModel {
         if (
             groupLimit?.enabled &&
             valuesColumnsToRender.length > 1 &&
-            !options?.skipGroupLimit
+            options?.applyGroupLimit
         ) {
             const filterResult = CartesianChartDataModel.filterToTopGroups(
                 valuesColumnsToRender,

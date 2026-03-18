@@ -113,7 +113,7 @@ export const prepareAndFetchChartData = createAsyncThunk(
 
         const getChartSpec = (
             orgColors?: string[],
-            specOptions?: { skipGroupLimit?: boolean },
+            specOptions?: { applyGroupLimit?: boolean },
         ) => {
             const currentState = getState() as RootState;
             const currentDisplay = selectChartDisplayByKind(

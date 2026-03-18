@@ -728,8 +728,8 @@ export const ContentPanel: FC = () => {
                                                                             spec={pivotedChartInfo?.data?.getChartSpec(
                                                                                 organization?.chartColors,
                                                                                 {
-                                                                                    skipGroupLimit:
-                                                                                        !isGroupLimitEnabled,
+                                                                                    applyGroupLimit:
+                                                                                        isGroupLimitEnabled,
                                                                                 },
                                                                             )}
                                                                             isLoading={
