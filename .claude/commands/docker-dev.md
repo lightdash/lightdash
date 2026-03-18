@@ -19,6 +19,9 @@ Before taking action, check the current environment state. **Run these checks in
 ### All Checks (run in parallel)
 
 ```bash
+# Check 0: Docker daemon running
+docker info &>/dev/null && echo "OK: Docker daemon running" || echo "NEED: Start Docker daemon"
+
 # Check 1: All Docker services running (db, minio, headless-browser, mailpit)
 RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
 [ "$RUNNING_COUNT" -ge 4 ] && echo "OK: All Docker services running ($RUNNING_COUNT)" || echo "NEED: Start Docker services (only $RUNNING_COUNT/4 running)"
@@ -53,8 +56,9 @@ docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1 && echo "OK:
 - Lines starting with `NEED:` indicate setup steps that must be run
 - Lines starting with `OK:` indicate that component is ready
 - If all lines show `OK:`, the environment is ready - just start the dev server
-- Database checks (6-8) use `docker exec` to run psql inside the PostgreSQL container
-- Run checks 1-5 in parallel first, then checks 6-8 in parallel (they depend on Docker running)
+- **Check 0 (Docker daemon) must pass before any other check can work.** If it fails, start the daemon first (see "Start Docker Daemon" setup step), then re-run the remaining checks.
+- Run checks 0-5 in parallel first. If check 0 fails, fix it before proceeding. Then run checks 6-8 in parallel (they require Docker containers to be running).
+- If check 0 passes but check 1 fails, start Docker services before running checks 6-8.
 
 ### Why Use `docker exec` for Database Checks?
 
@@ -83,6 +87,34 @@ PostgreSQL runs inside a Docker container, so we use `docker exec docker-db-dev-
 ### Prerequisites (macOS)
 
 If `pnpm install` fails with canvas errors - read this guide: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
+
+### Start Docker Daemon
+
+If check 0 fails, the Docker daemon isn't running. Start it, passing through any proxy environment variables so Docker can pull images:
+
+```bash
+# Check if a proxy is configured in the environment
+if [ -n "$HTTP_PROXY" ] || [ -n "$HTTPS_PROXY" ]; then
+  echo "Proxy detected — starting Docker daemon with proxy configuration"
+  sudo env HTTP_PROXY="$HTTP_PROXY" HTTPS_PROXY="$HTTPS_PROXY" NO_PROXY="$NO_PROXY" dockerd &>/dev/null &
+else
+  sudo dockerd &>/dev/null &
+fi
+
+# Wait for daemon to be ready
+sleep 3
+docker info &>/dev/null && echo "Docker daemon started" || echo "ERROR: Docker daemon failed to start"
+```
+
+**Why proxy matters:** In sandboxed or remote environments, outbound traffic often goes through an HTTP proxy. The Docker daemon does NOT inherit shell environment variables — it must be started with them explicitly via `sudo env`. Without this, `docker pull` and `docker compose up` will fail with DNS resolution or timeout errors when pulling images.
+
+**Verify proxy is configured:**
+
+```bash
+docker info 2>&1 | grep -i proxy
+```
+
+You should see `HTTP Proxy:` and `HTTPS Proxy:` lines if the proxy is active.
 
 ### Start Docker Services
 
@@ -543,3 +575,39 @@ Database not seeded → This command will detect and seed it
 ### dbt Command Not Found
 
 Python venv not set up → This command will detect and set it up
+
+### Docker Daemon Not Running
+
+If `docker info` fails with "Cannot connect to the Docker daemon":
+
+```bash
+# Start the daemon (with proxy if needed)
+sudo env HTTP_PROXY="$HTTP_PROXY" HTTPS_PROXY="$HTTPS_PROXY" NO_PROXY="$NO_PROXY" dockerd &>/dev/null &
+sleep 3
+docker info &>/dev/null && echo "Docker daemon started" || echo "ERROR: Failed to start"
+```
+
+### Docker Image Pull Fails (DNS / Timeout Errors)
+
+If `docker compose up` fails with errors like `failed to resolve reference`, `dial tcp: lookup registry-1.docker.io: no such host`, or `i/o timeout` when pulling images, the Docker daemon likely can't reach the container registry.
+
+**Root cause:** The Docker daemon doesn't inherit shell proxy environment variables. In environments that route traffic through an HTTP proxy, Docker tries to connect directly and fails.
+
+**Fix:** Restart the daemon with proxy env vars:
+
+```bash
+sudo pkill dockerd; sleep 2
+sudo env HTTP_PROXY="$HTTP_PROXY" HTTPS_PROXY="$HTTPS_PROXY" NO_PROXY="$NO_PROXY" dockerd &>/dev/null &
+sleep 3
+
+# Verify proxy is active
+docker info 2>&1 | grep -i proxy
+
+# Retry
+docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development up -d
+```
+
+**Do NOT try these workarounds** (they waste time and don't fix the root cause):
+- Adding entries to `/etc/hosts` for `registry-1.docker.io`
+- Configuring custom DNS in `/etc/docker/daemon.json`
+- Retrying the same `docker compose up` command repeatedly
