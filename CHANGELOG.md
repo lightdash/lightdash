@@ -1,3 +1,10 @@
+# [0.2634.0](https://github.com/lightdash/lightdash/compare/0.2633.0...0.2634.0) (2026-03-18)
+
+
+### Features
+
+* add v2 API endpoint for paginated metrics with time dimensions ([#21172](https://github.com/lightdash/lightdash/issues/21172)) ([4421ee7](https://github.com/lightdash/lightdash/commit/4421ee7feac2b60eff067599c0ab38a08c68d519)), closes [#20674](https://github.com/lightdash/lightdash/issues/20674)
+
 # [0.2633.0](https://github.com/lightdash/lightdash/compare/0.2632.1...0.2633.0) (2026-03-18)
 
 
