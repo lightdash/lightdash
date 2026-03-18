@@ -767,6 +767,7 @@ export class CatalogModel {
         filteredExplores,
         changeset,
         hasTimeDimension,
+        tags,
     }: {
         projectUuid: string;
         exploreName?: string;
@@ -781,6 +782,7 @@ export class CatalogModel {
         filteredExplores?: Explore[];
         changeset?: ChangesetWithChanges;
         hasTimeDimension?: boolean;
+        tags?: string[];
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
         // Use websearch_to_tsquery for AI Agent queries for better natural language support
         const useWebSearch =
@@ -1002,6 +1004,13 @@ export class CatalogModel {
             catalogItemsQuery = catalogItemsQuery.andWhere(
                 `${CatalogTableName}.has_time_dimension`,
                 hasTimeDimension,
+            );
+        }
+
+        if (tags && tags.length > 0) {
+            catalogItemsQuery = catalogItemsQuery.whereRaw(
+                `${CachedExploreTableName}.explore->'tags' \\?| ARRAY[${tags.map(() => '?').join(',')}]`,
+                tags,
             );
         }
 
