@@ -71,9 +71,6 @@ export const getDataFromChartClick = (
     series: EChartsSeries[],
 ): UnderlyingDataConfig => {
     const pivotReference = series[e.seriesIndex]?.pivotReference;
-    const dimNames =
-        e.dimensionNames ??
-        (e.data && !Array.isArray(e.data) ? Object.keys(e.data) : []);
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
             !isDimension(item) &&
@@ -81,9 +78,11 @@ export const getDataFromChartClick = (
             pivotReference.field === getItemId(item)
         ) {
             const possibleNames = getPivotColumnNames(pivotReference);
-            return possibleNames.some((name) => dimNames.includes(name));
+            return possibleNames.some((name) =>
+                e.dimensionNames.includes(name),
+            );
         }
-        return dimNames.includes(getItemId(item));
+        return e.dimensionNames.includes(getItemId(item));
     });
     const selectedMetricsAndTableCalculations = selectedFields.filter(
         (item) => !isDimension(item),
