@@ -1698,6 +1698,11 @@ export class MetricQueryBuilder {
         const metricsObjects = allMetricsToProcess.map((field) =>
             this.getMetricFromId(field),
         );
+        const nestedAggOuterIds = new Set(
+            this.getMetricsWithNestedAggregates().map(
+                ({ outerMetricId }) => outerMetricId,
+            ),
+        );
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -1820,6 +1825,11 @@ export class MetricQueryBuilder {
             }
 
             metricsFromTable.forEach((metric) => {
+                // Nested aggregate outer metrics are materialized by the
+                // nested_agg CTE flow and must not also be emitted here.
+                if (nestedAggOuterIds.has(getItemId(metric))) {
+                    return;
+                }
                 // Inflation proof metrics don't need CTE
                 if (isInflationProofMetric(metric.type)) {
                     return;
@@ -2104,7 +2114,8 @@ export class MetricQueryBuilder {
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
-                    notSumDistinct
+                    notSumDistinct &&
+                    !nestedAggOuterIds.has(getItemId(metric))
                 );
             });
             /**
@@ -2251,24 +2262,31 @@ export class MetricQueryBuilder {
             }
 
             const finalMetricSelects = [
-                ...metricsWithCteReferences.map((metric) => {
-                    // For metrics with cross-table references, replace metric references with CTE references
-                    const processedSql =
-                        this.replaceMetricReferencesWithCteReferences(metric, [
-                            ...metricCtes,
-                            // add unaffected metrics CTE to the list, so non-inflation metrics can be referenced
-                            {
-                                name: unaffectedMetricsCteName,
-                                metrics: unaffectedMetrics.map((m) =>
-                                    getItemId(m),
-                                ),
-                            },
-                        ]);
+                ...metricsWithCteReferences
+                    .filter(
+                        (metric) => !nestedAggOuterIds.has(getItemId(metric)),
+                    )
+                    .map((metric) => {
+                        // For metrics with cross-table references, replace metric references with CTE references
+                        const processedSql =
+                            this.replaceMetricReferencesWithCteReferences(
+                                metric,
+                                [
+                                    ...metricCtes,
+                                    // add unaffected metrics CTE to the list, so non-inflation metrics can be referenced
+                                    {
+                                        name: unaffectedMetricsCteName,
+                                        metrics: unaffectedMetrics.map((m) =>
+                                            getItemId(m),
+                                        ),
+                                    },
+                                ],
+                            );
 
-                    return `  ${processedSql} AS ${fieldQuoteChar}${getItemId(
-                        metric,
-                    )}${fieldQuoteChar}`;
-                }),
+                        return `  ${processedSql} AS ${fieldQuoteChar}${getItemId(
+                            metric,
+                        )}${fieldQuoteChar}`;
+                    }),
                 ...metricCtes.flatMap<string>((metricCte) =>
                     metricCte.metrics
                         // excludes metrics only used for references
