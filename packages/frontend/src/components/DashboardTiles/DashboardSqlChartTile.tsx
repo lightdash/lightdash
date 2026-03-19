@@ -40,6 +40,8 @@ interface Props extends Pick<
 > {
     tile: DashboardSqlChartTile;
     minimal?: boolean;
+    /** Whether this tile's query is enabled by progressive loading */
+    progressiveLoadingEnabled?: boolean;
 }
 
 /**
@@ -68,14 +70,22 @@ const DashboardOptions = memo(
     ),
 );
 
-const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+const SqlChartTile: FC<Props> = ({
+    tile,
+    isEditMode,
+    progressiveLoadingEnabled = true,
+    ...rest
+}) => {
     const { user } = useApp();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
     const context = useSearchParams('context') || undefined;
-    const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
+    // Gate the query: only resolve savedSqlUuid when progressive loading allows it
+    const savedSqlUuid = progressiveLoadingEnabled
+        ? tile.properties.savedSqlUuid || undefined
+        : undefined;
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',

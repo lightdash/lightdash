@@ -63,6 +63,14 @@ export const useDashboardChartReadyQuery = (
     tileUuid: string,
     chartUuid: string | null,
     contextOverride?: QueryExecutionContext,
+    /**
+     * When false, the query fires immediately (legacy behavior).
+     * When true, the query is gated by progressive loading — only
+     * fires when the tile's viewport observer has activated it.
+     * Defaults to false for backwards compatibility with embed and
+     * other callers that don't use progressive loading.
+     */
+    progressiveLoadingEnabled?: boolean,
 ) => {
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
@@ -265,7 +273,11 @@ export const useDashboardChartReadyQuery = (
             };
         },
         enabled: Boolean(
-            chartUuid && dashboardUuid && chartQuery.data && explore,
+            chartUuid &&
+            dashboardUuid &&
+            chartQuery.data &&
+            explore &&
+            (progressiveLoadingEnabled ?? true),
         ),
         ...retryConfig,
         refetchOnMount: false,

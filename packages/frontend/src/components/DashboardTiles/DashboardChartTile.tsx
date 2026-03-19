@@ -1850,6 +1850,8 @@ type DashboardChartTileProps = Omit<
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
     onExplore?: (options: { chart: SavedChart }) => void;
+    /** Whether this tile's query is enabled by progressive loading */
+    progressiveLoadingEnabled?: boolean;
 };
 
 // Abstraction needed for enterprise version
@@ -2017,6 +2019,8 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid,
+        undefined,
+        props.progressiveLoadingEnabled,
     );
 
     const resultsData = useInfiniteQueryResults(

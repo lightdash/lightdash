@@ -22,6 +22,7 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import DashboardStoreProvider from '../features/dashboard/components/DashboardStoreProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
     appendNewTilesToBottom,
@@ -835,7 +836,9 @@ const DashboardPage: FC = () => {
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
-            <Dashboard />
+            <DashboardStoreProvider>
+                <Dashboard />
+            </DashboardStoreProvider>
         </DashboardProvider>
     );
 };

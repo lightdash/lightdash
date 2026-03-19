@@ -27,6 +27,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
+import ObservedTileWrapper from '../dashboard/components/ObservedTileWrapper';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -965,42 +966,45 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                               key={
                                                                                   tile.uuid
                                                                               }
-                                                                              data-tile-uuid={
-                                                                                  tile.uuid
-                                                                              }
                                                                           >
-                                                                              <TrackSection
-                                                                                  name={
-                                                                                      SectionName.DASHBOARD_TILE
+                                                                              <ObservedTileWrapper
+                                                                                  tileUuid={
+                                                                                      tile.uuid
                                                                                   }
                                                                               >
-                                                                                  <GridTile
-                                                                                      locked={
-                                                                                          hasRequiredFiltersForCurrentTab
+                                                                                  <TrackSection
+                                                                                      name={
+                                                                                          SectionName.DASHBOARD_TILE
                                                                                       }
-                                                                                      index={
-                                                                                          idx
-                                                                                      }
-                                                                                      isEditMode={
-                                                                                          isEditMode
-                                                                                      }
-                                                                                      tile={
-                                                                                          tile
-                                                                                      }
-                                                                                      onDelete={
-                                                                                          handleDeleteTile
-                                                                                      }
-                                                                                      onEdit={
-                                                                                          handleEditTile
-                                                                                      }
-                                                                                      tabs={
-                                                                                          dashboardTabs
-                                                                                      }
-                                                                                      onAddTiles={
-                                                                                          handleAddTiles
-                                                                                      }
-                                                                                  />
-                                                                              </TrackSection>
+                                                                                  >
+                                                                                      <GridTile
+                                                                                          locked={
+                                                                                              hasRequiredFiltersForCurrentTab
+                                                                                          }
+                                                                                          index={
+                                                                                              idx
+                                                                                          }
+                                                                                          isEditMode={
+                                                                                              isEditMode
+                                                                                          }
+                                                                                          tile={
+                                                                                              tile
+                                                                                          }
+                                                                                          onDelete={
+                                                                                              handleDeleteTile
+                                                                                          }
+                                                                                          onEdit={
+                                                                                              handleEditTile
+                                                                                          }
+                                                                                          tabs={
+                                                                                              dashboardTabs
+                                                                                          }
+                                                                                          onAddTiles={
+                                                                                              handleAddTiles
+                                                                                          }
+                                                                                      />
+                                                                                  </TrackSection>
+                                                                              </ObservedTileWrapper>
                                                                           </div>
                                                                       ),
                                                                   )}
@@ -1061,42 +1065,45 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                   key={
                                                                       tile.uuid
                                                                   }
-                                                                  data-tile-uuid={
-                                                                      tile.uuid
-                                                                  }
                                                               >
-                                                                  <TrackSection
-                                                                      name={
-                                                                          SectionName.DASHBOARD_TILE
+                                                                  <ObservedTileWrapper
+                                                                      tileUuid={
+                                                                          tile.uuid
                                                                       }
                                                                   >
-                                                                      <GridTile
-                                                                          locked={
-                                                                              hasRequiredFiltersForCurrentTab
+                                                                      <TrackSection
+                                                                          name={
+                                                                              SectionName.DASHBOARD_TILE
                                                                           }
-                                                                          index={
-                                                                              idx
-                                                                          }
-                                                                          isEditMode={
-                                                                              isEditMode
-                                                                          }
-                                                                          tile={
-                                                                              tile
-                                                                          }
-                                                                          onDelete={
-                                                                              handleDeleteTile
-                                                                          }
-                                                                          onEdit={
-                                                                              handleEditTile
-                                                                          }
-                                                                          tabs={
-                                                                              dashboardTabs
-                                                                          }
-                                                                          onAddTiles={
-                                                                              handleAddTiles
-                                                                          }
-                                                                      />
-                                                                  </TrackSection>
+                                                                      >
+                                                                          <GridTile
+                                                                              locked={
+                                                                                  hasRequiredFiltersForCurrentTab
+                                                                              }
+                                                                              index={
+                                                                                  idx
+                                                                              }
+                                                                              isEditMode={
+                                                                                  isEditMode
+                                                                              }
+                                                                              tile={
+                                                                                  tile
+                                                                              }
+                                                                              onDelete={
+                                                                                  handleDeleteTile
+                                                                              }
+                                                                              onEdit={
+                                                                                  handleEditTile
+                                                                              }
+                                                                              tabs={
+                                                                                  dashboardTabs
+                                                                              }
+                                                                              onAddTiles={
+                                                                                  handleAddTiles
+                                                                              }
+                                                                          />
+                                                                      </TrackSection>
+                                                                  </ObservedTileWrapper>
                                                               </div>
                                                           ),
                                                       )}

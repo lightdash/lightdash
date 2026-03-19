@@ -12,6 +12,8 @@ import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
+import { useDashboardStoreSelector } from '../dashboard/store/hooks';
+import { selectIsTileQueryEnabled } from '../dashboard/store/selectors';
 
 const GridTile: FC<
     Pick<
@@ -25,6 +27,9 @@ const GridTile: FC<
     }
 > = memo((props) => {
     const { tile } = props;
+    const isQueryEnabled = useDashboardStoreSelector((state) =>
+        selectIsTileQueryEnabled(state, tile.uuid),
+    );
 
     if (props.locked) {
         // Allow markdown, loom, and heading tiles to show even when locked since they are not filterable
@@ -47,13 +52,25 @@ const GridTile: FC<
 
     switch (tile.type) {
         case DashboardTileTypes.SAVED_CHART:
-            return <ChartTile {...props} tile={tile} />;
+            return (
+                <ChartTile
+                    {...props}
+                    tile={tile}
+                    progressiveLoadingEnabled={isQueryEnabled}
+                />
+            );
         case DashboardTileTypes.MARKDOWN:
             return <MarkdownTile {...props} tile={tile} />;
         case DashboardTileTypes.LOOM:
             return <LoomTile {...props} tile={tile} />;
         case DashboardTileTypes.SQL_CHART:
-            return <SqlChartTile {...props} tile={tile} />;
+            return (
+                <SqlChartTile
+                    {...props}
+                    tile={tile}
+                    progressiveLoadingEnabled={isQueryEnabled}
+                />
+            );
         case DashboardTileTypes.HEADING:
             return <HeadingTile {...props} tile={tile} />;
         default: {
