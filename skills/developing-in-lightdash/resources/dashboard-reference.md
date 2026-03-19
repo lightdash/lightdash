@@ -41,6 +41,8 @@ tiles:
 
 **WARNING:** The `title` property is independent of the chart's own name. When you rename or repurpose a chart, you MUST also update the `title` in every dashboard tile that references it via `chartSlug`. Forgetting this leaves stale titles on the dashboard.
 
+**Chart scoping:** Charts can be scoped to a dashboard (via `dashboardSlug` on the chart YAML) or live independently in a space. See [Charts Reference](./charts-reference.md#chart-scoping) for guidance.
+
 ### SQL Chart Tile
 
 Display a SQL-based chart:
