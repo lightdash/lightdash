@@ -89,6 +89,20 @@ const FilterRuleForm: FC<Props> = memo(
             ? 'This is a required filter defined in the model configuration and cannot be removed.'
             : '';
 
+        const availableFields = useMemo(() => {
+            if (!isRequired) return fields;
+            // For required filters, restrict to same-type sub-dimensions
+            const baseFieldId = filterRule.target.fieldId;
+            return fields.filter(
+                (field) =>
+                    getItemId(field).startsWith(baseFieldId) &&
+                    getFilterTypeFromItem(field) === filterType,
+            );
+        }, [isRequired, fields, filterRule.target.fieldId, filterType]);
+
+        const isFieldSelectDisabled =
+            !isEditMode || (isRequired && availableFields.length <= 1);
+
         if (!activeField) {
             return null;
         }
@@ -102,7 +116,7 @@ const FilterRuleForm: FC<Props> = memo(
             >
                 <Tooltip
                     label={isRequiredLabel}
-                    disabled={!isRequired}
+                    disabled={!isFieldSelectDisabled}
                     withinPortal
                     variant="xs"
                     multiline
@@ -110,7 +124,7 @@ const FilterRuleForm: FC<Props> = memo(
                     <Box>
                         <FieldSelect
                             size="xs"
-                            disabled={!isEditMode || isRequired}
+                            disabled={isFieldSelectDisabled}
                             comboboxProps={{
                                 withinPortal: popoverProps?.withinPortal,
                             }}
@@ -118,7 +132,7 @@ const FilterRuleForm: FC<Props> = memo(
                             onDropdownClose={popoverProps?.onClose}
                             hasGrouping
                             item={activeField}
-                            items={fields}
+                            items={availableFields}
                             onChange={(field) => {
                                 if (!field) return;
                                 onFieldChange(getItemId(field));
