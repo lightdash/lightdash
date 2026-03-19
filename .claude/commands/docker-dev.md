@@ -171,6 +171,29 @@ Use the `/debug-local` skill for comprehensive debugging workflows combining:
 - **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
 
 Spotlight UI is available at http://localhost:8969 when running `pnpm pm2:start`.
+
+## Database Snapshots
+
+Snapshots let you save and restore the exact state of the local PostgreSQL database. Use them to:
+
+- **Preserve a bug reproduction**: After reproducing a bug, snapshot the db so you can return to that exact state later.
+- **Safeguard before mutations**: Before running migrations, seed changes, or manual SQL that alters data, take a snapshot so you can revert instantly.
+
+### Quick Commands
+
+```bash
+/docker-dev snapshot bug-repro-12345   # Save current db state with a name
+/docker-dev snapshot                   # Save with auto-generated name
+/docker-dev list-snapshots             # See all saved snapshots
+/docker-dev use-snapshot bug-repro-12345  # Restore a named snapshot (~3s)
+/docker-dev reset                      # Restore the default snapshot (from initial setup)
+```
+
+### Tips
+
+- Snapshot names must be alphanumeric with hyphens/underscores only (e.g., `pre-migration`, `with-broken-org-data`)
+- The default snapshot (used by `reset`) is separate from named snapshots — named snapshots don't overwrite it
+- The db container is briefly stopped during snapshot/restore to ensure data consistency, then automatically restarted
 EOF
 
 ````
