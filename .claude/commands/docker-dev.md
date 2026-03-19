@@ -418,6 +418,54 @@ Report which snapshot was restored and that the database is ready.
 
 Purge the snapshot volume, then do a full database reset from scratch. Automatically takes a new snapshot when done.
 
+### Pre-flight: Verify Environment Configuration
+
+Before doing any destructive work, verify that the local configuration files are correct. **Run these checks in parallel:**
+
+```bash
+# Check 1: .env.development.local exists and has required variables
+REQUIRED_VARS="PGHOST S3_ENDPOINT HEADLESS_BROWSER_HOST HEADLESS_BROWSER_PORT DBT_DEMO_DIR"
+MISSING_VARS=""
+if [ ! -f .env.development.local ]; then
+  echo "NEED: .env.development.local does not exist"
+else
+  for var in $REQUIRED_VARS; do
+    grep -q "^${var}=" .env.development.local || MISSING_VARS="$MISSING_VARS $var"
+  done
+  if [ -n "$MISSING_VARS" ]; then
+    echo "NEED: .env.development.local is missing required variables:$MISSING_VARS"
+  else
+    echo "OK: .env.development.local has all required variables"
+  fi
+fi
+
+# Check 2: CLAUDE.local.md has local dev instructions
+grep -q "## Starting Development Services" CLAUDE.local.md 2>/dev/null && echo "OK: CLAUDE.local.md has local dev instructions" || echo "NEED: CLAUDE.local.md missing local dev instructions"
+
+# Check 3: Python/dbt environment ready
+test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
+
+# Check 4: Dependencies installed
+test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies installed" || echo "NEED: Run pnpm install and build"
+```
+
+**If any checks show `NEED:`**, fix them before proceeding with the reset:
+
+- **Missing `.env.development.local`**: Create it using the "Create Environment File" steps above
+- **Missing variables in `.env.development.local`**: Add the missing variables. The required variables and their expected values are:
+  - `PGHOST=localhost`
+  - `S3_ENDPOINT=http://localhost:9000`
+  - `HEADLESS_BROWSER_HOST=localhost`
+  - `HEADLESS_BROWSER_PORT=3001`
+  - `DBT_DEMO_DIR=<absolute-path-to-repo>/examples/full-jaffle-shop-demo`
+- **Missing CLAUDE.local.md instructions**: Run the "Add Local Dev Instructions to CLAUDE.local.md" step (ask user for permission first)
+- **Missing Python/dbt**: Run the "Set Up Python/dbt" steps
+- **Missing dependencies**: Run the "Install Dependencies" steps
+
+### Perform Hard Reset
+
+Once all pre-flight checks pass:
+
 ```bash
 # Purge existing snapshot
 docker volume rm docker_postgres_data_snapshot 2>/dev/null || true
