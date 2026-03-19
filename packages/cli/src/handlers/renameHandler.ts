@@ -2,6 +2,7 @@ import {
     ApiJobScheduledResponse,
     AuthorizationError,
     getErrorMessage,
+    LightdashError,
     RenameChange,
     RenameType,
     SchedulerJobStatus,
@@ -91,9 +92,12 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         config.context.previewProject ||
         config.context.project;
     if (!projectUuid) {
-        throw new Error(
-            'No project selected. Run lightdash config set-project',
-        );
+        throw new LightdashError({
+            message: 'No project selected. Run lightdash config set-project',
+            name: 'Not Found',
+            statusCode: 404,
+            data: {},
+        });
     }
 
     // Log current project info

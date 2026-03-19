@@ -39,7 +39,7 @@ import {
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
 import { runChartHandler } from './handlers/runChart';
-import { setProjectHandler } from './handlers/setProject';
+import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
@@ -219,11 +219,13 @@ ${styles.bold('Examples:')}
 `,
     )
     .option('--token <token>', 'Login with an API access token', undefined)
-    .option(
-        '--project <project uuid>',
-        'Select a project by UUID after login',
-        parseProjectArgument,
-        undefined,
+    .addOption(
+        new Option(
+            '--project <project uuid>',
+            'Select a project by UUID after login',
+        )
+            .argParser(parseProjectArgument)
+            .conflicts('skipProjectSelection'),
     )
     .option('--email <email>', 'Login with email and password', undefined)
     .option(
@@ -276,6 +278,11 @@ configProgram
     .description('Show the currently selected project')
     .option('--verbose', undefined, false)
     .action(getProjectHandler);
+configProgram
+    .command('unset-project')
+    .description('Clear the currently selected project')
+    .option('--verbose', undefined, false)
+    .action(unsetProjectHandler);
 
 const dbtProgram = program.command('dbt').description('Runs dbt commands');
 

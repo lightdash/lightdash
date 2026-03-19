@@ -315,14 +315,22 @@ export const login = async (
         } else if (GlobalState.isNonInteractive()) {
             await setFirstProject();
         } else {
-            const project = await setProjectCommand();
+            const result = await setProjectCommand();
 
-            if (project === undefined) {
+            if (result === 'empty') {
                 console.error(
                     'Now you can add your first project to lightdash by doing: ',
                 );
                 console.error(
                     `\n  ${styles.bold(`⚡️ lightdash deploy --create`)}\n`,
+                );
+            } else if (result === 'skipped') {
+                console.error(
+                    `\n  No project selected — use ${styles.bold(
+                        'lightdash config set-project',
+                    )} or ${styles.bold(
+                        '--project <uuid>',
+                    )} when running commands.\n`,
                 );
             }
         }
