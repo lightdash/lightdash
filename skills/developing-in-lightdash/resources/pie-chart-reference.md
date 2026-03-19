@@ -222,6 +222,6 @@ legendPosition: vertical
 
 ## Related Documentation
 
-- [Chart Types Reference](chart-types-reference.md)
+- [Charts Reference](./charts-reference.md)
 - [Metrics Reference](metrics-reference.md)
 - [Dimensions Reference](dimensions-reference.md)

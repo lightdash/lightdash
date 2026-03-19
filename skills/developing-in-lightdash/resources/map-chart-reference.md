@@ -218,6 +218,6 @@ colorRange: ["#dc2626", "#f3f4f6", "#22c55e"]
 
 ## Related Resources
 
-- [Chart Types Reference](./chart-types-reference.md) - Other visualization types
+- [Charts Reference](./charts-reference.md) - Other visualization types
 - [Metrics Reference](./metrics-reference.md) - Creating metrics for maps
 - [Dimensions Reference](./dimensions-reference.md) - Location dimensions
