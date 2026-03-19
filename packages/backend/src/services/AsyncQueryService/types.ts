@@ -16,6 +16,7 @@ import {
     type ResultsPaginationArgs,
     type RunQueryTags,
     type SortField,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 
 export type CommonAsyncQueryArgs = {
@@ -24,6 +25,7 @@ export type CommonAsyncQueryArgs = {
     invalidateCache?: boolean;
     context: QueryExecutionContext;
     parameters?: ParametersValuesMap;
+    userAttributeOverrides?: UserAttributeValueMap;
 };
 
 export type GetAsyncQueryResultsArgs = Omit<
