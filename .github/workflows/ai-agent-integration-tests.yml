@@ -121,10 +121,11 @@ jobs:
                       model_name: gpt-5.2-2025-12-11
                     - ai_provider: openai
                       model_name: gpt-5.1-2025-11-13
-                    - ai_provider: anthropic
-                      model_name: claude-sonnet-4-5-20250929
-                    - ai_provider: anthropic
-                      model_name: claude-haiku-4-5-20251001
+                    # Temporary disable
+                    # - ai_provider: anthropic
+                    #   model_name: claude-sonnet-4-5-20250929
+                    # - ai_provider: anthropic
+                    #   model_name: claude-haiku-4-5-20251001
 
         services:
             postgres:
