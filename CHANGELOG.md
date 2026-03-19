@@ -1,3 +1,10 @@
+## [0.2639.2](https://github.com/lightdash/lightdash/compare/0.2639.1...0.2639.2) (2026-03-19)
+
+
+### Bug Fixes
+
+* temporarily disable Anthropic models in AI agent integration tests ([#21247](https://github.com/lightdash/lightdash/issues/21247)) ([2b63516](https://github.com/lightdash/lightdash/commit/2b63516a2dd53e5ca2c6617579473936aac10e10))
+
 ## [0.2639.1](https://github.com/lightdash/lightdash/compare/0.2639.0...0.2639.1) (2026-03-19)
 
 
