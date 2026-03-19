@@ -15,7 +15,7 @@ const isChartTile = (tile: Dashboard['tiles'][number]): boolean =>
     CHART_TILE_TYPES.includes(tile.type as ChartTileType);
 
 type TabWarning = {
-    tabUuid: string | undefined;
+    tabUuid: string | null | undefined;
     tabName: string;
     chartCount: number;
     limit: number;
@@ -60,7 +60,7 @@ const useDashboardPerformanceWarning = (
         }
 
         // Group chart tiles by tab
-        const chartTilesByTab = new Map<string | undefined, number>();
+        const chartTilesByTab = new Map<string | null | undefined, number>();
 
         dashboardTiles.forEach((tile) => {
             if (isChartTile(tile)) {

@@ -1411,7 +1411,7 @@ const DashboardProvider: React.FC<
 
     const tileTabsById = useMemo(() => {
         if (!dashboardTiles) return {};
-        return dashboardTiles.reduce<Record<string, string | undefined>>(
+        return dashboardTiles.reduce<Record<string, string | null | undefined>>(
             (acc, tile) => {
                 acc[tile.uuid] = tile.tabUuid;
                 return acc;

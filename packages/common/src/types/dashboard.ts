@@ -28,7 +28,7 @@ type CreateDashboardTileBase = {
     y: number;
     h: number;
     w: number;
-    tabUuid: string | undefined;
+    tabUuid: string | null | undefined;
 };
 
 type DashboardTileBase = Required<CreateDashboardTileBase>;

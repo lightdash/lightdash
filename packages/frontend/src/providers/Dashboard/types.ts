@@ -31,7 +31,7 @@ export type TilePreAggregateStatus = {
     preAggregateName: string | null;
     reason: PreAggregateMatchMiss | null;
     hasPreAggregateMetadata: boolean;
-    tabUuid: string | undefined;
+    tabUuid: string | null | undefined;
 };
 
 export type DashboardContextType = {

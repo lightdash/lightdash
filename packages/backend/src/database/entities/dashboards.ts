@@ -59,7 +59,7 @@ type DbCreateDashboardTile = {
     y_offset: number;
     height: number;
     width: number;
-    tab_uuid: string | undefined;
+    tab_uuid: string | null | undefined;
 };
 
 type DbDashboardTile = Required<DbCreateDashboardTile>;
