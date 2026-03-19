@@ -76,4 +76,10 @@ tableConfig:
 
 **Default to `dashboardSlug`** when creating a chart for a specific dashboard. Only omit it when the chart needs to be shared across multiple dashboards.
 
+### Avoiding Unused Dimension Warnings
+
+**Every dimension in `metricQuery.dimensions` must be used in the chart configuration.** For cartesian charts, this means each dimension must appear in at least one of: `layout.xField`, `layout.yField`, or `pivotConfig.columns`. Dimensions in the query but not referenced in the chart config cause a "Results may be incorrect" warning — the extra dimension changes SQL grouping and can produce wrong numbers.
+
+**Rule**: Only include dimensions you actually display. If a dimension isn't on an axis or used as a pivot, remove it from `metricQuery.dimensions`.
+
 See individual chart reference files for type-specific `chartConfig.config` options.
