@@ -358,4 +358,7 @@ export const lightdashConfigMock: LightdashConfig = {
     userImpersonation: {
         enabled: undefined,
     },
+    formulaTableCalculations: {
+        enabled: false,
+    },
 };

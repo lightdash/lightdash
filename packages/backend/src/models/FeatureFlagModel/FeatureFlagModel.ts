@@ -50,6 +50,8 @@ export class FeatureFlagModel {
                 this.getGoogleChatEnabled.bind(this),
             [FeatureFlags.UserImpersonation]:
                 this.getUserImpersonationEnabled.bind(this),
+            [FeatureFlags.FormulaTableCalculations]:
+                this.getFormulaTableCalculationsEnabled.bind(this),
         };
     }
 
@@ -289,6 +291,15 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled,
+        };
+    }
+
+    private async getFormulaTableCalculationsEnabled({
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        return {
+            id: featureFlagId,
+            enabled: this.lightdashConfig.formulaTableCalculations.enabled,
         };
     }
 

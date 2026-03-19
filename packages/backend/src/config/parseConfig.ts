@@ -1111,6 +1111,9 @@ export type LightdashConfig = {
     userImpersonation: {
         enabled: boolean | undefined;
     };
+    formulaTableCalculations: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -2043,6 +2046,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.USER_IMPERSONATION_ENABLED === 'true'
                     ? true
                     : undefined,
+        },
+        formulaTableCalculations: {
+            enabled: process.env.FORMULA_TABLE_CALCULATIONS_ENABLED === 'true',
         },
     };
 };

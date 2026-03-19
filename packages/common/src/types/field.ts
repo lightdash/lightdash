@@ -521,6 +521,10 @@ export type TableCalculation = {
           /** Template-based calculation (alternative to sql) */
           template: TableCalculationTemplate;
       }
+    | {
+          /** Spreadsheet-style formula expression (compiled to SQL on the backend) */
+          formula: string;
+      }
 );
 
 export type TableCalculationMetadata = {
@@ -541,7 +545,8 @@ export const isTableCalculation = (
     item
         ? !isCustomDimension(item) &&
           (!!('sql' in item && item.sql) ||
-              !!('template' in item && item.template)) &&
+              !!('template' in item && item.template) ||
+              !!('formula' in item && item.formula)) &&
           !('description' in item) &&
           !('tableName' in item) &&
           'displayName' in item
@@ -556,6 +561,11 @@ export const isTemplateTableCalculation = (
     calc: TableCalculation,
 ): calc is TableCalculation & { template: TableCalculationTemplate } =>
     !!calc && 'template' in calc && !!calc.template;
+
+export const isFormulaTableCalculation = (
+    calc: TableCalculation,
+): calc is TableCalculation & { formula: string } =>
+    !!calc && 'formula' in calc && !!calc.formula && calc.formula.length > 0;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;

@@ -93,6 +93,11 @@ export enum FeatureFlags {
      * Enable custom group bins for string dimensions
      */
     CustomGroupBins = 'custom-group-bins',
+
+    /**
+     * Enable spreadsheet-style formula table calculations as an alternative to raw SQL
+     */
+    FormulaTableCalculations = 'formula-table-calculations',
 }
 
 export type FeatureFlag = {

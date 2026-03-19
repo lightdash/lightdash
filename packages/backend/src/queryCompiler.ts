@@ -13,6 +13,7 @@ import {
     ExploreCompiler,
     getItemId,
     isCustomBinDimension,
+    isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
     isSqlTableCalculation,
@@ -25,6 +26,12 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
+
+/**
+ * Stub formula compiler — will be replaced with the real spreadsheet formula library.
+ * For now, returns a hardcoded SQL expression for testing the plumbing.
+ */
+const compileFormulaTableCalculation = (_formula: string): string => '100';
 
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
@@ -68,7 +75,19 @@ const buildTableCalculationDependencyGraph = (
             };
         }
 
-        throw new CompileError(`Table calculation has no SQL or template`, {});
+        if (isFormulaTableCalculation(calc)) {
+            // Formula table calcs are compiled on the backend;
+            // the stub compiler has no field dependencies for now
+            return {
+                name: calc.name,
+                dependencies: [],
+            };
+        }
+
+        throw new CompileError(
+            `Table calculation has no SQL, template, or formula`,
+            {},
+        );
     });
 
 const compileTableCalculation = (
@@ -148,7 +167,23 @@ const compileTableCalculation = (
         };
     }
 
-    throw new CompileError(`Table calculation has no SQL or template`, {});
+    if (isFormulaTableCalculation(tableCalculation)) {
+        // Stub: replace with real formula compiler library
+        const compiledSql = compileFormulaTableCalculation(
+            tableCalculation.formula,
+        );
+
+        return {
+            ...tableCalculation,
+            compiledSql,
+            dependsOn: tableCalcDependencies,
+        };
+    }
+
+    throw new CompileError(
+        `Table calculation has no SQL, template, or formula`,
+        {},
+    );
 };
 
 const compileTableCalculations = (
