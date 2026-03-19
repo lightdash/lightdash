@@ -135,6 +135,7 @@ import Logger from '../logging/logger';
 import type { PreAggregateModel } from '../models/PreAggregateModel';
 import { isFeatureFlagEnabled } from '../postHog';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
 import {
     CsvService,
@@ -549,6 +550,7 @@ export default class SchedulerTask {
                                     columnOrder: chart.tableConfig.columnOrder,
                                     expirationSecondsOverride,
                                 },
+                                SCHEDULER_POLLING_OPTIONS,
                             );
                         csvUrl = {
                             filename: ExcelService.generateFileId(chart.name),
@@ -688,6 +690,7 @@ export default class SchedulerTask {
                                                 chart.tableConfig.columnOrder,
                                             expirationSecondsOverride,
                                         },
+                                        SCHEDULER_POLLING_OPTIONS,
                                     );
                                 return {
                                     chartName: chart.name,
@@ -764,6 +767,7 @@ export default class SchedulerTask {
                                                 ),
                                             expirationSecondsOverride,
                                         },
+                                        SCHEDULER_POLLING_OPTIONS,
                                     );
                                 return {
                                     chartName: chart.name,
@@ -2158,13 +2162,16 @@ export default class SchedulerTask {
                 rows,
                 fields: itemMap,
                 pivotDetails,
-            } = await this.asyncQueryService.executeMetricQueryAndGetResults({
-                account,
-                projectUuid: payload.projectUuid,
-                metricQuery,
-                context: QueryExecutionContext.GSHEETS,
-                pivotConfiguration,
-            });
+            } = await this.asyncQueryService.executeMetricQueryAndGetResults(
+                {
+                    account,
+                    projectUuid: payload.projectUuid,
+                    metricQuery,
+                    context: QueryExecutionContext.GSHEETS,
+                    pivotConfiguration,
+                },
+                SCHEDULER_POLLING_OPTIONS,
+            );
 
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
@@ -2745,6 +2752,7 @@ export default class SchedulerTask {
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
                     },
+                    SCHEDULER_POLLING_OPTIONS,
                 );
 
                 if (thresholds !== undefined && thresholds.length > 0) {
@@ -2911,6 +2919,7 @@ export default class SchedulerTask {
                                 pivotResults: shouldPivotChart,
                                 parameters: dashboardParameters,
                             },
+                            SCHEDULER_POLLING_OPTIONS,
                         );
                         const showTableNames = isTableChartConfig(
                             chart.chartConfig.config,
@@ -3313,6 +3322,7 @@ export default class SchedulerTask {
                                 chartUuid: savedChartUuid,
                                 context: QueryExecutionContext.SCHEDULED_CHART,
                             },
+                            SCHEDULER_POLLING_OPTIONS,
                         );
 
                     if (
@@ -3957,19 +3967,22 @@ export default class SchedulerTask {
         const chart =
             await this.schedulerService.savedChartModel.get(chartUuid);
         const downloadResult =
-            await this.asyncQueryService.downloadSyncQueryResults({
-                account,
-                projectUuid,
-                queryUuid: query.queryUuid,
-                type: DownloadFileType.CSV,
-                onlyRaw: false,
-                customLabels: getCustomLabelsFromTableConfig(
-                    chart.chartConfig.config,
-                ),
-                hiddenFields: getHiddenTableFields(chart.chartConfig),
-                pivotConfig: getPivotConfig(chart),
-                columnOrder: chart.tableConfig.columnOrder,
-            });
+            await this.asyncQueryService.downloadSyncQueryResults(
+                {
+                    account,
+                    projectUuid,
+                    queryUuid: query.queryUuid,
+                    type: DownloadFileType.CSV,
+                    onlyRaw: false,
+                    customLabels: getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    ),
+                    hiddenFields: getHiddenTableFields(chart.chartConfig),
+                    pivotConfig: getPivotConfig(chart),
+                    columnOrder: chart.tableConfig.columnOrder,
+                },
+                SCHEDULER_POLLING_OPTIONS,
+            );
         return {
             chartName: chart.name,
             filename: chart.name,
@@ -4016,22 +4029,31 @@ export default class SchedulerTask {
             },
         );
         const downloadResult =
-            await this.asyncQueryService.downloadSyncQueryResults({
-                account,
-                projectUuid,
-                queryUuid: query.queryUuid,
-                type: DownloadFileType.CSV,
-                onlyRaw: false,
-                customLabels: getCustomLabelsFromVizTableConfig(
-                    isVizTableConfig(chart.config) ? chart.config : undefined,
-                ),
-                hiddenFields: getHiddenFieldsFromVizTableConfig(
-                    isVizTableConfig(chart.config) ? chart.config : undefined,
-                ),
-                columnOrder: getColumnOrderFromVizTableConfig(
-                    isVizTableConfig(chart.config) ? chart.config : undefined,
-                ),
-            });
+            await this.asyncQueryService.downloadSyncQueryResults(
+                {
+                    account,
+                    projectUuid,
+                    queryUuid: query.queryUuid,
+                    type: DownloadFileType.CSV,
+                    onlyRaw: false,
+                    customLabels: getCustomLabelsFromVizTableConfig(
+                        isVizTableConfig(chart.config)
+                            ? chart.config
+                            : undefined,
+                    ),
+                    hiddenFields: getHiddenFieldsFromVizTableConfig(
+                        isVizTableConfig(chart.config)
+                            ? chart.config
+                            : undefined,
+                    ),
+                    columnOrder: getColumnOrderFromVizTableConfig(
+                        isVizTableConfig(chart.config)
+                            ? chart.config
+                            : undefined,
+                    ),
+                },
+                SCHEDULER_POLLING_OPTIONS,
+            );
         return {
             chartName: chart.name,
             filename: chart.name,
