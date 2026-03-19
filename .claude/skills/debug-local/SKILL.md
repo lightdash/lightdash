@@ -263,6 +263,8 @@ For testing authenticated flows:
 
 ## API Access (Personal Access Token)
 
+**Prefer this method over using `fetch()` via Chrome DevTools MCP for API calls.** `curl` with the PAT is faster, more reliable, and doesn't require a browser session or page context. Reserve browser MCP tools for UI interaction and visual debugging only.
+
 A dev PAT is auto-provisioned by the seed data. Use it for direct API calls without browser login:
 
 ```bash
