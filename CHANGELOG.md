@@ -1,3 +1,10 @@
+# [0.2639.0](https://github.com/lightdash/lightdash/compare/0.2638.1...0.2639.0) (2026-03-19)
+
+
+### Features
+
+* add version tracking for claude skill ([#21240](https://github.com/lightdash/lightdash/issues/21240)) ([47e63bb](https://github.com/lightdash/lightdash/commit/47e63bb003cddfb0000c391d0e1f84009f109fa8))
+
 ## [0.2638.1](https://github.com/lightdash/lightdash/compare/0.2638.0...0.2638.1) (2026-03-18)
 
 
