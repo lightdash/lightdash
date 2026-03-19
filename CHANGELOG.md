@@ -1,3 +1,10 @@
+## [0.2642.1](https://github.com/lightdash/lightdash/compare/0.2642.0...0.2642.1) (2026-03-19)
+
+
+### Bug Fixes
+
+* add userAttributeOverrides support to async query execution ([#21260](https://github.com/lightdash/lightdash/issues/21260)) ([4e06df3](https://github.com/lightdash/lightdash/commit/4e06df3637ec91303be7d171aba104348ecb05aa)), closes [#19656](https://github.com/lightdash/lightdash/issues/19656) [#18521](https://github.com/lightdash/lightdash/issues/18521)
+
 # [0.2642.0](https://github.com/lightdash/lightdash/compare/0.2641.0...0.2642.0) (2026-03-19)
 
 
