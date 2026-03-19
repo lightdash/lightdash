@@ -178,7 +178,231 @@ Also: do not treat existing `CompiledMetric.compiledValueSql` as the universal A
 
 ---
 
+## De-risking Principles
+
+- Revert any previously committed backend changes for this feature before continuing implementation
+- Treat current backend behavior as the baseline to preserve
+- Use Strategy pattern to keep rollout logic separate from SQL assembly
+- Keep existing functionality unchanged when the new rollout flag is off
+- Ship the compiler contract before changing query behavior
+- Fail closed:
+  - if any required raw metric input is missing, force `drop`
+  - never silently fall back to incorrect `SUM(...)`
+- Narrow v1 scope to distinct-only value sets:
+  - `COUNT_DISTINCT`
+  - `SUM_DISTINCT`
+  - `AVERAGE_DISTINCT`
+- Keep mixed distinct + additive charts as `drop` until the raw path is proven in production-like tests
+- Keep the separate null-group ranking/join bug out of the first implementation
+- Add result-level differential tests, not only SQL snapshots
+
+## De-risked Rollout
+
+### Phase 0: Re-baseline current behavior
+
+Before implementing the new raw distinct `"Other"` path:
+
+- revert any backend changes that were previously committed specifically for this feature work
+- re-establish the current backend behavior as the source-of-truth baseline
+- add regression coverage for current flag-off behavior:
+  - no group limit
+  - existing `fast_other`
+  - existing `drop`
+- confirm the emitted SQL and results remain unchanged for the current paths before introducing the new strategy
+
+This is important because the goal is to add a new opt-in backend capability, not to silently reshape existing functionality.
+
+### Phase 1: Safe shippable fix
+
+Implement only:
+
+- `reAggregation` metadata
+- `pivotSource` compiler contract
+- service wiring for `pivotSource`
+- raw `"Other"` recomputation for charts where **all** value columns are distinct-style metrics and every metric has the required raw contract
+
+Keep as `drop` in phase 1:
+
+- mixed distinct + additive charts
+- unsupported/non-additive metrics
+- any path missing `pivotSource`
+
+This lands the correctness fix for the broken cases without taking on mixed-metric raw aggregation in the same release.
+
+### Phase 2: Follow-up expansion
+
+After phase 1 is stable, extend raw `"Other"` support to mixed charts where additive metrics also have explicit `pivotSource.metricInputs[metricId].strategy === 'standard'` coverage.
+
+### Phase 3: Separate cleanup
+
+Handle the null-ranking/null-join bug in its own PR unless implementation pressure makes that impossible. It is real, but it is not required to fix distinct-style `"Other"` correctness.
+
+---
+
+## Refactoring Approach
+
+Use Refactoring.Guru's "replace conditional with polymorphism" here.
+
+Instead of growing `PivotQueryBuilder` into a large branching tree, introduce a small planner / strategy layer that chooses one execution mode and explains why.
+
+Also use Refactoring.Guru-style extraction refactors to preserve current behavior:
+
+- Extract Class
+  - move the existing `fast_other` path into `FastOtherStrategy`
+  - move the existing `drop` path into `DropUnsupportedStrategy`
+- Move Method
+  - move SQL-assembly helpers into the owning strategy without rewriting their semantics
+
+The rule is:
+
+- extract existing behavior first
+- verify it is unchanged
+- then add the new `RawDistinctOtherStrategy`
+
+Do not "clean up" or rewrite existing SQL generation while introducing the new strategy. The new work should be additive.
+
+```typescript
+type GroupLimitStrategyId =
+    | 'none'
+    | 'fast_other'
+    | 'raw_distinct_other'
+    | 'drop';
+
+type GroupLimitFlags = {
+    groupLimitEnabled: boolean;
+    rawDistinctOtherEnabled: boolean;
+};
+
+type GroupLimitPlannerContext = {
+    pivotConfiguration: PivotConfiguration;
+    pivotSource?: CompiledQuery['pivotSource'];
+    groupLimitFlags: GroupLimitFlags;
+};
+
+interface GroupLimitStrategy {
+    id: GroupLimitStrategyId;
+    supports(ctx: GroupLimitPlannerContext): boolean;
+    build(args: BuildArgs): GroupLimitBuildResult;
+}
+```
+
+Concrete strategies:
+
+- `NoGroupLimitStrategy`
+- `FastOtherStrategy`
+  - the existing additive aggregate-over-aggregate path
+- `RawDistinctOtherStrategy`
+  - the new raw `pivot_source` path
+  - phase 1 supports distinct-only value sets
+- `DropUnsupportedStrategy`
+  - explicit fail-closed fallback
+
+And a factory/planner:
+
+```typescript
+class GroupLimitStrategyFactory {
+    static select(ctx: GroupLimitPlannerContext): GroupLimitStrategySelection;
+}
+```
+
+Where `GroupLimitStrategySelection` includes:
+
+- the chosen strategy
+- a reason string, for example:
+  - `group_limit_disabled`
+  - `missing_pivot_source`
+  - `mixed_metrics_phase_1`
+  - `unsupported_metric_type`
+  - `raw_distinct_flag_disabled`
+
+This keeps:
+
+- feature-flag checks
+- support detection
+- fallback behavior
+
+out of the low-level SQL assembly methods.
+
+### Feature-flag relationship
+
+Tie the backend rollout to the existing frontend group-limit flag.
+
+- Shared parent flag:
+  - `FeatureFlags.GroupLimitEnabled`
+- New backend rollout flag:
+  - `FeatureFlags.GroupLimitRawDistinctOther`
+  - exact name can vary, but it should clearly scope the new raw distinct `"Other"` strategy
+
+Selection rule:
+
+- if `groupLimit.enabled` is false in the query config:
+  - use `none`
+- if `groupLimit.enabled` is true but `GroupLimitRawDistinctOther` is off:
+  - never choose `raw_distinct_other`
+- if `groupLimit.enabled` is true and `GroupLimitRawDistinctOther` is on:
+  - `raw_distinct_other` is eligible only when `GroupLimitEnabled` is also on and the metric capabilities are complete
+
+Important nuance:
+
+- `GroupLimitEnabled` is the product-level parent gate already used by the frontend
+- the backend must resolve that same flag server-side rather than trusting the client
+- the new rollout flag is a child gate for the new strategy, not a replacement for the existing feature
+
+Compatibility rule:
+
+- when `GroupLimitRawDistinctOther` is off, backend behavior must remain equivalent to today's behavior
+- the existing `fast_other` and `drop` paths should not change semantics as part of this project
+
+Recommended frontend consistency cleanup:
+
+- migrate group-limit UI checks from `useClientFeatureFlag(FeatureFlags.GroupLimitEnabled)` to `useServerFeatureFlag(FeatureFlags.GroupLimitEnabled)` where practical
+- that keeps frontend visibility and backend strategy selection on the same server-resolved flag path
+
+---
+
 ## Implementation Plan
+
+### Step 0: Introduce strategy selection and feature-flag plumbing
+
+**Files:**
+
+- `packages/common/src/types/featureFlags.ts`
+- `packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts`
+- `packages/backend/src/services/ProjectService/ProjectService.ts`
+- `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
+- `packages/backend/src/services/AsyncQueryService/PreAggregationDuckDbClient.ts`
+- `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`
+
+Add the new rollout flag:
+
+```typescript
+FeatureFlags.GroupLimitRawDistinctOther = 'group-limit-raw-distinct-other';
+```
+
+Resolve feature flags once in the service layer, not inside query-builder utilities.
+
+Recommended resolution flow:
+
+- `ProjectService` / `AsyncQueryService` resolve:
+  - `FeatureFlags.GroupLimitEnabled`
+  - `FeatureFlags.GroupLimitRawDistinctOther`
+- `PreAggregationDuckDbClient` receives the resolved booleans as an argument
+- `PivotQueryBuilder` receives a planner context or constructor arg carrying those flags
+
+This keeps feature-flag evaluation:
+
+- deterministic for a request
+- easy to test
+- independent from PostHog/network concerns inside SQL planning code
+
+Implementation constraint:
+
+- do not change the semantics of the current backend path in this step
+- only introduce the planner, flags, and extraction points needed to preserve current behavior under the existing path
+
+**Risk:** Low
+
+---
 
 ### Step 1: Extend pivot value metadata
 
@@ -376,6 +600,14 @@ That includes:
 
 `ProjectService.pivotQueryWorkerTask()` is different because it starts from arbitrary SQL Runner SQL rather than a compiled metric query. That path cannot produce `pivotSource`, so it must safely fall back to `drop` when `valuesColumns` request a raw re-aggregation strategy.
 
+At the same time, thread the resolved `GroupLimitFlags` into the strategy planner so the final grouping decision is based on:
+
+- query config (`groupLimit.enabled`)
+- shared/product flag state
+- rollout flag state
+- metric capabilities
+- presence/completeness of `pivotSource`
+
 If `"Other"` needs raw distinct re-aggregation and `pivotSource` is missing:
 
 - do not silently fall back to wrong `SUM(...)`
@@ -390,6 +622,8 @@ This is the correct fallback for SQL Runner and any future path that lacks `pivo
 ### Step 5: Build a raw `"Other"` path in PivotQueryBuilder
 
 **File:** `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`
+
+Do this behind the new strategy layer, not by growing the existing inline `if/else` logic.
 
 When `groupingMode === 'other'` and any `valuesColumn.reAggregation` is distinct-style:
 
@@ -469,6 +703,10 @@ bucketed_keys AS (
 This CTE is the anchor for `group_by_query` assembly.
 
 #### 5f. Aggregate non-distinct metrics from `bucketed_source`
+
+Phase 2 only.
+
+In the de-risked phase-1 rollout, skip this path entirely and keep mixed charts on `drop`. Additive mixed-metric support should only be enabled after the distinct-only raw path has landed with strong result-level verification.
 
 Create one aggregate CTE for standard metrics:
 
@@ -560,20 +798,33 @@ This keeps the rest of the pivot pipeline unchanged.
 
 Support matrix for `"Other"`:
 
+Phase 1 support:
+
 - `COUNT_DISTINCT`
   - supported via raw `bucketed_source`
 - `SUM_DISTINCT`
   - supported via raw `bucketed_source` + dedup CTE
 - `AVERAGE_DISTINCT`
   - supported via raw `bucketed_source` + dedup CTE
-- additive metrics in mixed charts
-  - supported only when `MetricQueryBuilder` emits a `pivotSource.metricInputs[metricId].strategy === 'standard'`
+- charts where all value columns are one of the above and all required raw inputs are present
+  - supported
+- mixed distinct + additive charts
+  - force `drop` in phase 1
 - unsupported metrics
   - `MEDIAN`, `PERCENTILE`, post-aggregation table calcs, etc.
   - continue to force `drop`
-- missing `pivotSource`
+- missing or incomplete `pivotSource`
   - force `drop`
   - never fall back to incorrect `SUM(...)`
+- `GroupLimitRawDistinctOther` disabled
+  - never choose `raw_distinct_other`
+- `GroupLimitEnabled` disabled server-side
+  - `raw_distinct_other` is not eligible, even if the request contains `groupLimit`
+
+Phase 2 expansion:
+
+- additive metrics in mixed charts
+  - support only when `MetricQueryBuilder` emits a `pivotSource.metricInputs[metricId].strategy === 'standard'`
 
 **Risk:** Low
 
@@ -602,6 +853,20 @@ If there are existing `MetricQueryBuilder` tests for distinct-metric CTE generat
 
 Also add/update tests for:
 
+- baseline-preservation tests
+  - existing `fast_other` SQL path remains unchanged when `GroupLimitRawDistinctOther` is off
+  - existing `drop` behavior remains unchanged when `GroupLimitRawDistinctOther` is off
+  - no-group-limit path remains unchanged
+- strategy-selection tests
+  - `none`
+  - `fast_other`
+  - `raw_distinct_other`
+  - `drop`
+  - reason strings for each fallback path
+- feature-flag gating tests
+  - `GroupLimitRawDistinctOther` off keeps current behavior
+  - `GroupLimitRawDistinctOther` on + `GroupLimitEnabled` off does not enable raw strategy
+  - `GroupLimitRawDistinctOther` on + `GroupLimitEnabled` on enables raw strategy only for supported charts
 - `packages/common/src/pivot/derivePivotConfigFromChart.test.ts`
   - `COUNT_DISTINCT`, `SUM_DISTINCT`, and `AVERAGE_DISTINCT` get `reAggregation` metadata when `groupLimit.enabled`
   - unsupported metrics still force `drop`
@@ -609,6 +874,9 @@ Also add/update tests for:
   - `ProjectService.compileQuery`
   - `AsyncQueryService`
   - `PreAggregationDuckDbClient`
+- result-level differential tests on seeded data
+  - compare pivoted `"Other"` results against a direct raw-row correctness query for `COUNT_DISTINCT`, `SUM_DISTINCT`, and `AVERAGE_DISTINCT`
+  - assert phase-1 mixed charts still choose `drop`
 
 ---
 
@@ -616,14 +884,17 @@ Also add/update tests for:
 
 | File | Change | Risk |
 |------|--------|------|
+| `packages/common/src/types/featureFlags.ts` | Add backend rollout flag for raw distinct `"Other"` strategy | Low |
 | `packages/common/src/types/sqlRunner.ts` | Add `reAggregation` metadata to `ValuesColumn` | Low |
 | `packages/common/src/pivot/derivePivotConfigFromChart.ts` | Attach raw re-aggregation metadata; update support detection | Medium |
+| `packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts` | Resolve the new rollout flag under the existing `GroupLimitEnabled` parent gate | Medium |
 | `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` | Expose fully-formed `pivotSource` query and metric input aliases | High |
 | `packages/backend/src/services/ProjectService/ProjectService.ts` | Thread `pivotSource` into `PivotQueryBuilder` for `compileQuery` and keep SQL Runner on safe fallback behavior | Medium |
 | `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts` | Pass `pivotSource` to `PivotQueryBuilder` | Low |
 | `packages/backend/src/services/AsyncQueryService/PreAggregationDuckDbClient.ts` | Pass `pivotSource` to `PivotQueryBuilder` for DuckDB pre-aggregation execution | Medium |
 | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts` | Add raw `"Other"` path with scope, bucketing, standard metric aggregate CTE, and distinct metric CTEs | **High** |
 | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts` | Add coverage for distinct `"Other"` SQL generation | Medium |
+| `packages/frontend/src/hooks/useServerOrClientFeatureFlag.ts` and group-limit UI call sites | Optional consistency cleanup so frontend and backend read `GroupLimitEnabled` through the same server-resolved path | Low |
 
 If `ValuesColumn` changes shape, regenerate the TSOA route schemas with `pnpm generate-api`. `PivotConfiguration` is request-validated through the generated route metadata, so shared type changes here are not purely internal.
 
