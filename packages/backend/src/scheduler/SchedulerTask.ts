@@ -3729,7 +3729,7 @@ export default class SchedulerTask {
 
                 const limit = pLimit(5);
 
-                const isInSelectedTab = (tile: { tabUuid?: string }) =>
+                const isInSelectedTab = (tile: { tabUuid?: string | null }) =>
                     !selectedTabs ||
                     !tile.tabUuid ||
                     selectedTabs.includes(tile.tabUuid);

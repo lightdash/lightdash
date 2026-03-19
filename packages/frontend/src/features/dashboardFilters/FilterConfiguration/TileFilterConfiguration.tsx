@@ -47,7 +47,7 @@ type TileWithTargetFields = {
     tileChartKind?: ChartKind | undefined;
     sortedFilters: Field[] | undefined;
     selectedField: Field | undefined;
-    tabUuid?: string;
+    tabUuid?: string | null;
     hasExactMatch: boolean;
 };
 
@@ -61,7 +61,7 @@ type TileWithTargetColumns = {
     tileChartKind?: ChartKind | undefined;
     sortedFilters: string[];
     selectedField: string | undefined;
-    tabUuid?: string;
+    tabUuid?: string | null;
     hasExactMatch: boolean;
 };
 
