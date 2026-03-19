@@ -113,6 +113,11 @@ EMAIL_SMTP_USE_AUTH=false
 EMAIL_SMTP_ALLOW_INVALID_CERT=true
 EMAIL_SMTP_SENDER_NAME=Lightdash
 EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
+
+# Dev API access (auto-provisioned PAT from seed data)
+# Not used by the app — only for agent/skill convenience (e.g. debug-local curl commands)
+LIGHTDASH_API_URL=http://localhost:8080
+LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 EOF
 ```
 
