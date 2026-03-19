@@ -2,6 +2,7 @@ import { ActionIcon, CopyButton, Group, Tooltip } from '@mantine-8/core';
 import {
     IconCheck,
     IconClipboard,
+    IconCode,
     IconTextWrap,
     IconTextWrapDisabled,
 } from '@tabler/icons-react';
@@ -12,9 +13,21 @@ export const SqlEditorActions: FC<{
     isSoftWrapEnabled: boolean;
     clipboardContent?: string | undefined;
     onToggleSoftWrap: () => void;
-}> = ({ isSoftWrapEnabled, onToggleSoftWrap, clipboardContent }) => {
+    onFormat?: () => void;
+}> = ({ isSoftWrapEnabled, onToggleSoftWrap, clipboardContent, onFormat }) => {
     return (
         <Group pos="absolute" bottom={5} right={12} gap="xxs">
+            {onFormat && (
+                <Tooltip label="Format SQL" withArrow position="left">
+                    <ActionIcon
+                        onClick={onFormat}
+                        color="ldLight"
+                        variant="outline"
+                    >
+                        <MantineIcon icon={IconCode} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
             <Tooltip
                 label={
                     isSoftWrapEnabled
