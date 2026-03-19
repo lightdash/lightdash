@@ -2613,9 +2613,15 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         projectUuid,
         pivotConfiguration,
+        userAttributeOverrides,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
-        'account' | 'metricQuery' | 'dateZoom' | 'parameters' | 'projectUuid'
+        | 'account'
+        | 'metricQuery'
+        | 'dateZoom'
+        | 'parameters'
+        | 'projectUuid'
+        | 'userAttributeOverrides'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -2623,8 +2629,11 @@ export class AsyncQueryService extends ProjectService {
     }) {
         assertIsAccountWithOrg(account);
 
-        const { userAttributes, intrinsicUserAttributes } =
+        const { userAttributes: dbUserAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
+        const userAttributes = userAttributeOverrides
+            ? { ...dbUserAttributes, ...userAttributeOverrides }
+            : dbUserAttributes;
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
@@ -3234,6 +3243,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache,
         parameters,
         pivotConfiguration,
+        userAttributeOverrides,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -3326,6 +3336,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            userAttributeOverrides,
         });
         const prepareMs = Date.now() - prepareStart;
 

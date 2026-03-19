@@ -1705,6 +1705,7 @@ export class McpService extends BaseService {
                     additionalMetrics: additionalMetrics ?? [],
                 },
                 context: QueryExecutionContext.MCP,
+                userAttributeOverrides,
             });
 
         return { agentContext, runAsyncQuery };
