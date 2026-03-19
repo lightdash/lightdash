@@ -1,3 +1,15 @@
+# [0.2641.0](https://github.com/lightdash/lightdash/compare/0.2640.0...0.2641.0) (2026-03-19)
+
+
+### Bug Fixes
+
+* saving chart to dashbaord from explore ([#21254](https://github.com/lightdash/lightdash/issues/21254)) ([6b41c45](https://github.com/lightdash/lightdash/commit/6b41c45b9973aa83781aa59546c6afa9c6117c37))
+
+
+### Features
+
+* teach lightdash skill about 'chart (only) in dashboard' ([#21252](https://github.com/lightdash/lightdash/issues/21252)) ([6ec3990](https://github.com/lightdash/lightdash/commit/6ec3990f83ebbf50140f52142ad99b178a9ebcea))
+
 # [0.2640.0](https://github.com/lightdash/lightdash/compare/0.2639.2...0.2640.0) (2026-03-19)
 
 
