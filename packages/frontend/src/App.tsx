@@ -1,5 +1,6 @@
 import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
+import { Provider as ReduxProvider } from 'react-redux';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { DocumentTitle } from './components/common/DocumentTitle';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
@@ -22,6 +23,7 @@ import SchedulerJobsProvider from './providers/SchedulerJobs/SchedulerJobsProvid
 import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 import Routes from './Routes';
+import { store } from './store';
 
 // const isMobile =
 //     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -78,7 +80,9 @@ const App = () => (
             <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>
                 <Mantine8Provider>
                     <ModalsProvider>
-                        <RouterProvider router={router} />
+                        <ReduxProvider store={store}>
+                            <RouterProvider router={router} />
+                        </ReduxProvider>
                     </ModalsProvider>
                 </Mantine8Provider>
             </MantineProvider>

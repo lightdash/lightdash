@@ -1,10 +1,7 @@
-// FIXES ts2742 issue with useDispatch and useSelector
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-import type * as rtk from '@reduxjs/toolkit';
-import { useDispatch, useSelector } from 'react-redux';
-import type { DashboardStoreDispatch, DashboardStoreState } from '.';
-
-export const useDashboardStoreDispatch =
-    useDispatch.withTypes<DashboardStoreDispatch>();
-export const useDashboardStoreSelector =
-    useSelector.withTypes<DashboardStoreState>();
+// Re-export root store hooks for dashboard feature consumers.
+// This avoids coupling dashboard components to the root store path
+// and makes migration of other features easier.
+export {
+    useRootDispatch as useDashboardDispatch,
+    useRootSelector as useDashboardSelector,
+} from '../../../store/hooks';

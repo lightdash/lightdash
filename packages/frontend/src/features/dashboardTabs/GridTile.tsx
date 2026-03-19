@@ -12,7 +12,7 @@ import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
-import { useDashboardStoreSelector } from '../dashboard/store/hooks';
+import { useDashboardSelector } from '../dashboard/store/hooks';
 import { selectIsTileQueryEnabled } from '../dashboard/store/selectors';
 
 const GridTile: FC<
@@ -27,7 +27,7 @@ const GridTile: FC<
     }
 > = memo((props) => {
     const { tile } = props;
-    const isQueryEnabled = useDashboardStoreSelector((state) =>
+    const isQueryEnabled = useDashboardSelector((state) =>
         selectIsTileQueryEnabled(state, tile.uuid),
     );
 

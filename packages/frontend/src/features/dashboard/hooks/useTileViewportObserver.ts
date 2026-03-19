@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { dashboardTileLoadingActions } from '../store/dashboardTileLoadingSlice';
-import {
-    useDashboardStoreDispatch,
-    useDashboardStoreSelector,
-} from '../store/hooks';
+import { useDashboardDispatch, useDashboardSelector } from '../store/hooks';
 import { selectTileStatus } from '../store/selectors';
 
 /**
@@ -16,8 +13,8 @@ import { selectTileStatus } from '../store/selectors';
  * since IntersectionObserver fires an initial entry for visible elements.
  */
 export function useTileViewportObserver(tileUuid: string) {
-    const dispatch = useDashboardStoreDispatch();
-    const status = useDashboardStoreSelector((state) =>
+    const dispatch = useDashboardDispatch();
+    const status = useDashboardSelector((state) =>
         selectTileStatus(state, tileUuid),
     );
     const observerRef = useRef<IntersectionObserver | null>(null);

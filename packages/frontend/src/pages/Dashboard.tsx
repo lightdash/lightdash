@@ -22,7 +22,7 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
-import DashboardStoreProvider from '../features/dashboard/components/DashboardStoreProvider';
+import { useDashboardTileLoadingInit } from '../features/dashboard/hooks/useDashboardTileLoadingInit';
 import DashboardTabs from '../features/dashboardTabs';
 import {
     appendNewTilesToBottom,
@@ -62,6 +62,7 @@ const Dashboard: FC = () => {
         (c) => c.setHaveFiltersChanged,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    useDashboardTileLoadingInit(dashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
     const setHaveTilesChanged = useDashboardContext(
@@ -836,9 +837,7 @@ const DashboardPage: FC = () => {
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
-            <DashboardStoreProvider>
-                <Dashboard />
-            </DashboardStoreProvider>
+            <Dashboard />
         </DashboardProvider>
     );
 };
