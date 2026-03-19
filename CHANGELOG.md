@@ -1,3 +1,10 @@
+# [0.2643.0](https://github.com/lightdash/lightdash/compare/0.2642.1...0.2643.0) (2026-03-19)
+
+
+### Features
+
+* update skill to use `lightdash sql` to find actual values from the warehouse ([#21262](https://github.com/lightdash/lightdash/issues/21262)) ([67c322e](https://github.com/lightdash/lightdash/commit/67c322e27fb28fbb9d3d26cc79f42ca1a44c896e))
+
 ## [0.2642.1](https://github.com/lightdash/lightdash/compare/0.2642.0...0.2642.1) (2026-03-19)
 
 
