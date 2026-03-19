@@ -1,3 +1,15 @@
+# [0.2640.0](https://github.com/lightdash/lightdash/compare/0.2639.2...0.2640.0) (2026-03-19)
+
+
+### Bug Fixes
+
+* allow sub-dimension selection on required filters ([#21238](https://github.com/lightdash/lightdash/issues/21238)) ([6262309](https://github.com/lightdash/lightdash/commit/626230942f70cf4a035a4e281f09e726cf811cd5)), closes [#21028](https://github.com/lightdash/lightdash/issues/21028)
+
+
+### Features
+
+* add SQL formatting to SQL Runner +refactor to shared SQLFormatting util ([#21246](https://github.com/lightdash/lightdash/issues/21246)) ([3d443d0](https://github.com/lightdash/lightdash/commit/3d443d0297da205414c5231f24bda562c5ca203c))
+
 ## [0.2639.2](https://github.com/lightdash/lightdash/compare/0.2639.1...0.2639.2) (2026-03-19)
 
 
