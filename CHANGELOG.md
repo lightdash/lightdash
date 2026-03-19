@@ -1,3 +1,10 @@
+## [0.2639.1](https://github.com/lightdash/lightdash/compare/0.2639.0...0.2639.1) (2026-03-19)
+
+
+### Bug Fixes
+
+* prevent row limit popover from closing when drag-selecting input text ([#21244](https://github.com/lightdash/lightdash/issues/21244)) ([d0fd660](https://github.com/lightdash/lightdash/commit/d0fd660ae854e6ee0898b08101a2f7dd353e25b4))
+
 # [0.2639.0](https://github.com/lightdash/lightdash/compare/0.2638.1...0.2639.0) (2026-03-19)
 
 
