@@ -8,7 +8,7 @@ import {
 } from '@mantine-8/core';
 import { useClickOutside, useDisclosure } from '@mantine-8/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
-import { memo, useEffect, useState, type FC } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import AutoFetchResultsSwitch from './AutoFetchResultsSwitch';
 import LimitInput from './LimitInput';
@@ -34,10 +34,18 @@ const RunQuerySettings: FC<Props> = memo(
         targetProps,
     }) => {
         const [opened, { open, close }] = useDisclosure(false);
-        const ref = useClickOutside(
-            () => setTimeout(() => close(), 0),
-            ['mouseup', 'touchend'],
-        );
+        const mouseDownInsideRef = useRef(false);
+        const handleClickOutside = useCallback(() => {
+            if (mouseDownInsideRef.current) {
+                mouseDownInsideRef.current = false;
+                return;
+            }
+            setTimeout(() => close(), 0);
+        }, [close]);
+        const ref = useClickOutside(handleClickOutside, [
+            'mouseup',
+            'touchend',
+        ]);
 
         const [tempLimit, setTempLimit] = useState(limit);
 
@@ -79,7 +87,12 @@ const RunQuerySettings: FC<Props> = memo(
                 </Popover.Target>
 
                 <Popover.Dropdown>
-                    <Stack ref={ref}>
+                    <Stack
+                        ref={ref}
+                        onMouseDown={() => {
+                            mouseDownInsideRef.current = true;
+                        }}
+                    >
                         {showAutoFetchSetting && (
                             <AutoFetchResultsSwitch size={size} />
                         )}
@@ -91,6 +104,12 @@ const RunQuerySettings: FC<Props> = memo(
                             size={size}
                             numberInputProps={{
                                 onBlur: handleLimitBlur,
+                                onKeyDown: (e) => {
+                                    if (e.key === 'Enter') {
+                                        handleLimitBlur();
+                                        close();
+                                    }
+                                },
                             }}
                         />
                     </Stack>
