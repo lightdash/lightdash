@@ -98,6 +98,12 @@ export enum FeatureFlags {
      * Enable group limit feature to cap visible groups and aggregate the rest into "Other"
      */
     GroupLimitEnabled = 'group-limit-enabled',
+
+    /**
+     * Enable raw-row regrouping for group limit "Other" buckets to support
+     * non-additive metrics correctly.
+     */
+    GroupLimitRawOther = 'group-limit-raw-other',
 }
 
 export type FeatureFlag = {

@@ -1630,6 +1630,7 @@ export class AsyncQueryService extends ProjectService {
         preAggregationRoute,
         fieldsMap,
         pivotConfiguration,
+        rawOtherEnabled,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -1644,6 +1645,7 @@ export class AsyncQueryService extends ProjectService {
         preAggregationRoute?: PreAggregationRoute;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        rawOtherEnabled: boolean;
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -1692,6 +1694,7 @@ export class AsyncQueryService extends ProjectService {
                   preAggregationRoute,
                   fieldsMap,
                   pivotConfiguration,
+                  rawOtherEnabled,
                   startOfWeek,
                   userAccessControls,
                   availableParameterDefinitions,
@@ -2658,6 +2661,10 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const rawOtherEnabled = await this.isGroupLimitRawOtherEnabled(
+            account.user.id,
+            account.organization.organizationUuid,
+        );
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -2706,6 +2713,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
+            pivotSource: fullQuery.pivotSource,
             warnings: fullQuery.warnings,
             parameterReferences: Array.from(fullQuery.parameterReferences),
             missingParameterReferences: Array.from(
@@ -2716,6 +2724,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
             timezone,
+            rawOtherEnabled,
         };
     }
 
@@ -2726,6 +2735,8 @@ export class AsyncQueryService extends ProjectService {
             explore: Explore;
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
+            pivotSource?: import('../../utils/QueryBuilder/MetricQueryBuilder').PivotSourceContract;
+            rawOtherEnabled?: boolean;
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
             timezone?: string;
@@ -2749,6 +2760,8 @@ export class AsyncQueryService extends ProjectService {
                     sql: compiledQuery,
                     metricQuery,
                     fields: fieldsMap,
+                    pivotSource,
+                    rawOtherEnabled,
                     originalColumns,
                     missingParameterReferences,
                     pivotConfiguration,
@@ -2840,6 +2853,8 @@ export class AsyncQueryService extends ProjectService {
                             warehouseSqlBuilder,
                             args.metricQuery.limit,
                             args.fields,
+                            pivotSource,
+                            rawOtherEnabled ?? false,
                         );
 
                         pivotedQuery = pivotQueryBuilder.toSql({
@@ -3037,6 +3052,7 @@ export class AsyncQueryService extends ProjectService {
                             preAggregationRoute,
                             fieldsMap,
                             pivotConfiguration,
+                            rawOtherEnabled: rawOtherEnabled ?? false,
                             startOfWeek: warehouseCredentials.startOfWeek,
                             userAccessControls,
                             availableParameterDefinitions,
@@ -3336,6 +3352,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             sql,
             fields,
+            pivotSource,
             warnings,
             parameterReferences,
             missingParameterReferences,
@@ -3344,6 +3361,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls,
             availableParameterDefinitions,
             timezone,
+            rawOtherEnabled,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3393,6 +3411,8 @@ export class AsyncQueryService extends ProjectService {
                 parameters: combinedParameters,
                 fields,
                 sql,
+                pivotSource,
+                rawOtherEnabled,
                 originalColumns: undefined,
                 missingParameterReferences,
                 timezone,

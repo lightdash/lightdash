@@ -12,6 +12,7 @@ import {
     OTHER_GROUP_DISPLAY_VALUE,
     ParameterError,
     parseTableCalculationFunctions,
+    snakeCaseName,
     SortByDirection,
     TableCalculationFunctionCompiler,
     TimeFrames,
@@ -24,6 +25,10 @@ import {
     type TableCalculation,
     type ValuesColumn,
 } from '@lightdash/common';
+import {
+    type PivotSourceContract,
+    type PivotSourceMetricInput,
+} from './MetricQueryBuilder';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -54,6 +59,10 @@ export class PivotQueryBuilder {
 
     private readonly pivotTableCalculations: Record<string, TableCalculation>;
 
+    private readonly pivotSource?: PivotSourceContract;
+
+    private readonly rawOtherEnabled: boolean;
+
     /**
      * Creates a new PivotQueryBuilder instance.
      * @param sql - The base SQL query to transform
@@ -68,12 +77,16 @@ export class PivotQueryBuilder {
         warehouseSqlBuilder: WarehouseSqlBuilder,
         limit?: number,
         itemsMap?: ItemsMap,
+        pivotSource?: PivotSourceContract,
+        rawOtherEnabled: boolean = false,
     ) {
         this.sql = sql;
         this.pivotConfiguration = pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.itemsMap = itemsMap ?? {};
+        this.pivotSource = pivotSource;
+        this.rawOtherEnabled = rawOtherEnabled;
         this.pivotTableCalculations = this.identifyPivotTableCalculations();
     }
 
@@ -309,7 +322,9 @@ export class PivotQueryBuilder {
         groupLimit: GroupLimitConfig | undefined,
         groupByColumns: PivotConfiguration['groupByColumns'],
         valuesColumns: PivotConfiguration['valuesColumns'],
-    ): 'other' | 'drop' | 'none' {
+        pivotSource?: PivotSourceContract,
+        rawOtherEnabled?: boolean,
+    ): 'raw_other' | 'fast_other' | 'drop' | 'none' {
         if (
             !groupLimit?.enabled ||
             !groupByColumns ||
@@ -317,10 +332,18 @@ export class PivotQueryBuilder {
         ) {
             return 'none';
         }
+
+        if (rawOtherEnabled && pivotSource) {
+            const allSupported = valuesColumns.every(
+                (col) => pivotSource.metricInputs[col.reference] !== undefined,
+            );
+            return allSupported ? 'raw_other' : 'drop';
+        }
+
         const hasUnsupported = valuesColumns.some(
             (col) => col.otherAggregation === null,
         );
-        return hasUnsupported ? 'drop' : 'other';
+        return hasUnsupported ? 'drop' : 'fast_other';
     }
 
     private getGroupRankingCTEs(
@@ -351,6 +374,255 @@ export class PivotQueryBuilder {
         const groupRankingCTE = `__group_ranking AS (SELECT ${groupByRefs.join(', ')}, ROW_NUMBER() OVER (ORDER BY __ranking_value DESC) AS __group_rn FROM __group_totals)`;
 
         return [groupTotalsCTE, groupRankingCTE];
+    }
+
+    private getNullSafeJoinConditions(
+        leftAlias: string,
+        rightAlias: string,
+        columns: Array<{ reference: string }>,
+    ): string[] {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        return columns.map(
+            (col) =>
+                `( ${leftAlias}.${q}${col.reference}${q} = ${rightAlias}.${q}${col.reference}${q} OR ( ${leftAlias}.${q}${col.reference}${q} IS NULL AND ${rightAlias}.${q}${col.reference}${q} IS NULL ) )`,
+        );
+    }
+
+    private getRawOtherMetricAggregationSql(
+        metricInput: PivotSourceMetricInput,
+        tableAlias: string,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        switch (metricInput.strategy) {
+            case 'simple':
+                switch (metricInput.aggregateWith) {
+                    case 'COUNT_STAR':
+                        return 'COUNT(*)';
+                    case 'COUNT':
+                    case 'SUM':
+                    case 'MIN':
+                    case 'MAX':
+                    case 'AVG':
+                        return `${metricInput.aggregateWith}(${tableAlias}.${q}${metricInput.inputAlias}${q})`;
+                    default:
+                        throw new ParameterError(
+                            'Unsupported raw Other aggregation',
+                        );
+                }
+            case 'count_distinct':
+                return `COUNT(DISTINCT ${tableAlias}.${q}${metricInput.inputAlias}${q})`;
+            case 'distinct_dedup':
+                return `${metricInput.aggregateWith}(${tableAlias}.${q}${metricInput.inputAlias}${q})`;
+            default:
+                throw new ParameterError('Unsupported raw Other metric input');
+        }
+    }
+
+    private getRawOtherCtes(
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
+        valuesColumns: PivotConfiguration['valuesColumns'],
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        maxGroups: number,
+    ): string[] {
+        if (!this.pivotSource) {
+            return [];
+        }
+
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const floatType = this.warehouseSqlBuilder.getFloatingType();
+        const bucketColumns = [...groupByColumns, ...indexColumns];
+        const bucketColumnRefs = bucketColumns.map(
+            (col) => `${q}${col.reference}${q}`,
+        );
+        const sortedBinRefs = Array.from(
+            this.getSortedBinDimensionReferences([
+                ...groupByColumns,
+                ...indexColumns,
+            ]),
+        );
+
+        const preGroupScopeCte = `__pre_group_scope AS (SELECT DISTINCT ${bucketColumnRefs.join(', ')} FROM pre_group_by)`;
+        const pivotSourceCte = `pivot_source AS (${this.pivotSource.query})`;
+        const scopedSourceCte = `scoped_source AS (SELECT ps.* FROM pivot_source ps INNER JOIN __pre_group_scope s ON ${this.getNullSafeJoinConditions(
+            'ps',
+            's',
+            bucketColumns,
+        ).join(' AND ')})`;
+
+        const bucketedSelects = [
+            ...groupByColumns.map(
+                (col) =>
+                    `CASE WHEN gr.__group_rn <= ${maxGroups} THEN CAST(ss.${q}${col.reference}${q} AS TEXT) ELSE '${OTHER_GROUP_DISPLAY_VALUE}' END AS ${q}${col.reference}${q}`,
+            ),
+            ...indexColumns.map((col) => `ss.${q}${col.reference}${q}`),
+            ...sortedBinRefs.map((ref) => `ss.${q}${ref}_order${q}`),
+            ...valuesColumns.flatMap((col) => {
+                const metricInput =
+                    this.pivotSource?.metricInputs[col.reference];
+                if (!metricInput) {
+                    return [];
+                }
+                const metricSelects = [
+                    `ss.${q}${metricInput.inputAlias}${q} AS ${q}${metricInput.inputAlias}${q}`,
+                ];
+                if (metricInput.strategy === 'distinct_dedup') {
+                    metricSelects.push(
+                        ...metricInput.distinctKeyAliases.map(
+                            (alias) =>
+                                `ss.${q}${alias}${q} AS ${q}${alias}${q}`,
+                        ),
+                    );
+                }
+                return metricSelects;
+            }),
+        ];
+
+        const bucketedSourceCte = `bucketed_source AS (SELECT ${bucketedSelects.join(
+            ', ',
+        )} FROM scoped_source ss LEFT JOIN __group_ranking gr ON ${groupByColumns
+            .map(
+                (col) =>
+                    `ss.${q}${col.reference}${q} = gr.${q}${col.reference}${q}`,
+            )
+            .join(' AND ')})`;
+
+        const bucketedGroupsCte = `__bucketed_groups AS (SELECT ${[
+            ...bucketColumnRefs,
+            ...sortedBinRefs.map(
+                (ref) => `MIN(${q}${ref}_order${q}) AS ${q}${ref}_order${q}`,
+            ),
+        ].join(', ')} FROM bucketed_source GROUP BY ${bucketColumnRefs.join(
+            ', ',
+        )})`;
+
+        const simpleMetricColumns = valuesColumns.filter((col) => {
+            const metricInput = this.pivotSource?.metricInputs[col.reference];
+            return (
+                metricInput?.strategy === 'simple' ||
+                metricInput?.strategy === 'count_distinct'
+            );
+        });
+
+        const simpleMetricsCte =
+            simpleMetricColumns.length > 0
+                ? `__raw_other_simple_metrics AS (SELECT ${[
+                      ...bucketColumnRefs,
+                      ...simpleMetricColumns.map((col) => {
+                          const metricInput =
+                              this.pivotSource!.metricInputs[col.reference];
+                          const fieldName =
+                              PivotQueryBuilder.getValueColumnFieldName(
+                                  col.reference,
+                                  col.aggregation,
+                              );
+                          return `${this.getRawOtherMetricAggregationSql(
+                              metricInput,
+                              'b',
+                          )} AS ${q}${fieldName}${q}`;
+                      }),
+                  ].join(
+                      ', ',
+                  )} FROM bucketed_source b GROUP BY ${bucketColumnRefs.join(
+                      ', ',
+                  )})`
+                : undefined;
+
+        const distinctDedupMetrics = valuesColumns.filter(
+            (col) =>
+                this.pivotSource?.metricInputs[col.reference]?.strategy ===
+                'distinct_dedup',
+        );
+
+        const distinctDedupCtes = distinctDedupMetrics.map((col) => {
+            const metricInput = this.pivotSource!.metricInputs[
+                col.reference
+            ] as Extract<
+                PivotSourceMetricInput,
+                { strategy: 'distinct_dedup' }
+            >;
+            const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                col.reference,
+                col.aggregation,
+            );
+            const cteName = `__dd_${snakeCaseName(fieldName)}`;
+            const ddPartitionBy = [
+                ...bucketColumnRefs,
+                ...metricInput.distinctKeyAliases.map(
+                    (alias) => `${q}${alias}${q}`,
+                ),
+            ].join(', ');
+            const ddInnerSql = `SELECT ${[
+                ...bucketColumnRefs,
+                `${q}${metricInput.inputAlias}${q} AS __dd_val`,
+                `ROW_NUMBER() OVER (PARTITION BY ${ddPartitionBy} ORDER BY ${q}${metricInput.inputAlias}${q}) AS __dd_rn`,
+            ].join(', ')} FROM bucketed_source`;
+            const ddAggregateSql =
+                metricInput.aggregateWith === 'AVG'
+                    ? `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS ${floatType}) / CAST(NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0) AS ${floatType})`
+                    : `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`;
+            return `${cteName} AS (SELECT ${[
+                ...bucketColumnRefs,
+                `${ddAggregateSql} AS ${q}${fieldName}${q}`,
+            ].join(
+                ', ',
+            )} FROM (${ddInnerSql}) ${q}${cteName}_sub${q} GROUP BY ${bucketColumnRefs.join(
+                ', ',
+            )})`;
+        });
+
+        const metricJoinConditions = (alias: string) =>
+            this.getNullSafeJoinConditions('g', alias, bucketColumns).join(
+                ' AND ',
+            );
+
+        const groupByQueryCte = `group_by_query AS (SELECT ${[
+            ...bucketColumnRefs.map((ref) => `g.${ref}`),
+            ...sortedBinRefs.map((ref) => `g.${q}${ref}_order${q}`),
+            ...simpleMetricColumns.map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                return `sm.${q}${fieldName}${q}`;
+            }),
+            ...distinctDedupMetrics.map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                const cteName = `__dd_${snakeCaseName(fieldName)}`;
+                return `${cteName}.${q}${fieldName}${q}`;
+            }),
+        ].join(', ')} FROM __bucketed_groups g${
+            simpleMetricsCte
+                ? ` LEFT JOIN __raw_other_simple_metrics sm ON ${metricJoinConditions(
+                      'sm',
+                  )}`
+                : ''
+        }${distinctDedupMetrics
+            .map((col) => {
+                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                    col.reference,
+                    col.aggregation,
+                );
+                const cteName = `__dd_${snakeCaseName(fieldName)}`;
+                return ` LEFT JOIN ${cteName} ON ${metricJoinConditions(
+                    cteName,
+                )}`;
+            })
+            .join('')})`;
+
+        return [
+            preGroupScopeCte,
+            pivotSourceCte,
+            scopedSourceCte,
+            bucketedSourceCte,
+            bucketedGroupsCte,
+            ...(simpleMetricsCte ? [simpleMetricsCte] : []),
+            ...distinctDedupCtes,
+            groupByQueryCte,
+        ];
     }
 
     private getGroupByQueryWithOtherSQL(
@@ -1379,6 +1651,8 @@ export class PivotQueryBuilder {
             groupLimit,
             groupByColumns,
             valuesColumns,
+            this.pivotSource,
+            this.rawOtherEnabled,
         );
 
         // Build CTEs in correct dependency order:
@@ -1392,7 +1666,26 @@ export class PivotQueryBuilder {
         // 7. pivot_table_calculations (if there are any pivot table calculations)
         const ctes: string[] = [`original_query AS (${userSql})`];
 
-        if (groupingMode === 'other' && groupLimit) {
+        if (groupingMode === 'raw_other' && groupLimit) {
+            const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
+            ctes.push(`pre_group_by AS (${groupByQuery})`);
+            ctes.push(
+                ...this.getGroupRankingCTEs(
+                    groupByColumns,
+                    valuesColumns,
+                    indexColumns,
+                    maxGroups,
+                ),
+            );
+            ctes.push(
+                ...this.getRawOtherCtes(
+                    indexColumns,
+                    valuesColumns,
+                    groupByColumns,
+                    maxGroups,
+                ),
+            );
+        } else if (groupingMode === 'fast_other' && groupLimit) {
             const maxGroups = Math.max(1, Math.floor(groupLimit.maxGroups));
             ctes.push(`pre_group_by AS (${groupByQuery})`);
             ctes.push(

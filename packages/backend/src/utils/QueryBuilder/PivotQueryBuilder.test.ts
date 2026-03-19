@@ -17,12 +17,14 @@ import {
     type ItemsMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import { type PivotSourceContract } from './MetricQueryBuilder';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
 
 // Mock warehouse SQL builder
 const mockWarehouseSqlBuilder = {
     getFieldQuoteChar: () => '"',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+    getFloatingType: () => 'DOUBLE PRECISION',
     getStartOfWeek: () => WeekDay.MONDAY,
 } as unknown as WarehouseSqlBuilder;
 
@@ -2466,6 +2468,27 @@ SELECT * FROM group_by_query LIMIT 50`);
     });
 
     describe('Group limit with "Other" aggregation', () => {
+        const rawOtherPivotSource: PivotSourceContract = {
+            query: 'SELECT "date" AS "date", "region" AS "region", "amount" AS "__metric_revenue_value", "user_id" AS "__metric_unique_users_value", "shipping_cost" AS "__metric_avg_shipping_cost_value", "line_item_id" AS "__metric_avg_shipping_cost_dk_0" FROM raw_events',
+            metricInputs: {
+                revenue: {
+                    strategy: 'simple',
+                    inputAlias: '__metric_revenue_value',
+                    aggregateWith: 'SUM',
+                },
+                unique_users: {
+                    strategy: 'count_distinct',
+                    inputAlias: '__metric_unique_users_value',
+                },
+                avg_shipping_cost: {
+                    strategy: 'distinct_dedup',
+                    inputAlias: '__metric_avg_shipping_cost_value',
+                    distinctKeyAliases: ['__metric_avg_shipping_cost_dk_0'],
+                    aggregateWith: 'AVG',
+                },
+            },
+        };
+
         test('Should generate ranking CTEs and CASE WHEN when groupLimit is enabled', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
@@ -2831,6 +2854,114 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain(
                 'sum("unique_users") AS "unique_users_sum"',
             );
+        });
+
+        test('Should use raw_other path for COUNT_DISTINCT when feature flag is enabled', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                rawOtherPivotSource,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            expect(normalized).toContain('__pre_group_scope AS');
+            expect(normalized).toContain(
+                'pivot_source AS (SELECT "date" AS "date", "region" AS "region"',
+            );
+            expect(normalized).toContain('bucketed_source AS');
+            expect(normalized).toContain(
+                'COUNT(DISTINCT b."__metric_unique_users_value") AS "unique_users_any"',
+            );
+            expect(normalized).not.toContain(
+                'sum("unique_users") AS "unique_users_any"',
+            );
+        });
+
+        test('Should use raw_other dedup CTE for average_distinct when feature flag is enabled', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: null,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                rawOtherPivotSource,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            expect(normalized).toContain('__dd_avg_shipping_cost_any AS');
+            expect(normalized).toContain(
+                'ROW_NUMBER() OVER (PARTITION BY "region", "date", "__metric_avg_shipping_cost_dk_0"',
+            );
+            expect(normalized).toContain(
+                'CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS DOUBLE PRECISION)',
+            );
+        });
+
+        test('Should drop when raw_other flag is enabled but pivotSource is missing', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: null,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            expect(normalized).toContain('WHERE gr.__group_rn <= 2');
+            expect(normalized).not.toContain('pivot_source AS');
+            expect(normalized).not.toContain('Other');
         });
     });
 });

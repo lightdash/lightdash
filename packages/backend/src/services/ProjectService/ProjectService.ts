@@ -437,6 +437,21 @@ export class ProjectService extends BaseService {
         this.spacePermissionService = spacePermissionService;
     }
 
+    protected async isGroupLimitRawOtherEnabled(
+        userId: string,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: userId,
+                organizationUuid,
+                organizationName: '',
+            },
+            featureFlagId: FeatureFlags.GroupLimitRawOther,
+        });
+        return enabled;
+    }
+
     static getMetricQueryExecutionProperties({
         metricQuery,
         dateZoom,
@@ -3099,12 +3114,18 @@ export class ProjectService extends BaseService {
         // Generate pivot query if pivot configuration is provided
         let pivotQuery: string | undefined;
         if (pivotConfiguration) {
+            const rawOtherEnabled = await this.isGroupLimitRawOtherEnabled(
+                account.user.id,
+                organizationUuid,
+            );
             const pivotQueryBuilder = new PivotQueryBuilder(
                 compiledQuery.query,
                 pivotConfiguration,
                 warehouseSqlBuilder,
                 metricQuery.limit,
                 compiledQuery.fields,
+                compiledQuery.pivotSource,
+                rawOtherEnabled,
             );
             pivotQuery = pivotQueryBuilder.toSql({
                 columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
