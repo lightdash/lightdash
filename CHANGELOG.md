@@ -1,3 +1,10 @@
+# [0.2642.0](https://github.com/lightdash/lightdash/compare/0.2641.0...0.2642.0) (2026-03-19)
+
+
+### Features
+
+* include content type in downloads ([#21231](https://github.com/lightdash/lightdash/issues/21231)) ([87d550c](https://github.com/lightdash/lightdash/commit/87d550cab62d08545c73c83917af43b5d0a882fd))
+
 # [0.2641.0](https://github.com/lightdash/lightdash/compare/0.2640.0...0.2641.0) (2026-03-19)
 
 
