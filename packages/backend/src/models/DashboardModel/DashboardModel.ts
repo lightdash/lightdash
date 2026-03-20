@@ -992,6 +992,10 @@ export class DashboardModel {
             .orderBy([
                 { column: `${DashboardTilesTableName}.y_offset` },
                 { column: `${DashboardTilesTableName}.x_offset` },
+                { column: `${DashboardTilesTableName}.tab_uuid` },
+                {
+                    column: `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                },
             ]);
 
         const tabs = await this.database(DashboardTabsTableName)
@@ -1898,6 +1902,10 @@ export class DashboardModel {
             .orderBy([
                 { column: `${DashboardTilesTableName}.y_offset` },
                 { column: `${DashboardTilesTableName}.x_offset` },
+                { column: `${DashboardTilesTableName}.tab_uuid` },
+                {
+                    column: `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                },
             ]);
 
         const tabs = await this.database(DashboardTabsTableName)
