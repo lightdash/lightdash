@@ -253,6 +253,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { getPivotColumnValueSuffix } from '../pivotColumnReference';
 import { buildMaterializationMetricQuery } from '../PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -4237,9 +4238,11 @@ export class ProjectService extends BaseService {
                                 // Suffix the value column with the group by columns to avoid collisions.
                                 // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
                                 // then the value column will be 'value_1_a_b'
-                                const valueSuffix = groupByColumns
-                                    ?.map((col) => row[col.reference])
-                                    .join('_');
+                                const valueSuffix = getPivotColumnValueSuffix(
+                                    (groupByColumns ?? []).map(
+                                        (col) => row[col.reference],
+                                    ),
+                                );
                                 valuesColumns.forEach((col) => {
                                     const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
                                     valuesColumnData.set(valueColumnReference, {

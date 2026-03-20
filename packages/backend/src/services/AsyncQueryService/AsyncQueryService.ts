@@ -138,6 +138,7 @@ import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
+import { getPivotColumnValueSuffix } from '../pivotColumnReference';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
@@ -1538,7 +1539,9 @@ export class AsyncQueryService extends ProjectService {
                       // then the value column will be 'value_1_a_b'
                       const valueSuffix =
                           pivotValues.length > 0
-                              ? pivotValues.map((p) => p.value).join('_')
+                              ? getPivotColumnValueSuffix(
+                                    pivotValues.map((p) => p.value),
+                                )
                               : '';
 
                       // eslint-disable-next-line @typescript-eslint/no-loop-func -- forEach is synchronous, executes within current loop iteration
