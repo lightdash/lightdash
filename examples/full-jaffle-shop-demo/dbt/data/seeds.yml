@@ -129,3 +129,7 @@ seeds:
     config:
       column_types:
         amount: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_order_currencies
+    config:
+      column_types:
+        converted_amount: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"

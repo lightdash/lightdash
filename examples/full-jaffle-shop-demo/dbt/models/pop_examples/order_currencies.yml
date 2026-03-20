@@ -1,0 +1,42 @@
+version: 2
+models:
+  - name: order_currencies
+    description: |
+      Currency conversions for country orders. Each order can have multiple
+      currency rows (e.g. an order placed in India might have INR, USD, and EUR
+      converted amounts). Joining country_orders → order_currencies is a
+      one-to-many fanout.
+    meta:
+      primary_key: order_id
+    columns:
+      - name: order_id
+        description: Foreign key to country_orders
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+
+      - name: currency
+        description: ISO currency code (USD, EUR, GBP, INR)
+        meta:
+          dimension:
+            type: string
+
+      - name: converted_amount
+        description: Order amount converted to this currency
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+          metrics:
+            total_converted_amount:
+              type: sum
+              round: 2
+              label: Total Converted Amount
+            currency_count:
+              type: count_distinct
+              label: Currency Count

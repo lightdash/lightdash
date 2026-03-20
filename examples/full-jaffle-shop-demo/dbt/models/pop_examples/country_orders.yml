@@ -11,6 +11,13 @@ models:
       An inner join PoP comparison will silently drop both India and Germany
       because they don't exist in both periods. A full outer join or union
       of period spines is needed to preserve all countries.
+    meta:
+      primary_key: order_id
+      joins:
+        - join: order_currencies
+          relationship: one-to-many
+          sql_on: ${country_orders.order_id} = ${order_currencies.order_id}
+          type: left
     columns:
       - name: order_id
         description: Unique order identifier

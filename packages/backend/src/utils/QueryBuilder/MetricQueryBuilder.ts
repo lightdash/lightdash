@@ -2317,7 +2317,8 @@ export class MetricQueryBuilder {
              * - select specific metrics from metric CTEs
              * - Join metric tables:
              *   - when there are no dimensions, use CROSS JOIN
-             *   - when there are dimensions, use INNER JOIN on all dimensions (+ or null)
+             *   - when there are dimensions, use INNER JOIN on all dimensions (+ or null) for regular metrics
+             *   - PoP metric CTEs use LEFT JOIN to preserve base rows
              */
             if (hasUnaffectedCte) {
                 finalSelectParts = [
@@ -2346,7 +2347,7 @@ export class MetricQueryBuilder {
                             popMetricCte.popConfig.timeDimensionId;
                         const { periodOffset, granularity } =
                             popMetricCte.popConfig;
-                        return `INNER JOIN ${
+                        return `LEFT JOIN ${
                             popMetricCte.name
                         } ON ${dimensionAlias
                             .map((alias) => {
