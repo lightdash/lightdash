@@ -758,6 +758,8 @@ describe('Query builder', () => {
         expect(query).toMatch(
             /DATE_TRUNC\('YEAR', "orders"\.order_date\) <= pop_min_max_[a-z0-9_]+\.max_date - INTERVAL '1 YEAR'/,
         );
+        // PoP CTE should always use LEFT JOIN to preserve base rows
+        expect(query).toMatch(/LEFT JOIN pop_metrics_/);
     });
 
     test('Should not carry date filter into PoP CTE when only date filters exist', () => {
@@ -797,6 +799,25 @@ describe('Query builder', () => {
         expect(query).toMatch(
             /DATE_TRUNC\('YEAR', "orders"\.order_date\) <= pop_min_max_[a-z0-9_]+\.max_date - INTERVAL '1 YEAR'/,
         );
+    });
+
+    test('Should use LEFT JOIN for PoP CTE so all base rows are returned when no filters are applied', () => {
+        const metricQueryWithNoFilters: CompiledMetricQuery = {
+            ...POP_TEST_METRIC_QUERY,
+            filters: {},
+        };
+
+        const { query } = buildQuery({
+            explore: POP_TEST_EXPLORE,
+            compiledMetricQuery: metricQueryWithNoFilters,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use LEFT JOIN, not INNER JOIN, so base rows aren't dropped
+        expect(query).toMatch(/LEFT JOIN pop_metrics_/);
+        expect(query).not.toMatch(/INNER JOIN pop_metrics_/);
     });
 
     test('Should reuse non-time filters for PoP metrics in fanout-protected CTEs while shifting the comparison period', () => {

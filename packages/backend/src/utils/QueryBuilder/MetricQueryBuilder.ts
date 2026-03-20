@@ -3624,7 +3624,7 @@ export class MetricQueryBuilder {
                 }
 
                 popJoins.push(
-                    `INNER JOIN ${popCteName} ON ${dimensionAlias
+                    `LEFT JOIN ${popCteName} ON ${dimensionAlias
                         .map((alias) => {
                             if (
                                 alias ===
