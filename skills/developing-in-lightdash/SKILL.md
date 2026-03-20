@@ -1,11 +1,20 @@
 ---
 name: developing-in-lightdash
-description: Build, configure, and deploy Lightdash analytics projects. Supports both dbt projects with embedded Lightdash metadata and pure Lightdash YAML projects without dbt. Create metrics, dimensions, charts, and dashboards using the Lightdash CLI.
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, sql), or creating/editing charts, dashboards, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
 
 Build and deploy Lightdash analytics projects. This skill covers the **semantic layer** (metrics, dimensions, joins) and **content** (charts, dashboards).
+
+## When to Use
+
+- Working with Lightdash YAML files (charts, dashboards, models as code)
+- Using the `lightdash` CLI (`deploy`, `upload`, `download`, `preview`, `lint`, `sql`)
+- Defining metrics, dimensions, joins, or tables in dbt or pure Lightdash projects
+- Creating or editing charts and dashboards as code
+
+**Don't use for:** Developing the Lightdash application itself (use the codebase CLAUDE.md), general dbt work without Lightdash metadata, or raw SQL unrelated to Lightdash models.
 
 ## What You Can Do
 
@@ -19,6 +28,15 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
 | Test changes | `lightdash preview` | [Workflows](./resources/workflows-reference.md) |
 
+## Common Mistakes
+
+| Mistake | Consequence | Prevention |
+|---------|-------------|------------|
+| **Guessing filter values** | Case mismatches (`'Payment'` vs `'payment'`) cause charts to silently return no data | Always run `lightdash sql "SELECT DISTINCT column FROM table LIMIT 50" -o values.csv` and use exact values |
+| **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows old title — `title` and `chartName` are independent overrides that do NOT auto-update | Download the dashboard, find tiles with matching `chartSlug`, update `title` and `chartName` to match |
+| **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config (axis, pivot, etc.) |
+| **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
+
 ## Before You Start
 
 ### Check Your Target Project
@@ -26,14 +44,9 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 **Always verify which project you're deploying to.** Deploying to the wrong project can overwrite production content.
 
 ```bash
-# Check current project
-lightdash config get-project
-
-# List available projects
-lightdash config list-projects
-
-# Switch to correct project
-lightdash config set-project --name "My Project"
+lightdash config get-project        # Show current project
+lightdash config list-projects      # List available projects
+lightdash config set-project --name "My Project"  # Switch project
 ```
 
 ### Detect Your Project Type
@@ -46,7 +59,6 @@ lightdash config set-project --name "My Project"
 | **Pure Lightdash** | Has `lightdash.config.yml`, no dbt | Top-level properties |
 
 ```bash
-# Quick detection
 ls dbt_project.yml 2>/dev/null && echo "dbt project" || echo "Not dbt"
 ls lightdash.config.yml 2>/dev/null && echo "Pure Lightdash" || echo "Not pure Lightdash"
 ```
@@ -113,8 +125,8 @@ See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Refere
 
 1. **Download**: `lightdash download --charts chart-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Verify Filter Values](#verify-filter-values-before-using-them))
-4. **Update dashboard tiles**: If you changed the chart's name or purpose, download any dashboards that reference it and update their tile `title` and `chartName` properties to match
+3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Common Mistakes](#common-mistakes))
+4. **Update dashboard tiles**: If you changed the chart's name or purpose, download any dashboards that reference it and update their tile `title` and `chartName` properties to match (see [Common Mistakes](#common-mistakes))
 5. **Lint**: `lightdash lint` to validate before uploading
 6. **Upload**: `lightdash upload --charts chart-slug` (and any modified dashboards)
 
@@ -134,7 +146,7 @@ tiles:
 
 1. **Download**: `lightdash download --dashboards dashboard-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Verify Filter Values](#verify-filter-values-before-using-them))
+3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Common Mistakes](#common-mistakes))
 4. **Lint**: `lightdash lint` to validate before uploading
 5. **Upload**: `lightdash upload --dashboards dashboard-slug`
 
@@ -172,76 +184,42 @@ lightdash stop-preview --name "my-feature"
 
 See [CLI Reference](./resources/cli-reference.md) for full command documentation.
 
-## Semantic Layer Overview
+## Semantic Layer
 
-The semantic layer defines your data model: what can be queried and how.
+The semantic layer defines your data model. See individual references for full configuration:
 
-### Tables (Explores)
-
-Tables are dbt models or Lightdash YAML models that define queryable entities.
-
-```yaml
-# dbt example
-models:
-  - name: orders
-    meta:
-      label: "Orders"
-      joins:
-        - join: customers
-          sql_on: "${orders.customer_id} = ${customers.customer_id}"
-```
-
-See [Tables Reference](./resources/tables-reference.md) for all options.
-
-### Metrics
-
-Aggregated calculations (sum, count, average, etc.) on your data.
-
-```yaml
-metrics:
-  total_revenue:
-    type: sum
-    sql: "${TABLE}.amount"
-    format: "usd"
-```
-
-**Common types:** `count`, `count_distinct`, `sum`, `average`, `min`, `max`, `number` (custom SQL)
-
-See [Metrics Reference](./resources/metrics-reference.md) for all types and options.
-
-### Dimensions
-
-Attributes for grouping and filtering data.
-
-```yaml
-columns:
-  - name: created_at
-    meta:
-      dimension:
-        type: timestamp
-        time_intervals: [DAY, WEEK, MONTH, YEAR]
-```
-
-**Types:** `string`, `number`, `boolean`, `date`, `timestamp`
-
-See [Dimensions Reference](./resources/dimensions-reference.md) for all options including time intervals.
-
-### Joins
-
-Connect related tables for cross-table analysis.
-
-```yaml
-joins:
-  - join: customers
-    sql_on: "${orders.customer_id} = ${customers.customer_id}"
-    type: left
-```
-
-See [Joins Reference](./resources/joins-reference.md) for configuration options.
+- [Tables Reference](./resources/tables-reference.md) — queryable entities, labels, joins
+- [Metrics Reference](./resources/metrics-reference.md) — aggregated calculations (`count`, `sum`, `average`, `min`, `max`, `number`, etc.)
+- [Dimensions Reference](./resources/dimensions-reference.md) — attributes for grouping/filtering (`string`, `number`, `boolean`, `date`, `timestamp`)
+- [Joins Reference](./resources/joins-reference.md) — cross-table relationships
 
 ## Chart Types
 
-Lightdash supports 9 chart types. Each has a dedicated reference:
+All charts share a common base structure:
+
+```yaml
+chartConfig:
+  type: <type>
+  config: {}        # Type-specific — see individual references
+dashboardSlug: my-dashboard  # Optional: scopes chart to dashboard (won't appear in space)
+metricQuery:
+  dimensions:
+    - my_explore_category
+  filters: {}
+  limit: 500
+  metrics:
+    - my_explore_total_sales
+  sorts: []
+name: "Chart Name"
+slug: unique-chart-slug
+spaceSlug: target-space
+tableConfig:
+  columnOrder: []
+tableName: my_explore
+version: 1
+```
+
+**Chart scoping:** Use `spaceSlug` only for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard (it won't appear in the space).
 
 | Type | Use Case | Reference |
 |------|----------|-----------|
@@ -254,8 +232,6 @@ Lightdash supports 9 chart types. Each has a dedicated reference:
 | `treemap` | Hierarchical data | [Treemap](./resources/treemap-chart-reference.md) |
 | `map` | Geographic data | [Map](./resources/map-chart-reference.md) |
 | `custom` | Vega-Lite | [Custom Viz](./resources/custom-viz-reference.md) |
-
-See individual chart type references for YAML structure and configuration options.
 
 ## Dashboards
 
