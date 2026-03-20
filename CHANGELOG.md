@@ -1,3 +1,10 @@
+# [0.2646.0](https://github.com/lightdash/lightdash/compare/0.2645.0...0.2646.0) (2026-03-20)
+
+
+### Features
+
+* **cli:** deterministic charts and dashboards as-code downloads ([#21279](https://github.com/lightdash/lightdash/issues/21279)) ([1d2da48](https://github.com/lightdash/lightdash/commit/1d2da486a188b2768988feb6b3187d15849c4440))
+
 # [0.2645.0](https://github.com/lightdash/lightdash/compare/0.2644.1...0.2645.0) (2026-03-20)
 
 
