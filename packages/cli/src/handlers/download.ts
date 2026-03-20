@@ -33,6 +33,12 @@ import {
     lightdashApi,
     setGzipEnabled,
 } from './dbt/apiClient';
+import {
+    LightdashMetadata,
+    METADATA_FILENAME,
+    readMetadataFile,
+    writeMetadataFile,
+} from './metadataFile';
 import { logSelectedProject, selectProject } from './selectProject';
 
 export type DownloadHandlerOptions = {
@@ -141,18 +147,28 @@ const getFileExtension = (contentType: ContentAsCodeType['type']): string => {
     }
 };
 
+type MetadataEntry = {
+    slug: string;
+    type: 'charts' | 'dashboards';
+    downloadedAt: string;
+};
+
 const writeContent = async (
     contentAsCode: ContentAsCodeType,
     outputDir: string,
     languageMap: boolean,
-) => {
+): Promise<MetadataEntry> => {
     const extension = getFileExtension(contentAsCode.type);
     const itemPath = path.join(
         outputDir,
         `${contentAsCode.content.slug}${extension}`,
     );
-    const chartYml = yaml.dump(contentAsCode.content, {
+    // Strip timestamps — they go to .lightdash-metadata.json instead
+    const { updatedAt, downloadedAt, ...cleanContent } =
+        contentAsCode.content as ChartAsCode | SqlChartAsCode | DashboardAsCode;
+    const chartYml = yaml.dump(cleanContent, {
         quotingType: '"',
+        sortKeys: true,
     });
     await fs.writeFile(itemPath, chartYml);
 
@@ -163,9 +179,42 @@ const writeContent = async (
         );
         await fs.writeFile(
             translationPath,
-            yaml.dump(contentAsCode.translationMap),
+            yaml.dump(contentAsCode.translationMap, { sortKeys: true }),
         );
     }
+
+    const metadataType =
+        contentAsCode.type === 'dashboard' ? 'dashboards' : 'charts';
+
+    let downloadedAtString: string;
+    if (downloadedAt instanceof Date) {
+        downloadedAtString = downloadedAt.toISOString();
+    } else if (typeof downloadedAt === 'string') {
+        downloadedAtString = downloadedAt;
+    } else {
+        downloadedAtString = new Date().toISOString();
+    }
+
+    return {
+        slug: contentAsCode.content.slug,
+        type: metadataType,
+        downloadedAt: downloadedAtString,
+    };
+};
+
+const hasUnsortedKeys = (obj: unknown): boolean => {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+        if (Array.isArray(obj)) {
+            return obj.some(hasUnsortedKeys);
+        }
+        return false;
+    }
+    const keys = Object.keys(obj);
+    const sorted = [...keys].sort();
+    if (keys.some((key, i) => key !== sorted[i])) {
+        return true;
+    }
+    return Object.values(obj).some(hasUnsortedKeys);
 };
 
 const isLightdashContentFile = (folder: string, entry: Dirent) =>
@@ -175,8 +224,12 @@ const isLightdashContentFile = (folder: string, entry: Dirent) =>
     entry.name.endsWith('.yml') &&
     !entry.name.endsWith('.language.map.yml');
 
-const loadYamlFile = async <T extends ChartAsCode | DashboardAsCode>(
+const loadYamlFile = async <
+    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
+>(
     file: Dirent,
+    folder: 'charts' | 'dashboards',
+    metadata: LightdashMetadata,
 ) => {
     const filePath = path.join(file.parentPath, file.name);
     const [fileContent, stats] = await Promise.all([
@@ -185,8 +238,23 @@ const loadYamlFile = async <T extends ChartAsCode | DashboardAsCode>(
     ]);
 
     const item = yaml.load(fileContent) as T;
-    const downloadedAt = item.downloadedAt
-        ? new Date(item.downloadedAt)
+    if (hasUnsortedKeys(item)) {
+        GlobalState.log(
+            styles.warning(
+                `Warning: ${file.name} has unsorted YAML keys. Re-download to fix, or sort keys alphabetically.`,
+            ),
+        );
+    }
+    const metadataSection =
+        folder === 'dashboards' ? metadata.dashboards : metadata.charts;
+    const downloadedAtRaw: string | Date | undefined =
+        (metadataSection[item.slug] as string | undefined) ?? item.downloadedAt;
+    const downloadedAt = downloadedAtRaw
+        ? new Date(
+              downloadedAtRaw instanceof Date
+                  ? downloadedAtRaw.getTime()
+                  : downloadedAtRaw,
+          )
         : undefined;
     const needsUpdating =
         downloadedAt &&
@@ -199,7 +267,9 @@ const loadYamlFile = async <T extends ChartAsCode | DashboardAsCode>(
     };
 };
 
-const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
+const readCodeFiles = async <
+    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
+>(
     folder: 'charts' | 'dashboards',
     customPath?: string,
 ): Promise<(T & { needsUpdating: boolean })[]> => {
@@ -215,6 +285,8 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     }
 
     try {
+        const metadata = await readMetadataFile(baseDir);
+
         const allEntries = await fs.readdir(baseDir, {
             recursive: true,
             withFileTypes: true,
@@ -223,7 +295,7 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
         const items = await Promise.all(
             allEntries
                 .filter((entry) => isLightdashContentFile(folder, entry))
-                .map((file) => loadYamlFile<T>(file)),
+                .map((file) => loadYamlFile<T>(file, folder, metadata)),
         );
 
         if (items.length === 0) {
@@ -283,7 +355,7 @@ const writeSpaceContent = async <
     customPath?: string;
     languageMap: boolean;
     folderScheme: FolderScheme;
-}) => {
+}): Promise<MetadataEntry[]> => {
     const outputDir = await createDirForContent(
         projectName,
         spaceSlug,
@@ -292,12 +364,13 @@ const writeSpaceContent = async <
         folderScheme,
     );
 
+    const entries: MetadataEntry[] = [];
     for (const { item, index } of contentInSpace) {
         const translationMap =
             'languageMap' in contentAsCode
                 ? contentAsCode.languageMap?.[index]
                 : undefined;
-        await writeContent(
+        const entry = await writeContent(
             {
                 type: contentType,
                 content: item,
@@ -306,7 +379,9 @@ const writeSpaceContent = async <
             outputDir,
             languageMap,
         );
+        entries.push(entry);
     }
+    return entries;
 };
 
 type DownloadContentType = 'charts' | 'dashboards' | 'sqlCharts';
@@ -367,7 +442,7 @@ export const downloadContent = async (
     customPath?: string,
     languageMap: boolean = false,
     nested: boolean = false,
-): Promise<[number, string[]]> => {
+): Promise<[number, string[], MetadataEntry[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
@@ -376,6 +451,7 @@ export const downloadContent = async (
     let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
+    let allMetadataEntries: MetadataEntry[] = [];
 
     do {
         GlobalState.debug(
@@ -417,7 +493,7 @@ export const downloadContent = async (
             for (const [spaceSlug, sqlChartsInSpace] of Object.entries(
                 sqlChartsBySpace,
             )) {
-                await writeSpaceContent({
+                const entries = await writeSpaceContent({
                     projectName,
                     spaceSlug,
                     folder: 'charts',
@@ -428,13 +504,14 @@ export const downloadContent = async (
                     languageMap,
                     folderScheme,
                 });
+                allMetadataEntries = [...allMetadataEntries, ...entries];
             }
         } else if ('dashboards' in results) {
             const dashboardsBySpace = groupBySpace(results.dashboards);
             for (const [spaceSlug, dashboardsInSpace] of Object.entries(
                 dashboardsBySpace,
             )) {
-                await writeSpaceContent({
+                const entries = await writeSpaceContent({
                     projectName,
                     spaceSlug,
                     folder: 'dashboards',
@@ -445,6 +522,7 @@ export const downloadContent = async (
                     languageMap,
                     folderScheme,
                 });
+                allMetadataEntries = [...allMetadataEntries, ...entries];
             }
             chartSlugs = [
                 ...chartSlugs,
@@ -455,7 +533,7 @@ export const downloadContent = async (
             for (const [spaceSlug, chartsInSpace] of Object.entries(
                 chartsBySpace,
             )) {
-                await writeSpaceContent({
+                const entries = await writeSpaceContent({
                     projectName,
                     spaceSlug,
                     folder: 'charts',
@@ -466,6 +544,7 @@ export const downloadContent = async (
                     languageMap,
                     folderScheme,
                 });
+                allMetadataEntries = [...allMetadataEntries, ...entries];
             }
         }
 
@@ -473,7 +552,7 @@ export const downloadContent = async (
         total = results.total;
     } while (offset < total);
 
-    return [total, [...new Set(chartSlugs)]];
+    return [total, [...new Set(chartSlugs)], allMetadataEntries];
 };
 
 export const downloadHandler = async (
@@ -526,10 +605,10 @@ export const downloadHandler = async (
         },
     });
     try {
-        // If any filter is provided, we skip those items without filters
-        // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
         const hasFilters =
             options.charts.length > 0 || options.dashboards.length > 0;
+
+        let allMetadataEntries: MetadataEntry[] = [];
 
         // Download regular charts
         if (hasFilters && options.charts.length === 0) {
@@ -537,20 +616,22 @@ export const downloadHandler = async (
                 styles.warning(`No charts filters provided, skipping`),
             );
         } else {
-            const [regularChartTotal] = await downloadContent(
-                options.charts,
-                'charts',
-                projectId,
-                projectName,
-                options.path,
-                options.languageMap,
-                options.nested,
-            );
+            const [regularChartTotal, , regularChartMeta] =
+                await downloadContent(
+                    options.charts,
+                    'charts',
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.languageMap,
+                    options.nested,
+                );
             spinner.succeed(`Downloaded ${regularChartTotal} charts`);
+            allMetadataEntries = [...allMetadataEntries, ...regularChartMeta];
 
             // Download SQL charts
             spinner.start(`Downloading SQL charts`);
-            const [sqlChartTotal] = await downloadContent(
+            const [sqlChartTotal, , sqlChartMeta] = await downloadContent(
                 options.charts,
                 'sqlCharts',
                 projectId,
@@ -560,6 +641,7 @@ export const downloadHandler = async (
                 options.nested,
             );
             spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
+            allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
             chartTotal = regularChartTotal + sqlChartTotal;
         }
@@ -572,7 +654,8 @@ export const downloadHandler = async (
         } else {
             let chartSlugs: string[] = [];
 
-            [dashboardTotal, chartSlugs] = await downloadContent(
+            let dashMeta: MetadataEntry[];
+            [dashboardTotal, chartSlugs, dashMeta] = await downloadContent(
                 options.dashboards,
                 'dashboards',
                 projectId,
@@ -581,28 +664,31 @@ export const downloadHandler = async (
                 options.languageMap,
                 options.nested,
             );
+            allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
-            // If any filter is provided, we download all charts linked to these dashboards
-            // We don't need to do this if we download everything (no filters)
             if (hasFilters && chartSlugs.length > 0) {
                 spinner.start(
                     `Downloading ${chartSlugs.length} charts linked to dashboards`,
                 );
 
-                // Download both regular charts and SQL charts linked to dashboards
-                const [regularCharts] = await downloadContent(
-                    chartSlugs,
-                    'charts',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                );
+                const [regularCharts, , linkedChartMeta] =
+                    await downloadContent(
+                        chartSlugs,
+                        'charts',
+                        projectId,
+                        projectName,
+                        options.path,
+                        options.languageMap,
+                        options.nested,
+                    );
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...linkedChartMeta,
+                ];
 
-                const [sqlCharts] = await downloadContent(
+                const [sqlCharts, , linkedSqlMeta] = await downloadContent(
                     chartSlugs,
                     'sqlCharts',
                     projectId,
@@ -611,6 +697,7 @@ export const downloadHandler = async (
                     options.languageMap,
                     options.nested,
                 );
+                allMetadataEntries = [...allMetadataEntries, ...linkedSqlMeta];
 
                 spinner.succeed(
                     `Downloaded ${
@@ -619,6 +706,23 @@ export const downloadHandler = async (
                 );
             }
         }
+
+        // Write metadata file with all downloadedAt timestamps
+        const metadataToWrite: LightdashMetadata = {
+            version: 1,
+            charts: {},
+            dashboards: {},
+        };
+        for (const entry of allMetadataEntries) {
+            metadataToWrite[entry.type][entry.slug] = entry.downloadedAt;
+        }
+        const baseDir = getDownloadFolder(options.path);
+        await writeMetadataFile(baseDir, metadataToWrite);
+        GlobalState.log(
+            styles.warning(
+                `\nNote: ${METADATA_FILENAME} was written to ${baseDir}. Consider adding it to your .gitignore.`,
+            ),
+        );
 
         const end = Date.now();
 
@@ -630,7 +734,7 @@ export const downloadHandler = async (
                 projectId,
                 chartsNum: chartTotal,
                 dashboardsNum: dashboardTotal,
-                timeToCompleted: (end - start) / 1000, // in seconds
+                timeToCompleted: (end - start) / 1000,
             },
         });
     } catch (error) {
