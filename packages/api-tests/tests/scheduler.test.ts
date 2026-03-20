@@ -7,6 +7,7 @@ import {
     SEED_PROJECT,
     type ApiReassignSchedulerOwnerResponse,
     type ApiReassignUserSchedulersResponse,
+    type ApiSchedulersResponse,
     type ApiUserSchedulersSummaryResponse,
     type ChartScheduler,
     type CreateSchedulerAndTargetsWithoutIds,
@@ -57,6 +58,27 @@ async function createChartScheduler(client: ApiClient): Promise<string> {
     const createResp = await client.post<{ results: SchedulerAndTargets }>(
         `${apiUrl}/saved/${chart!.uuid}/schedulers`,
         createSchedulerBody,
+    );
+    return createResp.body.results.schedulerUuid;
+}
+
+async function createNamedChartScheduler(
+    client: ApiClient,
+    name: string,
+): Promise<string> {
+    const chartsResp = await client.get<{ results: SavedChart[] }>(
+        `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+    );
+    const chart = chartsResp.body.results.find(
+        (s) => s.name === 'How much revenue do we have per payment method?',
+    );
+    const createResp = await client.post<{ results: SchedulerAndTargets }>(
+        `${apiUrl}/saved/${chart!.uuid}/schedulers`,
+        {
+            ...createSchedulerBody,
+            name,
+            targets: [{ recipient: 'search-fixture@getlightdash.com' }],
+        },
     );
     return createResp.body.results.schedulerUuid;
 }
@@ -270,6 +292,33 @@ describe('Lightdash scheduler endpoints', () => {
             { failOnStatusCode: false },
         );
         expect(deletedJobsResp.status).toBe(404);
+    });
+
+    it('Should search schedulers by full name substring instead of loose token matches', async () => {
+        const exactMatchName =
+            'CENTURY Smart IA Results: ACL Escalations Search Fixture';
+        const partialMatchName = 'CENTURY Leadership Summary Search Fixture';
+
+        const schedulerUuids = await Promise.all([
+            createNamedChartScheduler(admin, exactMatchName),
+            createNamedChartScheduler(admin, partialMatchName),
+        ]);
+
+        try {
+            const searchParams = new URLSearchParams({
+                searchQuery: `  ${exactMatchName}  `,
+                page: '1',
+                pageSize: '10',
+            });
+            const response = await admin.get<ApiSchedulersResponse>(
+                `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/list?${searchParams.toString()}`,
+            );
+
+            expect(response.body.results.data).toHaveLength(1);
+            expect(response.body.results.data[0]?.name).toBe(exactMatchName);
+        } finally {
+            await deleteSchedulers(admin, schedulerUuids);
+        }
     });
 
     describe('Scheduler reassignment', () => {

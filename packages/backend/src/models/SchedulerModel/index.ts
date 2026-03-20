@@ -60,7 +60,6 @@ import {
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
-import { getColumnMatchRegexQuery } from '../SearchModel/utils/search';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -81,6 +80,17 @@ const statusOrder = [
     SchedulerJobStatus.STARTED,
     SchedulerJobStatus.SCHEDULED,
 ].map((s) => s.toString());
+
+const LIKE_ESCAPE_CHAR = '\\';
+
+const escapeLikeWildcards = (value: string): string =>
+    value
+        .split(LIKE_ESCAPE_CHAR)
+        .join(`${LIKE_ESCAPE_CHAR}${LIKE_ESCAPE_CHAR}`)
+        .split('%')
+        .join(`${LIKE_ESCAPE_CHAR}%`)
+        .split('_')
+        .join(`${LIKE_ESCAPE_CHAR}_`);
 
 export class SchedulerModel {
     private database: Knex;
@@ -323,10 +333,15 @@ export class SchedulerModel {
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
             });
         // Apply search query if present
-        if (searchQuery) {
-            baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
-                `${SchedulerTableName}.name`,
-            ]);
+        const trimmedSearchQuery = searchQuery?.trim();
+        if (trimmedSearchQuery) {
+            baseQuery = baseQuery.whereRaw(
+                `:column: ILIKE :searchQuery ESCAPE '${LIKE_ESCAPE_CHAR}'`,
+                {
+                    column: `${SchedulerTableName}.name`,
+                    searchQuery: `%${escapeLikeWildcards(trimmedSearchQuery)}%`,
+                },
+            );
         }
 
         if (
