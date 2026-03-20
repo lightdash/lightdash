@@ -83,76 +83,68 @@ config:
 ### Example 1: Store Locations (Scatter Map)
 
 ```yaml
-version: 1
+chartConfig:
+  type: map
+  config:
+    colorRange:
+      - "#dbeafe"
+      - "#1e40af"
+    defaultCenterLat: 39.8283
+    defaultCenterLon: -98.5795
+    defaultZoom: 4
+    latitudeFieldId: "stores_latitude"
+    locationType: "scatter"
+    longitudeFieldId: "stores_longitude"
+    mapType: "USA"
+    maxBubbleSize: 40
+    minBubbleSize: 8
+    showLegend: true
+    sizeFieldId: "stores_total_revenue"
+    tileBackground: "light"
+metricQuery:
+  dimensions:
+    - stores_store_name
+    - stores_city
+  exploreName: stores
+  limit: 500
+  metrics:
+    - stores_total_revenue
 name: "Store Locations"
 slug: store-locations
 spaceSlug: sales/maps
 tableName: stores
-
-metricQuery:
-  exploreName: stores
-  dimensions:
-    - stores_store_name
-    - stores_city
-  metrics:
-    - stores_total_revenue
-  limit: 500
-
-chartConfig:
-  type: map
-  config:
-    mapType: "USA"
-    locationType: "scatter"
-    tileBackground: "light"
-    latitudeFieldId: "stores_latitude"
-    longitudeFieldId: "stores_longitude"
-    sizeFieldId: "stores_total_revenue"
-    minBubbleSize: 8
-    maxBubbleSize: 40
-    colorRange:
-      - "#dbeafe"
-      - "#1e40af"
-    showLegend: true
-    defaultZoom: 4
-    defaultCenterLat: 39.8283
-    defaultCenterLon: -98.5795
-
-updatedAt: "2024-01-30T12:00:00Z"
+version: 1
 ```
 
 ### Example 2: Sales by State (Choropleth)
 
 ```yaml
-version: 1
+chartConfig:
+  type: map
+  config:
+    colorRange:
+      - "#f0f9ff"
+      - "#2563eb"
+    geoJsonPropertyKey: "name"
+    locationFieldId: "orders_state"
+    locationType: "area"
+    mapType: "USA"
+    noDataColor: "#f3f4f6"
+    showLegend: true
+    tileBackground: "none"
+    valueFieldId: "orders_total_sales"
+metricQuery:
+  dimensions:
+    - orders_state
+  exploreName: orders
+  limit: 50
+  metrics:
+    - orders_total_sales
 name: "Sales by State"
 slug: sales-by-state
 spaceSlug: sales/maps
 tableName: orders
-
-metricQuery:
-  exploreName: orders
-  dimensions:
-    - orders_state
-  metrics:
-    - orders_total_sales
-  limit: 50
-
-chartConfig:
-  type: map
-  config:
-    mapType: "USA"
-    locationType: "area"
-    tileBackground: "none"
-    locationFieldId: "orders_state"
-    geoJsonPropertyKey: "name"
-    valueFieldId: "orders_total_sales"
-    colorRange:
-      - "#f0f9ff"
-      - "#2563eb"
-    showLegend: true
-    noDataColor: "#f3f4f6"
-
-updatedAt: "2024-01-30T12:00:00Z"
+version: 1
 ```
 
 ## Data Requirements

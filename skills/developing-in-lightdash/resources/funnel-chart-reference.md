@@ -16,27 +16,25 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ### Basic Configuration
 
 ```yaml
-version: 1
-name: "Sales Funnel"
-slug: sales-funnel
-spaceSlug: sales
-tableName: leads
-
+chartConfig:
+  type: funnel
+  config:
+    dataInput: row
+    fieldId: leads_count
 metricQuery:
-  exploreName: leads
   dimensions:
     - leads_stage
+  exploreName: leads
   metrics:
     - leads_count
   sorts:
     - fieldId: leads_stage
       descending: false
-
-chartConfig:
-  type: funnel
-  config:
-    fieldId: leads_count
-    dataInput: row
+name: "Sales Funnel"
+slug: sales-funnel
+spaceSlug: sales
+tableName: leads
+version: 1
 ```
 
 ### Key Configuration Options
@@ -106,37 +104,9 @@ config:
 ## Complete Example
 
 ```yaml
-version: 1
-name: "Sales Pipeline"
-slug: sales-pipeline
-spaceSlug: sales
-tableName: opportunities
-
-metricQuery:
-  exploreName: opportunities
-  dimensions:
-    - opportunities_stage
-  metrics:
-    - opportunities_count
-  sorts:
-    - fieldId: opportunities_stage
-      descending: false
-  limit: 10
-
 chartConfig:
   type: funnel
   config:
-    fieldId: opportunities_count
-    dataInput: row
-
-    # Custom stage labels
-    labelOverrides:
-      opportunities_stage_lead: "New Leads"
-      opportunities_stage_qualified: "Qualified Opportunities"
-      opportunities_stage_proposal: "Proposal Sent"
-      opportunities_stage_negotiation: "In Negotiation"
-      opportunities_stage_closed: "Closed Won"
-
     # Custom stage colors
     colorOverrides:
       opportunities_stage_lead: "#3b82f6"
@@ -144,14 +114,36 @@ chartConfig:
       opportunities_stage_proposal: "#10b981"
       opportunities_stage_negotiation: "#f59e0b"
       opportunities_stage_closed: "#8b5cf6"
-
+    dataInput: row
+    fieldId: opportunities_count
     labels:
       position: inside
-      showValue: true
       showPercentage: true
-
-    showLegend: true
+      showValue: true
+    # Custom stage labels
+    labelOverrides:
+      opportunities_stage_lead: "New Leads"
+      opportunities_stage_qualified: "Qualified Opportunities"
+      opportunities_stage_proposal: "Proposal Sent"
+      opportunities_stage_negotiation: "In Negotiation"
+      opportunities_stage_closed: "Closed Won"
     legendPosition: vertical
+    showLegend: true
+metricQuery:
+  dimensions:
+    - opportunities_stage
+  exploreName: opportunities
+  limit: 10
+  metrics:
+    - opportunities_count
+  sorts:
+    - fieldId: opportunities_stage
+      descending: false
+name: "Sales Pipeline"
+slug: sales-pipeline
+spaceSlug: sales
+tableName: opportunities
+version: 1
 ```
 
 ## Best Practices

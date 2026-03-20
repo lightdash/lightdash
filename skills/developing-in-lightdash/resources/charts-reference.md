@@ -41,30 +41,26 @@ Use this table to choose the right chart type based on your data pattern:
 All chart types share a common base structure:
 
 ```yaml
-version: 1
-name: "Chart Name"
-slug: unique-chart-slug
-spaceSlug: target-space
-dashboardSlug: my-dashboard  # Optional: scopes chart to this dashboard (won't appear in space)
-tableName: my_explore
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions:
-    - my_explore_category
-  metrics:
-    - my_explore_total_sales
-  filters: {}
-  sorts: []
-  limit: 500
-
 chartConfig:
   type: <type>  # One of the types listed above
   config:
     # Type-specific visualization configuration
-
+dashboardSlug: my-dashboard  # Optional: scopes chart to this dashboard (won't appear in space)
+metricQuery:
+  dimensions:
+    - my_explore_category
+  filters: {}
+  limit: 500
+  metrics:
+    - my_explore_total_sales
+  sorts: []
+name: "Chart Name"
+slug: unique-chart-slug
+spaceSlug: target-space
 tableConfig:
   columnOrder: []
+tableName: my_explore
+version: 1
 ```
 
 ### Chart Scoping
