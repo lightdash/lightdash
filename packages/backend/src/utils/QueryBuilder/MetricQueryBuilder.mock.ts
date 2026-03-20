@@ -2650,6 +2650,21 @@ export const EXPLORE_WITH_NESTED_AGG: Explore = {
                     tablesReferences: ['my_table'],
                     hidden: false,
                 },
+                // Warehouse-specific aggregation (Snowflake MAX_BY) wrapping metric references
+                // This compiles to MAX_BY(MAX(...), MAX(...)) which is a nested aggregate
+                max_by_of_agg: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'max_by_of_agg',
+                    label: 'max_by_of_agg',
+                    sql: 'max_by(${max_value}, ${count_records})',
+                    compiledSql:
+                        'MAX_BY(MAX("my_table".value), COUNT("my_table".id))',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
                 // Raw column aggregation combined with metric reference
                 // sql: sum(raw_col) / ${count_records}
                 // The sum() wraps a raw column (not a ${ } ref), so this is

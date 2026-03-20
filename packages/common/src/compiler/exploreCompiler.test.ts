@@ -1067,6 +1067,10 @@ describe('sqlContainsAggregation', () => {
             ['approx_percentile(${field}, 0.5)', true],
             ["COUNT_IF(${field} <> 'n/a')", true],
             ['countif(${field} > 0)', true],
+            ['max_by(${field}, ${date})', true],
+            ['MAX_BY(${field}, ${date})', true],
+            ['min_by(${field}, ${date})', true],
+            ['MIN_BY(${field}, ${date})', true],
         ])('"%s" should return %s', (sql, expected) => {
             expect(sqlContainsAggregation(sql)).toBe(expected);
         });
@@ -1094,6 +1098,7 @@ describe('sqlContainsAggregation', () => {
             ["CASE WHEN ${status} = 'active' THEN 1 ELSE 0 END", false],
             ['UPPER(${name})', false],
             ['CONCAT(${first_name}, ${last_name})', false],
+            ['max_bytes(${field})', false],
         ])('"%s" should return false', (sql) => {
             expect(sqlContainsAggregation(sql)).toBe(false);
         });
@@ -1179,6 +1184,15 @@ describe('sqlAggregationWrapsReferences', () => {
             sqlAggregationWrapsReferences('sum(${other_table.max_value})', [
                 'other_table.max_value',
             ]),
+        ).toBe(true);
+    });
+
+    test('should return true when max_by wraps a metric reference', () => {
+        expect(
+            sqlAggregationWrapsReferences(
+                'max_by(${active_customers}, ${updated_on})',
+                ['active_customers'],
+            ),
         ).toBe(true);
     });
 });
