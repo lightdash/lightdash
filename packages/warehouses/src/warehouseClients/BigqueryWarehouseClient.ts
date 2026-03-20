@@ -658,6 +658,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             fields: WarehouseResults['fields'],
         ) => void,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        const startTime = performance.now();
         try {
             const [job] = await this.createJob(sql, {
                 tags,
@@ -678,8 +679,6 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             await this.awaitJobCompletion(job);
 
             const resultsMetadata = await this.getJobResultsMetadata(job);
-            const startTime = job.metadata?.statistics?.startTime;
-            const endTime = job.metadata?.statistics?.endTime;
             const totalRows: number = resultsMetadata?.totalRows
                 ? parseInt(resultsMetadata.totalRows, 10)
                 : 1;
@@ -700,7 +699,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                     jobLocation: job.location,
                 },
                 totalRows,
-                durationMs: startTime && endTime ? endTime - startTime : 0,
+                durationMs: performance.now() - startTime,
             };
         } catch (e: unknown) {
             if (BigqueryWarehouseClient.isBigqueryError(e)) {
