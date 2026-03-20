@@ -112,6 +112,7 @@ export * from './types/errors';
 export * from './types/explore';
 export * from './types/favorites';
 export * from './types/featureFlags';
+export * from './types/impersonationOrganizationSettings';
 export * from './types/field';
 export * from './types/fieldMatch';
 export * from './types/filter';
@@ -214,6 +215,7 @@ export * from './utils/slack';
 export * from './utils/sleep';
 export * from './utils/slugs';
 export * from './utils/subtotals';
+export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
 export * from './utils/time';
 export * from './utils/timeFrames';
@@ -887,7 +889,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
     },
     {
         name: 'Parent Space 2',
-        isPrivate: true,
+        inheritParentPermissions: false,
         children: [
             {
                 name: 'Child Space 2.1',
@@ -901,7 +903,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
     },
     {
         name: 'Parent Space 3',
-        isPrivate: true,
+        inheritParentPermissions: false,
         access: [
             // Admin will automatically be added, we only seed editor
             {
@@ -918,7 +920,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
     // Created by admin and added group access
     {
         name: 'Parent Space 5',
-        isPrivate: true,
+        inheritParentPermissions: false,
         access: [],
         groupAccess: [
             {
@@ -937,7 +939,7 @@ export const SPACE_TREE_1: TreeCreateSpace[] = [
 export const SPACE_TREE_2: TreeCreateSpace[] = [
     {
         name: 'Parent Space 4',
-        isPrivate: true,
+        inheritParentPermissions: false,
         access: [],
         children: [
             {

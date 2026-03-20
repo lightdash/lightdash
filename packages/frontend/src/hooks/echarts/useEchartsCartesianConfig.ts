@@ -2277,6 +2277,7 @@ const useEchartsCartesianConfig = (
         minimal,
         parameters,
         isTouchDevice,
+        colorPalette,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -2376,6 +2377,18 @@ const useEchartsCartesianConfig = (
         parameters,
     ]);
 
+    // Pivot references from hidden series, used for resolving custom tooltip references
+    // to fields that are on the Y axis but have their chart series hidden.
+    const hiddenSeriesPivotRefs = useMemo(() => {
+        const allConfigSeries =
+            validCartesianConfig?.eChartsConfig?.series ?? [];
+        return allConfigSeries
+            .filter(
+                (s) => s.hidden && isPivotReferenceWithValues(s.encode.yRef),
+            )
+            .map((s) => s.encode.yRef);
+    }, [validCartesianConfig?.eChartsConfig?.series]);
+
     const resultsAndMinsAndMaxes = useMemo(
         () => getResultValueArray(rows, true, true),
         [rows],
@@ -2407,6 +2420,15 @@ const useEchartsCartesianConfig = (
         if (!itemsMap) return;
 
         const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
+        const isColorByCategory = Boolean(
+            validCartesianConfig?.layout?.colorByCategory,
+        );
+        const categoryColorOverrides =
+            validCartesianConfig?.layout?.categoryColorOverrides;
+        // xField is always the dimension (category) field regardless of flipAxes.
+        // flipAxes only swaps which axis renders which field via `encode`,
+        // it does NOT swap xField/yField in the layout.
+        const categoryFieldId = validCartesianConfig?.layout?.xField;
 
         // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
@@ -2457,7 +2479,7 @@ const useEchartsCartesianConfig = (
 
                 // Apply bar styling for bar charts
                 if (serie.type === CartesianSeriesType.BAR) {
-                    return {
+                    const barConfig = {
                         ...baseConfig,
                         ...getBarStyle(),
                         // Non-stacked bars get border radius on all bars
@@ -2472,6 +2494,41 @@ const useEchartsCartesianConfig = (
                             },
                         }),
                     };
+
+                    // Color by category: each bar gets a unique color
+                    if (isColorByCategory) {
+                        return {
+                            ...barConfig,
+                            colorBy: 'data' as const,
+                            itemStyle: {
+                                ...barConfig.itemStyle,
+                                color: (params: {
+                                    dataIndex: number;
+                                    name: string;
+                                    data: Record<string, unknown>;
+                                }) => {
+                                    const categoryValue = categoryFieldId
+                                        ? String(
+                                              params.data[categoryFieldId] ??
+                                                  '',
+                                          )
+                                        : '';
+                                    if (
+                                        categoryColorOverrides?.[categoryValue]
+                                    ) {
+                                        return categoryColorOverrides[
+                                            categoryValue
+                                        ];
+                                    }
+                                    return colorPalette[
+                                        params.dataIndex % colorPalette.length
+                                    ];
+                                },
+                            },
+                        };
+                    }
+
+                    return barConfig;
                 }
 
                 return baseConfig;
@@ -2519,10 +2576,14 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout.connectNulls,
+        validCartesianConfig?.layout?.colorByCategory,
+        validCartesianConfig?.layout?.categoryColorOverrides,
+        validCartesianConfig?.layout?.xField,
         series,
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
+        colorPalette,
         theme.colors.background,
     ]);
     const sortedResults = useMemo(() => {
@@ -2826,6 +2887,7 @@ const useEchartsCartesianConfig = (
                 xFieldId: validCartesianConfig?.layout?.xField,
                 originalValues,
                 series,
+                hiddenSeriesPivotRefs,
                 tooltipHtmlTemplate: tooltipConfig,
                 tooltipSort: tooltipSortConfig,
                 pivotValuesColumnsMap,
@@ -2844,6 +2906,7 @@ const useEchartsCartesianConfig = (
         originalValues,
         parameters,
         series,
+        hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
     ]);

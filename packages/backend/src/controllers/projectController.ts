@@ -50,6 +50,7 @@ import {
     type DuplicateDashboardParams,
     type Tag,
     type UpdateMultipleDashboards,
+    type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
 import {
@@ -858,6 +859,35 @@ export class ProjectController extends BaseController {
     }
 
     /**
+     * Update query timezone settings for a project
+     * @summary Update query timezone settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/queryTimezoneSettings')
+    @OperationId('updateQueryTimezoneSettings')
+    async updateQueryTimezoneSettings(
+        @Path() projectUuid: string,
+        @Body() body: UpdateQueryTimezoneSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        await this.services
+            .getProjectService()
+            .updateQueryTimezone(req.user!, projectUuid, body.queryTimezone);
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Create a new tag in a project
      * @summary Create tag
      */
@@ -1277,8 +1307,8 @@ export class ProjectController extends BaseController {
     }
 
     /**
-     * Refresh a single pre-aggregate explore in a project
-     * @summary Refresh project pre-aggregate by name
+     * Refresh a single pre-aggregate by its definition name
+     * @summary Refresh pre-aggregate by definition name
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -1286,11 +1316,13 @@ export class ProjectController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Post('{projectUuid}/pre-aggregates/{preAggExploreName}/refresh')
-    @OperationId('refreshProjectPreAggregateByName')
-    async refreshPreAggregateByName(
+    @Post(
+        '{projectUuid}/pre-aggregates/definitions/{preAggregateDefinitionName}/refresh',
+    )
+    @OperationId('refreshProjectPreAggregateByDefinitionName')
+    async refreshPreAggregateByDefinitionName(
         @Path() projectUuid: string,
-        @Path() preAggExploreName: string,
+        @Path() preAggregateDefinitionName: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<{ jobIds: string[] }>> {
         this.setStatus(200);
@@ -1298,10 +1330,10 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .refreshPreAggregateByName(
+                .refreshPreAggregateByDefinitionName(
                     req.user!,
                     projectUuid,
-                    preAggExploreName,
+                    preAggregateDefinitionName,
                 ),
         };
     }

@@ -331,9 +331,14 @@ export class DashboardService
     async getByIdOrSlug(
         user: SessionUser,
         dashboardUuidOrSlug: string,
+        options?: { projectUuid?: string },
     ): Promise<Dashboard> {
-        const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
 
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -342,7 +347,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -468,7 +472,6 @@ export class DashboardService
 
         return {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -489,7 +492,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -596,7 +598,6 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -606,9 +607,14 @@ export class DashboardService
         user: SessionUser,
         dashboardUuidOrSlug: string,
         dashboard: UpdateDashboard,
+        options?: { projectUuid?: string },
     ): Promise<Dashboard> {
-        const existingDashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
+        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
 
         const currentSpace =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -802,7 +808,6 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            isPrivate: !updatedSpace.inheritsFromOrgOrProject,
             inheritsFromOrgOrProject: updatedSpace.inheritsFromOrgOrProject,
             access: updatedSpace.access,
         };
@@ -821,7 +826,6 @@ export class DashboardService
             );
         const existingDashboard = {
             ...existingDashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -947,7 +951,6 @@ export class DashboardService
                     );
                 return {
                     ...dashboard,
-                    isPrivate: !dashboardSpaceContext.inheritsFromOrgOrProject,
                     inheritsFromOrgOrProject:
                         dashboardSpaceContext.inheritsFromOrgOrProject,
                     access: dashboardSpaceContext.access,
@@ -961,10 +964,14 @@ export class DashboardService
     async delete(
         user: SessionUser,
         dashboardUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
-        const dashboardToDelete =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
 
@@ -1040,12 +1047,13 @@ export class DashboardService
             }
         }
 
+        const resolvedUuid = dashboardToDelete.uuid;
         if (this.lightdashConfig.softDelete.enabled) {
-            await this.softDelete(user, dashboardUuid, {
+            await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         } else {
-            await this.permanentDelete(user, dashboardUuid, {
+            await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         }
@@ -1299,7 +1307,6 @@ export class DashboardService
             );
         const dashboard = {
             ...dashboardDao,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };

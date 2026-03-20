@@ -143,7 +143,7 @@ export const renderStringFilterSql = (
                 const notIncludeQuery = nonEmptyFilterValues.map(
                     (v) => `LOWER(${dimensionSql}) NOT LIKE LOWER('%${v}%')`,
                 );
-                return notIncludeQuery.join('\n  AND\n  ');
+                return `(${notIncludeQuery.join('\n  AND\n  ')} OR (${dimensionSql}) IS NULL)`;
             }
             return 'true';
         case FilterOperator.NULL:

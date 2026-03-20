@@ -59,16 +59,14 @@ function flattenNodeRecursive(
     // If it's a group, check if any children are visible
     if (isGroup) {
         const groupNode = node;
-        const hasVisibleChildren = Object.values(groupNode.children).some(
-            (child) =>
-                !isSearching ||
-                searchResults.includes(child.key) ||
-                ('children' in child &&
-                    child.children &&
-                    Object.values(child.children).some((grandchild) =>
-                        searchResults.includes(grandchild.key),
-                    )),
-        );
+        const hasMatchInDescendants = (treeNode: TreeNode): boolean =>
+            searchResults.includes(treeNode.key) ||
+            (isGroupNode(treeNode) &&
+                Object.values(treeNode.children).some(hasMatchInDescendants));
+
+        const hasVisibleChildren =
+            !isSearching ||
+            Object.values(groupNode.children).some(hasMatchInDescendants);
 
         if (!hasVisibleChildren && isSearching) {
             return items;

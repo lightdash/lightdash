@@ -23,6 +23,7 @@ const createDbCatalog = (
     ai_hints: null,
     joined_tables: null,
     owner_user_uuid: null,
+    has_time_dimension: false,
     ...overrides,
 });
 

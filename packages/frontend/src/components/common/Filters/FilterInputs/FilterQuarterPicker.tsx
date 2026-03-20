@@ -35,6 +35,7 @@ const FilterQuarterPicker: FC<Props> = ({
     placeholder = 'Select Quarter',
     disabled,
     popoverProps,
+    autoFocus,
 }) => {
     const [opened, { open, close }] = useDisclosure(false);
 
@@ -149,6 +150,7 @@ const FilterQuarterPicker: FC<Props> = ({
             <Popover.Target>
                 <TextInput
                     size="xs"
+                    data-autofocus={autoFocus || undefined}
                     onClick={disabled ? undefined : open}
                     placeholder={placeholder}
                     value={

@@ -18,14 +18,12 @@ import {
     isMetric,
     isNumericItem,
     isTableCalculation,
-    isTimeBasedDimension,
     resolveGranularityInLabel,
     timeFrameToDateGranularityMap,
     valueIsNaN,
     type BigNumber,
     type CompactOrAlias,
     type ConditionalFormattingConfig,
-    type DateZoom,
     type GranularityMap,
     type ItemsMap,
     type ParametersValuesMap,
@@ -131,7 +129,6 @@ const useBigNumberConfig = (
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
     parameters?: ParametersValuesMap,
-    dateZoom?: DateZoom,
 ) => {
     const availableFieldsIds = useMemo(() => {
         const itemsSortedByType = Object.values(itemsMap || {}).sort((a, b) => {
@@ -427,25 +424,29 @@ const useBigNumberConfig = (
 
     const granularityMap = useMemo((): GranularityMap => {
         if (!itemsMap) return {};
+
         const map: GranularityMap = {};
         for (const field of Object.values(itemsMap)) {
             if (
                 isDimension(field) &&
-                isTimeBasedDimension(field) &&
-                field.timeInterval &&
-                field.timeIntervalBaseDimensionName
+                field.timeIntervalBaseDimensionName &&
+                (field.timeInterval || field.customTimeInterval)
             ) {
-                const granularity =
-                    dateZoom?.granularity ??
-                    timeFrameToDateGranularityMap[field.timeInterval];
-                if (granularity) {
-                    const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
-                    map[baseId] = granularity;
+                const baseId = `${field.table}_${field.timeIntervalBaseDimensionName}`;
+
+                if (field.customTimeInterval) {
+                    map[baseId] = field.label;
+                } else if (field.timeInterval) {
+                    const granularity =
+                        timeFrameToDateGranularityMap[field.timeInterval];
+                    if (granularity) {
+                        map[baseId] = granularity;
+                    }
                 }
             }
         }
         return map;
-    }, [dateZoom?.granularity, itemsMap]);
+    }, [itemsMap]);
 
     const resolvedBigNumberLabel = useMemo(
         () => resolveGranularityInLabel(bigNumberLabel, granularityMap),

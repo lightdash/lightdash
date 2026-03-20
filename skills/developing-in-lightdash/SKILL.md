@@ -88,6 +88,18 @@ dimensions:
 
 ## Core Workflows
 
+### Verify Filter Values Before Using Them
+
+**CRITICAL**: Never guess filter values. Case mismatches (e.g., `'Payment'` vs `'payment'`) cause charts to silently return no data.
+
+**Before writing any string filter**, query actual values from the warehouse:
+
+```bash
+lightdash sql "SELECT DISTINCT category FROM payments LIMIT 50" -o category_values.csv
+```
+
+Read the CSV and use the **exact values** in your filter YAML. This applies to all `equals`/`notEquals` filters with string values — in charts and dashboards.
+
 ### Editing Metrics & Dimensions
 
 1. **Find the model YAML file** (dbt: `models/*.yml`, pure Lightdash: `lightdash/models/*.yml`)
@@ -101,13 +113,30 @@ See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Refere
 
 1. **Download**: `lightdash download --charts chart-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Upload**: `lightdash upload --charts chart-slug`
+3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Verify Filter Values](#verify-filter-values-before-using-them))
+4. **Update dashboard tiles**: If you changed the chart's name or purpose, download any dashboards that reference it and update their tile `title` and `chartName` properties to match
+5. **Lint**: `lightdash lint` to validate before uploading
+6. **Upload**: `lightdash upload --charts chart-slug` (and any modified dashboards)
+
+**Dashboard tiles have their own titles.** A `saved_chart` tile's `title` and `chartName` properties are independent overrides — they do NOT auto-update when you rename the chart. If you change a chart from "Total Revenue" to "Gross Profit" but don't update the dashboard tile, the dashboard will still display "Total Revenue". Always download the dashboard, find tiles with matching `chartSlug`, and update their `title` and `chartName` to match.
+
+```yaml
+# Dashboard tile — title and chartName must be updated manually when chart changes
+tiles:
+  - type: saved_chart
+    properties:
+      chartSlug: total-revenue-kpi
+      title: "Gross Profit"        # ← Update this when chart name/purpose changes
+      chartName: "Gross Profit"    # ← Update this too
+```
 
 ### Editing Dashboards
 
 1. **Download**: `lightdash download --dashboards dashboard-slug`
 2. **Edit** the YAML file in `lightdash/` directory
-3. **Upload**: `lightdash upload --dashboards dashboard-slug`
+3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Verify Filter Values](#verify-filter-values-before-using-them))
+4. **Lint**: `lightdash lint` to validate before uploading
+5. **Upload**: `lightdash upload --dashboards dashboard-slug`
 
 ### Creating New Content
 
@@ -116,7 +145,8 @@ Charts and dashboards are typically created in the UI first, then managed as cod
 1. Create in UI
 2. `lightdash download` to pull as YAML
 3. Edit and version control
-4. `lightdash upload` to sync changes
+4. `lightdash lint` to validate before uploading
+5. `lightdash upload` to sync changes
 
 ### Testing with Preview
 

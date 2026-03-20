@@ -10,25 +10,21 @@ describe('AppProvider', () => {
         }).toThrow('useApp must be used within a AppProvider');
     });
 
-    it('should return values from AppProvider', () => {
-        expect(async () => {
-            const { result } = renderHookWithProviders(() => useApp());
+    it('should return values from AppProvider', async () => {
+        const { result } = renderHookWithProviders(() => useApp());
 
-            await waitFor(() =>
-                expect(result.current.health.isLoading).toBe(false),
-            );
-            await waitFor(() =>
-                expect(result.current.user.isLoading).toBe(false),
-            );
+        await waitFor(() =>
+            expect(result.current.health.isLoading).toBe(false),
+        );
+        await waitFor(() => expect(result.current.user.isLoading).toBe(false));
 
-            expect(result.current.health.data).toBeDefined();
-            expect(result.current.user.data).toBeDefined();
+        expect(result.current.health.data).toBeDefined();
+        expect(result.current.user.data).toBeDefined();
 
-            expect(result.current.health.data).toHaveProperty('siteUrl');
-            expect(result.current.user.data).toHaveProperty(
-                'email',
-                'demo@lightdash.com',
-            );
-        }).not.toThrow();
+        expect(result.current.health.data).toHaveProperty('siteUrl');
+        expect(result.current.user.data).toHaveProperty(
+            'email',
+            'demo@lightdash.com',
+        );
     });
 });

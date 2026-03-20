@@ -42,7 +42,7 @@ type SelectSavedSql = Pick<
     Pick<DbOrganization, 'organization_uuid'> & {
         updated_at: Date;
         spaceName: string;
-        space_is_private: boolean;
+        space_inherit_parent_permissions: boolean;
         dashboardName: string | null;
         created_by_user_uuid: string | null;
         created_by_user_first_name: string | null;
@@ -63,7 +63,7 @@ export class SavedSqlModel {
         SqlChart,
         'space'
     > & {
-        space: Pick<SpaceSummary, 'uuid' | 'name' | 'isPrivate'>;
+        space: Pick<SpaceSummary, 'uuid' | 'name'>;
     } {
         return {
             savedSqlUuid: row.saved_sql_uuid,
@@ -95,7 +95,6 @@ export class SavedSqlModel {
             space: {
                 uuid: row.space_uuid,
                 name: row.spaceName,
-                isPrivate: row.space_is_private,
             },
             project: {
                 projectUuid: row.project_uuid,
@@ -192,7 +191,7 @@ export class SavedSqlModel {
                 `updatedByUser.last_name as last_version_updated_by_user_last_name`,
                 `${SpaceTableName}.space_uuid`,
                 `${SpaceTableName}.name as spaceName`,
-                `${SpaceTableName}.is_private as space_is_private`,
+                `${SpaceTableName}.inherit_parent_permissions as space_inherit_parent_permissions`,
                 `${SpaceTableName}.path`,
             ])
             .where((builder) => {

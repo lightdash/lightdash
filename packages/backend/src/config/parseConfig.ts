@@ -862,6 +862,7 @@ export type LightdashConfig = {
         labels?: Object;
         eventMetricsEnabled: boolean;
         eventMetricsConfigPath?: string;
+        allQueryMetricsEnabled: boolean;
     };
     database: {
         connectionUri: string | undefined;
@@ -878,7 +879,6 @@ export type LightdashConfig = {
         maxPageSize: number;
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
-        enableTableColumnCustomization: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
     };
     pivotTable: {
@@ -910,6 +910,12 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    natsWorker: {
+        enabled: boolean;
+        url: string | undefined;
+        workerConcurrency: number;
+        queueTimeoutMs: number;
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -931,9 +937,6 @@ export type LightdashConfig = {
     };
     groups: {
         enabled: boolean | undefined;
-    };
-    adminChangeNotifications: {
-        enabled: boolean;
     };
     persistentDownloadUrls: {
         enabled: boolean;
@@ -1094,7 +1097,7 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     defaultUserSpaces: {
-        enabled: boolean;
+        enabled: boolean | undefined;
     };
     softDelete: {
         enabled: boolean;
@@ -1102,7 +1105,11 @@ export type LightdashConfig = {
     };
     preAggregates: {
         enabled: boolean;
+        parquetEnabled: boolean;
         s3?: Omit<S3Config, 'expirationTime'>;
+    };
+    userImpersonation: {
+        enabled: boolean | undefined;
     };
 };
 
@@ -1301,6 +1308,7 @@ export type SmtpConfig = {
         name: string;
         email: string;
     };
+    inlineImageCid: boolean;
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
@@ -1375,9 +1383,30 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
+    const natsWorkerUrl = process.env.NATS_URL;
+    const natsWorkerConcurrency =
+        getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
+    const natsWorkerQueueTimeoutMs =
+        getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (natsWorkerEnabled && !natsWorkerUrl) {
+        throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
+    }
+    if (natsWorkerConcurrency <= 0) {
+        throw new ParseError(
+            'NATS_WORKER_CONCURRENCY must be greater than 0',
+            {},
+        );
+    }
+    if (natsWorkerQueueTimeoutMs <= 0) {
+        throw new ParseError(
+            'NATS_QUEUE_TIMEOUT_MS must be greater than 0',
+            {},
+        );
     }
 
     return {
@@ -1419,6 +1448,8 @@ export const parseConfig = (): LightdashConfig => {
                       name: process.env.EMAIL_SMTP_SENDER_NAME || 'Lightdash',
                       email: process.env.EMAIL_SMTP_SENDER_EMAIL || '',
                   },
+                  inlineImageCid:
+                      process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
               }
             : undefined,
         posthog: process.env.POSTHOG_PROJECT_API_KEY
@@ -1459,6 +1490,10 @@ export const parseConfig = (): LightdashConfig => {
             tracesSampleRate:
                 getFloatFromEnvironmentVariable('SENTRY_TRACES_SAMPLE_RATE') ||
                 0.1,
+            queryTracesSampleRate:
+                getFloatFromEnvironmentVariable(
+                    'SENTRY_QUERY_TRACES_SAMPLE_RATE',
+                ) ?? null, // defaults to null (use global tracesSampleRate), set to 1.0 to capture all query traces
             profilesSampleRate:
                 getFloatFromEnvironmentVariable(
                     'SENTRY_PROFILES_SAMPLE_RATE',
@@ -1648,6 +1683,9 @@ export const parseConfig = (): LightdashConfig => {
             eventMetricsConfigPath:
                 process.env.LIGHTDASH_CUSTOM_METRICS_CONFIG_PATH ||
                 process.env.CUSTOM_METRICS_CONFIG_PATH,
+            allQueryMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_ALL_QUERY_METRICS_ENABLED ===
+                'true', // defaults to false, tracks execution duration & S3 upload for all queries (not just pre-aggregate)
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
@@ -1674,10 +1712,6 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
-                : undefined,
-            enableTableColumnCustomization: process.env
-                .ENABLE_TABLE_COLUMN_CUSTOMIZATION
-                ? process.env.ENABLE_TABLE_COLUMN_CUSTOMIZATION === 'true'
                 : undefined,
             retryQueryOnTransientErrors: process.env
                 .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
@@ -1741,6 +1775,12 @@ export const parseConfig = (): LightdashConfig => {
             ),
             s3: parseResultsS3Config(),
         },
+        natsWorker: {
+            enabled: natsWorkerEnabled,
+            url: natsWorkerUrl,
+            workerConcurrency: natsWorkerConcurrency,
+            queueTimeoutMs: natsWorkerQueueTimeoutMs,
+        },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,
             clientId: process.env.SLACK_CLIENT_ID,
@@ -1802,9 +1842,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.GROUPS_ENABLED
                 ? process.env.GROUPS_ENABLED === 'true'
                 : undefined,
-        },
-        adminChangeNotifications: {
-            enabled: process.env.ADMIN_CHANGE_NOTIFICATIONS_ENABLED === 'true',
         },
         persistentDownloadUrls: {
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
@@ -1984,7 +2021,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         defaultUserSpaces: {
             enabled:
-                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true',
+                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true'
+                    ? true
+                    : undefined,
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',
@@ -1995,7 +2034,15 @@ export const parseConfig = (): LightdashConfig => {
         },
         preAggregates: {
             enabled: preAggregatesEnabled,
+            parquetEnabled:
+                process.env.PRE_AGGREGATES_PARQUET_ENABLED === 'true',
             s3: preAggregatesS3,
+        },
+        userImpersonation: {
+            enabled:
+                process.env.USER_IMPERSONATION_ENABLED === 'true'
+                    ? true
+                    : undefined,
         },
     };
 };

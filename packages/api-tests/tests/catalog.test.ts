@@ -15,6 +15,7 @@ import {
 import { ApiClient } from '../helpers/api-client';
 import { login, loginWithEmail, loginWithPermissions } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
+import { TestResourceTracker } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
@@ -25,14 +26,14 @@ async function createSpace(
     opts: {
         name: string;
         projectUuid: string;
-        isPrivate?: boolean;
+        inheritParentPermissions?: boolean;
     },
 ): Promise<Space> {
     const resp = await client.post<{ results: Space }>(
         `${apiUrl}/projects/${opts.projectUuid}/spaces`,
         {
             name: opts.name,
-            isPrivate: opts.isPrivate ?? true,
+            inheritParentPermissions: opts.inheritParentPermissions ?? false,
         },
     );
     expect(resp.status).toBe(200);
@@ -695,9 +696,14 @@ describe('Lightdash catalog search', () => {
 
 describe('Lightdash analytics', () => {
     let admin: ApiClient;
+    const tracker = new TestResourceTracker();
 
     beforeAll(async () => {
         admin = await login();
+    });
+
+    afterAll(async () => {
+        await tracker.cleanup(admin);
     });
 
     it('Should get analytics for customers table', async () => {
@@ -755,6 +761,7 @@ describe('Lightdash analytics', () => {
             tiles: [],
             tabs: [],
         });
+        tracker.trackDashboard(newDashboard.uuid);
 
         // update dashboard with chart
         const { dashboard: updatedDashboard } =
@@ -822,7 +829,7 @@ describe('Lightdash analytics - space access filtering', () => {
         privateSpace = await createSpace(admin, {
             name: `Private catalog test ${Date.now()}`,
             projectUuid,
-            isPrivate: true,
+            inheritParentPermissions: false,
         });
 
         const chart = await createChartInSpace(admin, projectUuid, {

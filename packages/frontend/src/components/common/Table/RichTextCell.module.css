@@ -1,0 +1,26 @@
+.richTextCell {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.richTextCell :global(.wmde-markdown) {
+    background-color: transparent !important;
+    padding: 0 !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    color: inherit !important;
+}
+
+.richTextCell :global(.wmde-markdown) :global(p) {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.richTextCell :global(.wmde-markdown) :global(img) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}

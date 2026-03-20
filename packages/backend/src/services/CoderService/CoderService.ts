@@ -5,6 +5,7 @@ import {
     ChartAsCode,
     ChartAsCodeInternalization,
     ChartSummary,
+    ContentAsCodeType,
     CreateSavedChart,
     currentVersion,
     DashboardAsCode,
@@ -180,6 +181,7 @@ export class CoderService extends BaseService {
             tableConfig: chart.tableConfig,
             spaceSlug,
             version: currentVersion,
+            contentType: ContentAsCodeType.CHART,
             downloadedAt: new Date(),
             parameters: chart.parameters,
         };
@@ -211,6 +213,7 @@ export class CoderService extends BaseService {
             updatedAt: sqlChart.lastUpdatedAt,
             spaceSlug,
             version: currentVersion,
+            contentType: ContentAsCodeType.SQL_CHART,
             downloadedAt: new Date(),
         };
     }
@@ -381,9 +384,11 @@ export class CoderService extends BaseService {
             filters: CoderService.getFiltersWithTileSlugs(dashboard),
             tabs: dashboard.tabs,
             slug: dashboard.slug,
+            ...(dashboard.config ? { config: dashboard.config } : {}),
 
             spaceSlug,
             version: currentVersion,
+            contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
         };
 
@@ -1295,9 +1300,9 @@ export class CoderService extends BaseService {
 
         let parentSpaceUuid = closestAncestorSpaceUuid;
         let parentPath = closestAncestorSpace?.path ?? '';
-        const isPrivate =
-            closestAncestorSpace?.isPrivate ?? publicSpaceCreate !== true;
-        const inheritParentPermissions = !isPrivate;
+        const inheritParentPermissions =
+            closestAncestorSpace?.inheritParentPermissions ??
+            publicSpaceCreate === true;
         const newSpaces: Omit<
             Space,
             | 'queries'
@@ -1317,7 +1322,6 @@ export class CoderService extends BaseService {
 
             const newSpace = await this.spaceModel.createSpace(
                 {
-                    isPrivate,
                     inheritParentPermissions,
                     name: friendlyName(currentPath),
                     parentSpaceUuid,
@@ -1329,7 +1333,7 @@ export class CoderService extends BaseService {
                 },
             );
 
-            if (newSpace.isPrivate) {
+            if (!newSpace.inheritParentPermissions) {
                 if (parentSpaceUuid) {
                     const [ctx, groupsAccess] = await Promise.all([
                         this.spacePermissionService.getAllSpaceAccessContext(

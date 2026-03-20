@@ -3,13 +3,16 @@ import fetch from 'node-fetch';
 import * as os from 'os';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
+import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 
+const SKILL_MANIFEST_FILENAME = '.lightdash-skill-manifest.json';
+
 const GITHUB_API_BASE =
     'https://api.github.com/repos/lightdash/lightdash/contents';
-const GITHUB_RAW_BASE =
-    'https://raw.githubusercontent.com/lightdash/lightdash/main';
+
+const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/lightdash/lightdash/${CLI_VERSION}`;
 
 type AgentType = 'claude' | 'cursor' | 'codex';
 
@@ -18,6 +21,11 @@ type InstallSkillsOptions = {
     agent: AgentType;
     global: boolean;
     path?: string;
+};
+
+type SkillManifest = {
+    version: string;
+    installed_at: string;
 };
 
 type GitHubContentItem = {
@@ -88,7 +96,7 @@ function getInstallPath(options: InstallSkillsOptions): string {
 async function fetchGitHubDirectory(
     repoPath: string,
 ): Promise<GitHubContentItem[]> {
-    const url = `${GITHUB_API_BASE}/${repoPath}`;
+    const url = `${GITHUB_API_BASE}/${repoPath}?ref=${CLI_VERSION}`;
     GlobalState.debug(`> Fetching GitHub directory: ${url}`);
 
     const response = await fetch(url, {
@@ -128,6 +136,10 @@ async function fetchFileContent(downloadUrl: string): Promise<string> {
 function resolveSymlinkTarget(symlinkPath: string, target: string): string {
     const symlinkDir = path.posix.dirname(symlinkPath);
     return path.posix.normalize(path.posix.join(symlinkDir, target.trim()));
+}
+
+function interpolateVersionPlaceholders(content: string): string {
+    return content.replace(/\{\{CLI_VERSION\}\}/g, CLI_VERSION);
 }
 
 /* eslint-disable no-await-in-loop */
@@ -180,7 +192,10 @@ async function downloadSkillFiles(
                         const content = await fetchFileContent(
                             targetItem.download_url,
                         );
-                        fs.writeFileSync(targetLocalPath, content);
+                        fs.writeFileSync(
+                            targetLocalPath,
+                            interpolateVersionPlaceholders(content),
+                        );
                     }
                 }
             } catch {
@@ -189,7 +204,10 @@ async function downloadSkillFiles(
                 const content = await fetchFileContent(downloadUrl);
                 // Ensure parent directory exists
                 fs.mkdirSync(path.dirname(localPath), { recursive: true });
-                fs.writeFileSync(localPath, content);
+                fs.writeFileSync(
+                    localPath,
+                    interpolateVersionPlaceholders(content),
+                );
             }
         } else if (item.type === 'file' && item.download_url) {
             let content = await fetchFileContent(item.download_url);
@@ -206,7 +224,10 @@ async function downloadSkillFiles(
             }
 
             fs.mkdirSync(path.dirname(localPath), { recursive: true });
-            fs.writeFileSync(localPath, content);
+            fs.writeFileSync(
+                localPath,
+                interpolateVersionPlaceholders(content),
+            );
         }
     }
 }
@@ -215,6 +236,123 @@ async function downloadSkillFiles(
 async function listAvailableSkills(): Promise<string[]> {
     const items = await fetchGitHubDirectory('skills');
     return items.filter((item) => item.type === 'dir').map((item) => item.name);
+}
+
+function writeSkillManifest(skillDir: string): void {
+    const manifest: SkillManifest = {
+        version: CLI_VERSION,
+        installed_at: new Date().toISOString(),
+    };
+    fs.writeFileSync(
+        path.join(skillDir, SKILL_MANIFEST_FILENAME),
+        JSON.stringify(manifest, null, 2),
+    );
+}
+
+function readSkillManifest(skillDir: string): SkillManifest | null {
+    const manifestPath = path.join(skillDir, SKILL_MANIFEST_FILENAME);
+    if (!fs.existsSync(manifestPath)) {
+        return null;
+    }
+    try {
+        return JSON.parse(
+            fs.readFileSync(manifestPath, 'utf8'),
+        ) as SkillManifest;
+    } catch {
+        return null;
+    }
+}
+
+type InstalledSkillInfo = {
+    name: string;
+    version: string;
+    agent: AgentType;
+    scope: 'global' | 'project';
+    isOutdated: boolean;
+};
+
+function findInstalledSkills(): InstalledSkillInfo[] {
+    const agents: AgentType[] = ['claude', 'cursor', 'codex'];
+    const results: InstalledSkillInfo[] = [];
+
+    const roots: Array<{ path: string; scope: 'global' | 'project' }> = [
+        { path: os.homedir(), scope: 'global' },
+    ];
+
+    const cwd = process.cwd();
+    const gitRoot = findGitRoot(cwd);
+    roots.push({ path: gitRoot || cwd, scope: 'project' });
+
+    for (const root of roots) {
+        for (const agent of agents) {
+            const skillsDir = path.join(root.path, getAgentSkillsDir(agent));
+            if (!fs.existsSync(skillsDir)) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+
+            let entries: string[];
+            try {
+                entries = fs.readdirSync(skillsDir);
+            } catch {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+
+            entries
+                .filter((e) =>
+                    fs.statSync(path.join(skillsDir, e)).isDirectory(),
+                )
+                .forEach((entry) => {
+                    const manifest = readSkillManifest(
+                        path.join(skillsDir, entry),
+                    );
+                    if (manifest) {
+                        results.push({
+                            name: entry,
+                            version: manifest.version,
+                            agent,
+                            scope: root.scope,
+                            isOutdated: manifest.version !== CLI_VERSION,
+                        });
+                    }
+                });
+        }
+    }
+
+    return results;
+}
+
+export function getVersionWithSkills(): string {
+    const lines = [CLI_VERSION];
+    const skills = findInstalledSkills();
+
+    if (skills.length > 0) {
+        lines.push('');
+        lines.push('Installed skills:');
+        for (const skill of skills) {
+            const line = `  ${skill.name} v${skill.version} [${skill.agent}, ${skill.scope}]`;
+            lines.push(skill.isOutdated ? styles.warning(line) : line);
+        }
+
+        const outdated = skills.filter((s) => s.isOutdated);
+        if (outdated.length > 0) {
+            lines.push('');
+            lines.push(styles.warning('Update with:'));
+            const seen = new Set<string>();
+            for (const skill of outdated) {
+                const globalFlag = skill.scope === 'global' ? ' --global' : '';
+                const agentFlag = ` --agent ${skill.agent}`;
+                const cmd = `lightdash install-skills${globalFlag}${agentFlag}`;
+                if (!seen.has(cmd)) {
+                    seen.add(cmd);
+                    lines.push(styles.warning(`  ${cmd}`));
+                }
+            }
+        }
+    }
+
+    return lines.join('\n');
 }
 
 export const installSkillsHandler = async (
@@ -231,6 +369,7 @@ export const installSkillsHandler = async (
     console.error(
         `Scope: ${styles.bold(options.global ? 'global' : 'project')}`,
     );
+    console.error(`Version: ${styles.bold(CLI_VERSION)}`);
     console.error(`Install path: ${styles.bold(installPath)}\n`);
 
     const spinner = GlobalState.startSpinner('Fetching available skills...');
@@ -265,7 +404,10 @@ export const installSkillsHandler = async (
 
                 fs.mkdirSync(skillLocalPath, { recursive: true });
                 await downloadSkillFiles(`skills/${skill}`, skillLocalPath);
-                skillSpinner.succeed(`Installed skill: ${skill}`);
+                writeSkillManifest(skillLocalPath);
+                skillSpinner.succeed(
+                    `Installed skill: ${skill} (v${CLI_VERSION})`,
+                );
             } catch (err) {
                 const errorMessage =
                     err instanceof Error ? err.message : String(err);

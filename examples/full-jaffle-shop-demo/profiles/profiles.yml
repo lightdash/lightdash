@@ -11,5 +11,6 @@ jaffle_shop:
       user: "{{ env_var('PGUSER') }}"
       pass: "{{ env_var('PGPASSWORD') }}"
       dbname: "{{ env_var('PGDATABASE') }}"
+      threads: 4
       sslmode: disable
       schema: "{{ env_var('SEED_SCHEMA', 'jaffle') }}"

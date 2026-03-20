@@ -115,7 +115,7 @@ export const UpdateSqlChartModal: FC<Props> = ({
         async ({ name, description, spaceUuid, newSpaceName }) => {
             let newSpace = newSpaceName
                 ? await spaceManagement.handleCreateNewSpace({
-                      isPrivate: true,
+                      inheritParentPermissions: false,
                   })
                 : undefined;
 
@@ -141,7 +141,6 @@ export const UpdateSqlChartModal: FC<Props> = ({
                 }
                 newSavedSqlChart.space = {
                     name: updatedSpace.name,
-                    isPrivate: updatedSpace.isPrivate,
                     userAccess:
                         'userAccess' in updatedSpace
                             ? updatedSpace.userAccess

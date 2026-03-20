@@ -18,6 +18,7 @@ import {
     IconCode,
     IconFilter,
     IconGauge,
+    IconGitMerge,
     IconMap,
     IconSquareNumber1,
     IconTable,
@@ -34,6 +35,7 @@ import {
     isGaugeVisualizationConfig,
     isMapVisualizationConfig,
     isPieVisualizationConfig,
+    isSankeyVisualizationConfig,
     isTableVisualizationConfig,
     isTreemapVisualizationConfig,
 } from '../../LightdashVisualization/types';
@@ -192,6 +194,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Custom',
                     icon: <MantineIcon icon={IconCode} color="ldGray" />,
+                };
+            case ChartType.SANKEY:
+                return {
+                    text: 'Sankey (Beta)',
+                    icon: <MantineIcon icon={IconGitMerge} color="ldGray" />,
                 };
             default: {
                 return assertUnreachable(
@@ -416,6 +423,26 @@ const VisualizationCardOptions: FC = memo(() => {
                     }}
                 >
                     Gauge
+                </Menu.Item>
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isSankeyVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    leftSection={<MantineIcon icon={IconGitMerge} />}
+                    onClick={() => {
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.SANKEY);
+                    }}
+                >
+                    <Group gap="xs">
+                        Sankey
+                        <BetaBadge />
+                    </Group>
                 </Menu.Item>
 
                 {mapsFeatureFlag?.enabled && (

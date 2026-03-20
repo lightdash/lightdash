@@ -274,57 +274,69 @@ export class DbtMetadataApiClient implements DbtClient {
                 );
             }
 
+            // Snowflake defaults to uppercase identifiers, but the dbt Cloud
+            // Metadata API returns lowercase. Since we wrap identifiers in
+            // double quotes (which makes them case-sensitive in Snowflake),
+            // we must uppercase them to match the actual object names.
+            const normalizeIdentifier =
+                adapterType === 'snowflake'
+                    ? (id: string) => id.toUpperCase()
+                    : (id: string) => id;
+
             const dbtModelNodes: Record<string, DbtModelNode> =
                 Object.fromEntries(
-                    results.environment.applied.models.edges.map(({ node }) => [
-                        node.uniqueId,
-                        <DbtModelNode>{
-                            checksum: {
-                                name: '',
-                                checksum: '',
-                            },
-                            columns: Object.values(
-                                node.catalog?.columns || [],
-                            ).reduce<DbtModelNode['columns']>(
-                                (acc, column: AnyType) => {
-                                    acc[column.name] = {
-                                        name: column.name,
-                                        description: column.description,
-                                        meta: column.meta,
-                                        type: column.type,
-                                        data_type: column.type?.toLowerCase(),
-                                    };
-                                    return acc;
+                    results.environment.applied.models.edges.map(({ node }) => {
+                        const database = normalizeIdentifier(node.database);
+                        const schema = normalizeIdentifier(node.schema);
+                        const alias = normalizeIdentifier(
+                            node.alias || node.name,
+                        );
+
+                        return [
+                            node.uniqueId,
+                            <DbtModelNode>{
+                                checksum: {
+                                    name: '',
+                                    checksum: '',
                                 },
-                                {},
-                            ),
-                            compiled: true,
-                            fqn: [],
-                            language: node.language,
-                            path: node.filePath,
-                            resource_type: 'model',
-                            unique_id: node.uniqueId,
-                            name: node.name,
-                            description: node.description,
-                            meta: node.meta,
-                            tags: node.tags,
-                            original_file_path: node.filePath,
-                            database: node.database,
-                            schema: node.schema,
-                            alias: node.alias,
-                            package_name: node.packageName,
-                            raw_code: node.rawCode,
-                            compiled_code: node.compiledCode,
-                            relation_name: `${fieldQuoteChar}${
-                                node.database
-                            }${fieldQuoteChar}.${fieldQuoteChar}${
-                                node.schema
-                            }${fieldQuoteChar}.${fieldQuoteChar}${
-                                node.alias || node.name
-                            }${fieldQuoteChar}`,
-                            config: node.config,
-                        },
-                    ]),
+                                columns: Object.values(
+                                    node.catalog?.columns || [],
+                                ).reduce<DbtModelNode['columns']>(
+                                    (acc, column: AnyType) => {
+                                        acc[column.name] = {
+                                            name: column.name,
+                                            description: column.description,
+                                            meta: column.meta,
+                                            type: column.type,
+                                            data_type:
+                                                column.type?.toLowerCase(),
+                                        };
+                                        return acc;
+                                    },
+                                    {},
+                                ),
+                                compiled: true,
+                                fqn: [],
+                                language: node.language,
+                                path: node.filePath,
+                                resource_type: 'model',
+                                unique_id: node.uniqueId,
+                                name: node.name,
+                                description: node.description,
+                                meta: node.meta,
+                                tags: node.tags,
+                                original_file_path: node.filePath,
+                                database,
+                                schema,
+                                alias,
+                                package_name: node.packageName,
+                                raw_code: node.rawCode,
+                                compiled_code: node.compiledCode,
+                                relation_name: `${fieldQuoteChar}${database}${fieldQuoteChar}.${fieldQuoteChar}${schema}${fieldQuoteChar}.${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+                                config: node.config,
+                            },
+                        ];
+                    }),
                 );
             return <DbtRpcGetManifestResults>{
                 manifest: {

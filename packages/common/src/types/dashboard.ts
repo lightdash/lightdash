@@ -28,7 +28,7 @@ type CreateDashboardTileBase = {
     y: number;
     h: number;
     w: number;
-    tabUuid: string | undefined;
+    tabUuid: string | null | undefined;
 };
 
 type DashboardTileBase = Required<CreateDashboardTileBase>;
@@ -168,14 +168,15 @@ export type DashboardTabWithUrls = DashboardTab & {
 
 export type DashboardDAO = Omit<
     Dashboard,
-    'isPrivate' | 'inheritsFromOrgOrProject' | 'access'
+    'inheritsFromOrgOrProject' | 'access'
 >;
 
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
+    isAddFilterDisabled?: boolean;
     pinnedParameters?: string[];
-    dateZoomGranularities?: DateGranularity[];
-    defaultDateZoomGranularity?: DateGranularity;
+    dateZoomGranularities?: (DateGranularity | string)[];
+    defaultDateZoomGranularity?: DateGranularity | string;
 };
 
 export type Dashboard = {
@@ -198,7 +199,6 @@ export type Dashboard = {
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     tabs: DashboardTab[];
-    isPrivate: boolean | null;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[] | null;
     slug: string;
@@ -364,6 +364,11 @@ export type ApiCreateDashboardWithChartsResponse = {
 export type ApiDashboardSchedulersResponse = {
     status: 'ok';
     results: SchedulerAndTargets[];
+};
+
+export type ApiDashboardResponse = {
+    status: 'ok';
+    results: Dashboard;
 };
 
 export type ApiDashboardPaginatedSchedulersResponse = {

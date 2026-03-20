@@ -8,20 +8,36 @@ Lightdash is an open-source business intelligence tool (Looker alternative) that
 
 ## Architecture
 
-**Monorepo Structure** (pnpm workspaces):
+### Monorepo Structure (pnpm workspaces)
 
 -   `packages/common/` - Shared utilities, types, and business logic
--   `packages/backend/` - Node.js/Express API server with database layer
+-   `packages/backend/` - Node.js/Express API server, scheduler worker, and all backend services
 -   `packages/frontend/` - React web application with Vite build system
 -   `packages/warehouses/` - Data warehouse client adapters (BigQuery, Snowflake, Postgres, etc.)
 -   `packages/cli/` - Command-line interface for dbt project management
 -   `packages/e2e/` - Cypress end-to-end tests
 
-**Key Technologies:**
+### Key Technologies
 
 -   Backend: Express.js, Knex.js ORM, PostgreSQL, TSOA (OpenAPI generation)
 -   Frontend: React 19, Mantine v8 UI, Emotion styling, TanStack Query
 -   Build: pnpm workspaces, TypeScript project references, Vite
+
+### Runtime Services
+
+The backend, scheduler worker, and headless browser run as separate services that may be on different pods/containers. They do not share a local filesystem. When working with files that are produced by one service and consumed by another, consider how that file will be accessible across service boundaries:
+
+-   **Dynamic/generated files** (screenshots, PDFs, CSVs): Upload to S3 via `FileStorageClient` and retrieve by S3 key. See `packages/backend/src/clients/FileStorage/FileStorageClient.ts`.
+-   **Static files** (templates, assets): Commit to the repo and use a `postbuild` step in `package.json` to copy them into the build output so they're available in the container image.
+
+| Service | Purpose | Key Files |
+|---------|---------|-----------|
+| **Backend API** | Express.js REST server, handles all HTTP endpoints | `packages/backend/src/` |
+| **Scheduler Worker** | Graphile Worker — processes background jobs (emails, Slack, exports) | `SchedulerWorker.ts`, `SchedulerTask.ts` |
+| **Headless Browser** | Separate Chromium container, takes screenshots/PDFs via CDP | `docker/Dockerfile.headless-browser`, `UnfurlService.ts` |
+| **PostgreSQL** | All application state + Graphile Worker job queue | Knex migrations in `src/database/migrations/` |
+| **S3 / MinIO** | Object storage for screenshots, PDFs, CSVs, result caching | `FileStorageClient.ts`, `S3Client.ts` |
+| **NATS** | Optional message queue for async query processing | `NatsClient.ts` |
 
 ## Common Development Commands
 
@@ -91,7 +107,9 @@ pnpm -F backend rollback-last
 -   Express.js with session-based authentication
 -   Database migrations in `src/database/migrations/`
 -   Controllers use TSOA decorators for API generation
--   Background jobs with node-cron scheduler
+-   Background jobs via Graphile Worker (PostgreSQL-based job queue, not node-cron)
+-   Scheduler enabled/disabled via `SCHEDULER_ENABLED` env var
+-   File storage through `FileStorageClient` → S3/MinIO (never local filesystem for cross-service sharing)
 
 **Frontend (`packages/frontend/`):**
 
@@ -148,6 +166,19 @@ pnpm -F backend rollback-last
 -   `/.eslintrc.js` - Global linting rules
 -   `/package.json` - Root scripts and dependency management
 -   `.env.development.local` - Local development environment variables
+
+## dbt YAML Validation Schemas
+
+There are **two** JSON schemas that define valid Lightdash metadata in dbt YAML files. They must stay in sync:
+
+| Schema | Path | Used by |
+|--------|------|---------|
+| `lightdashMetadata.json` | `packages/common/src/dbt/schemas/lightdashMetadata.json` | Compile-time validation (`exploreCompiler`) |
+| `lightdash-dbt-2.0.json` | `packages/common/src/schemas/json/lightdash-dbt-2.0.json` | CLI `lightdash generate` (`DbtSchemaEditor`) |
+
+**When adding or modifying field types (metric types, dimension types, additional dimension types), you MUST update both schemas.** The `lightdash-dbt-2.0.json` schema has two copies of the metric enum — one under `$defs/modelMeta` (model-level metrics) and one under `$defs/columnMeta` (column-level metrics). Both must be updated.
+
+The canonical source of truth for field types is `packages/common/src/types/field.ts` (e.g., `MetricType` enum).
 
 ## Testing Memories
 
@@ -238,6 +269,35 @@ export const sensitiveCredentialsFieldNames = [
 -   `XxxCredentials` types are `Omit<CreateXxxCredentials, SensitiveCredentialsFieldNames>` (used for API responses)
 -   `ProjectModel.get()` filters credentials using this array before returning to API controllers
 -   `ProjectModel.getWithSensitiveFields()` returns unfiltered data for internal use only
+
+## Slugs — Not Unique Identifiers
+
+**WARNING: Slugs are NOT guaranteed to be unique.** Do not treat them as reliable identifiers for lookups, deduplication, or foreign key relationships. Always use UUIDs for uniqueness guarantees.
+
+Slugs are human-readable URL identifiers for charts, dashboards, and spaces (e.g., `weekly-sales-report`). They are generated from the entity name via `generateSlug()` (`packages/common/src/utils/slugs.ts`), and uniqueness is enforced at creation time by `generateUniqueSlug*` functions (`packages/backend/src/utils/SlugUtils.ts`). However, **multiple code paths bypass these uniqueness checks**, resulting in duplicate slugs in production.
+
+**How slugs get duplicated:**
+
+1. **Content-as-code (`lightdash upload`)**: The `CoderService` uses `forceSlug: true` when creating charts and dashboards, which skips the `generateUniqueSlug` call entirely and inserts the slug from the YAML file as-is. If two YAML files with the same slug are uploaded, or a slug already exists in the target project, duplicates are created.
+
+2. **Promotion**: The `PromoteService` also uses `forceSlug: true` when creating content in the upstream project. Promoting the same content from multiple downstream projects, or re-promoting after manual creation in upstream, can create duplicates.
+
+3. **Lossy slug generation**: `generateSlug()` strips all non-alphanumeric characters to hyphens, so different names produce identical slugs. Examples:
+   - `"Sales Report (2024)"` and `"Sales Report 2024"` → `sales-report-2024`
+   - `"Q1 / Q2 Summary"` and `"Q1 - Q2 Summary"` → `q1-q2-summary`
+
+   The uniqueness check at creation time handles this by appending `-1`, `-2`, etc., but `forceSlug: true` paths bypass this.
+
+4. **Ltree path conversion is also lossy**: `getLtreePathFromSlug` converts hyphens to underscores, so `"my-space"` and `"my_space"` map to the same ltree path. This can cause space resolution collisions.
+
+**No database-level uniqueness constraint** exists for slugs on `saved_queries`, `dashboards`, or `spaces` tables. Only `saved_sql` has a `UNIQUE(project_uuid, slug)` DB constraint. All other uniqueness enforcement is application-level only.
+
+**What this means in practice:**
+
+- **API resolution picks first match**: `getByIdOrSlug()` queries use `LIMIT 1` — when duplicates exist, the result is non-deterministic. No error is thrown.
+- **Promotion fails on duplicates**: `PromoteService` throws an explicit error (`"There are multiple charts with the same identifier {slug}"`) when it finds duplicate slugs in the upstream project.
+- **Never use slugs as unique keys** in new code. Use UUIDs for any operation that requires uniqueness. Slugs are for URL display only.
+- **A REPL script exists** to fix duplicates: `packages/backend/src/ee/repl/scripts/fixDuplicateSlugs.ts`
 
 ## Development Troubleshooting
 

@@ -2,6 +2,7 @@ import { LightdashInstallType } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
@@ -31,6 +32,7 @@ describe('organization service', () => {
         organizationAllowedEmailDomainsModel:
             {} as OrganizationAllowedEmailDomainsModel,
         groupsModel: {} as GroupsModel,
+        featureFlagModel: {} as FeatureFlagModel,
     });
 
     afterEach(() => {

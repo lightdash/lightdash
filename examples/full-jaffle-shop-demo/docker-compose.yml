@@ -1,5 +1,6 @@
 services:
     lightdash:
+        platform: linux/amd64
         build:
             context: .
             dockerfile: dockerfile

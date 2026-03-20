@@ -61,7 +61,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             limit={FILTER_SELECT_LIMIT}
                             disabled={disabled}
                             placeholder={placeholder}
-                            autoFocus={true}
+                            data-autofocus
                             withinPortal={popoverProps?.withinPortal}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
@@ -79,7 +79,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             filterId={rule.id}
                             disabled={disabled}
                             field={field}
-                            autoFocus={true}
+                            data-autofocus
                             placeholder={placeholder}
                             suggestions={suggestions || []}
                             withinPortal={popoverProps?.withinPortal}
@@ -107,7 +107,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         return (
                             <FilterNumberInput
                                 disabled={disabled}
-                                autoFocus={true}
+                                data-autofocus
                                 placeholder={placeholder}
                                 value={rule.values?.[0]}
                                 onChange={(newValue) => {
@@ -122,7 +122,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                     } else {
                         return (
                             <FilterMultiNumberInput
-                                autoFocus={true}
+                                autoFocus
                                 disabled={disabled}
                                 placeholder={placeholder}
                                 values={rule.values?.map(String) ?? []}
@@ -138,7 +138,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         <TagInput
                             w="100%"
                             clearable
-                            autoFocus={true}
+                            data-autofocus
                             size="xs"
                             disabled={disabled}
                             placeholder={placeholder}
@@ -166,7 +166,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
             return (
                 <FilterNumberInput
                     disabled={disabled}
-                    autoFocus={true}
+                    data-autofocus
                     placeholder={placeholder}
                     value={rule.values?.[0]}
                     onChange={(newValue) => {
@@ -182,7 +182,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
             return (
                 <FilterNumberRangeInput
                     disabled={disabled}
-                    autoFocus={true}
+                    data-autofocus
                     placeholder={placeholder}
                     value={rule.values}
                     onChange={(value) => {

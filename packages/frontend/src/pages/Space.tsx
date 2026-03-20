@@ -128,14 +128,16 @@ const Space: FC = () => {
         subject('SavedChart', { ...space }),
     );
 
+    const userCanManageProject = user.data?.ability?.can(
+        'manage',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid: projectUuid,
+        }),
+    );
+
     const userCanManageSpaceAndHasNoDirectAccessToSpace =
-        user.data?.ability?.can(
-            'manage',
-            subject('Project', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid,
-            }),
-        ) &&
+        userCanManageProject &&
         !space.access.find((a) => a.userUuid === user.data?.userUuid)
             ?.hasDirectAccess;
 
@@ -404,6 +406,7 @@ const Space: FC = () => {
                         }}
                         enableBottomToolbar={false}
                         enableRowSelection={userCanManageSpace}
+                        adminContentView={userCanManageProject}
                         initialAdminContentViewValue={
                             userCanManageSpaceAndHasNoDirectAccessToSpace
                                 ? 'all'

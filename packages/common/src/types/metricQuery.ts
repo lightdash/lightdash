@@ -267,6 +267,12 @@ export const countCustomDimensionsInMetricQuery = (
                 isCustomBinDimension(dimension) &&
                 dimension.binType === BinType.CUSTOM_RANGE,
         ).length || 0,
+    numCustomGroupBinCustomDimensions:
+        metricQuery.customDimensions?.filter(
+            (dimension) =>
+                isCustomBinDimension(dimension) &&
+                dimension.binType === BinType.CUSTOM_GROUP,
+        ).length || 0,
     numCustomSqlDimensions:
         metricQuery.customDimensions?.filter((dimension) =>
             isCustomSqlDimension(dimension),

@@ -23,12 +23,10 @@ async function createSpaceTree(
 ) {
     const ids: string[] = [];
     for (const space of spaces) {
-        const isPrivate = space.isPrivate === true;
-        const inheritParentPermissions = !isPrivate;
+        const inheritParentPermissions = space.inheritParentPermissions ?? true;
         const createdSpace = await spaceModel.createSpace(
             {
                 name: space.name,
-                isPrivate,
                 inheritParentPermissions,
                 parentSpaceUuid,
             },

@@ -229,7 +229,31 @@ export class ValidationModel {
             };
         }
 
-        // Parse "Filter error: the field 'X' no longer exists"
+        // Parse "Filter error: the field 'X' does not match table 'Y'"
+        const fieldTableMismatchMatch = error.match(
+            /the field '([^']+)' does not match table '([^']+)'/,
+        );
+        if (fieldTableMismatchMatch) {
+            return {
+                tableName: fieldTableMismatchMatch[2],
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldTableMismatch,
+            };
+        }
+
+        // Parse "Filter error: the field 'X' on table 'Y' no longer exists"
+        const fieldNotExistWithTableMatch = error.match(
+            /the field '([^']+)' on table '([^']+)' no longer exists/,
+        );
+        if (fieldNotExistWithTableMatch) {
+            return {
+                tableName: fieldNotExistWithTableMatch[2],
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldDoesNotExist,
+            };
+        }
+
+        // Parse "Filter error: the field 'X' no longer exists" (legacy format without table)
         const fieldNotExistMatch = error.match(
             /the field '([^']+)' no longer exists/,
         );

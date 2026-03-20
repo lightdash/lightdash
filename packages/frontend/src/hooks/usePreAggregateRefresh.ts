@@ -1,7 +1,13 @@
 import { type ApiError } from '@lightdash/common';
+import { IconBolt } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
+import useSchedulerJobsContext from '../providers/SchedulerJobs/useSchedulerJobsContext';
 import useToaster from './toaster/useToaster';
+
+type RefreshOptions = {
+    showToast?: boolean;
+};
 
 const refreshAllPreAggregates = async (projectUuid: string) =>
     lightdashApi<{ jobIds: string[] }>({
@@ -10,34 +16,35 @@ const refreshAllPreAggregates = async (projectUuid: string) =>
         body: undefined,
     });
 
-const refreshPreAggregateByName = async (
+export const useRefreshAllPreAggregates = (
     projectUuid: string,
-    preAggExploreName: string,
-) =>
-    lightdashApi<{ jobIds: string[] }>({
-        url: `/projects/${projectUuid}/pre-aggregates/${encodeURIComponent(preAggExploreName)}/refresh`,
-        method: 'POST',
-        body: undefined,
-    });
-
-export const useRefreshAllPreAggregates = (projectUuid: string) => {
-    const { showToastSuccess, showToastApiError } = useToaster();
+    options: RefreshOptions = {},
+) => {
+    const { showToast = true } = options;
+    const { showToastApiError } = useToaster();
+    const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
 
     return useMutation<{ jobIds: string[] }, ApiError>(
         () => refreshAllPreAggregates(projectUuid),
         {
             mutationKey: ['refreshAllPreAggregates', projectUuid],
-            onSuccess: async () => {
-                showToastSuccess({
-                    title: 'Pre-aggregate refresh started',
-                    subtitle:
-                        'All pre-aggregates are being refreshed in the background.',
+            onSuccess: (data) => {
+                registerJobs({
+                    jobIds: data.jobIds,
+                    showToast,
+                    toastKey: 'pre-aggregate-refresh',
+                    toastTitle: 'Pre-aggregate refresh',
+                    toastIcon: IconBolt,
+                    onComplete: () => {
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                'preAggregateMaterializations',
+                                projectUuid,
+                            ],
+                        });
+                    },
                 });
-                await queryClient.invalidateQueries([
-                    'preAggregateMaterializations',
-                    projectUuid,
-                ]);
             },
             onError: ({ error }) => {
                 showToastApiError({
@@ -49,25 +56,50 @@ export const useRefreshAllPreAggregates = (projectUuid: string) => {
     );
 };
 
-export const useRefreshPreAggregateByName = (projectUuid: string) => {
-    const { showToastApiError, showToastInfo } = useToaster();
+const refreshPreAggregateByDefinitionName = async (
+    projectUuid: string,
+    preAggregateDefinitionName: string,
+) =>
+    lightdashApi<{ jobIds: string[] }>({
+        url: `/projects/${projectUuid}/pre-aggregates/definitions/${encodeURIComponent(preAggregateDefinitionName)}/refresh`,
+        method: 'POST',
+        body: undefined,
+    });
+
+export const useRefreshPreAggregateByDefinitionName = (
+    projectUuid: string,
+    options: RefreshOptions = {},
+) => {
+    const { showToast = true } = options;
+    const { showToastApiError } = useToaster();
+    const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
 
     return useMutation<{ jobIds: string[] }, ApiError, string>(
-        (preAggExploreName) =>
-            refreshPreAggregateByName(projectUuid, preAggExploreName),
+        (preAggregateDefinitionName) =>
+            refreshPreAggregateByDefinitionName(
+                projectUuid,
+                preAggregateDefinitionName,
+            ),
         {
-            mutationKey: ['refreshPreAggregate', projectUuid],
-            onSuccess: async () => {
-                showToastInfo({
-                    title: 'Pre-aggregate refresh started',
-                    subtitle:
-                        'The pre-aggregate is being refreshed in the background.',
+            mutationKey: ['refreshPreAggregateByDefinitionName', projectUuid],
+            onSuccess: (data, preAggregateDefinitionName) => {
+                registerJobs({
+                    jobIds: data.jobIds,
+                    label: preAggregateDefinitionName,
+                    showToast,
+                    toastKey: 'pre-aggregate-refresh',
+                    toastTitle: 'Pre-aggregate refresh',
+                    toastIcon: IconBolt,
+                    onComplete: () => {
+                        void queryClient.invalidateQueries({
+                            queryKey: [
+                                'preAggregateMaterializations',
+                                projectUuid,
+                            ],
+                        });
+                    },
                 });
-                await queryClient.invalidateQueries([
-                    'preAggregateMaterializations',
-                    projectUuid,
-                ]);
             },
             onError: ({ error }) => {
                 showToastApiError({

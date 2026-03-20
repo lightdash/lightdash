@@ -349,6 +349,7 @@ export default class SchedulerTask {
         } = scheduler;
 
         let imageUrl;
+        let imageS3Key;
         let csvUrl;
         let csvUrls;
         let pdfFile;
@@ -433,6 +434,7 @@ export default class SchedulerTask {
                     }
                     pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
+                    imageS3Key = `${imageId}.png`;
 
                     if (this.fileStorageClient.isEnabled() && imageUrl) {
                         imageUrl =
@@ -891,6 +893,7 @@ export default class SchedulerTask {
             details,
             organizationUuid,
             imageUrl,
+            imageS3Key,
             csvUrl,
             csvUrls,
             pdfFile,
@@ -1942,6 +1945,11 @@ export default class SchedulerTask {
         }
     }
 
+    /**
+     * @deprecated Uses old sync query pipeline via CsvService.downloadCsv().
+     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
+     * Internal frontend uses v2 async query + schedule-download flow instead.
+     */
     protected async downloadCsv(
         jobId: string,
         scheduledTime: Date,
@@ -2321,11 +2329,35 @@ export default class SchedulerTask {
                 details,
                 pageType,
                 imageUrl,
+                imageS3Key,
                 csvUrl,
                 csvUrls,
                 pdfFile,
                 failures,
             } = notificationPageData;
+
+            let imageBuffer: Buffer | undefined;
+            if (
+                this.lightdashConfig.smtp?.inlineImageCid === true &&
+                imageS3Key &&
+                this.fileStorageClient.isEnabled()
+            ) {
+                try {
+                    const stream =
+                        await this.fileStorageClient.getFileStream(imageS3Key);
+                    const chunks: Buffer[] = [];
+                    for await (const chunk of stream) {
+                        chunks.push(
+                            Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk),
+                        );
+                    }
+                    imageBuffer = Buffer.concat(chunks);
+                } catch (e) {
+                    Logger.warn(
+                        `Failed to stream CID inline image from S3 (key: ${imageS3Key}), falling back to external image URL: ${e}`,
+                    );
+                }
+            }
 
             const schedulerUrl = `${url}?${setUuidParam(
                 'scheduler_uuid',
@@ -2378,6 +2410,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
+                    imageBuffer,
                 );
             } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl === undefined) {
@@ -2400,6 +2433,8 @@ export default class SchedulerTask {
                     includeLinks,
                     pdfFile?.source,
                     Math.ceil(emailExpiration / 86400),
+                    undefined, // deliveryType
+                    imageBuffer,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -2693,6 +2728,10 @@ export default class SchedulerTask {
                         schedulerUuid,
                     );
 
+                const shouldPivot =
+                    isTableChartConfig(chart.chartConfig.config) &&
+                    !!getPivotConfig(chart);
+
                 const {
                     rows,
                     fields: itemMap,
@@ -2704,7 +2743,7 @@ export default class SchedulerTask {
                         chartUuid: savedChartUuid,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
-                        pivotResults: true,
+                        pivotResults: shouldPivot,
                     },
                 );
 
@@ -2850,6 +2889,10 @@ export default class SchedulerTask {
                             await this.schedulerService.savedChartModel.get(
                                 chartUuid,
                             );
+                        const shouldPivotChart =
+                            isTableChartConfig(chart.chartConfig.config) &&
+                            !!getPivotConfig(chart);
+
                         const {
                             rows,
                             fields: itemMap,
@@ -2865,7 +2908,7 @@ export default class SchedulerTask {
                                 dashboardSorts: [],
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
-                                pivotResults: true,
+                                pivotResults: shouldPivotChart,
                                 parameters: dashboardParameters,
                             },
                         );
@@ -3686,7 +3729,7 @@ export default class SchedulerTask {
 
                 const limit = pLimit(5);
 
-                const isInSelectedTab = (tile: { tabUuid?: string }) =>
+                const isInSelectedTab = (tile: { tabUuid?: string | null }) =>
                     !selectedTabs ||
                     !tile.tabUuid ||
                     selectedTabs.includes(tile.tabUuid);
@@ -4823,10 +4866,6 @@ export default class SchedulerTask {
         });
 
         try {
-            if (!this.lightdashConfig.googleChat.enabled) {
-                throw new MissingConfigError('Google Chat is not configured');
-            }
-
             const {
                 format,
                 savedChartUuid,

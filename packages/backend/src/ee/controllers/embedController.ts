@@ -266,7 +266,7 @@ export class EmbedController extends BaseController {
         body: {
             tileUuid: string;
             dashboardFilters?: DashboardFilters;
-            dateZoomGranularity?: DateGranularity;
+            dateZoomGranularity?: DateGranularity | string;
             dashboardSorts?: SortField[];
             parameters?: ParametersValuesMap;
         },
@@ -472,13 +472,16 @@ export class EmbedController extends BaseController {
             limit: number;
             filters: AndFilterGroup | undefined;
             forceRefresh: boolean;
+            tableName?: string;
+            fieldId?: string;
         },
     ): Promise<{
         status: 'ok';
         results: FieldValueSearchResult;
     }> {
         this.setStatus(200);
-        const { search, limit, filters, forceRefresh } = body;
+        const { search, limit, filters, forceRefresh, tableName, fieldId } =
+            body;
 
         assertEmbeddedAuth(req.account);
 
@@ -490,6 +493,8 @@ export class EmbedController extends BaseController {
             limit,
             filters,
             forceRefresh,
+            tableName,
+            fieldId,
         });
         return {
             status: 'ok',

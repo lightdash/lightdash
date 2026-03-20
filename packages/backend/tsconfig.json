@@ -20,8 +20,9 @@
         "moduleResolution": "node10",
         "resolveJsonModule": true,
         "skipLibCheck": true,
-        "types": ["node", "jest", "passport"]
+        "types": ["node", "jest", "passport", "express-session"]
     },
+    "files": ["src/@types/express-session.d.ts"],
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
     "exclude": ["dist", "node_modules", "src/ee/services/McpService/mcp-chart-app"],
     "references": [

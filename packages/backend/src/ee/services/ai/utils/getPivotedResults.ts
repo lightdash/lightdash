@@ -1,6 +1,8 @@
 import { SortField } from '@lightdash/common';
-import { tableFromJSON, tableToIPC } from 'apache-arrow';
 import { Database } from 'duckdb-async';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
 
 const getNullsFirstLast = (sort: SortField) => {
     if (sort.nullsFirst === undefined) return '';
@@ -15,10 +17,19 @@ export const getPivotedResults = async (
     sorts: SortField[],
 ) => {
     const fields = Object.keys(fieldsMap);
-    const arrowTable = tableFromJSON(rows);
+    const tmpFile = path.join(
+        os.tmpdir(),
+        `lightdash_pivot_${Date.now()}_${Math.random().toString(36).slice(2)}.json`,
+    );
     const db = await Database.create(':memory:');
-    await db.exec('INSTALL arrow FROM community; LOAD arrow;');
-    await db.register_buffer('results_data', [tableToIPC(arrowTable)], true);
+    try {
+        await fs.writeFile(tmpFile, JSON.stringify(rows));
+        await db.exec(
+            `CREATE TABLE results_data AS SELECT * FROM read_json_auto('${tmpFile}')`,
+        );
+    } finally {
+        await fs.unlink(tmpFile).catch(() => {});
+    }
     const usingFields = metrics.map((metric) => `FIRST(${metric})`);
 
     // Get the grouping columns (all non-pivot, non-metric fields)

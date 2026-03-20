@@ -60,7 +60,6 @@ export const promotedSpace: PromotedChart['space'] = {
     projectUuid: promotedProjectUuid,
     uuid: 'promoted-space-uuid',
     name: 'Jaffle shop',
-    isPrivate: false,
     inheritParentPermissions: true,
     pinnedListUuid: null,
     pinnedListOrder: null,
@@ -77,7 +76,6 @@ export const upstreamSpace: UpstreamChart['space'] = {
     projectUuid: upstreamProjectUuid,
     uuid: 'upstream-space-uuid',
     name: 'Jaffle shop',
-    isPrivate: false,
     inheritParentPermissions: true,
     pinnedListUuid: null,
     pinnedListOrder: null,
@@ -293,7 +291,6 @@ export const promotedSqlChart = {
     space: {
         uuid: promotedSpace.uuid,
         name: promotedSpace.name,
-        isPrivate: promotedSpace.isPrivate,
     },
     dashboard: null,
     project: {
@@ -316,7 +313,6 @@ export const existingUpstreamSqlChart = {
     space: {
         uuid: upstreamSpace.uuid,
         name: upstreamSpace.name,
-        isPrivate: upstreamSpace.isPrivate,
     },
 };
 
@@ -358,6 +354,6 @@ export const promotedDashboardWithNewPrivateSpace = {
     space: {
         ...promotedDashboard.space,
         name: 'Private space',
-        isPrivate: true,
+        inheritParentPermissions: false,
     },
 };

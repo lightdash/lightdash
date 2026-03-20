@@ -482,8 +482,8 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 Groups
                                             </Text>
                                             <GroupsAccessList
-                                                isPrivate={
-                                                    !space.inheritParentPermissions
+                                                inheritParentPermissions={
+                                                    space.inheritParentPermissions
                                                 }
                                                 groupsAccess={
                                                     space.groupsAccess
@@ -552,8 +552,8 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 </Tooltip>
                                             </Group>
                                             <UserAccessList
-                                                isPrivate={
-                                                    !space.inheritParentPermissions
+                                                inheritParentPermissions={
+                                                    space.inheritParentPermissions
                                                 }
                                                 accessList={accessByType.direct}
                                                 sessionUser={sessionUser.data}

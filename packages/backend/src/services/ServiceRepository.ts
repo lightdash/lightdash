@@ -281,7 +281,6 @@ export class ServiceRepository
                 new AdminNotificationService({
                     lightdashConfig: this.context.lightdashConfig,
                     emailClient: this.clients.getEmailClient(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     organizationMemberProfileModel:
                         this.models.getOrganizationMemberProfileModel(),
                     organizationModel: this.models.getOrganizationModel(),
@@ -514,6 +513,7 @@ export class ServiceRepository
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     groupsModel: this.models.getGroupsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -550,6 +550,8 @@ export class ServiceRepository
                     preAggregateModel: this.models.getPreAggregateModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     asyncQueryService: this.getAsyncQueryService(),
+                    preAggregateResultsStorageClient:
+                        this.clients.getPreAggregateResultsFileStorageClient(),
                     prometheusMetrics: this.prometheusMetrics,
                 }),
         );
@@ -624,6 +626,7 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    natsClient: this.clients.getNatsClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     groupsModel: this.models.getGroupsModel(),
@@ -671,6 +674,7 @@ export class ServiceRepository
                         this.models.getWarehouseAvailableTablesModel(),
                     emailModel: this.models.getEmailModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                    natsClient: this.clients.getNatsClient(),
                     downloadFileModel: this.models.getDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     groupsModel: this.models.getGroupsModel(),
@@ -702,6 +706,7 @@ export class ServiceRepository
                         lightdashConfig: this.context.lightdashConfig,
                         preAggregateModel: this.models.getPreAggregateModel(),
                         projectModel: this.models.getProjectModel(),
+                        prometheusMetrics: this.prometheusMetrics,
                     }),
                     projectCompileLogModel:
                         this.models.getProjectCompileLogModel(),
@@ -898,6 +903,7 @@ export class ServiceRepository
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
                     projectModel: this.models.getProjectModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

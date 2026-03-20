@@ -31,7 +31,7 @@ export type TilePreAggregateStatus = {
     preAggregateName: string | null;
     reason: PreAggregateMatchMiss | null;
     hasPreAggregateMetadata: boolean;
-    tabUuid: string | undefined;
+    tabUuid: string | null | undefined;
 };
 
 export type DashboardContextType = {
@@ -99,9 +99,9 @@ export type DashboardContextType = {
         tileUuid: string,
         metadata: SqlChartTileMetadata,
     ) => void;
-    dateZoomGranularity: DateGranularity | undefined;
+    dateZoomGranularity: DateGranularity | string | undefined;
     setDateZoomGranularity: Dispatch<
-        SetStateAction<DateGranularity | undefined>
+        SetStateAction<DateGranularity | string | undefined>
     >;
     chartsWithDateZoomApplied: Set<string> | undefined;
     setChartsWithDateZoomApplied: Dispatch<
@@ -113,6 +113,8 @@ export type DashboardContextType = {
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
+    isAddFilterDisabled: boolean;
+    setIsAddFilterDisabled: Dispatch<SetStateAction<boolean>>;
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     parametersHaveChanged: boolean;
     dashboardParameters: DashboardParameters;
@@ -125,19 +127,30 @@ export type DashboardContextType = {
     areAllChartsLoaded: boolean;
     parameterDefinitions: ParameterDefinitions;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
+    availableCustomGranularities: Record<string, string>;
+    addAvailableCustomGranularities: (
+        granularities: Record<string, string>,
+    ) => void;
     missingRequiredParameters: string[];
     pinnedParameters: string[];
     setPinnedParameters: (parameters: string[]) => void;
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
-    dateZoomGranularities: DateGranularity[];
-    setDateZoomGranularities: (granularities: DateGranularity[]) => void;
+    dashboardHasTimestampDimension: boolean;
+    setTileHasTimestampDimension: (
+        tileUuid: string,
+        hasTimestamp: boolean,
+    ) => void;
+    dateZoomGranularities: (DateGranularity | string)[];
+    setDateZoomGranularities: (
+        granularities: (DateGranularity | string)[],
+    ) => void;
     haveDateZoomGranularitiesChanged: boolean;
     setHaveDateZoomGranularitiesChanged: Dispatch<SetStateAction<boolean>>;
-    defaultDateZoomGranularity: DateGranularity | undefined;
+    defaultDateZoomGranularity: DateGranularity | string | undefined;
     setDefaultDateZoomGranularity: (
-        granularity: DateGranularity | undefined,
+        granularity: DateGranularity | string | undefined,
     ) => void;
     hasDefaultDateZoomGranularityChanged: boolean;
     setHasDefaultDateZoomGranularityChanged: Dispatch<SetStateAction<boolean>>;

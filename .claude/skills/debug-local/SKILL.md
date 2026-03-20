@@ -260,3 +260,22 @@ Traces contain contextual attributes beyond timing:
 For testing authenticated flows:
 - **Email**: demo@lightdash.com
 - **Password**: demo_password!
+
+## API Access (Personal Access Token)
+
+**Prefer this method over using `fetch()` via Chrome DevTools MCP for API calls.** `curl` with the PAT is faster, more reliable, and doesn't require a browser session or page context. Reserve browser MCP tools for UI interaction and visual debugging only.
+
+A dev PAT is auto-provisioned by the seed data. Use it for direct API calls without browser login:
+
+```bash
+# Source the env file to get LDPAT and LIGHTDASH_API_URL
+source .env.development.local
+
+# Example: list projects
+curl -s -H "Authorization: ApiKey $LDPAT" "$LIGHTDASH_API_URL/api/v1/org/projects" | jq
+
+# Example: get user info
+curl -s -H "Authorization: ApiKey $LDPAT" "$LIGHTDASH_API_URL/api/v1/user" | jq
+```
+
+The token (`ldpat_deadbeefdeadbeefdeadbeefdeadbeef`) is defined in `SEED_PAT` from `@lightdash/common` and inserted during database seeding. It belongs to the admin user (`demo@lightdash.com`) and never expires.

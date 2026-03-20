@@ -4,7 +4,6 @@ export type DbSpace = {
     space_id: number;
     space_uuid: string;
     name: string;
-    is_private: boolean;
     created_at: Date;
     project_id: number;
     organization_uuid: string;
@@ -23,7 +22,6 @@ export type CreateDbSpace = Pick<
     DbSpace,
     | 'name'
     | 'project_id'
-    | 'is_private'
     | 'created_by_user_id'
     | 'slug'
     | 'parent_space_uuid'
@@ -33,7 +31,7 @@ export type CreateDbSpace = Pick<
 >;
 
 export type UpdateDbSpace = Partial<
-    Pick<DbSpace, 'name' | 'is_private' | 'inherit_parent_permissions'>
+    Pick<DbSpace, 'name' | 'inherit_parent_permissions'>
 >;
 
 export type SpaceTable = Knex.CompositeTableType<

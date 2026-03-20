@@ -40,19 +40,9 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     viewer(member, { can }) {
         applyOrganizationMemberStaticAbilities.member(member, { can });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Dashboard', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
-        });
         can('view', 'Dashboard', {
             organizationUuid: member.organizationUuid,
             inheritsFromOrgOrProject: true,
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'SavedChart', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
         });
         can('view', 'SavedChart', {
             organizationUuid: member.organizationUuid,
@@ -69,11 +59,6 @@ const applyOrganizationMemberStaticAbilities: Record<
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('view', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -208,11 +193,6 @@ const applyOrganizationMemberStaticAbilities: Record<
     editor(member, { can }) {
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
             can,
-        });
-        // TODO: remove once we're confident that nobody is stuck on an old frontend version
-        can('manage', 'Space', {
-            organizationUuid: member.organizationUuid,
-            isPrivate: false,
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
@@ -378,6 +358,10 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('manage', 'DeployProject', {
             organizationUuid: member.organizationUuid,
+        });
+        can('impersonate', 'User', {
+            organizationUuid: member.organizationUuid,
+            isActive: true,
         });
     },
 };

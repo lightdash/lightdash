@@ -13,8 +13,6 @@ import Editor, {
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
-import { format } from 'sql-formatter';
-import { getLanguage } from '../features/sqlRunner/store/sqlRunnerSlice';
 import {
     getLightdashMonacoTheme,
     getMonacoLanguage,
@@ -23,6 +21,7 @@ import {
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useProject } from '../hooks/useProject';
+import { formatSql } from '../utils/sqlFormatter';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
@@ -64,24 +63,6 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
         [language],
     );
 
-    const formatSql = useCallback(
-        (sql: string | undefined) => {
-            if (!sql) return '';
-            try {
-                return format(sql, {
-                    language: getLanguage(project?.warehouseConnection?.type),
-                });
-            } catch (e) {
-                console.error(
-                    'Error rendering SQL:',
-                    e instanceof Error ? e.message : 'Unknown error occurred',
-                );
-                return sql;
-            }
-        },
-        [project?.warehouseConnection?.type],
-    );
-
     // Fall back to 'query' if 'pivotQuery' is selected but no pivotQuery is available
     const effectiveView = useMemo(
         () =>
@@ -94,8 +75,14 @@ export const RenderedSql: FC<RenderedSqlProps> = ({
     const formattedSql = useMemo(() => {
         const sqlToFormat =
             effectiveView === 'pivotQuery' ? data?.pivotQuery : data?.query;
-        return formatSql(sqlToFormat);
-    }, [data?.query, data?.pivotQuery, effectiveView, formatSql]);
+        if (!sqlToFormat) return '';
+        return formatSql(sqlToFormat, project?.warehouseConnection?.type);
+    }, [
+        data?.query,
+        data?.pivotQuery,
+        effectiveView,
+        project?.warehouseConnection?.type,
+    ]);
 
     if (isInitialLoading) {
         return (

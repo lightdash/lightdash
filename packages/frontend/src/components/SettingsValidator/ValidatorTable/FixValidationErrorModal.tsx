@@ -47,7 +47,10 @@ export const FixValidationErrorModal: FC<Props> = ({
         validationError?.projectUuid,
         chartUuid,
     );
-    const { data: savedQuery } = useSavedQuery({ id: chartUuid });
+    const { data: savedQuery } = useSavedQuery({
+        uuidOrSlug: chartUuid,
+        projectUuid: validationError?.projectUuid,
+    });
     const { data: explores } = useExplores(validationError?.projectUuid, true);
     const [oldName, setOldName] = useState<string | undefined>();
     const [newName, setNewName] = useState('');

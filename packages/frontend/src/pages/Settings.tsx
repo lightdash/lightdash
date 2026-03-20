@@ -1,12 +1,18 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    FeatureFlags,
+    ProjectType,
+} from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
+    IconBolt,
     IconBrain,
     IconBrowser,
     IconBuildingSkyscraper,
     IconCalendarStats,
     IconChecklist,
+    IconClock,
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
@@ -14,7 +20,6 @@ import {
     IconHistory,
     IconIdBadge2,
     IconKey,
-    IconLayersIntersect,
     IconLock,
     IconPalette,
     IconPlug,
@@ -51,6 +56,7 @@ import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel'
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
+import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
@@ -110,6 +116,14 @@ const Settings: FC = () => {
         },
         user: { data: user, isInitialLoading: isUserLoading, error: userError },
     } = useApp();
+
+    const { data: isUserImpersonationEnabled } = useServerFeatureFlag(
+        FeatureFlags.UserImpersonation,
+    );
+
+    const showImpersonationPanel =
+        isUserImpersonationEnabled?.enabled &&
+        user?.ability?.can('update', 'Organization');
 
     const isCustomRolesEnabled = health?.isCustomRolesEnabled;
 
@@ -266,6 +280,13 @@ const Settings: FC = () => {
                             <DefaultProjectPanel />
                         </SettingsGridCard>
 
+                        {showImpersonationPanel && (
+                            <SettingsGridCard>
+                                <Title order={4}>User impersonation</Title>
+                                <ImpersonationPanel />
+                            </SettingsGridCard>
+                        )}
+
                         {user.ability?.can('delete', 'Organization') && (
                             <SettingsGridCard>
                                 <div>
@@ -421,15 +442,18 @@ const Settings: FC = () => {
 
         return allowedRoutes;
     }, [
-        isServiceAccountsEnabled,
-        isScimTokenManagementEnabled?.enabled,
         allowPasswordAuthentication,
-        hasSocialLogin,
-        user,
+        user?.ability,
         organization,
         project,
-        health,
+        isScimTokenManagementEnabled?.enabled,
+        isServiceAccountsEnabled,
         isCustomRolesEnabled,
+        hasSocialLogin,
+        showImpersonationPanel,
+        health?.hasSlack,
+        health?.hasGithub,
+        health?.hasGitlab,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -845,9 +869,11 @@ const Settings: FC = () => {
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates`}
                                             leftSection={
-                                                <MantineIcon
-                                                    icon={IconLayersIntersect}
-                                                />
+                                                <MantineIcon icon={IconBolt} />
+                                            }
+                                            disabled={
+                                                project.type ===
+                                                ProjectType.PREVIEW
                                             }
                                             defaultOpened={location.pathname.includes(
                                                 `/projectManagement/${project.projectUuid}/preAggregates`,
@@ -886,6 +912,24 @@ const Settings: FC = () => {
                                             <MantineIcon icon={IconVariable} />
                                         }
                                     />
+
+                                    <Can
+                                        I="update"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
+                                            label="Query time zone"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/queryTimezone`}
+                                            leftSection={
+                                                <MantineIcon icon={IconClock} />
+                                            }
+                                        />
+                                    </Can>
 
                                     <Can
                                         I="manage"

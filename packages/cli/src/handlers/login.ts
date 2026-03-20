@@ -23,6 +23,8 @@ type LoginOptions = {
     email?: string;
     /** Project UUID to select after login */
     project?: string;
+    /** Port for the local OAuth callback server */
+    oauthPort?: number;
     interactive?: boolean;
     verbose: boolean;
 };
@@ -279,7 +281,7 @@ export const login = async (
         }
         loginResult = await loginWithEmailPassword(url, email, finalPassword);
     } else {
-        loginResult = await loginWithOauth(url);
+        loginResult = await loginWithOauth(url, options.oauthPort);
     }
 
     const { userUuid, token, organizationUuid } = loginResult;

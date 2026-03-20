@@ -1371,7 +1371,7 @@ export const METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TAB
                                                                                               FROM metrics
                                                                                               WHERE ((
                                                                                                   1=1
-                                                                                                  )) ORDER BY "table1_metric_that_references_dim_from_table2" DESC LIMIT 10`;
+                                                                                                  )) LIMIT 10`;
 
 export const METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL = `SELECT "table1".dim1 AS "table1_dim1"
                                                                      FROM "db"."schema"."table1" AS "table1"
@@ -2145,7 +2145,7 @@ export const EXPECTED_SQL_WITH_CROSS_TABLE_METRICS = `WITH cte_keys_customers AS
       cte_unaffected."orders_total_order_amount" / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
     FROM cte_unaffected
     CROSS JOIN cte_metrics_customers
-    ORDER BY "orders_revenue_per_customer" DESC LIMIT 100`;
+    LIMIT 100`;
 
 // --- Date zoom + filter test data ---
 
@@ -2537,3 +2537,358 @@ WHERE ((
 GROUP BY 1
 ORDER BY "orders_created_at"
 LIMIT 10`;
+
+// ---- Nested aggregate test fixtures ----
+// Explore with a type:number metric that wraps an aggregate metric reference
+// This creates the nested aggregate pattern: SUM(MAX(...))
+export const EXPLORE_WITH_NESTED_AGG: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'my_table',
+    label: 'my_table',
+    baseTable: 'my_table',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        my_table: {
+            name: 'my_table',
+            label: 'my_table',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."my_table"',
+            primaryKey: ['id'],
+            dimensions: {
+                category: {
+                    type: DimensionType.STRING,
+                    name: 'category',
+                    label: 'category',
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.category',
+                    compiledSql: '"my_table".category',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                max_value: {
+                    type: MetricType.MAX,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'max_value',
+                    label: 'max_value',
+                    sql: '${TABLE}.value',
+                    compiledSql: 'MAX("my_table".value)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                count_records: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'count_records',
+                    label: 'count_records',
+                    sql: '${TABLE}.id',
+                    compiledSql: 'COUNT("my_table".id)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // type:number with aggregation wrapping an aggregate metric reference
+                // This compiles to SUM(MAX(...)) which is invalid SQL
+                sum_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'sum_of_max',
+                    label: 'sum_of_max',
+                    sql: 'sum(${max_value})',
+                    compiledSql: 'SUM(MAX("my_table".value))',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // More complex: aggregation wrapping metric ref + division by another metric
+                avg_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'avg_of_max',
+                    label: 'avg_of_max',
+                    sql: 'sum(${max_value}) / NULLIF(${count_records}, 0)',
+                    compiledSql:
+                        'SUM(MAX("my_table".value)) / NULLIF(COUNT("my_table".id), 0)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // COUNT(DISTINCT) wrapping aggregate metric (PROD-5657: 1 chart)
+                count_distinct_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'count_distinct_of_max',
+                    label: 'count_distinct_of_max',
+                    sql: 'count(distinct ${max_value})',
+                    compiledSql: 'COUNT(DISTINCT MAX("my_table".value))',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // Conditional SUM wrapping aggregate metric (Looker migration pattern)
+                conditional_sum_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'conditional_sum_of_max',
+                    label: 'conditional_sum_of_max',
+                    sql: 'sum(case when ${max_value} > 100 then ${max_value} else 0 end)',
+                    compiledSql:
+                        'SUM(CASE WHEN MAX("my_table".value) > 100 THEN MAX("my_table".value) ELSE 0 END)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // Raw column aggregation combined with metric reference
+                // sql: sum(raw_col) / ${count_records}
+                // The sum() wraps a raw column (not a ${ } ref), so this is
+                // NOT a nested aggregate — it compiles to SUM(col) / COUNT(col)
+                // which is valid SQL (sibling aggregates, not nested).
+                raw_agg_with_ref: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'raw_agg_with_ref',
+                    label: 'raw_agg_with_ref',
+                    sql: 'sum(${TABLE}.value) / NULLIF(${count_records}, 0)',
+                    compiledSql:
+                        'SUM("my_table".value) / NULLIF(COUNT("my_table".id), 0)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // Window function wrapping aggregate metric + ${TABLE} reference
+                // Reproduces GH-21089: ${TABLE} resolves to base table alias
+                // inside nested_agg_results CTE where only nested_agg is in scope
+                window_sum_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'window_sum_of_max',
+                    label: 'window_sum_of_max',
+                    sql: 'SUM(${max_value}) OVER (PARTITION BY ${TABLE}.category)',
+                    compiledSql:
+                        'SUM(MAX("my_table".value)) OVER (PARTITION BY "my_table".category)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // Transitive nested aggregate: type:number referencing another type:number
+                // which itself wraps an aggregate metric.
+                // sum_case_of_max.sql = SUM(CASE WHEN ${max_value} > 100 THEN 1 ELSE 0 END)
+                //   → compiles to SUM(CASE WHEN MAX("my_table".value) > 100 THEN 1 ELSE 0 END)
+                // Then ratio_of_sum_case.sql = ${sum_case_of_max} / NULLIF(${count_records}, 0)
+                //   → compiles to SUM(CASE WHEN MAX(...) > 100 ...) / NULLIF(COUNT(...), 0)
+                // The nesting is two levels deep: ratio → sum_case → max
+                sum_case_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'sum_case_of_max',
+                    label: 'sum_case_of_max',
+                    sql: 'SUM(CASE WHEN ${max_value} > 100 THEN 1 ELSE 0 END)',
+                    compiledSql:
+                        'SUM(CASE WHEN MAX("my_table".value) > 100 THEN 1 ELSE 0 END)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                ratio_of_sum_case: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'ratio_of_sum_case',
+                    label: 'ratio_of_sum_case',
+                    sql: '${sum_case_of_max} / NULLIF(${count_records}, 0)',
+                    compiledSql:
+                        'SUM(CASE WHEN MAX("my_table".value) > 100 THEN 1 ELSE 0 END) / NULLIF(COUNT("my_table".id), 0)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // Product of aggregates - NO outer aggregation, valid SQL without CTE
+                product_of_aggregates: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'product_of_aggregates',
+                    label: 'product_of_aggregates',
+                    sql: '${max_value} * ${count_records}',
+                    compiledSql: 'MAX("my_table".value) * COUNT("my_table".id)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_NESTED_AGG_WITH_DIMS: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_NESTED_AGG_NO_DIMS: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: [],
+    metrics: ['my_table_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_NESTED_AGG_COMPLEX: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_avg_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_avg_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_count_distinct_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_count_distinct_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_NESTED_AGG_CONDITIONAL: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_conditional_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_conditional_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_NESTED_AGG_PRODUCT: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_product_of_aggregates'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_product_of_aggregates', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Raw column aggregation + metric reference: sum(raw_col) / ${aggregate_metric}
+// This is NOT a nested aggregate — both aggregations are at the same level.
+// The sum() wraps a raw column (not a metric ref), so it should NOT be
+// routed through the nested_agg CTE.
+export const METRIC_QUERY_NESTED_AGG_RAW_COL: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_raw_agg_with_ref', 'my_table_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_raw_agg_with_ref', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Mixed: nested agg metric + non-nested metric together (reproduces GROUP BY issue)
+export const METRIC_QUERY_NESTED_AGG_MIXED: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: [],
+    metrics: ['my_table_sum_of_max', 'my_table_product_of_aggregates'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Window function metric with ${TABLE} reference wrapping aggregate metric
+// Reproduces GH-21089: ${TABLE} resolves to base table inside nested_agg_results CTE
+export const METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_window_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_window_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Transitive nested aggregate: type:number → type:number (with agg) → type:max
+// The outer metric (ratio_of_sum_case) has no SQL aggregation itself,
+// but its compiledSql contains SUM(CASE WHEN MAX(...)) via transitive inlining.
+// Only ratio_of_sum_case is selected — sum_case_of_max is NOT directly selected.
+export const METRIC_QUERY_NESTED_AGG_TRANSITIVE: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_ratio_of_sum_case'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_ratio_of_sum_case', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Transitive nested aggregate mixed with other nested metrics.
+// Reproduces bug where ratio_of_sum_case fails when combined with
+// other nested metrics like conditional_sum_of_max.
+export const METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: [],
+    metrics: ['my_table_ratio_of_sum_case', 'my_table_conditional_sum_of_max'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_ratio_of_sum_case', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};

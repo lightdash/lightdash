@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import {
     useDuplicateChartMutation,
     useSavedQuery,
@@ -27,11 +28,15 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     onConfirm,
     ...modalProps
 }) => {
+    const projectUuid = useProjectUuid();
     const { mutateAsync: duplicateChart, isLoading: isUpdating } =
         useDuplicateChartMutation({
             showRedirectButton: true,
         });
-    const { data: savedQuery, isInitialLoading } = useSavedQuery({ id: uuid });
+    const { data: savedQuery, isInitialLoading } = useSavedQuery({
+        uuidOrSlug: uuid,
+        projectUuid,
+    });
 
     const form = useForm<FormState>();
 

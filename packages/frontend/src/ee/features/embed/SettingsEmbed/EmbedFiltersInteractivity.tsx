@@ -22,6 +22,7 @@ import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
 } from '../../../../hooks/dashboard/useDashboard';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 
 type Props = {
     dashboardUuid?: string;
@@ -52,7 +53,11 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     interactivityOptions,
     onInteractivityOptionsChange,
 }) => {
-    const { data: dashboard } = useDashboardQuery(dashboardUuid);
+    const projectUuid = useProjectUuid();
+    const { data: dashboard } = useDashboardQuery({
+        uuidOrSlug: dashboardUuid,
+        projectUuid,
+    });
     const dashboardFilters = useMemo(() => {
         return Object.values(dashboard?.filters || {}).flat();
     }, [dashboard]);

@@ -335,6 +335,7 @@ export const projectWithSensitiveFields: Project = {
         environment_id: 'environment_id',
     },
     schedulerTimezone: 'UTC',
+    queryTimezone: null,
     createdByUserUuid: sessionAccount.user.id,
     hasDefaultUserSpaces: false,
 };
@@ -363,7 +364,6 @@ export const spacesWithSavedCharts: Space[] = [
         parentSpaceUuid: null,
         path: 'space',
         inheritParentPermissions: true,
-        isPrivate: false,
         inheritsFromOrgOrProject: true,
         uuid: 'uuid',
         pinnedListUuid: null,
@@ -409,7 +409,6 @@ export const spacesWithNoSavedCharts: Space[] = [
         queries: [],
         projectUuid,
         inheritParentPermissions: true,
-        isPrivate: false,
         inheritsFromOrgOrProject: true,
         dashboards: [],
         access: [],
@@ -478,7 +477,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableTableColumnCustomization: undefined,
         retryQueryOnTransientErrors: false,
     },
 };

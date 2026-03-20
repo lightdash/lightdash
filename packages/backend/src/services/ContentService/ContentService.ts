@@ -127,14 +127,36 @@ export class ContentService extends BaseService {
                 spaceUuids,
             );
 
+        const isInsideSpace =
+            !!filters.spaceUuids && filters.spaceUuids.length > 0;
+
+        // When viewing contents of a space, fetch its child spaces
+        // and filter by access control so inaccessible children
+        // are excluded before pagination.
+        let accessibleChildSpaceUuids: string[] | undefined;
+        if (isInsideSpace) {
+            const childSpaceUuids =
+                await this.spaceModel.getChildSpaceUuidsForParents(
+                    allowedSpaceUuids,
+                );
+            accessibleChildSpaceUuids =
+                childSpaceUuids.length > 0
+                    ? await this.spacePermissionService.getAccessibleSpaceUuids(
+                          'view',
+                          user,
+                          childSpaceUuids,
+                      )
+                    : [];
+        }
+
         const results = await this.contentModel.findSummaryContents(
             {
                 ...filters,
                 projectUuids: allowedProjectUuids,
                 spaceUuids: allowedSpaceUuids,
                 space: {
-                    rootSpaces:
-                        !filters.spaceUuids || filters.spaceUuids.length === 0,
+                    rootSpaces: !isInsideSpace,
+                    accessibleChildSpaceUuids,
                 },
             },
             queryArgs,

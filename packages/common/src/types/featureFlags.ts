@@ -69,10 +69,6 @@ export enum FeatureFlags {
     EditYamlInUi = 'edit-yaml-in-ui',
 
     /**
-     * Enable admin change notifications for critical configuration changes
-     */
-    AdminChangeNotifications = 'admin-change-notifications',
-    /**
      * Enable saved metrics tree in metrics catalog
      */
     SavedMetricsTree = 'saved-metrics-tree',
@@ -83,14 +79,20 @@ export enum FeatureFlags {
     DefaultUserSpaces = 'default-user-spaces',
 
     /**
-     * Enable table column customization (resize, header wrap, tooltips)
-     */
-    EnableTableColumnCustomization = 'enable-table-column-customization',
-
-    /**
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
+
+    /**
+     * Enable admin user impersonation. When disabled, impersonation
+     * actions are blocked and active sessions are cleared.
+     */
+    UserImpersonation = 'user-impersonation',
+
+    /**
+     * Enable custom group bins for string dimensions
+     */
+    CustomGroupBins = 'custom-group-bins',
 }
 
 export type FeatureFlag = {

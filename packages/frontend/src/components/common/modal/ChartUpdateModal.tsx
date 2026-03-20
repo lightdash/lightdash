@@ -9,6 +9,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSavedQuery, useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import MantineModal from '../MantineModal';
@@ -26,8 +27,12 @@ const ChartUpdateModal: FC<ChartUpdateModalProps> = ({
     uuid,
     onConfirm,
 }) => {
+    const projectUuid = useProjectUuid();
     const dashboardUuid = useSearchParams('fromDashboard');
-    const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
+    const { data: chart, isInitialLoading } = useSavedQuery({
+        uuidOrSlug: uuid,
+        projectUuid,
+    });
     const { mutateAsync, isLoading: isUpdating } = useUpdateMutation(
         dashboardUuid ? dashboardUuid : undefined,
         uuid,

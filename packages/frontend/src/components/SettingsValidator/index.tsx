@@ -1,7 +1,9 @@
 import {
     isChartValidationError,
+    isFixableDashboardValidationError,
     ValidationErrorType,
     type ValidationErrorChartResponse,
+    type ValidationErrorDashboardResponse,
     type ValidationSourceType,
 } from '@lightdash/common';
 import { Button, Group, Loader, Paper, Text } from '@mantine-8/core';
@@ -19,6 +21,7 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { ValidatorTable } from './ValidatorTable';
 import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
+import { FixDashboardFilterModal } from './ValidatorTable/FixDashboardFilterModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
 
 export const SettingsValidator: FC<{ projectUuid: string }> = ({
@@ -66,6 +69,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         useState<ValidationErrorChartResponse>();
     const [selectedConfigError, setSelectedConfigError] =
         useState<ValidationErrorChartResponse>();
+    const [selectedDashboardError, setSelectedDashboardError] =
+        useState<ValidationErrorDashboardResponse>();
 
     const flatData = useMemo(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -89,6 +94,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         }, null);
     }, [flatData]);
 
+    // Check if filters are active to determine if we should always show the table
+    const hasActiveFilters =
+        searchQuery !== '' || sourceTypeFilter.length > 0 || showConfigWarnings;
+
     return (
         <>
             <FixValidationErrorModal
@@ -96,6 +105,13 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 allValidationErrors={flatData}
                 onClose={() => {
                     setSelectedValidationError(undefined);
+                }}
+            />
+            <FixDashboardFilterModal
+                validationError={selectedDashboardError}
+                allValidationErrors={flatData}
+                onClose={() => {
+                    setSelectedDashboardError(undefined);
                 }}
             />
             <ChartConfigurationErrorModal
@@ -127,7 +143,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         <Loader color="gray" />
                     </Group>
                 </Paper>
-            ) : flatData.length > 0 || pinnedValidation ? (
+            ) : flatData.length > 0 || pinnedValidation || hasActiveFilters ? (
                 <ValidatorTable
                     data={deduplicatedData}
                     projectUuid={projectUuid}
@@ -141,6 +157,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             } else {
                                 setSelectedValidationError(validationError);
                             }
+                        } else if (
+                            isFixableDashboardValidationError(validationError)
+                        ) {
+                            setSelectedDashboardError(validationError);
                         }
                     }}
                     isFetching={isFetching}

@@ -131,7 +131,7 @@ export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
         }
         let newSpace = form.values.newSpaceName
             ? await handleCreateNewSpace({
-                  isPrivate: true,
+                  inheritParentPermissions: false,
               })
             : undefined;
         const spaceUuid =

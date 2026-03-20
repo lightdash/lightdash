@@ -72,7 +72,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 <FilterWeekPicker
                                     placeholder={placeholder}
                                     disabled={disabled}
-                                    autoFocus={true}
+                                    data-autofocus
                                     value={
                                         rule.values && rule.values[0]
                                             ? parseDate(
@@ -114,7 +114,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                                 // @ts-ignore
                                 placeholder={placeholder}
-                                autoFocus={true}
+                                data-autofocus
                                 popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]
@@ -146,7 +146,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                             <FilterQuarterPicker
                                 disabled={disabled}
                                 placeholder={placeholder}
-                                autoFocus={true}
+                                data-autofocus
                                 popoverProps={popoverProps}
                                 value={parsedValue}
                                 onChange={(newDate: Date) => {
@@ -166,7 +166,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                                 // @ts-ignore
                                 placeholder={placeholder}
-                                autoFocus={true}
+                                data-autofocus
                                 popoverProps={popoverProps}
                                 value={
                                     rule.values && rule.values[0]
@@ -211,7 +211,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
                         // @ts-ignore
                         placeholder={placeholder}
-                        autoFocus={true}
+                        data-autofocus
                         withSeconds
                         // FIXME: mantine v7
                         // mantine does not set the first day of the week based on the locale
@@ -239,7 +239,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     // so we need to do it manually and always pass it as a prop
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     popoverProps={popoverProps}
-                    autoFocus={true}
+                    data-autofocus
                     value={
                         rule.values
                             ? parseDate(
@@ -269,7 +269,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         sx={{ flexShrink: 1, flexGrow: 1 }}
                         placeholder={placeholder}
                         disabled={disabled}
-                        autoFocus={true}
+                        data-autofocus
                         value={isNaN(parsedValue) ? undefined : parsedValue}
                         min={0}
                         onChange={(value) => {
@@ -321,7 +321,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     }
                     showOptionsInPlural={false}
                     showCompletedOptions={false}
-                    autoFocus={!rule.settings?.unitOfTime}
+                    data-autofocus={!rule.settings?.unitOfTime || undefined}
                     completed={false}
                     withinPortal={popoverProps?.withinPortal}
                     onDropdownOpen={popoverProps?.onOpen}
@@ -342,7 +342,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 return (
                     <FilterDateTimeRangePicker
                         disabled={disabled}
-                        autoFocus={true}
+                        data-autofocus
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         value={
                             rule.values && rule.values[0] && rule.values[1]
@@ -371,7 +371,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             return (
                 <FilterDateRangePicker
                     disabled={disabled}
-                    autoFocus={true}
+                    data-autofocus
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     value={
                         rule.values && rule.values[0] && rule.values[1]

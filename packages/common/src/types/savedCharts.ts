@@ -28,6 +28,7 @@ export enum ChartKind {
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
     MAP = 'map',
+    SANKEY = 'sankey',
 }
 
 export enum ChartType {
@@ -40,6 +41,7 @@ export enum ChartType {
     GAUGE = 'gauge',
     CUSTOM = 'custom',
     MAP = 'map',
+    SANKEY = 'sankey',
 }
 
 export enum ComparisonFormatTypes {
@@ -195,6 +197,19 @@ export type GaugeChart = {
     showPercentage?: boolean;
     /** Custom label for the percentage display */
     customPercentageLabel?: string;
+};
+
+export type SankeyChart = {
+    /** Field ID for the source node dimension */
+    sourceFieldId?: string;
+    /** Field ID for the target node dimension */
+    targetFieldId?: string;
+    /** Field ID for the link value metric */
+    metricFieldId?: string;
+    /** Node alignment */
+    nodeAlign?: 'left' | 'right' | 'justify';
+    /** Orientation of the diagram */
+    orient?: 'horizontal' | 'vertical';
 };
 
 export enum MapChartLocation {
@@ -660,6 +675,10 @@ export type CompleteCartesianChartLayout = {
     stack?: boolean | string | undefined;
     /** Connect null data points with a line */
     connectNulls?: boolean | undefined;
+    /** Color each bar by its category value instead of using a single series color */
+    colorByCategory?: boolean | undefined;
+    /** Per-category color overrides (maps category value to hex color) */
+    categoryColorOverrides?: Record<string, string> | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
@@ -741,6 +760,13 @@ export type MapChartConfig = {
     config?: MapChart;
 };
 
+export type SankeyChartConfig = {
+    /** Type of chart visualization */
+    type: ChartType.SANKEY;
+    /** Chart-type-specific configuration */
+    config?: SankeyChart;
+};
+
 export type ChartConfig =
     | BigNumberConfig
     | CartesianChartConfig
@@ -750,13 +776,14 @@ export type ChartConfig =
     | TableChartConfig
     | TreemapChartConfig
     | GaugeChartConfig
-    | MapChartConfig;
+    | MapChartConfig
+    | SankeyChartConfig;
 
 export type SavedChartType = ChartType;
 
 export type SavedChartDAO = Omit<
     SavedChart,
-    'isPrivate' | 'inheritsFromOrgOrProject' | 'access'
+    'inheritsFromOrgOrProject' | 'access'
 >;
 
 export type SavedChart = {
@@ -795,7 +822,6 @@ export type SavedChart = {
     dashboardUuid: string | null;
     dashboardName: string | null;
     colorPalette: string[];
-    isPrivate: boolean;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
     /** Unique identifier slug for this chart */
@@ -848,7 +874,6 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
-    | 'isPrivate'
     | 'inheritsFromOrgOrProject'
     | 'access'
     | 'slug'
@@ -969,6 +994,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.TREEMAP;
         case ChartKind.GAUGE:
             return ChartType.GAUGE;
+        case ChartKind.SANKEY:
+            return ChartType.SANKEY;
         default:
             return ChartType.CARTESIAN;
     }
@@ -1027,6 +1054,8 @@ export const getChartKind = (
             return ChartKind.GAUGE;
         case ChartType.MAP:
             return ChartKind.MAP;
+        case ChartType.SANKEY:
+            return ChartKind.SANKEY;
         default:
             return assertUnreachable(
                 chartType,
@@ -1201,6 +1230,11 @@ export type SkippedReplaceCustomFields = {
             };
         };
     };
+};
+
+export type ApiSavedChartResponse = {
+    status: 'ok';
+    results: SavedChart;
 };
 
 export type ApiSavedChartSchedulersResponse = {

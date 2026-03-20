@@ -461,6 +461,11 @@ export type ApiMetricsWithAssociatedTimeDimensionResponse = {
     results: MetricWithAssociatedTimeDimension[];
 };
 
+export type ApiPaginatedMetricsWithTimeDimensionResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<CatalogField[]>;
+};
+
 export type ApiSegmentDimensionsResponse = {
     status: 'ok';
     results: CompiledDimension[];

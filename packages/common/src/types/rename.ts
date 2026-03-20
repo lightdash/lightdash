@@ -49,12 +49,27 @@ export type ApiRenameResponse = {
     };
 };
 
+export type ApiRenameDashboardBody = {
+    from: string;
+    to: string;
+    type: RenameType;
+    fixAll?: boolean;
+};
+
 export type ApiRenameChartResponse = {
     status: 'ok';
     results: {
         jobId: string | undefined;
     };
 };
+
+export type ApiRenameDashboardResponse = {
+    status: 'ok';
+    results: {
+        jobId: string | undefined;
+    };
+};
+
 export type ApiRenameFieldsResponse = {
     status: 'ok';
     results: {

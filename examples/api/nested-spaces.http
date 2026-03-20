@@ -13,7 +13,7 @@ Content-Type: application/json
 
 {
   "name": "Parent Space",
-  "isPrivate": false
+  "inheritParentPermissions": true
 }
 
 ### Create Child Space
@@ -22,7 +22,7 @@ Content-Type: application/json
 
 {
   "name": "Child Space",
-  "isPrivate": false,
+  "inheritParentPermissions": true,
   "parentSpaceUuid": "PARENT_SPACE_UUID"
 }
 
@@ -32,7 +32,7 @@ Content-Type: application/json
 
 {
   "name": "Grandchild Space",
-  "isPrivate": false,
+  "inheritParentPermissions": true,
   "parentSpaceUuid": "CHILD_SPACE_UUID"
 }
 

@@ -5,6 +5,7 @@ export type AbilityAction =
     | 'create'
     | 'delete'
     | 'export'
+    | 'impersonate'
     | 'manage'
     | 'promote'
     | 'update'
@@ -59,6 +60,7 @@ export type CaslSubjectNames =
     | 'SqlRunner'
     | 'Tags'
     | 'UnderlyingData'
+    | 'User'
     | 'Validation'
     | 'VirtualView';
 

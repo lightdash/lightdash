@@ -5,6 +5,7 @@ import { type FC } from 'react';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
+import { useImpersonation } from '../../../hooks/user/useImpersonation';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
@@ -245,6 +246,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     const { data: project } = useProject(activeProjectUuid);
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
+    const { isImpersonating } = useImpersonation();
 
     const { classes } = usePageStyles(
         {
@@ -263,7 +265,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             withSidebarFooter,
             withSidebarBorder,
             withRightSidebar: !!rightSidebar,
-            hasBanner: isCurrentProjectPreview,
+            hasBanner: isCurrentProjectPreview || isImpersonating,
             noContentPadding,
             flexContent,
             isSidebarResizing,

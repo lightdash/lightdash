@@ -213,7 +213,10 @@ const MinimalDashboard: FC = () => {
         data: dashboard,
         isError: isDashboardError,
         error: dashboardError,
-    } = useDashboardQuery(dashboardUuid);
+    } = useDashboardQuery({
+        uuidOrSlug: dashboardUuid,
+        projectUuid,
+    });
 
     const [activeTab, setActiveTab] = useState<DashboardTab | null>(null);
 
@@ -355,6 +358,7 @@ const MinimalDashboard: FC = () => {
 
     return (
         <DashboardProvider
+            projectUuid={projectUuid}
             schedulerFilters={schedulerFilters}
             schedulerParameters={schedulerParameters}
             schedulerTabsSelected={schedulerTabsSelected}

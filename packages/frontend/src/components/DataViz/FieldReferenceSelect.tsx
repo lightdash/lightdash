@@ -19,6 +19,7 @@ export const FieldReferenceSelect: FC<Props> = ({ fieldType, ...props }) => {
                 option: styles.option,
             }}
             rightSectionWidth="min-content"
+            rightSectionPointerEvents="all"
         />
     );
 };

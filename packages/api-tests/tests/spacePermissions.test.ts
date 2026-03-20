@@ -1,8 +1,14 @@
 import { Dashboard, SavedChart, SEED_PROJECT, Space } from '@lightdash/common';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login, loginWithEmail, loginWithPermissions } from '../helpers/auth';
+import { uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
+
+// Generate unique names once per test file to avoid cross-file collisions
+const privateSpaceName = uniqueName('private space');
+const privateChartName = uniqueName('private chart');
+const privateDashboardName = uniqueName('private dashboard');
 
 const chartBody = {
     tableName: 'customers',
@@ -25,11 +31,11 @@ const chartBody = {
         type: 'cartesian',
         config: { layout: {}, eChartsConfig: {} },
     },
-    name: 'private chart',
+    name: privateChartName,
 };
 
 const dashboardBody = {
-    name: 'private dashboard',
+    name: privateDashboardName,
     description: '',
     tiles: [],
     tabs: [],
@@ -40,7 +46,7 @@ async function createPrivateChart(
 ): Promise<{ space: Space; chart: SavedChart }> {
     const spaceResp = await client.post<{ results: Space }>(
         `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
-        { name: 'private space' },
+        { name: privateSpaceName },
     );
     expect(spaceResp.status).toBe(200);
 
@@ -65,7 +71,7 @@ async function createPrivateDashboard(
 ): Promise<{ space: Space; dashboard: Dashboard }> {
     const spaceResp = await client.post<{ results: Space }>(
         `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
-        { name: 'private space' },
+        { name: privateSpaceName },
     );
     expect(spaceResp.status).toBe(200);
 
@@ -97,17 +103,20 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     it('Should create private space', async () => {
         const resp = await admin.post<
             Body<{
-                isPrivate: boolean;
+                inheritParentPermissions: boolean;
                 name: string;
                 projectUuid: string;
                 uuid: string;
             }>
         >(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`, {
-            name: 'private space',
+            name: privateSpaceName,
         });
         expect(resp.status).toBe(200);
-        expect(resp.body.results).toHaveProperty('isPrivate', true);
-        expect(resp.body.results).toHaveProperty('name', 'private space');
+        expect(resp.body.results).toHaveProperty(
+            'inheritParentPermissions',
+            false,
+        );
+        expect(resp.body.results).toHaveProperty('name', privateSpaceName);
         expect(resp.body.results).toHaveProperty(
             'projectUuid',
             SEED_PROJECT.project_uuid,
@@ -119,9 +128,9 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     it('Should create chart in private space', async () => {
         const { space, chart } = await createPrivateChart(admin);
 
-        expect(space).toHaveProperty('isPrivate', true);
-        expect(space).toHaveProperty('name', 'private space');
-        expect(chart).toHaveProperty('spaceName', 'private space');
+        expect(space).toHaveProperty('inheritParentPermissions', false);
+        expect(space).toHaveProperty('name', privateSpaceName);
+        expect(chart).toHaveProperty('spaceName', privateSpaceName);
         expect(chart).toHaveProperty('spaceUuid', space.uuid);
 
         await deleteSpace(admin, space.uuid);
@@ -130,9 +139,9 @@ describe('Lightdash API tests for my own private spaces as admin', () => {
     it('Should create dashboard in private space', async () => {
         const { space, dashboard } = await createPrivateDashboard(admin);
 
-        expect(space).toHaveProperty('isPrivate', true);
-        expect(space).toHaveProperty('name', 'private space');
-        expect(dashboard).toHaveProperty('spaceName', 'private space');
+        expect(space).toHaveProperty('inheritParentPermissions', false);
+        expect(space).toHaveProperty('name', privateSpaceName);
+        expect(dashboard).toHaveProperty('spaceName', privateSpaceName);
         expect(dashboard).toHaveProperty('spaceUuid', space.uuid);
 
         await deleteSpace(admin, space.uuid);
@@ -285,7 +294,7 @@ describe('Lightdash API tests for a project admin accessing other private spaces
         });
         expect(resp.status).toBe(200);
         const privateSpace = resp.body.results.find(
-            (space: any) => space.name === 'private space',
+            (space: any) => space.name === privateSpaceName,
         );
         expect(privateSpace).toBeDefined();
     });
@@ -303,17 +312,17 @@ describe('Lightdash API tests for a project admin accessing other private spaces
         expect(resp.status).toBe(200);
         expect(
             resp.body.results.spaces.find(
-                (space: any) => space.name === 'private space',
+                (space: any) => space.name === privateSpaceName,
             ),
         ).toBeDefined();
         expect(
             resp.body.results.savedCharts.find(
-                (chart: any) => chart.name === 'private chart',
+                (chart: any) => chart.name === privateChartName,
             ),
         ).toBeDefined();
         expect(
             resp.body.results.dashboards.find(
-                (dashboard: any) => dashboard.name === 'private dashboard',
+                (dashboard: any) => dashboard.name === privateDashboardName,
             ),
         ).toBeDefined();
     });
@@ -328,7 +337,7 @@ describe('Lightdash API tests for a project admin accessing other private spaces
         expect(resp.status).toBe(200);
         expect(
             resp.body.results.find(
-                (dashboard: any) => dashboard.name === 'private dashboard',
+                (dashboard: any) => dashboard.name === privateDashboardName,
             ),
         ).toBeUndefined();
     });

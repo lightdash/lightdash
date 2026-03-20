@@ -9,6 +9,7 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { useExplorerQuery } from '../../../../../hooks/useExplorerQuery';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import MinimalSavedExplorer from '../../../../../pages/MinimalSavedExplorer';
 import useApp from '../../../../../providers/App/useApp';
@@ -79,8 +80,10 @@ type Props = {
 };
 
 const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
+    const projectUuid = useProjectUuid();
     const { data, isInitialLoading, isError, error } = useSavedQuery({
-        id: savedQueryUuid,
+        uuidOrSlug: savedQueryUuid,
+        projectUuid,
     });
 
     if (isInitialLoading) {

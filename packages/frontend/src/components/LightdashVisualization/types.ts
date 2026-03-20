@@ -58,7 +58,6 @@ export type VisualizationBigNumberConfigProps =
     VisualizationConfigCommon<VisualizationConfigBigNumber> & {
         itemsMap: ItemsMap | undefined;
         tableCalculationsMetadata?: TableCalculationMetadata[];
-        dateZoom?: DateZoom;
     };
 
 // Cartesian
@@ -244,6 +243,30 @@ export type VisualizationConfigMapProps = Omit<
     itemsMap: ItemsMap | undefined;
 };
 
+// Sankey
+
+import type useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
+
+export type VisualizationConfigSankeyType = {
+    chartType: ChartType.SANKEY;
+    chartConfig: ReturnType<typeof useSankeyChartConfig>;
+    dimensions: Record<string, CustomDimension | Dimension>;
+    numericFields: Record<string, Metric | TableCalculation>;
+};
+
+export const isSankeyVisualizationConfig = (
+    visualizationConfig: VisualizationConfig | undefined,
+): visualizationConfig is VisualizationConfigSankeyType => {
+    return visualizationConfig?.chartType === ChartType.SANKEY;
+};
+
+export type VisualizationConfigSankeyProps =
+    VisualizationConfigCommon<VisualizationConfigSankeyType> & {
+        itemsMap: ItemsMap | undefined;
+        colorPalette: string[];
+        tableCalculationsMetadata?: TableCalculationMetadata[];
+    };
+
 // Union of all visualization configs
 
 export type VisualizationConfig =
@@ -255,4 +278,5 @@ export type VisualizationConfig =
     | VisualizationConfigTreemap
     | VisualizationConfigGauge
     | VisualizationConfigMap
-    | VisualizationCustomConfigType;
+    | VisualizationCustomConfigType
+    | VisualizationConfigSankeyType;

@@ -44,6 +44,7 @@ import {
     getAvailableParametersFromTables,
     getParameterReferences,
     getParameterReferencesFromSqlAndFormat,
+    validateParameterConfiguration,
     validateParameterNames,
     validateParameterReferences,
 } from './parameters';
@@ -66,7 +67,7 @@ type Reference = {
  * like "summary" matching "sum".
  */
 const SQL_AGGREGATION_FUNCTIONS_PATTERN =
-    /\b(sum|count|avg|average|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
+    /\b(sum|count_if|countif|count|avg|average|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
 
 /**
  * Check if the SQL contains any aggregation functions.
@@ -84,6 +85,72 @@ export const sqlContainsAggregation = (
 ): boolean => {
     if (!sql) return false;
     return SQL_AGGREGATION_FUNCTIONS_PATTERN.test(sql);
+};
+
+/**
+ * Check if any of the given ${} references appear inside an SQL aggregation
+ * function call. This is used to distinguish:
+ * - `sum(${max_value})` — ref IS inside aggregation (nested aggregate)
+ * - `sum(raw_col) / ${count_records}` — ref is NOT inside aggregation
+ *
+ * Uses a simple parenthesis-depth approach: track aggregation function
+ * positions and check if references fall within their parentheses.
+ */
+export const sqlAggregationWrapsReferences = (
+    sql: string,
+    refNames: string[],
+): boolean => {
+    if (!sql || refNames.length === 0) return false;
+
+    // Build a pattern that matches aggregation functions with opening paren
+    const aggPattern = new RegExp(
+        SQL_AGGREGATION_FUNCTIONS_PATTERN.source,
+        'gi',
+    );
+
+    // Find all aggregation function positions and their matching close-paren
+    const aggRanges: Array<{ start: number; end: number }> = [];
+    let match: RegExpExecArray | null;
+    // eslint-disable-next-line no-cond-assign
+    while ((match = aggPattern.exec(sql)) !== null) {
+        const openParenPos = sql.indexOf('(', match.index + match[1].length);
+        if (openParenPos !== -1) {
+            // Find the matching close paren by tracking depth
+            let depth = 1;
+            let pos = openParenPos + 1;
+            while (pos < sql.length && depth > 0) {
+                if (sql[pos] === '(') depth += 1;
+                else if (sql[pos] === ')') depth -= 1;
+                pos += 1;
+            }
+            if (depth === 0) {
+                aggRanges.push({ start: openParenPos, end: pos - 1 });
+            }
+        }
+    }
+
+    if (aggRanges.length === 0) return false;
+
+    // Check if any of the references appear inside any aggregation range
+    return refNames.some((refName) => {
+        const refPattern = new RegExp(
+            `\\$\\{${refName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}`,
+            'g',
+        );
+        let refMatch: RegExpExecArray | null;
+        // eslint-disable-next-line no-cond-assign
+        while ((refMatch = refPattern.exec(sql)) !== null) {
+            const refPos = refMatch.index;
+            if (
+                aggRanges.some(
+                    (range) => refPos > range.start && refPos < range.end,
+                )
+            ) {
+                return true;
+            }
+        }
+        return false;
+    });
 };
 
 type FieldContext = {
@@ -217,6 +284,16 @@ export class ExploreCompiler {
         // Collect warnings for partial compilation
         const exploreWarnings: InlineError[] = [];
 
+        // Collect warnings from the base table (e.g. unresolved custom granularities)
+        if (tables[baseTable].warnings) {
+            tables[baseTable].warnings.forEach((message) => {
+                exploreWarnings.push({
+                    type: InlineErrorType.FIELD_ERROR,
+                    message,
+                });
+            });
+        }
+
         // Filter joined tables - skip missing tables when partial compilation is enabled
         const validJoinedTables = this.options.allowPartialCompilation
             ? joinedTables.filter((join) => {
@@ -266,6 +343,16 @@ export class ExploreCompiler {
                     invalidParameters,
                 },
             );
+        }
+
+        const { isValid, error: paramConfigError } =
+            validateParameterConfiguration(meta.parameters);
+
+        if (!isValid) {
+            exploreWarnings.push({
+                type: InlineErrorType.INVALID_PARAMETER,
+                message: `Invalid parameter configuration: ${paramConfigError}`,
+            });
         }
 
         const includedTables = validJoinedTables.reduce<Record<string, Table>>(

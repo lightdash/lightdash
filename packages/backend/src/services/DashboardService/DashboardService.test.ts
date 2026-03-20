@@ -75,21 +75,18 @@ const spaceContexts = {
     [space.space_uuid]: {
         organizationUuid: space.organization_uuid,
         projectUuid: publicSpace.projectUuid,
-        isPrivate: space.is_private,
         inheritsFromOrgOrProject: space.inherit_parent_permissions,
         access: [],
     },
     [privateSpace.uuid]: {
         organizationUuid: privateSpace.organizationUuid,
         projectUuid: privateSpace.projectUuid,
-        isPrivate: privateSpace.isPrivate,
         inheritsFromOrgOrProject: privateSpace.inheritParentPermissions,
         access: [],
     },
     [publicSpace.uuid]: {
         organizationUuid: publicSpace.organizationUuid,
         projectUuid: publicSpace.projectUuid,
-        isPrivate: publicSpace.isPrivate,
         inheritsFromOrgOrProject: publicSpace.inheritParentPermissions,
         access: publicSpace.access,
     },
@@ -148,6 +145,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             dashboard.uuid,
+            { projectUuid: undefined },
         );
     });
     test('should get all dashboard by project uuid', async () => {
@@ -169,7 +167,6 @@ describe('DashboardService', () => {
 
         expect(result).toEqual({
             ...dashboard,
-            isPrivate: publicSpace.isPrivate,
             access: publicSpace.access,
         });
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
@@ -195,7 +192,6 @@ describe('DashboardService', () => {
 
         expect(result).toEqual({
             ...dashboard,
-            isPrivate: publicSpace.isPrivate,
             access: publicSpace.access,
         });
         expect(dashboardModel.create).toHaveBeenCalledTimes(1);
@@ -410,7 +406,6 @@ describe('DashboardService', () => {
             ...dashboard,
             uuid: 'private-dashboard-uuid',
             spaceUuid: privateSpace.uuid,
-            isPrivate: privateSpace.isPrivate,
         };
 
         // Changing the mock to return a private dashboard (in private space)
@@ -424,6 +419,7 @@ describe('DashboardService', () => {
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledTimes(1);
         expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
             privateDashboard.uuid,
+            { projectUuid: undefined },
         );
     });
 

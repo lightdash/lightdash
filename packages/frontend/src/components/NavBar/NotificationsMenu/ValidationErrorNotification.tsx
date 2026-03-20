@@ -35,6 +35,6 @@ export const ValidationErrorNotification: FC<{
             />
         }
         icon={IconAlertCircle}
-        iconProps={{ color: 'red' }}
+        iconProps={{ color: 'white' }}
     />
 );

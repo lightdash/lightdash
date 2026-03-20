@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import dts from 'vite-plugin-dts';
@@ -6,11 +7,16 @@ import { defineConfig } from 'vitest/config';
 
 process.env.NODE_ENV = 'production';
 
+const sdkPackageJson = JSON.parse(
+    readFileSync(resolve(__dirname, 'sdk', 'package.json'), 'utf-8'),
+);
+
 export default defineConfig({
     mode: 'production',
     publicDir: false,
     define: {
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+        __SDK_VERSION__: JSON.stringify(sdkPackageJson.version),
     },
     plugins: [svgrPlugin(), dts({ rollupTypes: true }), cssInjectedByJsPlugin()],
     build: {

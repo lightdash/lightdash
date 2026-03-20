@@ -85,6 +85,36 @@ Sentry.init({
             return context.parentSampled;
         }
 
+        // Boost sampling for async query execution when queryTracesSampleRate is set
+        // Set SENTRY_QUERY_TRACES_SAMPLE_RATE=1.0 for 100% attribution on query traces
+        const { queryTracesSampleRate } = lightdashConfig.sentry;
+        if (queryTracesSampleRate !== null) {
+            // Match by span/transaction name (e.g. scheduler-triggered queries)
+            const spanName = context.name ?? '';
+            if (spanName.includes('ProjectService.executeAsyncQuery')) {
+                return queryTracesSampleRate;
+            }
+
+            // Match query endpoints (metric-query/dashboard-chart)
+            if (request?.url) {
+                try {
+                    const url = new URL(
+                        request.url,
+                        `http://${request.headers?.host || 'localhost'}`,
+                    );
+                    if (
+                        /\/api\/v2\/projects\/[^/]+\/query\/(?:metric-query|dashboard-chart)$/.test(
+                            url.pathname,
+                        )
+                    ) {
+                        return queryTracesSampleRate;
+                    }
+                } catch {
+                    // Ignore URL parse errors, fall through to default
+                }
+            }
+        }
+
         return lightdashConfig.sentry.tracesSampleRate;
     },
     profilesSampleRate: lightdashConfig.sentry.profilesSampleRate, // x% of samples will be profiled

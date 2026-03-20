@@ -59,6 +59,17 @@ export class TagsModel {
         return tags.map(convertTagRow);
     }
 
+    async getUuidsByYamlReferences(
+        projectUuid: string,
+        yamlReferences: string[],
+    ): Promise<string[]> {
+        const tags = await this.database(TagsTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('yaml_reference', yamlReferences)
+            .select('tag_uuid');
+        return tags.map((t) => t.tag_uuid);
+    }
+
     async getYamlTags(projectUuid: string): Promise<DbTag[]> {
         const tags = await this.database(TagsTableName)
             .whereNotNull('yaml_reference')

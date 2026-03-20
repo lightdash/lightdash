@@ -28,7 +28,11 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import {
+    checkLightdashVersion,
+    lightdashApi,
+    setGzipEnabled,
+} from './dbt/apiClient';
 import { logSelectedProject, selectProject } from './selectProject';
 
 export type DownloadHandlerOptions = {
@@ -45,6 +49,7 @@ export type DownloadHandlerOptions = {
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
+    gzip?: boolean;
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -916,8 +921,9 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         }
     } else {
         // Two-phase parallel path
-        // Phase 1: Seed spaces by uploading the first item per unique spaceSlug sequentially
-        // This avoids the backend race condition in getOrCreateSpace()
+        // Phase 1: Seed one item per unique spaceSlug (and dashboardSlug for charts)
+        // sequentially. This avoids backend race conditions in getOrCreateSpace()
+        // and in placeholder dashboard creation for charts within dashboards.
         type ItemWithUpdate = T & { needsUpdating: boolean };
         const grouped = groupBy(
             filteredItems,
@@ -943,7 +949,43 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
             }
         });
 
-        // Phase 1: Sequential space seeding
+        // For charts: also seed one item per unique dashboardSlug to avoid
+        // concurrent placeholder dashboard creation (duplicate slug bug)
+        if (type === 'charts') {
+            const chartsWithDashboard = remainingItems.filter(
+                (item) =>
+                    'dashboardSlug' in item &&
+                    (item as unknown as ChartAsCode).dashboardSlug,
+            );
+            const groupedByDashboard = groupBy(
+                chartsWithDashboard,
+                (item) => (item as unknown as ChartAsCode).dashboardSlug,
+            );
+            Object.values(groupedByDashboard).forEach((dashboardItems) => {
+                // If no item for this dashboardSlug was already picked as a
+                // space seed, pick the first one as a dashboard seed
+                const alreadySeeded = dashboardItems.some((item) =>
+                    seedItems.has(item),
+                );
+                if (!alreadySeeded) {
+                    const seedIndex = force
+                        ? 0
+                        : dashboardItems.findIndex((i) => i.needsUpdating);
+                    if (seedIndex >= 0) {
+                        seedItems.add(dashboardItems[seedIndex]);
+                        // Remove from remainingItems since it's now a seed
+                        const idx = remainingItems.indexOf(
+                            dashboardItems[seedIndex],
+                        );
+                        if (idx >= 0) {
+                            remainingItems.splice(idx, 1);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Phase 1: Sequential seeding (spaces + dashboard placeholders)
         for (const item of seedItems) {
             // eslint-disable-next-line no-await-in-loop
             await upsertSingleItem(
@@ -1019,6 +1061,9 @@ export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+    if (options.gzip) {
+        setGzipEnabled(true);
+    }
     await checkLightdashVersion();
     const config = await getConfig();
     if (!config.context?.apiKey || !config.context.serverUrl) {

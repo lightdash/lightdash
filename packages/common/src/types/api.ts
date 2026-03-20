@@ -103,6 +103,7 @@ import {
     type PullRequestCreated,
 } from './gitIntegration';
 import type { ApiGroupListResponse } from './groups';
+import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
     ApiMetricsExplorerQueryResults,
@@ -210,6 +211,7 @@ export enum RequestMethod {
     CLI = 'CLI',
     CLI_CI = 'CLI_CI',
     WEB_APP = 'WEB_APP',
+    SDK = 'SDK',
     HEADLESS_BROWSER = 'HEADLESS_BROWSER',
     UNKNOWN = 'UNKNOWN',
     BACKEND = 'BACKEND',
@@ -312,6 +314,7 @@ export type SentryConfig = {
     release: string;
     environment: string;
     tracesSampleRate: number;
+    queryTracesSampleRate: number | null;
     profilesSampleRate: number;
     anr: {
         enabled: boolean;
@@ -553,6 +556,7 @@ export type CreateProject = Omit<
     | 'projectUuid'
     | 'organizationUuid'
     | 'schedulerTimezone'
+    | 'queryTimezone'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
 > & {
@@ -583,6 +587,7 @@ export type UpdateProject = Omit<
     | 'organizationUuid'
     | 'type'
     | 'schedulerTimezone'
+    | 'queryTimezone'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
 > & {
@@ -627,6 +632,7 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         appliedDashboardFilters: DashboardFilters;
+        dateZoomApplied: boolean;
     };
 
 export type ApiExecuteAsyncSqlQueryResults =
@@ -660,11 +666,15 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
 export type ApiGetAsyncQueryResults =
     | ReadyQueryResultsPage
     | {
-          status: QueryHistoryStatus.PENDING | QueryHistoryStatus.CANCELLED;
+          status:
+              | QueryHistoryStatus.PENDING
+              | QueryHistoryStatus.QUEUED
+              | QueryHistoryStatus.EXECUTING
+              | QueryHistoryStatus.CANCELLED;
           queryUuid: string;
       }
     | {
-          status: QueryHistoryStatus.ERROR;
+          status: QueryHistoryStatus.ERROR | QueryHistoryStatus.EXPIRED;
           queryUuid: string;
           error: string | null;
       };
@@ -947,7 +957,8 @@ type ApiResults =
     | ApiToggleFavorite['results']
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
-    | ApiGetPreAggregateMaterializationsResponse['results'];
+    | ApiGetPreAggregateMaterializationsResponse['results']
+    | ApiImpersonationOrganizationSettingsResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

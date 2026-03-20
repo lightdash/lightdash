@@ -45,6 +45,7 @@ version: 1
 name: "Chart Name"
 slug: unique-chart-slug
 spaceSlug: target-space
+dashboardSlug: my-dashboard  # Optional: scopes chart to this dashboard (won't appear in space)
 tableName: my_explore
 updatedAt: "2024-01-01T00:00:00.000Z"
 
@@ -65,5 +66,20 @@ chartConfig:
 tableConfig:
   columnOrder: []
 ```
+
+### Chart Scoping
+
+| Property | Effect |
+|----------|--------|
+| `spaceSlug` only | Chart lives in the space, visible independently, can be added to multiple dashboards |
+| `spaceSlug` + `dashboardSlug` | Chart lives inside the dashboard, won't appear in the space |
+
+**Default to `dashboardSlug`** when creating a chart for a specific dashboard. Only omit it when the chart needs to be shared across multiple dashboards.
+
+### Avoiding Unused Dimension Warnings
+
+**Every dimension in `metricQuery.dimensions` must be used in the chart configuration.** For cartesian charts, this means each dimension must appear in at least one of: `layout.xField`, `layout.yField`, or `pivotConfig.columns`. Dimensions in the query but not referenced in the chart config cause a "Results may be incorrect" warning — the extra dimension changes SQL grouping and can produce wrong numbers.
+
+**Rule**: Only include dimensions you actually display. If a dimension isn't on an axis or used as a pivot, remove it from `metricQuery.dimensions`.
 
 See individual chart reference files for type-specific `chartConfig.config` options.

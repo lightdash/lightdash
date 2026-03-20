@@ -77,6 +77,10 @@ const TreeSingleNodeActions: FC<Props> = ({
         FeatureFlags.WriteBackCustomBinDimensions,
     );
 
+    const isCustomGroupBinsEnabled = useClientFeatureFlag(
+        FeatureFlags.CustomGroupBins,
+    );
+
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
         let newId = uuidv4();
@@ -387,7 +391,10 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </>
                 ) : null}
 
-                {isDimension(item) && item.type === DimensionType.NUMBER ? (
+                {isDimension(item) &&
+                (item.type === DimensionType.NUMBER ||
+                    (item.type === DimensionType.STRING &&
+                        isCustomGroupBinsEnabled)) ? (
                     <>
                         <Menu.Divider />
                         <Menu.Item

@@ -8,6 +8,7 @@ import {
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
@@ -27,6 +28,7 @@ import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
 import { ModalsProvider } from '@mantine/modals';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
+const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
 type Props = {
     instanceUrl: string;
@@ -67,6 +69,13 @@ const persistInstanceUrl = (instanceUrl: string) => {
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
         instanceUrl,
     );
+
+    if (typeof __SDK_VERSION__ !== 'undefined') {
+        setToInMemoryStorage(
+            LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY,
+            __SDK_VERSION__,
+        );
+    }
 };
 
 const SdkProviders: FC<

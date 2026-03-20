@@ -4,6 +4,15 @@ models:
     config:
       tags: ["core", "ai"]
     meta:
+      parameters:
+        event_status:
+          label: "Event Status"
+          description: "Filter events by status type. Tests model-scoped ld.parameters.events.event_status Liquid syntax."
+          default: "all"
+          options:
+            - "all"
+            - "song_played"
+            - "add_to_cart"
       primary_key: event_id
       group_details:
         events:
@@ -111,6 +120,39 @@ models:
             dynamic_total:
               type: sum
               description: "When metric_type=count, counts events. When metric_type=revenue, sums event IDs."
+      - name: conditional_event_id
+        description: "Returns event_id only when the event_id dimension is selected in the query, NULL otherwise. Uses ld.query.fields contains syntax."
+        meta:
+          dimension:
+            type: number
+            sql: >
+              {% raw %}{% if ld.query.fields contains "events.event_id" %}
+                ${TABLE}.event_id
+              {% else %}
+                NULL
+              {% endif %}{% endraw %}
+      - name: filtered_status_label
+        description: "Returns a label indicating whether the event dimension has an active filter. Uses ld.query.filters contains syntax."
+        meta:
+          dimension:
+            type: string
+            sql: >
+              {% raw %}{% if ld.query.filters contains "events.event" %}
+                'Filtered: ' || ${TABLE}.event
+              {% else %}
+                'All Events'
+              {% endif %}{% endraw %}
+      - name: filtered_event
+        description: "Filters events by the model-scoped event_status parameter using ld.parameters.events.event_status Liquid syntax."
+        meta:
+          dimension:
+            type: string
+            sql: >
+              {% raw %}{% if ld.parameters.events.event_status == 'all' %}
+                ${TABLE}.event
+              {% else %}
+                CASE WHEN ${TABLE}.event = '{{ ld.parameters.events.event_status }}' THEN ${TABLE}.event ELSE NULL END
+              {% endif %}{% endraw %}
       - name: event
         description: ""
         meta:
@@ -301,3 +343,69 @@ models:
               type: number
               description: "Count of events where event is song_played using TABLE reference"
               sql: count(case when ${TABLE}.event = 'song_played' then 1 end)
+            # --- Nested aggregate test metrics ---
+            # Inner aggregate metric (similar to the customer's ltv_12m_gbp_new_metric)
+            max_event_id:
+              type: max
+              description: "Maximum event ID per group"
+            # Nested aggregate: type:number wrapping aggregate metric reference
+            # This pattern currently fails with "Aggregate functions cannot be nested"
+            # because it compiles to SUM(MAX("events"."event_id")) which is invalid SQL
+            sum_of_max_event_id:
+              type: number
+              description: "Sum of max event IDs - nested aggregate pattern (SUM wrapping MAX)"
+              sql: sum(${max_event_id})
+            # More complex nested aggregate with division (matches customer pattern)
+            avg_max_event_id:
+              type: number
+              description: "Average of max event IDs - sum(max_metric) / count_metric"
+              sql: sum(${max_event_id}) / NULLIF(${unique_event_count}, 0)
+            # COUNT(DISTINCT) wrapping aggregate metric (PROD-5657: 1 chart with this pattern)
+            count_distinct_of_max:
+              type: number
+              description: "Count distinct of max event IDs - COUNT(DISTINCT MAX(...)) pattern"
+              sql: count(distinct ${max_event_id})
+            # Conditional SUM wrapping aggregate metric (common Looker migration pattern)
+            # e.g. SUM(CASE WHEN condition THEN ${aggregate_metric} END)
+            conditional_sum_of_max:
+              type: number
+              description: "Conditional sum of max event IDs - SUM(CASE WHEN ... THEN MAX(...) END)"
+              sql: sum(case when ${max_event_id} > 100 then ${max_event_id} else 0 end)
+            # Multiplication of two aggregate metrics (customer LTV pattern)
+            # This does NOT produce nested aggregation - it compiles to MAX(...) * COUNT(DISTINCT ...)
+            # which is valid SQL (sibling aggregates, not nested). No CTE needed.
+            product_of_aggregates:
+              type: number
+              group: "aggregates"
+              description: "Product of two aggregate metrics - valid SQL, no nesting"
+              sql: ${max_event_id} * ${unique_event_count}
+            # Reproduces customer bug: sum(bare_column) / ${aggregate_metric}
+            # Uses a bare column name (no ${} or ${TABLE}) like the customer's
+            # sql: sum(prediction_d60_total)/nullif(${total_cost}, 0)
+            # GH-21089: window fn wrapping aggregate metric + ${TABLE} ref
+            # Before fix: ${TABLE}.event resolved to "events".event inside
+            # nested_agg_results CTE where only nested_agg is in scope
+            window_sum_of_max:
+              type: number
+              description: "Window sum of max event IDs partitioned by event type"
+              sql: SUM(${max_event_id}) OVER (PARTITION BY ${TABLE}.event)
+            # --- Transitive nested aggregate test metrics ---
+            # Reproduces customer bug: type:number → type:number (with agg) → type:max
+            # count_if_of_max wraps max_event_id in COUNT_IF, then
+            # ratio_of_count_if references count_if_of_max without any outer aggregation.
+            # The compiled SQL ends up as COUNT_IF(MAX(...)) / NULLIF(COUNT(...), 0)
+            # which is invalid (nested aggregates) but the detection misses it because
+            # ratio_of_count_if's raw SQL has no aggregation — only transitive inlining
+            # introduces the nesting.
+            sum_case_of_max:
+              type: number
+              description: "Count of groups where max event ID is above threshold"
+              sql: SUM(CASE WHEN ${max_event_id} > 100 THEN 1 ELSE 0 END)
+            ratio_of_sum_case:
+              type: number
+              description: "Ratio of sum_case_of_max to total count - transitive nested aggregate"
+              sql: ${sum_case_of_max} / NULLIF(${count}, 0)
+            raw_agg_with_metric_ref:
+              type: number
+              description: "Raw column aggregation divided by aggregate metric ref"
+              sql: sum(event_id) / NULLIF(${count}, 0)

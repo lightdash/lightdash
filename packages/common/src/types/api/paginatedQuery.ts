@@ -13,7 +13,7 @@ type CommonExecuteQueryRequestParams = {
 };
 
 export type DateZoom = {
-    granularity?: DateGranularity;
+    granularity?: DateGranularity | string;
     xAxisFieldId?: string;
 };
 

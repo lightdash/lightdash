@@ -322,7 +322,51 @@ chartConfig:
 
 ## Tips
 
-1. **Choose the right chart type**:
+1. **Match `metricQuery.dimensions` to chart config — no extras.** Every dimension in `metricQuery.dimensions` must appear in exactly one of: `layout.xField`, `layout.yField`, or `pivotConfig.columns`. An unused dimension silently adds a GROUP BY clause to the SQL, inflating row counts and producing incorrect metric values. Lightdash flags this as a "Results may be incorrect" warning.
+
+   ```yaml
+   # BAD — orders_status is queried but not used in the chart
+   metricQuery:
+     dimensions:
+       - orders_order_date_month
+       - orders_status            # not on any axis or pivot!
+     metrics:
+       - orders_total_revenue
+   chartConfig:
+     type: cartesian
+     config:
+       layout:
+         xField: orders_order_date_month
+         yField:
+           - orders_total_revenue
+
+   # GOOD — every dimension has a job
+   metricQuery:
+     dimensions:
+       - orders_order_date_month
+       - orders_status
+     metrics:
+       - orders_total_revenue
+   pivotConfig:
+     columns:
+       - orders_status          # used as pivot
+   chartConfig:
+     type: cartesian
+     config:
+       layout:
+         xField: orders_order_date_month
+         yField:
+           - orders_total_revenue
+
+   # ALSO GOOD — just remove the dimension you don't need
+   metricQuery:
+     dimensions:
+       - orders_order_date_month
+     metrics:
+       - orders_total_revenue
+   ```
+
+2. **Choose the right chart type**:
    - Bar: Comparing discrete categories
    - Line: Showing trends over time
    - Area: Emphasizing cumulative totals or composition

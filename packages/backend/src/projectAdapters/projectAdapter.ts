@@ -27,7 +27,6 @@ export const projectAdapterFromConfig = async (
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
-    useDbtLs: boolean = true,
     analytics?: LightdashAnalytics,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
@@ -54,7 +53,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
-                useDbtLs,
+
                 selector: config.selector,
             });
         case DbtProjectType.NONE:
@@ -114,7 +113,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
-                useDbtLs,
+
                 selector: config.selector,
             });
         case DbtProjectType.GITLAB:
@@ -131,7 +130,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
-                useDbtLs,
+
                 selector: config.selector,
             });
         case DbtProjectType.BITBUCKET:
@@ -149,7 +148,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
-                useDbtLs,
+
                 selector: config.selector,
             });
         case DbtProjectType.AZURE_DEVOPS:
@@ -167,7 +166,7 @@ export const projectAdapterFromConfig = async (
                 environment: config.environment,
                 cachedWarehouse,
                 dbtVersion,
-                useDbtLs,
+
                 selector: config.selector,
             });
         default:

@@ -432,6 +432,38 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
+    const setColorByCategory = useCallback((enabled: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            colorByCategory: enabled,
+            // Clear overrides when disabling
+            ...(!enabled && { categoryColorOverrides: undefined }),
+        }));
+    }, []);
+
+    const setCategoryColorOverride = useCallback(
+        (categoryValue: string, color: string) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                categoryColorOverrides: {
+                    ...prev?.categoryColorOverrides,
+                    [categoryValue]: color,
+                },
+            }));
+        },
+        [],
+    );
+
+    const setAllCategoryColorOverrides = useCallback(
+        (overrides: Record<string, string>) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                categoryColorOverrides: overrides,
+            }));
+        },
+        [],
+    );
+
     const setAxisLabelFontSize = useCallback((fontSize: number | undefined) => {
         setDirtyEchartsConfig((prev) => ({
             ...prev,
@@ -478,6 +510,11 @@ const useCartesianChartConfig = ({
         setDirtyLayout((prev) => ({
             ...prev,
             yField: [...(prev?.yField || []), yField],
+            // Color by category only works for single-series; clear when adding another
+            ...((prev?.yField?.length ?? 0) >= 1 && {
+                colorByCategory: undefined,
+                categoryColorOverrides: undefined,
+            }),
         }));
     }, []);
 
@@ -1162,6 +1199,9 @@ const useCartesianChartConfig = ({
         setShowRightYAxis,
         setShowAxisTicks,
         setConnectNulls,
+        setColorByCategory,
+        setCategoryColorOverride,
+        setAllCategoryColorOverrides,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,

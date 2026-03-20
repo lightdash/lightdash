@@ -14,6 +14,7 @@ import {
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { chartMock, dashboardMock } from '../helpers/mocks';
+import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
@@ -82,40 +83,6 @@ export async function createChartAndUpdateDashboard(
     return { chart: newChart, dashboard: updatedDashboard };
 }
 
-async function deleteDashboardsByName(
-    client: ApiClient,
-    names: string[],
-): Promise<void> {
-    const resp = await client.get<{
-        results: Array<{ uuid: string; name: string }>;
-    }>(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`);
-    expect(resp.status).toBe(200);
-    for (const { uuid, name } of resp.body.results) {
-        if (names.includes(name)) {
-            const deleteResp = await client.delete(
-                `${apiUrl}/dashboards/${uuid}`,
-            );
-            expect(deleteResp.status).toBe(200);
-        }
-    }
-}
-
-async function deleteChartsByName(
-    client: ApiClient,
-    names: string[],
-): Promise<void> {
-    const resp = await client.get<ApiChartSummaryListResponse>(
-        `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
-    );
-    expect(resp.status).toBe(200);
-    for (const { uuid, name } of resp.body.results) {
-        if (names.includes(name)) {
-            const deleteResp = await client.delete(`${apiUrl}/saved/${uuid}`);
-            expect(deleteResp.status).toBe(200);
-        }
-    }
-}
-
 async function createSpace(
     client: ApiClient,
     projectUuid: string,
@@ -125,7 +92,7 @@ async function createSpace(
         `${apiUrl}/projects/${projectUuid}/spaces`,
         {
             name: spaceName,
-            isPrivate: false,
+            inheritParentPermissions: true,
         },
     );
     expect(resp.status).toBe(200);
@@ -133,14 +100,18 @@ async function createSpace(
 }
 
 describe('Lightdash dashboard', () => {
-    const dashboardName = 'Dashboard with charts that belong to dashboard';
     let admin: ApiClient;
+    const tracker = new TestResourceTracker();
+    let dashboardName: string;
+    let createdDashboardUuid: string;
 
     beforeAll(async () => {
         admin = await login();
-        // clean previous e2e dashboards and charts
-        await deleteDashboardsByName(admin, [dashboardMock.name]);
-        await deleteChartsByName(admin, [chartMock.name]);
+        dashboardName = uniqueName('Dashboard with charts');
+    });
+
+    afterAll(async () => {
+        await tracker.cleanup(admin);
     });
 
     it('Should create charts that belong to dashboard', async () => {
@@ -151,6 +122,8 @@ describe('Lightdash dashboard', () => {
             ...dashboardMock,
             name: dashboardName,
         });
+        tracker.trackDashboard(newDashboard.uuid);
+        createdDashboardUuid = newDashboard.uuid;
 
         // update dashboard with chart
         const { chart: newChart, dashboard: updatedDashboard } =
@@ -200,21 +173,10 @@ describe('Lightdash dashboard', () => {
 
     it('Should update chart that belongs to dashboard', async () => {
         const newDescription = 'updated chart description';
-        const response = await admin.get<{
-            results: Dashboard[];
-        }>(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        // Get the latest dashboard created via API
-        const dashboard = response.body.results
-            .sort(
-                (a: Dashboard, b: Dashboard) =>
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime(),
-            )
-            .find((s: Dashboard) => s.name === dashboardName);
-
+        // Use the dashboard UUID from the previous test
         const dashboardResponse = await admin.get<{ results: Dashboard }>(
-            `${apiUrl}/dashboards/${dashboard!.uuid}`,
+            `${apiUrl}/dashboards/${createdDashboardUuid}`,
         );
 
         const tileWithChartInDashboard =
@@ -239,26 +201,16 @@ describe('Lightdash dashboard', () => {
         expect(chartResponse.status).toBe(200);
         expect(chartResponse.body.results.name).toBe(chartMock.name);
         expect(chartResponse.body.results.description).toBe(newDescription);
-        expect(chartResponse.body.results.dashboardUuid).toBe(dashboard!.uuid);
+        expect(chartResponse.body.results.dashboardUuid).toBe(
+            createdDashboardUuid,
+        );
         expect(chartResponse.body.results.dashboardName).toBe(dashboardName);
     });
 
     it('Should get chart summaries without charts that belongs to dashboard', async () => {
-        const response = await admin.get<{
-            results: Dashboard[];
-        }>(`${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`);
-
-        // Get the latest dashboard created via API
-        const dashboard = response.body.results
-            .sort(
-                (a: Dashboard, b: Dashboard) =>
-                    new Date(b.updatedAt).getTime() -
-                    new Date(a.updatedAt).getTime(),
-            )
-            .find((s: Dashboard) => s.name === dashboardName);
-
+        // Use the dashboard UUID from the first test
         const dashboardResponse = await admin.get<{ results: Dashboard }>(
-            `${apiUrl}/dashboards/${dashboard!.uuid}`,
+            `${apiUrl}/dashboards/${createdDashboardUuid}`,
         );
 
         const tileWithChartInDashboard =
@@ -296,9 +248,10 @@ describe('Lightdash dashboard', () => {
             },
         };
 
+        const paramDashboardName = uniqueName('Dashboard with Parameters');
         const dashboardWithParameters: CreateDashboard = {
             ...dashboardMock,
-            name: `${dashboardName} with Parameters`,
+            name: paramDashboardName,
             parameters: testParameters,
         };
 
@@ -307,7 +260,8 @@ describe('Lightdash dashboard', () => {
             SEED_PROJECT.project_uuid,
             dashboardWithParameters,
         );
-        expect(createdDashboard.name).toBe(dashboardWithParameters.name);
+        tracker.trackDashboard(createdDashboard.uuid);
+        expect(createdDashboard.name).toBe(paramDashboardName);
 
         // Get the dashboard via API to verify parameters are stored and retrieved correctly
         const response = await admin.get<{ results: Dashboard }>(
@@ -400,12 +354,13 @@ describe('Lightdash dashboard', () => {
 
         it('Should create and access dashboard by slug', async () => {
             const projectUuid = SEED_PROJECT.project_uuid;
-            const testDashboardName = `Test Dashboard ${Date.now()}`;
+            const testDashboardName = uniqueName('Test Dashboard');
 
             const newDashboard = await createDashboard(admin, projectUuid, {
                 ...dashboardMock,
                 name: testDashboardName,
             });
+            tracker.trackDashboard(newDashboard.uuid);
             expect(newDashboard.slug).toBeDefined();
 
             // Access the dashboard by slug
@@ -415,20 +370,18 @@ describe('Lightdash dashboard', () => {
             expect(response.status).toBe(200);
             expect(response.body.results.uuid).toBe(newDashboard.uuid);
             expect(response.body.results.name).toBe(testDashboardName);
-
-            // Clean up
-            await deleteDashboardsByName(admin, [testDashboardName]);
         });
 
         it('Should update dashboard accessed by slug', async () => {
             const projectUuid = SEED_PROJECT.project_uuid;
-            const testDashboardName = `Test Dashboard ${Date.now()}`;
+            const testDashboardName = uniqueName('Test Dashboard');
             const updatedDescription = 'Updated via slug test';
 
             const newDashboard = await createDashboard(admin, projectUuid, {
                 ...dashboardMock,
                 name: testDashboardName,
             });
+            tracker.trackDashboard(newDashboard.uuid);
 
             // Update dashboard using slug
             const updateResponse = await admin.patch<{
@@ -449,32 +402,22 @@ describe('Lightdash dashboard', () => {
             expect(verifyResponse.body.results.description).toBe(
                 updatedDescription,
             );
-
-            // Clean up
-            await deleteDashboardsByName(admin, [testDashboardName]);
         });
     });
 
     describe('Dashboard space selection', () => {
-        const spaceSelectionDashboardName = 'Dashboard space selection test';
-
-        afterAll(async () => {
-            const cleanupClient = await login();
-            await deleteDashboardsByName(cleanupClient, [
-                spaceSelectionDashboardName,
-            ]);
-        });
-
         it('Should create a dashboard in the specified space', async () => {
             const projectUuid = SEED_PROJECT.project_uuid;
-            const spaceName = `test-space-${Date.now()}`;
+            const spaceName = uniqueName('test-space');
 
             const spaceUuid = await createSpace(admin, projectUuid, spaceName);
+            tracker.trackSpace(spaceUuid);
             const dashboard = await createDashboard(admin, projectUuid, {
                 ...dashboardMock,
-                name: spaceSelectionDashboardName,
+                name: uniqueName('Dashboard space selection'),
                 spaceUuid,
             });
+            tracker.trackDashboard(dashboard.uuid);
             expect(dashboard.spaceUuid).toBe(spaceUuid);
         });
 
@@ -483,8 +426,9 @@ describe('Lightdash dashboard', () => {
 
             const dashboard = await createDashboard(admin, projectUuid, {
                 ...dashboardMock,
-                name: spaceSelectionDashboardName,
+                name: uniqueName('Dashboard space selection'),
             });
+            tracker.trackDashboard(dashboard.uuid);
             expect(dashboard.spaceUuid).toBeDefined();
             expect(typeof dashboard.spaceUuid).toBe('string');
 

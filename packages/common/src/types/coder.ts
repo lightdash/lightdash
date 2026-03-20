@@ -18,6 +18,12 @@ import type {
 
 export const currentVersion = 1;
 
+export enum ContentAsCodeType {
+    CHART = 'chart',
+    DASHBOARD = 'dashboard',
+    SQL_CHART = 'sql_chart',
+}
+
 /**
  * Permissive filter types for chart-as-code uploads where `id` may be omitted.
  * Filter IDs are auto-generated during upsert if absent.
@@ -66,6 +72,8 @@ export type ChartAsCode = Omit<
     dashboardSlug: string | undefined;
     /** Schema version for this chart configuration */
     version: number;
+    /** Content type discriminator */
+    contentType?: ContentAsCodeType.CHART;
     /** Slug of the space containing this chart */
     spaceSlug: string;
     /** Timestamp when this chart was downloaded from Lightdash */
@@ -79,6 +87,7 @@ export type SqlChartAsCode = Pick<
     'name' | 'description' | 'slug' | 'sql' | 'limit' | 'config' | 'chartKind'
 > & {
     version: number;
+    contentType?: ContentAsCodeType.SQL_CHART;
     spaceSlug: string;
     updatedAt?: Date;
     downloadedAt?: Date;
@@ -142,12 +151,13 @@ export type DashboardTileWithSlug = DashboardTile & {
 
 export type DashboardAsCode = Pick<
     Dashboard,
-    'name' | 'description' | 'tabs' | 'slug'
+    'name' | 'description' | 'tabs' | 'slug' | 'config'
 > & {
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     tiles: DashboardTileAsCode[];
     version: number;
+    contentType?: ContentAsCodeType.DASHBOARD;
     spaceSlug: string;
     downloadedAt?: Date;
     filters?: {

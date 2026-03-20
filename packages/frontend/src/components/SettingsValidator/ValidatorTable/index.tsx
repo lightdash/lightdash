@@ -1,6 +1,7 @@
 import {
     isChartValidationError,
     isDashboardValidationError,
+    isFixableDashboardValidationError,
     isTableValidationError,
     type ValidationErrorChartResponse,
     type ValidationErrorDashboardResponse,
@@ -295,7 +296,10 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                     />
                                 </ActionIcon>
                             </Tooltip>
-                            {isChartValidationError(validationError) && (
+                            {(isChartValidationError(validationError) ||
+                                isFixableDashboardValidationError(
+                                    validationError,
+                                )) && (
                                 <Button
                                     variant="default"
                                     size="compact-xs"

@@ -23,7 +23,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableTableColumnCustomization: undefined,
+
         retryQueryOnTransientErrors: false,
     },
 };
@@ -43,6 +43,7 @@ const smtpBase: SmtpConfig = {
         email: 'email',
     },
     allowInvalidCertificate: false,
+    inlineImageCid: false,
 };
 
 export const lightdashConfigWithBasicSMTP: Pick<
@@ -61,7 +62,7 @@ export const lightdashConfigWithBasicSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableTableColumnCustomization: undefined,
+
         retryQueryOnTransientErrors: false,
     },
 };
@@ -87,7 +88,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableTableColumnCustomization: undefined,
+
         retryQueryOnTransientErrors: false,
     },
 };
@@ -109,7 +110,7 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableTableColumnCustomization: undefined,
+
         retryQueryOnTransientErrors: false,
     },
 };

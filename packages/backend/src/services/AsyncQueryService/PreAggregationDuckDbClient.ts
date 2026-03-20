@@ -13,16 +13,19 @@ import {
     WarehouseClient,
     type CreateWarehouseCredentials,
     type DateZoom,
+    type RunQueryTags,
 } from '@lightdash/common';
 import {
     DuckdbS3SessionConfig,
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { wrapSentryTransaction } from '../../utils';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
@@ -37,6 +40,7 @@ type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
     projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
+    prometheusMetrics?: PrometheusMetrics;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
     }) => WarehouseClient;
@@ -44,7 +48,10 @@ type PreAggregationDuckDbClientArgs = {
 
 export type ResolvePreAggregationDuckDbArgs = {
     projectUuid: string;
+    queryUuid?: string;
+    queryTags?: RunQueryTags;
     metricQuery: MetricQuery;
+    timezone: string;
     dateZoom: DateZoom | undefined;
     parameters: ParametersValuesMap | undefined;
     preAggregationRoute: PreAggregationRoute;
@@ -81,13 +88,46 @@ export class PreAggregationDuckDbClient {
         s3Config: DuckdbS3SessionConfig;
     }) => WarehouseClient;
 
+    private readonly prometheusMetrics?: PrometheusMetrics;
+
+    private cachedWarehouseClient: WarehouseClient | null = null;
+
     constructor(args: PreAggregationDuckDbClientArgs) {
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
         this.projectModel = args.projectModel;
+        this.prometheusMetrics = args.prometheusMetrics;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
-            ((warehouseArgs) => new DuckdbWarehouseClient(warehouseArgs));
+            ((warehouseArgs) =>
+                new DuckdbWarehouseClient({
+                    ...warehouseArgs,
+                    logger: Logger,
+                    onQueryProfile: (profile) => {
+                        this.prometheusMetrics?.observeDuckdbQueryProfile(
+                            profile,
+                        );
+                    },
+                }));
+    }
+
+    private getOrCreateWarehouseClient(): WarehouseClient {
+        if (!this.cachedWarehouseClient) {
+            const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
+                this.lightdashConfig.preAggregates.s3,
+            );
+
+            if (!duckdbRuntimeConfig) {
+                throw new Error('Missing DuckDB runtime config');
+            }
+
+            this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
+                s3Config: duckdbRuntimeConfig,
+            });
+
+            Logger.info('DuckDB warehouse client created and cached for reuse');
+        }
+        return this.cachedWarehouseClient;
     }
 
     static getPreAggregationResolutionErrorMessage({
@@ -121,14 +161,26 @@ export class PreAggregationDuckDbClient {
         }
     }
 
+    createExecutionWarehouseClient(): WarehouseClient {
+        return this.getOrCreateWarehouseClient();
+    }
+
     async resolve(
         args: ResolvePreAggregationDuckDbArgs,
     ): Promise<PreAggregationDuckDbResolution> {
+        const startTime = Date.now();
         try {
             const result = await wrapSentryTransaction(
                 'PreAggregationDuckDbClient.resolve',
                 {},
                 () => this._resolve(args),
+            );
+
+            const durationMs = Date.now() - startTime;
+            this.prometheusMetrics?.trackDuckdbResolution(
+                result.resolved,
+                result.resolved ? undefined : result.reason,
+                durationMs,
             );
 
             if (!result.resolved) {
@@ -137,6 +189,13 @@ export class PreAggregationDuckDbClient {
 
             return result;
         } catch (error) {
+            const durationMs = Date.now() - startTime;
+            this.prometheusMetrics?.trackDuckdbResolution(
+                false,
+                PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+                durationMs,
+            );
+
             Logger.warn(
                 `DuckDB pre-agg resolve failed: ${getErrorMessage(error)}. Returning unresolved`,
             );
@@ -179,11 +238,21 @@ export class PreAggregationDuckDbClient {
             args.preAggregationRoute.preAggregateName,
         );
 
-        const activeMaterialization =
-            await this.preAggregateModel.getActiveMaterialization(
-                args.projectUuid,
-                preAggExploreName,
-            );
+        const activeMaterialization = await Sentry.startSpan(
+            {
+                op: 'db.query',
+                name: 'preagg.getActiveMaterialization',
+                attributes: {
+                    'lightdash.projectUuid': args.projectUuid,
+                    'lightdash.preAggExploreName': preAggExploreName,
+                },
+            },
+            () =>
+                this.preAggregateModel.getActiveMaterialization(
+                    args.projectUuid,
+                    preAggExploreName,
+                ),
+        );
 
         if (!activeMaterialization) {
             return {
@@ -192,18 +261,48 @@ export class PreAggregationDuckDbClient {
             };
         }
 
+        Logger.info('DuckDB pre-agg materialization selected', {
+            queryUuid: args.queryUuid,
+            projectUuid: args.projectUuid,
+            queryContext: args.queryTags?.query_context,
+            chartUuid: args.queryTags?.chart_uuid,
+            dashboardUuid: args.queryTags?.dashboard_uuid,
+            exploreName: args.queryTags?.explore_name,
+            timezone: args.timezone,
+            preAggExploreName,
+            materializationUuid: activeMaterialization.materializationUuid,
+            materializationQueryUuid: activeMaterialization.queryUuid,
+            materializationUri: activeMaterialization.materializationUri,
+            format: activeMaterialization.format,
+            materializedAt: activeMaterialization.materializedAt.toISOString(),
+            materializationAgeMs:
+                Date.now() - activeMaterialization.materializedAt.getTime(),
+            materializationBytes: activeMaterialization.totalBytes,
+        });
+
         const locator = getPreAggregateDuckdbLocator({
             uri: activeMaterialization.materializationUri,
-            format: 'jsonl',
+            format: activeMaterialization.format,
         });
         const sqlTable = getDuckdbPreAggregateSqlTable(
             locator,
             activeMaterialization.columns,
         );
 
-        const preAggExplore = await this.projectModel.getExploreFromCache(
-            args.projectUuid,
-            preAggExploreName,
+        const preAggExplore = await Sentry.startSpan(
+            {
+                op: 'cache.read',
+                name: 'preagg.getExploreFromCache',
+                attributes: {
+                    'lightdash.projectUuid': args.projectUuid,
+                    'lightdash.preAggExploreName': preAggExploreName,
+                },
+            },
+            () =>
+                this.projectModel.getExploreFromCache(
+                    args.projectUuid,
+                    preAggExploreName,
+                ),
         );
 
         if (isExploreError(preAggExplore)) {
@@ -232,19 +331,27 @@ export class PreAggregationDuckDbClient {
             args.startOfWeek,
         );
 
-        const fullQuery = await ProjectService._compileQuery({
-            metricQuery: args.metricQuery,
-            explore: patchedPreAggExplore,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes:
-                args.userAccessControls.intrinsicUserAttributes,
-            userAttributes: args.userAccessControls.userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
-            dateZoom: args.dateZoom,
-            parameters: args.parameters,
-            availableParameterDefinitions: args.availableParameterDefinitions,
-            pivotConfiguration: args.pivotConfiguration,
-        });
+        const fullQuery = await Sentry.startSpan(
+            {
+                op: 'function',
+                name: 'preagg.compileQuery',
+            },
+            () =>
+                ProjectService._compileQuery({
+                    metricQuery: args.metricQuery,
+                    explore: patchedPreAggExplore,
+                    warehouseSqlBuilder,
+                    intrinsicUserAttributes:
+                        args.userAccessControls.intrinsicUserAttributes,
+                    userAttributes: args.userAccessControls.userAttributes,
+                    timezone: args.timezone,
+                    dateZoom: args.dateZoom,
+                    parameters: args.parameters,
+                    availableParameterDefinitions:
+                        args.availableParameterDefinitions,
+                    pivotConfiguration: args.pivotConfiguration,
+                }),
+        );
 
         let { query } = fullQuery;
         if (args.pivotConfiguration) {
@@ -261,9 +368,7 @@ export class PreAggregationDuckDbClient {
             });
         }
 
-        const warehouseClient = this.createDuckdbWarehouseClient({
-            s3Config: duckdbRuntimeConfig,
-        });
+        const warehouseClient = this.getOrCreateWarehouseClient();
 
         return {
             resolved: true,

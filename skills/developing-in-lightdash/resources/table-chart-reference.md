@@ -177,12 +177,14 @@ chartConfig:
 
 1. **Freeze identifier columns**: Keep key columns like IDs or names frozen for easier navigation when scrolling horizontally.
 
-2. **Combine bar visualization with conditional formatting**: Use bar display for quick visual comparison and conditional formatting to highlight outliers.
+2. **Use bar display for quick visual comparison**: Bar visualization makes it easy to compare values at a glance. Avoid combining bars with conditional formatting on the same column.
 
-3. **Use "auto" for gradient ranges**: When values vary significantly, use `min: "auto"` and `max: "auto"` for gradient rules.
+3. **Use conditional formatting to show trends or highlight outliers**: Apply single-color rules for threshold-based highlights or gradients for continuous ranges.
 
-4. **Hide comparison columns**: When using field-to-field comparisons, hide the target field with `visible: false`.
+4. **Use "auto" for gradient ranges**: When values vary significantly, use `min: "auto"` and `max: "auto"` for gradient rules.
 
-5. **Apply formatting to cell vs text**: Use `applyTo: "cell"` for background highlights and `applyTo: "text"` for text color changes.
+5. **Hide comparison columns**: When using field-to-field comparisons, hide the target field with `visible: false`.
 
-6. **Custom column names**: Use the `name` property to make column headers more user-friendly than raw field IDs.
+6. **Apply formatting to cell vs text**: Use `applyTo: "cell"` for background highlights and `applyTo: "text"` for text color changes.
+
+7. **Custom column names**: Use the `name` property to make column headers more user-friendly than raw field IDs.

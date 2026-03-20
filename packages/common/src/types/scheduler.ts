@@ -496,6 +496,7 @@ export type NotificationPayloadBase = {
         pageType: LightdashPage;
         organizationUuid: string;
         imageUrl?: string;
+        imageS3Key?: string;
         csvUrl?: {
             path: string;
             filename: string;
@@ -669,8 +670,8 @@ export type SchedulerCronUpdate = { schedulerUuid: string; cron: string };
 export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardUuid: string;
     dashboardFilters: DashboardFilters;
-    dateZoomGranularity?: DateGranularity;
     selectedTabs: string[] | null;
+    dateZoomGranularity?: DateGranularity | string;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {

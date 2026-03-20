@@ -722,6 +722,15 @@ export const timeFrameOrder = [
 export const sortTimeFrames = (a: TimeFrames, b: TimeFrames) =>
     timeFrameOrder.indexOf(a) - timeFrameOrder.indexOf(b);
 
+export const SUB_DAY_GRANULARITIES: ReadonlySet<string> = new Set<string>([
+    DateGranularity.SECOND,
+    DateGranularity.MINUTE,
+    DateGranularity.HOUR,
+]);
+
+export const isSubDayGranularity = (g: string): boolean =>
+    SUB_DAY_GRANULARITIES.has(g);
+
 export const getDateDimension = (dimensionId: string) => {
     const timeFrames = Object.values(DateGranularity).map((tf) =>
         tf.toLowerCase(),

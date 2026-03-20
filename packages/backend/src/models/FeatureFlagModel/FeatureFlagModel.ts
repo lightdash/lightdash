@@ -42,16 +42,14 @@ export class FeatureFlagModel {
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.AdminChangeNotifications]:
-                this.getAdminChangeNotifications.bind(this),
             [FeatureFlags.SavedMetricsTree]:
                 this.getSavedMetricsTreeEnabled.bind(this),
             [FeatureFlags.DefaultUserSpaces]:
                 this.getDefaultUserSpacesEnabled.bind(this),
-            [FeatureFlags.EnableTableColumnCustomization]:
-                this.getTableColumnCustomizationEnabled.bind(this),
             [FeatureFlags.GoogleChatEnabled]:
                 this.getGoogleChatEnabled.bind(this),
+            [FeatureFlags.UserImpersonation]:
+                this.getUserImpersonationEnabled.bind(this),
         };
     }
 
@@ -225,31 +223,6 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getAdminChangeNotifications({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.adminChangeNotifications.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.AdminChangeNotifications,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
     private async getSavedMetricsTreeEnabled({
         user,
         featureFlagId,
@@ -269,11 +242,28 @@ export class FeatureFlagModel {
     }
 
     private async getDefaultUserSpacesEnabled({
+        user,
         featureFlagId,
     }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.defaultUserSpaces.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.DefaultUserSpaces,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                          organizationName: user.organizationName,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
         return {
             id: featureFlagId,
-            enabled: this.lightdashConfig.defaultUserSpaces.enabled,
+            enabled,
         };
     }
 
@@ -302,26 +292,18 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getTableColumnCustomizationEnabled({
+    private async getUserImpersonationEnabled({
         user,
         featureFlagId,
     }: FeatureFlagLogicArgs) {
         const enabled =
-            this.lightdashConfig.query.enableTableColumnCustomization ??
-            (user !== undefined
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.EnableTableColumnCustomization,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
+            this.lightdashConfig.userImpersonation.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.UserImpersonation, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
                 : false);
-
         return {
             id: featureFlagId,
             enabled,

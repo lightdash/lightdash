@@ -1,4 +1,5 @@
 import {
+    computePreAggregateWarnings,
     NotFoundError,
     type ActiveMaterializationDetails,
     type ApiPreAggregateMaterializationsResults,
@@ -155,6 +156,42 @@ export class PreAggregateModel {
         };
     }
 
+    async getPreAggregateDefinitionByDefinitionName(args: {
+        projectUuid: string;
+        preAggregateDefinitionName: string;
+    }): Promise<PreAggregateDefinitionWithExploreName | undefined> {
+        const row = await this.database(PreAggregateDefinitionsTableName)
+            .innerJoin(
+                CachedExploreTableName,
+                `${PreAggregateDefinitionsTableName}.pre_agg_cached_explore_uuid`,
+                `${CachedExploreTableName}.cached_explore_uuid`,
+            )
+            .where(
+                `${PreAggregateDefinitionsTableName}.project_uuid`,
+                args.projectUuid,
+            )
+            .andWhereRaw(
+                `${PreAggregateDefinitionsTableName}.pre_aggregate_definition->>'name' = ?`,
+                [args.preAggregateDefinitionName],
+            )
+            .select<DbPreAggregateDefinitionWithExploreName[]>([
+                `${PreAggregateDefinitionsTableName}.*`,
+                this.database.raw(
+                    `${CachedExploreTableName}.name as pre_agg_explore_name`,
+                ),
+            ])
+            .first();
+
+        if (!row) {
+            return undefined;
+        }
+
+        return {
+            ...toPreAggregateDefinition(row),
+            preAggExploreName: row.pre_agg_explore_name,
+        };
+    }
+
     async getProjectSchedulerDetailsForPreAggregates(): Promise<
         PreAggregateSchedulerDetails[]
     > {
@@ -224,6 +261,7 @@ export class PreAggregateModel {
                 materialized_at: null,
                 row_count: null,
                 columns: null,
+                total_bytes: null,
                 error_message: null,
             })
             .returning('*');
@@ -269,6 +307,7 @@ export class PreAggregateModel {
         materializedAt: Date;
         rowCount: number | null;
         columns: ResultColumns | null;
+        totalBytes: number | null;
     }): Promise<{ status: 'active' | 'superseded' }> {
         try {
             return await this.database.transaction(async (trx) => {
@@ -308,6 +347,7 @@ export class PreAggregateModel {
                     materialized_at: args.materializedAt,
                     row_count: args.rowCount,
                     columns: args.columns,
+                    total_bytes: args.totalBytes,
                     error_message: null,
                     updated_at: new Date(),
                 };
@@ -414,6 +454,7 @@ export class PreAggregateModel {
                     | 'materialization_uri'
                     | 'columns'
                     | 'materialized_at'
+                    | 'total_bytes'
                 >[]
             >([
                 `${PreAggregateMaterializationsTableName}.pre_aggregate_materialization_uuid`,
@@ -421,6 +462,7 @@ export class PreAggregateModel {
                 `${PreAggregateMaterializationsTableName}.materialization_uri`,
                 `${PreAggregateMaterializationsTableName}.columns`,
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
+                `${PreAggregateMaterializationsTableName}.total_bytes`,
             ])
             .orderBy(
                 `${PreAggregateMaterializationsTableName}.materialized_at`,
@@ -441,9 +483,12 @@ export class PreAggregateModel {
             materializationUuid: row.pre_aggregate_materialization_uuid,
             queryUuid: row.query_uuid,
             materializationUri: row.materialization_uri,
-            format: 'jsonl',
+            format: row.materialization_uri.endsWith('.parquet')
+                ? 'parquet'
+                : 'jsonl',
             columns: row.columns,
             materializedAt: row.materialized_at,
+            totalBytes: row.total_bytes,
         };
     }
 
@@ -467,7 +512,9 @@ export class PreAggregateModel {
             mat_row_count: number | null;
             mat_columns: ResultColumns | null;
             mat_error_message: string | null;
+            mat_total_bytes: number | null;
             mat_trigger: PreAggregateMaterializationTrigger | null;
+            mat_created_at: Date | null;
         };
 
         const query = this.database
@@ -515,37 +562,54 @@ export class PreAggregateModel {
                 `latest_mat.row_count as mat_row_count`,
                 `latest_mat.columns as mat_columns`,
                 `latest_mat.error_message as mat_error_message`,
+                `latest_mat.total_bytes as mat_total_bytes`,
                 `latest_mat.trigger as mat_trigger`,
+                `latest_mat.created_at as mat_created_at`,
             ])
             .orderBy(`${PreAggregateDefinitionsTableName}.created_at`, 'desc');
 
         const result = await KnexPaginate.paginate(query, paginateArgs);
 
         const materializations: PreAggregateMaterializationSummary[] =
-            result.data.map((row) => ({
-                preAggregateDefinitionUuid: row.pre_aggregate_definition_uuid,
-                preAggregateName: row.pre_aggregate_definition.name,
-                preAggExploreName: row.pre_agg_explore_name,
-                sourceExploreName: row.source_explore_name,
-                dimensions: row.pre_aggregate_definition.dimensions ?? [],
-                metrics: row.pre_aggregate_definition.metrics ?? [],
-                timeDimension:
-                    row.pre_aggregate_definition.timeDimension ?? null,
-                granularity: row.pre_aggregate_definition.granularity ?? null,
-                refreshCron: row.refresh_cron,
-                definitionError: row.materialization_query_error,
-                materialization: row.mat_uuid
+            result.data.map((row) => {
+                const materialization = row.mat_uuid
                     ? {
                           materializationUuid: row.mat_uuid,
                           status: row.mat_status!,
                           materializedAt: row.mat_materialized_at,
+                          durationMs:
+                              row.mat_materialized_at && row.mat_created_at
+                                  ? new Date(
+                                        row.mat_materialized_at,
+                                    ).getTime() -
+                                    new Date(row.mat_created_at).getTime()
+                                  : null,
                           rowCount: row.mat_row_count,
                           columns: row.mat_columns,
+                          totalBytes: row.mat_total_bytes,
                           errorMessage: row.mat_error_message,
                           trigger: row.mat_trigger!,
                       }
-                    : null,
-            }));
+                    : null;
+
+                return {
+                    preAggregateDefinitionUuid:
+                        row.pre_aggregate_definition_uuid,
+                    preAggregateName: row.pre_aggregate_definition.name,
+                    preAggExploreName: row.pre_agg_explore_name,
+                    sourceExploreName: row.source_explore_name,
+                    dimensions: row.pre_aggregate_definition.dimensions ?? [],
+                    metrics: row.pre_aggregate_definition.metrics ?? [],
+                    timeDimension:
+                        row.pre_aggregate_definition.timeDimension ?? null,
+                    granularity:
+                        row.pre_aggregate_definition.granularity ?? null,
+                    refreshCron: row.refresh_cron,
+                    definitionError: row.materialization_query_error,
+                    warnings: computePreAggregateWarnings(materialization),
+                    materialization,
+                };
+            });
 
         return {
             data: { materializations },

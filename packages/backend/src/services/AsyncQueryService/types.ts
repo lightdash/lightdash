@@ -16,6 +16,7 @@ import {
     type ResultsPaginationArgs,
     type RunQueryTags,
     type SortField,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 
 export type CommonAsyncQueryArgs = {
@@ -24,6 +25,7 @@ export type CommonAsyncQueryArgs = {
     invalidateCache?: boolean;
     context: QueryExecutionContext;
     parameters?: ParametersValuesMap;
+    userAttributeOverrides?: UserAttributeValueMap;
 };
 
 export type GetAsyncQueryResultsArgs = Omit<
@@ -154,15 +156,13 @@ export const isExecuteAsyncSqlChartByUuid = (
 ): args is ExecuteAsyncSqlChartByUuidArgs => 'savedSqlUuid' in args;
 
 export type RunAsyncWarehouseQueryArgs = {
-    userId: string;
-    // Is the user in the database?
+    projectUuid: string;
+    userUuid: string;
+    queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
-    projectUuid: string;
     queryTags: RunQueryTags;
-    query: string;
     fieldsMap: ItemsMap;
-    queryHistoryUuid: string;
     cacheKey: string;
     warehouseCredentialsOverrides?: {
         snowflakeVirtualWarehouse?: string;
@@ -170,4 +170,14 @@ export type RunAsyncWarehouseQueryArgs = {
     };
     pivotConfiguration?: PivotConfiguration;
     originalColumns?: ResultColumns;
+    query: string;
+    queryCreatedAt: Date;
+};
+
+export type RunAsyncPreAggregateQueryArgs = Omit<
+    RunAsyncWarehouseQueryArgs,
+    'query'
+> & {
+    preAggregateQuery: string;
+    warehouseQuery: string;
 };

@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     DashboardFilterValidationErrorType,
     friendlyName,
     isChartValidationError,
@@ -69,8 +70,19 @@ const ErrorMessageByType: FC<{
                             no longer exists
                         </Text>
                     );
+                case DashboardFilterValidationErrorType.FieldTableMismatch:
+                    return (
+                        <Text fz={11}>
+                            <CustomMark>{validationError.fieldName}</CustomMark>{' '}
+                            does not match table{' '}
+                            <CustomMark>{validationError.tableName}</CustomMark>
+                        </Text>
+                    );
                 default:
-                    return <Text fz={11}>{validationError.error}</Text>;
+                    return assertUnreachable(
+                        validationError.dashboardFilterErrorType,
+                        `Unexpected dashboard filter error type`,
+                    );
             }
         }
 

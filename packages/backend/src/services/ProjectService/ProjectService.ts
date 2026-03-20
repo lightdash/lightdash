@@ -56,6 +56,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     FilterableDimension,
     FilterGroupItem,
     FilterOperator,
@@ -65,9 +66,9 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
+    getAllDimensionsMap,
     getAvailableParametersFromTables,
     getDashboardFilterRulesForTables,
-    getDateDimension,
     getDimensions,
     getErrorMessage,
     getFields,
@@ -75,6 +76,7 @@ import {
     getItemId,
     getMetrics,
     getPreAggregateExploreName,
+    getTimeDimensionsMap,
     getTimezoneLabel,
     hasConnectionChanges,
     hasIntersection,
@@ -89,7 +91,10 @@ import {
     isFilterRule,
     isJwtUser,
     isNotNull,
+    isStandardDateGranularity,
+    isSubDayGranularity,
     isUserWithOrg,
+    isValidTimezone,
     ItemsMap,
     Job,
     JobStatusType,
@@ -125,6 +130,8 @@ import {
     ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
+    resolveBaseDimension,
+    resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -193,6 +200,7 @@ import {
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { INatsClient } from '../../clients/NatsClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import { type DbPreAggregateDefinitionIn } from '../../database/entities/preAggregates';
@@ -288,6 +296,7 @@ export type ProjectServiceArguments = {
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
     spacePermissionService: SpacePermissionService;
+    natsClient?: INatsClient;
 };
 
 export class ProjectService extends BaseService {
@@ -2604,7 +2613,6 @@ export class ProjectService extends BaseService {
                 onWarehouseCatalogChange: () => {},
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
-            undefined,
             this.analytics,
         );
         try {
@@ -2818,7 +2826,6 @@ export class ProjectService extends BaseService {
                 },
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
-            undefined,
             this.analytics,
         );
         return { adapter, sshTunnel };
@@ -2830,60 +2837,91 @@ export class ProjectService extends BaseService {
         warehouseSqlBuilder: WarehouseSqlBuilder,
         availableParameters: string[],
         dateZoom?: DateZoom,
-    ): Explore {
+    ): { explore: Explore; dateZoomApplied: boolean } {
         if (dateZoom?.granularity) {
-            const timeDimensionsMap: Record<string, CompiledDimension> =
-                Object.values(explore.tables).reduce<
-                    Record<string, CompiledDimension>
-                >((acc, t) => {
-                    Object.values(t.dimensions).forEach((dim) => {
-                        if (
-                            dim.type === DimensionType.TIMESTAMP ||
-                            dim.type === DimensionType.DATE
-                        ) {
-                            acc[getItemId(dim)] = dim;
-                        }
-                    });
-                    return acc;
-                }, {});
+            const allDimensionsMap = getAllDimensionsMap(explore);
+            const timeDimensionsMap = getTimeDimensionsMap(explore);
 
             let timeOrDateDimension = dateZoom?.xAxisFieldId;
 
             if (!timeOrDateDimension) {
-                const firstTimeDimensionIdInMetricQuery =
-                    metricQuery.dimensions.find(
-                        (dimension) => !!timeDimensionsMap[dimension],
-                    );
-
-                timeOrDateDimension = firstTimeDimensionIdInMetricQuery;
+                timeOrDateDimension = metricQuery.dimensions.find(
+                    (dimension) =>
+                        !!resolveToBaseTimeDimension(
+                            dimension,
+                            allDimensionsMap,
+                            timeDimensionsMap,
+                        ),
+                );
             }
 
             if (timeOrDateDimension) {
-                const dimToOverride = timeDimensionsMap[timeOrDateDimension];
-                const { baseDimensionId } =
-                    getDateDimension(timeOrDateDimension);
-                const baseTimeDimension =
-                    dimToOverride.timeInterval && baseDimensionId
-                        ? timeDimensionsMap[baseDimensionId]
-                        : dimToOverride;
+                const dimToOverride = allDimensionsMap[timeOrDateDimension];
+                const baseTimeDimension = resolveToBaseTimeDimension(
+                    timeOrDateDimension,
+                    allDimensionsMap,
+                    timeDimensionsMap,
+                );
 
-                const dimWithGranularityOverride =
-                    createDimensionWithGranularity(
-                        dimToOverride.name,
-                        baseTimeDimension,
-                        explore,
-                        warehouseSqlBuilder,
-                        dateZoom?.granularity,
-                        availableParameters,
+                if (!baseTimeDimension) {
+                    return { explore, dateZoomApplied: false };
+                }
+
+                // Skip sub-day zoom for DATE-only dimensions (no time component)
+                if (
+                    baseTimeDimension.type === DimensionType.DATE &&
+                    isStandardDateGranularity(dateZoom.granularity) &&
+                    isSubDayGranularity(dateZoom.granularity)
+                ) {
+                    return { explore, dateZoomApplied: false };
+                }
+
+                if (!isStandardDateGranularity(dateZoom.granularity)) {
+                    // Custom granularity: find the pre-compiled dimension
+                    const customDimName = `${baseTimeDimension.name}_${dateZoom.granularity}`;
+                    const customDim = Object.values(explore.tables).reduce<
+                        CompiledDimension | undefined
+                    >(
+                        (found, t) => found ?? t.dimensions[customDimName],
+                        undefined,
                     );
 
-                return replaceDimensionInExplore(
-                    explore,
-                    dimWithGranularityOverride,
-                );
+                    if (customDim) {
+                        const dimWithCustomOverride: CompiledDimension = {
+                            ...customDim,
+                            name: dimToOverride.name,
+                        };
+                        return {
+                            explore: replaceDimensionInExplore(
+                                explore,
+                                dimWithCustomOverride,
+                            ),
+                            dateZoomApplied: true,
+                        };
+                    }
+                    // Custom granularity not found — return unchanged explore
+                } else {
+                    // Standard granularity: existing logic
+                    const dimWithGranularityOverride =
+                        createDimensionWithGranularity(
+                            dimToOverride.name,
+                            baseTimeDimension,
+                            explore,
+                            warehouseSqlBuilder,
+                            dateZoom.granularity,
+                            availableParameters,
+                        );
+                    return {
+                        explore: replaceDimensionInExplore(
+                            explore,
+                            dimWithGranularityOverride,
+                        ),
+                        dateZoomApplied: true,
+                    };
+                }
             }
         }
-        return explore;
+        return { explore, dateZoomApplied: false };
     }
 
     static async _compileQuery({
@@ -2915,13 +2953,14 @@ export class ProjectService extends BaseService {
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
-        const exploreWithOverride = ProjectService.updateExploreWithDateZoom(
-            explore,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
-            dateZoom,
-        );
+        const { explore: exploreWithOverride } =
+            ProjectService.updateExploreWithDateZoom(
+                explore,
+                metricQuery,
+                warehouseSqlBuilder,
+                availableParameters,
+                dateZoom,
+            );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
@@ -3034,14 +3073,23 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        // Combine default parameter values with request parameters
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
+        );
+
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
-            parameters,
+            timezone,
+            parameters: combinedParameters,
             availableParameterDefinitions,
             pivotConfiguration,
             pivotDimensions,
@@ -3359,7 +3407,6 @@ export class ProjectService extends BaseService {
         return {
             chart: {
                 ...savedChart,
-                isPrivate: !spaceCtx.inheritsFromOrgOrProject,
                 inheritsFromOrgOrProject: spaceCtx.inheritsFromOrgOrProject,
                 access: spaceCtx.access,
             },
@@ -3548,68 +3595,6 @@ export class ProjectService extends BaseService {
                     cacheMetadata,
                     fields,
                 };
-            },
-        );
-    }
-
-    /**
-     * @deprecated Use {@link AsyncQueryService.executeSavedChartQueryAndGetResults} instead.
-     * Remaining callers are in the GSheets scheduled delivery code (GLITCH-182).
-     * Remove in GLITCH-186 once all callers are migrated.
-     */
-    async getResultsForChart(
-        account: Account,
-        chartUuid: string,
-        context: QueryExecutionContext,
-        dashboardParameters?: ParametersValuesMap,
-    ): Promise<{
-        rows: Record<string, AnyType>[];
-        cacheMetadata: CacheMetadata;
-    }> {
-        return wrapSentryTransaction(
-            'getResultsForChartWithWarehouseQuery',
-            {
-                userUuid: account.user.id,
-                chartUuid,
-            },
-            async () => {
-                const chart = await this.savedChartModel.get(chartUuid);
-                const { metricQuery, parameters: savedChartParameters } = chart;
-                const exploreId = chart.tableName;
-                const queryTags: RunQueryTags = {
-                    ...this.getUserQueryTags(account),
-                    project_uuid: chart.projectUuid,
-                    chart_uuid: chartUuid,
-                    explore_name: exploreId,
-                    query_context: context,
-                };
-
-                // Parameter overrides are the dashboard parameters
-                const explore = await this.getExplore(
-                    account,
-                    chart.projectUuid,
-                    exploreId,
-                );
-
-                const parameters = await this.combineParameters(
-                    chart.projectUuid,
-                    explore,
-                    undefined,
-                    dashboardParameters ?? savedChartParameters, // Dashboard parameters go in place of saved chart parameters
-                );
-
-                return this.runMetricQuery({
-                    account,
-                    metricQuery,
-                    projectUuid: chart.projectUuid,
-                    exploreName: exploreId,
-                    csvLimit: undefined,
-                    context,
-                    chartUuid,
-                    queryTags,
-                    parameters,
-                    explore, // Passing in explore to avoid fetching it again
-                });
             },
         );
     }
@@ -3864,13 +3849,16 @@ export class ProjectService extends BaseService {
                     const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
+                    const timezone =
+                        await this.getQueryTimezoneForProject(projectUuid);
+
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
                         explore,
                         warehouseSqlBuilder: warehouseClient,
                         intrinsicUserAttributes,
                         userAttributes: mergedUserAttributes,
-                        timezone: this.lightdashConfig.query.timezone || 'UTC',
+                        timezone,
                         dateZoom,
                         parameters,
                         availableParameterDefinitions,
@@ -4496,13 +4484,15 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         const { query } = await ProjectService._compileQuery({
             metricQuery,
             explore,
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes: mergedUserAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             parameters: combinedParameters,
             availableParameterDefinitions,
         });
@@ -4902,10 +4892,10 @@ export class ProjectService extends BaseService {
         };
     }
 
-    async refreshPreAggregateByName(
+    async refreshPreAggregateByDefinitionName(
         user: SessionUser,
         projectUuid: string,
-        preAggExploreName: string,
+        preAggregateDefinitionName: string,
     ): Promise<{ jobIds: string[] }> {
         const { organizationUuid } = await this.assertCanRefreshPreAggregates(
             user,
@@ -4913,20 +4903,22 @@ export class ProjectService extends BaseService {
         );
 
         const preAggregateDefinition =
-            await this.preAggregateModel.getPreAggregateDefinitionByName({
-                projectUuid,
-                preAggExploreName,
-            });
+            await this.preAggregateModel.getPreAggregateDefinitionByDefinitionName(
+                {
+                    projectUuid,
+                    preAggregateDefinitionName,
+                },
+            );
 
         if (!preAggregateDefinition) {
             throw new NotFoundError(
-                `Pre-aggregate explore "${preAggExploreName}" not found`,
+                `Pre-aggregate definition "${preAggregateDefinitionName}" not found`,
             );
         }
 
         if (!preAggregateDefinition.materializationMetricQuery) {
             throw new ParameterError(
-                `Pre-aggregate explore "${preAggExploreName}" cannot be materialized: ${
+                `Pre-aggregate definition "${preAggregateDefinitionName}" cannot be materialized: ${
                     preAggregateDefinition.materializationQueryError ||
                     'materialization query is missing'
                 }`,
@@ -6033,7 +6025,12 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateDefaultUserSpaces,
     ): Promise<void> {
-        if (!this.lightdashConfig.defaultUserSpaces.enabled) {
+        const { enabled: defaultUserSpacesEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.DefaultUserSpaces,
+            });
+        if (!defaultUserSpacesEnabled) {
             throw new ForbiddenError(
                 'Default user spaces feature is not enabled',
             );
@@ -6283,6 +6280,7 @@ export class ProjectService extends BaseService {
                     directAccessMap[spaceSummary.uuid] ?? [];
                 return {
                     ...spaceSummary,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: directAccessUuids,
                     userAccess: ctx?.access.find(
                         (a) => a.userUuid === user.userUuid,
@@ -6440,7 +6438,8 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async _getCalculateTotalQuery(
+    static async _getCalculateTotalQuery(
+        timezone: string,
         userAttributes: UserAttributeValueMap,
         intrinsicUserAttributes: IntrinsicUserAttributes,
         explore: Explore,
@@ -6479,7 +6478,7 @@ export class ProjectService extends BaseService {
             warehouseSqlBuilder: warehouseClient,
             intrinsicUserAttributes,
             userAttributes,
-            timezone: this.lightdashConfig.query.timezone || 'UTC',
+            timezone,
             parameters,
             availableParameterDefinitions,
         });
@@ -6517,8 +6516,11 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         try {
-            const { query } = await this._getCalculateTotalQuery(
+            const { query } = await ProjectService._getCalculateTotalQuery(
+                timezone,
                 userAttributes,
                 intrinsicUserAttributes,
                 explore,
@@ -6580,16 +6582,20 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+
         try {
-            const { query, totalQuery } = await this._getCalculateTotalQuery(
-                userAttributes,
-                intrinsicUserAttributes,
-                explore,
-                metricQuery,
-                warehouseClient,
-                availableParameterDefinitions,
-                parameters,
-            );
+            const { query, totalQuery } =
+                await ProjectService._getCalculateTotalQuery(
+                    timezone,
+                    userAttributes,
+                    intrinsicUserAttributes,
+                    explore,
+                    metricQuery,
+                    warehouseClient,
+                    availableParameterDefinitions,
+                    parameters,
+                );
 
             const queryTags: RunQueryTags = {
                 ...this.getUserQueryTags(account),
@@ -7305,6 +7311,43 @@ export class ProjectService extends BaseService {
         });
 
         return updatedProject;
+    }
+
+    async updateQueryTimezone(
+        user: SessionUser,
+        projectUuid: string,
+        queryTimezone: string | null,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        if (queryTimezone !== null && !isValidTimezone(queryTimezone)) {
+            throw new ParameterError(`Invalid timezone: "${queryTimezone}"`);
+        }
+
+        await this.projectModel.updateQueryTimezone(projectUuid, queryTimezone);
+
+        this.analytics.track({
+            event: 'query_timezone.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationUuid: project.organizationUuid,
+                queryTimezone:
+                    queryTimezone !== null
+                        ? getTimezoneLabel(queryTimezone)
+                        : null,
+            },
+        });
+    }
+
+    async getQueryTimezoneForProject(projectUuid: string): Promise<string> {
+        const projectTimezone =
+            await this.projectModel.getQueryTimezone(projectUuid);
+        return projectTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
     }
 
     async createTag(

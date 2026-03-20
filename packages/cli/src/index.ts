@@ -9,7 +9,6 @@ import {
 import { InvalidArgumentError, Option, program } from 'commander';
 import { validate } from 'uuid';
 import {
-    CLI_VERSION,
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
     DEFAULT_DBT_PROJECT_DIR as defaultProjectDir,
     NODE_VERSION,
@@ -26,7 +25,10 @@ import { exportChartImageHandler } from './handlers/exportChartImage';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
 import { getProjectHandler } from './handlers/getProject';
-import { installSkillsHandler } from './handlers/installSkills';
+import {
+    getVersionWithSkills,
+    installSkillsHandler,
+} from './handlers/installSkills';
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
@@ -94,7 +96,7 @@ function parseProjectArgument(value: string | undefined): string | undefined {
 }
 
 program
-    .version(CLI_VERSION)
+    .version(getVersionWithSkills())
     .name(styles.title('⚡️lightdash'))
     .description(
         'Developer tools for dbt and Lightdash.\nSee https://docs.lightdash.com for more help and examples',
@@ -224,6 +226,18 @@ ${styles.bold('Examples:')}
         undefined,
     )
     .option('--email <email>', 'Login with email and password', undefined)
+    .option(
+        '--oauth-port <port>',
+        'Port for the local OAuth callback server (default: random available port)',
+        (value: string) => {
+            const port = parseInt(value, 10);
+            if (Number.isNaN(port) || port < 1 || port > 65535) {
+                throw new Error('Port must be a number between 1 and 65535');
+            }
+            return port;
+        },
+        undefined,
+    )
     .option('--verbose', undefined, false)
     .action(login);
 
@@ -761,6 +775,7 @@ program
         false,
     )
     .option('--validate', 'Validate charts and dashboards after upload', false)
+    .option('--gzip', 'Enable gzip compression for request bodies', false)
     .action(uploadHandler);
 
 program
@@ -876,6 +891,7 @@ program
         'Number of batches to send in parallel (default: 1, use higher values with caution)',
         '1',
     )
+    .option('--gzip', 'Enable gzip compression for request bodies', false)
     .action(deployHandler);
 
 program

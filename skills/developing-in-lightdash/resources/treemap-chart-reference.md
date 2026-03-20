@@ -189,6 +189,6 @@ chartConfig:
 
 ## Related Documentation
 
-- [Chart Types Reference](./chart-types-reference.md) - Overview of all chart types
+- [Charts Reference](./charts-reference.md) - Overview of all chart types
 - [Dashboard Reference](./dashboard-reference.md) - Using treemaps in dashboards
 - [Workflows Reference](./workflows-reference.md) - Charts-as-code workflow

@@ -4,6 +4,7 @@ import { DimensionType, FieldType, friendlyName } from '../types/field';
 import {
     ExploreCompiler,
     parseAllReferences,
+    sqlAggregationWrapsReferences,
     sqlContainsAggregation,
     type UncompiledExplore,
 } from './exploreCompiler';
@@ -1064,6 +1065,8 @@ describe('sqlContainsAggregation', () => {
             ['covar_samp(${x}, ${y})', true],
             ['mode(${field})', true],
             ['approx_percentile(${field}, 0.5)', true],
+            ["COUNT_IF(${field} <> 'n/a')", true],
+            ['countif(${field} > 0)', true],
         ])('"%s" should return %s', (sql, expected) => {
             expect(sqlContainsAggregation(sql)).toBe(expected);
         });
@@ -1108,5 +1111,74 @@ describe('sqlContainsAggregation', () => {
         test('should return false for null', () => {
             expect(sqlContainsAggregation(null)).toBe(false);
         });
+    });
+});
+
+describe('sqlAggregationWrapsReferences', () => {
+    test('should return true when aggregation wraps a metric reference', () => {
+        expect(
+            sqlAggregationWrapsReferences('sum(${max_value})', ['max_value']),
+        ).toBe(true);
+    });
+
+    test('should return true for count(distinct ${metric})', () => {
+        expect(
+            sqlAggregationWrapsReferences('count(distinct ${max_value})', [
+                'max_value',
+            ]),
+        ).toBe(true);
+    });
+
+    test('should return true when one of multiple refs is inside aggregation', () => {
+        expect(
+            sqlAggregationWrapsReferences(
+                'sum(${max_value}) / NULLIF(${count_records}, 0)',
+                ['max_value'],
+            ),
+        ).toBe(true);
+    });
+
+    test('should return false when ref is outside aggregation (sibling aggregates)', () => {
+        expect(
+            sqlAggregationWrapsReferences(
+                'sum(${TABLE}.value) / NULLIF(${count_records}, 0)',
+                ['count_records'],
+            ),
+        ).toBe(false);
+    });
+
+    test('should return false when aggregation wraps raw column, not metric ref', () => {
+        expect(
+            sqlAggregationWrapsReferences('sum(raw_col) / ${count_records}', [
+                'count_records',
+            ]),
+        ).toBe(false);
+    });
+
+    test('should return false for empty refs', () => {
+        expect(sqlAggregationWrapsReferences('sum(${max_value})', [])).toBe(
+            false,
+        );
+    });
+
+    test('should return false for empty sql', () => {
+        expect(sqlAggregationWrapsReferences('', ['max_value'])).toBe(false);
+    });
+
+    test('should handle nested parentheses correctly', () => {
+        expect(
+            sqlAggregationWrapsReferences(
+                'sum(case when ${max_value} > 100 then ${max_value} else 0 end)',
+                ['max_value'],
+            ),
+        ).toBe(true);
+    });
+
+    test('should handle cross-table references', () => {
+        expect(
+            sqlAggregationWrapsReferences('sum(${other_table.max_value})', [
+                'other_table.max_value',
+            ]),
+        ).toBe(true);
     });
 });

@@ -62,21 +62,30 @@ export const useCreateComment = () => {
 
 const getDashboardComments = async ({
     dashboardUuid,
-}: Pick<CreateDashboardTileComment, 'dashboardUuid'>) =>
+    projectUuid,
+}: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'>) =>
     lightdashApi<ApiGetComments['results']>({
-        url: `/comments/dashboards/${dashboardUuid}`,
+        url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments`,
+        version: 'v2',
         method: 'GET',
         body: undefined,
     });
 
-export const useGetComments = (dashboardUuid: string, enabled: boolean) =>
+export const useGetComments = (
+    dashboardUuid: string,
+    projectUuid: string | undefined,
+    enabled: boolean,
+) =>
     useQuery<ApiGetComments['results'], ApiError>(
-        ['comments', dashboardUuid],
-        () => getDashboardComments({ dashboardUuid }),
+        ['comments', dashboardUuid, projectUuid],
+        async () => {
+            if (!projectUuid) throw new Error('projectUuid is required');
+            return getDashboardComments({ dashboardUuid, projectUuid });
+        },
         {
             refetchInterval: 3 * 60 * 1000, // 3 minutes
             retry: (_, error) => error.error.statusCode !== 403,
-            enabled,
+            enabled: enabled && !!projectUuid,
         },
     );
 

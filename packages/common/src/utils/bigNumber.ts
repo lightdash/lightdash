@@ -2,7 +2,7 @@ import { type DateGranularity } from '../types/timeFrames';
 
 const GRANULARITY_PATTERN = /\$\{([^}]+)\.granularity\}/g;
 
-export type GranularityMap = Record<string, DateGranularity>;
+export type GranularityMap = Record<string, DateGranularity | string>;
 
 export const resolveGranularityInLabel = (
     label: string | undefined,

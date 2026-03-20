@@ -2,40 +2,51 @@ import { RenameType, SEED_PROJECT } from '@lightdash/common';
 import { type Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
+import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
 describe('Rename Chart API', () => {
     let admin: Awaited<ReturnType<typeof login>>;
+    const tracker = new TestResourceTracker();
 
     beforeAll(async () => {
         admin = await login();
+    });
+
+    afterAll(async () => {
+        await tracker.cleanup(admin);
     });
 
     async function createSpaceAndChart(
         suffix: string,
         metricQuery: typeof chartMock.metricQuery,
     ) {
-        const now = Date.now();
         const spaceResp = await admin.post<Body<{ uuid: string }>>(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/`,
-            { name: `Public space to promote ${now}`, isPrivate: false },
+            {
+                name: uniqueName('rename-test-space'),
+                inheritParentPermissions: true,
+            },
         );
         expect(spaceResp.status).toBe(200);
         const spaceUuid = spaceResp.body.results.uuid;
+        tracker.trackSpace(spaceUuid);
 
         const chartResp = await admin.post<Body<{ uuid: string }>>(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/saved`,
             {
                 ...chartMock,
-                name: `Chart to rename ${now} ${suffix}`,
+                name: uniqueName(`Chart to rename ${suffix}`),
                 metricQuery,
                 spaceUuid,
                 dashboardUuid: null,
             },
         );
         expect(chartResp.status).toBe(200);
-        return chartResp.body.results.uuid;
+        const chartUuid = chartResp.body.results.uuid;
+        tracker.trackChart(chartUuid);
+        return chartUuid;
     }
 
     it('Should rename a chart field and check the response', async () => {
@@ -75,9 +86,6 @@ describe('Rename Chart API', () => {
         expect(updatedChart.metricQuery.exploreName).toBe('orders');
         expect(updatedChart.metricQuery.dimensions).toContain('orders_status');
         expect(updatedChart.metricQuery.sorts[0].fieldId).toBe('orders_status');
-
-        const delResp = await admin.delete(`${apiUrl}/saved/${chartUuid}`);
-        expect(delResp.status).toBe(200);
     });
 
     it('Should rename a chart model and check the response', async () => {
@@ -113,8 +121,5 @@ describe('Rename Chart API', () => {
         expect(updatedChart.metricQuery.exploreName).toBe('orders');
         expect(updatedChart.metricQuery.dimensions).toContain('orders_type');
         expect(updatedChart.metricQuery.sorts[0].fieldId).toBe('orders_type');
-
-        const delResp = await admin.delete(`${apiUrl}/saved/${chartUuid}`);
-        expect(delResp.status).toBe(200);
     });
 });

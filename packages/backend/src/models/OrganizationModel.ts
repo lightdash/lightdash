@@ -490,6 +490,24 @@ export class OrganizationModel {
         };
     }
 
+    async getImpersonationEnabled(organizationUuid: string): Promise<boolean> {
+        const row = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('impersonation_enabled')
+            .first();
+
+        return row?.impersonation_enabled ?? false;
+    }
+
+    async updateImpersonationEnabled(
+        organizationUuid: string,
+        enabled: boolean,
+    ): Promise<void> {
+        await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .update({ impersonation_enabled: enabled });
+    }
+
     private static mapDBColorPaletteWithIsActive(
         palette: DbOrganizationColorPalette,
         organization: DbOrganization,

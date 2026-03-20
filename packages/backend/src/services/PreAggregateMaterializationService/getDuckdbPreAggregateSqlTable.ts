@@ -6,7 +6,7 @@ import {
 
 export type PreAggregateDuckdbLocator = {
     storage: 's3';
-    format: 'jsonl';
+    format: 'jsonl' | 'parquet';
     uri: string;
 };
 
@@ -15,7 +15,7 @@ const escapeSqlString = (value: string): string => value.replace(/'/g, "''");
 const escapeDuckdbStructKey = (value: string): string =>
     value.replace(/"/g, '""');
 
-const quoteDuckdbStructKey = (value: string): string =>
+export const quoteDuckdbIdentifier = (value: string): string =>
     `"${escapeDuckdbStructKey(value)}"`;
 
 const resultFieldTypeToDuckdbType = (type: DimensionType): string => {
@@ -40,18 +40,18 @@ export const getPreAggregateDuckdbLocator = ({
     format,
 }: {
     uri: string;
-    format: 'jsonl';
+    format: 'jsonl' | 'parquet';
 }): PreAggregateDuckdbLocator => ({
     storage: 's3',
     format,
     uri,
 });
 
-export const getDuckdbPreAggregateSqlTable = (
-    locator: PreAggregateDuckdbLocator,
+export const getJsonlSqlTable = (
+    uri: string,
     columns?: ResultColumns | null,
 ): string => {
-    const escapedUri = escapeSqlString(locator.uri);
+    const escapedUri = escapeSqlString(uri);
 
     if (!columns || Object.keys(columns).length === 0) {
         return `read_json_auto('${escapedUri}')`;
@@ -60,11 +60,33 @@ export const getDuckdbPreAggregateSqlTable = (
     const columnDefs = Object.entries(columns)
         .map(
             ([fieldId, col]) =>
-                `${quoteDuckdbStructKey(fieldId)}: '${resultFieldTypeToDuckdbType(
+                `${quoteDuckdbIdentifier(fieldId)}: '${resultFieldTypeToDuckdbType(
                     col.type,
                 )}'`,
         )
         .join(', ');
 
     return `read_json('${escapedUri}', columns={${columnDefs}}, format='newline_delimited')`;
+};
+
+const getParquetSqlTable = (uri: string): string => {
+    const escapedUri = escapeSqlString(uri);
+    return `read_parquet('${escapedUri}')`;
+};
+
+export const getDuckdbPreAggregateSqlTable = (
+    locator: PreAggregateDuckdbLocator,
+    columns?: ResultColumns | null,
+): string => {
+    switch (locator.format) {
+        case 'jsonl':
+            return getJsonlSqlTable(locator.uri, columns);
+        case 'parquet':
+            return getParquetSqlTable(locator.uri);
+        default:
+            return assertUnreachable(
+                locator.format,
+                `Unknown format: ${locator.format}`,
+            );
+    }
 };

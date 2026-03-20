@@ -444,12 +444,12 @@ export const stringFilterRuleMocks = {
         ...stringSingleValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
     },
-    notIncludeFilterWithSingleValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Bob%')`,
+    notIncludeFilterWithSingleValSQL: `(LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Bob%') OR (${stringFilterDimension}) IS NULL)`,
     notIncludeFilterWithMultiVal: {
         ...stringMultiValueFilter,
         operator: FilterOperator.NOT_INCLUDE,
     },
-    notIncludeFilterWithMultiValSQL: `LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Tom%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Jerry%')`,
+    notIncludeFilterWithMultiValSQL: `(LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Tom%')\n  AND\n  LOWER(${stringFilterDimension}) NOT LIKE LOWER('%Jerry%') OR (${stringFilterDimension}) IS NULL)`,
     notIncludeFilterWithNoVal: {
         ...noValueFilter,
         operator: FilterOperator.NOT_INCLUDE,

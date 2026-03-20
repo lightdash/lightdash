@@ -8,6 +8,7 @@ import {
     useDashboardDeleteMutation,
     useDashboardQuery,
 } from '../../../hooks/dashboard/useDashboard';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
@@ -26,13 +27,17 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     uuid,
     onConfirm,
 }) => {
+    const projectUuid = useProjectUuid();
     const { health } = useApp();
     const softDeleteEnabled = health.data?.softDelete.enabled;
     const retentionDays = health.data?.softDelete.retentionDays;
 
-    const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
+    const { data: dashboard, isInitialLoading } = useDashboardQuery({
+        uuidOrSlug: uuid,
+        projectUuid,
+    });
     const { mutateAsync: deleteDashboard, isLoading: isDeleting } =
-        useDashboardDeleteMutation();
+        useDashboardDeleteMutation(projectUuid);
 
     if (isInitialLoading || !dashboard) {
         return null;

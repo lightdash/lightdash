@@ -12,6 +12,7 @@ import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -115,6 +116,12 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({
+                id: '',
+                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
+            })),
+        } as unknown as FeatureFlagModel,
     });
 
 jest.spyOn(analyticsMock, 'track');

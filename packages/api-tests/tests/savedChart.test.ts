@@ -9,12 +9,13 @@ import {
 } from '@lightdash/common';
 import { login, loginAsEditor } from '../helpers/auth';
 import { chartMock, dashboardMock } from '../helpers/mocks';
+import { uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
 describe('Saved chart space selection', () => {
-    const chartName = 'Chart space selection test';
-    const dashboardName = 'Dashboard for chart space selection test';
+    const chartName = uniqueName('Chart space selection');
+    const dashboardName = uniqueName('Dashboard for chart space');
 
     let admin: Awaited<ReturnType<typeof login>>;
     const createdChartUuids: string[] = [];
@@ -62,7 +63,7 @@ describe('Saved chart space selection', () => {
             results: { uuid: string };
         }>(`${apiUrl}/projects/${projectUuid}/spaces/`, {
             name: spaceName,
-            isPrivate: false,
+            inheritParentPermissions: true,
         });
         const spaceUuid = spaceResp.body.results.uuid;
         createdSpaceUuids.push(spaceUuid);
@@ -185,7 +186,7 @@ describe('Saved chart cross-space dashboard permissions', () => {
             results: { uuid: string };
         }>(`${apiUrl}/projects/${projectUuid}/spaces/`, {
             name: `${testPrefix}-chart-space`,
-            isPrivate: true,
+            inheritParentPermissions: false,
         });
         chartSpaceUuid = spaceAResp.body.results.uuid;
 
@@ -194,7 +195,7 @@ describe('Saved chart cross-space dashboard permissions', () => {
             results: { uuid: string };
         }>(`${apiUrl}/projects/${projectUuid}/spaces/`, {
             name: `${testPrefix}-dashboard-space`,
-            isPrivate: true,
+            inheritParentPermissions: false,
         });
         dashboardSpaceUuid = spaceBResp.body.results.uuid;
 

@@ -1,3 +1,4 @@
+import { type DimensionType } from './field';
 import type { ParameterValue } from './parameters';
 import type { WarehouseTypes } from './projects';
 
@@ -52,11 +53,18 @@ export type ProjectDefaults = {
     // number_format?: string;
 };
 
+export type CustomGranularity = {
+    label: string;
+    sql: string;
+    type?: DimensionType.DATE | DimensionType.TIMESTAMP | DimensionType.STRING;
+};
+
 export type LightdashProjectConfig = {
     spotlight: SpotlightConfig;
     parameters?: Record<string, LightdashProjectParameter>; // keys must be ^[a-zA-Z0-9_-]+$
     warehouse?: WarehouseConfig; // Required for Lightdash-only projects (no dbt)
     defaults?: ProjectDefaults; // Project-wide defaults for various settings
+    custom_granularities?: Record<string, CustomGranularity>;
 };
 
 export const DEFAULT_SPOTLIGHT_CONFIG: SpotlightConfig = {

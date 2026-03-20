@@ -97,6 +97,7 @@ export const lightdashConfigMock: LightdashConfig = {
         port: 9090,
         path: '/metrics',
         eventMetricsEnabled: false,
+        allQueryMetricsEnabled: false,
     },
     chart: { versionHistory: { daysLimit: 0 } },
     dashboard: {
@@ -148,6 +149,12 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    natsWorker: {
+        enabled: false,
+        url: undefined,
+        workerConcurrency: 1,
+        queueTimeoutMs: 180000,
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',
@@ -181,6 +188,7 @@ export const lightdashConfigMock: LightdashConfig = {
         release: '',
         environment: '',
         tracesSampleRate: 0,
+        queryTracesSampleRate: null,
         profilesSampleRate: 0,
         anr: {
             enabled: false,
@@ -211,7 +219,6 @@ export const lightdashConfigMock: LightdashConfig = {
         timezone: undefined,
         useSqlPivotResults: false,
         showExecutionTime: false,
-        enableTableColumnCustomization: undefined,
         retryQueryOnTransientErrors: true,
     },
     ai: {
@@ -227,7 +234,7 @@ export const lightdashConfigMock: LightdashConfig = {
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
-                    modelName: 'gpt-5.2-2025-12-11',
+                    modelName: 'gpt-5.4',
                     embeddingModelName: 'text-embedding-3-small',
                     zeroDataRetention: false,
                 },
@@ -326,10 +333,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: undefined,
     },
     defaultUserSpaces: {
-        enabled: false,
-    },
-    adminChangeNotifications: {
-        enabled: false,
+        enabled: undefined,
     },
     persistentDownloadUrls: {
         enabled: false,
@@ -344,10 +348,14 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     preAggregates: {
         enabled: false,
+        parquetEnabled: false,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',
             region: 'mock_region',
         },
+    },
+    userImpersonation: {
+        enabled: undefined,
     },
 };

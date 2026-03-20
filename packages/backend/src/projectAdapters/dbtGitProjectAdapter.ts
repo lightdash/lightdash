@@ -33,7 +33,6 @@ export type DbtGitProjectAdapterArgs = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
-    useDbtLs: boolean;
     selector?: string;
     analytics?: LightdashAnalytics;
 };
@@ -99,7 +98,6 @@ export class DbtGitProjectAdapter
         environment,
         cachedWarehouse,
         dbtVersion,
-        useDbtLs,
         selector,
         analytics,
     }: DbtGitProjectAdapterArgs) {
@@ -116,7 +114,6 @@ export class DbtGitProjectAdapter
             environment,
             cachedWarehouse,
             dbtVersion,
-            useDbtLs,
             selector,
             analytics,
         });
@@ -175,6 +172,7 @@ export class DbtGitProjectAdapter
                 '--progress': null,
             };
 
+            const startTime = Date.now();
             Logger.debug(`Git clone to ${this.localRepositoryDir}`);
             await this.git
                 .env('GIT_TERMINAL_PROMPT', '0')
@@ -183,6 +181,7 @@ export class DbtGitProjectAdapter
                     this.localRepositoryDir,
                     defaultCloneOptions,
                 );
+            Logger.info(`Git clone completed in ${Date.now() - startTime}ms`);
         } catch (e) {
             gitErrorHandler(e, this.repository);
         }
@@ -190,6 +189,7 @@ export class DbtGitProjectAdapter
 
     private async _pull() {
         try {
+            const startTime = Date.now();
             Logger.debug(`Git pull to ${this.localRepositoryDir}`);
             await fspromises.access(this.localRepositoryDir);
             await this.git
@@ -201,12 +201,14 @@ export class DbtGitProjectAdapter
                     '--no-tags': null,
                     '--progress': null,
                 });
+            Logger.info(`Git pull completed in ${Date.now() - startTime}ms`);
         } catch (e) {
             gitErrorHandler(e, this.repository);
         }
     }
 
     private async _refreshRepo() {
+        const startTime = Date.now();
         try {
             await this._pull();
         } catch (e) {
@@ -214,6 +216,9 @@ export class DbtGitProjectAdapter
             await this._cleanLocal();
             await this._clone();
         }
+        Logger.info(
+            `Git repo refresh completed in ${Date.now() - startTime}ms`,
+        );
     }
 
     public async compileAllExplores(

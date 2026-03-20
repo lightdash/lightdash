@@ -2,10 +2,10 @@ import { Group, Stack, Switch, Text, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { useSchedulerForm } from './schedulerFormContext';
+import { useSchedulerFormContext } from './schedulerFormContext';
 
 export const SchedulerFormCustomizationTab = () => {
-    const form = useSchedulerForm();
+    const form = useSchedulerFormContext();
     return (
         <Stack p="md">
             <Group gap="two">

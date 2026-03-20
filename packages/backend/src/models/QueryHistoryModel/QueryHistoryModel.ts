@@ -27,6 +27,7 @@ function convertDbQueryHistoryToQueryHistory(
             queryHistory.created_by_account,
         createdByUserUuid: queryHistory.created_by_user_uuid,
         createdByAccount: queryHistory.created_by_account,
+        createdByActorType: queryHistory.created_by_actor_type,
         organizationUuid: queryHistory.organization_uuid,
         projectUuid: queryHistory.project_uuid,
         compiledSql: queryHistory.compiled_sql,
@@ -51,6 +52,8 @@ function convertDbQueryHistoryToQueryHistory(
         resultsExpiresAt: queryHistory.results_expires_at,
         columns: queryHistory.columns,
         originalColumns: queryHistory.original_columns,
+        preAggregateCompiledSql: queryHistory.pre_aggregate_compiled_sql,
+        processingStartedAt: queryHistory.processing_started_at,
     };
 }
 
@@ -112,8 +115,11 @@ export class QueryHistoryModel {
             | 'resultsExpiresAt'
             | 'columns'
             | 'originalColumns'
+            | 'preAggregateCompiledSql'
+            | 'processingStartedAt'
             | 'createdByAccount'
             | 'createdByUserUuid'
+            | 'createdByActorType'
             | 'createdBy'
         >,
     ) {
@@ -126,6 +132,7 @@ export class QueryHistoryModel {
                 created_by_account: account.isAnonymousUser()
                     ? account.user.id
                     : null,
+                created_by_actor_type: account.authentication.type,
                 organization_uuid: queryHistory.organizationUuid,
                 project_uuid: queryHistory.projectUuid,
                 compiled_sql: queryHistory.compiledSql,
@@ -149,6 +156,8 @@ export class QueryHistoryModel {
                 results_expires_at: null,
                 columns: null,
                 original_columns: null,
+                pre_aggregate_compiled_sql: null,
+                processing_started_at: null,
             })
             .returning('query_uuid');
 
@@ -175,11 +184,53 @@ export class QueryHistoryModel {
             : 'created_by_account';
         void query.andWhere(createdByColumn, account.user.id);
 
-        // only update pending queries to ready
+        // Only allow READY from PENDING (non-NATS) or EXECUTING (NATS).
         if (update.status === QueryHistoryStatus.READY) {
-            void query.andWhere('status', QueryHistoryStatus.PENDING);
+            void query.whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.EXECUTING,
+            ]);
         }
         return query;
+    }
+
+    async updateStatusToQueued(queryUuid: string): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('status', QueryHistoryStatus.PENDING)
+            .update({
+                status: QueryHistoryStatus.QUEUED,
+            });
+    }
+
+    async updateStatusToExecuting(queryUuid: string): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+            ])
+            .update({
+                status: QueryHistoryStatus.EXECUTING,
+                processing_started_at: new Date(),
+            });
+    }
+
+    async updateStatusToExpired(
+        queryUuid: string,
+        error: string,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+            ])
+            .update({
+                status: QueryHistoryStatus.EXPIRED,
+                error,
+                processing_started_at: new Date(),
+            });
     }
 
     async get(queryUuid: string, projectUuid: string, account: Account) {
@@ -286,6 +337,7 @@ export class QueryHistoryModel {
                     }
                     return queryHistory;
                 case QueryHistoryStatus.ERROR:
+                case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
                         throw new Error(
                             queryHistory.error ?? 'Warehouse query failed',
@@ -293,6 +345,8 @@ export class QueryHistoryModel {
                     }
                     return queryHistory;
                 case QueryHistoryStatus.PENDING:
+                case QueryHistoryStatus.QUEUED:
+                case QueryHistoryStatus.EXECUTING:
                     await sleep(backoffMs);
                     return poll(Math.min(backoffMs * 2, maxBackoffMs));
                 case QueryHistoryStatus.READY:

@@ -21,8 +21,10 @@ import {
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
+    SchedulerJobStatus,
     ServiceAcctAccount,
     SessionUser,
+    sleep,
     ToolFindContentArgs,
     toolFindContentArgsSchema,
     toolFindExploresArgsSchemaV3,
@@ -31,6 +33,7 @@ import {
     toolFindFieldsArgsSchema,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
+    toolRunSqlArgsSchema,
     ToolSearchFieldValuesArgs,
     toolSearchFieldValuesArgsSchema,
     UserAttributeValueMap,
@@ -46,6 +49,7 @@ import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
+import { Readable } from 'stream';
 import { z, ZodRawShape } from 'zod';
 import {
     LightdashAnalytics,
@@ -63,6 +67,8 @@ import { CatalogService } from '../../../services/CatalogService/CatalogService'
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
+import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -72,6 +78,7 @@ import {
     validateUserAttributeOverrides,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
+import { streamJsonlData } from '../../../utils/FileDownloadUtils/FileDownloadUtils';
 import { VERSION } from '../../../version';
 import { NO_RESULTS_RETRY_PROMPT } from '../ai/prompts/noResultsRetry';
 import { getFindContent } from '../ai/tools/findContent';
@@ -110,6 +117,7 @@ export enum McpToolName {
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
     RUN_METRIC_QUERY = 'run_metric_query',
+    RUN_SQL = 'run_sql',
     SEARCH_FIELD_VALUES = 'search_field_values',
 }
 
@@ -120,6 +128,8 @@ type McpServiceArguments = {
     catalogService: CatalogService;
     projectModel: ProjectModel;
     projectService: ProjectService;
+    savedSqlService: SavedSqlService;
+    schedulerService: SchedulerService;
     shareService: ShareService;
     userAttributesModel: UserAttributesModel;
     searchModel: SearchModel;
@@ -152,6 +162,10 @@ export class McpService extends BaseService {
 
     private projectService: ProjectService;
 
+    private savedSqlService: SavedSqlService;
+
+    private schedulerService: SchedulerService;
+
     private projectModel: ProjectModel;
 
     private userAttributesModel: UserAttributesModel;
@@ -178,6 +192,8 @@ export class McpService extends BaseService {
         asyncQueryService,
         catalogService,
         projectService,
+        savedSqlService,
+        schedulerService,
         shareService,
         userAttributesModel,
         searchModel,
@@ -193,6 +209,8 @@ export class McpService extends BaseService {
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
         this.projectService = projectService;
+        this.savedSqlService = savedSqlService;
+        this.schedulerService = schedulerService;
         this.shareService = shareService;
         this.userAttributesModel = userAttributesModel;
         this.searchModel = searchModel;
@@ -1034,6 +1052,170 @@ export class McpService extends BaseService {
                 };
             },
         );
+
+        this.mcpServer.registerTool(
+            McpToolName.RUN_SQL,
+            {
+                description: toolRunSqlArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(toolRunSqlArgsSchema),
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
+                const args = _args as { sql: string; limit?: number };
+                const { user, account } = this.getAccount(
+                    extra as McpProtocolContext,
+                );
+                const projectUuid = await this.resolveProjectUuid(
+                    extra as McpProtocolContext,
+                );
+
+                this.trackToolCall(
+                    extra as McpProtocolContext,
+                    McpToolName.RUN_SQL,
+                    projectUuid,
+                );
+
+                try {
+                    const { jobId } =
+                        await this.savedSqlService.getResultJobFromSql(
+                            user,
+                            projectUuid,
+                            args.sql,
+                            args.limit ?? 500,
+                        );
+
+                    const jobResult = await this.pollSqlJobToCompletion(
+                        account,
+                        jobId,
+                    );
+
+                    const rows = await this.downloadSqlResults(
+                        user,
+                        projectUuid,
+                        jobResult.fileUrl,
+                    );
+
+                    const columns = jobResult.columns.map((c) => c.reference);
+
+                    if (rows.length === 0) {
+                        const header =
+                            columns.length > 0
+                                ? `Columns: ${columns.join(', ')}`
+                                : '';
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: `Query returned 0 rows.${header ? ` ${header}` : ''}`,
+                                },
+                            ],
+                        };
+                    }
+
+                    const csv = stringify(rows, {
+                        header: true,
+                        columns,
+                    });
+
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: csv,
+                            },
+                        ],
+                    };
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error running SQL query: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+    }
+
+    private async pollSqlJobToCompletion(
+        account: Account,
+        jobId: string,
+    ): Promise<{ fileUrl: string; columns: Array<{ reference: string }> }> {
+        const maxWaitMs = 5 * 60 * 1000;
+        const startTime = Date.now();
+        let delayMs = 500;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            if (Date.now() - startTime > maxWaitMs) {
+                throw new Error('SQL query timed out after 5 minutes');
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const job = await this.schedulerService.getJobStatus(
+                account,
+                jobId,
+            );
+
+            if (job.status === SchedulerJobStatus.COMPLETED) {
+                const details = job.details as {
+                    fileUrl?: string;
+                    columns?: Array<{ reference: string }>;
+                } | null;
+                if (!details?.fileUrl) {
+                    throw new Error(
+                        'SQL query completed but no results file was produced',
+                    );
+                }
+                return {
+                    fileUrl: details.fileUrl,
+                    columns: details.columns ?? [],
+                };
+            }
+
+            if (job.status === SchedulerJobStatus.ERROR) {
+                const errorDetail =
+                    (job.details as { error?: string } | null)?.error ??
+                    'Unknown error';
+                throw new Error(`SQL query failed: ${errorDetail}`);
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            await sleep(delayMs);
+            delayMs = Math.min(delayMs * 2, 2000);
+        }
+    }
+
+    private async downloadSqlResults(
+        user: SessionUser,
+        projectUuid: string,
+        fileUrl: string,
+    ): Promise<Record<string, unknown>[]> {
+        const fileId = fileUrl.split('/').pop();
+        if (!fileId) {
+            throw new Error(`Could not extract file ID from URL: ${fileUrl}`);
+        }
+
+        const readStream: Readable = await this.projectService.getFileStream(
+            user,
+            projectUuid,
+            fileId,
+        );
+
+        const { results } = await streamJsonlData<Record<string, unknown>>({
+            readStream,
+            onRow: (row) => row,
+        });
+
+        return results;
     }
 
     async getProjectUuidFromContext(
@@ -1523,6 +1705,7 @@ export class McpService extends BaseService {
                     additionalMetrics: additionalMetrics ?? [],
                 },
                 context: QueryExecutionContext.MCP,
+                userAttributeOverrides,
             });
 
         return { agentContext, runAsyncQuery };

@@ -1,5 +1,7 @@
 import {
+    getErrorMessage,
     NotFoundError,
+    PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
     QueryExecutionContext,
     QueryHistoryStatus,
     type Account,
@@ -9,16 +11,19 @@ import {
     type KnexPaginatedData,
     type PreAggregateMaterializationTrigger,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
+import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import { BaseService } from '../BaseService';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;
 
-export class PreAggregateMaterializationService {
+export class PreAggregateMaterializationService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly preAggregateModel: PreAggregateModel;
@@ -29,18 +34,28 @@ export class PreAggregateMaterializationService {
 
     private readonly prometheusMetrics: PrometheusMetrics | undefined;
 
+    private readonly preAggregateResultsStorageClient: S3ResultsFileStorageClient;
+
     constructor(args: {
         lightdashConfig: LightdashConfig;
         preAggregateModel: PreAggregateModel;
         queryHistoryModel: QueryHistoryModel;
         asyncQueryService: AsyncQueryService;
+        preAggregateResultsStorageClient: S3ResultsFileStorageClient;
         prometheusMetrics?: PrometheusMetrics;
     }) {
+        super({ serviceName: 'PreAggregateMaterializationService' });
         this.lightdashConfig = args.lightdashConfig;
         this.preAggregateModel = args.preAggregateModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.asyncQueryService = args.asyncQueryService;
+        this.preAggregateResultsStorageClient =
+            args.preAggregateResultsStorageClient;
         this.prometheusMetrics = args.prometheusMetrics;
+    }
+
+    private get parquetEnabled(): boolean {
+        return this.lightdashConfig.preAggregates.parquetEnabled;
     }
 
     private getMaterializationUri(resultsFileName: string): string {
@@ -52,7 +67,12 @@ export class PreAggregateMaterializationService {
             );
         }
 
-        return `s3://${bucket}/${resultsFileName}.jsonl`;
+        const extension = this.parquetEnabled ? 'parquet' : 'jsonl';
+        return `s3://${bucket}/${resultsFileName}.${extension}`;
+    }
+
+    private getMaterializationFormat(): 'jsonl' | 'parquet' {
+        return this.parquetEnabled ? 'parquet' : 'jsonl';
     }
 
     async materializePreAggregate(args: {
@@ -81,6 +101,15 @@ export class PreAggregateMaterializationService {
                 );
             }
 
+            this.logger.info(
+                `Starting pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    projectUuid: args.projectUuid,
+                    preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                    trigger: args.trigger,
+                },
+            );
+
             const materializationRow =
                 await this.preAggregateModel.insertInProgress({
                     projectUuid: args.projectUuid,
@@ -105,37 +134,111 @@ export class PreAggregateMaterializationService {
                 };
             }
 
-            const { queryUuid } =
-                await this.asyncQueryService.executeAsyncMetricQuery({
-                    account: args.account,
-                    projectUuid: args.projectUuid,
-                    context:
-                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
-                    metricQuery: materializationMetricQuery.metricQuery,
-                    invalidateCache: true,
-                });
+            this.logger.info(
+                `Starting executeAsyncMetricQuery for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+            );
+
+            const { queryUuid } = await Sentry.startSpan(
+                {
+                    op: 'preaggregate',
+                    name: 'executeAsyncMetricQuery',
+                    attributes: {
+                        projectUuid: args.projectUuid,
+                        materializationUuid,
+                    },
+                },
+                () =>
+                    this.asyncQueryService.executeAsyncMetricQuery({
+                        account: args.account,
+                        projectUuid: args.projectUuid,
+                        context:
+                            QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                        metricQuery: {
+                            ...materializationMetricQuery.metricQuery,
+                            sorts:
+                                materializationMetricQuery.metricQuery
+                                    .dimensions.length > 0
+                                    ? materializationMetricQuery.metricQuery.dimensions.map(
+                                          (fieldId) => ({
+                                              fieldId,
+                                              descending: false,
+                                          }),
+                                      )
+                                    : [],
+                        },
+                        invalidateCache: true,
+                    }),
+            );
+
+            this.logger.info(
+                `executeAsyncMetricQuery completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                },
+            );
 
             await this.preAggregateModel.attachQueryUuid({
                 materializationUuid,
                 queryUuid,
             });
 
-            const queryHistory =
-                await this.queryHistoryModel.pollForQueryCompletion({
+            this.logger.info(
+                `Starting pollForQueryCompletion for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
                     queryUuid,
-                    account: args.account,
-                    projectUuid: args.projectUuid,
-                    initialBackoffMs: QUERY_POLL_INTERVAL_MS,
-                    maxBackoffMs: QUERY_POLL_INTERVAL_MS,
-                    timeoutMs: QUERY_POLL_TIMEOUT_MS,
-                    throwOnCancelled: false,
-                    throwOnError: false,
-                });
+                },
+            );
+
+            const pollStart = Date.now();
+            const queryHistory = await Sentry.startSpan(
+                {
+                    op: 'preaggregate',
+                    name: 'pollForQueryCompletion',
+                    attributes: {
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        materializationUuid,
+                    },
+                },
+                () =>
+                    this.queryHistoryModel.pollForQueryCompletion({
+                        queryUuid,
+                        account: args.account,
+                        projectUuid: args.projectUuid,
+                        initialBackoffMs: QUERY_POLL_INTERVAL_MS,
+                        maxBackoffMs: QUERY_POLL_INTERVAL_MS,
+                        timeoutMs: QUERY_POLL_TIMEOUT_MS,
+                        throwOnCancelled: false,
+                        throwOnError: false,
+                    }),
+            );
+            const pollDurationMs = Date.now() - pollStart;
+
+            this.logger.info(
+                `pollForQueryCompletion completed for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
+                {
+                    materializationUuid,
+                    queryUuid,
+                    queryStatus: queryHistory.status,
+                },
+            );
 
             if (queryHistory.status !== QueryHistoryStatus.READY) {
                 const errorMessage =
                     queryHistory.error ||
                     `Materialization query ${queryUuid} did not complete successfully`;
+
+                this.logger.warn(`Pre-aggregate materialization query failed`, {
+                    materializationUuid,
+                    queryUuid,
+                    projectUuid: args.projectUuid,
+                    preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                    trigger: args.trigger,
+                    queryStatus: queryHistory.status,
+                    errorMessage,
+                });
 
                 await this.preAggregateModel.markFailed({
                     materializationUuid,
@@ -148,7 +251,7 @@ export class PreAggregateMaterializationService {
                 );
                 this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
                     { status: 'failed', trigger: args.trigger },
-                    durationMs,
+                    durationMs / 1000,
                 );
 
                 return {
@@ -159,6 +262,17 @@ export class PreAggregateMaterializationService {
             }
 
             if (!queryHistory.resultsFileName) {
+                this.logger.warn(
+                    `Pre-aggregate materialization completed without results file`,
+                    {
+                        materializationUuid,
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        preAggregateDefinitionUuid:
+                            args.preAggregateDefinitionUuid,
+                    },
+                );
+
                 await this.preAggregateModel.markFailed({
                     materializationUuid,
                     errorMessage:
@@ -172,26 +286,138 @@ export class PreAggregateMaterializationService {
                 };
             }
 
-            const { status } = await this.preAggregateModel.promoteToActive({
+            const columnCount = queryHistory.columns
+                ? Object.keys(queryHistory.columns).length
+                : null;
+
+            // Get file size from S3 and promote to active — timed together
+            const promoteStart = Date.now();
+            const totalBytes = await Sentry.startSpan(
+                {
+                    op: 'preaggregate',
+                    name: 'getFileSize',
+                    attributes: {
+                        materializationUuid,
+                        format: this.getMaterializationFormat(),
+                    },
+                },
+                () =>
+                    this.preAggregateResultsStorageClient.getFileSize(
+                        queryHistory.resultsFileName!,
+                        this.parquetEnabled ? 'parquet' : 'jsonl',
+                    ),
+            );
+
+            this.logger.info(`Pre-aggregate materialization query completed`, {
                 materializationUuid,
                 queryUuid,
-                materializationUri: this.getMaterializationUri(
-                    queryHistory.resultsFileName,
-                ),
-                materializedAt: queryHistory.resultsUpdatedAt || new Date(),
+                projectUuid: args.projectUuid,
+                preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                trigger: args.trigger,
+                format: this.getMaterializationFormat(),
                 rowCount: queryHistory.totalRowCount,
-                columns: queryHistory.columns,
+                columnCount,
+                totalBytes,
+                resultsFileName: queryHistory.resultsFileName,
+                warehouseExecutionTimeMs: queryHistory.warehouseExecutionTimeMs,
             });
 
+            const { status } = await Sentry.startSpan(
+                {
+                    op: 'db',
+                    name: 'promoteToActive',
+                    attributes: {
+                        materializationUuid,
+                        queryUuid,
+                        rowCount: queryHistory.totalRowCount ?? 0,
+                        totalBytes: totalBytes ?? 0,
+                        format: this.getMaterializationFormat(),
+                    },
+                },
+                () =>
+                    this.preAggregateModel.promoteToActive({
+                        materializationUuid: materializationUuid!,
+                        queryUuid,
+                        materializationUri: this.getMaterializationUri(
+                            queryHistory.resultsFileName!,
+                        ),
+                        materializedAt:
+                            queryHistory.resultsUpdatedAt || new Date(),
+                        rowCount: queryHistory.totalRowCount,
+                        columns: queryHistory.columns,
+                        totalBytes,
+                    }),
+            );
+            const promoteDurationMs = Date.now() - promoteStart;
+
+            if (
+                queryHistory.totalRowCount != null &&
+                queryHistory.totalRowCount >
+                    PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD
+            ) {
+                this.logger.warn(
+                    `Pre-aggregate materialization has ${queryHistory.totalRowCount} rows, exceeding threshold of ${PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD}`,
+                    {
+                        materializationUuid,
+                        queryUuid,
+                        projectUuid: args.projectUuid,
+                        preAggregateDefinitionUuid:
+                            args.preAggregateDefinitionUuid,
+                        rowCount: queryHistory.totalRowCount,
+                        threshold: PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
+                    },
+                );
+            }
+
             const durationMs = Date.now() - startTime;
+            this.logger.info(`Pre-aggregate materialization ${status}`, {
+                materializationUuid,
+                queryUuid,
+                projectUuid: args.projectUuid,
+                preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                trigger: args.trigger,
+                status,
+                format: this.getMaterializationFormat(),
+                rowCount: queryHistory.totalRowCount,
+                columnCount,
+                totalBytes,
+                totalDurationMs: durationMs,
+                warehouseExecutionTimeMs: queryHistory.warehouseExecutionTimeMs,
+            });
+
             this.prometheusMetrics?.preAggregateMaterializationCounter?.inc({
                 status,
                 trigger: args.trigger,
             });
             this.prometheusMetrics?.preAggregateMaterializationDurationHistogram?.observe(
                 { status, trigger: args.trigger },
-                durationMs,
+                durationMs / 1000,
             );
+
+            // Sub-step metrics
+            this.prometheusMetrics?.observeMaterializationPollDuration(
+                pollDurationMs,
+                status,
+                args.trigger,
+            );
+            if (queryHistory.warehouseExecutionTimeMs != null) {
+                this.prometheusMetrics?.observeMaterializationWarehouseDuration(
+                    queryHistory.warehouseExecutionTimeMs,
+                    status,
+                    args.trigger,
+                );
+            }
+            this.prometheusMetrics?.observeMaterializationPromoteDuration(
+                promoteDurationMs,
+                status,
+                args.trigger,
+            );
+            if (totalBytes != null) {
+                this.prometheusMetrics?.observeMaterializationFileSize(
+                    totalBytes,
+                    this.getMaterializationFormat(),
+                );
+            }
 
             return {
                 materializationUuid,
@@ -200,6 +426,19 @@ export class PreAggregateMaterializationService {
             };
         } catch (error) {
             const durationMs = Date.now() - startTime;
+
+            this.logger.error(`Pre-aggregate materialization error`, {
+                materializationUuid,
+                projectUuid: args.projectUuid,
+                preAggregateDefinitionUuid: args.preAggregateDefinitionUuid,
+                trigger: args.trigger,
+                totalDurationMs: durationMs,
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : 'Unknown materialization error',
+            });
+
             this.prometheusMetrics?.preAggregateMaterializationCounter?.inc({
                 status: 'failed',
                 trigger: args.trigger,
@@ -245,7 +484,7 @@ export class PreAggregateMaterializationService {
         | {
               queryUuid: string;
               materializationUri: string;
-              format: 'jsonl';
+              format: 'jsonl' | 'parquet';
               columns: ActiveMaterializationDetails['columns'];
               materializedAt: Date;
           }

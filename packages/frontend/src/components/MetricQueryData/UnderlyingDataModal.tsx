@@ -362,6 +362,7 @@ const UnderlyingDataModalContent: FC = () => {
                                 showTableNames
                                 totalResults={resultsData?.rows.length}
                                 getDownloadQueryUuid={getDownloadQueryUuid}
+                                forceShowLimitSelection
                             />
                         )}
                     </Popover.Dropdown>

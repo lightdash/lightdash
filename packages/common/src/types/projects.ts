@@ -559,6 +559,7 @@ export type Project = {
     upstreamProjectUuid?: string;
     dbtVersion: DbtVersionOption;
     schedulerTimezone: string;
+    queryTimezone: string | null;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
@@ -598,4 +599,8 @@ export type PreviewContentMapping = {
 
 export type UpdateSchedulerSettings = {
     schedulerTimezone: string;
+};
+
+export type UpdateQueryTimezoneSettings = {
+    queryTimezone: string | null;
 };

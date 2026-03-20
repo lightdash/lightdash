@@ -34,7 +34,7 @@ const BooleanFilterInputs = <T extends BaseFilterRule>(
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     disabled={disabled}
-                    autoFocus={true}
+                    data-autofocus
                     initiallyOpened={currentValue === null && !disabled}
                     placeholder={placeholder}
                     data={[

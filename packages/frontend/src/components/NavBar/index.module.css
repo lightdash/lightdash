@@ -3,7 +3,7 @@
     top: 0;
     left: 0;
     right: 0;
-    z-index: var(--mantine-z-index-max);
+    z-index: var(--mantine-z-index-popover);
 }
 
 .header {

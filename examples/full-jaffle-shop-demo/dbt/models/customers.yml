@@ -46,6 +46,11 @@ models:
           - not_null
         config:
           meta:
+            dimension:
+              richText: |
+                **Customer ID:** `${ value.raw }`
+                
+                [View Profile](https://example.com/customer/${ value.raw }) | [Search Google](https://google.com/search?q=customer%20${ value.formatted | url_encode })
             metrics:
               unique_customer_count:
                 tags: ["ai"]
@@ -81,6 +86,19 @@ models:
                 description: "Average lifetime value per customer, calculated using the deduped order total to avoid fan-out inflation."
                 format: usd
                 round: 2
+                richText: |
+                  {% raw %}{% if value.raw == nil %}
+                  <span style="color: #999;">No data</span>
+                  {% elsif value.raw >= 100 %}
+                  ### 📈 ${ value.formatted }
+                  **Excellent** Average CLV
+                  {% elsif value.raw >= 50 %}
+                  ### 📊 ${ value.formatted }
+                  **Good** Average CLV
+                  {% else %}
+                  ### ⚠️ ${ value.formatted }
+                  **Low** Average CLV - _Needs attention!_
+                  {% endif %}{% endraw %}
         meta:
           dimension:
             type: number
@@ -128,6 +146,23 @@ models:
               any_attributes:
                 is_demo: "true"
                 name: [demo, demo2]
+              richText: |
+                {% raw %}{% if value.raw == nil %}
+                <span style="color: #999;">-</span>
+                {% else %}
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <img src="https://ui-avatars.com/api/?name=${ value.formatted | url_encode }&background=random&size=32&rounded=true" 
+                       width="32" height="32" 
+                       style="border-radius: 50%;" 
+                       alt="${ value.formatted }" />
+                  <p>
+                    <strong style="float:left">${ value.formatted }</strong><br/>
+                    <span style="color: #666; font-size: 0.9em;">
+                      <a style="float:left;" href="https://www.linkedin.com/search/results/people/?keywords=${ value.formatted | url_encode }" target="_blank">LinkedIn</a>
+                    </span>
+                  </p>
+                </div>
+                {% endif %}{% endraw %}
       - name: age
         description: Customer's age
         config:

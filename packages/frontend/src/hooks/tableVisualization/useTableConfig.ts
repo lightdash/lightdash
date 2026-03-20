@@ -26,7 +26,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from '../useCalculateSubtotals';
 import { useCalculateTotal } from '../useCalculateTotal';
-import { useIsTableColumnCustomizationEnabled } from '../useIsTableColumnCustomizationEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -53,7 +52,6 @@ const useTableConfig = (
     dateZoom?: DateZoom,
 ) => {
     const { embedToken } = useEmbed();
-    const isColumnCustomizationEnabled = useIsTableColumnCustomizationEnabled();
 
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
@@ -178,11 +176,8 @@ const useTableConfig = (
     );
 
     const getColumnWidth = useCallback(
-        (fieldId: string) =>
-            isColumnCustomizationEnabled
-                ? columnProperties[fieldId]?.width
-                : undefined,
-        [columnProperties, isColumnCustomizationEnabled],
+        (fieldId: string) => columnProperties[fieldId]?.width,
+        [columnProperties],
     );
 
     const isPivotTableEnabled =
@@ -615,20 +610,7 @@ const useTableConfig = (
         resultsData,
     ]);
 
-    // Strip `width` from column properties when the feature flag is off.
-    // Column customization was previously released but reverted due to side
-    // effects. Some users set manual widths to work around those issues. Without
-    // this filter, users with the flag disabled would suddenly get those saved
-    // widths back, causing unexpected layout changes.
-    const exposedColumnProperties: Record<string, ColumnProperties> =
-        useMemo(() => {
-            if (isColumnCustomizationEnabled) return columnProperties;
-            return Object.fromEntries(
-                Object.entries(columnProperties).map(
-                    ([key, { width, ...rest }]) => [key, rest],
-                ),
-            );
-        }, [columnProperties, isColumnCustomizationEnabled]);
+    const exposedColumnProperties = columnProperties;
 
     const validConfig: TableChart = useMemo(
         () => ({

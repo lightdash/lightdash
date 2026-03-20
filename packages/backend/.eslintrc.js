@@ -35,7 +35,7 @@ module.exports = {
         '@typescript-eslint/no-floating-promises': 'error',
         '@typescript-eslint/no-throw-literal': 'off',
         // no-throw-literal replaced with only-throw-error
-        '@typescript-eslint/only-throw-error': 'error',
+        '@typescript-eslint/only-throw-error': 'off',
     },
     overrides: [
         {

@@ -1,4 +1,8 @@
-import { getParameterReferences, validateParameterNames } from './parameters';
+import {
+    getParameterReferences,
+    validateParameterConfiguration,
+    validateParameterNames,
+} from './parameters';
 
 describe('getParameterReferences', () => {
     describe('Project-level parameters', () => {
@@ -264,5 +268,107 @@ describe('validateParameterNames', () => {
         expect(result.invalidParameters).toHaveLength(2);
         expect(result.invalidParameters).toContain('invalid.param');
         expect(result.invalidParameters).toContain('another invalid');
+    });
+});
+
+describe('validateParameterConfiguration', () => {
+    it('should pass for undefined parameters', () => {
+        const result = validateParameterConfiguration(undefined);
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should pass for empty parameters object', () => {
+        const result = validateParameterConfiguration({});
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should pass for parameter with options', () => {
+        const result = validateParameterConfiguration({
+            status: {
+                label: 'Status',
+                default: 'active',
+                options: ['active', 'inactive'],
+            },
+        });
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should pass for parameter with allow_custom_values: true', () => {
+        const result = validateParameterConfiguration({
+            region: {
+                label: 'Region',
+                default: 'US',
+                allow_custom_values: true,
+            },
+        });
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should pass for parameter with options_from_dimension', () => {
+        const result = validateParameterConfiguration({
+            customer: {
+                label: 'Customer',
+                default: 'Acme',
+                options_from_dimension: {
+                    model: 'customers',
+                    dimension: 'name',
+                },
+            },
+        });
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should fail for parameter missing options, options_from_dimension, and allow_custom_values', () => {
+        const result = validateParameterConfiguration({
+            top_n: {
+                label: 'Top N',
+                description: 'Limit results to the top N records',
+                default: 10,
+                type: 'number',
+            },
+        });
+        expect(result.isValid).toBe(false);
+        expect(result.error).not.toBeNull();
+    });
+
+    it('should fail for parameter with allow_custom_values: false and no options', () => {
+        const result = validateParameterConfiguration({
+            region: {
+                label: 'Region',
+                default: 'US',
+                allow_custom_values: false,
+            },
+        });
+        expect(result.isValid).toBe(false);
+        expect(result.error).not.toBeNull();
+    });
+
+    it('should pass when mixing valid parameter configurations', () => {
+        const result = validateParameterConfiguration({
+            status: {
+                label: 'Status',
+                options: ['active', 'inactive'],
+                default: 'active',
+            },
+            region: {
+                label: 'Region',
+                allow_custom_values: true,
+                default: 'US',
+            },
+            customer: {
+                label: 'Customer',
+                options_from_dimension: {
+                    model: 'customers',
+                    dimension: 'name',
+                },
+            },
+        });
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
     });
 });

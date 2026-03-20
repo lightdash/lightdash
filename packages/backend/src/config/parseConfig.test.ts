@@ -141,6 +141,7 @@ test('Should use default sentry configuration if no environment vars', () => {
         release: VERSION,
         environment: LightdashMode.DEFAULT,
         tracesSampleRate: 0.1,
+        queryTracesSampleRate: null,
         profilesSampleRate: 0.2,
         anr: {
             enabled: false,
@@ -163,6 +164,7 @@ test('Should parse sentry config from env', () => {
         release: VERSION,
         environment: 'development',
         tracesSampleRate: 0.8,
+        queryTracesSampleRate: null,
         profilesSampleRate: 1.0,
         anr: {
             enabled: true,

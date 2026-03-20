@@ -6,7 +6,6 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
-import { useIsTableColumnCustomizationEnabled } from '../../hooks/useIsTableColumnCustomizationEnabled';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -51,8 +50,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
         isLoading,
         isEditMode,
     } = useVisualizationContext();
-
-    const isColumnCustomizationEnabled = useIsTableColumnCustomizationEnabled();
 
     const hasSignaledScreenshotReady = useRef(false);
 
@@ -209,7 +206,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
-        isColumnCustomizationEnabled && !isDashboard && isEditMode !== false
+        !isDashboard && isEditMode !== false
             ? (fieldId: string, width: number) => {
                   updateColumnProperty(fieldId, { width });
               }

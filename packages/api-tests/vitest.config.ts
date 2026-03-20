@@ -9,6 +9,6 @@ export default defineConfig({
         globals: true,
         setupFiles: ['vitest.setup.ts'],
         pool: 'forks',
-        fileParallelism: false, // tests share DB state; parallel execution causes space/chart deletion race conditions
+        fileParallelism: false,
     },
 });

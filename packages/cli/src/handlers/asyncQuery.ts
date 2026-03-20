@@ -30,7 +30,11 @@ export async function pollForResults(
 
     GlobalState.debug(`> Query status: ${result.status}`);
 
-    if (result.status === QueryHistoryStatus.PENDING) {
+    if (
+        result.status === QueryHistoryStatus.PENDING ||
+        result.status === QueryHistoryStatus.QUEUED ||
+        result.status === QueryHistoryStatus.EXECUTING
+    ) {
         await sleep(backoffMs);
         return pollForResults(projectUuid, queryUuid, {
             pageSize,

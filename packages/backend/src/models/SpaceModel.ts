@@ -89,6 +89,17 @@ export class SpaceModel {
         return spaces.map((s: { space_uuid: string }) => s.space_uuid);
     }
 
+    async getChildSpaceUuidsForParents(
+        parentSpaceUuids: string[],
+    ): Promise<string[]> {
+        if (parentSpaceUuids.length === 0) return [];
+        const rows = await this.database(SpaceTableName)
+            .whereIn(`${SpaceTableName}.parent_space_uuid`, parentSpaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(`${SpaceTableName}.space_uuid`);
+        return rows.map((r: { space_uuid: string }) => r.space_uuid);
+    }
+
     async find(
         filters: {
             projectUuid?: string;
@@ -139,7 +150,6 @@ export class SpaceModel {
                         projectUuid: `${ProjectTableName}.project_uuid`,
                         uuid: `${SpaceTableName}.space_uuid`,
                         name: `${SpaceTableName}.name`,
-                        isPrivate: `${SpaceTableName}.is_private`,
                         pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
                         pinnedListOrder: `${PinnedSpaceTableName}.order`,
                         chartCount: trx
@@ -293,7 +303,6 @@ export class SpaceModel {
                     Pick<DBPinnedSpace, 'order'>)[]
             >([
                 `${SpaceTableName}.*`,
-                `${SpaceTableName}.is_private`,
                 `${ProjectTableName}.project_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
 
@@ -308,7 +317,6 @@ export class SpaceModel {
         return {
             organizationUuid: row.organization_uuid,
             name: row.name,
-            isPrivate: row.is_private,
             uuid: row.space_uuid,
             projectUuid: row.project_uuid,
             pinnedListUuid: row.pinned_list_uuid,
@@ -849,44 +857,39 @@ export class SpaceModel {
             uuid: string;
         }[]
     > {
-        const space = await this.database(SpaceTableName)
-            .select('path', 'name', 'space_uuid')
-            .where('space_uuid', spaceUuid)
-            .first();
+        // Walk ancestors via parent_space_uuid FK instead of ltree path @> joins.
+        // See SpacePermissionModel.getInheritanceChains for why ltree paths
+        // can't be trusted (lossy slug→path conversion creates duplicates).
+        const rows: { name: string; space_uuid: string }[] = await this.database
+            .raw(
+                `
+                WITH RECURSIVE ancestors AS (
+                    SELECT space_uuid, name, parent_space_uuid, 0 AS depth
+                    FROM ${SpaceTableName}
+                    WHERE space_uuid = ?
+                      AND deleted_at IS NULL
 
-        if (!space) {
-            throw new NotFoundError(
-                `Space with uuid ${spaceUuid} does not exist`,
+                    UNION ALL
+
+                    SELECT s.space_uuid, s.name, s.parent_space_uuid, a.depth + 1
+                    FROM ${SpaceTableName} s
+                    JOIN ancestors a ON s.space_uuid = a.parent_space_uuid
+                    WHERE s.deleted_at IS NULL
+                )
+                SELECT space_uuid, name FROM ancestors
+                ORDER BY depth DESC
+                `,
+                [spaceUuid],
+            )
+            .then(
+                (res: { rows: { name: string; space_uuid: string }[] }) =>
+                    res.rows,
             );
-        }
 
-        const ancestorsNamesOrderByLevel = await this.database(SpaceTableName)
-            .leftJoin(
-                `${ProjectTableName}`,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereRaw('path @> ?::ltree AND path != ?::ltree', [
-                space.path,
-                space.path,
-            ])
-            .select<DbSpace[]>(
-                `${SpaceTableName}.name`,
-                `${SpaceTableName}.space_uuid`,
-                this.database.raw('nlevel(path) as level'),
-            )
-            .orderBy('level', 'asc');
-
-        const breadcrumbs = ancestorsNamesOrderByLevel
-            .map((ancestor) => ({
-                name: ancestor.name,
-                uuid: ancestor.space_uuid,
-            }))
-            .concat({
-                name: space.name,
-                uuid: space.space_uuid,
-            });
+        const breadcrumbs = rows.map((r) => ({
+            name: r.name,
+            uuid: r.space_uuid,
+        }));
 
         return breadcrumbs;
     }
@@ -939,6 +942,7 @@ export class SpaceModel {
             )
             .whereRaw('?::ltree <@ path', [path])
             .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .orderByRaw('nlevel(path) DESC')
             .first();
 
@@ -1025,7 +1029,6 @@ export class SpaceModel {
     async createSpace(
         spaceData: {
             name: string;
-            isPrivate: boolean;
             inheritParentPermissions: boolean;
             parentSpaceUuid: string | null;
         },
@@ -1081,7 +1084,6 @@ export class SpaceModel {
         const [space] = await trx(SpaceTableName)
             .insert({
                 project_id: project.project_id,
-                is_private: spaceData.isPrivate,
                 name: spaceData.name,
                 created_by_user_id: userId,
                 slug: spaceSlug,
@@ -1095,7 +1097,6 @@ export class SpaceModel {
         return {
             organizationUuid: space.organization_uuid,
             name: space.name,
-            isPrivate: space.is_private,
             uuid: space.space_uuid,
             projectUuid,
             pinnedListUuid: null,
@@ -1138,13 +1139,31 @@ export class SpaceModel {
     }
 
     async getDescendantSpaceUuids(spaceUuid: string): Promise<string[]> {
-        const space = await this.get(spaceUuid);
-        const rows = await this.database(SpaceTableName)
-            .select('space_uuid')
-            .whereRaw('path <@ ?::ltree', [space.path])
-            .andWhereNot('space_uuid', spaceUuid)
-            .whereNull('deleted_at');
-        return rows.map((r: { space_uuid: string }) => r.space_uuid);
+        // Walk children via parent_space_uuid FK instead of ltree path <@ joins.
+        // See SpacePermissionModel.getInheritanceChains for why ltree paths
+        // can't be trusted (lossy slug→path conversion creates duplicates).
+        const rows: { space_uuid: string }[] = await this.database
+            .raw(
+                `
+                WITH RECURSIVE descendants AS (
+                    SELECT space_uuid
+                    FROM ${SpaceTableName}
+                    WHERE parent_space_uuid = ?
+                      AND deleted_at IS NULL
+
+                    UNION ALL
+
+                    SELECT s.space_uuid
+                    FROM ${SpaceTableName} s
+                    JOIN descendants d ON s.parent_space_uuid = d.space_uuid
+                    WHERE s.deleted_at IS NULL
+                )
+                SELECT space_uuid FROM descendants
+                `,
+                [spaceUuid],
+            )
+            .then((res: { rows: { space_uuid: string }[] }) => res.rows);
+        return rows.map((r) => r.space_uuid);
     }
 
     async getChildSpaceUuids(
@@ -1237,7 +1256,6 @@ export class SpaceModel {
         await this.database(SpaceTableName)
             .update({
                 name: space.name,
-                is_private: space.isPrivate,
                 inherit_parent_permissions: space.inheritParentPermissions,
             })
             .where('space_uuid', spaceUuid);
@@ -1284,7 +1302,6 @@ export class SpaceModel {
             await trx(SpaceTableName)
                 .update({
                     name: space.name,
-                    is_private: space.isPrivate,
                     inherit_parent_permissions: space.inheritParentPermissions,
                 })
                 .where('space_uuid', spaceUuid);

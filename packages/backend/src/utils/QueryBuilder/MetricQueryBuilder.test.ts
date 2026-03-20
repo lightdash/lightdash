@@ -42,6 +42,7 @@ import {
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+    EXPLORE_WITH_NESTED_AGG,
     EXPLORE_WITH_REQUIRED_FILTERS,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITH_SUM_DISTINCT,
@@ -55,6 +56,17 @@ import {
     METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_JOIN_CHAIN,
     METRIC_QUERY_JOIN_CHAIN_SQL,
+    METRIC_QUERY_NESTED_AGG_COMPLEX,
+    METRIC_QUERY_NESTED_AGG_CONDITIONAL,
+    METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
+    METRIC_QUERY_NESTED_AGG_MIXED,
+    METRIC_QUERY_NESTED_AGG_NO_DIMS,
+    METRIC_QUERY_NESTED_AGG_PRODUCT,
+    METRIC_QUERY_NESTED_AGG_RAW_COL,
+    METRIC_QUERY_NESTED_AGG_TRANSITIVE,
+    METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED,
+    METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF,
+    METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SQL,
     METRIC_QUERY_SQL_BIGQUERY,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
@@ -121,6 +133,104 @@ const POP_TEST_POP_METRIC_NAME = 'total_order_amount__pop__year_1__testpop';
 const POP_TEST_POP_METRIC_ID = `orders_${POP_TEST_POP_METRIC_NAME}`;
 const POP_TEST_FANOUT_POP_METRIC_NAME = 'metric_amount__pop__year_1__fanout';
 const POP_TEST_FANOUT_POP_METRIC_ID = `table2_${POP_TEST_FANOUT_POP_METRIC_NAME}`;
+const EXPLORE_WITH_NESTED_AGG_AND_FANOUT: Explore = {
+    ...EXPLORE_WITH_NESTED_AGG,
+    joinedTables: [
+        {
+            table: 'fanout_users',
+            sqlOn: '${my_table.id} = ${fanout_users.account_id}',
+            compiledSqlOn: '("my_table".id) = ("fanout_users".account_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['my_table', 'fanout_users'],
+        },
+    ],
+    tables: {
+        ...EXPLORE_WITH_NESTED_AGG.tables,
+        my_table: {
+            ...EXPLORE_WITH_NESTED_AGG.tables.my_table,
+            metrics: {
+                ...EXPLORE_WITH_NESTED_AGG.tables.my_table.metrics,
+                cross_table_sum_of_max: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'cross_table_sum_of_max',
+                    label: 'cross_table_sum_of_max',
+                    sql: 'sum(${max_value}) / NULLIF(${fanout_users.count_users}, 0)',
+                    compiledSql:
+                        'SUM(MAX("my_table".value)) / NULLIF(COUNT("fanout_users".id), 0)',
+                    tablesReferences: ['my_table', 'fanout_users'],
+                    hidden: false,
+                },
+            },
+        },
+        fanout_users: {
+            name: 'fanout_users',
+            label: 'fanout_users',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."fanout_users"',
+            primaryKey: ['id'],
+            dimensions: {
+                title: {
+                    type: DimensionType.STRING,
+                    name: 'title',
+                    label: 'title',
+                    table: 'fanout_users',
+                    tableLabel: 'fanout_users',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.title',
+                    compiledSql: '"fanout_users".title',
+                    tablesReferences: ['fanout_users'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                count_users: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'fanout_users',
+                    tableLabel: 'fanout_users',
+                    name: 'count_users',
+                    label: 'count_users',
+                    sql: '${TABLE}.id',
+                    compiledSql: 'COUNT("fanout_users".id)',
+                    tablesReferences: ['fanout_users'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+const METRIC_QUERY_NESTED_AGG_WITH_FANOUT: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['fanout_users_title'],
+    metrics: ['my_table_sum_of_max', 'my_table_count_records'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+const METRIC_QUERY_NESTED_AGG_WITH_FANOUT_CROSS_TABLE: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['fanout_users_title'],
+    metrics: ['my_table_cross_table_sum_of_max', 'my_table_count_records'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_cross_table_sum_of_max', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
 
 const POP_TEST_EXPLORE: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
@@ -642,6 +752,45 @@ describe('Query builder', () => {
             query.match(/\("orders"\.is_completed\) = true/g) ?? [],
         ).toHaveLength(2);
         expect(query.match(/\('2025-01-01'\)/g) ?? []).toHaveLength(1);
+        expect(query).toMatch(
+            /DATE_TRUNC\('YEAR', "orders"\.order_date\) >= pop_min_max_[a-z0-9_]+\.min_date - INTERVAL '1 YEAR'/,
+        );
+        expect(query).toMatch(
+            /DATE_TRUNC\('YEAR', "orders"\.order_date\) <= pop_min_max_[a-z0-9_]+\.max_date - INTERVAL '1 YEAR'/,
+        );
+    });
+
+    test('Should not carry date filter into PoP CTE when only date filters exist', () => {
+        const metricQueryWithOnlyDateFilter: CompiledMetricQuery = {
+            ...POP_TEST_METRIC_QUERY,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'base-year',
+                            target: {
+                                fieldId: 'orders_order_date_year',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['2025-01-01'],
+                        },
+                    ],
+                },
+            },
+        };
+
+        const { query } = buildQuery({
+            explore: POP_TEST_EXPLORE,
+            compiledMetricQuery: metricQueryWithOnlyDateFilter,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The date filter should appear once in base_metrics but NOT in the PoP CTE
+        expect(query.match(/\('2025-01-01'\)/g) ?? []).toHaveLength(1);
+        // The PoP CTE should still have the shifted date range
         expect(query).toMatch(
             /DATE_TRUNC\('YEAR', "orders"\.order_date\) >= pop_min_max_[a-z0-9_]+\.min_date - INTERVAL '1 YEAR'/,
         );
@@ -4480,5 +4629,307 @@ describe('Default sort behavior', () => {
 
         // Should have no ORDER BY clause at all
         expect(result.query).not.toContain('ORDER BY');
+    });
+
+    test('Should have no ORDER BY when no dimensions but metrics present (e.g. calculate total)', () => {
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: [],
+                metrics: ['table1_metric1'],
+                sorts: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // No dimensions means single aggregated row, ORDER BY is meaningless
+        expect(result.query).not.toContain('ORDER BY');
+    });
+});
+
+describe('Nested aggregate metrics', () => {
+    test('should generate nested_agg CTE for metrics with nested aggregates and dimensions', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain both CTEs
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // CTE 1 should compute the inner metric
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+        // Final query should NOT contain nested aggregate
+        expect(result.query).not.toContain('SUM(MAX(');
+        // Results CTE should reference CTE 1 columns
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Outer SELECT should reference nested_agg_results (no aggregates)
+        expect(result.query).toContain('INNER JOIN nested_agg_results ON');
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+    });
+
+    test('should select FROM nested_agg when no dimensions are selected', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_NO_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).not.toContain('SUM(MAX(');
+        // With no dimensions and no other metrics, selects directly from the CTE
+        expect(result.query).toContain('FROM nested_agg');
+    });
+
+    test('should handle complex nested aggregate with mixed refs (agg + non-agg)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_COMPLEX,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain the nested_agg CTE
+        expect(result.query).toContain('nested_agg AS (');
+        // Should NOT contain nested aggregate
+        expect(result.query).not.toContain('SUM(MAX(');
+        // The count_records metric ref (non-nested) should still compile normally
+        expect(result.query).toContain('COUNT("my_table".id)');
+    });
+
+    test('should handle COUNT(DISTINCT) wrapping aggregate metric (PROD-5657)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain both CTEs
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // CTE 1 should compute the inner metric
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+        // Should NOT contain nested aggregate COUNT(DISTINCT MAX(...))
+        expect(result.query).not.toContain('COUNT(DISTINCT MAX(');
+        // Results CTE should reference CTE 1 columns
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Outer SELECT should reference nested_agg_results (no aggregates)
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_count_distinct_of_max"',
+        );
+    });
+
+    test('should handle conditional SUM wrapping aggregate metric', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_CONDITIONAL,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain the nested_agg CTE
+        expect(result.query).toContain('nested_agg AS (');
+        // Should NOT contain nested aggregate SUM(CASE WHEN MAX(...)...)
+        expect(result.query).not.toContain('SUM(CASE WHEN MAX(');
+        // Should reference the CTE column in the outer SQL
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+    });
+
+    test('should NOT generate CTE for product of aggregates (no outer aggregation)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_PRODUCT,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should NOT contain nested_agg CTE — no outer aggregation wrapping
+        expect(result.query).not.toContain('nested_agg AS (');
+        // SQL is valid: MAX(...) * COUNT(...) — sibling aggregates, not nested
+        expect(result.query).toContain('MAX("my_table".value)');
+        expect(result.query).toContain('COUNT("my_table".id)');
+    });
+
+    test('should route non-wrapping aggregate-referencing metrics through CTE when mixed with wrapping metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_MIXED,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should contain both CTEs
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // Should NOT contain nested aggregate
+        expect(result.query).not.toContain('SUM(MAX(');
+        // Results CTE should compute product_of_aggregates using CTE refs
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Outer SELECT should reference nested_agg_results columns (no aggregates)
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_product_of_aggregates"',
+        );
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+    });
+
+    test('should NOT route raw column aggregation + metric ref through CTE (sum(raw_col) / ${metric})', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_RAW_COL,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The raw_agg_with_ref metric (sum(raw_col) / ${count_records}) should NOT
+        // be in the nested_agg_results CTE because its sum() wraps a raw column,
+        // not a metric reference. It's valid SQL as-is: SUM(col) / COUNT(col).
+        // The sum_of_max metric should still use the CTE.
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        // sum_of_max should be in nested_agg_results
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+        // raw_agg_with_ref should be compiled directly in na_base (not in nested_agg_results)
+        // It should produce valid SQL: SUM("my_table".value) / NULLIF(COUNT("my_table".id), 0)
+        expect(result.query).toContain('SUM("my_table".value)');
+        expect(result.query).not.toContain(
+            'nested_agg_results."my_table_raw_agg_with_ref"',
+        );
+    });
+
+    test('should resolve ${TABLE} references to CTE alias inside nested_agg_results (GH-21089)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use nested CTE since window fn wraps aggregate metric ref
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+
+        // CTE 1 should compute the inner metric from the base table
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+
+        // BUG: Inside nested_agg_results, ${TABLE} resolves to "my_table"
+        // but only "nested_agg" is in scope (FROM nested_agg).
+        // This causes BigQuery to throw "Unrecognized name: my_table"
+        expect(result.query).not.toContain('PARTITION BY "my_table".category');
+        // The correct behavior: ${TABLE} should resolve to the CTE alias
+        expect(result.query).toContain(
+            'PARTITION BY nested_agg."my_table_category"',
+        );
+    });
+
+    test('should handle transitive nested aggregates (type:number → type:number with agg → type:max)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_TRANSITIVE,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use nested CTE to break apart the transitive nesting
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+
+        // CTE 1 should pre-compute the inner aggregate metric (max_value)
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+
+        // Final SQL should NOT contain nested aggregates like SUM(CASE WHEN MAX(...))
+        expect(result.query).not.toContain('SUM(CASE WHEN MAX(');
+    });
+
+    test('should handle transitive nested aggregates mixed with other nested metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use nested CTE
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+
+        // CTE 1 should pre-compute leaf aggregates only
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+
+        // No nested aggregation in the query (no SUM wrapping MAX)
+        expect(result.query).not.toContain('SUM(CASE WHEN MAX(');
+
+        // ratio_of_sum_case should reference CTE columns, not base table
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+    });
+
+    test('should emit nested aggregate metric only once when fanout CTEs are also generated', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG_AND_FANOUT,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_WITH_FANOUT,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('cte_metrics_my_table AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+        expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
+    });
+
+    test('should emit cross-table nested aggregate metric only once when fanout CTEs are also generated', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG_AND_FANOUT,
+            compiledMetricQuery:
+                METRIC_QUERY_NESTED_AGG_WITH_FANOUT_CROSS_TABLE,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('cte_metrics_my_table AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_cross_table_sum_of_max"',
+        );
+        expect(
+            result.query.match(/AS "my_table_cross_table_sum_of_max"/g),
+        ).toHaveLength(1);
     });
 });

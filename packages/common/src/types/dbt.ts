@@ -199,7 +199,7 @@ export type DbtColumnLightdashDimension = {
     type?: DimensionType;
     description?: string;
     sql?: string;
-    time_intervals?: boolean | 'default' | 'OFF' | TimeFrames[];
+    time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
@@ -221,6 +221,7 @@ export type DbtColumnLightdashDimension = {
         height?: number;
         fit?: string;
     };
+    richText?: string;
     spotlight?: {
         filter_by?: boolean;
         segment_by?: boolean;
@@ -263,6 +264,7 @@ export type DbtColumnLightdashMetric = {
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     ai_hint?: string | string[];
+    richText?: string;
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -461,6 +463,7 @@ export const isSupportedDbtAdapterType = (
 
 export interface DbtRpcGetManifestResults {
     manifest: DbtManifest;
+    selectedModelIds?: string[];
 }
 
 export const isDbtRpcManifestResults = (
@@ -647,6 +650,7 @@ export const convertModelMetric = ({
         }),
         ...(metric.drivers ? { drivers: metric.drivers } : {}),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
+        ...(metric.richText ? { richText: metric.richText } : {}),
     };
 };
 
@@ -783,13 +787,7 @@ export const getModelsFromManifest = (
         );
     }
     const adapterType = manifest.metadata.adapter_type;
-    return models
-        .filter(
-            (model) =>
-                model.config?.materialized &&
-                model.config.materialized !== 'ephemeral',
-        )
-        .map((model) => normaliseModelDatabase(model, adapterType));
+    return models.map((model) => normaliseModelDatabase(model, adapterType));
 };
 
 export function getCompiledModels(

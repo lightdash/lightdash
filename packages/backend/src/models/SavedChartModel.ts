@@ -300,12 +300,21 @@ const createSavedChartVersion = async (
                     dimension_id: customDimension.dimensionId,
                     table: customDimension.table,
                     bin_type: customDimension.binType,
-                    bin_number: customDimension.binNumber || null,
-                    bin_width: customDimension.binWidth || null,
+                    bin_number:
+                        customDimension.binType === BinType.FIXED_NUMBER
+                            ? customDimension.binNumber
+                            : null,
+                    bin_width:
+                        customDimension.binType === BinType.FIXED_WIDTH
+                            ? customDimension.binWidth
+                            : null,
                     custom_range:
-                        customDimension.customRange &&
-                        customDimension.customRange.length > 0
+                        customDimension.binType === BinType.CUSTOM_RANGE
                             ? JSON.stringify(customDimension.customRange)
+                            : null,
+                    custom_groups:
+                        customDimension.binType === BinType.CUSTOM_GROUP
+                            ? JSON.stringify(customDimension.customGroups)
                             : null,
                     order: tableConfig.columnOrder.findIndex(
                         (column) => column === getItemId(customDimension),
@@ -730,7 +739,9 @@ export class SavedChartModel {
     }
 
     async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid);
+        const savedChart = await this.get(savedChartUuid, undefined, {
+            deleted: 'any',
+        });
         await this.database(SavedChartsTableName)
             .delete()
             .where('saved_query_uuid', savedChartUuid);
@@ -839,7 +850,7 @@ export class SavedChartModel {
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
-        options?: { deleted?: boolean },
+        options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): Promise<SavedChartDAO> {
         return Sentry.startSpan(
             {
@@ -958,8 +969,10 @@ export class SavedChartModel {
                     .orderBy('saved_queries_versions.created_at', 'desc')
                     .limit(1);
 
-                // Filter by deleted status: deleted=true gets deleted charts, deleted=false (default) gets non-deleted
-                if (options?.deleted) {
+                // Filter by deleted status: deleted=true gets deleted charts, deleted='any' skips filter, default gets non-deleted
+                if (options?.deleted === 'any') {
+                    // No filter — find regardless of deleted status
+                } else if (options?.deleted) {
                     void chartQuery.whereNotNull(
                         `${SavedChartsTableName}.deleted_at`,
                     );
@@ -985,6 +998,13 @@ export class SavedChartModel {
                     void chartQuery.where(
                         `${SavedChartsTableName}.slug`,
                         savedChartUuidOrSlug,
+                    );
+                }
+
+                if (options?.projectUuid) {
+                    void chartQuery.where(
+                        `${ProjectTableName}.project_uuid`,
+                        options.projectUuid,
                     );
                 }
 
@@ -1183,17 +1203,46 @@ export class SavedChartModel {
                         customDimensions: [
                             ...(
                                 customBinDimensionsRows || []
-                            ).map<CustomBinDimension>((cd) => ({
-                                id: cd.id,
-                                name: cd.name,
-                                type: CustomDimensionType.BIN,
-                                dimensionId: cd.dimension_id,
-                                table: cd.table,
-                                binType: cd.bin_type as BinType,
-                                binNumber: cd.bin_number || undefined,
-                                binWidth: cd.bin_width || undefined,
-                                customRange: cd.custom_range || undefined,
-                            })),
+                            ).map<CustomBinDimension>((cd) => {
+                                const base = {
+                                    id: cd.id,
+                                    name: cd.name,
+                                    type: CustomDimensionType.BIN as const,
+                                    dimensionId: cd.dimension_id,
+                                    table: cd.table,
+                                };
+                                switch (cd.bin_type) {
+                                    case BinType.FIXED_NUMBER:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_NUMBER,
+                                            binNumber: cd.bin_number || 1,
+                                        };
+                                    case BinType.FIXED_WIDTH:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_WIDTH,
+                                            binWidth: cd.bin_width || 1,
+                                        };
+                                    case BinType.CUSTOM_RANGE:
+                                        return {
+                                            ...base,
+                                            binType: BinType.CUSTOM_RANGE,
+                                            customRange: cd.custom_range || [],
+                                        };
+                                    case BinType.CUSTOM_GROUP:
+                                        return {
+                                            ...base,
+                                            binType: BinType.CUSTOM_GROUP,
+                                            customGroups:
+                                                cd.custom_groups || [],
+                                        };
+                                    default:
+                                        throw new Error(
+                                            `Unknown bin type "${cd.bin_type}" for custom dimension "${cd.name}"`,
+                                        );
+                                }
+                            }),
                             ...(
                                 customSqlDimensionsRows || []
                             ).map<CustomSqlDimension>((cd) => ({
@@ -1315,13 +1364,32 @@ export class SavedChartModel {
         qb: Knex.QueryBuilder,
         projectUuid: string,
     ) {
-        // Use a derived table for MAX version instead of a correlated subquery per row.
-        // This lets PostgreSQL compute all max versions in a single pass (HashAggregate)
-        // rather than doing N index lookups for N charts.
+        // First, get all chart IDs that belong to this project
+        const projectChartIds = this.database
+            .select('sq.saved_query_id')
+            .from(`${SavedChartsTableName} as sq`)
+            .leftJoin(`${DashboardsTableName} as d`, function joinDashboards() {
+                this.on('d.dashboard_uuid', '=', 'sq.dashboard_uuid').andOnNull(
+                    'd.deleted_at',
+                );
+            })
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} as s ON s.space_id = COALESCE(sq.space_id, d.space_id) AND s.deleted_at IS NULL`,
+            )
+            .innerJoin(
+                `${ProjectTableName} as p`,
+                'p.project_id',
+                's.project_id',
+            )
+            .where('p.project_uuid', projectUuid)
+            .whereNull('sq.deleted_at');
+
+        // Select latest versions for charts in this project
         const latestVersions = this.database
             .select('saved_query_id')
             .max('saved_queries_version_id as max_version_id')
             .from(SavedChartVersionsTableName)
+            .whereIn('saved_query_id', projectChartIds)
             .groupBy('saved_query_id')
             .as('latest');
 

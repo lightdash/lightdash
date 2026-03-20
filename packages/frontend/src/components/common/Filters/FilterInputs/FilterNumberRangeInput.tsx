@@ -48,7 +48,7 @@ const FilterNumberRangeInput: FC<Props> = ({
                 <FilterNumberInput
                     error={!!errorMessage}
                     disabled={disabled}
-                    autoFocus={true}
+                    data-autofocus={autoFocus || undefined}
                     placeholder="Min value"
                     {...rest}
                     value={value?.[0]}

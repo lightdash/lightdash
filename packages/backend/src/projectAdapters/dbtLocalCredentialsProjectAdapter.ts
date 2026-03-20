@@ -25,7 +25,6 @@ type DbtLocalCredentialsProjectAdapterArgs = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
-    useDbtLs: boolean;
     selector?: string;
     analytics?: LightdashAnalytics;
 };
@@ -41,7 +40,6 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
-        useDbtLs,
         selector,
         analytics,
     }: DbtLocalCredentialsProjectAdapterArgs) {
@@ -83,7 +81,6 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             environment: updatedEnvironment,
             cachedWarehouse,
             dbtVersion,
-            useDbtLs,
             selector,
             analytics,
         });

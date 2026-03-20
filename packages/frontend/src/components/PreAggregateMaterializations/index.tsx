@@ -1,6 +1,7 @@
 import {
     type PreAggregateMaterializationStatus,
     type PreAggregateMaterializationSummary,
+    type PreAggregateMaterializationWarning,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -20,22 +21,24 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure, useLocalStorage } from '@mantine-8/hooks';
 import {
+    IconAlertTriangle,
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
+    IconBolt,
     IconCalendarTime,
     IconClock,
     IconColumns,
     IconExternalLink,
+    IconFile,
     IconFilter,
     IconFilterOff,
-    IconLayersIntersect,
+    IconHourglass,
     IconRefresh,
     IconRowInsertBottom,
     IconSearch,
     IconTable,
 } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import cronstrue from 'cronstrue';
 import {
     MantineReactTable,
@@ -47,13 +50,16 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
     useRefreshAllPreAggregates,
-    useRefreshPreAggregateByName,
+    useRefreshPreAggregateByDefinitionName,
 } from '../../hooks/usePreAggregateRefresh';
 import { useProject } from '../../hooks/useProject';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
+import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
+import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { formatDuration, formatFileSize } from './formatters';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -159,14 +165,16 @@ const StatusFilter: FC<{
 
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     const { isLoading: isLoadingProject } = useProject(projectUuid);
-    const queryClient = useQueryClient();
+    const { hasActiveJobs } = useSchedulerJobsContext();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
-        useRefreshAllPreAggregates(projectUuid);
+        useRefreshAllPreAggregates(projectUuid, { showToast: true });
     const {
         mutate: refreshByName,
         isLoading: isRefreshingOne,
-        variables: refreshingExploreName,
-    } = useRefreshPreAggregateByName(projectUuid);
+        variables: refreshingDefinitionName,
+    } = useRefreshPreAggregateByDefinitionName(projectUuid, {
+        showToast: false,
+    });
     const [
         isRefreshModalOpen,
         { open: openRefreshModal, close: closeRefreshModal },
@@ -198,13 +206,6 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         hasNextPage,
         isFetchingNextPage,
     } = usePreAggregateMaterializations(projectUuid);
-
-    const handleRefresh = () => {
-        void queryClient.invalidateQueries([
-            'preAggregateMaterializations',
-            projectUuid,
-        ]);
-    };
 
     useEffect(() => {
         if (hasNextPage && !isFetchingNextPage) {
@@ -262,8 +263,11 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         const active = filteredMaterializations.filter(
             (m) => m.materialization?.status === 'active',
         ).length;
+        const warningCount = filteredMaterializations.filter(
+            (m) => m.warnings.length > 0,
+        ).length;
 
-        return { total, active };
+        return { total, active, warningCount };
     }, [filteredMaterializations]);
 
     const columns = useMemo<
@@ -332,12 +336,29 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 ),
                 Cell: ({ row }) => {
                     const rowCount = row.original.materialization?.rowCount;
+                    const hasRowCountWarning = row.original.warnings.some(
+                        (w: PreAggregateMaterializationWarning) =>
+                            w.type === 'row_count_exceeded',
+                    );
                     return (
-                        <Text size="xs" c="ldGray.6" ff="monospace">
-                            {rowCount != null
-                                ? rowCount.toLocaleString()
-                                : '\u2014'}
-                        </Text>
+                        <Group gap={4} wrap="nowrap">
+                            <Text
+                                size="xs"
+                                c={hasRowCountWarning ? 'yellow.7' : 'ldGray.6'}
+                                ff="monospace"
+                            >
+                                {rowCount != null
+                                    ? rowCount.toLocaleString()
+                                    : '\u2014'}
+                            </Text>
+                            {hasRowCountWarning && (
+                                <MantineIcon
+                                    icon={IconAlertTriangle}
+                                    size="sm"
+                                    color="yellow.6"
+                                />
+                            )}
+                        </Group>
                     );
                 },
                 sortingFn: 'basic',
@@ -362,6 +383,52 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         </Text>
                     );
                 },
+            },
+            {
+                id: 'fileSize',
+                header: 'File size',
+                enableSorting: true,
+                size: 100,
+                accessorFn: (row) => row.materialization?.totalBytes ?? null,
+                Header: ({ column }) => (
+                    <Group gap="two" align="flex-start" wrap="nowrap">
+                        <MantineIcon icon={IconFile} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const bytes = row.original.materialization?.totalBytes;
+                    return (
+                        <Text size="xs" c="ldGray.6" ff="monospace">
+                            {bytes != null ? formatFileSize(bytes) : '\u2014'}
+                        </Text>
+                    );
+                },
+                sortingFn: 'basic',
+            },
+            {
+                id: 'buildTime',
+                header: 'Build time',
+                enableSorting: true,
+                size: 100,
+                accessorFn: (row) => row.materialization?.durationMs ?? null,
+                Header: ({ column }) => (
+                    <Group gap="two" align="flex-start" wrap="nowrap">
+                        <MantineIcon icon={IconHourglass} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const durationMs = row.original.materialization?.durationMs;
+                    return (
+                        <Text size="xs" c="ldGray.6" ff="monospace">
+                            {durationMs != null
+                                ? formatDuration(durationMs)
+                                : '\u2014'}
+                        </Text>
+                    );
+                },
+                sortingFn: 'basic',
             },
             {
                 id: 'materializedAt',
@@ -449,8 +516,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const isThisRowRefreshing =
                         isRefreshingOne &&
-                        refreshingExploreName ===
-                            row.original.preAggExploreName;
+                        refreshingDefinitionName ===
+                            row.original.preAggregateName;
                     return (
                         <Tooltip label="Refresh this pre-aggregate">
                             <ActionIcon
@@ -461,7 +528,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     refreshByName(
-                                        row.original.preAggExploreName,
+                                        row.original.preAggregateName,
                                     );
                                 }}
                             >
@@ -472,7 +539,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 },
             },
         ],
-        [isRefreshingOne, refreshingExploreName, refreshByName],
+        [isRefreshingOne, refreshingDefinitionName, refreshByName],
     );
 
     const table = useMantineReactTable({
@@ -539,17 +606,9 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 <Group gap="xs" wrap="nowrap">
                     <Text size="xs" c="dimmed">
                         {summary.active}/{summary.total} active
+                        {summary.warningCount > 0 &&
+                            `, ${summary.warningCount} warning${summary.warningCount > 1 ? 's' : ''}`}
                     </Text>
-                    <Tooltip label="Refresh">
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            onClick={handleRefresh}
-                        >
-                            <MantineIcon icon={IconRefresh} />
-                        </ActionIcon>
-                    </Tooltip>
                 </Group>
             </Group>
         ),
@@ -657,7 +716,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                             leftSection={
                                 <MantineIcon icon={IconRefresh} size="sm" />
                             }
-                            loading={isRefreshingAll}
+                            loading={isRefreshingAll || hasActiveJobs}
                             onClick={handleRefreshAllClick}
                         >
                             Refresh all
@@ -668,7 +727,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 {!isLoading && materializations.length === 0 ? (
                     <Paper withBorder radius="md" p="xxl">
                         <SuboptimalState
-                            icon={IconLayersIntersect}
+                            icon={IconBolt}
                             title="No pre-aggregates defined yet"
                             description="Define pre-aggregates in your dbt YAML to serve queries from materialized results instead of hitting your warehouse."
                         />
@@ -685,7 +744,8 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 onRefresh={refreshByName}
                 isRefreshing={
                     isRefreshingOne &&
-                    refreshingExploreName === selectedSummary?.preAggExploreName
+                    refreshingDefinitionName ===
+                        selectedSummary?.preAggregateName
                 }
             />
 
@@ -700,12 +760,23 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                 confirmLoading={isRefreshingAll}
                 description="This will refresh all pre-aggregate definitions in this project by re-running their warehouse queries to rebuild the cached data."
             >
-                <Text fz="xs" c="ldGray.6">
-                    Depending on the number of pre-aggregates and the size of
-                    your data, this may take several minutes and will use
-                    warehouse resources. You can track the progress in the table
-                    below.
-                </Text>
+                <Stack gap="sm">
+                    <Text fz="xs" c="ldGray.6">
+                        Depending on the number of pre-aggregates and the size
+                        of your data, this may take several minutes and will use
+                        warehouse resources. You can track the progress in the
+                        table below.
+                    </Text>
+                    {materializations.some((m) => m.warnings.length > 0) && (
+                        <Callout variant="warning" title="Large pre-aggregates">
+                            <Text fz="xs">
+                                Some pre-aggregates exceed the recommended row
+                                count threshold. Refreshing will re-query these
+                                large datasets from your warehouse.
+                            </Text>
+                        </Callout>
+                    )}
+                </Stack>
             </MantineModal>
         </>
     );

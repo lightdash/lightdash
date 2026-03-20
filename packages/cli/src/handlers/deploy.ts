@@ -28,7 +28,11 @@ import {
     createProject,
     resolveOrganizationCredentialsName,
 } from './createProject';
-import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import {
+    checkLightdashVersion,
+    lightdashApi,
+    setGzipEnabled,
+} from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import { logSelectedProject, selectProject } from './selectProject';
@@ -48,6 +52,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     useBatchedDeploy?: boolean;
     batchSize?: string;
     parallelBatches?: string;
+    gzip?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -490,6 +495,9 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectTypeConfig.type === CliProjectType.Dbt
             ? await tryGetDbtVersion()
             : { success: false as const, error: null };
+    if (options.gzip) {
+        setGzipEnabled(true);
+    }
     await checkLightdashVersion();
     const executionId = uuidv4();
     const explores = await compile(options);

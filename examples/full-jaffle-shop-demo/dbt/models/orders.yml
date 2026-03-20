@@ -9,6 +9,27 @@ models:
     config:
       tags: ["core", "ai"]
       meta:
+        pre_aggregates:
+          - name: orders_daily_avg_demo
+            dimensions:
+              - status
+            metrics:
+              - average_order_size
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: orders_daily_avg_demo_2
+            dimensions:
+              - status
+              - order_source
+              - order_priority
+              - customers.first_name
+            metrics:
+              - average_order_size
+              - total_order_amount
+              - total_completed_order_amount
+            time_dimension: order_date
+            granularity: day
         primary_key: order_id
         spotlight:
           categories:
@@ -160,7 +181,7 @@ models:
           meta:
             dimension:
               type: date
-              time_intervals: ["DAY", "WEEK", "MONTH", "YEAR", "MONTH_NAME", "DAY_OF_WEEK_NAME", "QUARTER_NAME"]
+              time_intervals: ["DAY", "WEEK", "MONTH", "YEAR", "MONTH_NAME", "DAY_OF_WEEK_NAME", "QUARTER_NAME", "fiscal_quarter", "biweekly"]
             metrics:
               date_of_first_order:
                 type: min
@@ -406,7 +427,7 @@ models:
                 type: string
                 label: Delivery Speed Tier
                 sql: |
-                  CASE 
+                  CASE
                     WHEN ${estimated_delivery_days} = 1 THEN 'Same/Next Day'
                     WHEN ${estimated_delivery_days} <= 3 THEN 'Fast (2-3 days)'
                     WHEN ${estimated_delivery_days} <= 5 THEN 'Standard (4-5 days)'
@@ -448,7 +469,7 @@ models:
                 type: string
                 label: Shipping Cost Tier
                 sql: |
-                  CASE 
+                  CASE
                   WHEN ${shipping_cost} < 10 THEN 'Low (<$10)'
                   WHEN ${shipping_cost} < 20 THEN 'Medium ($10-$20)'
                   WHEN ${shipping_cost} < 30 THEN 'High ($20-$30)'

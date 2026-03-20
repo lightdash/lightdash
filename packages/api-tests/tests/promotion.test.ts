@@ -8,6 +8,7 @@ import {
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { chartMock } from '../helpers/mocks';
+import { TestResourceTracker, uniqueName } from '../helpers/test-isolation';
 
 const apiUrl = '/api/v1';
 
@@ -73,7 +74,7 @@ async function createSpace(
 ): Promise<string> {
     const resp = await client.post<Body<{ uuid: string }>>(
         `/api/v1/projects/${projectUuid}/spaces/`,
-        { name: spaceName, isPrivate: false },
+        { name: spaceName, inheritParentPermissions: true },
     );
     expect(resp.status).toBe(200);
     return resp.body.results.uuid;
@@ -233,9 +234,10 @@ function checkPromotedDashboard(
 // --- Tests ---
 
 describe('Promotion charts and dashboards', () => {
-    const upstreamProjectName = `Upstream project ${Date.now()}`;
+    const upstreamProjectName = uniqueName('Upstream project');
     let upstreamProjectUuid: string;
     let admin: ApiClient;
+    const tracker = new TestResourceTracker();
 
     beforeAll(async () => {
         admin = await login();
@@ -249,6 +251,8 @@ describe('Promotion charts and dashboards', () => {
     });
 
     afterAll(async () => {
+        // Clean up spaces/charts/dashboards created in seed project
+        await tracker.cleanup(admin);
         // Delete upstream project
         await deleteProjectsByName(admin, [upstreamProjectName]);
     });
@@ -287,23 +291,24 @@ describe('Promotion charts and dashboards', () => {
     });
 
     it('Promote new chart in new space', async () => {
-        const now = Date.now();
         const spaceUuid = await createSpace(
             admin,
             SEED_PROJECT.project_uuid,
-            `Public space to promote ${now}`,
+            uniqueName('Public space to promote'),
         );
+        tracker.trackSpace(spaceUuid);
 
         const chart = await createChartInSpace(
             admin,
             SEED_PROJECT.project_uuid,
             {
                 ...chartMock,
-                name: `Chart to promote ${now}`,
+                name: uniqueName('Chart to promote'),
                 spaceUuid,
                 dashboardUuid: null,
             },
         );
+        tracker.trackChart(chart.uuid);
 
         const promoteResp = await admin.post<Body<Record<string, any>>>(
             `${apiUrl}/saved/${chart.uuid}/promote`,
@@ -358,24 +363,25 @@ describe('Promotion charts and dashboards', () => {
         // 3. Create a new dashboard with the chart
         // 4. Create chart within dashboard
         // 5. Promote the dashboard
-        const now = Date.now();
         const projectUuid = SEED_PROJECT.project_uuid;
 
         const spaceUuid = await createSpace(
             admin,
             projectUuid,
-            `Public space to promote ${now}`,
+            uniqueName('Public space to promote'),
         );
+        tracker.trackSpace(spaceUuid);
 
         const chart = await createChartInSpace(admin, projectUuid, {
             ...chartMock,
-            name: `Chart to promote ${now}`,
+            name: uniqueName('Chart to promote'),
             spaceUuid,
             dashboardUuid: null,
         });
+        tracker.trackChart(chart.uuid);
 
         const newDashboard = await createDashboard(admin, projectUuid, {
-            name: `Dashboard to promote ${now}`,
+            name: uniqueName('Dashboard to promote'),
             tiles: [
                 {
                     tabUuid: undefined,
@@ -391,15 +397,16 @@ describe('Promotion charts and dashboards', () => {
             ],
             tabs: [],
         });
+        tracker.trackDashboard(newDashboard.uuid);
         expect(newDashboard.tiles.length).toBe(1);
 
-        const { dashboard: updatedDashboard } =
+        const { chart: chartInDashboard, dashboard: updatedDashboard } =
             await createChartAndUpdateDashboard(
                 admin,
                 projectUuid,
                 {
                     ...chartMock,
-                    name: `Chart in dashboard to promote ${now}`,
+                    name: uniqueName('Chart in dashboard to promote'),
                     dashboardUuid: newDashboard.uuid,
                     spaceUuid: null,
                 },

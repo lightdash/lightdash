@@ -95,6 +95,7 @@ const projectModel = {
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
     updateTablesConfiguration: jest.fn(),
     getExploreFromCache: jest.fn(async () => validExplore),
+    getQueryTimezone: jest.fn(async () => null),
     findExploresFromCache: jest.fn(async () => allExplores),
     getAllExploreSummaries: jest.fn(async () =>
         allExplores.map(exploreToSummaryWithAttributes),
@@ -113,7 +114,7 @@ const projectModel = {
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
     getPreAggregateDefinitionsForProject: jest.fn(async () => []),
-    getPreAggregateDefinitionByName: jest.fn(async () => undefined),
+    getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -176,7 +177,12 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
-        featureFlagModel: {} as FeatureFlagModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({
+                id: '',
+                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
+            })),
+        } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
@@ -1240,9 +1246,9 @@ describe('ProjectService', () => {
             );
         });
 
-        test('refreshPreAggregateByName throws actionable error when definition is invalid', async () => {
+        test('refreshPreAggregateByDefinitionName throws actionable error when definition is invalid', async () => {
             (
-                preAggregateModel.getPreAggregateDefinitionByName as jest.Mock
+                preAggregateModel.getPreAggregateDefinitionByDefinitionName as jest.Mock
             ).mockResolvedValue({
                 preAggregateDefinitionUuid: 'def-invalid',
                 projectUuid,
@@ -1262,13 +1268,13 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.refreshPreAggregateByName(
+                service.refreshPreAggregateByDefinitionName(
                     adminUser,
                     projectUuid,
-                    'orders__invalid',
+                    'invalid',
                 ),
             ).rejects.toThrowError(
-                'Pre-aggregate explore "orders__invalid" cannot be materialized: Unknown metric "orders.count"',
+                'Pre-aggregate definition "invalid" cannot be materialized: Unknown metric "orders.count"',
             );
         });
     });

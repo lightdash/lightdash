@@ -30,18 +30,20 @@ export const useSpaceManagement = ({
     }, [defaultSpaceUuid]);
 
     const handleCreateNewSpace = useCallback(
-        async ({ isPrivate }: { isPrivate?: boolean } = {}) => {
+        async ({
+            inheritParentPermissions: inheritOverride,
+        }: { inheritParentPermissions?: boolean } = {}) => {
             if (newSpaceName.length === 0) return;
 
             const inheritParentPermissions =
-                inheritanceValue !== null
+                inheritOverride ??
+                (inheritanceValue !== null
                     ? inheritanceValue === InheritanceType.INHERIT
-                    : undefined;
+                    : undefined);
 
             const result = await createSpaceMutation.mutateAsync({
                 name: newSpaceName,
                 parentSpaceUuid: selectedSpaceUuid || undefined,
-                ...(isPrivate && { isPrivate }),
                 ...(inheritParentPermissions !== undefined && {
                     inheritParentPermissions,
                 }),

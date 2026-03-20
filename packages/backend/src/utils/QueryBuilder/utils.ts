@@ -15,6 +15,8 @@ import {
     FieldId,
     FieldReferenceError,
     ForbiddenError,
+    getCustomGroupOrderSql,
+    getCustomGroupSelectSql,
     getCustomRangeSelectSql,
     getDateDimension,
     getDimensionMapFromTables,
@@ -590,6 +592,7 @@ export const getCustomBinDimensionSql = ({
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
             case BinType.CUSTOM_RANGE:
+            case BinType.CUSTOM_GROUP:
                 // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
@@ -619,29 +622,28 @@ export const getCustomBinDimensionSql = ({
 
                 return [...acc, cte];
             default:
-                assertUnreachable(
-                    customDimension.binType,
-                    `Unknown bin type on cte: ${customDimension.binType}`,
+                return assertUnreachable(
+                    customDimension,
+                    `Unknown bin type on cte`,
                 );
         }
-        return acc;
     }, []);
 
     const joins = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.CUSTOM_RANGE:
             case BinType.FIXED_WIDTH:
+            case BinType.CUSTOM_GROUP:
                 // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
                 return [...acc, getCteReference(customDimension)];
             default:
-                assertUnreachable(
-                    customDimension.binType,
-                    `Unknown bin type on join: ${customDimension.binType}`,
+                return assertUnreachable(
+                    customDimension,
+                    `Unknown bin type on join`,
                 );
         }
-        return acc;
     }, []);
 
     const tables = customDimensions.map(
@@ -679,15 +681,9 @@ export const getCustomBinDimensionSql = ({
 
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
-                if (!customDimension.binWidth) {
-                    throw new Error(
-                        `Undefined binWidth for custom dimension ${BinType.FIXED_WIDTH} `,
-                    );
-                }
-
                 const width = customDimension.binWidth;
                 const widthSql = `${getFixedWidthBinSelectSql({
-                    binWidth: customDimension.binWidth || 1,
+                    binWidth: customDimension.binWidth,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
                 })} AS ${quotedDimensionName}`;
@@ -698,12 +694,6 @@ export const getCustomBinDimensionSql = ({
                     `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
                 break;
             case BinType.FIXED_NUMBER:
-                if (!customDimension.binNumber) {
-                    throw new Error(
-                        `Undefined binNumber for custom dimension ${BinType.FIXED_NUMBER} `,
-                    );
-                }
-
                 if (customDimension.binNumber <= 1) {
                     // Edge case, bin number with only one bucket does not need a CASE statement
                     selects[dimensionId] = `${warehouseSqlBuilder.concatString(
@@ -724,7 +714,7 @@ export const getCustomBinDimensionSql = ({
                 const binWhens = Array.from(
                     Array(customDimension.binNumber).keys(),
                 ).map((i) => {
-                    if (i !== customDimension.binNumber! - 1) {
+                    if (i !== customDimension.binNumber - 1) {
                         return `WHEN ${dimension.compiledSql} >= ${from(
                             i,
                         )} AND ${dimension.compiledSql} < ${to(
@@ -756,7 +746,7 @@ export const getCustomBinDimensionSql = ({
                 const sortBinWhens = Array.from(
                     Array(customDimension.binNumber).keys(),
                 ).map((i) => {
-                    if (i !== customDimension.binNumber! - 1) {
+                    if (i !== customDimension.binNumber - 1) {
                         return `WHEN ${dimension.compiledSql} >= ${from(
                             i,
                         )} AND ${dimension.compiledSql} < ${to(i)} THEN ${i}`;
@@ -775,14 +765,8 @@ export const getCustomBinDimensionSql = ({
                         AS ${quotedDimensionOrder}`;
                 break;
             case BinType.CUSTOM_RANGE:
-                if (!customDimension.customRange) {
-                    throw new Error(
-                        `Undefined customRange for custom dimension ${BinType.CUSTOM_RANGE} `,
-                    );
-                }
-
                 const customRangeSql = `${getCustomRangeSelectSql({
-                    binRanges: customDimension.customRange || [],
+                    binRanges: customDimension.customRange,
                     baseDimensionSql: dimension.compiledSql,
                     warehouseSqlBuilder,
                 })} AS ${quotedDimensionName}`;
@@ -813,10 +797,24 @@ export const getCustomBinDimensionSql = ({
                     AS ${quotedDimensionOrder}`;
                 break;
 
+            case BinType.CUSTOM_GROUP:
+                selects[dimensionId] = `${getCustomGroupSelectSql({
+                    binGroups: customDimension.customGroups,
+                    baseDimensionSql: dimension.compiledSql,
+                    warehouseSqlBuilder,
+                })} AS ${quotedDimensionName}`;
+
+                selects[orderDimensionId] = `${getCustomGroupOrderSql({
+                    binGroups: customDimension.customGroups,
+                    baseDimensionSql: dimension.compiledSql,
+                    warehouseSqlBuilder,
+                })} AS ${quotedDimensionOrder}`;
+                break;
+
             default:
                 assertUnreachable(
-                    customDimension.binType,
-                    `Unknown bin type on select: ${customDimension.binType}`,
+                    customDimension,
+                    `Unknown bin type on select`,
                 );
         }
     });

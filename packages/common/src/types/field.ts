@@ -205,6 +205,7 @@ export enum BinType {
     FIXED_NUMBER = 'fixed_number',
     FIXED_WIDTH = 'fixed_width',
     CUSTOM_RANGE = 'custom_range',
+    CUSTOM_GROUP = 'custom_group',
 }
 
 export type BinRange = {
@@ -212,6 +213,25 @@ export type BinRange = {
     from: number | undefined;
     /** End value for this bin range (undefined for the last range) */
     to: number | undefined;
+};
+
+export enum GroupValueMatchType {
+    EXACT = 'exact',
+    STARTS_WITH = 'startsWith',
+    ENDS_WITH = 'endsWith',
+    INCLUDES = 'includes',
+}
+
+export type GroupValueRule = {
+    matchType: GroupValueMatchType;
+    value: string;
+};
+
+export type BinGroup = {
+    /** Display name for this group (e.g. "North America") */
+    name: string;
+    /** Rules that match values into this group */
+    values: GroupValueRule[];
 };
 
 export enum CustomDimensionType {
@@ -230,19 +250,37 @@ export interface BaseCustomDimension {
     type: CustomDimensionType;
 }
 
-export interface CustomBinDimension extends BaseCustomDimension {
+interface BaseCustomBinDimension extends BaseCustomDimension {
     type: CustomDimensionType.BIN;
     /** Field ID of the parent dimension to bin */
     dimensionId: FieldId;
-    /** Binning strategy to use */
-    binType: BinType;
-    /** Number of bins (for fixed_number bin type) */
-    binNumber?: number;
-    /** Width of each bin (for fixed_width bin type) */
-    binWidth?: number;
-    /** Custom bin ranges (for custom_range bin type) */
-    customRange?: BinRange[];
 }
+
+export interface FixedNumberBinDimension extends BaseCustomBinDimension {
+    binType: BinType.FIXED_NUMBER;
+    binNumber: number;
+}
+
+export interface FixedWidthBinDimension extends BaseCustomBinDimension {
+    binType: BinType.FIXED_WIDTH;
+    binWidth: number;
+}
+
+export interface CustomRangeBinDimension extends BaseCustomBinDimension {
+    binType: BinType.CUSTOM_RANGE;
+    customRange: BinRange[];
+}
+
+export interface CustomGroupBinDimension extends BaseCustomBinDimension {
+    binType: BinType.CUSTOM_GROUP;
+    customGroups: BinGroup[];
+}
+
+export type CustomBinDimension =
+    | FixedNumberBinDimension
+    | FixedWidthBinDimension
+    | CustomRangeBinDimension
+    | CustomGroupBinDimension;
 
 export interface CustomSqlDimension extends BaseCustomDimension {
     type: CustomDimensionType.SQL;
@@ -618,6 +656,7 @@ export interface Dimension extends Field {
     anyAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
+    customTimeInterval?: string;
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
@@ -630,6 +669,7 @@ export interface Dimension extends Field {
         height?: number;
         fit?: string;
     };
+    richText?: string; // The markdown/HTML template with LiquidJS variables
     spotlight?: {
         filterBy?: boolean;
         segmentBy?: boolean;
@@ -804,6 +844,23 @@ export const isMetric = (
 export const isNonAggregateMetric = (field: Field): boolean =>
     isMetric(field) && NonAggregateMetricTypes.includes(field.type);
 
+export const AggregateMetricTypes = [
+    MetricType.SUM,
+    MetricType.COUNT,
+    MetricType.COUNT_DISTINCT,
+    MetricType.AVERAGE,
+    MetricType.MIN,
+    MetricType.MAX,
+    MetricType.MEDIAN,
+    MetricType.PERCENTILE,
+] as const;
+
+export const isAggregateMetricType = (type: MetricType): boolean =>
+    (AggregateMetricTypes as readonly MetricType[]).includes(type);
+
+export const isNonAggregateMetricType = (type: MetricType): boolean =>
+    NonAggregateMetricTypes.includes(type);
+
 export const isPostCalculationMetricType = (type: MetricType): boolean =>
     PostCalculationMetricTypes.includes(type);
 
@@ -835,6 +892,7 @@ export interface Metric extends Field {
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     aiHint?: string | string[];
+    richText?: string; // The markdown/HTML template with LiquidJS variables
 }
 
 export const isFilterableDimension = (

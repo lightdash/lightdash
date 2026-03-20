@@ -213,13 +213,29 @@ export const Layout: FC<Props> = ({ items }) => {
                                     <MantineIcon icon={IconRotate360} />
                                 </ActionIcon>
                             </Tooltip>
-                            {dirtyLayout?.xField === EMPTY_X_AXIS && (
-                                <AddButton
-                                    onClick={() =>
-                                        setXField(getItemId(items[0]))
-                                    }
-                                />
-                            )}
+                            {dirtyLayout?.xField === EMPTY_X_AXIS &&
+                                (() => {
+                                    const availableXField = items.find(
+                                        (item) =>
+                                            !pivotDimensions?.includes(
+                                                getItemId(item),
+                                            ),
+                                    );
+                                    return (
+                                        <AddButton
+                                            disabled={!availableXField}
+                                            onClick={() => {
+                                                if (availableXField) {
+                                                    setXField(
+                                                        getItemId(
+                                                            availableXField,
+                                                        ),
+                                                    );
+                                                }
+                                            }}
+                                        />
+                                    );
+                                })()}
                         </Group>
                     </Config.Group>
                     {dirtyLayout?.xField !== EMPTY_X_AXIS && (
@@ -227,6 +243,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             data-testid="x-axis-field-select"
                             item={xAxisField}
                             items={items}
+                            inactiveItemIds={pivotDimensions}
                             onChange={handleOnChangeOfXAxisField}
                             rightSection={
                                 <CloseButton

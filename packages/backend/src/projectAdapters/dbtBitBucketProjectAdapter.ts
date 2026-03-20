@@ -23,7 +23,6 @@ type Args = {
     environment: DbtProjectEnvironmentVariable[] | undefined;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
-    useDbtLs: boolean;
     selector?: string;
     analytics?: LightdashAnalytics;
 };
@@ -43,7 +42,6 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
         environment,
         cachedWarehouse,
         dbtVersion,
-        useDbtLs,
         selector,
     }: Args) {
         const remoteRepositoryUrl = `https://${username}:${personalAccessToken}@${
@@ -61,7 +59,6 @@ export class DbtBitBucketProjectAdapter extends DbtGitProjectAdapter {
             environment,
             cachedWarehouse,
             dbtVersion,
-            useDbtLs,
             selector,
         });
     }

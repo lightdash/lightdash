@@ -1,12 +1,13 @@
 import {
+    BinType,
     ChartType,
     CustomDimensionType,
     DateGranularity,
     getItemId,
     isCartesianChartConfig,
+    type BinRange,
     type ChartConfig,
     type CreateSavedChartVersion,
-    type CustomBinDimension,
     type CustomDimension,
     type Metric,
     type MetricQuery,
@@ -111,16 +112,23 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     };
 };
 
-export const useDateZoomGranularitySearch = (): DateGranularity | undefined => {
+export const useDateZoomGranularitySearch = ():
+    | DateGranularity
+    | string
+    | undefined => {
     const { search } = useLocation();
 
     const searchParams = new URLSearchParams(search);
     const dateZoomParam = searchParams.get('dateZoom');
-    const dateZoom = Object.values(DateGranularity).find(
+    if (!dateZoomParam) return undefined;
+
+    const standardMatch = Object.values(DateGranularity).find(
         (granularity) =>
-            granularity.toLowerCase() === dateZoomParam?.toLowerCase(),
+            granularity.toLowerCase() === dateZoomParam.toLowerCase(),
     );
-    return dateZoom;
+    // Return standard match if found, otherwise use the param directly
+    // (supports custom granularity keys like "slt_week")
+    return standardMatch ?? dateZoomParam;
 };
 
 // To handle older url params where exploreName wasn't required
@@ -143,6 +151,7 @@ const parseChartFromExplorerSearchParams = (
             JSON.parse(chartConfigSearchParam);
         return {
             ...parsedValue,
+            tableConfig: parsedValue.tableConfig ?? { columnOrder: [] },
             metricQuery: {
                 ...parsedValue.metricQuery,
                 exploreName:
@@ -152,13 +161,46 @@ const parseChartFromExplorerSearchParams = (
                     parsedValue.metricQuery.customDimensions?.map<CustomDimension>(
                         (customDimension) => {
                             if (customDimension.type === undefined) {
-                                return {
-                                    ...(customDimension as CustomBinDimension),
-                                    type: CustomDimensionType.BIN, // add type for backwards compatibility
+                                // backwards compat: old URLs lack type field and use flat shape
+                                const raw =
+                                    customDimension as unknown as Record<
+                                        string,
+                                        unknown
+                                    >;
+                                const base = {
+                                    id: raw.id as string,
+                                    name: raw.name as string,
+                                    type: CustomDimensionType.BIN as const,
+                                    dimensionId: raw.dimensionId as string,
+                                    table: raw.table as string,
                                 };
-                            } else {
-                                return customDimension;
+                                switch (raw.binType) {
+                                    case BinType.FIXED_WIDTH:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_WIDTH,
+                                            binWidth:
+                                                (raw.binWidth as number) || 1,
+                                        };
+                                    case BinType.CUSTOM_RANGE:
+                                        return {
+                                            ...base,
+                                            binType: BinType.CUSTOM_RANGE,
+                                            customRange:
+                                                (raw.customRange as BinRange[]) ||
+                                                [],
+                                        };
+                                    case BinType.FIXED_NUMBER:
+                                    default:
+                                        return {
+                                            ...base,
+                                            binType: BinType.FIXED_NUMBER,
+                                            binNumber:
+                                                (raw.binNumber as number) || 1,
+                                        };
+                                }
                             }
+                            return customDimension;
                         },
                     ),
             },

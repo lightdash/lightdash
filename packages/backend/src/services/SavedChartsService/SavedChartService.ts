@@ -517,7 +517,6 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -594,7 +593,6 @@ export class SavedChartService
         }
         return {
             ...savedChart,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -693,7 +691,6 @@ export class SavedChartService
                     );
                 return {
                     ...savedChart,
-                    isPrivate: !inheritsFromOrgOrProject,
                     inheritsFromOrgOrProject,
                     access,
                 };
@@ -713,15 +710,18 @@ export class SavedChartService
     async delete(
         user: SessionUser,
         savedChartUuid: string,
-        options?: SoftDeleteOptions,
+        options?: SoftDeleteOptions & { projectUuid?: string },
     ): Promise<void> {
         const {
+            uuid: resolvedUuid,
             organizationUuid,
             projectUuid,
             spaceUuid,
             metricQuery: { metrics, dimensions },
             tableName,
-        } = await this.savedChartModel.get(savedChartUuid);
+        } = await this.savedChartModel.get(savedChartUuid, undefined, {
+            projectUuid: options?.projectUuid,
+        });
 
         if (!options?.bypassPermissions) {
             const { inheritsFromOrgOrProject, access } =
@@ -745,11 +745,11 @@ export class SavedChartService
         }
 
         if (this.lightdashConfig.softDelete.enabled) {
-            await this.softDelete(user, savedChartUuid, {
+            await this.softDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         } else {
-            await this.permanentDelete(user, savedChartUuid, {
+            await this.permanentDelete(user, resolvedUuid, {
                 bypassPermissions: true, // perms checked above
             });
         }
@@ -916,8 +916,13 @@ export class SavedChartService
     async get(
         savedChartUuidOrSlug: string,
         account: Account,
+        options?: { projectUuid?: string },
     ): Promise<SavedChart> {
-        const savedChart = await this.savedChartModel.get(savedChartUuidOrSlug);
+        const savedChart = await this.savedChartModel.get(
+            savedChartUuidOrSlug,
+            undefined,
+            { projectUuid: options?.projectUuid },
+        );
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
@@ -943,7 +948,6 @@ export class SavedChartService
 
         return {
             ...savedChart,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -1080,7 +1084,6 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -1194,7 +1197,6 @@ export class SavedChartService
 
         return {
             ...newSavedChart,
-            isPrivate: !inheritsFromOrgOrProject,
             inheritsFromOrgOrProject,
             access,
         };
@@ -1424,7 +1426,6 @@ export class SavedChartService
             ...chartVersionSummary,
             chart: {
                 ...savedChart,
-                isPrivate: !inheritsFromOrgOrProject,
                 inheritsFromOrgOrProject,
                 access,
             },

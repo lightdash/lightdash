@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2578.1",
+    "version": "0.2644.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -27,7 +27,8 @@
             "hono": ">=4.11.8",
             "tar": ">=7.5.7",
             "eslint": "^8.57.1",
-            "canvas": "^3.0.0"
+            "canvas": "^3.0.0",
+            "express-rate-limit": ">=8.2.2"
         }
     },
     "dependencies": {
@@ -78,6 +79,8 @@
         "backend-dev": "pnpm -F backend dev",
         "backend-build": "pnpm -F backend build",
         "backend-start": "pnpm -F backend start",
+        "backend-nats-worker": "pnpm -F backend nats-worker",
+        "backend-nats-worker-dev": "pnpm -F backend nats-worker-dev",
         "backend-lint": "pnpm -F backend lint",
         "backend-format": "pnpm -F backend format",
         "backend-fix-lint": "pnpm -F backend fix-lint",

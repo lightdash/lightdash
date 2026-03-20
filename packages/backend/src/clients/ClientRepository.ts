@@ -8,6 +8,7 @@ import { type FileStorageClient } from './FileStorage/FileStorageClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { GoogleChatClient } from './GoogleChat/GoogleChatClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
+import { NatsClient } from './NatsClient';
 import { S3ResultsFileStorageClient } from './ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from './Slack/SlackClient';
 
@@ -17,6 +18,7 @@ import { SlackClient } from './Slack/SlackClient';
  */
 
 export interface ClientManifest {
+    natsClient: NatsClient;
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
     s3CacheClient: S3CacheClient;
@@ -116,6 +118,16 @@ export class ClientRepository
      * Holds memoized instances of clients after their initial instantiation:
      */
     protected clientInstances: Partial<ClientManifest> = {};
+
+    public getNatsClient(): NatsClient {
+        return this.getClient(
+            'natsClient',
+            () =>
+                new NatsClient({
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
 
     public getEmailClient(): EmailClient {
         return this.getClient(
