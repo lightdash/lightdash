@@ -653,6 +653,28 @@ describe('Filter SQL', () => {
         },
     );
 
+    test('should return multi-value not equals date filter sql', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                {
+                    id: 'test-id',
+                    target: { fieldId: 'created_at' },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: [
+                        new Date('2024-01-01T00:00:00Z'),
+                        new Date('2024-02-01T00:00:00Z'),
+                    ],
+                },
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `((customers.created) NOT IN (('2024-01-01 00:00:00'),('2024-02-01 00:00:00')) OR (customers.created) IS NULL)`,
+        );
+    });
+
     test('should return single value in includes filter sql', () => {
         expect(
             renderStringFilterSql(
@@ -1219,6 +1241,18 @@ describe('Boolean Filter SQL', () => {
             // This test will fail initially because current implementation uses "true"
             expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
                 '((("table"."is_active")) != false OR (("table"."is_active")) IS NULL)',
+            );
+        });
+
+        it('should handle multiple boolean values from Other drill-through', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: ['true', 'false'],
+            };
+
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '((("table"."is_active")) NOT IN (true,false) OR (("table"."is_active")) IS NULL)',
             );
         });
     });

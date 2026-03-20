@@ -275,16 +275,26 @@ export const renderDateFilterSql = (
                 return `('${value}')`;
         }
     };
+    const castValues = (values: unknown[] | undefined): string[] =>
+        values?.map((value) => castValue(dateFormatter(value as Date))) ?? [];
 
     switch (filter.operator) {
-        case FilterOperator.EQUALS:
-            return `(${dimensionSql}) = ${castValue(
-                dateFormatter(filter.values?.[0]),
-            )}`;
-        case FilterOperator.NOT_EQUALS:
-            return `((${dimensionSql}) != ${castValue(
-                dateFormatter(filter.values?.[0]),
-            )} OR (${dimensionSql}) IS NULL)`;
+        case FilterOperator.EQUALS: {
+            const values = castValues(filter.values);
+            if (values.length === 0) return 'true';
+            if (values.length === 1) {
+                return `(${dimensionSql}) = ${values[0]}`;
+            }
+            return `(${dimensionSql}) IN (${values.join(',')})`;
+        }
+        case FilterOperator.NOT_EQUALS: {
+            const values = castValues(filter.values);
+            if (values.length === 0) return 'true';
+            if (values.length === 1) {
+                return `((${dimensionSql}) != ${values[0]} OR (${dimensionSql}) IS NULL)`;
+            }
+            return `((${dimensionSql}) NOT IN (${values.join(',')}) OR (${dimensionSql}) IS NULL)`;
+        }
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
@@ -452,15 +462,21 @@ export const renderBooleanFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
 ): string => {
+    const booleanValues = filter.values?.map(convertToBooleanValue) ?? [];
+
     switch (filter.operator) {
         case 'equals':
-            return `(${dimensionSql}) = ${convertToBooleanValue(
-                filter.values?.[0],
-            )}`;
+            if (booleanValues.length === 0) return 'true';
+            if (booleanValues.length === 1) {
+                return `(${dimensionSql}) = ${booleanValues[0]}`;
+            }
+            return `(${dimensionSql}) IN (${booleanValues.join(',')})`;
         case 'notEquals':
-            return `((${dimensionSql}) != ${convertToBooleanValue(
-                filter.values?.[0],
-            )} OR (${dimensionSql}) IS NULL)`;
+            if (booleanValues.length === 0) return 'true';
+            if (booleanValues.length === 1) {
+                return `((${dimensionSql}) != ${booleanValues[0]} OR (${dimensionSql}) IS NULL)`;
+            }
+            return `((${dimensionSql}) NOT IN (${booleanValues.join(',')}) OR (${dimensionSql}) IS NULL)`;
         case 'isNull':
             return `(${dimensionSql}) IS NULL`;
         case 'notNull':
