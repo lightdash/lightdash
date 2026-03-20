@@ -163,13 +163,7 @@ Before implementing the new path:
 - `packages/backend/src/services/ProjectService/ProjectService.ts`
 - `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
 
-Add:
-
-```typescript
-FeatureFlags.GroupLimitRawOther = 'group-limit-raw-other';
-```
-
-Resolve once in the service layer (not inside query builders). Pass the resolved boolean into `PivotQueryBuilder` as a constructor arg.
+Resolve `FeatureFlags.GroupLimitEnabled` once in the service layer (not inside query builders). Pass the resolved boolean into `PivotQueryBuilder` as a constructor arg.
 
 When the flag is off, behavior must be identical to today.
 
@@ -534,7 +528,7 @@ Result-level tests (on seeded data):
 
 | File | Change | Risk |
 |------|--------|------|
-| `packages/common/src/types/featureFlags.ts` | Add `GroupLimitRawOther` flag | Low |
+| `packages/common/src/types/featureFlags.ts` | Reuse `GroupLimitEnabled` for raw "Other" rollout | Low |
 | `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` | Emit `pivotSource` with raw expressions and metric input metadata | **High** |
 | `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts` | Add raw bucketed "Other" path with scope, bucketing, and per-metric aggregation CTEs | **High** |
 | `packages/backend/src/services/ProjectService/ProjectService.ts` | Thread `pivotSource` and flag into PivotQueryBuilder | Medium |

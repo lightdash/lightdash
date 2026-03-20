@@ -438,7 +438,7 @@ export class ProjectService extends BaseService {
         this.spacePermissionService = spacePermissionService;
     }
 
-    protected async isGroupLimitRawOtherEnabled(
+    protected async isGroupLimitEnabled(
         userId: string,
         organizationUuid: string,
     ): Promise<boolean> {
@@ -448,7 +448,7 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 organizationName: '',
             },
-            featureFlagId: FeatureFlags.GroupLimitRawOther,
+            featureFlagId: FeatureFlags.GroupLimitEnabled,
         });
         return enabled;
     }
@@ -3115,7 +3115,7 @@ export class ProjectService extends BaseService {
         // Generate pivot query if pivot configuration is provided
         let pivotQuery: string | undefined;
         if (pivotConfiguration) {
-            const rawOtherEnabled = await this.isGroupLimitRawOtherEnabled(
+            const rawOtherEnabled = await this.isGroupLimitEnabled(
                 account.user.id,
                 organizationUuid,
             );

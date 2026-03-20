@@ -8,10 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useFeatureFlagEnabled as useFeatureFlagEnabledPosthog } from 'posthog-js/react';
 import { lightdashApi } from '../api';
 
-const FORCED_LOCAL_FEATURE_FLAGS = new Set<string>([
-    'group-limit-enabled',
-    'group-limit-raw-other',
-]);
+const FORCED_LOCAL_FEATURE_FLAGS = new Set<string>(['group-limit-enabled']);
 
 /**
  * Use Client Feature Flag to get the feature flag from the client directly from posthog.

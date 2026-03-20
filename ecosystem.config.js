@@ -53,7 +53,7 @@ module.exports = {
             env: {
                 ...envWithPath,
                 LIGHTDASH_MODE: 'development',
-                LIGHTDASH_FORCED_FEATURE_FLAGS: 'group-limit-enabled,group-limit-raw-other',
+                LIGHTDASH_FORCED_FEATURE_FLAGS: 'group-limit-enabled',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
                 SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',

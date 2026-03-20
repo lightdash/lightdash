@@ -2677,7 +2677,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const timezone = await this.getQueryTimezoneForProject(projectUuid);
-        const rawOtherEnabled = await this.isGroupLimitRawOtherEnabled(
+        const rawOtherEnabled = await this.isGroupLimitEnabled(
             account.user.id,
             account.organization.organizationUuid,
         );
