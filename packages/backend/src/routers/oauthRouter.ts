@@ -3,6 +3,7 @@ import {
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     getClientName,
+    getErrorMessage,
     OAuthIntrospectResponse,
     parseScopeString,
     type OAuthUserInfoResponse,
@@ -295,6 +296,51 @@ oauthRouter.post('/revoke', async (req, res) => {
     return res.status(200).send();
 });
 
+// Dynamic Client Registration endpoint (RFC 7591)
+// Used by MCP clients to self-register — must remain unauthenticated
+oauthRouter.post('/register', async (req, res) => {
+    try {
+        const { client_name, redirect_uris, scope, grantTypes } = req.body;
+
+        Logger.info(
+            `Registering Oauth client ${client_name} with redirect_uris ${redirect_uris} and scopes ${scope}`,
+        );
+
+        if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
+            return res.status(400).json({
+                error: 'invalid_client_metadata',
+                error_description: 'client_name and redirect_uris are required',
+            });
+        }
+
+        const scopes = typeof scope === 'string' ? scope.split(' ') : [];
+
+        const client = await getOAuthService(req).registerClient({
+            clientName: client_name,
+            redirectUris: redirect_uris,
+            grantTypes,
+            scopes,
+        });
+
+        return res.status(201).json({
+            client_id: client.clientId,
+            client_secret: client.clientSecret,
+            client_name: client.clientName,
+            redirect_uris: client.redirectUris,
+            grant_types: client.grantTypes,
+            scope: client.scopes.join(' '),
+            client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
+        });
+    } catch (error) {
+        Logger.error(`Client registration error: ${getErrorMessage(error)}`);
+        return res.status(500).json({
+            error: 'server_error',
+            error_description:
+                'Internal server error during client registration',
+        });
+    }
+});
+
 // UserInfo endpoint (OpenID Connect)
 oauthRouter.get(
     '/userinfo',
@@ -400,6 +446,7 @@ export function oauthConfig(baseUrl: string) {
         token_endpoint: `${baseUrl}/api/v1/oauth/token`,
         introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
         revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
+        registration_endpoint: `${baseUrl}/api/v1/oauth/register`,
         userinfo_endpoint: `${baseUrl}/api/v1/oauth/userinfo`,
         response_types_supported: ['code'],
         grant_types_supported: [

@@ -400,7 +400,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             .andWhere('organization_uuid', organizationUuid)
             .update({
                 client_name: clientName,
-                redirect_uris: JSON.stringify(redirectUris),
+                redirect_uris: redirectUris,
             })
             .returning('*');
 

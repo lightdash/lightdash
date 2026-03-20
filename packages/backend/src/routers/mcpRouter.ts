@@ -149,7 +149,7 @@ mcpRouter.all(
                     extractUserAttributesFromHeader(req);
 
                 // Add auth info to request for the transport
-                // The token details is loaded on the authentication middleware allowOauthAuthentication
+                // The token details is loaded on the authentication middleware allowApiKeyAuthentication
                 const authReq: IncomingMessage & {
                     auth?: AuthInfo;
                 } = req;

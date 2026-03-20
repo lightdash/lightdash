@@ -99,6 +99,34 @@ export class OAuthService extends BaseService {
         return false;
     }
 
+    public async registerClient({
+        clientName,
+        redirectUris,
+        grantTypes,
+        scopes,
+    }: {
+        clientName: string;
+        redirectUris: string[];
+        grantTypes?: string[];
+        scopes?: string[];
+    }) {
+        for (const uri of redirectUris) {
+            try {
+                // eslint-disable-next-line no-new
+                new URL(uri);
+            } catch {
+                throw new ParameterError(`Invalid redirect URI ${uri}`);
+            }
+        }
+
+        return this.oauthModel.createClient({
+            clientName,
+            redirectUris,
+            grantTypes,
+            scopes,
+        });
+    }
+
     public async listClients(user: SessionUser): Promise<OAuthClientSummary[]> {
         if (
             user.ability.cannot('manage', 'Organization') ||
