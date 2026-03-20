@@ -26,11 +26,12 @@ export type StreamConfig = {
     durableName: string;
 };
 
+// All known stream types
 export const natsWorkerStreamSchema = z.enum(['warehouse', 'pre-aggregate']);
-export const NATS_WORKER_STREAMS = natsWorkerStreamSchema.options;
 export type NatsWorkerStream = z.infer<typeof natsWorkerStreamSchema>;
 
-export const STREAM_CONFIGS = {
+// OSS streams — always available
+const OSS_STREAM_CONFIGS: Record<'warehouse', StreamConfig> = {
     warehouse: {
         streamName: 'WAREHOUSE_QUERY_JOBS',
         subjects: {
@@ -38,11 +39,44 @@ export const STREAM_CONFIGS = {
         },
         durableName: 'worker-warehouse',
     },
-    'pre-aggregate': {
-        streamName: 'PRE_AGGREGATE_QUERY_JOBS',
-        subjects: {
-            query: 'pre_aggregate.query.jobs',
-        },
-        durableName: 'worker-pre-aggregate',
+};
+
+// Pre-aggregate stream config — registered by EE
+const PRE_AGGREGATE_STREAM_CONFIG: StreamConfig = {
+    streamName: 'PRE_AGGREGATE_QUERY_JOBS',
+    subjects: {
+        query: 'pre_aggregate.query.jobs',
     },
-} as const satisfies Record<NatsWorkerStream, StreamConfig>;
+    durableName: 'worker-pre-aggregate',
+};
+
+// Extensible stream configs — EE registers additional streams
+export const STREAM_CONFIGS: Record<string, StreamConfig> = {
+    ...OSS_STREAM_CONFIGS,
+};
+
+export const NATS_WORKER_STREAMS = natsWorkerStreamSchema.options;
+
+/**
+ * Returns only the streams that have been registered in STREAM_CONFIGS.
+ * In OSS, this returns only 'warehouse'. In EE, it includes 'pre-aggregate' too.
+ */
+export const getRegisteredStreams = (): NatsWorkerStream[] =>
+    NATS_WORKER_STREAMS.filter((s) => STREAM_CONFIGS[s] !== undefined);
+
+/**
+ * Register an additional NATS stream configuration (used by EE).
+ */
+export const registerStreamConfig = (
+    name: NatsWorkerStream,
+    config: StreamConfig,
+): void => {
+    STREAM_CONFIGS[name] = config;
+};
+
+/**
+ * Register the pre-aggregate stream. Called from EE initialization.
+ */
+export const registerPreAggregateStream = (): void => {
+    registerStreamConfig('pre-aggregate', PRE_AGGREGATE_STREAM_CONFIG);
+};

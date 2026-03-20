@@ -4,6 +4,7 @@ import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
+import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
@@ -62,6 +63,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             `Enterprise license for ${lightdashConfig.siteUrl} ${license.detail} [${license.code}]`,
         );
     }
+
+    // Register EE-specific NATS streams
+    registerPreAggregateStream();
 
     return {
         serviceProviders: {

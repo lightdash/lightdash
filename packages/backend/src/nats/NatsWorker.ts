@@ -65,7 +65,9 @@ export class NatsWorker {
         this.natsClient = args.natsClient;
         this.asyncQueryService = args.asyncQueryService;
         this.workerConcurrency = args.workerConcurrency;
-        this.activeConfigs = args.streams.map((s) => STREAM_CONFIGS[s]);
+        this.activeConfigs = args.streams
+            .filter((s) => STREAM_CONFIGS[s] !== undefined)
+            .map((s) => STREAM_CONFIGS[s]);
     }
 
     public async run(): Promise<void> {
@@ -119,6 +121,7 @@ export class NatsWorker {
         if (message.subject === STREAM_CONFIGS.warehouse.subjects.query) {
             await this.handleWarehouseMessage(message, workerLabel);
         } else if (
+            STREAM_CONFIGS['pre-aggregate'] &&
             message.subject === STREAM_CONFIGS['pre-aggregate'].subjects.query
         ) {
             await this.handlePreAggregateMessage(message, workerLabel);
