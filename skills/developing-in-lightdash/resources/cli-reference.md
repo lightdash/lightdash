@@ -208,6 +208,38 @@ lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml --verbose
 - The chart YAML must contain `tableName` and `metricQuery` fields.
 - All semantic layer fields referenced in the metric query (dimensions, metrics, custom dimensions, etc.) must already be deployed to the Lightdash project.
 
+## Set Warehouse Connection
+
+Update the warehouse connection on an existing Lightdash project from your dbt profiles.yml.
+
+```bash
+# Update warehouse connection from profiles.yml
+lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles
+
+# With target and profile overrides
+lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --target prod --profile my_profile
+
+# Target a specific project
+lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --project <uuid>
+
+# Non-interactive (skip prompts)
+lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-yes
+```
+
+**Options:**
+
+- `--project-dir <path>` - The directory of the dbt project (default: `.`)
+- `--profiles-dir <path>` - The directory of the dbt profiles (default: `~/.dbt`)
+- `--target <name>` - dbt target name override
+- `--profile <name>` - dbt profile name override
+- `--target-path <path>` - Override the dbt target directory
+- `--project <uuid>` - Lightdash project UUID to update (defaults to currently selected project)
+- `--start-of-week <number>` - First day of week, 0 (Monday) to 6 (Sunday)
+- `-y, --assume-yes` - Skip confirmation prompts
+- `--verbose` - Show detailed output
+
+**Note:** This command reads warehouse credentials from profiles.yml, updates the connection on the project, and triggers a recompile. Run this before `lightdash deploy` if the project needs a different warehouse connection.
+
 ## Command Summary
 
 | Command               | Purpose                          |
@@ -224,3 +256,4 @@ lightdash run-chart -p ./lightdash/charts/monthly-revenue.yml --verbose
 | `lightdash generate`  | Generate YAML from dbt models    |
 | `lightdash sql`       | Run SQL queries                  |
 | `lightdash run-chart` | Execute chart YAML query         |
+| `lightdash set-warehouse` | Update project warehouse connection |
