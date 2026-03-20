@@ -10,6 +10,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartAsCode,
+    ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
     generateSlug,
     getErrorMessage,
@@ -19,7 +20,7 @@ import {
     PromotionChanges,
     SqlChartAsCode,
 } from '@lightdash/common';
-import { Dirent, promises as fs } from 'fs';
+import { Dirent, promises as fs, type Stats } from 'fs';
 import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
@@ -224,24 +225,27 @@ const isLightdashContentFile = (folder: string, entry: Dirent) =>
     entry.name.endsWith('.yml') &&
     !entry.name.endsWith('.language.map.yml');
 
-const loadYamlFile = async <
+const isLooseContentFile = (entry: Dirent) =>
+    entry.isFile() &&
+    entry.parentPath &&
+    !entry.parentPath.endsWith(`${path.sep}charts`) &&
+    !entry.parentPath.endsWith(`${path.sep}dashboards`) &&
+    entry.name.endsWith('.yml') &&
+    !entry.name.endsWith('.language.map.yml');
+
+const processYamlItem = <
     T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
 >(
-    file: Dirent,
+    item: T,
+    fileName: string,
+    stats: Stats,
     folder: 'charts' | 'dashboards',
     metadata: LightdashMetadata,
 ) => {
-    const filePath = path.join(file.parentPath, file.name);
-    const [fileContent, stats] = await Promise.all([
-        fs.readFile(filePath, 'utf-8'),
-        fs.stat(filePath),
-    ]);
-
-    const item = yaml.load(fileContent) as T;
     if (hasUnsortedKeys(item)) {
         GlobalState.log(
             styles.warning(
-                `Warning: ${file.name} has unsorted YAML keys. Re-download to fix, or sort keys alphabetically.`,
+                `Warning: ${fileName} has unsorted YAML keys. Re-download to fix, or sort keys alphabetically.`,
             ),
         );
     }
@@ -265,6 +269,23 @@ const loadYamlFile = async <
         updatedAt: needsUpdating ? stats.mtime : item.updatedAt,
         needsUpdating: needsUpdating ?? true,
     };
+};
+
+const loadYamlFile = async <
+    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
+>(
+    file: Dirent,
+    folder: 'charts' | 'dashboards',
+    metadata: LightdashMetadata,
+) => {
+    const filePath = path.join(file.parentPath, file.name);
+    const [fileContent, stats] = await Promise.all([
+        fs.readFile(filePath, 'utf-8'),
+        fs.stat(filePath),
+    ]);
+
+    const item = yaml.load(fileContent) as T;
+    return processYamlItem(item, file.name, stats, folder, metadata);
 };
 
 const readCodeFiles = async <
@@ -321,6 +342,93 @@ const readCodeFiles = async <
         console.error(styles.error(`Error reading ${baseDir}: ${error}`));
         throw error;
     }
+};
+
+/**
+ * Reads YAML files outside the standard charts/ and dashboards/ directories
+ * and classifies them by their contentType field.
+ */
+const readLooseCodeFiles = async (
+    customPath?: string,
+): Promise<{
+    charts: (ChartAsCode & { needsUpdating: boolean })[];
+    dashboards: (DashboardAsCode & { needsUpdating: boolean })[];
+}> => {
+    const baseDir = getDownloadFolder(customPath);
+    const charts: (ChartAsCode & { needsUpdating: boolean })[] = [];
+    const dashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [];
+
+    try {
+        const metadata = await readMetadataFile(baseDir);
+
+        const allEntries = await fs.readdir(baseDir, {
+            recursive: true,
+            withFileTypes: true,
+        });
+
+        const looseFiles = allEntries.filter(isLooseContentFile);
+
+        await Promise.all(
+            looseFiles.map(async (file) => {
+                try {
+                    const filePath = path.join(file.parentPath, file.name);
+                    const [fileContent, stats] = await Promise.all([
+                        fs.readFile(filePath, 'utf-8'),
+                        fs.stat(filePath),
+                    ]);
+
+                    const parsed = yaml.load(fileContent) as Record<
+                        string,
+                        unknown
+                    >;
+                    const contentType = parsed?.contentType;
+
+                    if (
+                        contentType === ContentAsCodeTypeEnum.CHART ||
+                        contentType === ContentAsCodeTypeEnum.SQL_CHART
+                    ) {
+                        charts.push(
+                            processYamlItem<ChartAsCode>(
+                                parsed as ChartAsCode,
+                                file.name,
+                                stats,
+                                'charts',
+                                metadata,
+                            ),
+                        );
+                    } else if (
+                        contentType === ContentAsCodeTypeEnum.DASHBOARD
+                    ) {
+                        dashboards.push(
+                            processYamlItem<DashboardAsCode>(
+                                parsed as DashboardAsCode,
+                                file.name,
+                                stats,
+                                'dashboards',
+                                metadata,
+                            ),
+                        );
+                    } else {
+                        GlobalState.debug(
+                            `Skipping ${file.name}: no recognized contentType`,
+                        );
+                    }
+                } catch (e) {
+                    GlobalState.debug(
+                        `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                    );
+                }
+            }),
+        );
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            // Base directory doesn't exist — nothing to discover
+            return { charts, dashboards };
+        }
+        throw error;
+    }
+
+    return { charts, dashboards };
 };
 
 const groupBySpace = <T extends ChartAsCode | DashboardAsCode | SqlChartAsCode>(
@@ -885,6 +993,24 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             changes[key] = updatedChanges[key];
         });
 
+        // Warn if contentType contradicts the folder this item came from
+        const itemContentType = (
+            item as ChartAsCode | DashboardAsCode | SqlChartAsCode
+        ).contentType;
+        if (itemContentType) {
+            const expectedType =
+                itemContentType === ContentAsCodeTypeEnum.DASHBOARD
+                    ? 'dashboards'
+                    : 'charts';
+            if (expectedType !== type) {
+                GlobalState.log(
+                    styles.warning(
+                        `Warning: "${item.name}" has contentType "${itemContentType}" but is in the ${type}/ directory. It will be uploaded as a ${type.slice(0, -1)}.`,
+                    ),
+                );
+            }
+        }
+
         // Run validation if requested
         if (validate && !isSqlChartItem) {
             const contentUuid =
@@ -988,10 +1114,12 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     publicSpaceCreate?: boolean,
     validate?: boolean,
     concurrency: number = 1,
+    extraItems: (T & { needsUpdating: boolean })[] = [],
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
-    const items = await readCodeFiles<T>(type, customPath);
+    const folderItems = await readCodeFiles<T>(type, customPath);
+    const items = [...folderItems, ...extraItems];
 
     GlobalState.log(`Found ${items.length} ${type} files`);
 
@@ -1243,6 +1371,19 @@ export const uploadHandler = async (
             );
         }
 
+        // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
+        const looseFiles = await readLooseCodeFiles(options.path);
+        if (looseFiles.charts.length > 0) {
+            GlobalState.log(
+                `Found ${looseFiles.charts.length} chart(s) outside charts/ directory (classified by contentType)`,
+            );
+        }
+        if (looseFiles.dashboards.length > 0) {
+            GlobalState.log(
+                `Found ${looseFiles.dashboards.length} dashboard(s) outside dashboards/ directory (classified by contentType)`,
+            );
+        }
+
         if (hasFilters && chartSlugs.length === 0) {
             GlobalState.log(
                 styles.warning(`No charts filters provided, skipping`),
@@ -1260,6 +1401,7 @@ export const uploadHandler = async (
                     options.public,
                     options.validate,
                     concurrency,
+                    looseFiles.charts,
                 );
             changes = chartChanges;
             chartTotal = total;
@@ -1282,6 +1424,7 @@ export const uploadHandler = async (
                     options.public,
                     options.validate,
                     concurrency,
+                    looseFiles.dashboards,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;
