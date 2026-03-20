@@ -4932,4 +4932,26 @@ describe('Nested aggregate metrics', () => {
             result.query.match(/AS "my_table_cross_table_sum_of_max"/g),
         ).toHaveLength(1);
     });
+
+    test('should emit max_by nested aggregate metric only once when fanout CTEs are also generated', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG_AND_FANOUT,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_NESTED_AGG_WITH_FANOUT,
+                metrics: ['my_table_max_by_of_agg', 'my_table_count_records'],
+                sorts: [
+                    { fieldId: 'my_table_max_by_of_agg', descending: true },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The max_by metric should be emitted exactly once via nested_agg_results
+        expect(result.query).toContain('nested_agg_results AS (');
+        expect(result.query.match(/AS "my_table_max_by_of_agg"/g)).toHaveLength(
+            1,
+        );
+    });
 });
