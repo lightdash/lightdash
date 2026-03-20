@@ -1,3 +1,15 @@
+# [0.2645.0](https://github.com/lightdash/lightdash/compare/0.2644.1...0.2645.0) (2026-03-20)
+
+
+### Bug Fixes
+
+* add max_by and min_by to SQL aggregation function pattern ([#21274](https://github.com/lightdash/lightdash/issues/21274)) ([eaa8f0d](https://github.com/lightdash/lightdash/commit/eaa8f0d162bf9dd35efc38643a171270cd6b5fcb))
+
+
+### Features
+
+* **cli:** make project selection optional during login ([#21259](https://github.com/lightdash/lightdash/issues/21259)) ([d8c0930](https://github.com/lightdash/lightdash/commit/d8c0930623dbf6b0c0e8b0140bfff6e9b7fd9213))
+
 ## [0.2644.1](https://github.com/lightdash/lightdash/compare/0.2644.0...0.2644.1) (2026-03-20)
 
 
