@@ -4,16 +4,13 @@ import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
-import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
 import { LightdashConfig } from './config/parseConfig';
-import { googlePassportStrategy } from './controllers/authentication';
-import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
-import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
@@ -172,16 +169,7 @@ export default class SchedulerApp {
     }
 
     public async start() {
-        // Load refresh strategies, required when running scheduler in production mode
-        if (googlePassportStrategy) {
-            refresh.use(googlePassportStrategy);
-        }
-        if (snowflakePassportStrategy) {
-            refresh.use('snowflake', snowflakePassportStrategy);
-        }
-        if (databricksPassportStrategy) {
-            refresh.use('databricks', databricksPassportStrategy);
-        }
+        registerOAuthRefreshStrategies();
 
         this.prometheusMetrics.start();
         this.prometheusMetrics.monitorDatabase(this.database);
