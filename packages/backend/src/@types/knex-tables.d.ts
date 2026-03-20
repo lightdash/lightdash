@@ -150,12 +150,6 @@ import {
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
-    PreAggregateDefinitionsTable,
-    PreAggregateDefinitionsTableName,
-    PreAggregateMaterializationsTable,
-    PreAggregateMaterializationsTableName,
-} from '../database/entities/preAggregates';
-import {
     ProjectGroupAccessTable,
     ProjectGroupAccessTableName,
 } from '../database/entities/projectGroupAccess';
@@ -334,6 +328,16 @@ import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
+import {
+    PreAggregateDailyStatsTable,
+    PreAggregateDailyStatsTableName,
+} from '../ee/database/entities/preAggregateDailyStats';
+import {
+    PreAggregateDefinitionsTable,
+    PreAggregateDefinitionsTableName,
+    PreAggregateMaterializationsTable,
+    PreAggregateMaterializationsTableName,
+} from '../ee/database/entities/preAggregates';
 import {
     ServiceAccountsTableName,
     ServiceAccountTable,

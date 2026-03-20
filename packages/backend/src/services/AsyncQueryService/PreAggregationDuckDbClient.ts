@@ -21,9 +21,9 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { type PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { getPreAggregateExploreName } from '../../ee/preAggregates/naming';
 import Logger from '../../logging/logger';
-import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { wrapSentryTransaction } from '../../utils';

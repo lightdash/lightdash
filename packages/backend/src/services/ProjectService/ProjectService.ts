@@ -202,8 +202,9 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
-import { type DbPreAggregateDefinitionIn } from '../../database/entities/preAggregates';
 import type { DbTagUpdate } from '../../database/entities/tags';
+import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
+import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { getPreAggregateExploreName } from '../../ee/preAggregates/naming';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import { errorHandler } from '../../errors';
@@ -220,7 +221,6 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
-import { PreAggregateModel } from '../../models/PreAggregateModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';

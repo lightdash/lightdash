@@ -1,7 +1,7 @@
 import { DimensionType, type WarehouseClient } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import Logger from '../../logging/logger';
-import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { ProjectService } from '../ProjectService/ProjectService';

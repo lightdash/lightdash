@@ -14,7 +14,7 @@ import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { z } from 'zod';
 import { LightdashConfig } from '../config/parseConfig';
-import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
+import { PreAggregateMaterializationsTableName } from '../ee/database/entities/preAggregates';
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
