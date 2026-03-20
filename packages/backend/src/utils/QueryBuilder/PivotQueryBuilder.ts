@@ -387,7 +387,8 @@ export class PivotQueryBuilder {
 
         const groupTotalsCTE = `__group_totals AS (SELECT ${groupByRefs.join(', ')}, ${rankingExpr} AS __ranking_value FROM pre_group_by GROUP BY ${groupByRefs.join(', ')})`;
 
-        const groupRankingCTE = `__group_ranking AS (SELECT ${groupByRefs.join(', ')}, ROW_NUMBER() OVER (ORDER BY __ranking_value DESC NULLS LAST) AS __group_rn FROM __group_totals)`;
+        const tiebreaker = groupByRefs.join(' ASC, ');
+        const groupRankingCTE = `__group_ranking AS (SELECT ${groupByRefs.join(', ')}, ROW_NUMBER() OVER (ORDER BY __ranking_value DESC NULLS LAST, ${tiebreaker} ASC) AS __group_rn FROM __group_totals)`;
 
         return [groupTotalsCTE, groupRankingCTE];
     }

@@ -2550,7 +2550,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const normalized = replaceWhitespace(builder.toSql());
 
             expect(normalized).toContain(
-                'ROW_NUMBER() OVER (ORDER BY __ranking_value DESC NULLS LAST) AS __group_rn',
+                'ROW_NUMBER() OVER (ORDER BY __ranking_value DESC NULLS LAST, "region" ASC) AS __group_rn',
             );
         });
 

@@ -131,6 +131,7 @@ export type PivotValuesColumn = {
         referenceField: string;
         value: unknown;
         formatted?: string;
+        isOtherGroup?: boolean;
     }[];
     columnIndex?: number;
 };

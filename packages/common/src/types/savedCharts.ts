@@ -407,6 +407,8 @@ export type PivotValue = {
     field: string;
     /** Pivot value */
     value: unknown;
+    /** True when this value represents the computed "Other" aggregate bucket, not a real dimension value */
+    isOtherGroup?: boolean;
 };
 
 export type PivotReference = {

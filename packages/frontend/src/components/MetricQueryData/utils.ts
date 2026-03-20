@@ -3,7 +3,6 @@ import {
     getItemId,
     hashFieldReference,
     isDimension,
-    OTHER_GROUP_DISPLAY_VALUE,
     type EChartsSeries,
     type ItemsMap,
     type ResultValue,
@@ -117,21 +116,17 @@ export const getDataFromChartClick = (
     }
 
     let topGroupValues: Record<string, string[]> | undefined;
-    if (
-        pivotReference?.pivotValues?.some(
-            (pv) => pv.value === OTHER_GROUP_DISPLAY_VALUE,
-        )
-    ) {
+    if (pivotReference?.pivotValues?.some((pv) => pv.isOtherGroup)) {
         topGroupValues = {};
         for (const pv of pivotReference.pivotValues) {
-            if (pv.value === OTHER_GROUP_DISPLAY_VALUE) {
+            if (pv.isOtherGroup) {
                 const allValues = series
                     .filter((s) => s.pivotReference)
                     .flatMap((s) => s.pivotReference?.pivotValues ?? [])
                     .filter(
                         (v) =>
                             v.field === pv.field &&
-                            v.value !== OTHER_GROUP_DISPLAY_VALUE &&
+                            !v.isOtherGroup &&
                             v.value !== null,
                     )
                     .map((v) => String(v.value));

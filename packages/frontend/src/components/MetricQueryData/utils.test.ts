@@ -54,6 +54,7 @@ describe('getDataFromChartClick', () => {
                         {
                             field: 'orders_order_date_month',
                             value: OTHER_GROUP_DISPLAY_VALUE,
+                            isOtherGroup: true,
                         },
                     ],
                 },
@@ -97,10 +98,12 @@ describe('getDataFromChartClick', () => {
                         {
                             field: 'segment',
                             value: OTHER_GROUP_DISPLAY_VALUE,
+                            isOtherGroup: true,
                         },
                         {
                             field: 'orders_is_completed',
                             value: OTHER_GROUP_DISPLAY_VALUE,
+                            isOtherGroup: true,
                         },
                     ],
                 },

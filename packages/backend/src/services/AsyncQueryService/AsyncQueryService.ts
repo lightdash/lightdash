@@ -1541,6 +1541,9 @@ export class AsyncQueryService extends ProjectService {
                                   value: rawValue,
                                   // formatted value to match the display value in the frontend
                                   formatted: formattedValue,
+                                  ...(isOtherGroup && {
+                                      isOtherGroup: true,
+                                  }),
                               };
                           }) ?? [];
 

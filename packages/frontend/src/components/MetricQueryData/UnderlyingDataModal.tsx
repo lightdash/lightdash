@@ -11,7 +11,6 @@ import {
     isDimension,
     isField,
     isMetric,
-    OTHER_GROUP_DISPLAY_VALUE,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -189,10 +188,7 @@ const UnderlyingDataModalContent: FC = () => {
         const pivotFilter: FilterRule[] = (
             pivotReference?.pivotValues || []
         ).map((pivot) => {
-            if (
-                pivot.value === OTHER_GROUP_DISPLAY_VALUE &&
-                topGroupValues?.[pivot.field]
-            ) {
+            if (pivot.isOtherGroup && topGroupValues?.[pivot.field]) {
                 return {
                     id: uuidv4(),
                     target: {
