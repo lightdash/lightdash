@@ -3,7 +3,7 @@ import {
     getItemMap,
     type Series,
 } from '@lightdash/common';
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('../useServerOrClientFeatureFlag', () => ({
@@ -334,5 +334,141 @@ describe('useCartesianChartConfig', () => {
 
         expect(series[0].yAxisIndex).toBe(1);
         expect(series[1].yAxisIndex).toBe(0);
+    });
+
+    test('should add an Other series when pivotDetails valuesColumns include it', async () => {
+        const params = {
+            ...useCartesianChartConfigParamsMock,
+            pivotKeys: ['payments_payment_method'],
+            initialChartConfig: {
+                layout: {
+                    xField: 'orders_order_date_month',
+                    yField: ['customers_unique_customer_count'],
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+                eChartsConfig: {
+                    series: [
+                        {
+                            type: CartesianSeriesType.BAR,
+                            yAxisIndex: 0,
+                            encode: {
+                                xRef: { field: 'orders_order_date_month' },
+                                yRef: {
+                                    field: 'customers_unique_customer_count',
+                                    pivotValues: [
+                                        {
+                                            field: 'payments_payment_method',
+                                            value: 'bank_transfer',
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                        {
+                            type: CartesianSeriesType.BAR,
+                            yAxisIndex: 0,
+                            encode: {
+                                xRef: { field: 'orders_order_date_month' },
+                                yRef: {
+                                    field: 'customers_unique_customer_count',
+                                    pivotValues: [
+                                        {
+                                            field: 'payments_payment_method',
+                                            value: 'credit_card',
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    ],
+                },
+            },
+            resultsData: {
+                rows: [],
+                metricQuery: {
+                    exploreName: 'customers',
+                    dimensions: [
+                        'orders_order_date_month',
+                        'payments_payment_method',
+                    ],
+                    metrics: ['customers_unique_customer_count'],
+                    filters: {},
+                    sorts: [
+                        {
+                            fieldId: 'orders_order_date_month',
+                            descending: false,
+                        },
+                    ],
+                    limit: 500,
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                },
+                pivotDetails: {
+                    valuesColumns: [
+                        {
+                            aggregation: 'any',
+                            columnIndex: '1',
+                            pivotValues: [
+                                {
+                                    referenceField: 'payments_payment_method',
+                                    value: 'bank_transfer',
+                                },
+                            ],
+                            referenceField: 'customers_unique_customer_count',
+                            pivotColumnName:
+                                'customers_unique_customer_count_any_bank_transfer',
+                        },
+                        {
+                            aggregation: 'any',
+                            columnIndex: '2',
+                            pivotValues: [
+                                {
+                                    referenceField: 'payments_payment_method',
+                                    value: 'credit_card',
+                                },
+                            ],
+                            referenceField: 'customers_unique_customer_count',
+                            pivotColumnName:
+                                'customers_unique_customer_count_any_credit_card',
+                        },
+                        {
+                            aggregation: 'any',
+                            columnIndex: '3',
+                            pivotValues: [
+                                {
+                                    referenceField: 'payments_payment_method',
+                                    value: 'Other',
+                                },
+                            ],
+                            referenceField: 'customers_unique_customer_count',
+                            pivotColumnName:
+                                'customers_unique_customer_count_any_Other',
+                        },
+                    ],
+                },
+                hasFetchedAllRows: true,
+            },
+            columnOrder: [
+                'orders_order_date_month',
+                'customers_unique_customer_count',
+            ],
+        };
+
+        const { result } = renderHook(
+            // @ts-expect-error partially mock params for hook
+            () => useCartesianChartConfig(params),
+        );
+
+        await waitFor(() => {
+            expect(
+                result.current.validConfig?.eChartsConfig.series,
+            ).toHaveLength(3);
+        });
+
+        expect(
+            result.current.validConfig?.eChartsConfig.series?.map(
+                (serie) => serie.encode?.yRef.pivotValues?.[0]?.value,
+            ),
+        ).toEqual(['bank_transfer', 'credit_card', 'Other']);
     });
 });
