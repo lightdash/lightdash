@@ -7,6 +7,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
+import {
+    FeatureFlagOverridesTableName,
+    FeatureFlagsTableName,
+} from '../../database/entities/featureFlags';
 import { isFeatureFlagEnabled } from '../../postHog';
 
 export type FeatureFlagLogicArgs = {
@@ -54,11 +58,24 @@ export class FeatureFlagModel {
     }
 
     public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
+        // 1. LIGHTDASH_ENABLE_FEATURE_FLAGS env var (highest priority, enable-only)
+        if (this.lightdashConfig.enabledFeatureFlags.has(args.featureFlagId)) {
+            return { id: args.featureFlagId, enabled: true };
+        }
+
+        // 2. Per-flag env var / config handlers
         const handler = this.featureFlagHandlers[args.featureFlagId];
         if (handler) {
             return handler(args);
         }
-        // Default to check Posthog feature flag
+
+        // 3. Check database
+        const dbResult = await this.getFromDatabase(args);
+        if (dbResult !== null) {
+            return dbResult;
+        }
+
+        // 4. Fall through to PostHog (being phased out)
         if (args.user && isFeatureFlags(args.featureFlagId)) {
             return FeatureFlagModel.getPosthogFeatureFlag(
                 args.user,
@@ -66,6 +83,63 @@ export class FeatureFlagModel {
             );
         }
         throw new NotFoundError(`Feature flag ${args.featureFlagId} not found`);
+    }
+
+    /**
+     * Check the database for a feature flag value.
+     * Returns null if the flag doesn't exist in the DB (caller should fall through to PostHog).
+     * Priority: user override > org override > flag default.
+     */
+    private async getFromDatabase(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag | null> {
+        const flag = await this.database(FeatureFlagsTableName)
+            .where('flag_id', args.featureFlagId)
+            .first();
+
+        if (!flag) {
+            return null;
+        }
+
+        if (args.user) {
+            // Check user override first
+            if (args.user.userUuid) {
+                const userOverride = await this.database(
+                    FeatureFlagOverridesTableName,
+                )
+                    .where('flag_id', args.featureFlagId)
+                    .where('user_uuid', args.user.userUuid)
+                    .first();
+
+                if (userOverride) {
+                    return {
+                        id: args.featureFlagId,
+                        enabled: userOverride.enabled,
+                    };
+                }
+            }
+
+            // Check org override
+            if (args.user.organizationUuid) {
+                const orgOverride = await this.database(
+                    FeatureFlagOverridesTableName,
+                )
+                    .where('flag_id', args.featureFlagId)
+                    .where('organization_uuid', args.user.organizationUuid)
+                    .whereNull('user_uuid')
+                    .first();
+
+                if (orgOverride) {
+                    return {
+                        id: args.featureFlagId,
+                        enabled: orgOverride.enabled,
+                    };
+                }
+            }
+        }
+
+        // Return flag default
+        return { id: args.featureFlagId, enabled: flag.default_enabled };
     }
 
     static async getPosthogFeatureFlag(
