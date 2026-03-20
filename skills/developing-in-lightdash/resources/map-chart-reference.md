@@ -83,6 +83,7 @@ config:
 ### Example 1: Store Locations (Scatter Map)
 
 ```yaml
+contentType: chart
 chartConfig:
   type: map
   config:
@@ -119,6 +120,7 @@ version: 1
 ### Example 2: Sales by State (Choropleth)
 
 ```yaml
+contentType: chart
 chartConfig:
   type: map
   config:

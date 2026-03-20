@@ -36,6 +36,7 @@ Every pie chart requires:
 3. Chart type set to `pie`
 
 ```yaml
+contentType: chart
 chartConfig:
   type: pie
   config:
@@ -99,6 +100,7 @@ version: 1
 Donut chart with custom colors and labels:
 
 ```yaml
+contentType: chart
 chartConfig:
   type: pie
   config:

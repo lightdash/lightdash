@@ -9,6 +9,7 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic YAML Structure
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "table"
   config:
@@ -84,6 +85,7 @@ Conditional formatting highlights cells based on their values. Each rule consist
 This example demonstrates frozen columns, bar visualization, and conditional formatting:
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "table"
   config:

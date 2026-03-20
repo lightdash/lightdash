@@ -47,6 +47,7 @@ The gauge `config` object supports these key properties:
 Gauge with red/yellow/green performance zones:
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "gauge"
   config:
@@ -87,6 +88,7 @@ version: 1
 Progress gauge against a dynamic target:
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "gauge"
   config:

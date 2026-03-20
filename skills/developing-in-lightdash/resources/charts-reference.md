@@ -41,6 +41,7 @@ Use this table to choose the right chart type based on your data pattern:
 All chart types share a common base structure:
 
 ```yaml
+contentType: chart
 chartConfig:
   type: <type>  # One of the types listed above
   config:
