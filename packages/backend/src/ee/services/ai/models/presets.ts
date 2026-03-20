@@ -21,6 +21,19 @@ export const MODEL_PRESETS: {
 } = {
     openai: [
         {
+            name: 'gpt-5.4',
+            provider: 'openai',
+            modelId: 'gpt-5.4-2026-03-05',
+            displayName: 'GPT-5.4',
+            description: 'Latest GPT-5 reasoning model for agentic tasks',
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                strictJsonSchema: true,
+                parallelToolCalls: false,
+            },
+        },
+        {
             name: 'gpt-5.2',
             provider: 'openai',
             modelId: 'gpt-5.2-2025-12-11',
