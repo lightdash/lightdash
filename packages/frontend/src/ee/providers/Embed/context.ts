@@ -12,6 +12,8 @@ const EmbedProviderContext = createContext<EmbedContext>({
     savedChart: undefined,
     onBackToDashboard: undefined,
     mode: 'direct',
+    theme: 'light',
+    backgroundColor: null,
 });
 
 export default EmbedProviderContext;

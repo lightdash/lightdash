@@ -1,5 +1,4 @@
 import { ChartType, type SavedChart } from '@lightdash/common';
-import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
@@ -16,14 +15,6 @@ import { useExplorerQueryEffects } from '../../../../../hooks/useExplorerQueryEf
 import { ExplorerSection } from '../../../../../providers/Explorer/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
-
 const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
     const { data } = useExplore(exploreId);
 
@@ -31,16 +22,14 @@ const EmbedExploreView: FC<{ exploreId: string }> = ({ exploreId }) => {
     useExplorerQueryEffects();
 
     return (
-        <MantineProvider inherit theme={themeOverride}>
-            <Page
-                title={data ? data?.label : 'Tables'}
-                sidebar={<ExploreSideBar />}
-                withFullHeight
-                withPaddedContent
-            >
-                <Explorer />
-            </Page>
-        </MantineProvider>
+        <Page
+            title={data ? data?.label : 'Tables'}
+            sidebar={<ExploreSideBar />}
+            withFullHeight
+            withPaddedContent
+        >
+            <Explorer />
+        </Page>
     );
 };
 

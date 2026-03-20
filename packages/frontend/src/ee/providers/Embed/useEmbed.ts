@@ -29,6 +29,8 @@ function useEmbed(): EmbedContext {
             onExplore: (_options: { chart: SavedChart }) => {},
             t: (_input: string) => undefined,
             mode: 'direct',
+            theme: 'light',
+            backgroundColor: null,
         };
     }
 
