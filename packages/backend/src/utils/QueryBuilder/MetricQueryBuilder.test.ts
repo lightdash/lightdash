@@ -5100,6 +5100,54 @@ describe('Nested aggregate metrics', () => {
         });
     });
 
+    test('Should include custom dimension CTEs in pivotSource query', () => {
+        const exploreWithPivotSourceMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        metric1: {
+                            ...EXPLORE.tables.table1.metrics.metric1,
+                            compiledValueSql: '"table1".number_column',
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithPivotSourceMetric,
+            compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'table1_metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'age_range' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource).toBeDefined();
+        expect(result.pivotSource?.query).toContain('age_range_cte AS (');
+        expect(result.pivotSource?.query).toContain('CROSS JOIN age_range_cte');
+    });
+
     test('Should omit unsupported custom aggregate metrics from pivotSource inputs', () => {
         const exploreWithCustomAggregateMetric: Explore = {
             ...EXPLORE,

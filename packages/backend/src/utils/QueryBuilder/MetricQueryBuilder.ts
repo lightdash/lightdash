@@ -44,6 +44,7 @@ import {
     MetricFilterRule,
     MetricType,
     normalizeIndexColumns,
+    ParameterError,
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
@@ -909,12 +910,14 @@ export class MetricQueryBuilder {
     }
 
     private getPivotSourceContract({
+        dimensionCtes,
         dimensionSelects,
         sqlFrom,
         joinsSql,
         dimensionJoins,
         dimensionFilters,
     }: {
+        dimensionCtes: string[];
         dimensionSelects: Record<string, string>;
         sqlFrom: string;
         joinsSql: string;
@@ -1076,6 +1079,7 @@ export class MetricQueryBuilder {
 
         return {
             query: MetricQueryBuilder.assembleSqlParts([
+                MetricQueryBuilder.buildCtesSQL(dimensionCtes),
                 `SELECT\n${selectParts.join(',\n')}`,
                 sqlFrom,
                 joinsSql,
@@ -3860,6 +3864,7 @@ export class MetricQueryBuilder {
         warnings.push(...experimentalMetricsCteSQL.warnings);
 
         const pivotSource = this.getPivotSourceContract({
+            dimensionCtes: dimensionsSQL.ctes,
             dimensionSelects: dimensionsSQL.selects,
             sqlFrom,
             joinsSql: joins.joinSQL,
