@@ -2517,9 +2517,13 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('__group_totals AS');
             expect(normalized).toContain('__group_ranking AS');
             expect(normalized).toContain(
+                'total_groups AS (SELECT COUNT(*) AS total_groups FROM (SELECT DISTINCT "region" FROM pre_group_by) AS distinct_groups)',
+            );
+            expect(normalized).toContain(
                 'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
             );
             expect(normalized).toContain('LEFT JOIN __group_ranking gr ON');
+            expect(normalized).toContain('CROSS JOIN total_groups g');
         });
 
         test('Should not generate ranking CTEs when groupLimit is disabled', () => {
@@ -2549,6 +2553,9 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).not.toContain('__group_totals');
             expect(result).not.toContain('__group_ranking');
             expect(result).not.toContain('Other');
+            expect(replaceWhitespace(result)).toContain(
+                'total_groups AS (SELECT COUNT(*) AS total_groups FROM (SELECT DISTINCT "region" FROM group_by_query) AS distinct_groups)',
+            );
         });
 
         test('Should use correct aggregation for "Other" re-aggregation', () => {

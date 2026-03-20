@@ -318,6 +318,18 @@ export class PivotQueryBuilder {
         return `SELECT COUNT(*)${multiplier} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
     }
 
+    private getTotalGroupsSQL(
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        sourceTable: string,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const columnRefs = groupByColumns
+            .map((col) => `${q}${col.reference}${q}`)
+            .join(', ');
+
+        return `SELECT COUNT(*) AS total_groups FROM (SELECT DISTINCT ${columnRefs} FROM ${sourceTable}) AS distinct_groups`;
+    }
+
     private static getGroupingMode(
         groupLimit: GroupLimitConfig | undefined,
         groupByColumns: PivotConfiguration['groupByColumns'],
@@ -1653,6 +1665,12 @@ export class PivotQueryBuilder {
             this.pivotSource,
             this.rawOtherEnabled,
         );
+        const totalGroupsSourceTable =
+            groupingMode === 'none' ? 'group_by_query' : 'pre_group_by';
+        const totalGroupsQuery = this.getTotalGroupsSQL(
+            groupByColumns,
+            totalGroupsSourceTable,
+        );
 
         // Build CTEs in correct dependency order:
         // 0. (optional) pre_group_by, __group_totals, __group_ranking (for "Other"/"drop" modes)
@@ -1744,9 +1762,10 @@ export class PivotQueryBuilder {
         ctes.push(
             `filtered_rows AS (SELECT * FROM ${pivotTableRef} WHERE ${q}row_index${q} <= ${rowLimit})`,
             `total_columns AS (${totalColumnsQuery})`,
+            `total_groups AS (${totalGroupsQuery})`,
         );
 
-        const finalSelect = `SELECT p.*, t.total_columns FROM ${pivotTableRef} p CROSS JOIN total_columns t WHERE p.${q}row_index${q} <= ${rowLimit}${maxColumnsPerValueColumnSql} order by p.${q}row_index${q}, p.${q}column_index${q}`;
+        const finalSelect = `SELECT p.*, t.total_columns, g.total_groups FROM ${pivotTableRef} p CROSS JOIN total_columns t CROSS JOIN total_groups g WHERE p.${q}row_index${q} <= ${rowLimit}${maxColumnsPerValueColumnSql} order by p.${q}row_index${q}, p.${q}column_index${q}`;
 
         return PivotQueryBuilder.assembleSqlParts([
             PivotQueryBuilder.buildCtesSQL(ctes),
