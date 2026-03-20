@@ -345,7 +345,11 @@ export class PivotQueryBuilder {
             return 'none';
         }
 
-        if (rawOtherEnabled && pivotSource) {
+        if (rawOtherEnabled) {
+            if (!pivotSource) {
+                return 'drop';
+            }
+
             const allSupported = valuesColumns.every(
                 (col) => pivotSource.metricInputs[col.reference] !== undefined,
             );

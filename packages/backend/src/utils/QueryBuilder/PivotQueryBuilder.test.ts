@@ -3030,5 +3030,36 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).not.toContain('pivot_source AS');
             expect(normalized).not.toContain('Other');
         });
+
+        test('Should drop when raw_other flag is enabled and an unsupported metric has no otherAggregation override', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'avg_price',
+                        aggregation: VizAggregationOptions.AVERAGE,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            expect(normalized).toContain('WHERE gr.__group_rn <= 2');
+            expect(normalized).not.toContain('pivot_source AS');
+            expect(normalized).not.toContain('Other');
+        });
     });
 });
