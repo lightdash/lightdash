@@ -91,6 +91,17 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         setIsInitialized(true);
     }
 
+    // Keep in-memory storage in sync when the token changes (e.g. token refresh)
+    // so that subsequent API calls use the new token.
+    useEffect(() => {
+        if (isInitialized && embedToken) {
+            setToInMemoryStorage(EMBED_KEY, {
+                projectUuid,
+                token: embedToken,
+            });
+        }
+    }, [embedToken, projectUuid, isInitialized]);
+
     const value = useMemo(() => {
         return {
             embedToken: embed?.token || embedToken,
