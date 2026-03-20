@@ -41,6 +41,7 @@ import express from 'express';
 import { UserModel } from '../models/UserModel';
 import {
     allowApiKeyAuthentication,
+    allowOauthAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -396,7 +397,7 @@ export class UserController extends BaseController {
      */
     @Middlewares([
         // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
-        // Allow creating PAT from oauth app tokens
+        allowOauthAuthentication, // Allow creating PAT from OAuth tokens
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
