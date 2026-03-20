@@ -14,10 +14,12 @@ import { SyncModalFormProvider } from './syncModalFormContext';
 
 type Props = {
     chartUuid: string;
+    projectUuid?: string;
 } & Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 export const SyncModalCreateOrEdit: FC<Props> = ({
     chartUuid,
+    projectUuid,
     opened,
     onClose,
 }) => {
@@ -30,7 +32,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
         isLoadingSchedulerData,
         isSchedulerError,
         schedulerError,
-    } = useSyncModalForm(chartUuid);
+    } = useSyncModalForm(chartUuid, projectUuid);
 
     const hasSetGoogleSheet = form.values.options.gdriveId !== '';
 

@@ -10,7 +10,9 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
+    IconCirclesRelation,
     IconDatabaseExport,
     IconDots,
     IconLayoutGridAdd,
@@ -26,6 +28,7 @@ import AddTilesToDashboardModal from '../../../../components/SavedDashboards/Add
 import { useProject } from '../../../../hooks/useProject';
 import useApp from '../../../../providers/App/useApp';
 import { PromotionConfirmDialog } from '../../../promotion/components/PromotionConfirmDialog';
+import { SqlChartSyncModal } from '../../../sync/components/SqlChartSyncModal';
 import {
     usePromoteSqlChartDiffMutation,
     usePromoteSqlChartMutation,
@@ -58,6 +61,8 @@ export const HeaderView: FC = () => {
     const onCloseDeleteModal = useCallback(() => {
         dispatch(toggleModal('deleteChartModal'));
     }, [dispatch]);
+
+    const [isSyncModalOpen, syncModalHandlers] = useDisclosure();
 
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
@@ -194,6 +199,16 @@ export const HeaderView: FC = () => {
                                     >
                                         Add to dashboard
                                     </Menu.Item>
+                                    <Menu.Item
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCirclesRelation}
+                                            />
+                                        }
+                                        onClick={syncModalHandlers.open}
+                                    >
+                                        Google Sheets Sync
+                                    </Menu.Item>
                                     {canPromoteChart && (
                                         <Tooltip
                                             label="You must enable first an upstream project in settings > Data ops"
@@ -266,6 +281,14 @@ export const HeaderView: FC = () => {
                     uuid={savedSqlChart.savedSqlUuid}
                     dashboardTileType={DashboardTileTypes.SQL_CHART}
                     onClose={onCloseAddToDashboardModal}
+                />
+            )}
+            {isSyncModalOpen && (
+                <SqlChartSyncModal
+                    projectUuid={projectUuid}
+                    savedSqlUuid={savedSqlChart.savedSqlUuid}
+                    opened={isSyncModalOpen}
+                    onClose={syncModalHandlers.close}
                 />
             )}
             {(promoteSqlChartDiff || promoteSqlChartDiffLoading) && (

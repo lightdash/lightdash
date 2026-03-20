@@ -9,10 +9,11 @@ import {
     useSyncModalForm as useSyncModalFormInstance,
     type SyncModalFormValues,
 } from '../components/syncModalFormContext';
+import { useSqlChartSchedulerCreateMutation } from '../hooks/useSqlChartSchedulers';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 
-export const useSyncModalForm = (chartUuid: string) => {
+export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
     const { action, setAction, currentSchedulerUuid } = useSyncModal();
 
     const isEditing = action === SyncModalAction.EDIT;
@@ -30,11 +31,18 @@ export const useSyncModalForm = (chartUuid: string) => {
         isLoading: isUpdateChartSyncLoading,
         isSuccess: isUpdateChartSyncSuccess,
     } = useSchedulersUpdateMutation(currentSchedulerUuid ?? '');
+    const chartSchedulerMutation = useChartSchedulerCreateMutation();
+    const sqlChartSchedulerMutation = useSqlChartSchedulerCreateMutation(
+        projectUuid ?? '',
+    );
+    const createMutation = projectUuid
+        ? sqlChartSchedulerMutation
+        : chartSchedulerMutation;
     const {
         mutate: createChartSync,
         isLoading: isCreateChartSyncLoading,
         isSuccess: isCreateChartSyncSuccess,
-    } = useChartSchedulerCreateMutation();
+    } = createMutation;
 
     const isLoading = isCreateChartSyncLoading || isUpdateChartSyncLoading;
     const isSuccess = isCreateChartSyncSuccess || isUpdateChartSyncSuccess;

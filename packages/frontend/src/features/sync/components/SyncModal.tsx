@@ -1,6 +1,8 @@
-import { useEffect, type FC } from 'react';
+import { SchedulerFormat } from '@lightdash/common';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { type MantineModalProps } from '../../../components/common/MantineModal';
+import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { SyncModalProvider } from '../providers/SyncModalProvider';
 import { SyncModalAction } from '../providers/types';
@@ -19,6 +21,23 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     const navigate = useNavigate();
     const { action, setAction, setCurrentSchedulerUuid } = useSyncModal();
 
+    const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
+        useChartSchedulers({
+            chartUuid,
+            formats: [SchedulerFormat.GSHEETS],
+        });
+
+    const schedulers = useMemo(
+        () => data?.pages.flatMap((page) => page.data) ?? [],
+        [data],
+    );
+
+    const handleScrollBottom = useCallback(() => {
+        if (!isFetchingNextPage && hasNextPage) {
+            void fetchNextPage();
+        }
+    }, [fetchNextPage, isFetchingNextPage, hasNextPage]);
+
     useEffect(() => {
         const schedulerUuidFromParams = getSchedulerUuidFromUrlParams(search);
 
@@ -32,7 +51,12 @@ const SyncModalBaseAndManager: FC<Props> = ({ chartUuid, opened, onClose }) => {
     if (action === SyncModalAction.VIEW || action === SyncModalAction.DELETE) {
         return (
             <>
-                <SyncModalView chartUuid={chartUuid} onClose={onClose} />
+                <SyncModalView
+                    schedulers={schedulers}
+                    isFetchingNextPage={isFetchingNextPage}
+                    onScrollBottom={handleScrollBottom}
+                    onClose={onClose}
+                />
                 {action === SyncModalAction.DELETE && <SyncModalDelete />}
             </>
         );
