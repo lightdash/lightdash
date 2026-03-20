@@ -609,6 +609,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotValuesColumns,
             pivotTotalColumnCount,
+            pivotTotalGroupCount,
             originalColumns,
         } = queryHistory;
 
@@ -630,6 +631,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             valuesColumns: sortedValuesColumns,
             totalColumnCount: pivotTotalColumnCount,
+            totalGroupCount: pivotTotalGroupCount,
             indexColumn: pivotConfiguration.indexColumn,
             groupByColumns: pivotConfiguration.groupByColumns,
             sortBy: pivotConfiguration.sortBy,
@@ -1417,6 +1419,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: {
             valuesColumns: Map<string, PivotValuesColumn>;
             totalColumnCount: number | undefined;
+            totalGroupCount: number | undefined;
             totalRows: number;
         } | null;
     }> {
@@ -1426,6 +1429,7 @@ export class AsyncQueryService extends ProjectService {
 
         // Total column count includes the unlimited number of columns that can be pivoted, so we can show a warning in the frontend
         let pivotTotalColumnCount: undefined | number;
+        let pivotTotalGroupCount: undefined | number;
         let pivotTotalRows = 0;
         let unpivotedColumns: ResultColumns = {};
 
@@ -1443,6 +1447,12 @@ export class AsyncQueryService extends ProjectService {
                       pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
                           ? undefined
                           : numberTotalColumns;
+                  }
+                  if ('total_groups' in rows[0]) {
+                      const numberTotalGroups = Number(rows[0].total_groups);
+                      pivotTotalGroupCount = Number.isNaN(numberTotalGroups)
+                          ? undefined
+                          : numberTotalGroups;
                   }
 
                   unpivotedColumns = getUnpivotedColumns(
@@ -1617,6 +1627,7 @@ export class AsyncQueryService extends ProjectService {
                 ? {
                       valuesColumns: valuesColumnData,
                       totalColumnCount: pivotTotalColumnCount,
+                      totalGroupCount: pivotTotalGroupCount,
                       totalRows: pivotTotalRows,
                   }
                 : null,
@@ -2180,6 +2191,7 @@ export class AsyncQueryService extends ProjectService {
                         cacheKey,
                         totalRowCount: pivotDetails?.totalRows ?? totalRows,
                         pivotTotalColumnCount: pivotDetails?.totalColumnCount,
+                        pivotTotalGroupCount: pivotDetails?.totalGroupCount,
                         isPivoted: pivotDetails !== null,
                         ...(isRegisteredUser
                             ? undefined
@@ -2200,6 +2212,7 @@ export class AsyncQueryService extends ProjectService {
                     warehouse_execution_time_ms: Math.round(durationMs),
                     total_row_count: pivotDetails?.totalRows ?? totalRows,
                     pivot_total_column_count: pivotDetails?.totalColumnCount,
+                    pivot_total_group_count: pivotDetails?.totalGroupCount,
                     pivot_values_columns: pivotDetails
                         ? Object.fromEntries(
                               pivotDetails.valuesColumns.entries(),
@@ -2985,6 +2998,8 @@ export class AsyncQueryService extends ProjectService {
                                     resultsCache.pivotValuesColumns,
                                 pivot_total_column_count:
                                     resultsCache.pivotTotalColumnCount,
+                                pivot_total_group_count:
+                                    resultsCache.pivotTotalGroupCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
                             account,

@@ -320,6 +320,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: expectedColumns,
                 pivotValuesColumns: null,
                 pivotTotalColumnCount: null,
+                pivotTotalGroupCount: null,
             };
 
             (
@@ -390,6 +391,7 @@ describe('AsyncQueryService', () => {
                     results_updated_at: updatedAt,
                     results_expires_at: expiresAt,
                     pivot_total_column_count: null,
+                    pivot_total_group_count: null,
                     pivot_values_columns: null,
                 },
                 sessionAccount,
@@ -1183,6 +1185,7 @@ describe('AsyncQueryService', () => {
                 cacheKey: 'test-query-key',
                 pivotConfiguration: null,
                 pivotTotalColumnCount: null,
+                pivotTotalGroupCount: null,
                 pivotValuesColumns: null,
                 resultsFileName,
                 resultsCreatedAt: null,
@@ -1420,6 +1423,7 @@ describe('AsyncQueryService', () => {
                 cacheKey: 'test-cache-key',
                 pivotConfiguration: mockPivotConfiguration,
                 pivotTotalColumnCount: 5,
+                pivotTotalGroupCount: 5,
                 pivotValuesColumns: mockPivotValuesColumns,
                 resultsFileName: 'results-file-name.json',
                 resultsCreatedAt: new Date(),
@@ -1471,6 +1475,7 @@ describe('AsyncQueryService', () => {
             expect(result).toMatchObject({
                 pivotDetails: {
                     totalColumnCount: 5,
+                    totalGroupCount: 5,
                     valuesColumns: Object.values(mockPivotValuesColumns),
                     indexColumn: mockPivotConfiguration.indexColumn,
                     groupByColumns: mockPivotConfiguration.groupByColumns,
@@ -1518,6 +1523,7 @@ describe('AsyncQueryService', () => {
             cacheKey: 'test-query-key',
             pivotConfiguration: null,
             pivotTotalColumnCount: null,
+            pivotTotalGroupCount: null,
             pivotValuesColumns: null,
             resultsFileName: null,
             resultsCreatedAt: null,
@@ -1907,6 +1913,7 @@ describe('AsyncQueryService', () => {
                                 row_index: 1,
                                 column_index: 1,
                                 total_columns: 3,
+                                total_groups: 3,
                             },
                             {
                                 payments_payment_method: 'credit_card',
@@ -1915,6 +1922,7 @@ describe('AsyncQueryService', () => {
                                 row_index: 1,
                                 column_index: 2,
                                 total_columns: 3,
+                                total_groups: 3,
                             },
                             {
                                 payments_payment_method: 'credit_card',
@@ -1923,6 +1931,7 @@ describe('AsyncQueryService', () => {
                                 row_index: 1,
                                 column_index: 3,
                                 total_columns: 3,
+                                total_groups: 3,
                             },
                         ],
                         {
@@ -1942,6 +1951,9 @@ describe('AsyncQueryService', () => {
                                 type: DimensionType.NUMBER,
                             },
                             total_columns: {
+                                type: DimensionType.NUMBER,
+                            },
+                            total_groups: {
                                 type: DimensionType.NUMBER,
                             },
                         },
@@ -1989,6 +2001,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 expect.objectContaining({
                     pivot_total_column_count: 3,
+                    pivot_total_group_count: 3,
                     pivot_values_columns: expect.objectContaining({
                         [`orders_unique_order_count_any_sum_${NULL_PIVOT_COLUMN_VALUE_KEY}`]:
                             expect.objectContaining({

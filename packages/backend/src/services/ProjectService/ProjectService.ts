@@ -4184,6 +4184,7 @@ export class ProjectService extends BaseService {
         const valuesColumnData = new Map<string, PivotValuesColumn>();
 
         let columnCount: undefined | number;
+        let groupCount: undefined | number;
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
@@ -4195,7 +4196,20 @@ export class ProjectService extends BaseService {
                         pivotedSql,
                         async ({ rows, fields }) => {
                             if ('total_columns' in rows[0]) {
-                                columnCount = rows[0].total_columns;
+                                const numberTotalColumns = Number(
+                                    rows[0].total_columns,
+                                );
+                                columnCount = Number.isNaN(numberTotalColumns)
+                                    ? undefined
+                                    : numberTotalColumns;
+                            }
+                            if ('total_groups' in rows[0]) {
+                                const numberTotalGroups = Number(
+                                    rows[0].total_groups,
+                                );
+                                groupCount = Number.isNaN(numberTotalGroups)
+                                    ? undefined
+                                    : numberTotalGroups;
                             }
                             if (
                                 !groupByColumns ||
@@ -4302,7 +4316,8 @@ export class ProjectService extends BaseService {
             fileUrl,
             valuesColumns: processedColumns,
             indexColumn: indexColumns,
-            columnCount: Number(columnCount) || undefined,
+            columnCount,
+            groupCount,
         };
     }
 
