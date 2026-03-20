@@ -40,6 +40,7 @@ import {
 import { renameHandler } from './handlers/renameHandler';
 import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
+import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
@@ -1244,6 +1245,46 @@ program
     )
     .option('--verbose', 'Show detailed output', false)
     .action(runChartHandler);
+
+program
+    .command('set-warehouse')
+    .description(
+        "Update a project's warehouse connection from dbt profiles.yml. Use --assume-yes for non-interactive/CI usage. For organization-managed credentials, use the Lightdash UI.",
+    )
+    .option(
+        '--project-dir <path>',
+        'The directory of the dbt project',
+        defaultProjectDir,
+    )
+    .option(
+        '--profiles-dir <path>',
+        'The directory of the dbt profiles',
+        defaultProfilesDir,
+    )
+    .option(
+        '--profile <name>',
+        'The name of the profile to use (defaults to profile name in dbt_project.yml)',
+        undefined,
+    )
+    .option('--target <name>', 'target to use in profiles.yml file', undefined)
+    .option(
+        '--target-path <path>',
+        'The target directory for dbt (overrides DBT_TARGET_PATH and dbt_project.yml)',
+        undefined,
+    )
+    .option(
+        '--project <uuid>',
+        'Lightdash project UUID to update (defaults to currently selected project)',
+        undefined,
+    )
+    .option(
+        '--start-of-week <number>',
+        'Specifies the first day of the week (used by week-related date functions). 0 (Monday) to 6 (Sunday)',
+        parseStartOfWeekArgument,
+    )
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
+    .option('--verbose', 'Show detailed output', false)
+    .action(setWarehouseHandler);
 
 program
     .command('export-chart-image')
