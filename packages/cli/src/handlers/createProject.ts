@@ -147,104 +147,66 @@ const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
     return response?.auth?.snowflake?.enabled ?? false;
 };
 
-export const createProject = async (
-    options: CreateProjectOptions,
-): Promise<ApiCreateProjectResults | undefined> => {
-    await checkProjectCreationPermission(
-        options.upstreamProjectUuid,
-        options.type,
-    );
+type LoadWarehouseCredentialsOptions = {
+    projectDir: string;
+    profilesDir: string;
+    target?: string;
+    profile?: string;
+    startOfWeek?: number;
+    assumeYes?: boolean;
+    targetPath?: string;
+};
 
-    // Resolve organization credentials early before doing any heavy work
-    let organizationWarehouseCredentialsUuid: string | undefined;
-    if (options.organizationCredentials) {
-        organizationWarehouseCredentialsUuid =
-            await resolveOrganizationCredentialsName(
-                options.organizationCredentials,
-            );
-    }
+type LoadWarehouseCredentialsResult = {
+    credentials: CreateWarehouseCredentials;
+    targetName: string;
+    dbtVersionOption: DbtVersionOption;
+    isDbtCloudCLI: boolean;
+};
 
+export const loadWarehouseCredentialsFromProfiles = async (
+    options: LoadWarehouseCredentialsOptions,
+): Promise<LoadWarehouseCredentialsResult | null> => {
     const absoluteProjectPath = path.resolve(options.projectDir);
 
-    let targetName: string | undefined;
-    let credentials: CreateWarehouseCredentials | undefined;
-    let isDbtCloudCLI = false;
-    let dbtVersionOption: DbtVersionOption = getLatestSupportDbtVersion();
-
-    // If using organization credentials, don't load warehouse credentials from profiles
-    if (organizationWarehouseCredentialsUuid) {
-        GlobalState.debug(
-            `> Using organization warehouse credentials: ${options.organizationCredentials}`,
-        );
-
-        const dbtVersionResult = await tryGetDbtVersion();
-        if (!dbtVersionResult.success) {
-            throw dbtVersionResult.error;
-        }
-        isDbtCloudCLI = dbtVersionResult.version.isDbtCloudCLI;
-        dbtVersionOption = dbtVersionResult.version.versionOption;
-
-        // Still need to get target name for dbt connection
-        const context = await getDbtContext({
-            projectDir: absoluteProjectPath,
-            targetPath: options.targetPath,
-        });
-        GlobalState.debug(
-            `> Using profiles dir ${options.profilesDir} and profile ${
-                options.profile || context.profileName
-            }`,
-        );
-        targetName = await getDbtProfileTargetName({
-            isDbtCloudCLI,
-            profilesDir: options.profilesDir,
-            profile: options.profile || context.profileName,
-            target: options.target,
-        });
-        GlobalState.debug(`> Using target name ${targetName}`);
-    } else if (options.warehouseCredentials === false) {
-        GlobalState.debug('> Creating project without warehouse credentials');
-        // No dbt needed - use defaults set above
-    } else {
-        const dbtVersionResult = await tryGetDbtVersion();
-        if (!dbtVersionResult.success) {
-            throw dbtVersionResult.error;
-        }
-        isDbtCloudCLI = dbtVersionResult.version.isDbtCloudCLI;
-        dbtVersionOption = dbtVersionResult.version.versionOption;
-
-        const context = await getDbtContext({
-            projectDir: absoluteProjectPath,
-            targetPath: options.targetPath,
-        });
-        GlobalState.debug(
-            `> Using profiles dir ${options.profilesDir} and profile ${
-                options.profile || context.profileName
-            }`,
-        );
-        targetName = await getDbtProfileTargetName({
-            isDbtCloudCLI,
-            profilesDir: options.profilesDir,
-            profile: options.profile || context.profileName,
-            target: options.target,
-        });
-        GlobalState.debug(`> Using target name ${targetName}`);
-        const canStoreWarehouseCredentials =
-            await askPermissionToStoreWarehouseCredentials(options.assumeYes);
-        if (!canStoreWarehouseCredentials) {
-            GlobalState.debug(
-                '> User declined to store warehouse credentials use --no-warehouse-credentials to create a project without warehouse credentials',
-            );
-            return undefined;
-        }
-        const result = await getWarehouseClient({
-            isDbtCloudCLI,
-            profilesDir: options.profilesDir,
-            profile: options.profile || context.profileName,
-            target: options.target,
-            startOfWeek: options.startOfWeek,
-        });
-        credentials = result.credentials;
+    const dbtVersionResult = await tryGetDbtVersion();
+    if (!dbtVersionResult.success) {
+        throw dbtVersionResult.error;
     }
+    const { isDbtCloudCLI } = dbtVersionResult.version;
+    const dbtVersionOption = dbtVersionResult.version.versionOption;
+
+    const context = await getDbtContext({
+        projectDir: absoluteProjectPath,
+        targetPath: options.targetPath,
+    });
+    GlobalState.debug(
+        `> Using profiles dir ${options.profilesDir} and profile ${
+            options.profile || context.profileName
+        }`,
+    );
+    const targetName = await getDbtProfileTargetName({
+        isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+    });
+    GlobalState.debug(`> Using target name ${targetName}`);
+
+    const canStoreWarehouseCredentials =
+        await askPermissionToStoreWarehouseCredentials(options.assumeYes);
+    if (!canStoreWarehouseCredentials) {
+        return null;
+    }
+
+    const result = await getWarehouseClient({
+        isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
+    });
+    let { credentials } = result;
 
     if (
         credentials?.type === WarehouseTypes.BIGQUERY &&
@@ -308,7 +270,7 @@ We will ask for user credentials again on the Lightdash UI.\n`,
         } else {
             console.error(
                 styles.warning(
-                    `\nUser has externalbrowser snowflake authentication. 
+                    `\nUser has externalbrowser snowflake authentication.
 We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
 For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
                 ),
@@ -321,6 +283,94 @@ For a better user experience, we recommend enabling Snowflake OAuth authenticati
                 password: patToken,
             };
         }
+    }
+
+    return {
+        credentials,
+        targetName,
+        dbtVersionOption,
+        isDbtCloudCLI,
+    };
+};
+
+export const createProject = async (
+    options: CreateProjectOptions,
+): Promise<ApiCreateProjectResults | undefined> => {
+    await checkProjectCreationPermission(
+        options.upstreamProjectUuid,
+        options.type,
+    );
+
+    // Resolve organization credentials early before doing any heavy work
+    let organizationWarehouseCredentialsUuid: string | undefined;
+    if (options.organizationCredentials) {
+        organizationWarehouseCredentialsUuid =
+            await resolveOrganizationCredentialsName(
+                options.organizationCredentials,
+            );
+    }
+
+    const absoluteProjectPath = path.resolve(options.projectDir);
+
+    let targetName: string | undefined;
+    let credentials: CreateWarehouseCredentials | undefined;
+    let isDbtCloudCLI = false;
+    let dbtVersionOption: DbtVersionOption = getLatestSupportDbtVersion();
+
+    // If using organization credentials, don't load warehouse credentials from profiles
+    if (organizationWarehouseCredentialsUuid) {
+        GlobalState.debug(
+            `> Using organization warehouse credentials: ${options.organizationCredentials}`,
+        );
+
+        const dbtVersionResult = await tryGetDbtVersion();
+        if (!dbtVersionResult.success) {
+            throw dbtVersionResult.error;
+        }
+        isDbtCloudCLI = dbtVersionResult.version.isDbtCloudCLI;
+        dbtVersionOption = dbtVersionResult.version.versionOption;
+
+        // Still need to get target name for dbt connection
+        const context = await getDbtContext({
+            projectDir: absoluteProjectPath,
+            targetPath: options.targetPath,
+        });
+        GlobalState.debug(
+            `> Using profiles dir ${options.profilesDir} and profile ${
+                options.profile || context.profileName
+            }`,
+        );
+        targetName = await getDbtProfileTargetName({
+            isDbtCloudCLI,
+            profilesDir: options.profilesDir,
+            profile: options.profile || context.profileName,
+            target: options.target,
+        });
+        GlobalState.debug(`> Using target name ${targetName}`);
+    } else if (options.warehouseCredentials === false) {
+        GlobalState.debug('> Creating project without warehouse credentials');
+        // No dbt needed - use defaults set above
+    } else {
+        const loaded = await loadWarehouseCredentialsFromProfiles({
+            projectDir: options.projectDir,
+            profilesDir: options.profilesDir,
+            target: options.target,
+            profile: options.profile,
+            startOfWeek: options.startOfWeek,
+            assumeYes: options.assumeYes,
+            targetPath: options.targetPath,
+        });
+        if (!loaded) {
+            // User declined to store warehouse credentials
+            GlobalState.debug(
+                '> User declined to store warehouse credentials use --no-warehouse-credentials to create a project without warehouse credentials',
+            );
+            return undefined;
+        }
+        credentials = loaded.credentials;
+        targetName = loaded.targetName;
+        isDbtCloudCLI = loaded.isDbtCloudCLI;
+        dbtVersionOption = loaded.dbtVersionOption;
     }
 
     const project: CreateProjectOptionalCredentials = {
