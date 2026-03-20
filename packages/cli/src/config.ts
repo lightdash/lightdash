@@ -95,6 +95,18 @@ export const setProject = async (projectUuid: string, projectName: string) => {
     });
 };
 
+export const unsetProject = async () => {
+    const config = await getRawConfig();
+    await setConfig({
+        ...config,
+        context: {
+            ...(config.context || {}),
+            project: undefined,
+            projectName: undefined,
+        },
+    });
+};
+
 export const setPreviewProject = async (projectUuid: string, name: string) => {
     const config = await getRawConfig();
     await setConfig({

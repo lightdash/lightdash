@@ -492,9 +492,12 @@ export const downloadHandler = async (
 
     const projectSelection = await selectProject(config, options.project);
     if (!projectSelection) {
-        throw new Error(
-            'No project selected. Run lightdash config set-project',
-        );
+        throw new LightdashError({
+            message: 'No project selected. Run lightdash config set-project',
+            name: 'Not Found',
+            statusCode: 404,
+            data: {},
+        });
     }
     const projectId = projectSelection.projectUuid;
 
@@ -1074,9 +1077,12 @@ export const uploadHandler = async (
 
     const projectSelection = await selectProject(config, options.project);
     if (!projectSelection) {
-        throw new Error(
-            'No project selected. Run lightdash config set-project',
-        );
+        throw new LightdashError({
+            message: 'No project selected. Run lightdash config set-project',
+            name: 'Not Found',
+            statusCode: 404,
+            data: {},
+        });
     }
     const projectId = projectSelection.projectUuid;
 

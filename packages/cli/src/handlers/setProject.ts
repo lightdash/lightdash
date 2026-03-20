@@ -2,7 +2,7 @@ import { OrganizationProject } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig, setProject } from '../config';
+import { getConfig, setProject, unsetProject } from '../config';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 
@@ -12,7 +12,10 @@ type SetProjectOptions = {
     uuid: string;
 };
 
-export const setProjectCommand = async (name?: string, uuid?: string) => {
+export const setProjectCommand = async (
+    name?: string,
+    uuid?: string,
+): Promise<'selected' | 'skipped' | 'empty'> => {
     const projects = await lightdashApi<OrganizationProject[]>({
         method: 'GET',
         url: `/api/v1/org/projects`,
@@ -23,7 +26,7 @@ export const setProjectCommand = async (name?: string, uuid?: string) => {
         `> Set project returned response: ${JSON.stringify(projects)}`,
     );
 
-    if (projects.length === 0) return;
+    if (projects.length === 0) return 'empty';
 
     let selectedProject: OrganizationProject | undefined;
 
@@ -36,16 +39,28 @@ export const setProjectCommand = async (name?: string, uuid?: string) => {
         GlobalState.debug('> Non-interactive mode: selecting first project');
         [selectedProject] = projects;
     } else {
+        const SKIP_VALUE = '__skip__';
         const answers = await inquirer.prompt([
             {
                 type: 'list',
                 name: 'project',
-                choices: projects.map((project) => ({
-                    name: project.name,
-                    value: project.projectUuid,
-                })),
+                choices: [
+                    {
+                        name: "Don't select a project",
+                        value: SKIP_VALUE,
+                    },
+                    ...projects.map((project) => ({
+                        name: project.name,
+                        value: project.projectUuid,
+                    })),
+                ],
             },
         ]);
+
+        if (answers.project === SKIP_VALUE) {
+            await unsetProject();
+            return 'skipped';
+        }
 
         selectedProject = projects.find(
             (project) => project.projectUuid === answers.project,
@@ -64,9 +79,9 @@ export const setProjectCommand = async (name?: string, uuid?: string) => {
         console.error(
             `\n  ✅️ Connected to Lightdash project: ${projectUrl || ''}\n`,
         );
-    } else {
-        throw new Error(`Project not found.`);
+        return 'selected';
     }
+    throw new Error(`Project not found.`);
 };
 
 export const setFirstProject = async () => {
@@ -95,7 +110,10 @@ export const setProjectHandler = async (options: SetProjectOptions) => {
     let success = true;
     GlobalState.setVerbose(options.verbose);
     try {
-        await setProjectCommand(options.name, options.uuid);
+        const result = await setProjectCommand(options.name, options.uuid);
+        if (result === 'skipped') {
+            console.error(`\n  Project unset.\n`);
+        }
     } catch (e) {
         success = false;
         throw e;
@@ -104,6 +122,32 @@ export const setProjectHandler = async (options: SetProjectOptions) => {
             event: 'command.executed',
             properties: {
                 command: 'set-project',
+                durationMs: Date.now() - startTime,
+                success,
+            },
+        });
+    }
+};
+
+export const unsetProjectCommand = async () => {
+    await unsetProject();
+    console.error(`\n  Project unset.\n`);
+};
+
+export const unsetProjectHandler = async (options: { verbose: boolean }) => {
+    const startTime = Date.now();
+    let success = true;
+    GlobalState.setVerbose(options.verbose);
+    try {
+        await unsetProjectCommand();
+    } catch (e) {
+        success = false;
+        throw e;
+    } finally {
+        await LightdashAnalytics.track({
+            event: 'command.executed',
+            properties: {
+                command: 'unset-project',
                 durationMs: Date.now() - startTime,
                 success,
             },
