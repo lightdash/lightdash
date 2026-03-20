@@ -111,6 +111,7 @@ export class TableDataModel {
             results: [],
             valuesColumns: [],
             columnCount: undefined,
+            groupCount: undefined,
         };
     }
 

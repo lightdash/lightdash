@@ -99,6 +99,7 @@ const getPivotQueryResults = async (projectUuid: string, queryUuid: string) => {
         indexColumn: query.pivotDetails?.indexColumn,
         valuesColumns: query.pivotDetails?.valuesColumns ?? [],
         columnCount: query.pivotDetails?.totalColumnCount ?? undefined,
+        groupCount: query.pivotDetails?.totalGroupCount ?? undefined,
         fileUrl,
         columns: query.columns,
         originalColumns: query.pivotDetails

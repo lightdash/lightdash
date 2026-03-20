@@ -289,8 +289,8 @@ export const CartesianChartFieldConfiguration = ({
     const groupByLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
-    const series = useVizSelector((state) =>
-        cartesianChartSelectors.getSeries(state, selectedChartType),
+    const groupCount = useVizSelector((state) =>
+        cartesianChartSelectors.getGroupCount(state, selectedChartType),
     );
 
     const errors = useVizSelector((state) =>
@@ -304,8 +304,7 @@ export const CartesianChartFieldConfiguration = ({
         (option) => option.reference !== xAxisField?.reference,
     );
 
-    // Get the total number of groups (series) for the group limit config
-    const totalGroups = series?.length ?? 0;
+    const totalGroups = groupCount ?? 0;
 
     return (
         <Stack spacing="xl" mt="sm">

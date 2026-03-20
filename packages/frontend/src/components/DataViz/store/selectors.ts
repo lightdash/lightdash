@@ -313,6 +313,11 @@ const getSeries = createSelector(
     (chartState) => chartState?.series,
 );
 
+const getGroupCount = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.chartData?.groupCount,
+);
+
 export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
@@ -329,4 +334,5 @@ export const cartesianChartSelectors = {
     getXAxisType,
     getGroupLimit,
     getSeries,
+    getGroupCount,
 };

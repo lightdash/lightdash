@@ -114,6 +114,7 @@ export class BaseResultsRunner implements IResultsRunner {
             valuesColumns: [],
             columns: [],
             columnCount: undefined,
+            groupCount: undefined,
         };
 
         if (!query) {
