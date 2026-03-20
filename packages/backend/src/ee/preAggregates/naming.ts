@@ -1,4 +1,4 @@
-import { type TimeFrames } from '../types/timeFrames';
+import { type TimeFrames } from '@lightdash/common';
 
 export const PRE_AGGREGATE_EXPLORE_PREFIX = '__preagg__';
 

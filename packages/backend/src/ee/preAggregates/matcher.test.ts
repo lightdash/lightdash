@@ -1,17 +1,17 @@
-import { SupportedDbtAdapter } from '../types/dbt';
-import { type Explore } from '../types/explore';
 import {
     CustomDimensionType,
     DimensionType,
     FieldType,
+    FilterOperator,
     MetricType,
+    PreAggregateMissReason,
+    SupportedDbtAdapter,
+    TimeFrames,
     type CompiledDimension,
     type CompiledMetric,
-} from '../types/field';
-import { FilterOperator } from '../types/filter';
-import { type MetricQuery } from '../types/metricQuery';
-import { PreAggregateMissReason } from '../types/preAggregate';
-import { TimeFrames } from '../types/timeFrames';
+    type Explore,
+    type MetricQuery,
+} from '@lightdash/common';
 import { findMatch } from './matcher';
 
 const makeDimension = ({

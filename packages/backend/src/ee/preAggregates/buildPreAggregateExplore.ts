@@ -1,21 +1,20 @@
-import { SupportedDbtAdapter } from '../types/dbt';
 import {
+    assertUnreachable,
     ExploreType,
-    type CompiledTable,
-    type Explore,
-} from '../types/explore';
-import {
+    getItemId,
+    getSqlForTruncatedDate,
     MetricType,
+    SupportedDbtAdapter,
+    timeFrameOrder,
     type CompiledDimension,
     type CompiledMetric,
+    type CompiledTable,
     type DimensionType,
+    type Explore,
     type FieldId,
-} from '../types/field';
-import { type PreAggregateDef } from '../types/preAggregate';
-import { type TimeFrames } from '../types/timeFrames';
-import assertUnreachable from '../utils/assertUnreachable';
-import { getItemId } from '../utils/item';
-import { getSqlForTruncatedDate, timeFrameOrder } from '../utils/timeFrames';
+    type PreAggregateDef,
+    type TimeFrames,
+} from '@lightdash/common';
 import {
     getPreAggregateMetricRepresentation,
     isSupportedPreAggregateMetricType,
