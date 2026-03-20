@@ -97,8 +97,11 @@ const getExploresFromLightdashYmlProject = async (
         [],
         warehouseSqlBuilder,
         lightdashProjectConfig,
-        disableTimestampConversion,
-        process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+        {
+            disableTimestampConversion,
+            allowPartialCompilation:
+                process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+        },
     );
 
     return validExplores;
@@ -331,8 +334,11 @@ export const compile = async (options: CompileHandlerOptions) => {
                 : Object.values(manifest.metrics || {}),
             warehouseSqlBuilder,
             lightdashProjectConfig,
-            options.disableTimestampConversion,
-            process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+            {
+                disableTimestampConversion: options.disableTimestampConversion,
+                allowPartialCompilation:
+                    process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+            },
         );
         console.error('');
 

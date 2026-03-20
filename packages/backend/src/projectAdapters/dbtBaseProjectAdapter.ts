@@ -24,6 +24,7 @@ import {
     normaliseModelDatabase,
     NotFoundError,
     ParseError,
+    preAggregatePostProcessor,
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type LightdashProjectConfig,
@@ -40,6 +41,8 @@ import {
     ProjectAdapter,
     type TrackingParams,
 } from '../types';
+
+const postProcessors = [preAggregatePostProcessor];
 
 export class DbtBaseProjectAdapter implements ProjectAdapter {
     dbtClient: DbtClient;
@@ -256,8 +259,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 metrics,
                 this.warehouseClient,
                 lightdashProjectConfig,
-                disableTimestampConversion,
-                allowPartialCompilation,
+                {
+                    disableTimestampConversion,
+                    allowPartialCompilation,
+                    postProcessors,
+                },
             );
             Logger.info('Finished compiling explores');
             return [...lazyExplores, ...failedExplores];
@@ -301,8 +307,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     metrics,
                     this.warehouseClient,
                     lightdashProjectConfig,
-                    disableTimestampConversion,
-                    allowPartialCompilation,
+                    {
+                        disableTimestampConversion,
+                        allowPartialCompilation,
+                        postProcessors,
+                    },
                 );
                 Logger.info(
                     'Finished compiling explores after missing catalog error',
