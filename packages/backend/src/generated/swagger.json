@@ -16006,6 +16006,758 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "SchedulerFormat": {
+                "enum": ["csv", "xlsx", "image", "gsheets"],
+                "type": "string"
+            },
+            "SchedulerCsvOptions": {
+                "properties": {
+                    "asAttachment": {
+                        "type": "boolean"
+                    },
+                    "limit": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["table", "all"]
+                            }
+                        ]
+                    },
+                    "formatted": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["limit", "formatted"],
+                "type": "object"
+            },
+            "SchedulerImageOptions": {
+                "properties": {
+                    "withPdf": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "SchedulerGsheetsOptions": {
+                "properties": {
+                    "tabName": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "gdriveOrganizationName": {
+                        "type": "string"
+                    },
+                    "gdriveName": {
+                        "type": "string"
+                    },
+                    "gdriveId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "url",
+                    "gdriveOrganizationName",
+                    "gdriveName",
+                    "gdriveId"
+                ],
+                "type": "object"
+            },
+            "SchedulerOptions": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerCsvOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerImageOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
+                    }
+                ]
+            },
+            "ThresholdOperator": {
+                "enum": [
+                    "greaterThan",
+                    "lessThan",
+                    "increasedBy",
+                    "decreasedBy"
+                ],
+                "type": "string"
+            },
+            "ThresholdOptions": {
+                "properties": {
+                    "value": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fieldId": {
+                        "type": "string"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/ThresholdOperator"
+                    }
+                },
+                "required": ["value", "fieldId", "operator"],
+                "type": "object"
+            },
+            "NotificationFrequency": {
+                "enum": ["always", "once"],
+                "type": "string"
+            },
+            "SchedulerBase": {
+                "properties": {
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "includeLinks": {
+                        "type": "boolean"
+                    },
+                    "notificationFrequency": {
+                        "$ref": "#/components/schemas/NotificationFrequency"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "thresholds": {
+                        "items": {
+                            "$ref": "#/components/schemas/ThresholdOptions"
+                        },
+                        "type": "array"
+                    },
+                    "options": {
+                        "$ref": "#/components/schemas/SchedulerOptions"
+                    },
+                    "savedSqlName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedSqlUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "dashboardUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "savedChartUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectSchedulerTimezone": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "cron": {
+                        "type": "string"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "createdByName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdBy": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "includeLinks",
+                    "enabled",
+                    "options",
+                    "savedSqlName",
+                    "savedSqlUuid",
+                    "dashboardName",
+                    "dashboardUuid",
+                    "savedChartName",
+                    "savedChartUuid",
+                    "cron",
+                    "format",
+                    "createdByName",
+                    "createdBy",
+                    "updatedAt",
+                    "createdAt",
+                    "name",
+                    "schedulerUuid"
+                ],
+                "type": "object"
+            },
+            "ChartScheduler": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerBase"
+                    },
+                    {
+                        "properties": {
+                            "savedSqlUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "dashboardUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "savedChartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "savedSqlUuid",
+                            "dashboardUuid",
+                            "savedChartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardScheduler": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerBase"
+                    },
+                    {
+                        "properties": {
+                            "selectedTabs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            },
+                            "customViewportWidth": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "filters": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DashboardFilterRule"
+                                },
+                                "type": "array"
+                            },
+                            "savedSqlUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "savedChartUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "selectedTabs",
+                            "savedSqlUuid",
+                            "dashboardUuid",
+                            "savedChartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "SqlChartScheduler": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SchedulerBase"
+                    },
+                    {
+                        "properties": {
+                            "savedSqlUuid": {
+                                "type": "string"
+                            },
+                            "dashboardUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "savedChartUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "savedSqlUuid",
+                            "dashboardUuid",
+                            "savedChartUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Scheduler": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ChartScheduler"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardScheduler"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SqlChartScheduler"
+                    }
+                ]
+            },
+            "SchedulerSlackTarget": {
+                "properties": {
+                    "channel": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerSlackTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "channel",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerSlackTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerEmailTarget": {
+                "properties": {
+                    "recipient": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerEmailTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "recipient",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerEmailTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerMsTeamsTarget": {
+                "properties": {
+                    "webhook": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerMsTeamsTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "webhook",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerMsTeamsTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerGoogleChatTarget": {
+                "properties": {
+                    "googleChatWebhook": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerGoogleChatTargetUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "googleChatWebhook",
+                    "schedulerUuid",
+                    "updatedAt",
+                    "createdAt",
+                    "schedulerGoogleChatTargetUuid"
+                ],
+                "type": "object"
+            },
+            "SchedulerJobStatus": {
+                "enum": ["scheduled", "started", "completed", "error"],
+                "type": "string"
+            },
+            "SchedulerRunStatus": {
+                "enum": [
+                    "completed",
+                    "partial_failure",
+                    "failed",
+                    "running",
+                    "scheduled"
+                ],
+                "type": "string"
+            },
+            "Record_string.AnyType_": {
+                "properties": {},
+                "additionalProperties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "LogCounts": {
+                "properties": {
+                    "error": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "completed": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "started": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "scheduled": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "total": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "error",
+                    "completed",
+                    "started",
+                    "scheduled",
+                    "total"
+                ],
+                "type": "object"
+            },
+            "SchedulerResourceType": {
+                "enum": ["chart", "dashboard", "sqlChart"],
+                "type": "string"
+            },
+            "SchedulerRun": {
+                "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "resourceName": {
+                        "type": "string"
+                    },
+                    "resourceUuid": {
+                        "type": "string"
+                    },
+                    "resourceType": {
+                        "$ref": "#/components/schemas/SchedulerResourceType"
+                    },
+                    "logCounts": {
+                        "$ref": "#/components/schemas/LogCounts"
+                    },
+                    "details": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Record_string.AnyType_"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "runStatus": {
+                        "$ref": "#/components/schemas/SchedulerRunStatus"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/SchedulerJobStatus"
+                    },
+                    "scheduledTime": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "schedulerName": {
+                        "type": "string"
+                    },
+                    "schedulerUuid": {
+                        "type": "string"
+                    },
+                    "runId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "format",
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "resourceName",
+                    "resourceUuid",
+                    "resourceType",
+                    "logCounts",
+                    "details",
+                    "createdAt",
+                    "runStatus",
+                    "status",
+                    "scheduledTime",
+                    "schedulerName",
+                    "schedulerUuid",
+                    "runId"
+                ],
+                "type": "object"
+            },
+            "SchedulerAndTargets": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Scheduler"
+                    },
+                    {
+                        "properties": {
+                            "latestRun": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SchedulerRun"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "targets": {
+                                "items": {
+                                    "anyOf": [
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerSlackTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerEmailTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/SchedulerGoogleChatTarget"
+                                        }
+                                    ]
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["targets"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "Pick_SchedulerSlackTarget.channel_": {
+                "properties": {
+                    "channel": {
+                        "type": "string"
+                    }
+                },
+                "required": ["channel"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SchedulerMsTeamsTarget.webhook_": {
+                "properties": {
+                    "webhook": {
+                        "type": "string"
+                    }
+                },
+                "required": ["webhook"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SchedulerGoogleChatTarget.googleChatWebhook_": {
+                "properties": {
+                    "googleChatWebhook": {
+                        "type": "string"
+                    }
+                },
+                "required": ["googleChatWebhook"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_SchedulerEmailTarget.recipient_": {
+                "properties": {
+                    "recipient": {
+                        "type": "string"
+                    }
+                },
+                "required": ["recipient"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CreateSchedulerTarget": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SchedulerSlackTarget.channel_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_SchedulerMsTeamsTarget.webhook_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_SchedulerGoogleChatTarget.googleChatWebhook_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Pick_SchedulerEmailTarget.recipient_"
+                    }
+                ]
+            },
+            "Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy__": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "cron": {
+                        "type": "string"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "projectSchedulerTimezone": {
+                        "type": "string"
+                    },
+                    "options": {
+                        "$ref": "#/components/schemas/SchedulerOptions"
+                    },
+                    "thresholds": {
+                        "items": {
+                            "$ref": "#/components/schemas/ThresholdOptions"
+                        },
+                        "type": "array"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "notificationFrequency": {
+                        "$ref": "#/components/schemas/NotificationFrequency"
+                    },
+                    "includeLinks": {
+                        "type": "boolean"
+                    },
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targets": {
+                        "items": {
+                            "$ref": "#/components/schemas/CreateSchedulerTarget"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "name",
+                    "format",
+                    "cron",
+                    "options",
+                    "enabled",
+                    "includeLinks",
+                    "targets"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy_": {
+                "$ref": "#/components/schemas/Pick_CreateSchedulerAndTargets.Exclude_keyofCreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "CreateSchedulerAndTargetsWithoutIds": {
+                "$ref": "#/components/schemas/Omit_CreateSchedulerAndTargets.savedChartUuid-or-dashboardUuid-or-savedSqlUuid-or-createdBy_"
+            },
             "SpotlightTableColumns": {
                 "enum": [
                     "label",
@@ -16925,569 +17677,6 @@
                 "$ref": "#/components/schemas/Pick_ShareUrl.path-or-params_",
                 "description": "Contains the detail of a full URL to generate a short URL id"
             },
-            "SchedulerFormat": {
-                "enum": ["csv", "xlsx", "image", "gsheets"],
-                "type": "string"
-            },
-            "SchedulerCsvOptions": {
-                "properties": {
-                    "asAttachment": {
-                        "type": "boolean"
-                    },
-                    "limit": {
-                        "anyOf": [
-                            {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            {
-                                "type": "string",
-                                "enum": ["table", "all"]
-                            }
-                        ]
-                    },
-                    "formatted": {
-                        "type": "boolean"
-                    }
-                },
-                "required": ["limit", "formatted"],
-                "type": "object"
-            },
-            "SchedulerImageOptions": {
-                "properties": {
-                    "withPdf": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "SchedulerGsheetsOptions": {
-                "properties": {
-                    "tabName": {
-                        "type": "string"
-                    },
-                    "url": {
-                        "type": "string"
-                    },
-                    "gdriveOrganizationName": {
-                        "type": "string"
-                    },
-                    "gdriveName": {
-                        "type": "string"
-                    },
-                    "gdriveId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "url",
-                    "gdriveOrganizationName",
-                    "gdriveName",
-                    "gdriveId"
-                ],
-                "type": "object"
-            },
-            "SchedulerOptions": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerCsvOptions"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SchedulerImageOptions"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SchedulerGsheetsOptions"
-                    }
-                ]
-            },
-            "ThresholdOperator": {
-                "enum": [
-                    "greaterThan",
-                    "lessThan",
-                    "increasedBy",
-                    "decreasedBy"
-                ],
-                "type": "string"
-            },
-            "ThresholdOptions": {
-                "properties": {
-                    "value": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "fieldId": {
-                        "type": "string"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/ThresholdOperator"
-                    }
-                },
-                "required": ["value", "fieldId", "operator"],
-                "type": "object"
-            },
-            "NotificationFrequency": {
-                "enum": ["always", "once"],
-                "type": "string"
-            },
-            "SchedulerBase": {
-                "properties": {
-                    "projectName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "includeLinks": {
-                        "type": "boolean"
-                    },
-                    "notificationFrequency": {
-                        "$ref": "#/components/schemas/NotificationFrequency"
-                    },
-                    "enabled": {
-                        "type": "boolean"
-                    },
-                    "thresholds": {
-                        "items": {
-                            "$ref": "#/components/schemas/ThresholdOptions"
-                        },
-                        "type": "array"
-                    },
-                    "options": {
-                        "$ref": "#/components/schemas/SchedulerOptions"
-                    },
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "dashboardUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedChartName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "savedChartUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectSchedulerTimezone": {
-                        "type": "string"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "cron": {
-                        "type": "string"
-                    },
-                    "format": {
-                        "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "createdByName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdBy": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "includeLinks",
-                    "enabled",
-                    "options",
-                    "dashboardName",
-                    "dashboardUuid",
-                    "savedChartName",
-                    "savedChartUuid",
-                    "cron",
-                    "format",
-                    "createdByName",
-                    "createdBy",
-                    "updatedAt",
-                    "createdAt",
-                    "name",
-                    "schedulerUuid"
-                ],
-                "type": "object"
-            },
-            "ChartScheduler": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerBase"
-                    },
-                    {
-                        "properties": {
-                            "dashboardUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "savedChartUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["dashboardUuid", "savedChartUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "DashboardScheduler": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/SchedulerBase"
-                    },
-                    {
-                        "properties": {
-                            "selectedTabs": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array",
-                                "nullable": true
-                            },
-                            "customViewportWidth": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "parameters": {
-                                "$ref": "#/components/schemas/ParametersValuesMap"
-                            },
-                            "filters": {
-                                "items": {
-                                    "$ref": "#/components/schemas/DashboardFilterRule"
-                                },
-                                "type": "array"
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            },
-                            "savedChartUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            }
-                        },
-                        "required": [
-                            "selectedTabs",
-                            "dashboardUuid",
-                            "savedChartUuid"
-                        ],
-                        "type": "object"
-                    }
-                ]
-            },
-            "Scheduler": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/ChartScheduler"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DashboardScheduler"
-                    }
-                ]
-            },
-            "SchedulerSlackTarget": {
-                "properties": {
-                    "channel": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerSlackTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "channel",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerSlackTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerEmailTarget": {
-                "properties": {
-                    "recipient": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerEmailTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "recipient",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerEmailTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerMsTeamsTarget": {
-                "properties": {
-                    "webhook": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerMsTeamsTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "webhook",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerMsTeamsTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerGoogleChatTarget": {
-                "properties": {
-                    "googleChatWebhook": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerGoogleChatTargetUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "googleChatWebhook",
-                    "schedulerUuid",
-                    "updatedAt",
-                    "createdAt",
-                    "schedulerGoogleChatTargetUuid"
-                ],
-                "type": "object"
-            },
-            "SchedulerJobStatus": {
-                "enum": ["scheduled", "started", "completed", "error"],
-                "type": "string"
-            },
-            "SchedulerRunStatus": {
-                "enum": [
-                    "completed",
-                    "partial_failure",
-                    "failed",
-                    "running",
-                    "scheduled"
-                ],
-                "type": "string"
-            },
-            "Record_string.AnyType_": {
-                "properties": {},
-                "additionalProperties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "LogCounts": {
-                "properties": {
-                    "error": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "completed": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "started": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "scheduled": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "total": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": [
-                    "error",
-                    "completed",
-                    "started",
-                    "scheduled",
-                    "total"
-                ],
-                "type": "object"
-            },
-            "SchedulerRun": {
-                "properties": {
-                    "format": {
-                        "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "createdByUserName": {
-                        "type": "string"
-                    },
-                    "createdByUserUuid": {
-                        "type": "string"
-                    },
-                    "resourceName": {
-                        "type": "string"
-                    },
-                    "resourceUuid": {
-                        "type": "string"
-                    },
-                    "resourceType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
-                    },
-                    "logCounts": {
-                        "$ref": "#/components/schemas/LogCounts"
-                    },
-                    "details": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/Record_string.AnyType_"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "runStatus": {
-                        "$ref": "#/components/schemas/SchedulerRunStatus"
-                    },
-                    "status": {
-                        "$ref": "#/components/schemas/SchedulerJobStatus"
-                    },
-                    "scheduledTime": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "schedulerName": {
-                        "type": "string"
-                    },
-                    "schedulerUuid": {
-                        "type": "string"
-                    },
-                    "runId": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "format",
-                    "createdByUserName",
-                    "createdByUserUuid",
-                    "resourceName",
-                    "resourceUuid",
-                    "resourceType",
-                    "logCounts",
-                    "details",
-                    "createdAt",
-                    "runStatus",
-                    "status",
-                    "scheduledTime",
-                    "schedulerName",
-                    "schedulerUuid",
-                    "runId"
-                ],
-                "type": "object"
-            },
-            "SchedulerAndTargets": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Scheduler"
-                    },
-                    {
-                        "properties": {
-                            "latestRun": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/SchedulerRun"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "targets": {
-                                "items": {
-                                    "anyOf": [
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerSlackTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerEmailTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerMsTeamsTarget"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/SchedulerGoogleChatTarget"
-                                        }
-                                    ]
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["targets"],
-                        "type": "object"
-                    }
-                ]
-            },
             "SchedulerTaskName": {
                 "type": "string",
                 "enum": [
@@ -17929,8 +18118,7 @@
                         "type": "string"
                     },
                     "resourceType": {
-                        "type": "string",
-                        "enum": ["chart", "dashboard"]
+                        "$ref": "#/components/schemas/SchedulerResourceType"
                     },
                     "logs": {
                         "items": {
@@ -19883,6 +20071,10 @@
                         "format": "double",
                         "description": "Maximum number of rows to return"
                     },
+                    "timezone": {
+                        "type": "string",
+                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
+                    },
                     "exploreName": {
                         "type": "string",
                         "description": "The name of the explore to query"
@@ -19936,10 +20128,6 @@
                     "dimensionOverrides": {
                         "$ref": "#/components/schemas/DimensionOverrides",
                         "description": "Override formatting options for existing dimensions"
-                    },
-                    "timezone": {
-                        "type": "string",
-                        "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
                     },
                     "pivotDimensions": {
                         "items": {
@@ -20161,22 +20349,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -20478,22 +20666,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -26093,6 +26281,9 @@
                         },
                         "type": "object"
                     },
+                    "timezone": {
+                        "type": "string"
+                    },
                     "exploreName": {
                         "type": "string"
                     },
@@ -26137,9 +26328,6 @@
                     },
                     "dimensionOverrides": {
                         "$ref": "#/components/schemas/DimensionOverrides"
-                    },
-                    "timezone": {
-                        "type": "string"
                     },
                     "pivotDimensions": {
                         "items": {
@@ -28416,7 +28604,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2643.0",
+        "version": "0.2644.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33025,6 +33213,137 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/CreateVirtualViewPayload"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/sqlRunner/saved/{savedSqlUuid}/schedulers": {
+            "get": {
+                "operationId": "getSqlChartSchedulers",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/SchedulerAndTargets"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get all schedulers for a SQL chart",
+                "summary": "List SQL chart schedulers",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "savedSqlUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createSqlChartScheduler",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/SchedulerAndTargets"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a scheduler for a SQL chart",
+                "summary": "Create SQL chart scheduler",
+                "tags": ["SQL runner"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "savedSqlUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSchedulerAndTargetsWithoutIds"
                             }
                         }
                     }

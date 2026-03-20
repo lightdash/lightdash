@@ -14,8 +14,8 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getSchedulerResourceTypeAndId,
     hasChartsInDashboard,
-    isChartScheduler,
     isDashboardChartTileType,
     isDashboardScheduler,
     isDashboardUnversionedFields,
@@ -1240,6 +1240,7 @@ export class DashboardService
             createdBy: user.userUuid,
             dashboardUuid,
             savedChartUuid: null,
+            savedSqlUuid: null,
         });
         const createSchedulerData: SchedulerDashboardUpsertEvent = {
             userId: user.userUuid,
@@ -1248,18 +1249,13 @@ export class DashboardService
                 projectId: projectUuid,
                 organizationId: organizationUuid,
                 schedulerId: scheduler.schedulerUuid,
-                resourceType: isChartScheduler(scheduler)
-                    ? 'chart'
-                    : 'dashboard',
+                ...getSchedulerResourceTypeAndId(scheduler),
                 cronExpression: scheduler.cron,
                 format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,
                 }),
-                resourceId: isChartScheduler(scheduler)
-                    ? scheduler.savedChartUuid
-                    : scheduler.dashboardUuid,
                 targets:
                     scheduler.format === SchedulerFormat.GSHEETS
                         ? []

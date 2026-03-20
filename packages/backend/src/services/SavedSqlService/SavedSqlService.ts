@@ -3,8 +3,11 @@ import {
     AbilityAction,
     ApiCreateSqlChart,
     BulkActionable,
+    CreateSchedulerAndTargetsWithoutIds,
     CreateSqlChart,
     ForbiddenError,
+    isValidFrequency,
+    isValidTimezone,
     isVizBarChartConfig,
     isVizLineChartConfig,
     isVizPieChartConfig,
@@ -13,6 +16,7 @@ import {
     ParameterError,
     Project,
     QueryExecutionContext,
+    SchedulerAndTargets,
     SessionUser,
     SqlChart,
     SqlRunnerPivotQueryBody,
@@ -29,6 +33,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import type {
@@ -43,6 +48,7 @@ type SavedSqlServiceArguments = {
     projectModel: ProjectModel;
     savedSqlModel: SavedSqlModel;
     schedulerClient: SchedulerClient;
+    schedulerModel: SchedulerModel;
     analyticsModel: AnalyticsModel;
     spacePermissionService: SpacePermissionService;
 };
@@ -63,6 +69,8 @@ export class SavedSqlService
 
     private readonly schedulerClient: SchedulerClient;
 
+    private readonly schedulerModel: SchedulerModel;
+
     private readonly analyticsModel: AnalyticsModel;
 
     private readonly spacePermissionService: SpacePermissionService;
@@ -74,6 +82,7 @@ export class SavedSqlService
         this.projectModel = args.projectModel;
         this.savedSqlModel = args.savedSqlModel;
         this.schedulerClient = args.schedulerClient;
+        this.schedulerModel = args.schedulerModel;
         this.analyticsModel = args.analyticsModel;
         this.spacePermissionService = args.spacePermissionService;
     }
@@ -701,5 +710,68 @@ export class SavedSqlService
                 },
             });
         }
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        savedSqlUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {});
+        const { organizationUuid } = sqlChart.organization;
+        const { projectUuid } = sqlChart.project;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
+    }
+
+    async createScheduler(
+        user: SessionUser,
+        savedSqlUuid: string,
+        newScheduler: CreateSchedulerAndTargetsWithoutIds,
+    ): Promise<SchedulerAndTargets> {
+        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {});
+        const { organizationUuid } = sqlChart.organization;
+        const { projectUuid } = sqlChart.project;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (!isValidFrequency(newScheduler.cron)) {
+            throw new ParameterError(
+                'Frequency not allowed, custom input is limited to hourly',
+            );
+        }
+
+        if (!isValidTimezone(newScheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
+        }
+
+        return this.schedulerModel.createScheduler({
+            ...newScheduler,
+            createdBy: user.userUuid,
+            savedChartUuid: null,
+            dashboardUuid: null,
+            savedSqlUuid,
+        });
     }
 }

@@ -8,6 +8,7 @@ import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
+import { SchedulerResourceType } from './schedulerLog';
 import type { PartialFailure, SchedulerRun } from './schedulerLog';
 import { type DateGranularity } from './timeFrames';
 import { type ValidationTarget } from './validation';
@@ -112,6 +113,8 @@ export type SchedulerBase = {
     savedChartName: string | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    savedSqlUuid: string | null;
+    savedSqlName: string | null;
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
@@ -124,6 +127,7 @@ export type SchedulerBase = {
 export type ChartScheduler = SchedulerBase & {
     savedChartUuid: string;
     dashboardUuid: null;
+    savedSqlUuid: null;
 };
 
 export const isDashboardScheduler = (
@@ -133,13 +137,25 @@ export const isDashboardScheduler = (
 export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: string;
+    savedSqlUuid: null;
     filters?: DashboardFilterRule[];
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs: string[] | null;
 };
 
-export type Scheduler = ChartScheduler | DashboardScheduler;
+export type SqlChartScheduler = SchedulerBase & {
+    savedChartUuid: null;
+    dashboardUuid: null;
+    savedSqlUuid: string;
+};
+
+export const isSqlChartScheduler = (
+    scheduler: Scheduler | CreateSchedulerAndTargets,
+): scheduler is SqlChartScheduler =>
+    'savedSqlUuid' in scheduler && scheduler.savedSqlUuid !== null;
+
+export type Scheduler = ChartScheduler | DashboardScheduler | SqlChartScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
     targets: (
@@ -237,13 +253,14 @@ export type CreateSchedulerAndTargets = Omit<
     | 'createdByName'
     | 'savedChartName'
     | 'dashboardName'
+    | 'savedSqlName'
 > & {
     targets: CreateSchedulerTarget[];
 };
 
 export type CreateSchedulerAndTargetsWithoutIds = Omit<
     CreateSchedulerAndTargets,
-    'savedChartUuid' | 'dashboardUuid' | 'createdBy'
+    'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'createdBy'
 >;
 
 export type UpdateSchedulerAndTargets = Pick<
@@ -304,6 +321,30 @@ export const isUpdateSchedulerEmailTarget = (
 export const isChartScheduler = (
     data: Scheduler | CreateSchedulerAndTargets,
 ): data is ChartScheduler => 'savedChartUuid' in data && !!data.savedChartUuid;
+
+export const getSchedulerResourceTypeAndId = (
+    scheduler: Scheduler,
+): { resourceType: SchedulerResourceType; resourceId: string } => {
+    if (isChartScheduler(scheduler)) {
+        return {
+            resourceType: SchedulerResourceType.CHART,
+            resourceId: scheduler.savedChartUuid,
+        };
+    }
+    if (isSqlChartScheduler(scheduler)) {
+        return {
+            resourceType: SchedulerResourceType.SQL_CHART,
+            resourceId: scheduler.savedSqlUuid,
+        };
+    }
+    if (isDashboardScheduler(scheduler)) {
+        return {
+            resourceType: SchedulerResourceType.DASHBOARD,
+            resourceId: scheduler.dashboardUuid,
+        };
+    }
+    throw new Error('Unknown scheduler resource type');
+};
 
 export const isChartCreateScheduler = (
     data: CreateSchedulerAndTargets,

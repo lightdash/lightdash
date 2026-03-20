@@ -15,6 +15,12 @@ export type SchedulerTargetType =
     | 'msteams'
     | 'googlechat';
 
+export enum SchedulerResourceType {
+    CHART = 'chart',
+    DASHBOARD = 'dashboard',
+    SQL_CHART = 'sqlChart',
+}
+
 // Partial failure types for different scenarios
 export enum PartialFailureType {
     MISSING_TARGETS = 'missing_targets',
@@ -116,7 +122,7 @@ export type SchedulerRun = {
     details: Record<string, AnyType> | null;
     logCounts: LogCounts;
     // Metadata for filtering/display
-    resourceType: 'chart' | 'dashboard';
+    resourceType: SchedulerResourceType;
     resourceUuid: string;
     resourceName: string;
     createdByUserUuid: string;
@@ -145,7 +151,7 @@ export type SchedulerRunLogsResponse = {
     scheduledTime: Date;
     logs: SchedulerRunLog[];
     // Metadata
-    resourceType: 'chart' | 'dashboard';
+    resourceType: SchedulerResourceType;
     resourceUuid: string;
     resourceName: string;
     createdByUserUuid: string;

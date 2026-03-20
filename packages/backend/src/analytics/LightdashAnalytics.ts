@@ -21,6 +21,7 @@ import {
     QueryHistoryStatus,
     RequestMethod,
     SchedulerFormat,
+    SchedulerResourceType,
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
@@ -1007,7 +1008,7 @@ export type SchedulerUpsertEvent = BaseTrack & {
         projectId: string;
         organizationId: string;
         schedulerId: string;
-        resourceType: 'dashboard' | 'chart';
+        resourceType: SchedulerResourceType;
         cronExpression: string;
         cronString: string;
         resourceId: string;
@@ -1043,7 +1044,7 @@ export type SchedulerDeleteEvent = BaseTrack & {
         projectId: string;
         organizationId: string;
         schedulerId: string;
-        resourceType: 'dashboard' | 'chart';
+        resourceType: SchedulerResourceType;
         resourceId: string;
         softDelete: boolean;
     };
@@ -1055,7 +1056,7 @@ export type SchedulerRestoredEvent = BaseTrack & {
         projectId: string;
         organizationId: string;
         schedulerId: string;
-        resourceType: 'dashboard' | 'chart';
+        resourceType: SchedulerResourceType;
         resourceId: string;
     };
 };

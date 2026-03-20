@@ -12,9 +12,11 @@ import {
     ApiUpdateSqlChart,
     ApiWarehouseTableFields,
     ApiWarehouseTablesCatalog,
+    CreateSchedulerAndTargetsWithoutIds,
     CreateSqlChart,
     CreateVirtualViewPayload,
     QueryExecutionContext,
+    SchedulerAndTargets,
     SqlRunnerBody,
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
@@ -646,6 +648,55 @@ export class SqlRunnerController extends BaseController {
                     sql,
                     columns,
                 ),
+        };
+    }
+
+    /**
+     * Get all schedulers for a SQL chart
+     * @summary List SQL chart schedulers
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/saved/{savedSqlUuid}/schedulers')
+    @OperationId('getSqlChartSchedulers')
+    async getSqlChartSchedulers(
+        @Path() projectUuid: string,
+        @Path() savedSqlUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: SchedulerAndTargets[] }> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .getSchedulers(req.user!, savedSqlUuid),
+        };
+    }
+
+    /**
+     * Create a scheduler for a SQL chart
+     * @summary Create SQL chart scheduler
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/saved/{savedSqlUuid}/schedulers')
+    @OperationId('createSqlChartScheduler')
+    async createSqlChartScheduler(
+        @Path() projectUuid: string,
+        @Path() savedSqlUuid: string,
+        @Body() body: CreateSchedulerAndTargetsWithoutIds,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: SchedulerAndTargets }> {
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedSqlService()
+                .createScheduler(req.user!, savedSqlUuid, body),
         };
     }
 }
