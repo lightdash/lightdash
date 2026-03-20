@@ -53,24 +53,24 @@ A simple bar chart showing order counts by status:
 
 ```yaml
 chartConfig:
-  type: custom
   config:
     spec:
       $schema: https://vega.github.io/schema/vega-lite/v5.json
-      mark: bar
       encoding:
         x:
+          axis:
+            labelColor: '#6e7079'
+            tickColor: '#6e7079'
           field: orders_status
           type: nominal
+        y:
           axis:
             labelColor: '#6e7079'
             tickColor: '#6e7079'
-        y:
           field: orders_count
           type: quantitative
-          axis:
-            labelColor: '#6e7079'
-            tickColor: '#6e7079'
+      mark: bar
+  type: custom
 ```
 
 ### Heatmap
@@ -79,24 +79,24 @@ A heatmap showing aggregated values across two dimensions:
 
 ```yaml
 chartConfig:
-  type: custom
   config:
     spec:
       $schema: https://vega.github.io/schema/vega-lite/v5.json
-      mark: rect
       encoding:
+        color:
+          aggregate: sum
+          field: orders_total_revenue
+          scale:
+            scheme: blues
+          type: quantitative
         x:
           field: orders_created_month
           type: ordinal
         y:
           field: products_category
           type: nominal
-        color:
-          field: orders_total_revenue
-          type: quantitative
-          aggregate: sum
-          scale:
-            scheme: blues
+      mark: rect
+  type: custom
 ```
 
 ## Tips and Best Practices

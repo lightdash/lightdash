@@ -36,29 +36,27 @@ Every pie chart requires:
 3. Chart type set to `pie`
 
 ```yaml
-version: 1
-name: "Revenue by Product Category"
-slug: revenue-by-category
-spaceSlug: sales
-tableName: orders
-
-metricQuery:
-  exploreName: orders
-  dimensions:
-    - orders_product_category
-  metrics:
-    - orders_total_revenue
-  sorts:
-    - fieldId: orders_total_revenue
-      descending: true
-  limit: 10
-
 chartConfig:
   type: pie
   config:
     groupFieldIds:
       - orders_product_category
     metricId: orders_total_revenue
+metricQuery:
+  dimensions:
+    - orders_product_category
+  exploreName: orders
+  limit: 10
+  metrics:
+    - orders_total_revenue
+  sorts:
+    - fieldId: orders_total_revenue
+      descending: true
+name: "Revenue by Product Category"
+slug: revenue-by-category
+spaceSlug: sales
+tableName: orders
+version: 1
 ```
 
 ## Configuration Options
@@ -101,50 +99,9 @@ chartConfig:
 Donut chart with custom colors and labels:
 
 ```yaml
-version: 1
-name: "Regional Sales Performance"
-slug: regional-sales
-spaceSlug: sales
-tableName: orders
-updatedAt: 2026-01-30T10:00:00Z
-
-metricQuery:
-  exploreName: orders
-  dimensions:
-    - orders_region
-  metrics:
-    - orders_total_revenue
-  sorts:
-    - fieldId: orders_total_revenue
-      descending: true
-  limit: 8
-
 chartConfig:
   type: pie
   config:
-    groupFieldIds:
-      - orders_region
-    metricId: orders_total_revenue
-
-    # Donut chart
-    isDonut: true
-
-    # Labels
-    valueLabel: inside
-    showValue: true
-    showPercentage: true
-
-    # Legend
-    showLegend: true
-    legendPosition: vertical
-
-    # Custom labels for region codes
-    groupLabelOverrides:
-      "NA": "North America"
-      "EMEA": "Europe, Middle East & Africa"
-      "APAC": "Asia Pacific"
-      "LATAM": "Latin America"
-
     # Brand colors for regions
     groupColorOverrides:
       "NA": "#3b82f6"
@@ -152,12 +109,14 @@ chartConfig:
       "APAC": "#f59e0b"
       "LATAM": "#ef4444"
       "Other": "#94a3b8"
-
-    # Hide labels for small "Other" slice
-    groupValueOptionOverrides:
-      "Other":
-        valueLabel: hidden
-
+    groupFieldIds:
+      - orders_region
+    # Custom labels for region codes
+    groupLabelOverrides:
+      "NA": "North America"
+      "EMEA": "Europe, Middle East & Africa"
+      "APAC": "Asia Pacific"
+      "LATAM": "Latin America"
     # Custom sort order
     groupSortOverrides:
       - "NA"
@@ -165,6 +124,35 @@ chartConfig:
       - "APAC"
       - "LATAM"
       - "Other"
+    # Hide labels for small "Other" slice
+    groupValueOptionOverrides:
+      "Other":
+        valueLabel: hidden
+    # Donut chart
+    isDonut: true
+    # Legend
+    legendPosition: vertical
+    metricId: orders_total_revenue
+    showLegend: true
+    # Labels
+    showPercentage: true
+    showValue: true
+    valueLabel: inside
+metricQuery:
+  dimensions:
+    - orders_region
+  exploreName: orders
+  limit: 8
+  metrics:
+    - orders_total_revenue
+  sorts:
+    - fieldId: orders_total_revenue
+      descending: true
+name: "Regional Sales Performance"
+slug: regional-sales
+spaceSlug: sales
+tableName: orders
+version: 1
 ```
 
 ## Best Practices

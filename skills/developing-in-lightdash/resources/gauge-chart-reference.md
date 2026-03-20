@@ -47,29 +47,12 @@ The gauge `config` object supports these key properties:
 Gauge with red/yellow/green performance zones:
 
 ```yaml
-version: 1
-name: "Customer Satisfaction Score"
-slug: "customer-satisfaction"
-spaceSlug: "metrics"
-tableName: "customer_metrics"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions: []
-  metrics:
-    - "customer_metrics_csat_score"
-  filters: []
-  sorts: []
-  limit: 1
-
 chartConfig:
   type: "gauge"
   config:
-    selectedField: "customer_metrics_csat_score"
-    min: 0
-    max: 10
-    showAxisLabels: true
     customLabel: "CSAT Score"
+    max: 10
+    min: 0
     sections:
       # Red zone: 0-5 (poor)
       - min: 0
@@ -83,6 +66,20 @@ chartConfig:
       - min: 7
         max: 10
         color: "#10B981"
+    selectedField: "customer_metrics_csat_score"
+    showAxisLabels: true
+metricQuery:
+  dimensions: []
+  filters: []
+  limit: 1
+  metrics:
+    - "customer_metrics_csat_score"
+  sorts: []
+name: "Customer Satisfaction Score"
+slug: "customer-satisfaction"
+spaceSlug: "metrics"
+tableName: "customer_metrics"
+version: 1
 ```
 
 ### Example 2: Dynamic Max with Percentage Display
@@ -90,31 +87,12 @@ chartConfig:
 Progress gauge against a dynamic target:
 
 ```yaml
-version: 1
-name: "Project Completion"
-slug: "project-completion"
-spaceSlug: "projects"
-tableName: "project_metrics"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions: []
-  metrics:
-    - "project_metrics_tasks_completed"
-    - "project_metrics_total_tasks"
-  filters: []
-  sorts: []
-  limit: 1
-
 chartConfig:
   type: "gauge"
   config:
-    selectedField: "project_metrics_tasks_completed"
-    min: 0
-    maxFieldId: "project_metrics_total_tasks"
-    showAxisLabels: true
-    showPercentage: true
     customPercentageLabel: "% Complete"
+    maxFieldId: "project_metrics_total_tasks"
+    min: 0
     sections:
       - min: 0
         max: 50
@@ -125,6 +103,22 @@ chartConfig:
       - min: 75
         max: 100
         color: "#22C55E"
+    selectedField: "project_metrics_tasks_completed"
+    showAxisLabels: true
+    showPercentage: true
+metricQuery:
+  dimensions: []
+  filters: []
+  limit: 1
+  metrics:
+    - "project_metrics_tasks_completed"
+    - "project_metrics_total_tasks"
+  sorts: []
+name: "Project Completion"
+slug: "project-completion"
+spaceSlug: "projects"
+tableName: "project_metrics"
+version: 1
 ```
 
 ## Common Patterns

@@ -7,28 +7,25 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic Structure
 
 ```yaml
-version: 1
+chartConfig:
+  type: "big_number"
+  config:
+    label: "Total Revenue"
+    selectedField: "orders_total_revenue"
+    showBigNumberLabel: true
+    style: "M"
+metricQuery:
+  dimensions: []
+  filters: []
+  limit: 1
+  metrics:
+    - "orders_total_revenue"
+  sorts: []
 name: "Total Revenue"
 slug: "total-revenue"
 spaceSlug: "sales"
 tableName: "orders"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions: []
-  metrics:
-    - "orders_total_revenue"
-  filters: []
-  sorts: []
-  limit: 1
-
-chartConfig:
-  type: "big_number"
-  config:
-    selectedField: "orders_total_revenue"
-    label: "Total Revenue"
-    style: "M"
-    showBigNumberLabel: true
+version: 1
 ```
 
 ## Configuration Properties
@@ -102,34 +99,31 @@ Comparisons work by **comparing row 1 to row 2** in the query results. This requ
 3. **`limit: 2`** (or more) so a second row exists to compare against
 
 ```yaml
-version: 1
+chartConfig:
+  type: "big_number"
+  config:
+    comparisonFormat: "percentage"
+    comparisonLabel: "vs. Previous Month"
+    label: "Monthly Revenue"
+    selectedField: "orders_total_revenue"
+    showBigNumberLabel: true
+    showComparison: true
+    style: "M"
+metricQuery:
+  dimensions:
+    - "orders_created_month"           # 1. Time dimension
+  filters: []
+  limit: 2                             # 3. Two rows for comparison
+  metrics:
+    - "orders_total_revenue"
+  sorts:
+    - fieldId: "orders_created_month"
+      descending: true                 # 2. Most recent first
 name: "Monthly Revenue"
 slug: "monthly-revenue"
 spaceSlug: "sales"
 tableName: "orders"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions:
-    - "orders_created_month"           # 1. Time dimension
-  metrics:
-    - "orders_total_revenue"
-  filters: []
-  sorts:
-    - fieldId: "orders_created_month"
-      descending: true                 # 2. Most recent first
-  limit: 2                             # 3. Two rows for comparison
-
-chartConfig:
-  type: "big_number"
-  config:
-    selectedField: "orders_total_revenue"
-    label: "Monthly Revenue"
-    style: "M"
-    showBigNumberLabel: true
-    showComparison: true
-    comparisonFormat: "percentage"
-    comparisonLabel: "vs. Previous Month"
+version: 1
 ```
 
 ### Common Mistakes

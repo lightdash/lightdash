@@ -62,14 +62,23 @@ describe('Content as Code CLI', () => {
             cy.wrap(result.code).should('eq', 0);
         });
         const chartFilePath = `lightdash/charts/what-s-the-average-spend-per-customer.yml`;
+        const metadataPath = `lightdash/.lightdash-metadata.json`;
+        const chartSlug = 'what-s-the-average-spend-per-customer';
 
         const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
         const updateSedDescription = `s/description: .*/description: Updated description from CLI test ${date1MinuteAgo}/`;
-        const updateSedDownloadedAt = `s/downloadedAt: .*/downloadedAt: ${date1MinuteAgo}/`;
-        // We need to force the download time it to trigger the upload
-        // see `needsUpdating` variable for more details
+        // Update the chart description
+        cy.exec(`sed -i "${updateSedDescription}" ${chartFilePath}`).then(
+            (result) => {
+                cy.wrap(result.code).should('eq', 0);
+            },
+        );
+
+        // Backdate downloadedAt in the metadata file to trigger the upload.
+        // downloadedAt is stored in .lightdash-metadata.json (not in the YAML).
+        // see `needsUpdating` variable in download.ts for more details
         cy.exec(
-            `sed -i "${updateSedDescription}" ${chartFilePath} && sed -i "${updateSedDownloadedAt}" ${chartFilePath}`,
+            `node -e "const fs = require('fs'); const m = JSON.parse(fs.readFileSync('${metadataPath}', 'utf-8')); m.charts['${chartSlug}'] = '${date1MinuteAgo}'; fs.writeFileSync('${metadataPath}', JSON.stringify(m, null, 2));"`,
         ).then((result) => {
             cy.wrap(result.code).should('eq', 0);
         });
@@ -85,18 +94,16 @@ describe('Content as Code CLI', () => {
         cy.exec('lightdash download').then((result) => {
             cy.wrap(result.code).should('eq', 0);
         });
-        const chartFilePath = `lightdash/dashboards/jaffle-dashboard.yml`;
+        const dashboardFilePath = `lightdash/dashboards/jaffle-dashboard.yml`;
 
-        const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
+        // Changing the slug means there's no metadata entry for it,
+        // so needsUpdating defaults to true and the upload triggers a create.
         const updateSedSlug = `s/slug: .*/slug: jaffle-dashboard-${new Date().getTime()}/`;
-        const updateSedDownloadedAt = `s/downloadedAt: .*/downloadedAt: ${date1MinuteAgo}/`;
-        // We need to force the download time it to trigger the upload
-        // see `needsUpdating` variable for more details
-        cy.exec(
-            `sed -i "${updateSedSlug}" ${chartFilePath} && sed -i "${updateSedDownloadedAt}" ${chartFilePath}`,
-        ).then((result) => {
-            cy.wrap(result.code).should('eq', 0);
-        });
+        cy.exec(`sed -i "${updateSedSlug}" ${dashboardFilePath}`).then(
+            (result) => {
+                cy.wrap(result.code).should('eq', 0);
+            },
+        );
 
         cy.exec('lightdash upload --verbose').then((result) => {
             cy.wrap(result.stdout).should('contain', 'dashboards created: 1');
