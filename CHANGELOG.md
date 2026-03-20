@@ -1,3 +1,10 @@
+## [0.2644.1](https://github.com/lightdash/lightdash/compare/0.2644.0...0.2644.1) (2026-03-20)
+
+
+### Bug Fixes
+
+* update generated API schema  ([#21266](https://github.com/lightdash/lightdash/issues/21266)) ([c494d8d](https://github.com/lightdash/lightdash/commit/c494d8d5d6dd34be94255290921acf1e3ee881eb))
+
 # [0.2644.0](https://github.com/lightdash/lightdash/compare/0.2643.0...0.2644.0) (2026-03-20)
 
 
