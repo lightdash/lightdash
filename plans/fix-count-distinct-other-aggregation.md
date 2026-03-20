@@ -1,16 +1,8 @@
-# Fix DISTINCT "Other" Group Aggregation
+# Fix "Other" Group Aggregation for All Metric Types
 
 ## Problem
 
-When grouping pivot/chart series into top-N + "Other", the current implementation re-aggregates already-aggregated metric values.
-
-That is wrong for distinct-style metrics:
-
-- `COUNT_DISTINCT`
-- `SUM_DISTINCT`
-- `AVERAGE_DISTINCT`
-
-These metrics must be recomputed from the scoped raw rows for the final bucket, not merged with a second `SUM(...)` over per-group aggregates.
+When grouping pivot/chart series into top-N + "Other", the current implementation re-aggregates already-aggregated metric values. That is wrong for non-additive metrics.
 
 **Example:**
 
@@ -23,475 +15,169 @@ If customer 123 appears in both region C and region D:
 - COUNT(DISTINCT customer_id) over the merged "Other" bucket counts it once
 ```
 
-`SUM_DISTINCT` and `AVERAGE_DISTINCT` have the same issue for the same reason: duplicates can span multiple groups that later collapse into `"Other"`.
+Affected metric types: `COUNT_DISTINCT`, `SUM_DISTINCT`, `AVERAGE_DISTINCT`.
+
+The same architecture also produces wrong results for `AVERAGE`, `MEDIAN`, and `PERCENTILE` — those are currently forced to `drop` because the code correctly identifies them as non-additive, but the underlying reason is the same: you cannot re-aggregate pre-aggregated values for non-additive metrics.
+
+### Evidence from live reproductions
+
+- `COUNT_DISTINCT` on `customers_unique_customer_count` grouped by `orders_order_date_month` with `maxGroups = 2`:
+  - pivoted "Other" = 87, true excluded-month union = 70, overcount delta = 17
+- `SUM_DISTINCT` on `customers_total_order_amount_deduped` grouped by `payments_payment_method` with `maxGroups = 2`:
+  - pivoted "Other" = 2969.36, true deduped excluded-group sum = 2650.41, overcount delta = 318.95
+- `AVERAGE_DISTINCT` on `customers_avg_order_amount_deduped` grouped by `payments_payment_method`:
+  - pivoted "Other" = 27.7228, true deduped average = 27.3429, delta = 0.3799
 
 ## Root Cause
 
-The current `"Other"` pipeline works on `original_query`, which is already aggregated:
+The current pipeline works exclusively on `original_query`, which is already aggregated:
 
-```text
-original_query
-  -> pre_group_by
-  -> __group_ranking
-  -> group_by_query
+```
+raw rows
+  → GROUP BY (in MetricQueryBuilder)
+  → original_query (one row per group, metrics already aggregated)
+  → pre_group_by (re-aggregate by groupBy columns)
+  → __group_ranking (rank groups by metric value)
+  → group_by_query (CASE WHEN rank <= N … ELSE 'Other', re-aggregate metrics)
 ```
 
-That is fine for additive metrics like `SUM`, `COUNT`, `MIN`, `MAX`.
+The final re-aggregation in `group_by_query` uses `otherAggregation` (SUM/MIN/MAX) on the pre-aggregated values. This is correct for additive metrics (SUM, COUNT, MIN, MAX) but wrong for everything else.
 
-It is not fine for distinct-style metrics because once the source rows have already been aggregated per group, duplicates across groups are gone from the query input. At that point:
+## Solution: Single Raw-Row Bucketed Path
 
-- `SUM(COUNT_DISTINCT(x))` is not equal to `COUNT_DISTINCT(x)` on the merged bucket
-- `SUM(SUM_DISTINCT(x))` is not equal to `SUM_DISTINCT(x)` on the merged bucket
-- averaging already-deduped group averages is not equal to `AVERAGE_DISTINCT(x)` on the merged bucket
+### Key insight from industry research
 
-The original plan proposed rebuilding the raw query from `FROM/JOIN/WHERE` fragments inside `PivotQueryBuilder`. That is not safe enough:
+Every BI tool that handles this correctly (Looker, Tableau, Superset, Sigma) does the same thing: **bucket assignment happens before aggregation**. They never aggregate first and re-aggregate second.
 
-- aliases from `original_query` do not exist in raw SQL
-- custom/bin dimension CTEs and helper joins can be lost
-- metric-filter scope can change
-- parameter replacement would need to be repeated on ad hoc fragments
+The current plan's complexity came from trying to maintain two parallel paths (fast additive path + raw distinct path), which created a "mixed chart" problem requiring a phased rollout. Instead, use **one path for all metrics** when "Other" is enabled.
 
-## Solution
+### Design
 
-Add a reusable raw `pivot_source` relation to `MetricQueryBuilder`, and use that relation only when `"Other"` is enabled and at least one distinct-style metric is present.
+```
+                          Two modes, not four strategies
 
-### Evidence collected during investigation
+  Group limit disabled               Group limit enabled with "Other"
+  or no groupBy columns?             ───────────────────────────────
+  ────────────────────
+                                      1. original_query → ranking (existing)
+  Current path, unchanged.            2. pivot_source → raw rows (new)
+  No changes needed.                  3. bucket assignment on raw rows
+                                      4. single aggregation pass for ALL metrics
+```
 
-- A live end-to-end reproduction on `customers_unique_customer_count` grouped by `orders_order_date_month` with `groupLimit.maxGroups = 2` returned:
-  - pivoted result: `2025-01 = 40`, `2024-06 = 31`, `"Other" = 87`
-  - true excluded-month union: `70`
-  - overcount delta: `17`
-  This proves the current `COUNT_DISTINCT` `"Other"` path is wrong in a real chart shape, not just in theory.
-- A live end-to-end reproduction on `customers_total_order_amount_deduped` grouped by `payments_payment_method` with `groupLimit.maxGroups = 2` returned:
-  - pivoted result: kept `credit_card = 2411.50`, `"Other" = 2969.36`
-  - true deduped excluded-group sum over `orders.order_id`: `2650.41`
-  - overcount delta: `318.95`
-  This proves the same bug already exists for `SUM_DISTINCT` in real data.
-- A forced live reproduction on `customers_avg_order_amount_deduped` grouped by `payments_payment_method` showed that if `AVERAGE_DISTINCT` is routed through the legacy fallback path:
-  - pivoted result: kept `gift_card = 34.6769...`, `"Other" = 27.7228...`
-  - true deduped excluded-group average over `orders.order_id`: `27.3429...`
-  - delta: `0.3799...`
-  This confirms `AVERAGE_DISTINCT` also needs bucket-aware dedup logic; re-aggregating per-group averages is not correct.
-- A live `compileQuery` response for `customers_unique_customer_count` returned:
-  - `compiledSql = COUNT(DISTINCT "customers".customer_id)`
-  - `compiledValueSql = "customers".customer_id`
-  This proves the simple `COUNT_DISTINCT` path already exposes a row-level input.
-- The same live `compileQuery` call with pivoting enabled returned a `pivotQuery` that still does:
-  - `pre_group_by AS (... sum("customers_unique_customer_count") ...)`
-  - `group_by_query AS (... sum("customers_unique_customer_count") ...)`
-  This ties the incorrect live `"Other" = 87` result directly to the current `SUM(...)` re-aggregation path.
-- Matching live `pivotQuery` output for the other distinct-style metrics still uses the legacy aggregate-over-aggregate pattern:
-  - `SUM_DISTINCT`: `pre_group_by AS (... sum("customers_total_order_amount_deduped") ...)`
-  - `AVERAGE_DISTINCT`: `pre_group_by AS (... avg("customers_avg_order_amount_deduped") ...)`
-  So the emitted SQL already matches the live divergences above.
-- Current chart-to-pivot derivation still encodes the old fallback model:
-  - `COUNT_DISTINCT` and `SUM_DISTINCT` map to `otherAggregation = SUM`
-  - `AVERAGE_DISTINCT` maps to `otherAggregation = null`
-  That means Step 2 is required to support `AVERAGE_DISTINCT` at all, and required to stop routing distinct metrics through the legacy fallback model.
-- Separate live investigation found a general `groupLimit` null-ranking bug that is not specific to distinct metrics:
-  - `__group_ranking` uses `ORDER BY __ranking_value DESC` without explicit null handling
-  - `getGroupByQueryWithOtherSQL` and `getGroupByQueryWithDropSQL` join ranked groups back with plain equality instead of null-safe equality
-  - result: a `NULL` group can consume a top-N slot, fail to match on join, and still collapse into `"Other"` or disappear
-  This should be fixed independently or folded into the same change if the code paths are being touched together.
-- Existing compiler mocks also include cases where `compiledValueSql` is already aggregate SQL such as:
-  - `count(distinct ("events".user_id))`
-  - `stddev(("events".amount))`
-  - `sum(("events".amount)) / NULLIF((count(distinct ("events".user_id))), 0)`
-  This disproves using `compiledValueSql` as a universal raw-row contract for every metric type.
-- Existing `MetricQueryBuilder` tests for `SUM_DISTINCT` and `AVERAGE_DISTINCT` already prove the dedup strategy:
-  - `ROW_NUMBER() OVER (...)`
-  - `PARTITION BY <distinct keys>, <selected dimensions>`
-  - float-cast division for `AVERAGE_DISTINCT`
-- The current type comments for `compiledValueSql` / `compiledDistinctKeys` are narrower than the real compiler behavior:
-  - comments still say `sum_distinct`
-  - compiler populates distinct-key metadata for both `SUM_DISTINCT` and `AVERAGE_DISTINCT`
-  This is another reason to introduce an explicit `pivotSource.metricInputs` contract instead of stretching the existing field comments into a public API.
-- `MetricQueryBuilder` applies metric filters late enough in the compiled query flow that a raw re-aggregation path must be explicitly scoped back to `pre_group_by` output. `__pre_group_scope` is therefore required, not optional.
+This eliminates:
+- The mixed chart problem (all metrics go through one path)
+- The strategy pattern (two modes: off or bucketed)
+- The phased rollout (all supported metric types from day one)
+- The `reAggregation` metadata on `ValuesColumn` (compiler just emits raw expressions)
 
-### Design goals
+### New pipeline when "Other" is enabled
 
-- Keep `original_query` as the source of truth for ranking and row scope
-- Recompute distinct-style metrics from raw rows after bucket assignment
-- Preserve the exact base query semantics:
-  - base table
-  - joins
-  - dimension helper CTEs
-  - dimension filters
-  - parameter replacement
-  - fanout-protection inputs
-- Support mixed charts:
-  - `COUNT_DISTINCT + SUM`
-  - `SUM_DISTINCT + COUNT`
-  - `AVERAGE_DISTINCT + SUM`
-
-### New high-level pipeline
-
-```text
+```
 1. original_query
-   already aggregated
-   still used for ranking and for determining which grouped rows survived filters
+   Already aggregated. Used for ranking only.
 
 2. pre_group_by
-   current pivot pre-aggregation over original_query
+   Current pivot pre-aggregation over original_query. Used for ranking.
 
 3. __group_totals / __group_ranking
-   current top-N ranking logic
+   Current top-N ranking logic. Unchanged.
 
 4. __pre_group_scope
-   DISTINCT groupBy + index combinations from pre_group_by
-   preserves metric-filtered row scope
+   DISTINCT groupBy + index combinations from pre_group_by.
+   Preserves metric-filtered row scope — prevents excluded rows from leaking
+   back into "Other" via the raw path.
 
 5. pivot_source
-   raw row relation built by MetricQueryBuilder
-   includes:
-   - dimension aliases needed by pivoting
-   - _order columns for sorted bin dimensions
-   - raw metric input columns
-   - distinct key columns for SUM_DISTINCT / AVERAGE_DISTINCT
+   Raw row relation built by MetricQueryBuilder.
+   One raw input column per metric + dimension aliases + order columns.
 
 6. scoped_source
-   pivot_source INNER JOIN __pre_group_scope
-   keeps only raw rows that belong to grouped rows that survived original_query filters
+   pivot_source INNER JOIN __pre_group_scope.
+   Keeps only raw rows that belong to grouped rows that survived filters.
 
 7. bucketed_source
-   CASE WHEN rank <= N THEN group ELSE 'Other'
-   bucket assignment happens here, before distinct aggregation
+   CASE WHEN rank <= N THEN group ELSE 'Other' END.
+   Bucket assignment happens here, before any metric aggregation.
 
-8. metric aggregate CTEs
-   - standard metrics aggregated from bucketed_source
-   - COUNT_DISTINCT aggregated from bucketed_source
-   - SUM_DISTINCT / AVERAGE_DISTINCT aggregated from bucketed_source via per-metric dedup CTEs
-
-9. group_by_query
-   joins the metric CTEs back into the normal pivot pipeline
+8. group_by_query
+   Single aggregation pass over bucketed_source for ALL metrics.
+   - SUM: SUM(raw_col)
+   - COUNT: COUNT(raw_col)  or  COUNT(*)
+   - MIN/MAX: MIN/MAX(raw_col)
+   - COUNT_DISTINCT: COUNT(DISTINCT raw_col)
+   - SUM_DISTINCT: dedup CTE + SUM
+   - AVERAGE_DISTINCT: dedup CTE + AVG
+   - AVERAGE: AVG(raw_col)
+   - MEDIAN: PERCENTILE_CONT(0.5)(raw_col) etc.
 ```
 
-## Key idea
+### Compiler contract
 
-Do not reconstruct raw SQL from pieces inside `PivotQueryBuilder`.
+`MetricQueryBuilder` emits a `pivotSource` alongside the main `query`. For each metric, it provides the raw expression and the aggregation strategy:
 
-Instead, have `MetricQueryBuilder` emit a fully-formed raw `pivot_source` query that is built with the same compiler context as the main query. `PivotQueryBuilder` can then safely operate on stable aliases coming from `pivot_source`, just like it already does with `original_query`.
-
-That avoids alias drift and keeps all the current query-building rules in one place.
-
-Also: do not treat existing `CompiledMetric.compiledValueSql` as the universal API for this. The investigation showed it is reliable for some simple metrics, but not as a general raw-input contract. The plan should introduce an explicit compiler-owned raw re-aggregation contract instead.
-
----
-
-## De-risking Principles
-
-- Revert any previously committed backend changes for this feature before continuing implementation
-- Treat current backend behavior as the baseline to preserve
-- Use Strategy pattern to keep rollout logic separate from SQL assembly
-- Keep existing functionality unchanged when the new rollout flag is off
-- Ship the compiler contract before changing query behavior
-- Fail closed:
-  - if any required raw metric input is missing, force `drop`
-  - never silently fall back to incorrect `SUM(...)`
-- Narrow v1 scope to distinct-only value sets:
-  - `COUNT_DISTINCT`
-  - `SUM_DISTINCT`
-  - `AVERAGE_DISTINCT`
-- Keep mixed distinct + additive charts as `drop` until the raw path is proven in production-like tests
-- Keep the separate null-group ranking/join bug out of the first implementation
-- Add result-level differential tests, not only SQL snapshots
-
-## De-risked Rollout
-
-### Phase 0: Re-baseline current behavior
-
-Before implementing the new raw distinct `"Other"` path:
-
-- revert any backend changes that were previously committed specifically for this feature work
-- re-establish the current backend behavior as the source-of-truth baseline
-- add regression coverage for current flag-off behavior:
-  - no group limit
-  - existing `fast_other`
-  - existing `drop`
-- confirm the emitted SQL and results remain unchanged for the current paths before introducing the new strategy
-
-This is important because the goal is to add a new opt-in backend capability, not to silently reshape existing functionality.
-
-### Phase 1: Safe shippable fix
-
-Implement only:
-
-- `reAggregation` metadata
-- `pivotSource` compiler contract
-- service wiring for `pivotSource`
-- raw `"Other"` recomputation for charts where **all** value columns are distinct-style metrics and every metric has the required raw contract
-
-Keep as `drop` in phase 1:
-
-- mixed distinct + additive charts
-- unsupported/non-additive metrics
-- any path missing `pivotSource`
-
-This lands the correctness fix for the broken cases without taking on mixed-metric raw aggregation in the same release.
-
-### Phase 2: Follow-up expansion
-
-After phase 1 is stable, extend raw `"Other"` support to mixed charts where additive metrics also have explicit `pivotSource.metricInputs[metricId].strategy === 'standard'` coverage.
-
-### Phase 3: Separate cleanup
-
-Handle the null-ranking/null-join bug in its own PR unless implementation pressure makes that impossible. It is real, but it is not required to fix distinct-style `"Other"` correctness.
-
----
-
-## Refactoring Approach
-
-Use Refactoring.Guru's "replace conditional with polymorphism" here.
-
-Instead of growing `PivotQueryBuilder` into a large branching tree, introduce a small planner / strategy layer that chooses one execution mode and explains why.
-
-Also use Refactoring.Guru-style extraction refactors to preserve current behavior:
-
-- Extract Class
-  - move the existing `fast_other` path into `FastOtherStrategy`
-  - move the existing `drop` path into `DropUnsupportedStrategy`
-- Move Method
-  - move SQL-assembly helpers into the owning strategy without rewriting their semantics
-
-The rule is:
-
-- extract existing behavior first
-- verify it is unchanged
-- then add the new `RawDistinctOtherStrategy`
-
-Do not "clean up" or rewrite existing SQL generation while introducing the new strategy. The new work should be additive.
-
-```typescript
-type GroupLimitStrategyId =
-    | 'none'
-    | 'fast_other'
-    | 'raw_distinct_other'
-    | 'drop';
-
-type GroupLimitFlags = {
-    groupLimitEnabled: boolean;
-    rawDistinctOtherEnabled: boolean;
-};
-
-type GroupLimitPlannerContext = {
-    pivotConfiguration: PivotConfiguration;
-    pivotSource?: CompiledQuery['pivotSource'];
-    groupLimitFlags: GroupLimitFlags;
-};
-
-interface GroupLimitStrategy {
-    id: GroupLimitStrategyId;
-    supports(ctx: GroupLimitPlannerContext): boolean;
-    build(args: BuildArgs): GroupLimitBuildResult;
-}
+```
+┌─────────────────────┬──────────────────────────┬────────────────────────────┐
+│ Metric type         │ Raw expression           │ Re-aggregate in bucket     │
+├─────────────────────┼──────────────────────────┼────────────────────────────┤
+│ SUM                 │ "table".column           │ SUM(raw)                   │
+│ COUNT               │ "table".column or '*'    │ COUNT(raw)                 │
+│ MIN                 │ "table".column           │ MIN(raw)                   │
+│ MAX                 │ "table".column           │ MAX(raw)                   │
+│ COUNT_DISTINCT      │ "table".column           │ COUNT(DISTINCT raw)        │
+│ SUM_DISTINCT        │ "table".column           │ dedup CTE → SUM            │
+│ AVERAGE_DISTINCT    │ "table".column           │ dedup CTE → AVG            │
+│ AVERAGE             │ "table".column           │ AVG(raw)                   │
+│ NUMBER (custom SQL) │ may be aggregate expr    │ unsupported → drop         │
+│ Table calculations  │ N/A                      │ unsupported → drop         │
+└─────────────────────┴──────────────────────────┴────────────────────────────┘
 ```
 
-Concrete strategies:
-
-- `NoGroupLimitStrategy`
-- `FastOtherStrategy`
-  - the existing additive aggregate-over-aggregate path
-- `RawDistinctOtherStrategy`
-  - the new raw `pivot_source` path
-  - phase 1 supports distinct-only value sets
-- `DropUnsupportedStrategy`
-  - explicit fail-closed fallback
-
-And a factory/planner:
-
-```typescript
-class GroupLimitStrategyFactory {
-    static select(ctx: GroupLimitPlannerContext): GroupLimitStrategySelection;
-}
-```
-
-Where `GroupLimitStrategySelection` includes:
-
-- the chosen strategy
-- a reason string, for example:
-  - `group_limit_disabled`
-  - `missing_pivot_source`
-  - `mixed_metrics_phase_1`
-  - `unsupported_metric_type`
-  - `raw_distinct_flag_disabled`
-
-This keeps:
-
-- feature-flag checks
-- support detection
-- fallback behavior
-
-out of the low-level SQL assembly methods.
-
-### Feature-flag relationship
-
-Tie the backend rollout to the existing frontend group-limit flag.
-
-- Shared parent flag:
-  - `FeatureFlags.GroupLimitEnabled`
-- New backend rollout flag:
-  - `FeatureFlags.GroupLimitRawDistinctOther`
-  - exact name can vary, but it should clearly scope the new raw distinct `"Other"` strategy
-
-Selection rule:
-
-- if `groupLimit.enabled` is false in the query config:
-  - use `none`
-- if `groupLimit.enabled` is true but `GroupLimitRawDistinctOther` is off:
-  - never choose `raw_distinct_other`
-- if `groupLimit.enabled` is true and `GroupLimitRawDistinctOther` is on:
-  - `raw_distinct_other` is eligible only when `GroupLimitEnabled` is also on and the metric capabilities are complete
-
-Important nuance:
-
-- `GroupLimitEnabled` is the product-level parent gate already used by the frontend
-- the backend must resolve that same flag server-side rather than trusting the client
-- the new rollout flag is a child gate for the new strategy, not a replacement for the existing feature
-
-Compatibility rule:
-
-- when `GroupLimitRawDistinctOther` is off, backend behavior must remain equivalent to today's behavior
-- the existing `fast_other` and `drop` paths should not change semantics as part of this project
-
-Recommended frontend consistency cleanup:
-
-- migrate group-limit UI checks from `useClientFeatureFlag(FeatureFlags.GroupLimitEnabled)` to `useServerFeatureFlag(FeatureFlags.GroupLimitEnabled)` where practical
-- that keeps frontend visibility and backend strategy selection on the same server-resolved flag path
+The compiler knows whether `compiledValueSql` is a raw column reference or an aggregate expression. If it cannot provide a raw expression for a metric, that metric is marked unsupported and the chart falls back to `drop`.
 
 ---
 
 ## Implementation Plan
 
-### Step 0: Introduce strategy selection and feature-flag plumbing
+### Step 0: Re-baseline current behavior
+
+Before implementing the new path:
+
+- Revert any backend changes previously committed for this feature work
+- Re-establish current backend behavior as the source-of-truth baseline
+- Add regression coverage for current flag-off behavior:
+  - no group limit
+  - existing `fast_other` (all-additive charts)
+  - existing `drop` (charts with unsupported metrics)
+- Confirm emitted SQL and results remain unchanged before introducing the new path
+
+**Files:** `PivotQueryBuilder.test.ts`
+**Risk:** Low
+
+---
+
+### Step 1: Add feature flag
 
 **Files:**
-
 - `packages/common/src/types/featureFlags.ts`
-- `packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts`
 - `packages/backend/src/services/ProjectService/ProjectService.ts`
 - `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
-- `packages/backend/src/services/AsyncQueryService/PreAggregationDuckDbClient.ts`
-- `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`
 
-Add the new rollout flag:
+Add:
 
 ```typescript
-FeatureFlags.GroupLimitRawDistinctOther = 'group-limit-raw-distinct-other';
+FeatureFlags.GroupLimitRawOther = 'group-limit-raw-other';
 ```
 
-Resolve feature flags once in the service layer, not inside query-builder utilities.
+Resolve once in the service layer (not inside query builders). Pass the resolved boolean into `PivotQueryBuilder` as a constructor arg.
 
-Recommended resolution flow:
-
-- `ProjectService` / `AsyncQueryService` resolve:
-  - `FeatureFlags.GroupLimitEnabled`
-  - `FeatureFlags.GroupLimitRawDistinctOther`
-- `PreAggregationDuckDbClient` receives the resolved booleans as an argument
-- `PivotQueryBuilder` receives a planner context or constructor arg carrying those flags
-
-This keeps feature-flag evaluation:
-
-- deterministic for a request
-- easy to test
-- independent from PostHog/network concerns inside SQL planning code
-
-Implementation constraint:
-
-- do not change the semantics of the current backend path in this step
-- only introduce the planner, flags, and extraction points needed to preserve current behavior under the existing path
+When the flag is off, behavior must be identical to today.
 
 **Risk:** Low
 
 ---
 
-### Step 1: Extend pivot value metadata
-
-**File:** `packages/common/src/types/sqlRunner.ts`
-
-Add re-aggregation metadata to `ValuesColumn` so the pivot layer knows how a metric can be recomputed when `"Other"` needs raw-row bucketing.
-
-```typescript
-export type ValueReAggregation =
-    | {
-          kind: 'standard';
-          metricType: MetricType;
-      }
-    | {
-          kind: 'count_distinct';
-          metricType: MetricType.COUNT_DISTINCT;
-      }
-    | {
-          kind: 'sum_distinct' | 'average_distinct';
-          metricType: MetricType.SUM_DISTINCT | MetricType.AVERAGE_DISTINCT;
-      };
-
-export type ValuesColumn = {
-    reference: string;
-    aggregation: VizAggregationOptions;
-    otherAggregation?: VizAggregationOptions | null;
-    reAggregation?: ValueReAggregation;
-};
-```
-
-Notes:
-
-- `otherAggregation` stays for the existing fast path
-- `reAggregation` is the new signal for raw `"Other"` support
-- unsupported metrics still use `otherAggregation: null` and no `reAggregation`
-- actual raw SQL and alias plumbing will live in `CompiledQuery.pivotSource.metricInputs`, not in `ValuesColumn`
-
-**Risk:** Low
-
----
-
-### Step 2: Derive re-aggregation metadata from compiled fields
-
-**File:** `packages/common/src/pivot/derivePivotConfigFromChart.ts`
-
-Attach `reAggregation` metadata when `groupLimit.enabled` is true.
-
-Rules:
-
-- `COUNT_DISTINCT`
-  - supported
-  - `reAggregation.kind = 'count_distinct'`
-- `SUM_DISTINCT`
-  - supported
-  - `reAggregation.kind = 'sum_distinct'`
-- `AVERAGE_DISTINCT`
-  - supported
-  - `reAggregation.kind = 'average_distinct'`
-  - reuses the existing distinct dedup approach already proven in `MetricQueryBuilder`
-- additive metrics used in mixed charts
-  - supported only when the compiler can emit an explicit raw-input contract for them in `pivotSource.metricInputs`
-  - do not infer this from `compiledValueSql` alone
-- table calculations and unsupported metric types
-  - keep current unsupported behavior
-
-Also update grouping-mode support detection:
-
-```typescript
-const hasUnsupported = valuesColumns.some((col) => {
-    if (col.reAggregation) return false;
-    return col.otherAggregation === null;
-});
-```
-
-This lets distinct metrics be treated as supported even when they do not use the old `SUM/MIN/MAX` fallback model.
-
-**Important change:** `COUNT_DISTINCT`, `SUM_DISTINCT`, and `AVERAGE_DISTINCT` must no longer rely on `otherAggregation = SUM` as the correctness path.
-
-**Important change:** `derivePivotConfigFromChart` should only decide *which re-aggregation strategy is needed*. It should not attempt to extract or trust raw SQL directly from compiled field metadata.
-
-This frontend/common signal is necessary but not sufficient for the final `"Other"` vs `drop` decision.
-
-The backend is the first place that knows whether every metric needed by the raw path actually has a `pivotSource.metricInputs[...]` contract. That means `PivotQueryBuilder.getGroupingMode()` (or its caller) cannot rely on `valuesColumns` alone once raw re-aggregation is introduced. It also needs to consider whether `pivotSource` covers every metric that would participate in the raw bucketed path.
-
-**Risk:** Medium
-
----
-
-### Step 3: Expose a fully-formed raw `pivot_source` from MetricQueryBuilder
+### Step 2: Expose `pivotSource` from MetricQueryBuilder
 
 **File:** `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`
 
@@ -506,134 +192,154 @@ export type CompiledQuery = {
     missingParameterReferences: Set<string>;
     usedParameters: ParametersValuesMap;
     compilationErrors: string[];
-    pivotSource?: {
-        query: string;
-        metricInputs: Record<
-            string,
-            | {
-                  strategy: 'standard';
-                  inputAlias: string;
-                  aggregateAs:
-                      | VizAggregationOptions.SUM
-                      | VizAggregationOptions.MIN
-                      | VizAggregationOptions.MAX
-                      | 'COUNT_ALL'
-                      | 'COUNT_NON_NULL';
-              }
-            | {
-                  strategy: 'count_distinct';
-                  inputAlias: string;
-              }
-            | {
-                  strategy: 'sum_distinct' | 'average_distinct';
-                  inputAlias: string;
-                  distinctKeyAliases: string[];
-              }
-        >;
-    };
+    pivotSource?: PivotSourceContract;
+};
+
+export type PivotSourceMetricInput =
+    | {
+          strategy: 'simple';
+          inputAlias: string;
+          aggregateWith: 'SUM' | 'COUNT' | 'COUNT_STAR' | 'MIN' | 'MAX' | 'AVG';
+      }
+    | {
+          strategy: 'count_distinct';
+          inputAlias: string;
+      }
+    | {
+          strategy: 'distinct_dedup';
+          inputAlias: string;
+          distinctKeyAliases: string[];
+          aggregateWith: 'SUM' | 'AVG';
+      };
+
+export type PivotSourceContract = {
+    query: string;
+    metricInputs: Record<string, PivotSourceMetricInput>;
 };
 ```
 
-`pivotSource.query` should be a complete SQL statement, not decomposed fragments.
-
-It should be built with the same compiler context already used by `MetricQueryBuilder`:
-
+`pivotSource.query` is a complete SQL statement built from the same compiler context as the main query:
 - base table
 - joins
-- dimension helper joins
-- dimension helper CTEs
+- dimension helper joins / CTEs
 - dimension filters
 - parameter replacement
 
-`pivot_source` should select:
+It selects:
+- every dimension alias needed by pivoting (groupBy + index columns)
+- every `_order` alias for sorted bin dimensions
+- one raw input alias per metric (`__metric_<fieldId>_value`)
+- distinct key aliases for `SUM_DISTINCT` / `AVERAGE_DISTINCT` (`__metric_<fieldId>_dk_<n>`)
 
-- every dimension alias needed by pivoting
-- every `_order` alias needed by sorted custom bins
-- one explicit raw input alias per selected metric that can participate in raw re-aggregation
-- distinct key aliases for `SUM_DISTINCT` / `AVERAGE_DISTINCT`
+#### How `MetricQueryBuilder` decides what's supported
 
-The important change is this:
+For each selected metric:
 
-- `pivotSource.metricInputs` becomes the supported compiler contract for raw `"Other"` re-aggregation
-- it is allowed to reuse `compiledValueSql` internally where correct
-- it must not expose unsupported metric shapes as if they were raw-row safe
+1. **`SUM`, `MIN`, `MAX`**: `compiledValueSql` is already the raw expression (e.g. `"orders".amount`). Emit as `strategy: 'simple'`.
 
-Example shape:
+2. **`COUNT`**: The raw input is the column being counted. If the metric counts `*`, emit `COUNT_STAR`. Otherwise emit the column reference with `aggregateWith: 'COUNT'`.
 
-```sql
-SELECT
-  <dimension expr> AS "orders_region",
-  <index expr> AS "orders_created_month",
-  <order expr> AS "orders_created_month_order",
-  <raw value expr> AS "__metric_users_value",
-  <raw value expr> AS "__metric_revenue_value",
-  <distinct key expr> AS "__metric_avg_distinct_key_0"
-FROM ...
-JOIN ...
-WHERE ...
-```
+3. **`COUNT_DISTINCT`**: `compiledValueSql` is the column being distinct-counted (e.g. `"customers".customer_id`). Emit as `strategy: 'count_distinct'`.
 
-This should be parameter-replaced inside `compileQuery()`, the same way `query` already is.
+4. **`SUM_DISTINCT`, `AVERAGE_DISTINCT`**: `compiledValueSql` + `compiledDistinctKeys` already exist. Emit as `strategy: 'distinct_dedup'`.
 
-Additive mixed-metric support is limited to whatever strategies `MetricQueryBuilder` can explicitly emit here. Do not assume every metric with `compiledValueSql` can go through the raw path.
+5. **`AVERAGE`**: `compiledValueSql` is the raw column. Emit as `strategy: 'simple'` with `aggregateWith: 'AVG'`.
 
-**Risk:** High
+6. **Custom SQL metrics (`NUMBER`, `STRING`, etc.)**: `compiledValueSql` may be an aggregate expression. If the compiler cannot determine a raw input, do not include it in `metricInputs`. Its absence signals "unsupported."
+
+7. **`MEDIAN`, `PERCENTILE`**: These require warehouse-specific syntax. If the compiler can emit a raw input, include it with a warehouse-specific aggregate. Otherwise, omit.
+
+8. **Table calculations**: Not metrics. Never included in `pivotSource`.
+
+The key rule: **if `compiledValueSql` is an aggregate expression (contains `SUM(`, `COUNT(`, etc.), the metric is unsupported** unless the compiler can extract the pre-aggregation input. For standard metric types (SUM, COUNT, MIN, MAX, AVG, COUNT_DISTINCT, SUM_DISTINCT, AVERAGE_DISTINCT), the compiler already knows the raw column. For custom SQL metrics, it does not.
+
+#### How to determine if `compiledValueSql` is raw vs. aggregate
+
+Standard metrics are compiled from a known `sql` expression in the dbt model definition + a `type` field. The compiler wraps `sql` with the aggregation function to produce `compiledSql`, and stores the unwrapped expression as `compiledValueSql`. For standard types, `compiledValueSql` is always the raw column expression. The metric `type` field is the reliable signal — not string-parsing the SQL.
+
+#### Assembly approach
+
+`pivotSource.query` should be assembled inside `compileQuery()` using the same `sqlFrom`, `joinsSql`, `dimensionJoins`, `dimensionFilters`, and CTE chain that the main query uses. This is similar to how `getExperimentalMetricsCteSQL()` already builds the dedup inner subquery from those same fragments.
+
+Parameter replacement should be applied to `pivotSource.query` in the same pass as the main query.
+
+**Risk:** High — this is the most complex step, but it reuses existing compiler internals.
 
 ---
 
-### Step 4: Thread `pivotSource` to PivotQueryBuilder
+### Step 3: Thread `pivotSource` to PivotQueryBuilder
 
 **Files:**
-
 - `packages/backend/src/services/ProjectService/ProjectService.ts`
 - `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
 - `packages/backend/src/services/AsyncQueryService/PreAggregationDuckDbClient.ts`
 - `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`
 
-Pass `compiledResult.pivotSource` into `PivotQueryBuilder` as a new optional constructor arg from every compiled-metric-query call site, not just the async warehouse path.
+Add `pivotSource` as an optional constructor arg to `PivotQueryBuilder`:
 
-That includes:
+```typescript
+constructor(
+    sql: string,
+    pivotConfiguration: PivotConfiguration,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
+    limit?: number,
+    itemsMap?: ItemsMap,
+    pivotSource?: PivotSourceContract,
+    rawOtherEnabled?: boolean,
+)
+```
 
-- `ProjectService.compileQuery()` so `compileQuery` keeps returning an accurate `pivotQuery` for debugging and tests
-- `AsyncQueryService` so normal async metric queries use the new path
-- `PreAggregationDuckDbClient.resolve()` so pre-aggregated execution stays behaviorally aligned with warehouse execution
+Pass `compiledResult.pivotSource` from every compiled-metric-query call site:
+- `ProjectService.compileQuery()` — for accurate `pivotQuery` in debug/test output
+- `AsyncQueryService` — for async metric queries
+- `PreAggregationDuckDbClient.resolve()` — for pre-aggregated execution
 
-`ProjectService.pivotQueryWorkerTask()` is different because it starts from arbitrary SQL Runner SQL rather than a compiled metric query. That path cannot produce `pivotSource`, so it must safely fall back to `drop` when `valuesColumns` request a raw re-aggregation strategy.
-
-At the same time, thread the resolved `GroupLimitFlags` into the strategy planner so the final grouping decision is based on:
-
-- query config (`groupLimit.enabled`)
-- shared/product flag state
-- rollout flag state
-- metric capabilities
-- presence/completeness of `pivotSource`
-
-If `"Other"` needs raw distinct re-aggregation and `pivotSource` is missing:
-
-- do not silently fall back to wrong `SUM(...)`
-- treat the grouping mode as unsupported and use `drop`
-
-This is the correct fallback for SQL Runner and any future path that lacks `pivotSource`.
+`ProjectService.pivotQueryWorkerTask()` starts from arbitrary SQL Runner SQL, not a compiled metric query. It cannot produce `pivotSource`, so it passes `undefined`. When the raw path is needed but `pivotSource` is missing, `PivotQueryBuilder` falls back to `drop`.
 
 **Risk:** Low
 
 ---
 
-### Step 5: Build a raw `"Other"` path in PivotQueryBuilder
+### Step 4: Build the raw bucketed "Other" path in PivotQueryBuilder
 
 **File:** `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts`
 
-Do this behind the new strategy layer, not by growing the existing inline `if/else` logic.
+#### 4a. Update `getGroupingMode()`
 
-When `groupingMode === 'other'` and any `valuesColumn.reAggregation` is distinct-style:
+```typescript
+private static getGroupingMode(
+    groupLimit: GroupLimitConfig | undefined,
+    groupByColumns: PivotConfiguration['groupByColumns'],
+    valuesColumns: PivotConfiguration['valuesColumns'],
+    pivotSource?: PivotSourceContract,
+    rawOtherEnabled?: boolean,
+): 'raw_other' | 'fast_other' | 'drop' | 'none' {
+    if (!groupLimit?.enabled || !groupByColumns?.length) return 'none';
+    if (valuesColumns.length === 0) return 'none';
 
-- keep existing `original_query`
-- keep existing `pre_group_by`
-- keep existing `__group_totals`
-- keep existing `__group_ranking`
-- add the new raw-source CTEs below
+    // New raw path — all metrics must have pivotSource inputs
+    if (rawOtherEnabled && pivotSource) {
+        const allSupported = valuesColumns.every((col) =>
+            pivotSource.metricInputs[col.reference]
+        );
+        if (allSupported) return 'raw_other';
+        // If any metric is unsupported, fall through to drop
+        return 'drop';
+    }
 
-#### 5a. Add `__pre_group_scope`
+    // Legacy path — flag off or no pivotSource
+    const hasUnsupported = valuesColumns.some(
+        (col) => col.otherAggregation === null,
+    );
+    return hasUnsupported ? 'drop' : 'fast_other';
+}
+```
+
+When `rawOtherEnabled` is true, the legacy `fast_other` path is never used. This is intentional: the raw path produces correct results for all metric types, so there is no reason to keep the additive shortcut when the flag is on.
+
+When `rawOtherEnabled` is false, behavior is identical to today.
+
+#### 4b. Add `__pre_group_scope` CTE
 
 ```sql
 __pre_group_scope AS (
@@ -642,18 +348,15 @@ __pre_group_scope AS (
 )
 ```
 
-Why:
+Preserves the metric-filtered row scope.
 
-- preserves the grouped rows that survived metric filters and table-calc filtering upstream
-- prevents raw rows from excluded groups/indexes from reappearing inside `"Other"`
-
-#### 5b. Add `pivot_source`
+#### 4c. Add `pivot_source` CTE
 
 ```sql
 pivot_source AS (<compiledQuery.pivotSource.query>)
 ```
 
-#### 5c. Add `scoped_source`
+#### 4d. Add `scoped_source` CTE
 
 ```sql
 scoped_source AS (
@@ -664,9 +367,9 @@ scoped_source AS (
 )
 ```
 
-Use null-safe equality, matching existing Lightdash join behavior for dimension equality.
+Use null-safe equality (IS NOT DISTINCT FROM or warehouse equivalent) for all join conditions.
 
-#### 5d. Add `bucketed_source`
+#### 4e. Add `bucketed_source` CTE
 
 ```sql
 bucketed_source AS (
@@ -674,8 +377,9 @@ bucketed_source AS (
     CASE WHEN gr.__group_rn <= N THEN CAST(ss."group_col" AS TEXT) ELSE 'Other' END AS "group_col",
     ss."index_col",
     ss."sorted_bin_order_col",
+    ss."__metric_revenue_value",
     ss."__metric_users_value",
-    ss."__metric_avg_distinct_key_0",
+    ss."__metric_avg_dk_0",
     ...
   FROM scoped_source ss
   LEFT JOIN __group_ranking gr
@@ -683,150 +387,94 @@ bucketed_source AS (
 )
 ```
 
-This is where bucket assignment moves from the aggregated query into the raw-row path.
+#### 4f. Build `group_by_query` from `bucketed_source`
 
-#### 5e. Add `bucketed_keys`
-
-Distinct-only charts still need a single driving relation for downstream joins and order columns.
+For `simple` and `count_distinct` metrics, aggregate directly:
 
 ```sql
-bucketed_keys AS (
+group_by_query AS (
   SELECT
-    <bucketed groupBy aliases>,
-    <index aliases>,
-    MIN(<order cols>) AS <order alias>
-  FROM bucketed_source
-  GROUP BY <bucketed groupBy aliases>, <index aliases>
-)
-```
-
-This CTE is the anchor for `group_by_query` assembly.
-
-#### 5f. Aggregate non-distinct metrics from `bucketed_source`
-
-Phase 2 only.
-
-In the de-risked phase-1 rollout, skip this path entirely and keep mixed charts on `drop`. Additive mixed-metric support should only be enabled after the distinct-only raw path has landed with strong result-level verification.
-
-Create one aggregate CTE for standard metrics:
-
-```sql
-bucketed_standard_metrics AS (
-  SELECT
-    <bucketed groupBy aliases>,
-    <index aliases>,
-    MIN(<order cols>) AS <order alias>,
+    "group_col",
+    "index_col",
+    MIN("sorted_bin_order_col") AS "sorted_bin_order_col",
     SUM("__metric_revenue_value") AS "revenue_ANY",
-    COUNT("__metric_orders_value") AS "orders_ANY",
-    MIN("__metric_min_value") AS "min_metric_ANY",
-    MAX("__metric_max_value") AS "max_metric_ANY"
+    COUNT(DISTINCT "__metric_users_value") AS "unique_customers_ANY"
   FROM bucketed_source
-  GROUP BY <bucketed groupBy aliases>, <index aliases>
+  GROUP BY "group_col", "index_col"
 )
 ```
 
-This is the mixed-metric path. If a chart has both `COUNT_DISTINCT` and `SUM`, both metrics are computed from the same bucketed raw rows.
-
-Only metrics with an explicit `pivotSource.metricInputs[metricId].strategy === 'standard'` contract participate here.
-
-#### 5g. Aggregate `COUNT_DISTINCT`
-
-Per metric:
+For `distinct_dedup` metrics (SUM_DISTINCT, AVERAGE_DISTINCT), add a per-metric dedup CTE before the final aggregation:
 
 ```sql
-dd_count_distinct_<metric> AS (
+__dd_<metricId> AS (
   SELECT
-    <bucketed groupBy aliases>,
-    <index aliases>,
-    COUNT(DISTINCT "__metric_<id>_value") AS "<metric_field_name>"
+    "group_col", "index_col",
+    "__metric_<id>_value" AS __dd_val,
+    ROW_NUMBER() OVER (
+      PARTITION BY "group_col", "index_col", <distinct_key_aliases>
+      ORDER BY "__metric_<id>_value"
+    ) AS __dd_rn
   FROM bucketed_source
-  GROUP BY <bucketed groupBy aliases>, <index aliases>
 )
 ```
 
-#### 5h. Aggregate `SUM_DISTINCT` and `AVERAGE_DISTINCT`
+Then in `group_by_query`:
+- `SUM_DISTINCT`: `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`
+- `AVERAGE_DISTINCT`: `CAST(SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) AS FLOAT) / NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0)`
 
-Per metric, use a dedup subquery modeled on the existing distinct-metric CTE builder in `MetricQueryBuilder`.
+If distinct_dedup metrics are present, `group_by_query` joins the dedup CTEs to the main aggregation via bucketed groupBy + index columns.
 
-Inner step:
+If all metrics are `simple` or `count_distinct`, no dedup CTEs are needed and `group_by_query` is a single SELECT from `bucketed_source`.
 
-```sql
-SELECT
-  <bucketed groupBy aliases>,
-  <index aliases>,
-  "__metric_<id>_value" AS __dd_val,
-  ROW_NUMBER() OVER (
-    PARTITION BY
-      <bucketed groupBy aliases>,
-      <index aliases>,
-      <distinct key aliases>
-    ORDER BY "__metric_<id>_value"
-  ) AS __dd_rn
-FROM bucketed_source
+#### 4g. Integration with existing CTE chain
+
+The new CTEs slot into `getFullPivotSQL()` between `__group_ranking` and the existing `group_by_query` position. Everything downstream of `group_by_query` (column anchors, row ranking, pivot_query, filtered_rows, total_columns) remains unchanged.
+
 ```
+existing:  original_query → pre_group_by → __group_totals → __group_ranking → group_by_query → ...
 
-Outer step:
-
-- `SUM_DISTINCT`
-  - `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`
-- `AVERAGE_DISTINCT`
-  - `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END) / COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END)`
-  - keep the existing warehouse-specific float casting behavior
-
-#### 5i. Assemble `group_by_query`
-
-Build the final `group_by_query` by joining:
-
-- `bucketed_keys`
-- `bucketed_standard_metrics` when present
-- one CTE per `COUNT_DISTINCT`
-- one CTE per `SUM_DISTINCT`
-- one CTE per `AVERAGE_DISTINCT`
-
-Join on null-safe equality across:
-
-- bucketed groupBy aliases
-- index aliases
-
-This keeps the rest of the pivot pipeline unchanged.
+raw_other: original_query → pre_group_by → __group_totals → __group_ranking
+           → __pre_group_scope → pivot_source → scoped_source → bucketed_source
+           → [__dd_<metric> CTEs if needed] → group_by_query → ...
+                                                                 ↑
+                                                          same shape as before,
+                                                          rest of pipeline unchanged
+```
 
 **Risk:** High
 
 ---
 
-### Step 6: Fallback and support rules
+### Step 5: Update `derivePivotConfigFromChart`
 
-Support matrix for `"Other"`:
+**File:** `packages/common/src/pivot/derivePivotConfigFromChart.ts`
 
-Phase 1 support:
+When the raw path is active, `otherAggregation` on `ValuesColumn` is no longer the correctness mechanism — `pivotSource.metricInputs` is. But `otherAggregation` still serves as a frontend signal for the grouping mode UI, and the legacy path still uses it when the flag is off.
 
-- `COUNT_DISTINCT`
-  - supported via raw `bucketed_source`
-- `SUM_DISTINCT`
-  - supported via raw `bucketed_source` + dedup CTE
-- `AVERAGE_DISTINCT`
-  - supported via raw `bucketed_source` + dedup CTE
-- charts where all value columns are one of the above and all required raw inputs are present
-  - supported
-- mixed distinct + additive charts
-  - force `drop` in phase 1
-- unsupported metrics
-  - `MEDIAN`, `PERCENTILE`, post-aggregation table calcs, etc.
-  - continue to force `drop`
-- missing or incomplete `pivotSource`
-  - force `drop`
-  - never fall back to incorrect `SUM(...)`
-- `GroupLimitRawDistinctOther` disabled
-  - never choose `raw_distinct_other`
-- `GroupLimitEnabled` disabled server-side
-  - `raw_distinct_other` is not eligible, even if the request contains `groupLimit`
+Changes:
+- Keep `getOtherAggregationForMetric()` as-is for the legacy path
+- For metrics that were previously `null` (AVERAGE, MEDIAN, PERCENTILE), **keep them as `null`** — the backend now handles them via `pivotSource` when the flag is on, and `drop` when the flag is off
+- `COUNT_DISTINCT` and `SUM_DISTINCT` currently map to `otherAggregation: SUM` (which is wrong). When the flag is on, the backend ignores `otherAggregation` entirely, so this incorrect mapping becomes harmless. When the flag is off, it preserves current (buggy) behavior, which is the correct baseline preservation.
 
-Phase 2 expansion:
-
-- additive metrics in mixed charts
-  - support only when `MetricQueryBuilder` emits a `pivotSource.metricInputs[metricId].strategy === 'standard'`
+No `reAggregation` metadata is needed on `ValuesColumn`. The compiler contract lives in `pivotSource.metricInputs`, not in the pivot config.
 
 **Risk:** Low
+
+---
+
+### Step 6: Fallback rules
+
+| Condition | Result |
+|-----------|--------|
+| `groupLimit.enabled` is false | `none` — no group limiting |
+| `rawOtherEnabled` is true + `pivotSource` present + all metrics have inputs | `raw_other` — full raw bucketed path |
+| `rawOtherEnabled` is true + any metric missing from `pivotSource.metricInputs` | `drop` — fail closed |
+| `rawOtherEnabled` is true + `pivotSource` missing (SQL Runner) | `drop` — fail closed |
+| `rawOtherEnabled` is false + all metrics have `otherAggregation` | `fast_other` — legacy path, unchanged |
+| `rawOtherEnabled` is false + any metric has `otherAggregation === null` | `drop` — legacy path, unchanged |
+
+The critical rule: **never silently fall back to incorrect re-aggregation**. If the raw path is enabled but cannot be used, use `drop`, not `fast_other`.
 
 ---
 
@@ -834,49 +482,51 @@ Phase 2 expansion:
 
 **File:** `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts`
 
-Add test cases for SQL generation:
+SQL generation tests:
 
-1. `COUNT_DISTINCT` with `"Other"` uses raw distinct aggregation
-2. `SUM_DISTINCT` with `"Other"` uses a dedup CTE, not `SUM(sum_distinct_metric)`
-3. `AVERAGE_DISTINCT` with `"Other"` uses a dedup CTE and average formula, not average-of-averages
-4. mixed `SUM + COUNT_DISTINCT` uses the raw bucketed path for both metrics
-5. mixed `SUM + SUM_DISTINCT`
-6. mixed `SUM + AVERAGE_DISTINCT`
-7. metric filters are preserved by `__pre_group_scope`
-8. custom/bin dimensions use aliased fields from `pivot_source`, not raw-table aliases
-9. sorted bin `_order` fields are preserved through the raw path
-10. distinct-only charts assemble `group_by_query` via `bucketed_keys`
-11. missing `pivotSource` forces `drop`
-12. all-additive metrics still use the existing fast path
+1. `COUNT_DISTINCT` with "Other" uses `COUNT(DISTINCT ...)` from `bucketed_source`
+2. `SUM_DISTINCT` with "Other" uses dedup CTE, not `SUM(sum_distinct_metric)`
+3. `AVERAGE_DISTINCT` with "Other" uses dedup CTE with float division
+4. `SUM` with "Other" uses `SUM(raw_col)` from `bucketed_source`
+5. `COUNT` with "Other" uses `COUNT(raw_col)` from `bucketed_source`
+6. `MIN`/`MAX` with "Other" uses `MIN`/`MAX(raw_col)` from `bucketed_source`
+7. `AVERAGE` with "Other" uses `AVG(raw_col)` from `bucketed_source`
+8. Mixed `SUM + COUNT_DISTINCT` — single bucketed path, both correct
+9. Mixed `SUM + AVERAGE_DISTINCT` — single bucketed path with dedup CTE
+10. Metric filters preserved by `__pre_group_scope`
+11. Custom/bin dimensions use aliases from `pivot_source`
+12. Sorted bin `_order` fields preserved through raw path
+13. Missing `pivotSource` forces `drop`
+14. Unsupported metric in `metricInputs` forces `drop`
+15. Flag off preserves exact legacy `fast_other` behavior
+16. Flag off preserves exact legacy `drop` behavior
+17. SQL Runner path (no `pivotSource`) falls back to `drop`
 
-If there are existing `MetricQueryBuilder` tests for distinct-metric CTE generation, add focused tests there too for the new `pivotSource` metadata and alias generation.
+Strategy selection tests:
 
-Also add/update tests for:
+18. `none` when group limit disabled
+19. `raw_other` when flag on + all metrics supported
+20. `drop` when flag on + unsupported metric
+21. `fast_other` when flag off + all additive
+22. `drop` when flag off + non-additive metric
 
-- baseline-preservation tests
-  - existing `fast_other` SQL path remains unchanged when `GroupLimitRawDistinctOther` is off
-  - existing `drop` behavior remains unchanged when `GroupLimitRawDistinctOther` is off
-  - no-group-limit path remains unchanged
-- strategy-selection tests
-  - `none`
-  - `fast_other`
-  - `raw_distinct_other`
-  - `drop`
-  - reason strings for each fallback path
-- feature-flag gating tests
-  - `GroupLimitRawDistinctOther` off keeps current behavior
-  - `GroupLimitRawDistinctOther` on + `GroupLimitEnabled` off does not enable raw strategy
-  - `GroupLimitRawDistinctOther` on + `GroupLimitEnabled` on enables raw strategy only for supported charts
-- `packages/common/src/pivot/derivePivotConfigFromChart.test.ts`
-  - `COUNT_DISTINCT`, `SUM_DISTINCT`, and `AVERAGE_DISTINCT` get `reAggregation` metadata when `groupLimit.enabled`
-  - unsupported metrics still force `drop`
-- service-level wiring where the `PivotQueryBuilder` constructor signature changes
-  - `ProjectService.compileQuery`
-  - `AsyncQueryService`
-  - `PreAggregationDuckDbClient`
-- result-level differential tests on seeded data
-  - compare pivoted `"Other"` results against a direct raw-row correctness query for `COUNT_DISTINCT`, `SUM_DISTINCT`, and `AVERAGE_DISTINCT`
-  - assert phase-1 mixed charts still choose `drop`
+**File:** `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.test.ts`
+
+23. `pivotSource` emitted with correct aliases for SUM metric
+24. `pivotSource` emitted with correct aliases for COUNT_DISTINCT metric
+25. `pivotSource` emitted with distinct key aliases for SUM_DISTINCT
+26. `pivotSource` emitted with distinct key aliases for AVERAGE_DISTINCT
+27. `pivotSource` not emitted for custom SQL metrics with aggregate expressions
+28. `pivotSource.query` includes dimension filters
+29. `pivotSource.query` includes dimension helper joins/CTEs
+30. Parameter replacement applied to `pivotSource.query`
+
+Result-level tests (on seeded data):
+
+31. Compare `COUNT_DISTINCT` "Other" result against direct raw-row query
+32. Compare `SUM_DISTINCT` "Other" result against direct raw-row query
+33. Compare `AVERAGE_DISTINCT` "Other" result against direct raw-row query
+34. Compare mixed `SUM + COUNT_DISTINCT` chart against direct raw-row queries
 
 ---
 
@@ -884,42 +534,82 @@ Also add/update tests for:
 
 | File | Change | Risk |
 |------|--------|------|
-| `packages/common/src/types/featureFlags.ts` | Add backend rollout flag for raw distinct `"Other"` strategy | Low |
-| `packages/common/src/types/sqlRunner.ts` | Add `reAggregation` metadata to `ValuesColumn` | Low |
-| `packages/common/src/pivot/derivePivotConfigFromChart.ts` | Attach raw re-aggregation metadata; update support detection | Medium |
-| `packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts` | Resolve the new rollout flag under the existing `GroupLimitEnabled` parent gate | Medium |
-| `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` | Expose fully-formed `pivotSource` query and metric input aliases | High |
-| `packages/backend/src/services/ProjectService/ProjectService.ts` | Thread `pivotSource` into `PivotQueryBuilder` for `compileQuery` and keep SQL Runner on safe fallback behavior | Medium |
-| `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts` | Pass `pivotSource` to `PivotQueryBuilder` | Low |
-| `packages/backend/src/services/AsyncQueryService/PreAggregationDuckDbClient.ts` | Pass `pivotSource` to `PivotQueryBuilder` for DuckDB pre-aggregation execution | Medium |
-| `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts` | Add raw `"Other"` path with scope, bucketing, standard metric aggregate CTE, and distinct metric CTEs | **High** |
-| `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts` | Add coverage for distinct `"Other"` SQL generation | Medium |
-| `packages/frontend/src/hooks/useServerOrClientFeatureFlag.ts` and group-limit UI call sites | Optional consistency cleanup so frontend and backend read `GroupLimitEnabled` through the same server-resolved path | Low |
+| `packages/common/src/types/featureFlags.ts` | Add `GroupLimitRawOther` flag | Low |
+| `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` | Emit `pivotSource` with raw expressions and metric input metadata | **High** |
+| `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.ts` | Add raw bucketed "Other" path with scope, bucketing, and per-metric aggregation CTEs | **High** |
+| `packages/backend/src/services/ProjectService/ProjectService.ts` | Thread `pivotSource` and flag into PivotQueryBuilder | Medium |
+| `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts` | Pass `pivotSource` to PivotQueryBuilder | Low |
+| `packages/backend/src/services/AsyncQueryService/PreAggregationDuckDbClient.ts` | Pass `pivotSource` to PivotQueryBuilder | Low |
+| `packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts` | Add coverage for raw "Other" SQL generation + strategy selection | Medium |
+| `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.test.ts` | Add coverage for `pivotSource` emission | Medium |
 
-If `ValuesColumn` changes shape, regenerate the TSOA route schemas with `pnpm generate-api`. `PivotConfiguration` is request-validated through the generated route metadata, so shared type changes here are not purely internal.
+Note: `ValuesColumn` type does not change, so no `pnpm generate-api` needed. `PivotConfiguration` is unchanged.
+
+---
 
 ## Edge Cases & Limitations
 
-1. SQL Runner path
-   If no `pivotSource` is available, distinct-style metrics with `"Other"` must use `drop`, not a wrong fallback.
+1. **SQL Runner path**: No `pivotSource` available. Falls back to `drop` when the flag is on.
 
-2. Table calculations
-   Pivot functions and post-aggregation calculations still operate after `group_by_query`. They should keep current unsupported/drop behavior when they cannot be meaningfully recomputed from raw rows.
+2. **Table calculations**: Not metrics. Cannot participate in raw re-aggregation. If a chart has table calculations that reference pivoted metrics, the table calc operates on the already-correct `group_by_query` output — no change needed.
 
-3. Metric filters
-   Raw re-aggregation must be scoped through `__pre_group_scope`, otherwise filtered-out grouped rows can leak back into `"Other"`. Investigation confirmed metric filters are applied late enough that this scoping is mandatory.
+3. **Metric filters**: Raw re-aggregation is scoped through `__pre_group_scope`, which derives from `pre_group_by`. Rows that were excluded by metric HAVING filters in `original_query` do not appear in `pre_group_by`, so their dimension combinations are not in `__pre_group_scope`, so matching raw rows are excluded from `scoped_source`. This is correct.
 
-4. Custom/bin dimensions
-   These must come from `pivot_source` aliases, not from raw SQL fragments reconstructed in `PivotQueryBuilder`.
+4. **Custom/bin dimensions**: Must come from `pivot_source` aliases (emitted by `MetricQueryBuilder`), not from raw-table aliases reconstructed in `PivotQueryBuilder`.
 
-5. Fanout protection
-   `pivot_source` must be built from the same compiler context as the main query so that raw metric inputs remain valid under join inflation rules.
+5. **Fanout protection**: `pivot_source` is built from the same compiler context as the main query, so any join inflation protection (e.g., distinct CTEs) applies equally.
 
-6. Warehouse-specific casting
-   `AVERAGE_DISTINCT` should reuse the existing float-casting logic already used by `MetricQueryBuilder`.
+6. **Warehouse-specific casting**: `AVERAGE_DISTINCT` dedup CTEs should reuse the existing `warehouseSqlBuilder.getFloatingType()` logic.
 
-7. Raw input contract
-   The implementation should introduce an explicit compiler-owned raw-input contract for supported metrics rather than treating `compiledValueSql` as universally safe.
+7. **Custom SQL metrics**: If `compiledValueSql` is an aggregate expression, the metric is excluded from `pivotSource.metricInputs`. Any chart containing such a metric falls back to `drop`.
 
-8. Future work
-   If this pattern works well, other non-additive metrics could use the same scoped raw-bucketing architecture, but they are out of scope for this fix.
+8. **Performance**: The raw path scans the base table twice within the same CTE chain (once for ranking via `original_query`, once for bucketing via `pivot_source`). Warehouse query planners may deduplicate this. This is the same trade-off Tableau, Superset, and Sigma make — correctness over a potential second scan.
+
+9. **Null groups**: The existing null-ranking/null-join bug (where NULL dimension values can consume a top-N slot and then fail to match on join) is a separate issue. It should be fixed independently, not as part of this change.
+
+10. **`MEDIAN` / `PERCENTILE`**: These require warehouse-specific syntax. If `MetricQueryBuilder` can emit a raw input and the warehouse builder can produce the correct aggregate syntax, they can be supported. Otherwise they remain unsupported and fall back to `drop`. This is strictly better than today, where they always `drop`.
+
+---
+
+## Follow-up Investigations
+
+These are separate from the backend raw-`Other` aggregation work above. They should be investigated and fixed independently.
+
+### 1. Explorer chart does not reliably render the `Other` series
+
+Observed behavior:
+- Explorer query results can include non-zero `Other` values in `pivotDetails.valuesColumns` and row data
+- The chart UI still renders only the visible top-group series and omits `Other`
+
+Investigation tasks:
+1. Reproduce in Explorer with `groupLimit.enabled = true` using a chart where the backend returns non-zero `Other` values.
+2. Capture the async query payload and result payload from the browser network tab and confirm `pivotDetails.valuesColumns` includes the `Other` pivot column.
+3. Trace how the result is transformed into chart series in:
+   - `packages/common/src/visualizations/CartesianChartDataModel.ts`
+   - any helper that filters or maps `pivotDetails.valuesColumns` into rendered series
+4. Verify whether series construction, legend filtering, hidden-series config, or pivot column ordering is excluding `Other`.
+5. Add a regression test that starts from a SQL-pivot result containing `Other` and asserts the chart model produces a visible `Other` series.
+6. Re-run the manual Explorer scenario after the fix and confirm the chart renders top N + `Other`.
+
+### 2. Drill-through for `Other` is wrong for date and boolean pivots
+
+Observed behavior:
+- Clicking `Other` constructs a multi-value exclusion filter
+- Date and boolean `NOT_EQUALS` compilation effectively excludes only the first visible top value instead of all visible top values
+
+Investigation tasks:
+1. Reproduce with a date pivot and a boolean pivot in Explorer, using `Other` drill-through to open underlying data.
+2. Inspect the filter payload generated for drill-through in:
+   - `packages/frontend/src/components/MetricQueryData/types.ts`
+   - `packages/frontend/src/components/MetricQueryData/utils.ts`
+   - `packages/frontend/src/components/MetricQueryData/UnderlyingDataModal.tsx`
+3. Inspect filter compilation for multi-value `NOT_EQUALS` in:
+   - `packages/common/src/compiler/filtersCompiler.ts`
+4. Decide the intended contract:
+   - either emit one `NOT_EQUALS` filter per excluded pivot value
+   - or make date/boolean `NOT_EQUALS` correctly support multiple values
+5. Add regression coverage for:
+   - date pivot `Other` drill-through
+   - boolean pivot `Other` drill-through
+   - verification that underlying data totals match the `Other` bucket totals
+6. Re-run the manual drill-through scenarios after the fix and confirm the underlying data matches the `Other` bucket exactly.
