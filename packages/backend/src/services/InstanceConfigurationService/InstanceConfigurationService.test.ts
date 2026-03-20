@@ -94,6 +94,18 @@ const createMockService = (overrides: AnyType = {}) => {
         ...overrides.serviceAccountModel,
     };
 
+    const embedModel = {
+        get: jest.fn(),
+        save: jest.fn(),
+        updateDashboards: jest.fn(),
+        ...overrides.embedModel,
+    };
+
+    const encryptionUtil = {
+        encrypt: jest.fn(),
+        ...overrides.encryptionUtil,
+    };
+
     const lightdashConfig = {
         ...lightdashConfigMock,
         updateSetup: overrides.updateSetup || undefined,
@@ -110,8 +122,8 @@ const createMockService = (overrides: AnyType = {}) => {
         emailModel: {} as AnyType,
         projectService: {} as AnyType,
         serviceAccountModel: serviceAccountModel as AnyType,
-        embedModel: {} as AnyType,
-        encryptionUtil: { encrypt: jest.fn() } as AnyType,
+        embedModel: embedModel as AnyType,
+        encryptionUtil: encryptionUtil as AnyType,
     });
 };
 
@@ -124,6 +136,10 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
 
     describe('validation scenarios', () => {
         test('Do not throw error with default update setup config', async () => {
+            const getDefaultProjectUuids = jest
+                .fn()
+                .mockResolvedValue(['project-1', 'project-2']);
+
             service = createMockService({
                 organizationModel: {
                     getOrgUuids: jest
@@ -131,9 +147,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                         .mockResolvedValue(['org-1', 'org-2']),
                 },
                 projectModel: {
-                    getDefaultProjectUuids: jest
-                        .fn()
-                        .mockResolvedValue(['project-1', 'project-2']),
+                    getDefaultProjectUuids,
                 },
                 updateSetup: getUpdateSetupConfig(),
             });
@@ -141,6 +155,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             await expect(
                 service.updateInstanceConfiguration(),
             ).resolves.not.toThrow();
+            expect(getDefaultProjectUuids).not.toHaveBeenCalled();
         });
 
         test('should throw ParameterError when there are multiple organizations and I am updating service account', async () => {
@@ -517,6 +532,78 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             await expect(
                 service.updateInstanceConfiguration(),
             ).resolves.not.toThrow();
+        });
+
+        test('should ignore empty embed secret for backwards compatibility', async () => {
+            const encrypt = jest.fn().mockReturnValue(Buffer.from('encoded'));
+            const save = jest.fn().mockResolvedValue(undefined);
+            process.env.LD_SETUP_EMBED_SECRET = '';
+
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                },
+                userModel: {
+                    findSessionUserByPrimaryEmail: jest
+                        .fn()
+                        .mockResolvedValue(mockSessionUser),
+                },
+                embedModel: {
+                    save,
+                },
+                encryptionUtil: {
+                    encrypt,
+                },
+                updateSetup: getUpdateSetupConfig(),
+            });
+
+            await service.updateInstanceConfiguration();
+            delete process.env.LD_SETUP_EMBED_SECRET;
+
+            expect(encrypt).not.toHaveBeenCalled();
+            expect(save).not.toHaveBeenCalled();
+        });
+
+        test('should preserve existing dashboard allowlist when disabling allow all dashboards', async () => {
+            const updateDashboards = jest.fn().mockResolvedValue(undefined);
+            const get = jest.fn().mockResolvedValue({
+                dashboardUuids: ['dashboard-1', 'dashboard-2'],
+            });
+
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                },
+                embedModel: {
+                    get,
+                    updateDashboards,
+                },
+                updateSetup: {
+                    embed: {
+                        allowAllDashboards: false,
+                    },
+                },
+            });
+
+            await expect(
+                service.updateInstanceConfiguration(),
+            ).resolves.not.toThrow();
+
+            expect(get).toHaveBeenCalledWith(mockProjectUuid);
+            expect(updateDashboards).toHaveBeenCalledWith(mockProjectUuid, {
+                dashboardUuids: ['dashboard-1', 'dashboard-2'],
+                allowAllDashboards: false,
+            });
         });
 
         test('should allow non-git project to be updated with warehouse configuration only', async () => {

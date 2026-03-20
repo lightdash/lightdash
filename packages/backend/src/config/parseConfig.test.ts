@@ -13,6 +13,7 @@ import {
     getIntegerFromEnvironmentVariable,
     getMaybeBase64EncodedFromEnvironmentVariable,
     getObjectFromEnvironmentVariable,
+    getUpdateSetupConfig,
     parseConfig,
     parseOrganizationMemberRoleArray,
 } from './parseConfig';
@@ -474,6 +475,34 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
             process.env.LD_SETUP_PROJECT_PAT = 'some_token';
             const config = parseConfig();
             expect(config.initialSetup).toBeUndefined();
+        });
+    });
+
+    describe('update setup embed configuration', () => {
+        test('should leave embed update config undefined when embed env vars are not set', () => {
+            const updateSetup = getUpdateSetupConfig();
+            expect(updateSetup?.embed).toBeUndefined();
+        });
+
+        test('should parse explicit false for allow all dashboards', () => {
+            process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS = 'false';
+            const updateSetup = getUpdateSetupConfig();
+            expect(updateSetup?.embed).toEqual({
+                allowAllDashboards: false,
+                secret: undefined,
+            });
+        });
+
+        test('should ignore empty embed secret for backwards compatibility', () => {
+            process.env.LD_SETUP_EMBED_SECRET = '';
+            const updateSetup = getUpdateSetupConfig();
+            expect(updateSetup?.embed).toBeUndefined();
+        });
+
+        test('should ignore empty allow all dashboards value for backwards compatibility', () => {
+            process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS = '';
+            const updateSetup = getUpdateSetupConfig();
+            expect(updateSetup?.embed).toBeUndefined();
         });
     });
 });

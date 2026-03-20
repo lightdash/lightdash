@@ -551,14 +551,14 @@ export class InstanceConfigurationService extends BaseService {
         if (!config.embed || !this.embedModel) return;
 
         const { allowAllDashboards, secret } = config.embed;
-        if (allowAllDashboards === undefined && !secret) return;
+        if (allowAllDashboards === undefined && secret === undefined) return;
 
         try {
             const projectUuid = await this.getSingleProject();
 
             // If config embed secret is provided, we need to call .save to upsert the embed record
             // This requires a user UUID, we get it from the admin email
-            if (secret) {
+            if (secret !== undefined) {
                 let userUuid: string | undefined;
                 const adminEmail = config.organization?.admin?.email;
                 if (adminEmail) {
@@ -589,12 +589,25 @@ export class InstanceConfigurationService extends BaseService {
                         allowAllDashboards ?? false
                     }`,
                 );
-            } else if (allowAllDashboards) {
+            } else if (allowAllDashboards !== undefined) {
+                let dashboardUuids: string[] = [];
+                if (!allowAllDashboards) {
+                    try {
+                        const existingEmbed =
+                            await this.embedModel.get(projectUuid);
+                        dashboardUuids = existingEmbed.dashboardUuids;
+                    } catch (error) {
+                        if (!(error instanceof NotFoundError)) {
+                            throw error;
+                        }
+                    }
+                }
+
                 this.logger.info(
-                    'No embed secret provided, enabling allowAllDashboards if configured',
+                    `No embed secret provided, setting allowAllDashboards=${allowAllDashboards}`,
                 );
                 await this.embedModel.updateDashboards(projectUuid, {
-                    dashboardUuids: [],
+                    dashboardUuids,
                     allowAllDashboards,
                 });
             }

@@ -441,6 +441,13 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
         );
     }
 
+    const embedAllowAllDashboards =
+        process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS;
+    const hasEmbedAllowAllDashboards =
+        embedAllowAllDashboards !== undefined && embedAllowAllDashboards !== '';
+    const embedSecret = process.env.LD_SETUP_EMBED_SECRET;
+    const hasEmbedSecret = embedSecret !== undefined && embedSecret !== '';
+
     return {
         organizationUuid: process.env.LD_SETUP_ORGANIZATION_UUID,
         projectUuid: process.env.LD_SETUP_PROJECT_UUID,
@@ -481,11 +488,15 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
         dbt: {
             personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
         },
-        embed: {
-            allowAllDashboards:
-                process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS === 'true',
-            secret: process.env.LD_SETUP_EMBED_SECRET,
-        },
+        embed:
+            hasEmbedAllowAllDashboards || hasEmbedSecret
+                ? {
+                      allowAllDashboards: hasEmbedAllowAllDashboards
+                          ? embedAllowAllDashboards === 'true'
+                          : undefined,
+                      secret: hasEmbedSecret ? embedSecret : undefined,
+                  }
+                : undefined,
     };
 };
 
