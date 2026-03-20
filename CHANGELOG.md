@@ -1,3 +1,10 @@
+# [0.2644.0](https://github.com/lightdash/lightdash/compare/0.2643.0...0.2644.0) (2026-03-20)
+
+
+### Features
+
+* upgrade default OpenAI model from GPT-5.2 to GPT-5.4 ([#21228](https://github.com/lightdash/lightdash/issues/21228)) ([34eaffe](https://github.com/lightdash/lightdash/commit/34eaffe34554185bade8d9333ade96692ba1a9e2))
+
 # [0.2643.0](https://github.com/lightdash/lightdash/compare/0.2642.1...0.2643.0) (2026-03-19)
 
 
