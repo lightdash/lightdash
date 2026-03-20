@@ -167,6 +167,7 @@ import {
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
     type GetAsyncQueryResultsArgs,
+    type PollingOptions,
     type PreAggregationRoute,
     type RunAsyncPreAggregateQueryArgs,
     type RunAsyncWarehouseQueryArgs,
@@ -910,9 +911,17 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // Note: This method should only be used in scheduler worker. It may cause API timeouts.
-    async downloadSyncQueryResults(args: DownloadAsyncQueryResultsArgs) {
+    async downloadSyncQueryResults(
+        args: DownloadAsyncQueryResultsArgs,
+        pollingOptions?: PollingOptions,
+    ) {
         const { queryUuid, projectUuid, account } = args;
-        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
         return this.downloadAsyncQueryResults(args);
     }
 
@@ -4768,6 +4777,7 @@ export class AsyncQueryService extends ProjectService {
      */
     async executeMetricQueryAndGetResults(
         args: ExecuteAsyncMetricQueryArgs,
+        pollingOptions?: PollingOptions,
     ): Promise<{
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
@@ -4779,7 +4789,12 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata, fields } =
             await this.executeAsyncMetricQuery(args);
 
-        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -4814,6 +4829,7 @@ export class AsyncQueryService extends ProjectService {
      */
     async executeSavedChartQueryAndGetResults(
         args: ExecuteAsyncSavedChartQueryArgs,
+        pollingOptions?: PollingOptions,
     ): Promise<{
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
@@ -4825,7 +4841,12 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata, fields } =
             await this.executeAsyncSavedChartQuery(args);
 
-        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -4860,6 +4881,7 @@ export class AsyncQueryService extends ProjectService {
      */
     async executeDashboardChartQueryAndGetResults(
         args: ExecuteAsyncDashboardChartQueryArgs,
+        pollingOptions?: PollingOptions,
     ): Promise<{
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
@@ -4871,7 +4893,12 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata, fields } =
             await this.executeAsyncDashboardChartQuery(args);
 
-        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
