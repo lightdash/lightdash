@@ -97,13 +97,31 @@ app.get(
 2. express-session looks up session data in PostgreSQL
 3. Passport deserializes user from session data to `req.user`
 
+**Authentication Middleware — Chain Order:**
+
+`allowApiKeyAuthentication` tries authentication methods in this order (first match wins):
+1. **Session cookie** — via `req.isAuthenticated()` (Passport session)
+2. **OAuth bearer token** — validates against the internal OAuth2 server (`@node-oauth/oauth2-server`)
+3. **Service account bearer token** — enterprise feature for CI/CD
+4. **Personal access token (PAT)** — via `ApiKey` header, can be disabled via config
+
+`allowOauthAuthentication` is a restricted variant that only allows session or OAuth bearer tokens (no PAT, no service account). Used for endpoints where PAT auth should be excluded, e.g. creating a PAT from an OAuth token.
+
 **API Key Authentication:**
 
 - Supports both service accounts (Bearer tokens) and Personal Access Tokens (ApiKey header)
-- Service accounts are checked first, then PATs
+- OAuth bearer tokens are checked first, then service accounts, then PATs
 - PATs can be disabled via configuration
 
-**OAuth Security:**
+**OAuth Server (Lightdash as OAuth provider):**
+
+- Lightdash acts as an OAuth 2.0 authorization server for MCP clients and external integrations
+- Endpoints are in `oauthRouter.ts` under `/api/v1/oauth/`
+- Supports authorization code flow with optional PKCE
+- `/oauth/register` is unauthenticated per RFC 7591 (dynamic client registration for MCP)
+- `/oauth/introspect` deviates from RFC 7662 — requires a user session instead of client credentials (intentionally more restrictive)
+
+**OAuth Login (external providers):**
 
 - Redirects are validated against site URL for security
 - PKCE and state parameters used for OAuth flows

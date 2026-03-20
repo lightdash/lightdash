@@ -227,6 +227,10 @@ oauthRouter.post('/token', async (req, res, next) => {
 });
 
 // Token introspection endpoint
+// NOTE: RFC 7662 specifies that introspection should accept client credentials (client_id + client_secret),
+// but we intentionally require a user session (req.user) instead. This is more restrictive than spec —
+// MCP clients with valid OAuth tokens cannot introspect their own tokens, only session-authenticated users can.
+// If MCP clients need introspection in the future, this should be updated to accept client credentials auth.
 oauthRouter.post('/introspect', async (req, res) => {
     const { token } = req.body;
 
