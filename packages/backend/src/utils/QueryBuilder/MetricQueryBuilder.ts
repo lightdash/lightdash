@@ -956,6 +956,24 @@ export class MetricQueryBuilder {
         );
 
         const selectParts: string[] = [];
+        const getMetricPrimaryKeyAliases = (
+            metric: CompiledMetric,
+            metricAliasBase: string,
+        ): string[] | undefined => {
+            const primaryKey =
+                this.args.explore.tables[metric.table]?.primaryKey;
+            if (!primaryKey?.length) {
+                return undefined;
+            }
+
+            return primaryKey.map((pk, index) => {
+                const distinctKeyAlias = `__metric_${metricAliasBase}_dk_${index}`;
+                selectParts.push(
+                    `  ${q}${metric.table}${q}.${pk} AS ${q}${distinctKeyAlias}${q}`,
+                );
+                return distinctKeyAlias;
+            });
+        };
         for (const reference of pivotDimensionRefs) {
             const dimensionSelect = dimensionSelects[reference];
             if (!dimensionSelect) {
@@ -984,8 +1002,7 @@ export class MetricQueryBuilder {
                 switch (metric.type) {
                     case MetricType.SUM:
                     case MetricType.MIN:
-                    case MetricType.MAX:
-                    case MetricType.AVERAGE: {
+                    case MetricType.MAX: {
                         let aggregateWith: 'SUM' | 'MIN' | 'MAX' | 'AVG';
                         switch (metric.type) {
                             case MetricType.SUM:
@@ -996,9 +1013,6 @@ export class MetricQueryBuilder {
                                 break;
                             case MetricType.MAX:
                                 aggregateWith = 'MAX';
-                                break;
-                            case MetricType.AVERAGE:
-                                aggregateWith = 'AVG';
                                 break;
                             default:
                                 throw new ParameterError(
@@ -1012,6 +1026,25 @@ export class MetricQueryBuilder {
                             strategy: 'simple',
                             inputAlias,
                             aggregateWith,
+                        };
+                        break;
+                    }
+                    case MetricType.AVERAGE: {
+                        const distinctKeyAliases = getMetricPrimaryKeyAliases(
+                            metric,
+                            metricAliasBase,
+                        );
+                        if (!distinctKeyAliases?.length) {
+                            break;
+                        }
+                        selectParts.push(
+                            `  ${metric.compiledValueSql} AS ${q}${inputAlias}${q}`,
+                        );
+                        metricInputs[valueColumn.reference] = {
+                            strategy: 'distinct_dedup',
+                            inputAlias,
+                            distinctKeyAliases,
+                            aggregateWith: 'AVG',
                         };
                         break;
                     }

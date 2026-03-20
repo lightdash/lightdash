@@ -4996,6 +4996,116 @@ describe('Nested aggregate metrics', () => {
         });
     });
 
+    test('Should emit pivotSource metadata for average metrics using table primary key deduplication', () => {
+        const exploreWithAverageMetric: Explore = {
+            ...EXPLORE_WITH_AVERAGE_DISTINCT,
+            tables: {
+                ...EXPLORE_WITH_AVERAGE_DISTINCT.tables,
+                orders: {
+                    ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders,
+                    metrics: {
+                        ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders.metrics,
+                        avg_shipping_cost: {
+                            ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders
+                                .metrics.avg_shipping_cost,
+                            type: MetricType.AVERAGE,
+                            compiledDistinctKeys: undefined,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithAverageMetric,
+            compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource?.query).toContain(
+            '"orders".shipping_cost AS "__metric_orders_avg_shipping_cost_value"',
+        );
+        expect(result.pivotSource?.query).toContain(
+            '"orders".order_id AS "__metric_orders_avg_shipping_cost_dk_0"',
+        );
+        expect(
+            result.pivotSource?.metricInputs.orders_avg_shipping_cost,
+        ).toEqual({
+            strategy: 'distinct_dedup',
+            inputAlias: '__metric_orders_avg_shipping_cost_value',
+            distinctKeyAliases: ['__metric_orders_avg_shipping_cost_dk_0'],
+            aggregateWith: 'AVG',
+        });
+    });
+
+    test('Should omit average metrics from pivotSource when table primary key is missing', () => {
+        const exploreWithoutPrimaryKeyAverageMetric: Explore = {
+            ...EXPLORE_WITH_AVERAGE_DISTINCT,
+            tables: {
+                ...EXPLORE_WITH_AVERAGE_DISTINCT.tables,
+                orders: {
+                    ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders,
+                    primaryKey: undefined,
+                    metrics: {
+                        ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders.metrics,
+                        avg_shipping_cost: {
+                            ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders
+                                .metrics.avg_shipping_cost,
+                            type: MetricType.AVERAGE,
+                            compiledDistinctKeys: undefined,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithoutPrimaryKeyAverageMetric,
+            compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource).toBeUndefined();
+    });
+
     test('Should emit pivotSource metadata for average_distinct metrics', () => {
         const result = buildQuery({
             explore: EXPLORE_WITH_AVERAGE_DISTINCT,

@@ -2526,6 +2526,34 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('CROSS JOIN total_groups g');
         });
 
+        test('Should rank null group totals last when applying groupLimit', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            expect(normalized).toContain(
+                'ROW_NUMBER() OVER (ORDER BY __ranking_value DESC NULLS LAST) AS __group_rn',
+            );
+        });
+
         test('Should not generate ranking CTEs when groupLimit is disabled', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
