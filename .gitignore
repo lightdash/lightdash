@@ -16,7 +16,7 @@ node_modules/
 /packages/e2e/cypress/downloads/**/*
 /packages/e2e/cypress/artifacts/**/*
 # Content as code e2e tests
-packages/e2e/lightdash 
+packages/e2e/lightdash
 
 # eval reports
 /packages/backend/eval-reports/**/*
@@ -96,6 +96,7 @@ flake.lock
 /examples/full-jaffle-shop-demo/dbt/lightdash
 /examples/lightdash
 /lightdash
+/packages/cli/lightdash/
 
 *storybook.log
 
