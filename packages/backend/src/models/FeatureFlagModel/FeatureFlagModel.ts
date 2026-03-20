@@ -17,10 +17,12 @@ export type FeatureFlagLogicArgs = {
     featureFlagId: string;
 };
 
-const FORCED_LOCAL_FEATURE_FLAGS = new Set<string>([
-    FeatureFlags.GroupLimitEnabled,
-    FeatureFlags.GroupLimitRawOther,
-]);
+const FORCED_FEATURE_FLAGS = new Set<string>(
+    (process.env.LIGHTDASH_FORCED_FEATURE_FLAGS ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+);
 
 export class FeatureFlagModel {
     protected readonly database: Knex;
@@ -59,11 +61,7 @@ export class FeatureFlagModel {
     }
 
     public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
-        if (
-            (this.lightdashConfig.mode === 'development' ||
-                this.lightdashConfig.mode === 'pr') &&
-            FORCED_LOCAL_FEATURE_FLAGS.has(args.featureFlagId)
-        ) {
+        if (FORCED_FEATURE_FLAGS.has(args.featureFlagId)) {
             return {
                 id: args.featureFlagId,
                 enabled: true,
