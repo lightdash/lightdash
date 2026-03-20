@@ -7,6 +7,7 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic Structure
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "big_number"
   config:
@@ -99,6 +100,7 @@ Comparisons work by **comparing row 1 to row 2** in the query results. This requ
 3. **`limit: 2`** (or more) so a second row exists to compare against
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "big_number"
   config:

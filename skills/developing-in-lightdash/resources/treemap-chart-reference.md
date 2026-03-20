@@ -58,6 +58,7 @@ chartConfig:
 Show category and subcategory revenue with nested rectangles.
 
 ```yaml
+contentType: chart
 chartConfig:
   type: treemap
   config:
@@ -91,6 +92,7 @@ version: 1
 Size by revenue, color by profit margin to show profitability.
 
 ```yaml
+contentType: chart
 chartConfig:
   type: treemap
   config:

@@ -21,6 +21,7 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic Structure
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "cartesian"
   config:
@@ -89,6 +90,7 @@ Optional properties:
 ### Bar Chart
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "cartesian"
   config:
@@ -124,6 +126,7 @@ version: 1
 ### Line Chart with Trend
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "cartesian"
   config:
@@ -166,6 +169,7 @@ version: 1
 ### Stacked Area Chart
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "cartesian"
   config:
@@ -212,6 +216,7 @@ version: 1
 ### Scatter Chart
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "cartesian"
   config:
@@ -250,6 +255,7 @@ version: 1
 ### Dual Y-Axis Chart
 
 ```yaml
+contentType: chart
 chartConfig:
   type: "cartesian"
   config:

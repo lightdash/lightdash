@@ -5,6 +5,7 @@ Dashboards combine multiple charts, KPIs, and content tiles into a cohesive view
 ## Dashboard Structure
 
 ```yaml
+contentType: dashboard
 config:          # Dashboard configuration (date zoom, etc.)
   isAddFilterDisabled: false
   isDateZoomDisabled: false
@@ -397,6 +398,7 @@ When `config` is omitted, date zoom is enabled with all default granularities.
 ## Complete Dashboard Example
 
 ```yaml
+contentType: dashboard
 config:
   dateZoomGranularities:
     - Day

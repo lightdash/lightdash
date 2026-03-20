@@ -16,6 +16,7 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ### Basic Configuration
 
 ```yaml
+contentType: chart
 chartConfig:
   type: funnel
   config:
@@ -104,6 +105,7 @@ config:
 ## Complete Example
 
 ```yaml
+contentType: chart
 chartConfig:
   type: funnel
   config:

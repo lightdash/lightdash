@@ -36,6 +36,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows old title — `title` and `chartName` are independent overrides that do NOT auto-update | Download the dashboard, find tiles with matching `chartSlug`, update `title` and `chartName` to match |
 | **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config (axis, pivot, etc.) |
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
+| **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 
 ## Before You Start
 
@@ -198,6 +199,7 @@ The semantic layer defines your data model. See individual references for full c
 All charts share a common base structure:
 
 ```yaml
+contentType: chart              # Required: chart, dashboard, or sql_chart
 chartConfig:
   type: <type>
   config: {}        # Type-specific — see individual references
