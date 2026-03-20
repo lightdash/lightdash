@@ -1,3 +1,15 @@
+# [0.2647.0](https://github.com/lightdash/lightdash/compare/0.2646.0...0.2647.0) (2026-03-20)
+
+
+### Bug Fixes
+
+* add deterministic tiebreakers to dashboard tile ordering ([#21289](https://github.com/lightdash/lightdash/issues/21289)) ([7e8a407](https://github.com/lightdash/lightdash/commit/7e8a407486c86dcb621844163f52e0b39811cbaf))
+
+
+### Features
+
+* pass polling options from scheduler jobs ([#21263](https://github.com/lightdash/lightdash/issues/21263)) ([45777b3](https://github.com/lightdash/lightdash/commit/45777b3afb40272e4691e3e211019cb95f190d23))
+
 # [0.2646.0](https://github.com/lightdash/lightdash/compare/0.2645.0...0.2646.0) (2026-03-20)
 
 
