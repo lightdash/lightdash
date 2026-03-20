@@ -2896,6 +2896,38 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
         });
 
+        test('Should use a null-safe join when bucketing ranked raw_other groups', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                rawOtherPivotSource,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            expect(normalized).toContain(
+                'LEFT JOIN __group_ranking gr ON ( ss."region" = gr."region" OR ( ss."region" IS NULL AND gr."region" IS NULL ) )',
+            );
+        });
+
         test('Should use raw_other dedup CTE for average_distinct when feature flag is enabled', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],

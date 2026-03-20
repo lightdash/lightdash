@@ -480,12 +480,11 @@ export class PivotQueryBuilder {
 
         const bucketedSourceCte = `bucketed_source AS (SELECT ${bucketedSelects.join(
             ', ',
-        )} FROM scoped_source ss LEFT JOIN __group_ranking gr ON ${groupByColumns
-            .map(
-                (col) =>
-                    `ss.${q}${col.reference}${q} = gr.${q}${col.reference}${q}`,
-            )
-            .join(' AND ')})`;
+        )} FROM scoped_source ss LEFT JOIN __group_ranking gr ON ${this.getNullSafeJoinConditions(
+            'ss',
+            'gr',
+            groupByColumns,
+        ).join(' AND ')})`;
 
         const bucketedGroupsCte = `__bucketed_groups AS (SELECT ${[
             ...bucketColumnRefs,
