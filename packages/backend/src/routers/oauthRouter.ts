@@ -227,57 +227,52 @@ oauthRouter.post('/token', async (req, res, next) => {
 });
 
 // Token introspection endpoint
-oauthRouter.post(
-    '/introspect',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res) => {
-        const { token } = req.body;
+oauthRouter.post('/introspect', async (req, res) => {
+    const { token } = req.body;
 
-        if (!token) {
-            return res.status(400).json({ error: 'invalid_request' });
+    if (!req.user) {
+        return res.status(401).json({ error: 'invalid_request' });
+    }
+    if (!token) {
+        return res.status(400).json({ error: 'invalid_request' });
+    }
+
+    try {
+        const oauthService = getOAuthService(req);
+        const oauthReq = new OAuth2Server.Request(req);
+        const oauthRes = new OAuth2Server.Response(res);
+
+        // Try to authenticate the token
+        const tokenData = await oauthService.authenticate(oauthReq, oauthRes);
+        if (tokenData && tokenData.accessTokenExpiresAt) {
+            const introspectResponse: OAuthIntrospectResponse = {
+                active: true,
+                scope: Array.isArray(tokenData.scope)
+                    ? tokenData.scope.join(' ')
+                    : tokenData.scope,
+                token_type: 'access_token',
+                exp: Math.floor(
+                    tokenData.accessTokenExpiresAt.getTime() / 1000, // Token expires timestamp
+                ),
+                iat: Math.floor(
+                    tokenData.accessTokenExpiresAt.getTime() / 1000 - 3600, // issued at: token created timestamp
+                ),
+                sub: tokenData.user.userUuid, // subject: Unique user identifier
+                aud: tokenData.client.id, // audience: Client identifier
+                iss: 'lightdash', // issuer
+                jti: tokenData.accessToken, // JWT ID: Unique token identifier
+                client_id: DEFAULT_OAUTH_CLIENT_ID,
+                username: tokenData.user.userUuid,
+            };
+            return res.json(introspectResponse);
         }
 
-        try {
-            const oauthService = getOAuthService(req);
-            const oauthReq = new OAuth2Server.Request(req);
-            const oauthRes = new OAuth2Server.Response(res);
-
-            // Try to authenticate the token
-            const tokenData = await oauthService.authenticate(
-                oauthReq,
-                oauthRes,
-            );
-            if (tokenData && tokenData.accessTokenExpiresAt) {
-                const introspectResponse: OAuthIntrospectResponse = {
-                    active: true,
-                    scope: Array.isArray(tokenData.scope)
-                        ? tokenData.scope.join(' ')
-                        : tokenData.scope,
-                    token_type: 'access_token',
-                    exp: Math.floor(
-                        tokenData.accessTokenExpiresAt.getTime() / 1000,
-                    ),
-                    iat: Math.floor(
-                        tokenData.accessTokenExpiresAt.getTime() / 1000 - 3600,
-                    ),
-                    sub: tokenData.user.userUuid,
-                    aud: tokenData.client.id,
-                    iss: 'lightdash',
-                    jti: tokenData.accessToken,
-                    client_id: DEFAULT_OAUTH_CLIENT_ID,
-                    username: tokenData.user.userUuid,
-                };
-                return res.json(introspectResponse);
-            }
-
-            return res.json({ active: false });
-        } catch (error) {
-            Logger.error(`Introspection error: ${error}`);
-            return res.json({ active: false });
-        }
-    },
-);
+        return res.json({ active: false });
+    } catch (error) {
+        Logger.error(`Introspection error: ${error}`);
+        return res.json({ active: false });
+    }
+});
 
 // Token revocation endpoint
 oauthRouter.post('/revoke', async (req, res) => {
