@@ -1111,6 +1111,7 @@ export type LightdashConfig = {
     userImpersonation: {
         enabled: boolean | undefined;
     };
+    enabledFeatureFlags: Set<string>;
 };
 
 export type SlackConfig = {
@@ -2044,5 +2045,11 @@ export const parseConfig = (): LightdashConfig => {
                     ? true
                     : undefined,
         },
+        enabledFeatureFlags: new Set(
+            (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+        ),
     };
 };
