@@ -3122,5 +3122,83 @@ SELECT * FROM group_by_query LIMIT 50`);
                 '( ss."region" = gr."region" OR ( ss."region" IS NULL AND gr."region" IS NULL ) )',
             );
         });
+
+        test('T1/T2: fast_other uses SUM for COUNT_DISTINCT while raw_other uses COUNT(DISTINCT)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const fastOtherBuilder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+            const fastOtherSql = replaceWhitespace(fastOtherBuilder.toSql());
+
+            const rawOtherBuilder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                rawOtherPivotSource,
+                true,
+            );
+            const rawOtherSql = replaceWhitespace(rawOtherBuilder.toSql());
+
+            expect(fastOtherSql).toContain(
+                'sum("unique_users") AS "unique_users_any"',
+            );
+
+            expect(rawOtherSql).toContain(
+                'COUNT(DISTINCT b."__metric_unique_users_value") AS "unique_users_any"',
+            );
+        });
+
+        test('T2: Explorer + flag OFF routes COUNT_DISTINCT to fast_other with SUM (not drop)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+
+            expect(sql).toContain('pre_group_by AS');
+            expect(sql).toContain('__group_ranking AS');
+            expect(sql).toContain("ELSE '$$_lightdash_other_$$' END");
+            expect(sql).not.toContain('WHERE gr.__group_rn <=');
+        });
     });
 });
