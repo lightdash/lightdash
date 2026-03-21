@@ -340,7 +340,8 @@ export class PivotQueryBuilder {
         if (
             !groupLimit?.enabled ||
             !groupByColumns ||
-            groupByColumns.length === 0
+            groupByColumns.length === 0 ||
+            !Number.isFinite(groupLimit.maxGroups)
         ) {
             return 'none';
         }
