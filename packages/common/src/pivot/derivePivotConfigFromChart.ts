@@ -165,8 +165,9 @@ function getOtherAggregationForMetric(
         case MetricType.SUM_DISTINCT:
             return VizAggregationOptions.SUM;
         case MetricType.COUNT:
-        case MetricType.COUNT_DISTINCT:
             return VizAggregationOptions.SUM;
+        case MetricType.COUNT_DISTINCT:
+            return null;
         case MetricType.MIN:
             return VizAggregationOptions.MIN;
         case MetricType.MAX:
