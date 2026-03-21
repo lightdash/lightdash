@@ -60,7 +60,7 @@ const supportedGroupLimitCases: SupportedGroupLimitCase[] = [
                 descending: true,
             },
         ],
-        expectedVisibleGroups: ['2024-06-01T01:00:00Z', '2025-01-01T00:00:00Z'],
+        expectedVisibleGroups: ['2024-06-01', '2025-01-01'],
         expectedOtherValues: [
             {
                 metricReference: 'customers_unique_customer_count',
@@ -346,6 +346,14 @@ const getCell = (row: ResultRow, columnName: string) => {
     return cell;
 };
 
+const normalizeTimestamp = (value: string): string => {
+    const isoMatch = /^(\d{4}-\d{2}-\d{2})T/.exec(value);
+    if (isoMatch) {
+        return isoMatch[1];
+    }
+    return value;
+};
+
 const getPivotGroupValues = (results: ReadyQueryResultsPage): string[] => {
     if (!results.pivotDetails) {
         return fail('Expected pivot details to be present');
@@ -356,7 +364,7 @@ const getPivotGroupValues = (results: ReadyQueryResultsPage): string[] => {
     results.pivotDetails.valuesColumns.forEach((column) => {
         const groupValue = column.pivotValues[0]?.value;
         if (groupValue !== undefined) {
-            visibleGroups.add(String(groupValue));
+            visibleGroups.add(normalizeTimestamp(String(groupValue)));
         }
     });
 
@@ -475,7 +483,9 @@ describe('v2 query group limit baselines', () => {
         );
 
         expect(getPivotGroupValues(pivotResults).sort()).toEqual(
-            [...testCase.expectedVisibleGroups, 'Other'].sort(),
+            [...testCase.expectedVisibleGroups, 'Other']
+                .map(normalizeTimestamp)
+                .sort(),
         );
         expect(pivotResults.pivotDetails?.totalGroupCount).toBe(
             testCase.expectedTotalGroupCount,

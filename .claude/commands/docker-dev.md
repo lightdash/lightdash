@@ -199,6 +199,32 @@ Snapshots let you save and restore the exact state of the local PostgreSQL datab
 - Snapshot names must be alphanumeric with hyphens/underscores only (e.g., `pre-migration`, `with-broken-org-data`)
 - The default snapshot (used by `reset`) is separate from named snapshots — named snapshots don't overwrite it
 - The db container is briefly stopped during snapshot/restore to ensure data consistency, then automatically restarted
+
+## Running API Tests Locally
+
+The `packages/api-tests` vitest suite is designed for CI (runs against a preview deployment). To run locally against Docker:
+
+```bash
+cd packages/api-tests
+PGHOST=localhost \
+DBT_PROJECT_DIR=$(pwd)/../../../examples/full-jaffle-shop-demo/dbt \
+npx vitest run
+```
+
+### Required env vars
+
+| Variable | Default (CI) | Local value | Why |
+|----------|-------------|-------------|-----|
+| `PGHOST` | `db-dev` | `localhost` | Tests create projects with this as the warehouse host |
+| `DBT_PROJECT_DIR` | `/usr/app/dbt` | Absolute path to `examples/full-jaffle-shop-demo/dbt` | Tests trigger dbt refresh on new projects |
+| `MCP_ENABLED` | `false` | `true` (in `.env.development.local`) | MCP server tests need the endpoint enabled |
+
+### PM2 env var gotcha
+
+PM2 caches environment variables from `ecosystem.config.js` at `pm2 start` time. If you add new env vars to `.env.development.local`:
+
+- `pnpm pm2:restart:api` — **will NOT pick up new vars** (reuses cached env)
+- `npx pm2 delete all && pnpm pm2:start` — **will pick up new vars** (reloads ecosystem config)
 EOF
 
 ````
