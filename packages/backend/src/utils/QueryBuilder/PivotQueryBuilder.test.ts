@@ -3747,4 +3747,148 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).not.toContain('$$_lightdash_other_$$');
         });
     });
+
+    describe('fast_other aggregation SQL', () => {
+        test('Should use SUM re-aggregation for SUM metric in fast_other mode', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // fast_other mode: sentinel CASE WHEN in group_by_query
+            expect(normalized).toContain('$$_lightdash_other_$$');
+            // re-aggregation with SUM in group_by_query
+            expect(normalized).toContain('sum("revenue")');
+            // total_groups CTE present
+            expect(normalized).toContain('total_groups AS');
+        });
+
+        test('Should use MIN re-aggregation for MIN metric in fast_other mode', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'lowest_price',
+                        aggregation: VizAggregationOptions.MIN,
+                        otherAggregation: VizAggregationOptions.MIN,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain('$$_lightdash_other_$$');
+            expect(normalized).toContain('min("lowest_price")');
+        });
+    });
+
+    describe('maxGroups boundary: 1', () => {
+        test('Should produce valid SQL when maxGroups is 1 (everything becomes Other)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 1 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Should use __group_rn <= 1
+            expect(normalized).toContain('__group_rn <= 1');
+            // Should still have valid SQL structure (WITH ... SELECT)
+            expect(normalized).toMatch(/^WITH .+ SELECT /);
+            // Should have sentinel value for Other groups
+            expect(normalized).toContain('$$_lightdash_other_$$');
+            // Should not contain NaN or Infinity
+            expect(normalized).not.toContain('NaN');
+            expect(normalized).not.toContain('Infinity');
+        });
+
+        test('Should produce valid drop mode SQL when maxGroups is 1', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: null,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 1 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Drop mode with maxGroups=1
+            expect(normalized).toContain('WHERE gr.__group_rn <= 1');
+            expect(normalized).not.toContain('$$_lightdash_other_$$');
+        });
+    });
 });
