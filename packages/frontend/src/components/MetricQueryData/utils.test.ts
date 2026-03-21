@@ -117,4 +117,61 @@ describe('getDataFromChartClick', () => {
             orders_is_completed: ['true', 'false'],
         });
     });
+
+    it('returns undefined topGroupValues when no Other series exists', () => {
+        const series = [
+            {
+                pivotReference: {
+                    field: 'revenue',
+                    pivotValues: [{ field: 'region', value: 'US' }],
+                },
+            },
+            {
+                pivotReference: {
+                    field: 'revenue',
+                    pivotValues: [{ field: 'region', value: 'EU' }],
+                },
+            },
+        ] as EChartsSeries[];
+
+        const result = getDataFromChartClick(createClickEvent(0), {}, series);
+
+        expect(result.topGroupValues).toBeUndefined();
+    });
+
+    it('deduplicates pivot values across series for Other drill-through', () => {
+        const series = [
+            {
+                pivotReference: {
+                    field: 'metric_a',
+                    pivotValues: [{ field: 'region', value: 'US' }],
+                },
+            },
+            {
+                pivotReference: {
+                    field: 'metric_b',
+                    pivotValues: [{ field: 'region', value: 'US' }],
+                },
+            },
+            {
+                pivotReference: {
+                    field: 'metric_a',
+                    pivotValues: [
+                        {
+                            field: 'region',
+                            value: OTHER_GROUP_DISPLAY_VALUE,
+                            isOtherGroup: true,
+                        },
+                    ],
+                },
+            },
+        ] as EChartsSeries[];
+
+        const result = getDataFromChartClick(createClickEvent(2), {}, series);
+
+        // 'US' appears in two series but should be deduplicated
+        expect(result.topGroupValues).toEqual({
+            region: ['US'],
+        });
+    });
 });
