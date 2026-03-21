@@ -2714,7 +2714,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."category" AS TEXT) ELSE \'Other\' END',
             );
             expect(normalized).toContain(
-                'o."region" = gr."region" AND o."category" = gr."category"',
+                '( o."region" = gr."region" OR ( o."region" IS NULL AND gr."region" IS NULL ) ) AND ( o."category" = gr."category" OR ( o."category" IS NULL AND gr."category" IS NULL ) )',
             );
         });
 
@@ -3062,7 +3062,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).not.toContain('Other');
         });
 
-        test('Should use null-safe join in raw_other but plain join in fast_other (R4 known limitation)', () => {
+        test('Both fast_other and raw_other use null-safe joins for group ranking', () => {
             const fastOtherConfig = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -3085,15 +3085,12 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const fastOtherSql = replaceWhitespace(fastOtherBuilder.toSql());
 
-            // fast_other uses plain = join — NULL groups always fall into "Other"
+            // fast_other must use null-safe join so NULL groups are ranked correctly
             expect(fastOtherSql).toContain(
-                'LEFT JOIN __group_ranking gr ON o."region" = gr."region"',
-            );
-            expect(fastOtherSql).not.toContain(
-                'IS NULL AND gr."region" IS NULL',
+                '( o."region" = gr."region" OR ( o."region" IS NULL AND gr."region" IS NULL ) )',
             );
 
-            // raw_other uses null-safe join — NULL groups can be top groups
+            // raw_other also uses null-safe join
             const rawOtherConfig = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [

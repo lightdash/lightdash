@@ -675,8 +675,10 @@ export class PivotQueryBuilder {
             (ref) => `MIN(o.${q}${ref}_order${q}) AS ${q}${ref}_order${q}`,
         );
 
-        const joinConditions = groupByColumns.map(
-            (col) => `o.${q}${col.reference}${q} = gr.${q}${col.reference}${q}`,
+        const joinConditions = this.getNullSafeJoinConditions(
+            'o',
+            'gr',
+            groupByColumns,
         );
 
         const metricSelects = valuesColumns.map((col) => {
@@ -713,10 +715,10 @@ export class PivotQueryBuilder {
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         maxGroups: number,
     ): string {
-        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        const joinConditions = groupByColumns.map(
-            (col) =>
-                `pg.${q}${col.reference}${q} = gr.${q}${col.reference}${q}`,
+        const joinConditions = this.getNullSafeJoinConditions(
+            'pg',
+            'gr',
+            groupByColumns,
         );
         return `SELECT pg.* FROM pre_group_by pg INNER JOIN __group_ranking gr ON ${joinConditions.join(' AND ')} WHERE gr.__group_rn <= ${maxGroups}`;
     }
