@@ -3201,4 +3201,186 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(sql).not.toContain('WHERE gr.__group_rn <=');
         });
     });
+
+    describe('grouping mode fallback chain', () => {
+        test('uses no group limit when groupLimit is disabled', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'region' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: false, maxGroups: 2 },
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                true,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+            expect(sql).not.toContain('__group_ranking');
+            expect(sql).not.toContain('__group_rn');
+        });
+
+        test('uses no group limit when groupByColumns is empty', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                true,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+            expect(sql).not.toContain('__group_ranking');
+        });
+
+        test('falls back to drop when rawOtherEnabled but pivotSource is undefined (AVERAGE without primaryKey scenario)', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'avg_shipping_cost',
+                            aggregation: VizAggregationOptions.ANY,
+                            otherAggregation: null,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'region' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                true,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+            expect(sql).toContain('WHERE gr.__group_rn <= 2');
+            expect(sql).not.toContain('pivot_source AS');
+            expect(sql).not.toContain('$$_lightdash_other_$$');
+        });
+
+        test('falls back to drop when rawOtherEnabled but pivotSource has no matching metric inputs', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'missing_metric',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'region' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                {
+                    query: 'SELECT 1',
+                    metricInputs: {},
+                },
+                true,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+            expect(sql).toContain('WHERE gr.__group_rn <= 2');
+            expect(sql).not.toContain('pivot_source AS');
+        });
+
+        test('uses fast_other when not rawOtherEnabled and all metrics have otherAggregation', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                            otherAggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'region' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+            expect(sql).toContain("ELSE '$$_lightdash_other_$$' END");
+            expect(sql).not.toContain('WHERE gr.__group_rn <=');
+            expect(sql).not.toContain('pivot_source AS');
+        });
+
+        test('falls back to drop when not rawOtherEnabled and a metric has null otherAggregation', () => {
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                {
+                    indexColumn: [
+                        { reference: 'date', type: VizIndexType.TIME },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                            otherAggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: 'count_distinct_metric',
+                            aggregation: VizAggregationOptions.ANY,
+                            otherAggregation: null,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'region' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+            const sql = replaceWhitespace(builder.toSql());
+            expect(sql).toContain('WHERE gr.__group_rn <= 2');
+            expect(sql).not.toContain('$$_lightdash_other_$$');
+        });
+    });
 });
