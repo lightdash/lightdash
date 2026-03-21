@@ -675,6 +675,37 @@ describe('Filter SQL', () => {
         );
     });
 
+    test('should return true (no-op) for empty date values array — intentional safe fallback', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                {
+                    id: 'test-id',
+                    target: { fieldId: 'created_at' },
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                },
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toBe('true');
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                {
+                    id: 'test-id',
+                    target: { fieldId: 'created_at' },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: [],
+                },
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toBe('true');
+    });
+
     test('should return single value in includes filter sql', () => {
         expect(
             renderStringFilterSql(
@@ -1254,6 +1285,23 @@ describe('Boolean Filter SQL', () => {
             expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
                 '((("table"."is_active")) NOT IN (true,false) OR (("table"."is_active")) IS NULL)',
             );
+        });
+
+        it('should return true (no-op) for empty values array — intentional safe fallback', () => {
+            expect(
+                renderBooleanFilterSql(dimensionSql, {
+                    ...baseFilter,
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                }),
+            ).toBe('true');
+            expect(
+                renderBooleanFilterSql(dimensionSql, {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: [],
+                }),
+            ).toBe('true');
         });
     });
 
