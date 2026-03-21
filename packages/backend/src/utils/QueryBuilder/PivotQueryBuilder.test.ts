@@ -3061,5 +3061,68 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).not.toContain('pivot_source AS');
             expect(normalized).not.toContain('Other');
         });
+
+        test('Should use null-safe join in raw_other but plain join in fast_other (R4 known limitation)', () => {
+            const fastOtherConfig = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const fastOtherBuilder = new PivotQueryBuilder(
+                baseSql,
+                fastOtherConfig,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const fastOtherSql = replaceWhitespace(fastOtherBuilder.toSql());
+
+            // fast_other uses plain = join — NULL groups always fall into "Other"
+            expect(fastOtherSql).toContain(
+                'LEFT JOIN __group_ranking gr ON o."region" = gr."region"',
+            );
+            expect(fastOtherSql).not.toContain(
+                'IS NULL AND gr."region" IS NULL',
+            );
+
+            // raw_other uses null-safe join — NULL groups can be top groups
+            const rawOtherConfig = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const rawOtherBuilder = new PivotQueryBuilder(
+                baseSql,
+                rawOtherConfig,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                rawOtherPivotSource,
+                true,
+            );
+
+            const rawOtherSql = replaceWhitespace(rawOtherBuilder.toSql());
+
+            expect(rawOtherSql).toContain(
+                '( ss."region" = gr."region" OR ( ss."region" IS NULL AND gr."region" IS NULL ) )',
+            );
+        });
     });
 });
