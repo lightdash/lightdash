@@ -5,7 +5,131 @@ description: Debug the Lightdash app using PM2 logs, Spotlight traces, and brows
 
 # Debugging Lightdash
 
-This skill helps you debug Lightdash using PM2 logs, Spotlight telemetry, and browser automation.
+## Iron Law
+
+**NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST.**
+
+Do not edit application code until you have a confirmed root cause hypothesis backed by evidence (logs, traces, reproduction). Fixing symptoms creates whack-a-mole debugging.
+
+---
+
+## Phase 1: Gather Evidence
+
+Before forming any hypothesis, collect facts.
+
+### 1. Collect symptoms
+
+Read error messages, stack traces, and reproduction steps. If the user hasn't provided enough context, ask ONE clarifying question.
+
+### 2. Check recent changes
+
+```bash
+git log --oneline -20 -- <affected-files>
+```
+
+Was this working before? A regression means the root cause is in the diff.
+
+### 3. Check logs and traces
+
+```bash
+pnpm exec pm2 logs lightdash-api --lines 50 --nostream
+```
+
+Then use Spotlight MCP:
+- `mcp__spotlight__search_errors` with `{"timeWindow": 300}` for recent errors with stack traces
+- `mcp__spotlight__search_traces` with `{"timeWindow": 300}` for recent request traces
+- `mcp__spotlight__get_traces` with a trace ID for full span breakdown
+
+### 4. Reproduce
+
+Can you trigger the bug deterministically? Use browser automation or curl to reproduce. If you can't reproduce, gather more evidence before proceeding.
+
+### 5. Read the code
+
+Trace the code path from the symptom back to potential causes. Use Grep to find all references, Read to understand the logic.
+
+**Output:** State your root cause hypothesis — a specific, testable claim about what is wrong and why.
+
+---
+
+## Phase 2: Pattern Matching
+
+Check if the bug matches a known Lightdash pattern:
+
+| Pattern | Signature | Where to look |
+|---------|-----------|---------------|
+| Permission error | 403 Forbidden | CASL abilities in `projectMemberAbility.ts`, `organizationMemberAbility.ts` |
+| Slow query / N+1 | Response >1s, many db spans | Spotlight span breakdown — count db.* spans, check for loops |
+| Stale explore cache | Shows old columns/metrics | `cached_explores` table, `CompileService` |
+| Migration issue | Column not found, schema mismatch | `packages/backend/src/database/migrations/`, check rollback |
+| Scheduler job failure | Job not running, stuck | PM2 scheduler logs, `graphile_worker.jobs` table |
+| Frontend stale data | UI shows old data after mutation | TanStack Query cache invalidation, check `queryClient.invalidateQueries` |
+| Race condition | Intermittent, timing-dependent | Concurrent access to shared state, missing `await` |
+| Cross-service file issue | File not found in worker/headless | Must use S3 via `FileStorageClient`, not local filesystem |
+| Config drift | Works locally, fails in CI/staging | Env vars, `.env.development.local` vs container env |
+| Null propagation | TypeError, cannot read property | Missing guards on optional values, Knex `.first()` returning undefined |
+
+Also check:
+- `git log` for prior fixes in the same area — recurring bugs in the same files are an architectural smell
+- Whether the issue is in common, backend, or frontend — misattributing the layer wastes time
+
+---
+
+## Phase 3: Hypothesis Testing
+
+Before writing ANY fix, verify your hypothesis.
+
+1. **Confirm:** Add a temporary log, assertion, or use Spotlight/PM2 to check the suspected root cause. Reproduce. Does evidence match?
+
+2. **If wrong:** Return to Phase 1. Gather more evidence. Do not guess.
+
+3. **3-strike rule:** If 3 hypotheses fail, **STOP**. Ask the user:
+   - Continue with a new hypothesis (describe it)
+   - Escalate for human review
+   - Add instrumentation and wait to catch it next time
+
+---
+
+## Phase 4: Fix
+
+Once root cause is confirmed:
+
+1. **Fix the root cause, not the symptom.** Smallest change that eliminates the actual problem.
+
+2. **Minimal diff.** Fewest files touched, fewest lines changed. Do not refactor adjacent code.
+
+3. **Write a regression test** that fails without the fix and passes with it.
+
+4. **Run the relevant test suite.** Paste output.
+
+5. **Blast radius check:** If fix touches >5 files, pause and confirm with the user before proceeding.
+
+---
+
+## Phase 5: Verify & Report
+
+**Reproduce the original bug scenario and confirm it's fixed.** This is not optional.
+
+Output a structured debug report:
+
+```
+DEBUG REPORT
+════════════════════════════════════════
+Symptom:         [what the user observed]
+Root cause:      [what was actually wrong]
+Fix:             [what was changed, with file:line references]
+Evidence:        [test output, trace showing fix works]
+Regression test: [file:line of the new test]
+Status:          DONE | DONE_WITH_CONCERNS | BLOCKED
+════════════════════════════════════════
+```
+
+Status definitions:
+- **DONE** — root cause found, fix applied, regression test written, tests pass
+- **DONE_WITH_CONCERNS** — fixed but cannot fully verify (e.g., intermittent bug, needs staging)
+- **BLOCKED** — root cause unclear after investigation, escalated to user
+
+---
 
 ## Prerequisites
 
@@ -22,9 +146,9 @@ Services:
 - **API**: http://localhost:8080
 - **Spotlight UI**: http://localhost:8969
 
-## Server Logs (PM2)
+## Tools Reference
 
-### Viewing logs
+### Server Logs (PM2)
 
 ```bash
 pnpm pm2:logs              # Stream all logs (Ctrl+C to exit)
@@ -40,7 +164,7 @@ For non-blocking log viewing (last N lines):
 pnpm exec pm2 logs lightdash-api --lines 20 --nostream
 ```
 
-### Log format
+#### Log format
 
 Lightdash logs include a 32-character trace ID for correlation:
 
@@ -51,11 +175,11 @@ Lightdash logs include a 32-character trace ID for correlation:
 
 Use the first 8 characters (e.g., `700aa55e`) to look up traces in Spotlight.
 
-## Trace Lookup (Spotlight MCP)
+### Trace Lookup (Spotlight MCP)
 
 Use the Spotlight MCP tools to query telemetry programmatically:
 
-### List recent traces
+#### List recent traces
 
 ```
 mcp__spotlight__search_traces with filters: {"timeWindow": 300}
@@ -63,7 +187,7 @@ mcp__spotlight__search_traces with filters: {"timeWindow": 300}
 
 Returns summary of recent traces with trace ID, endpoint, duration, span count.
 
-### Get trace details
+#### Get trace details
 
 ```
 mcp__spotlight__get_traces with traceId: "700aa55e"
@@ -79,7 +203,7 @@ GET /api/v1/health [816224a9 · 39ms]
    └─ /api/v1/health [request_handler.express · 0ms]
 ```
 
-### Search for errors
+#### Search for errors
 
 ```
 mcp__spotlight__search_errors with filters: {"timeWindow": 300}
@@ -87,7 +211,7 @@ mcp__spotlight__search_errors with filters: {"timeWindow": 300}
 
 Returns runtime errors and exceptions with stack traces.
 
-### Search logs
+#### Search logs
 
 ```
 mcp__spotlight__search_logs with filters: {"timeWindow": 300}
@@ -95,18 +219,18 @@ mcp__spotlight__search_logs with filters: {"timeWindow": 300}
 
 Returns application log entries.
 
-## Browser Debugging (Chrome DevTools MCP)
+### Browser Debugging (Chrome DevTools MCP)
 
 Use the Chrome DevTools MCP tools for browser automation:
 
-### Opening pages
+#### Opening pages
 
 ```
 mcp__chrome-devtools__new_page with url: "http://localhost:3000/login"
 mcp__chrome-devtools__navigate_page with url: "http://localhost:3000", type: "url"
 ```
 
-### Taking snapshots
+#### Taking snapshots
 
 ```
 mcp__chrome-devtools__take_snapshot
@@ -114,7 +238,7 @@ mcp__chrome-devtools__take_snapshot
 
 Returns a text snapshot of the page based on the accessibility tree with unique `uid` identifiers for each element.
 
-### Interacting with elements
+#### Interacting with elements
 
 ```
 mcp__chrome-devtools__click with uid: "1_5"
@@ -122,7 +246,7 @@ mcp__chrome-devtools__fill with uid: "1_4", value: "test@example.com"
 mcp__chrome-devtools__hover with uid: "1_3"
 ```
 
-### Screenshots
+#### Screenshots
 
 ```
 mcp__chrome-devtools__take_screenshot
@@ -130,7 +254,7 @@ mcp__chrome-devtools__take_screenshot with fullPage: true
 mcp__chrome-devtools__take_screenshot with filePath: "/tmp/debug.png"
 ```
 
-### Console and network
+#### Console and network
 
 ```
 mcp__chrome-devtools__list_console_messages
@@ -138,7 +262,7 @@ mcp__chrome-devtools__list_network_requests
 mcp__chrome-devtools__get_network_request with reqid: 123
 ```
 
-### Page management
+#### Page management
 
 ```
 mcp__chrome-devtools__list_pages
@@ -146,75 +270,17 @@ mcp__chrome-devtools__select_page with pageId: 1
 mcp__chrome-devtools__close_page with pageId: 2
 ```
 
-## End-to-End Debug Workflow
+### Database Inspection
 
-### Example: Debug a login failure
+```bash
+# Check table schema
+psql -c "\d <table_name>"
 
-```
-# 1. Open the login page
-mcp__chrome-devtools__new_page url: "http://localhost:3000/login"
+# Query data directly
+psql -c "SELECT * FROM <table> WHERE <condition> LIMIT 5;"
 
-# 2. Take a snapshot to see the form
-mcp__chrome-devtools__take_snapshot
-
-# 3. Fill the form and submit (use uids from snapshot)
-mcp__chrome-devtools__fill uid: "1_4", value: "test@example.com"
-mcp__chrome-devtools__click uid: "1_5"  # Continue button
-mcp__chrome-devtools__take_snapshot     # See password field
-mcp__chrome-devtools__fill uid: "2_2", value: "wrongpassword"
-mcp__chrome-devtools__click uid: "2_5"  # Sign in button
-
-# 4. Check PM2 logs for the trace ID
-pnpm exec pm2 logs lightdash-api --lines 10 --nostream | grep POST
-
-# Output: [a1b2c3d4...] POST /api/v1/user/login/password 401 - 85ms
-
-# 5. Look up the full trace in Spotlight
-mcp__spotlight__get_traces traceId: "a1b2c3d4"
-
-# 6. Check for errors
-mcp__spotlight__search_errors filters: {"timeWindow": 60}
-```
-
-### Example: Debug a slow API call
-
-```
-# 1. Check recent traces sorted by performance
-mcp__spotlight__search_traces filters: {"timeWindow": 300}
-
-# 2. Find the slow trace and get details
-mcp__spotlight__get_traces traceId: "<trace-id>"
-
-# 3. Look at the span breakdown to find bottlenecks
-# - db.* spans show database query times
-# - middleware.express shows middleware overhead
-# - Look for N+1 queries, missing indexes, large result sets
-```
-
-### Example: Debug a form submission error
-
-```
-# 1. Watch for errors in real-time
-mcp__spotlight__search_errors filters: {"timeWindow": 60}
-
-# 2. Reproduce the issue in the browser
-mcp__chrome-devtools__click uid: "submit_button_uid"
-
-# 3. Check errors again immediately
-mcp__spotlight__search_errors filters: {"timeWindow": 60}
-
-# 4. Get the trace for context
-mcp__spotlight__search_traces filters: {"timeWindow": 60}
-mcp__spotlight__get_traces traceId: "<trace-id>"
-```
-
-### Example: Capture state for investigation
-
-```
-mcp__chrome-devtools__take_screenshot filePath: "/tmp/debug-state.png"
-mcp__chrome-devtools__take_snapshot
-mcp__chrome-devtools__list_console_messages
-mcp__chrome-devtools__list_network_requests
+# Check scheduler jobs
+psql -c "SELECT id, task_identifier, attempts, last_error FROM graphile_worker.jobs WHERE last_error IS NOT NULL LIMIT 10;"
 ```
 
 ## Trace Attributes (Wide Events)
@@ -234,12 +300,14 @@ Traces contain contextual attributes beyond timing:
 | Symptom | What to check |
 |---------|---------------|
 | 401 Unauthorized | Trace auth middleware, check session/JWT spans |
-| 403 Forbidden | Check user ability/permissions in trace attributes |
+| 403 Forbidden | Check user ability/permissions in trace attributes, review CASL abilities |
 | 404 Not Found | Verify route exists, check resource lookup spans |
 | 400 Bad Request | Look for validation errors in trace/error logs |
-| Slow response | Check span breakdown for slow db.* or external calls |
+| Slow response | Check span breakdown for slow db.* or external calls, count db spans for N+1 |
 | Empty results | Verify query parameters, check db query spans |
 | 500 Server Error | Use `search_errors` for stack trace and context |
+| UI not updating | Check TanStack Query devtools, verify cache invalidation after mutations |
+| Scheduler not running | Check `pnpm pm2:logs:scheduler`, query `graphile_worker.jobs` table |
 
 ## Quick Commands Reference
 
