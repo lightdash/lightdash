@@ -3383,4 +3383,368 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(sql).not.toContain('$$_lightdash_other_$$');
         });
     });
+
+    describe('Group limit edge cases and fallback chain', () => {
+        test('Should fall back to none mode when maxGroups is NaN', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: NaN },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            expect(result).not.toContain('NaN');
+            expect(result).not.toContain('Infinity');
+            // Should fall back to none mode — no grouping CTEs
+            const normalized = replaceWhitespace(result);
+            expect(normalized).not.toContain('pre_group_by AS');
+            expect(normalized).not.toContain('__group_ranking AS');
+        });
+
+        test('Should fall back to none mode when maxGroups is Infinity', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: Infinity },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            expect(result).not.toContain('NaN');
+            expect(result).not.toContain('Infinity');
+            const normalized = replaceWhitespace(result);
+            expect(normalized).not.toContain('pre_group_by AS');
+            expect(normalized).not.toContain('__group_ranking AS');
+        });
+
+        test('Should produce valid SQL when maxGroups is negative', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: -5 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            expect(result).not.toContain('NaN');
+            expect(result).not.toContain('Infinity');
+            // Math.max(1, Math.floor(-5)) = 1, so should clamp to 1
+            expect(replaceWhitespace(result)).toContain('__group_rn <= 1');
+        });
+
+        test('Should return none mode when groupLimit is disabled', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: false, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // No grouping CTEs should be present
+            expect(normalized).not.toContain('pre_group_by AS');
+            expect(normalized).not.toContain('__group_ranking AS');
+            expect(normalized).not.toContain('$$_lightdash_other_$$');
+        });
+
+        test('Should return none mode when groupByColumns is empty', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            expect(normalized).not.toContain('pre_group_by AS');
+            expect(normalized).not.toContain('__group_ranking AS');
+        });
+
+        test('Should use drop mode when rawOtherEnabled but pivotSource is missing', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined, // no pivotSource
+                true, // rawOtherEnabled
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // Drop mode: INNER JOIN with WHERE clause, no CASE WHEN
+            expect(normalized).toContain('INNER JOIN __group_ranking gr ON');
+            expect(normalized).toContain('WHERE gr.__group_rn <= 2');
+            expect(normalized).not.toContain('$$_lightdash_other_$$');
+        });
+
+        test('Should use fast_other mode when rawOtherEnabled is false and all metrics are additive', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false, // rawOtherEnabled=false
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // fast_other: CASE WHEN with sentinel value
+            expect(normalized).toContain(
+                'CASE WHEN gr.__group_rn <= 2 THEN CAST(o."region" AS TEXT) ELSE \'$$_lightdash_other_$$\' END',
+            );
+        });
+
+        test('Should use drop mode in fast_other path when otherAggregation is null', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: null, // unsupported for fast_other
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // Should fall to drop mode
+            expect(normalized).toContain('INNER JOIN __group_ranking gr ON');
+            expect(normalized).toContain('WHERE gr.__group_rn <= 2');
+            expect(normalized).not.toContain('$$_lightdash_other_$$');
+        });
+
+        test('Should use drop mode when rawOtherEnabled and pivotSource missing metric inputs', () => {
+            const incompletePivotSource: PivotSourceContract = {
+                query: 'SELECT * FROM raw_events',
+                metricInputs: {}, // No metric inputs
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                incompletePivotSource,
+                true,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // Should fall to drop mode because metric not in pivotSource.metricInputs
+            expect(normalized).toContain('INNER JOIN __group_ranking gr ON');
+            expect(normalized).toContain('WHERE gr.__group_rn <= 2');
+            expect(normalized).not.toContain('$$_lightdash_other_$$');
+        });
+
+        test('Should route COUNT_DISTINCT to count_distinct strategy in raw_other path', () => {
+            const countDistinctSource: PivotSourceContract = {
+                query: 'SELECT "date" AS "date", "region" AS "region", "user_id" AS "__metric_unique_users_value" FROM raw_events',
+                metricInputs: {
+                    unique_users: {
+                        strategy: 'count_distinct',
+                        inputAlias: '__metric_unique_users_value',
+                    },
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                countDistinctSource,
+                true,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // raw_other path: should use COUNT(DISTINCT ...) not SUM(...)
+            expect(normalized).toContain(
+                'COUNT(DISTINCT b."__metric_unique_users_value")',
+            );
+            expect(normalized).not.toContain(
+                'SUM(b."__metric_unique_users_value")',
+            );
+        });
+
+        test('Should use drop mode for COUNT_DISTINCT in fast_other path (otherAggregation=null)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: null, // COUNT_DISTINCT maps to null in fast_other
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+            // fast_other path with null otherAggregation should fall to drop
+            expect(normalized).toContain('INNER JOIN __group_ranking gr ON');
+            expect(normalized).toContain('WHERE gr.__group_rn <= 2');
+            expect(normalized).not.toContain('$$_lightdash_other_$$');
+        });
+    });
 });

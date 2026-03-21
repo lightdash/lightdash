@@ -5320,4 +5320,182 @@ describe('Nested aggregate metrics', () => {
             result.pivotSource?.metricInputs.table1_custom_ratio,
         ).toBeUndefined();
     });
+
+    test.each([
+        {
+            metricType: MetricType.SUM,
+            compiledSql: 'SUM("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'SUM',
+        },
+        {
+            metricType: MetricType.MIN,
+            compiledSql: 'MIN("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'MIN',
+        },
+        {
+            metricType: MetricType.MAX,
+            compiledSql: 'MAX("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'MAX',
+        },
+        {
+            metricType: MetricType.COUNT,
+            compiledSql: 'COUNT("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'COUNT',
+        },
+        {
+            metricType: MetricType.COUNT_DISTINCT,
+            compiledSql: 'COUNT(DISTINCT "table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'count_distinct',
+        },
+    ])(
+        'Should emit correct pivotSource strategy for $metricType metrics',
+        ({
+            metricType,
+            compiledSql,
+            valueSql,
+            expectedStrategy,
+            expectedAggregateWith,
+        }) => {
+            const exploreWithMetricType: Explore = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        metrics: {
+                            ...EXPLORE.tables.table1.metrics,
+                            test_metric: {
+                                type: metricType,
+                                fieldType: FieldType.METRIC,
+                                table: 'table1',
+                                tableLabel: 'table1',
+                                name: 'test_metric',
+                                label: 'test_metric',
+                                sql: '${TABLE}.number_column',
+                                compiledSql,
+                                compiledValueSql: valueSql,
+                                tablesReferences: ['table1'],
+                                hidden: false,
+                            } as CompiledMetric,
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore: exploreWithMetricType,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_test_metric'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                pivotConfiguration: {
+                    indexColumn: [
+                        {
+                            reference: 'table1_dim1',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'table1_test_metric',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'table1_dim1' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+            });
+
+            expect(result.pivotSource).toBeDefined();
+            const metricInput =
+                result.pivotSource?.metricInputs.table1_test_metric;
+            expect(metricInput).toBeDefined();
+            expect(metricInput?.strategy).toBe(expectedStrategy);
+            if (expectedAggregateWith && metricInput?.strategy === 'simple') {
+                expect(metricInput.aggregateWith).toBe(expectedAggregateWith);
+            }
+        },
+    );
+
+    test.each([
+        MetricType.NUMBER,
+        MetricType.STRING,
+        MetricType.DATE,
+        MetricType.TIMESTAMP,
+        MetricType.BOOLEAN,
+    ])(
+        'Should not produce pivotSource for unsupported metric type %s',
+        (metricType) => {
+            const exploreWithUnsupported: Explore = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        metrics: {
+                            test_metric: {
+                                type: metricType,
+                                fieldType: FieldType.METRIC,
+                                table: 'table1',
+                                tableLabel: 'table1',
+                                name: 'test_metric',
+                                label: 'test_metric',
+                                sql: '"table1".number_column',
+                                compiledSql: '"table1".number_column',
+                                compiledValueSql: '"table1".number_column',
+                                tablesReferences: ['table1'],
+                                hidden: false,
+                            } as CompiledMetric,
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore: exploreWithUnsupported,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_test_metric'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                pivotConfiguration: {
+                    indexColumn: [
+                        {
+                            reference: 'table1_dim1',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'table1_test_metric',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'table1_dim1' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+            });
+
+            // Unsupported types should not produce a pivotSource
+            expect(result.pivotSource).toBeUndefined();
+        },
+    );
 });
