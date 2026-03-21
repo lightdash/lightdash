@@ -437,6 +437,28 @@ export class PivotQueryBuilder {
         }
     }
 
+    /**
+     * Generates CTEs for the raw_other grouping mode, which re-aggregates from
+     * the raw (unaggregated) source data to produce correct "Other" group values
+     * for all metric types, including non-additive ones like COUNT_DISTINCT and AVERAGE.
+     *
+     * CTE dependency chain:
+     *   __pre_group_scope   — distinct (groupBy + index) combos from pre_group_by
+     *       ↓
+     *   pivot_source        — raw unaggregated data from MetricQueryBuilder's pivotSource query
+     *       ↓
+     *   scoped_source       — pivot_source filtered to only relevant dimension buckets
+     *       ↓
+     *   bucketed_source     — top N groups keep their value; the rest get the sentinel value
+     *       ↓
+     *   __bucketed_groups   — distinct (groupBy + index) from bucketed_source with order columns
+     *       ↓
+     *   __raw_other_simple_metrics  — SUM/COUNT/MIN/MAX/COUNT(DISTINCT) on bucketed_source
+     *       ↓
+     *   __dd_<metric>       — one CTE per distinct_dedup metric (ROW_NUMBER dedup + aggregate)
+     *       ↓
+     *   group_by_query      — LEFT JOINs __bucketed_groups with all metric CTEs → final result
+     */
     private getRawOtherCtes(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
