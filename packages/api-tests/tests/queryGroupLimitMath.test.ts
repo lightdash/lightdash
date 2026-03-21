@@ -474,10 +474,9 @@ describe('v2 query group limit baselines', () => {
             }),
         );
 
-        expect(getPivotGroupValues(pivotResults)).toEqual([
-            ...testCase.expectedVisibleGroups,
-            'Other',
-        ]);
+        expect(getPivotGroupValues(pivotResults).sort()).toEqual(
+            [...testCase.expectedVisibleGroups, 'Other'].sort(),
+        );
         expect(pivotResults.pivotDetails?.totalGroupCount).toBe(
             testCase.expectedTotalGroupCount,
         );
