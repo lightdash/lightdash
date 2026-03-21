@@ -2330,7 +2330,7 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData?.pivotDetails]);
 
-    const { rows: rawRows, rowKeyMap: rawRowKeyMap } = useMemo(() => {
+    const { rows, rowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
             return getPivotedDataFromPivotDetails(resultsData, undefined);
         }
@@ -2343,9 +2343,6 @@ const useEchartsCartesianConfig = (
             nonPivotedKeys,
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
-
-    const rows = rawRows;
-    const rowKeyMap = rawRowKeyMap;
 
     const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {
