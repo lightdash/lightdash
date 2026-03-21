@@ -401,6 +401,7 @@ export const DEFAULT_GROUP_LIMIT_CONFIG: GroupLimitConfig = {
 };
 
 export const OTHER_GROUP_DISPLAY_VALUE = 'Other';
+export const OTHER_GROUP_SENTINEL_VALUE = '$$_lightdash_other_$$';
 
 export type PivotValue = {
     /** Pivot field ID */

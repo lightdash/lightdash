@@ -4,6 +4,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    OTHER_GROUP_SENTINEL_VALUE,
     ParameterError,
     SortByDirection,
     SupportedDbtAdapter,
@@ -2520,7 +2521,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'total_groups AS (SELECT COUNT(*) AS total_groups FROM (SELECT DISTINCT "region" FROM pre_group_by) AS distinct_groups)',
             );
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'$$_lightdash_other_$$\' END',
             );
             expect(normalized).toContain('LEFT JOIN __group_ranking gr ON');
             expect(normalized).toContain('CROSS JOIN total_groups g');
@@ -2708,10 +2709,10 @@ SELECT * FROM group_by_query LIMIT 50`);
             const normalized = replaceWhitespace(result);
 
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'$$_lightdash_other_$$\' END',
             );
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."category" AS TEXT) ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."category" AS TEXT) ELSE \'$$_lightdash_other_$$\' END',
             );
             expect(normalized).toContain(
                 '( o."region" = gr."region" OR ( o."region" IS NULL AND gr."region" IS NULL ) ) AND ( o."category" = gr."category" OR ( o."category" IS NULL AND gr."category" IS NULL ) )',
@@ -2806,7 +2807,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('pre_group_by AS');
             expect(normalized).toContain('__group_ranking AS');
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 3 THEN CAST(o."region" AS TEXT) ELSE \'$$_lightdash_other_$$\' END',
             );
             expect(normalized).toContain(
                 'sum("unique_users") AS "unique_users_sum"',
@@ -2883,7 +2884,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('pre_group_by AS');
             expect(normalized).toContain('__group_ranking AS');
             expect(normalized).toContain(
-                'CASE WHEN gr.__group_rn <= 2 THEN CAST(o."region" AS TEXT) ELSE \'Other\' END',
+                'CASE WHEN gr.__group_rn <= 2 THEN CAST(o."region" AS TEXT) ELSE \'$$_lightdash_other_$$\' END',
             );
             expect(normalized).toContain('sum("revenue") AS "revenue_sum"');
             expect(normalized).toContain(

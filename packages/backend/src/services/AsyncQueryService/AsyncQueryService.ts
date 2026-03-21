@@ -56,6 +56,7 @@ import {
     normalizeIndexColumns,
     NotFoundError,
     OTHER_GROUP_DISPLAY_VALUE,
+    OTHER_GROUP_SENTINEL_VALUE,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -1519,7 +1520,7 @@ export class AsyncQueryService extends ProjectService {
                               const field = itemsMap[c.reference];
                               const cellValue = row[c.reference];
                               const isOtherGroup =
-                                  cellValue === OTHER_GROUP_DISPLAY_VALUE;
+                                  cellValue === OTHER_GROUP_SENTINEL_VALUE;
                               const rawValue = isOtherGroup
                                   ? OTHER_GROUP_DISPLAY_VALUE
                                   : formatRawValue(field, cellValue);

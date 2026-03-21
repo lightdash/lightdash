@@ -9,7 +9,7 @@ import {
     isTableCalculation,
     lightdashVariablePattern,
     normalizeIndexColumns,
-    OTHER_GROUP_DISPLAY_VALUE,
+    OTHER_GROUP_SENTINEL_VALUE,
     ParameterError,
     parseTableCalculationFunctions,
     snakeCaseName,
@@ -470,7 +470,7 @@ export class PivotQueryBuilder {
         const bucketedSelects = [
             ...groupByColumns.map(
                 (col) =>
-                    `CASE WHEN gr.__group_rn <= ${maxGroups} THEN CAST(ss.${q}${col.reference}${q} AS TEXT) ELSE '${OTHER_GROUP_DISPLAY_VALUE}' END AS ${q}${col.reference}${q}`,
+                    `CASE WHEN gr.__group_rn <= ${maxGroups} THEN CAST(ss.${q}${col.reference}${q} AS TEXT) ELSE '${OTHER_GROUP_SENTINEL_VALUE}' END AS ${q}${col.reference}${q}`,
             ),
             ...indexColumns.map((col) => `ss.${q}${col.reference}${q}`),
             ...sortedBinRefs.map((ref) => `ss.${q}${ref}_order${q}`),
@@ -656,7 +656,7 @@ export class PivotQueryBuilder {
 
         const caseWhens = groupByColumns.map(
             (col) =>
-                `CASE WHEN gr.__group_rn <= ${maxGroups} THEN CAST(o.${q}${col.reference}${q} AS TEXT) ELSE '${OTHER_GROUP_DISPLAY_VALUE}' END`,
+                `CASE WHEN gr.__group_rn <= ${maxGroups} THEN CAST(o.${q}${col.reference}${q} AS TEXT) ELSE '${OTHER_GROUP_SENTINEL_VALUE}' END`,
         );
 
         const caseWhenAliases = groupByColumns.map(
