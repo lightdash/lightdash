@@ -904,6 +904,31 @@ describe('derivePivotConfigurationFromChart', () => {
             expect(result?.valuesColumns[0].otherAggregation).toBeNull();
         });
 
+        it('handles every MetricType without throwing', () => {
+            const allMetricTypes = Object.values(MetricType);
+            for (const metricType of allMetricTypes) {
+                const { savedChart, metricQuery, items } =
+                    makeChartWithGroupLimit(metricType);
+                expect(() =>
+                    derivePivotConfigurationFromChart(
+                        savedChart,
+                        metricQuery,
+                        items,
+                    ),
+                ).not.toThrow();
+                const result = derivePivotConfigurationFromChart(
+                    savedChart,
+                    metricQuery,
+                    items,
+                );
+                const agg = result?.valuesColumns[0].otherAggregation;
+                expect(
+                    agg === null ||
+                        Object.values(VizAggregationOptions).includes(agg!),
+                ).toBe(true);
+            }
+        });
+
         it('does not set otherAggregation when groupLimit is not enabled', () => {
             const items = makeItemsWithMetricType(MetricType.SUM);
             const savedChart: Pick<

@@ -201,6 +201,68 @@ describe('SqlQueryBuilder class', () => {
             expect(queryBuilder.toSql()).toBe(QUERY_WITH_NESTED_FILTERS_SQL);
         });
 
+        it('should generate De Morgan tuple exclusion SQL for Other group drill-through', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: MULTI_FIELD_REFERENCE_MAP,
+                    select: ['field1', 'field2'],
+                    from: { name: 'table' },
+                    filters: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'tuple1',
+                                or: [
+                                    {
+                                        id: 'f1',
+                                        target: { fieldId: 'field1' },
+                                        operator: FilterOperator.NOT_EQUALS,
+                                        values: ['US'],
+                                    } as DashboardFilterRule,
+                                    {
+                                        id: 'f2',
+                                        target: { fieldId: 'field2' },
+                                        operator: FilterOperator.NOT_EQUALS,
+                                        values: [10],
+                                    } as DashboardFilterRule,
+                                ],
+                            },
+                            {
+                                id: 'tuple2',
+                                or: [
+                                    {
+                                        id: 'f3',
+                                        target: { fieldId: 'field1' },
+                                        operator: FilterOperator.NOT_EQUALS,
+                                        values: ['CA'],
+                                    } as DashboardFilterRule,
+                                    {
+                                        id: 'f4',
+                                        target: { fieldId: 'field2' },
+                                        operator: FilterOperator.NOT_EQUALS,
+                                        values: [20],
+                                    } as DashboardFilterRule,
+                                ],
+                            },
+                        ],
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+            const sql = queryBuilder.toSql();
+            // De Morgan: (NOT A₁ OR NOT B₁) AND (NOT A₂ OR NOT B₂)
+            // Each OR group becomes parenthesized with OR
+            expect(sql).toContain('OR');
+            expect(sql).toContain('AND');
+            // NOT_EQUALS for string → NOT IN (...)
+            expect(sql).toContain("NOT IN ('US')");
+            expect(sql).toContain("NOT IN ('CA')");
+            // NOT_EQUALS for number → != or NOT IN
+            expect(sql).toMatch(/\(!= 10|NOT IN \(10\)/);
+            expect(sql).toMatch(/\(!= 20|NOT IN \(20\)/);
+        });
+
         it('should handle empty select list by selecting all columns', () => {
             const queryBuilder = new SqlQueryBuilder(
                 {
