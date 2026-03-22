@@ -2,6 +2,7 @@ import {
     type ApiError,
     type Explore,
     type FieldType,
+    type GroupLimitConfig,
     type PivotChartData,
     type PivotChartLayout,
     type PivotConfiguration,
@@ -87,7 +88,7 @@ export type SqlRunnerQuery = {
     customMetrics?: (Pick<SqlRunnerField, 'name' | 'aggType'> & {
         baseDimension?: string;
     })[];
-    groupLimit?: { enabled: boolean; maxGroups: number };
+    groupLimit?: GroupLimitConfig;
 };
 
 export enum SqlRunnerFilterBaseOperator {
