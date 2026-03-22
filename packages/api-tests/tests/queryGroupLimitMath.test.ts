@@ -1,6 +1,7 @@
 import {
     ApiExecuteAsyncMetricQueryResults,
     ApiGetAsyncQueryResults,
+    OTHER_GROUP_SENTINEL_VALUE,
     QueryExecutionContext,
     QueryHistoryStatus,
     ReadyQueryResultsPage,
@@ -483,7 +484,7 @@ describe('v2 query group limit baselines', () => {
         );
 
         expect(getPivotGroupValues(pivotResults).sort()).toEqual(
-            [...testCase.expectedVisibleGroups, 'Other']
+            [...testCase.expectedVisibleGroups, OTHER_GROUP_SENTINEL_VALUE]
                 .map(normalizeTimestamp)
                 .sort(),
         );
@@ -497,7 +498,7 @@ describe('v2 query group limit baselines', () => {
                     getPivotMetricValue({
                         results: pivotResults,
                         metricReference,
-                        groupValue: 'Other',
+                        groupValue: OTHER_GROUP_SENTINEL_VALUE,
                     }),
                 ).toBeCloseTo(expectedOtherValue, 12);
             },

@@ -2,6 +2,7 @@ import {
     ApiExecuteAsyncMetricQueryResults,
     ApiGetAsyncQueryResults,
     OTHER_GROUP_DISPLAY_VALUE,
+    OTHER_GROUP_SENTINEL_VALUE,
     QueryExecutionContext,
     QueryHistoryStatus,
     ReadyQueryResultsPage,
@@ -265,9 +266,11 @@ describe('R-General: sum correctness across Other and top groups (Test 1.7)', ()
         );
 
         const groups = getPivotGroupValues(pivotResults);
-        expect(groups).toContain(OTHER_GROUP_DISPLAY_VALUE);
+        expect(groups).toContain(OTHER_GROUP_SENTINEL_VALUE);
 
-        const topGroups = groups.filter((g) => g !== OTHER_GROUP_DISPLAY_VALUE);
+        const topGroups = groups.filter(
+            (g) => g !== OTHER_GROUP_SENTINEL_VALUE,
+        );
         expect(topGroups).toHaveLength(2);
 
         let pivotTotal = 0;
@@ -343,19 +346,19 @@ describe('R9-partial: maxGroups changes produce different results (Test 1.4)', (
         const groups2 = getPivotGroupValues(results2);
         const groups3 = getPivotGroupValues(results3);
 
-        expect(groups2).toContain(OTHER_GROUP_DISPLAY_VALUE);
-        expect(groups3).toContain(OTHER_GROUP_DISPLAY_VALUE);
+        expect(groups2).toContain(OTHER_GROUP_SENTINEL_VALUE);
+        expect(groups3).toContain(OTHER_GROUP_SENTINEL_VALUE);
 
         const other2 = getPivotMetricValue({
             results: results2,
             metricReference: paymentMethodConfig.metric,
-            groupValue: OTHER_GROUP_DISPLAY_VALUE,
+            groupValue: OTHER_GROUP_SENTINEL_VALUE,
         });
 
         const other3 = getPivotMetricValue({
             results: results3,
             metricReference: paymentMethodConfig.metric,
-            groupValue: OTHER_GROUP_DISPLAY_VALUE,
+            groupValue: OTHER_GROUP_SENTINEL_VALUE,
         });
 
         expect(other2).toBeGreaterThan(other3);
@@ -387,9 +390,11 @@ describe('R-Edge: maxGroups boundary values (Test 1.8)', () => {
         );
 
         const groups = getPivotGroupValues(results);
-        const topGroups = groups.filter((g) => g !== OTHER_GROUP_DISPLAY_VALUE);
+        const topGroups = groups.filter(
+            (g) => g !== OTHER_GROUP_SENTINEL_VALUE,
+        );
         expect(topGroups).toHaveLength(1);
-        expect(groups).toContain(OTHER_GROUP_DISPLAY_VALUE);
+        expect(groups).toContain(OTHER_GROUP_SENTINEL_VALUE);
     });
 
     it('1.8b — maxGroups = total groups: no Other row', async () => {
@@ -425,7 +430,7 @@ describe('R-Edge: maxGroups boundary values (Test 1.8)', () => {
         );
 
         const groups = getPivotGroupValues(results);
-        expect(groups).not.toContain(OTHER_GROUP_DISPLAY_VALUE);
+        expect(groups).not.toContain(OTHER_GROUP_SENTINEL_VALUE);
         expect(groups).toHaveLength(totalGroupCount);
     });
 
@@ -445,7 +450,7 @@ describe('R-Edge: maxGroups boundary values (Test 1.8)', () => {
         );
 
         const groups = getPivotGroupValues(resultsHigh);
-        expect(groups).not.toContain(OTHER_GROUP_DISPLAY_VALUE);
+        expect(groups).not.toContain(OTHER_GROUP_SENTINEL_VALUE);
     });
 
     it('1.8d — maxGroups = 0: clamped to 1', async () => {
@@ -580,7 +585,7 @@ describe('R2: deterministic top-N ranking (Test 1.2)', () => {
             );
 
             const topGroups = getPivotGroupValues(results)
-                .filter((g) => g !== OTHER_GROUP_DISPLAY_VALUE)
+                .filter((g) => g !== OTHER_GROUP_SENTINEL_VALUE)
                 .sort();
             topGroupSets.push(topGroups);
         }
@@ -597,11 +602,13 @@ describe('R2: deterministic top-N ranking (Test 1.2)', () => {
 // the current behavior and flag the architectural risk
 // ---------------------------------------------------------------------------
 describe('R6: Other sentinel collision — architectural risk (Test 1.3)', () => {
-    it('documents that sentinel value matches OTHER_GROUP_DISPLAY_VALUE constant', () => {
+    it('documents that display value and sentinel value are distinct constants', () => {
         expect(OTHER_GROUP_DISPLAY_VALUE).toBe('Other');
+        expect(OTHER_GROUP_SENTINEL_VALUE).toBe('$$_lightdash_other_$$');
+        expect(OTHER_GROUP_SENTINEL_VALUE).not.toBe(OTHER_GROUP_DISPLAY_VALUE);
     });
 
-    it('Other bucket uses the literal string "Other" as a pivot value', async () => {
+    it('API returns sentinel value (not display value) for Other pivot groups', async () => {
         const results = await runMetricQuery(
             admin,
             SEED_PROJECT.project_uuid,
@@ -617,10 +624,11 @@ describe('R6: Other sentinel collision — architectural risk (Test 1.3)', () =>
         );
 
         const groups = getPivotGroupValues(results);
-        expect(groups).toContain('Other');
+        expect(groups).toContain(OTHER_GROUP_SENTINEL_VALUE);
+        expect(groups).not.toContain(OTHER_GROUP_DISPLAY_VALUE);
 
         const otherColumns = results.pivotDetails!.valuesColumns.filter(
-            (col) => col.pivotValues[0]?.value === 'Other',
+            (col) => col.pivotValues[0]?.value === OTHER_GROUP_SENTINEL_VALUE,
         );
         expect(otherColumns.length).toBeGreaterThan(0);
     });
