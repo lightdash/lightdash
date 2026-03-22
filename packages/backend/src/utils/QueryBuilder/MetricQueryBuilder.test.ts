@@ -5431,6 +5431,35 @@ describe('Nested aggregate metrics', () => {
         },
     );
 
+    test('Should not emit pivotSource when groupLimit is disabled', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_SUM_DISTINCT,
+            compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_status',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_total_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: false, maxGroups: 5 },
+            },
+        });
+
+        expect(result.pivotSource).toBeUndefined();
+    });
+
     test.each([
         MetricType.NUMBER,
         MetricType.STRING,
