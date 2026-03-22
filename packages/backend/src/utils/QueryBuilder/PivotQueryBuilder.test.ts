@@ -3746,6 +3746,203 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(normalized).toContain('WHERE gr.__group_rn <= 2');
             expect(normalized).not.toContain('$$_lightdash_other_$$');
         });
+
+        test('Should generate valid SQL for raw_other with metric sorting', () => {
+            const metricSortPivotSource: PivotSourceContract = {
+                query: 'SELECT "date" AS "date", "region" AS "region", "amount" AS "__metric_revenue_value" FROM raw_events',
+                metricInputs: {
+                    revenue: {
+                        strategy: 'simple',
+                        inputAlias: '__metric_revenue_value',
+                        aggregateWith: 'SUM',
+                    },
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                metricSortPivotSource,
+                true,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // raw_other CTEs should be present
+            expect(normalized).toContain('bucketed_source AS');
+            expect(normalized).toContain('pivot_source AS');
+            // Anchor CTEs for metric sorting should also be present
+            expect(normalized).toContain('column_ranking AS');
+            expect(normalized).toContain('row_ranking AS');
+            // No NaN or Infinity in output
+            expect(normalized).not.toContain('NaN');
+            expect(normalized).not.toContain('Infinity');
+        });
+
+        test('Should handle multiple groupBy columns in raw_other mode', () => {
+            const multiGroupByPivotSource: PivotSourceContract = {
+                query: 'SELECT "date" AS "date", "region" AS "region", "category" AS "category", "amount" AS "__metric_revenue_value" FROM raw_events',
+                metricInputs: {
+                    revenue: {
+                        strategy: 'simple',
+                        inputAlias: '__metric_revenue_value',
+                        aggregateWith: 'SUM',
+                    },
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'region' },
+                    { reference: 'category' },
+                ],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                multiGroupByPivotSource,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            // bucketed_source should have CASE WHEN for both columns
+            expect(normalized).toContain(
+                'CASE WHEN gr.__group_rn <= 2 THEN CAST(ss."region" AS TEXT)',
+            );
+            expect(normalized).toContain(
+                'CASE WHEN gr.__group_rn <= 2 THEN CAST(ss."category" AS TEXT)',
+            );
+            // null-safe join should cover both columns
+            expect(normalized).toContain(
+                '( ss."region" = gr."region" OR ( ss."region" IS NULL AND gr."region" IS NULL ) )',
+            );
+            expect(normalized).toContain(
+                '( ss."category" = gr."category" OR ( ss."category" IS NULL AND gr."category" IS NULL ) )',
+            );
+        });
+
+        test('Should use SUM for distinct_dedup with aggregateWith SUM in raw_other', () => {
+            const sumDedupPivotSource: PivotSourceContract = {
+                query: 'SELECT "date" AS "date", "region" AS "region", "amount" AS "__metric_total_value", "order_id" AS "__metric_total_dk_0" FROM raw_events',
+                metricInputs: {
+                    total: {
+                        strategy: 'distinct_dedup',
+                        inputAlias: '__metric_total_value',
+                        distinctKeyAliases: ['__metric_total_dk_0'],
+                        aggregateWith: 'SUM',
+                    },
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'total',
+                        aggregation: VizAggregationOptions.ANY,
+                        otherAggregation: null,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                sumDedupPivotSource,
+                true,
+            );
+
+            const normalized = replaceWhitespace(builder.toSql());
+
+            // distinct_dedup with SUM should use SUM(CASE WHEN __dd_rn = 1 ...)
+            // NOT the AVG formula (SUM/NULLIF/COUNT)
+            expect(normalized).toContain('__dd_total_any');
+            expect(normalized).toContain(
+                'SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)',
+            );
+            // Should NOT have the AVG-style division (CAST + NULLIF pattern)
+            expect(normalized).not.toContain(
+                'NULLIF(COUNT(CASE WHEN __dd_rn = 1 THEN __dd_val END), 0)',
+            );
+        });
+
+        test('Should compose groupLimit and columnLimit correctly', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                        otherAggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 3 },
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {},
+                undefined,
+                false,
+            );
+
+            const result = builder.toSql({ columnLimit: 5 });
+            const normalized = replaceWhitespace(result);
+
+            // Group limit CTEs should be present
+            expect(normalized).toContain('__group_ranking AS');
+            expect(normalized).toContain('$$_lightdash_other_$$');
+            // Column limit should be applied in the final SELECT
+            expect(normalized).toContain('column_index');
+            expect(normalized).toContain('<= 5');
+        });
     });
 
     describe('fast_other aggregation SQL', () => {
