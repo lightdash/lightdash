@@ -1521,8 +1521,10 @@ export class AsyncQueryService extends ProjectService {
                               const cellValue = row[c.reference];
                               const isOtherGroup =
                                   cellValue === OTHER_GROUP_SENTINEL_VALUE;
+                              // Keep sentinel as the raw value so pivot column keys
+                              // are unique and don't collide with a real "Other" dimension value.
                               const rawValue = isOtherGroup
-                                  ? OTHER_GROUP_DISPLAY_VALUE
+                                  ? OTHER_GROUP_SENTINEL_VALUE
                                   : formatRawValue(field, cellValue);
                               let formattedValue: string;
                               if (isOtherGroup) {
@@ -1538,7 +1540,7 @@ export class AsyncQueryService extends ProjectService {
                               }
                               return {
                                   referenceField: c.reference,
-                                  // value needs to be raw formatted so that dates match the subtotals and the formatted rows
+                                  // Keep sentinel for key uniqueness; display uses `formatted`
                                   value: rawValue,
                                   // formatted value to match the display value in the frontend
                                   formatted: formattedValue,
