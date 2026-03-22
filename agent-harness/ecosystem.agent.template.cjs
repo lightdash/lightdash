@@ -31,6 +31,7 @@ module.exports = {
             env: {
                 ...envWithPath,
                 LIGHTDASH_MODE: 'development',
+                LIGHTDASH_FORCED_FEATURE_FLAGS: 'group-limit-enabled',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
             },

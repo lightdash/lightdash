@@ -2,6 +2,7 @@ import {
     type ApiError,
     type Explore,
     type FieldType,
+    type GroupLimitConfig,
     type PivotChartData,
     type PivotChartLayout,
     type PivotConfiguration,
@@ -87,6 +88,7 @@ export type SqlRunnerQuery = {
     customMetrics?: (Pick<SqlRunnerField, 'name' | 'aggType'> & {
         baseDimension?: string;
     })[];
+    groupLimit?: GroupLimitConfig;
 };
 
 export enum SqlRunnerFilterBaseOperator {
@@ -145,6 +147,7 @@ export type SqlRunnerPayload = TraceTaskBase & {
 export type ValuesColumn = {
     reference: string;
     aggregation: VizAggregationOptions;
+    otherAggregation?: VizAggregationOptions | null;
 };
 
 export type GroupByColumn = {

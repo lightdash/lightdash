@@ -11,6 +11,7 @@ import type { MetricQuery } from '../types/metricQuery';
 import {
     ChartType,
     type CartesianChartConfig,
+    type GroupLimitConfig,
     type SavedChartDAO,
 } from '../types/savedCharts';
 import {
@@ -800,6 +801,168 @@ describe('derivePivotConfigurationFromChart', () => {
             expect(result?.groupByColumns).toEqual([
                 { reference: 'payments_payment_method' },
             ]);
+        });
+    });
+
+    describe('otherAggregation mapping with groupLimit', () => {
+        const groupLimit: GroupLimitConfig = { enabled: true, maxGroups: 3 };
+
+        const makeItemsWithMetricType = (metricType: MetricType): ItemsMap => ({
+            payments_payment_method: mockItems.payments_payment_method,
+            orders_status: mockItems.orders_status,
+            test_metric: {
+                sql: '${TABLE}.value',
+                name: 'test_metric',
+                type: metricType,
+                index: 1,
+                label: 'Test Metric',
+                table: 'orders',
+                groups: [],
+                hidden: false,
+                filters: [],
+                fieldType: FieldType.METRIC,
+                tableLabel: 'Orders',
+                dimensionReference: 'orders_value',
+            },
+        });
+
+        const makeChartWithGroupLimit = (
+            metricType: MetricType,
+        ): {
+            savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+            metricQuery: MetricQuery;
+            items: ItemsMap;
+        } => {
+            const items = makeItemsWithMetricType(metricType);
+            return {
+                savedChart: {
+                    chartConfig: {
+                        type: ChartType.CARTESIAN,
+                        config: {
+                            layout: {
+                                xField: 'payments_payment_method',
+                                yField: ['test_metric'],
+                                groupLimit,
+                            },
+                            eChartsConfig: {},
+                        },
+                    } as CartesianChartConfig,
+                    pivotConfig: { columns: ['orders_status'] },
+                },
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['payments_payment_method', 'orders_status'],
+                    metrics: ['test_metric'],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                items,
+            };
+        };
+
+        it.each([
+            [MetricType.SUM, VizAggregationOptions.SUM],
+            [MetricType.MIN, VizAggregationOptions.MIN],
+            [MetricType.MAX, VizAggregationOptions.MAX],
+            [MetricType.COUNT, VizAggregationOptions.SUM],
+        ])(
+            '%s metric maps to %s otherAggregation',
+            (metricType, expectedAgg) => {
+                const { savedChart, metricQuery, items } =
+                    makeChartWithGroupLimit(metricType);
+                const result = derivePivotConfigurationFromChart(
+                    savedChart,
+                    metricQuery,
+                    items,
+                );
+                expect(result?.valuesColumns[0].otherAggregation).toBe(
+                    expectedAgg,
+                );
+            },
+        );
+
+        it.each([
+            MetricType.COUNT_DISTINCT,
+            MetricType.AVERAGE,
+            MetricType.RUNNING_TOTAL,
+            MetricType.PERCENTILE,
+            MetricType.MEDIAN,
+            MetricType.NUMBER,
+            MetricType.STRING,
+            MetricType.DATE,
+            MetricType.BOOLEAN,
+        ])('%s metric maps to null otherAggregation', (metricType) => {
+            const { savedChart, metricQuery, items } =
+                makeChartWithGroupLimit(metricType);
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                metricQuery,
+                items,
+            );
+            expect(result?.valuesColumns[0].otherAggregation).toBeNull();
+        });
+
+        it('handles every MetricType without throwing', () => {
+            const allMetricTypes = Object.values(MetricType);
+            for (const metricType of allMetricTypes) {
+                const { savedChart, metricQuery, items } =
+                    makeChartWithGroupLimit(metricType);
+                expect(() =>
+                    derivePivotConfigurationFromChart(
+                        savedChart,
+                        metricQuery,
+                        items,
+                    ),
+                ).not.toThrow();
+                const result = derivePivotConfigurationFromChart(
+                    savedChart,
+                    metricQuery,
+                    items,
+                );
+                const agg = result?.valuesColumns[0].otherAggregation;
+                expect(
+                    agg === null ||
+                        Object.values(VizAggregationOptions).includes(agg!),
+                ).toBe(true);
+            }
+        });
+
+        it('does not set otherAggregation when groupLimit is not enabled', () => {
+            const items = makeItemsWithMetricType(MetricType.SUM);
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'payments_payment_method',
+                            yField: ['test_metric'],
+                            // no groupLimit
+                        },
+                        eChartsConfig: {},
+                    },
+                } as CartesianChartConfig,
+                pivotConfig: { columns: ['orders_status'] },
+            };
+            const metricQuery: MetricQuery = {
+                exploreName: 'orders',
+                dimensions: ['payments_payment_method', 'orders_status'],
+                metrics: ['test_metric'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            };
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                metricQuery,
+                items,
+            );
+            expect(result?.valuesColumns[0].otherAggregation).toBeUndefined();
         });
     });
 });

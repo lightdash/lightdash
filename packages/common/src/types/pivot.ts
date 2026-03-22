@@ -1,6 +1,7 @@
 import type { PivotIndexColum } from '../visualizations/types';
 import { type FieldType } from './field';
 import { type ResultRow, type ResultValue } from './results';
+import type { GroupLimitConfig } from './savedCharts';
 import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 
 export type PivotConfig = {
@@ -25,6 +26,7 @@ export type PivotConfiguration = {
      * Defaults to false for backward compatibility (SQL runner behavior).
      */
     metricsAsRows?: boolean;
+    groupLimit?: GroupLimitConfig;
 };
 
 type Field =

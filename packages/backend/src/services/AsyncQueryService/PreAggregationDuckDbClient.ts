@@ -57,6 +57,7 @@ export type ResolvePreAggregationDuckDbArgs = {
     preAggregationRoute: PreAggregationRoute;
     fieldsMap: ItemsMap;
     pivotConfiguration: PivotConfiguration | undefined;
+    rawOtherEnabled?: boolean;
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls: UserAccessControls;
     availableParameterDefinitions: ParameterDefinitions;
@@ -361,6 +362,8 @@ export class PreAggregationDuckDbClient {
                 warehouseSqlBuilder,
                 args.metricQuery.limit,
                 args.fieldsMap,
+                fullQuery.pivotSource,
+                args.rawOtherEnabled ?? false,
             );
 
             query = pivotQueryBuilder.toSql({

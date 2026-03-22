@@ -55,6 +55,8 @@ import {
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    OTHER_GROUP_DISPLAY_VALUE,
+    OTHER_GROUP_SENTINEL_VALUE,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -137,6 +139,7 @@ import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
+import { getPivotColumnValueSuffix } from '../pivotColumnReference';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
@@ -607,6 +610,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotValuesColumns,
             pivotTotalColumnCount,
+            pivotTotalGroupCount,
             originalColumns,
         } = queryHistory;
 
@@ -628,6 +632,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             valuesColumns: sortedValuesColumns,
             totalColumnCount: pivotTotalColumnCount,
+            totalGroupCount: pivotTotalGroupCount,
             indexColumn: pivotConfiguration.indexColumn,
             groupByColumns: pivotConfiguration.groupByColumns,
             sortBy: pivotConfiguration.sortBy,
@@ -1415,6 +1420,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDetails: {
             valuesColumns: Map<string, PivotValuesColumn>;
             totalColumnCount: number | undefined;
+            totalGroupCount: number | undefined;
             totalRows: number;
         } | null;
     }> {
@@ -1424,6 +1430,7 @@ export class AsyncQueryService extends ProjectService {
 
         // Total column count includes the unlimited number of columns that can be pivoted, so we can show a warning in the frontend
         let pivotTotalColumnCount: undefined | number;
+        let pivotTotalGroupCount: undefined | number;
         let pivotTotalRows = 0;
         let unpivotedColumns: ResultColumns = {};
 
@@ -1441,6 +1448,12 @@ export class AsyncQueryService extends ProjectService {
                       pivotTotalColumnCount = Number.isNaN(numberTotalColumns)
                           ? undefined
                           : numberTotalColumns;
+                  }
+                  if ('total_groups' in rows[0]) {
+                      const numberTotalGroups = Number(rows[0].total_groups);
+                      pivotTotalGroupCount = Number.isNaN(numberTotalGroups)
+                          ? undefined
+                          : numberTotalGroups;
                   }
 
                   unpivotedColumns = getUnpivotedColumns(
@@ -1505,23 +1518,35 @@ export class AsyncQueryService extends ProjectService {
                       const pivotValues =
                           groupByColumns?.map((c) => {
                               const field = itemsMap[c.reference];
-                              const rawValue = formatRawValue(
-                                  field,
-                                  row[c.reference],
-                              );
-                              const formattedValue = field
-                                  ? formatItemValue(
-                                        field,
-                                        row[c.reference],
-                                        false,
-                                    )
-                                  : String(rawValue);
+                              const cellValue = row[c.reference];
+                              const isOtherGroup =
+                                  cellValue === OTHER_GROUP_SENTINEL_VALUE;
+                              // Keep sentinel as the raw value so pivot column keys
+                              // are unique and don't collide with a real "Other" dimension value.
+                              const rawValue = isOtherGroup
+                                  ? OTHER_GROUP_SENTINEL_VALUE
+                                  : formatRawValue(field, cellValue);
+                              let formattedValue: string;
+                              if (isOtherGroup) {
+                                  formattedValue = OTHER_GROUP_DISPLAY_VALUE;
+                              } else if (field) {
+                                  formattedValue = formatItemValue(
+                                      field,
+                                      cellValue,
+                                      false,
+                                  );
+                              } else {
+                                  formattedValue = String(rawValue);
+                              }
                               return {
                                   referenceField: c.reference,
-                                  // value needs to be raw formatted so that dates match the subtotals and the formatted rows
+                                  // Keep sentinel for key uniqueness; display uses `formatted`
                                   value: rawValue,
                                   // formatted value to match the display value in the frontend
                                   formatted: formattedValue,
+                                  ...(isOtherGroup && {
+                                      isOtherGroup: true,
+                                  }),
                               };
                           }) ?? [];
 
@@ -1530,7 +1555,9 @@ export class AsyncQueryService extends ProjectService {
                       // then the value column will be 'value_1_a_b'
                       const valueSuffix =
                           pivotValues.length > 0
-                              ? pivotValues.map((p) => p.value).join('_')
+                              ? getPivotColumnValueSuffix(
+                                    pivotValues.map((p) => p.value),
+                                )
                               : '';
 
                       // eslint-disable-next-line @typescript-eslint/no-loop-func -- forEach is synchronous, executes within current loop iteration
@@ -1606,6 +1633,7 @@ export class AsyncQueryService extends ProjectService {
                 ? {
                       valuesColumns: valuesColumnData,
                       totalColumnCount: pivotTotalColumnCount,
+                      totalGroupCount: pivotTotalGroupCount,
                       totalRows: pivotTotalRows,
                   }
                 : null,
@@ -1622,6 +1650,7 @@ export class AsyncQueryService extends ProjectService {
         preAggregationRoute,
         fieldsMap,
         pivotConfiguration,
+        rawOtherEnabled,
         startOfWeek,
         userAccessControls,
         availableParameterDefinitions,
@@ -1636,6 +1665,7 @@ export class AsyncQueryService extends ProjectService {
         preAggregationRoute?: PreAggregationRoute;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
+        rawOtherEnabled: boolean;
         startOfWeek: CreateWarehouseCredentials['startOfWeek'];
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
@@ -1684,6 +1714,7 @@ export class AsyncQueryService extends ProjectService {
                   preAggregationRoute,
                   fieldsMap,
                   pivotConfiguration,
+                  rawOtherEnabled,
                   startOfWeek,
                   userAccessControls,
                   availableParameterDefinitions,
@@ -2166,6 +2197,7 @@ export class AsyncQueryService extends ProjectService {
                         cacheKey,
                         totalRowCount: pivotDetails?.totalRows ?? totalRows,
                         pivotTotalColumnCount: pivotDetails?.totalColumnCount,
+                        pivotTotalGroupCount: pivotDetails?.totalGroupCount,
                         isPivoted: pivotDetails !== null,
                         ...(isRegisteredUser
                             ? undefined
@@ -2186,6 +2218,7 @@ export class AsyncQueryService extends ProjectService {
                     warehouse_execution_time_ms: Math.round(durationMs),
                     total_row_count: pivotDetails?.totalRows ?? totalRows,
                     pivot_total_column_count: pivotDetails?.totalColumnCount,
+                    pivot_total_group_count: pivotDetails?.totalGroupCount,
                     pivot_values_columns: pivotDetails
                         ? Object.fromEntries(
                               pivotDetails.valuesColumns.entries(),
@@ -2650,6 +2683,10 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const rawOtherEnabled = await this.isGroupLimitEnabled(
+            account.user.id,
+            account.organization.organizationUuid,
+        );
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -2698,6 +2735,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
+            pivotSource: fullQuery.pivotSource,
             warnings: fullQuery.warnings,
             parameterReferences: Array.from(fullQuery.parameterReferences),
             missingParameterReferences: Array.from(
@@ -2708,6 +2746,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
             timezone,
+            rawOtherEnabled,
         };
     }
 
@@ -2718,6 +2757,8 @@ export class AsyncQueryService extends ProjectService {
             explore: Explore;
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
+            pivotSource?: import('../../utils/QueryBuilder/MetricQueryBuilder').PivotSourceContract;
+            rawOtherEnabled?: boolean;
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
             timezone?: string;
@@ -2741,6 +2782,8 @@ export class AsyncQueryService extends ProjectService {
                     sql: compiledQuery,
                     metricQuery,
                     fields: fieldsMap,
+                    pivotSource,
+                    rawOtherEnabled,
                     originalColumns,
                     missingParameterReferences,
                     pivotConfiguration,
@@ -2832,6 +2875,8 @@ export class AsyncQueryService extends ProjectService {
                             warehouseSqlBuilder,
                             args.metricQuery.limit,
                             args.fields,
+                            pivotSource,
+                            rawOtherEnabled ?? false,
                         );
 
                         pivotedQuery = pivotQueryBuilder.toSql({
@@ -2959,6 +3004,8 @@ export class AsyncQueryService extends ProjectService {
                                     resultsCache.pivotValuesColumns,
                                 pivot_total_column_count:
                                     resultsCache.pivotTotalColumnCount,
+                                pivot_total_group_count:
+                                    resultsCache.pivotTotalGroupCount,
                                 warehouse_execution_time_ms: 0, // When cache is hit, no query is executed
                             },
                             account,
@@ -3029,6 +3076,7 @@ export class AsyncQueryService extends ProjectService {
                             preAggregationRoute,
                             fieldsMap,
                             pivotConfiguration,
+                            rawOtherEnabled: rawOtherEnabled ?? false,
                             startOfWeek: warehouseCredentials.startOfWeek,
                             userAccessControls,
                             availableParameterDefinitions,
@@ -3328,6 +3376,7 @@ export class AsyncQueryService extends ProjectService {
         const {
             sql,
             fields,
+            pivotSource,
             warnings,
             parameterReferences,
             missingParameterReferences,
@@ -3336,6 +3385,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls,
             availableParameterDefinitions,
             timezone,
+            rawOtherEnabled,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3385,6 +3435,8 @@ export class AsyncQueryService extends ProjectService {
                 parameters: combinedParameters,
                 fields,
                 sql,
+                pivotSource,
+                rawOtherEnabled,
                 originalColumns: undefined,
                 missingParameterReferences,
                 timezone,

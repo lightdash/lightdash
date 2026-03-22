@@ -303,6 +303,21 @@ const getXAxisType = createSelector(
     (chartState) => chartState?.fieldConfig?.x?.type,
 );
 
+const getGroupLimit = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.fieldConfig?.groupLimit,
+);
+
+const getSeries = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.series,
+);
+
+const getGroupCount = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.chartData?.groupCount,
+);
+
 export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
@@ -317,4 +332,7 @@ export const cartesianChartSelectors = {
     getErrors,
     getXAxisDateFormat,
     getXAxisType,
+    getGroupLimit,
+    getSeries,
+    getGroupCount,
 };

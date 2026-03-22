@@ -59,6 +59,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
+import { NULL_PIVOT_COLUMN_VALUE_KEY } from '../pivotColumnReference';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
@@ -319,6 +320,7 @@ describe('AsyncQueryService', () => {
                 originalColumns: expectedColumns,
                 pivotValuesColumns: null,
                 pivotTotalColumnCount: null,
+                pivotTotalGroupCount: null,
             };
 
             (
@@ -389,6 +391,7 @@ describe('AsyncQueryService', () => {
                     results_updated_at: updatedAt,
                     results_expires_at: expiresAt,
                     pivot_total_column_count: null,
+                    pivot_total_group_count: null,
                     pivot_values_columns: null,
                 },
                 sessionAccount,
@@ -1182,6 +1185,7 @@ describe('AsyncQueryService', () => {
                 cacheKey: 'test-query-key',
                 pivotConfiguration: null,
                 pivotTotalColumnCount: null,
+                pivotTotalGroupCount: null,
                 pivotValuesColumns: null,
                 resultsFileName,
                 resultsCreatedAt: null,
@@ -1419,6 +1423,7 @@ describe('AsyncQueryService', () => {
                 cacheKey: 'test-cache-key',
                 pivotConfiguration: mockPivotConfiguration,
                 pivotTotalColumnCount: 5,
+                pivotTotalGroupCount: 5,
                 pivotValuesColumns: mockPivotValuesColumns,
                 resultsFileName: 'results-file-name.json',
                 resultsCreatedAt: new Date(),
@@ -1470,6 +1475,7 @@ describe('AsyncQueryService', () => {
             expect(result).toMatchObject({
                 pivotDetails: {
                     totalColumnCount: 5,
+                    totalGroupCount: 5,
                     valuesColumns: Object.values(mockPivotValuesColumns),
                     indexColumn: mockPivotConfiguration.indexColumn,
                     groupByColumns: mockPivotConfiguration.groupByColumns,
@@ -1517,6 +1523,7 @@ describe('AsyncQueryService', () => {
             cacheKey: 'test-query-key',
             pivotConfiguration: null,
             pivotTotalColumnCount: null,
+            pivotTotalGroupCount: null,
             pivotValuesColumns: null,
             resultsFileName: null,
             resultsCreatedAt: null,
@@ -1875,6 +1882,149 @@ describe('AsyncQueryService', () => {
                     results_file_name: expect.any(String),
                 }),
                 expect.any(Object), // session account
+            );
+        });
+
+        test('Preserves null pivot groups as distinct pivot columns', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: projectModel as unknown as ProjectModel,
+            });
+
+            const mockStorageClient =
+                service.resultsStorageClient as unknown as {
+                    createUploadStream: jest.Mock;
+                };
+            mockStorageClient.createUploadStream = jest.fn(() => ({
+                write: jest.fn(),
+                close: jest.fn(),
+            }));
+
+            service.queryHistoryModel.update = jest.fn();
+
+            const mockWarehouseClient = {
+                ...warehouseClientMock,
+                executeAsyncQuery: jest.fn(async (_query, callback) => {
+                    await callback?.(
+                        [
+                            {
+                                payments_payment_method: 'credit_card',
+                                orders_promo_code: null,
+                                orders_unique_order_count_any_sum: 79,
+                                row_index: 1,
+                                column_index: 1,
+                                total_columns: 3,
+                                total_groups: 3,
+                            },
+                            {
+                                payments_payment_method: 'credit_card',
+                                orders_promo_code: 'FLASH',
+                                orders_unique_order_count_any_sum: 1,
+                                row_index: 1,
+                                column_index: 2,
+                                total_columns: 3,
+                                total_groups: 3,
+                            },
+                            {
+                                payments_payment_method: 'credit_card',
+                                orders_promo_code: 'Other',
+                                orders_unique_order_count_any_sum: 5,
+                                row_index: 1,
+                                column_index: 3,
+                                total_columns: 3,
+                                total_groups: 3,
+                            },
+                        ],
+                        {
+                            payments_payment_method: {
+                                type: DimensionType.STRING,
+                            },
+                            orders_promo_code: {
+                                type: DimensionType.STRING,
+                            },
+                            orders_unique_order_count_any_sum: {
+                                type: DimensionType.NUMBER,
+                            },
+                            row_index: {
+                                type: DimensionType.NUMBER,
+                            },
+                            column_index: {
+                                type: DimensionType.NUMBER,
+                            },
+                            total_columns: {
+                                type: DimensionType.NUMBER,
+                            },
+                            total_groups: {
+                                type: DimensionType.NUMBER,
+                            },
+                        },
+                    );
+                    return {
+                        queryId: null,
+                        queryMetadata: null,
+                        totalRows: 3,
+                        durationMs: 10,
+                    };
+                }),
+            } satisfies WarehouseClient;
+
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                projectUuid,
+                query: 'SELECT * FROM test_table',
+                fieldsMap: {},
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'test-query-uuid',
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'payments_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns: [
+                        {
+                            reference: 'orders_unique_order_count_any',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'orders_promo_code' }],
+                    sortBy: [],
+                },
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                warehouseClientOverride: mockWarehouseClient,
+            });
+
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    pivot_total_column_count: 3,
+                    pivot_total_group_count: 3,
+                    pivot_values_columns: expect.objectContaining({
+                        [`orders_unique_order_count_any_sum_${NULL_PIVOT_COLUMN_VALUE_KEY}`]:
+                            expect.objectContaining({
+                                pivotColumnName: `orders_unique_order_count_any_sum_${NULL_PIVOT_COLUMN_VALUE_KEY}`,
+                                pivotValues: [
+                                    expect.objectContaining({
+                                        referenceField: 'orders_promo_code',
+                                        value: null,
+                                    }),
+                                ],
+                                columnIndex: 1,
+                            }),
+                        orders_unique_order_count_any_sum_FLASH:
+                            expect.objectContaining({
+                                columnIndex: 2,
+                            }),
+                        orders_unique_order_count_any_sum_Other:
+                            expect.objectContaining({
+                                columnIndex: 3,
+                            }),
+                    }),
+                }),
+                expect.any(Object),
             );
         });
     });

@@ -653,6 +653,59 @@ describe('Filter SQL', () => {
         },
     );
 
+    test('should return multi-value not equals date filter sql', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                {
+                    id: 'test-id',
+                    target: { fieldId: 'created_at' },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: [
+                        new Date('2024-01-01T00:00:00Z'),
+                        new Date('2024-02-01T00:00:00Z'),
+                    ],
+                },
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `((customers.created) NOT IN (('2024-01-01 00:00:00'),('2024-02-01 00:00:00')) OR (customers.created) IS NULL)`,
+        );
+    });
+
+    test('should return true (no-op) for empty date values array — intentional safe fallback', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                {
+                    id: 'test-id',
+                    target: { fieldId: 'created_at' },
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                },
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toBe('true');
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                {
+                    id: 'test-id',
+                    target: { fieldId: 'created_at' },
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: [],
+                },
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toBe('true');
+    });
+
     test('should return single value in includes filter sql', () => {
         expect(
             renderStringFilterSql(
@@ -1221,6 +1274,35 @@ describe('Boolean Filter SQL', () => {
                 '((("table"."is_active")) != false OR (("table"."is_active")) IS NULL)',
             );
         });
+
+        it('should handle multiple boolean values from Other drill-through', () => {
+            const filter = {
+                ...baseFilter,
+                operator: FilterOperator.NOT_EQUALS,
+                values: ['true', 'false'],
+            };
+
+            expect(renderBooleanFilterSql(dimensionSql, filter)).toBe(
+                '((("table"."is_active")) NOT IN (true,false) OR (("table"."is_active")) IS NULL)',
+            );
+        });
+
+        it('should return true (no-op) for empty values array — intentional safe fallback', () => {
+            expect(
+                renderBooleanFilterSql(dimensionSql, {
+                    ...baseFilter,
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                }),
+            ).toBe('true');
+            expect(
+                renderBooleanFilterSql(dimensionSql, {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_EQUALS,
+                    values: [],
+                }),
+            ).toBe('true');
+        });
     });
 
     describe('isNull and notNull operators', () => {
@@ -1525,6 +1607,158 @@ describe('Number Filter SQL Injection Prevention', () => {
                 values: [5],
             };
             expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
+        });
+    });
+
+    describe('multi-value date filters for Other drill-through', () => {
+        const dateFormatter = (date: Date) =>
+            `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+        it('should generate IN clause for EQUALS with multiple date values', () => {
+            const filter: FilterRule = {
+                id: 'test-multi-date-eq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.EQUALS,
+                values: [
+                    new Date('2024-01-15'),
+                    new Date('2024-02-20'),
+                    new Date('2024-03-25'),
+                ],
+            };
+            const result = renderDateFilterSql(
+                DimensionSqlMock,
+                filter,
+                adapterType.default,
+                'UTC',
+                dateFormatter,
+            );
+            expect(result).toContain('IN');
+            expect(result).toContain('2024-01-15');
+            expect(result).toContain('2024-02-20');
+            expect(result).toContain('2024-03-25');
+        });
+
+        it('should generate NOT IN clause for NOT_EQUALS with multiple date values', () => {
+            const filter: FilterRule = {
+                id: 'test-multi-date-neq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.NOT_EQUALS,
+                values: [new Date('2024-06-01'), new Date('2025-01-01')],
+            };
+            const result = renderDateFilterSql(
+                DimensionSqlMock,
+                filter,
+                adapterType.default,
+                'UTC',
+                dateFormatter,
+            );
+            expect(result).toContain('NOT IN');
+            expect(result).toContain('IS NULL');
+            expect(result).toContain('2024-06-01');
+            expect(result).toContain('2025-01-01');
+        });
+
+        it('should use = for single date value (backward compatible)', () => {
+            const filter: FilterRule = {
+                id: 'test-single-date-eq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.EQUALS,
+                values: [new Date('2024-01-15')],
+            };
+            const result = renderDateFilterSql(
+                DimensionSqlMock,
+                filter,
+                adapterType.default,
+                'UTC',
+                dateFormatter,
+            );
+            expect(result).toContain('=');
+            expect(result).not.toContain('IN');
+        });
+
+        it('should return true for EQUALS with empty date values', () => {
+            const filter: FilterRule = {
+                id: 'test-empty-date-eq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.EQUALS,
+                values: [],
+            };
+            const result = renderDateFilterSql(
+                DimensionSqlMock,
+                filter,
+                adapterType.default,
+                'UTC',
+                dateFormatter,
+            );
+            expect(result).toBe('true');
+        });
+
+        it('should return true for NOT_EQUALS with empty date values', () => {
+            const filter: FilterRule = {
+                id: 'test-empty-date-neq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.NOT_EQUALS,
+                values: [],
+            };
+            const result = renderDateFilterSql(
+                DimensionSqlMock,
+                filter,
+                adapterType.default,
+                'UTC',
+                dateFormatter,
+            );
+            expect(result).toBe('true');
+        });
+    });
+
+    describe('multi-value boolean filters for Other drill-through', () => {
+        it('should generate IN clause for EQUALS with multiple boolean values', () => {
+            const filter: FilterRule = {
+                id: 'test-multi-bool-eq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.EQUALS,
+                values: [true, false],
+            };
+            const result = renderBooleanFilterSql(DimensionSqlMock, filter);
+            expect(result).toContain('IN');
+            expect(result).toContain('true');
+            expect(result).toContain('false');
+        });
+
+        it('should generate NOT IN clause for NOT_EQUALS with multiple boolean values', () => {
+            const filter: FilterRule = {
+                id: 'test-multi-bool-neq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.NOT_EQUALS,
+                values: [true, false],
+            };
+            const result = renderBooleanFilterSql(DimensionSqlMock, filter);
+            expect(result).toContain('NOT IN');
+            expect(result).toContain('IS NULL');
+        });
+
+        it('should return true for EQUALS with empty boolean values', () => {
+            const filter: FilterRule = {
+                id: 'test-empty-bool-eq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.EQUALS,
+                values: [],
+            };
+            expect(renderBooleanFilterSql(DimensionSqlMock, filter)).toBe(
+                'true',
+            );
+        });
+
+        it('should return true for NOT_EQUALS with empty boolean values', () => {
+            const filter: FilterRule = {
+                id: 'test-empty-bool-neq',
+                target: { fieldId: 'dim' },
+                operator: FilterOperator.NOT_EQUALS,
+                values: [],
+            };
+            expect(renderBooleanFilterSql(DimensionSqlMock, filter)).toBe(
+                'true',
+            );
         });
     });
 });

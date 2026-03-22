@@ -43,6 +43,8 @@ import {
     lightdashVariablePattern,
     MetricFilterRule,
     MetricType,
+    normalizeIndexColumns,
+    ParameterError,
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
@@ -93,6 +95,29 @@ export type CompiledQuery = {
     missingParameterReferences: Set<string>;
     usedParameters: ParametersValuesMap;
     compilationErrors: string[];
+    pivotSource?: PivotSourceContract;
+};
+
+export type PivotSourceMetricInput =
+    | {
+          strategy: 'simple';
+          inputAlias: string;
+          aggregateWith: 'SUM' | 'COUNT' | 'COUNT_STAR' | 'MIN' | 'MAX' | 'AVG';
+      }
+    | {
+          strategy: 'count_distinct';
+          inputAlias: string;
+      }
+    | {
+          strategy: 'distinct_dedup';
+          inputAlias: string;
+          distinctKeyAliases: string[];
+          aggregateWith: 'SUM' | 'AVG';
+      };
+
+export type PivotSourceContract = {
+    query: string;
+    metricInputs: Record<string, PivotSourceMetricInput>;
 };
 
 export type BuildQueryProps = {
@@ -882,6 +907,238 @@ export class MetricQueryBuilder {
             const metric = this.getMetricFromId(metricId);
             return !isPostCalculationMetric(metric);
         });
+    }
+
+    private getPivotSourceContract({
+        dimensionCtes,
+        dimensionSelects,
+        sqlFrom,
+        joinsSql,
+        dimensionJoins,
+        dimensionFilters,
+    }: {
+        dimensionCtes: string[];
+        dimensionSelects: Record<string, string>;
+        sqlFrom: string;
+        joinsSql: string;
+        dimensionJoins: string[];
+        dimensionFilters: string | undefined;
+    }):
+        | { contract: PivotSourceContract; skippedMetrics: string[] }
+        | undefined {
+        const { pivotConfiguration, compiledMetricQuery } = this.args;
+        if (
+            !pivotConfiguration?.groupLimit?.enabled ||
+            !pivotConfiguration.groupByColumns?.length ||
+            pivotConfiguration.valuesColumns.length === 0
+        ) {
+            return undefined;
+        }
+
+        const q = this.args.warehouseSqlBuilder.getFieldQuoteChar();
+        const pivotDimensionRefs = new Set([
+            ...normalizeIndexColumns(pivotConfiguration.indexColumn).map(
+                (col) => col.reference,
+            ),
+            ...pivotConfiguration.groupByColumns.map((col) => col.reference),
+        ]);
+        const sortedCustomBinRefs = new Set(
+            (pivotConfiguration.sortBy ?? [])
+                .map((sort) => sort.reference)
+                .filter(
+                    (reference) =>
+                        pivotDimensionRefs.has(reference) &&
+                        compiledMetricQuery.compiledCustomDimensions
+                            .filter(isCustomBinDimension)
+                            .some(
+                                (dimension) =>
+                                    getItemId(dimension) === reference,
+                            ),
+                ),
+        );
+
+        const selectParts: string[] = [];
+        const getMetricPrimaryKeyAliases = (
+            metric: CompiledMetric,
+            metricAliasBase: string,
+        ): string[] | undefined => {
+            const primaryKey =
+                this.args.explore.tables[metric.table]?.primaryKey;
+            if (!primaryKey?.length) {
+                return undefined;
+            }
+
+            return primaryKey.map((pk, index) => {
+                const distinctKeyAlias = `__metric_${metricAliasBase}_dk_${index}`;
+                selectParts.push(
+                    `  ${q}${metric.table}${q}.${pk} AS ${q}${distinctKeyAlias}${q}`,
+                );
+                return distinctKeyAlias;
+            });
+        };
+        for (const reference of pivotDimensionRefs) {
+            const dimensionSelect = dimensionSelects[reference];
+            if (!dimensionSelect) {
+                Logger.warn(
+                    `Pivot source: missing dimension SELECT for "${reference}", falling back to drop mode`,
+                );
+                return undefined;
+            }
+            selectParts.push(dimensionSelect);
+        }
+        for (const reference of sortedCustomBinRefs) {
+            const orderSelect = dimensionSelects[`${reference}_order`];
+            if (!orderSelect) {
+                Logger.warn(
+                    `Pivot source: missing sort order column for bin dimension "${reference}", falling back to drop mode`,
+                );
+                return undefined;
+            }
+            selectParts.push(orderSelect);
+        }
+
+        const metricInputs: Record<string, PivotSourceMetricInput> = {};
+        const skippedMetrics: string[] = [];
+        for (const valueColumn of pivotConfiguration.valuesColumns) {
+            const metric = this.availableMetrics[valueColumn.reference];
+            if (
+                !metricInputs[valueColumn.reference] &&
+                metric?.compiledValueSql
+            ) {
+                const metricAliasBase = snakeCaseName(valueColumn.reference);
+                const inputAlias = `__metric_${metricAliasBase}_value`;
+
+                switch (metric.type) {
+                    case MetricType.SUM:
+                    case MetricType.MIN:
+                    case MetricType.MAX: {
+                        let aggregateWith: 'SUM' | 'MIN' | 'MAX' | 'AVG';
+                        switch (metric.type) {
+                            case MetricType.SUM:
+                                aggregateWith = 'SUM';
+                                break;
+                            case MetricType.MIN:
+                                aggregateWith = 'MIN';
+                                break;
+                            case MetricType.MAX:
+                                aggregateWith = 'MAX';
+                                break;
+                            default:
+                                throw new ParameterError(
+                                    'Unsupported raw metric aggregation',
+                                );
+                        }
+                        selectParts.push(
+                            `  ${metric.compiledValueSql} AS ${q}${inputAlias}${q}`,
+                        );
+                        metricInputs[valueColumn.reference] = {
+                            strategy: 'simple',
+                            inputAlias,
+                            aggregateWith,
+                        };
+                        break;
+                    }
+                    case MetricType.AVERAGE: {
+                        const distinctKeyAliases = getMetricPrimaryKeyAliases(
+                            metric,
+                            metricAliasBase,
+                        );
+                        if (!distinctKeyAliases?.length) {
+                            skippedMetrics.push(valueColumn.reference);
+                            break;
+                        }
+                        selectParts.push(
+                            `  ${metric.compiledValueSql} AS ${q}${inputAlias}${q}`,
+                        );
+                        metricInputs[valueColumn.reference] = {
+                            strategy: 'distinct_dedup',
+                            inputAlias,
+                            distinctKeyAliases,
+                            aggregateWith: 'AVG',
+                        };
+                        break;
+                    }
+                    case MetricType.COUNT: {
+                        const isCountStar =
+                            metric.compiledValueSql.trim() === '*' ||
+                            metric.sql.trim() === '*';
+                        selectParts.push(
+                            `  ${isCountStar ? '1' : metric.compiledValueSql} AS ${q}${inputAlias}${q}`,
+                        );
+                        metricInputs[valueColumn.reference] = {
+                            strategy: 'simple',
+                            inputAlias,
+                            aggregateWith: isCountStar ? 'COUNT_STAR' : 'COUNT',
+                        };
+                        break;
+                    }
+                    case MetricType.COUNT_DISTINCT:
+                        selectParts.push(
+                            `  ${metric.compiledValueSql} AS ${q}${inputAlias}${q}`,
+                        );
+                        metricInputs[valueColumn.reference] = {
+                            strategy: 'count_distinct',
+                            inputAlias,
+                        };
+                        break;
+                    case MetricType.SUM_DISTINCT:
+                    case MetricType.AVERAGE_DISTINCT: {
+                        if (!metric.compiledDistinctKeys?.length) {
+                            skippedMetrics.push(valueColumn.reference);
+                            break;
+                        }
+                        selectParts.push(
+                            `  ${metric.compiledValueSql} AS ${q}${inputAlias}${q}`,
+                        );
+                        const distinctKeyAliases =
+                            metric.compiledDistinctKeys.map(
+                                (compiledDistinctKey, index) => {
+                                    const distinctKeyAlias = `__metric_${metricAliasBase}_dk_${index}`;
+                                    selectParts.push(
+                                        `  ${compiledDistinctKey} AS ${q}${distinctKeyAlias}${q}`,
+                                    );
+                                    return distinctKeyAlias;
+                                },
+                            );
+                        metricInputs[valueColumn.reference] = {
+                            strategy: 'distinct_dedup',
+                            inputAlias,
+                            distinctKeyAliases,
+                            aggregateWith:
+                                metric.type === MetricType.AVERAGE_DISTINCT
+                                    ? 'AVG'
+                                    : 'SUM',
+                        };
+                        break;
+                    }
+                    default:
+                        skippedMetrics.push(valueColumn.reference);
+                        break;
+                }
+            }
+        }
+
+        if (Object.keys(metricInputs).length === 0) {
+            Logger.warn(
+                `Pivot source: no metrics could be mapped for raw Other aggregation (skipped: ${skippedMetrics.join(', ')}), falling back to drop mode`,
+            );
+            return undefined;
+        }
+
+        return {
+            contract: {
+                query: MetricQueryBuilder.assembleSqlParts([
+                    MetricQueryBuilder.buildCtesSQL(dimensionCtes),
+                    `SELECT\n${selectParts.join(',\n')}`,
+                    sqlFrom,
+                    joinsSql,
+                    ...dimensionJoins,
+                    dimensionFilters,
+                ]),
+                metricInputs,
+            },
+            skippedMetrics,
+        };
     }
 
     private getMetricsSQL(): {
@@ -3657,6 +3914,25 @@ export class MetricQueryBuilder {
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
 
+        const pivotSourceResult = this.getPivotSourceContract({
+            dimensionCtes: dimensionsSQL.ctes,
+            dimensionSelects: dimensionsSQL.selects,
+            sqlFrom,
+            joinsSql: joins.joinSQL,
+            dimensionJoins: dimensionsSQL.joins,
+            dimensionFilters: dimensionsSQL.filtersSQL,
+        });
+        const pivotSource = pivotSourceResult?.contract;
+        if (
+            pivotSourceResult?.skippedMetrics &&
+            pivotSourceResult.skippedMetrics.length > 0
+        ) {
+            warnings.push({
+                message: `Group limit: some metrics use unsupported aggregation types and will be dropped from the "Other" group: ${pivotSourceResult.skippedMetrics.join(', ')}`,
+                fields: pivotSourceResult.skippedMetrics,
+            });
+        }
+
         // Deduplicated distinct CTE: build separate CTEs for distinct metrics (sum_distinct, average_distinct), joined on dimensions
         const ddMetricIds = this.getSelectedAndReferencedMetricIds().filter(
             (id) => {
@@ -3934,17 +4210,50 @@ export class MetricQueryBuilder {
             sqlLimit,
         ]);
 
+        const fieldsContext = this.buildFieldsContext();
         const {
             replacedSql,
-            references: parameterReferences,
-            missingReferences: missingParameterReferences,
+            references: mainParameterReferences,
+            missingReferences: mainMissingParameterReferences,
         } = safeReplaceParametersWithTypes({
             sql: query,
             parameterValuesMap: this.args.parameters ?? {},
             parameterDefinitions: this.args.parameterDefinitions,
             sqlBuilder: this.args.warehouseSqlBuilder,
-            fieldsContext: this.buildFieldsContext(),
+            fieldsContext,
         });
+
+        let resolvedPivotSource: PivotSourceContract | undefined;
+        let parameterReferences = new Set(mainParameterReferences);
+        let missingParameterReferences = new Set(
+            mainMissingParameterReferences,
+        );
+
+        if (pivotSource) {
+            const {
+                replacedSql: replacedPivotSourceSql,
+                references: pivotParameterReferences,
+                missingReferences: pivotMissingParameterReferences,
+            } = safeReplaceParametersWithTypes({
+                sql: pivotSource.query,
+                parameterValuesMap: this.args.parameters ?? {},
+                parameterDefinitions: this.args.parameterDefinitions,
+                sqlBuilder: this.args.warehouseSqlBuilder,
+                fieldsContext,
+            });
+            parameterReferences = new Set([
+                ...parameterReferences,
+                ...pivotParameterReferences,
+            ]);
+            missingParameterReferences = new Set([
+                ...missingParameterReferences,
+                ...pivotMissingParameterReferences,
+            ]);
+            resolvedPivotSource = {
+                ...pivotSource,
+                query: replacedPivotSourceSql,
+            };
+        }
 
         // Also collect parameter references from fields (e.g., format strings)
         Object.values(fields).forEach((field) => {
@@ -3978,6 +4287,9 @@ export class MetricQueryBuilder {
             missingParameterReferences,
             usedParameters,
             compilationErrors: this.compilationErrors,
+            ...(resolvedPivotSource
+                ? { pivotSource: resolvedPivotSource }
+                : {}),
         };
     }
 }

@@ -8,7 +8,7 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import { type UnderlyingDataConfig } from './types';
+import { type TopGroupTuple, type UnderlyingDataConfig } from './types';
 
 /**
  * Extracts field values from ECharts click event data.
@@ -77,7 +77,6 @@ export const getDataFromChartClick = (
             pivotReference &&
             pivotReference.field === getItemId(item)
         ) {
-            // Check both old and new pivot column name formats
             const possibleNames = getPivotColumnNames(pivotReference);
             return possibleNames.some((name) =>
                 e.dimensionNames.includes(name),
@@ -116,6 +115,40 @@ export const getDataFromChartClick = (
         selectedValue = fieldValues[getItemId(selectedField)]?.raw;
     }
 
+    let topGroupTuples: UnderlyingDataConfig['topGroupTuples'];
+    if (pivotReference?.pivotValues?.some((pv) => pv.isOtherGroup)) {
+        const otherFields = pivotReference.pivotValues
+            .filter((pv) => pv.isOtherGroup)
+            .map((pv) => pv.field);
+
+        const tupleSet = new Set<string>();
+        const tuples: TopGroupTuple[] = [];
+
+        for (const s of series) {
+            if (!s.pivotReference?.pivotValues) continue;
+            if (s.pivotReference.pivotValues.some((pv) => pv.isOtherGroup))
+                continue;
+
+            const tuple: TopGroupTuple = {};
+            for (const field of otherFields) {
+                const pv = s.pivotReference.pivotValues.find(
+                    (v) => v.field === field,
+                );
+                if (pv) {
+                    tuple[field] = (pv.value as string | null) ?? null;
+                }
+            }
+
+            const key = JSON.stringify(tuple);
+            if (!tupleSet.has(key)) {
+                tupleSet.add(key);
+                tuples.push(tuple);
+            }
+        }
+
+        topGroupTuples = tuples;
+    }
+
     return {
         item: selectedField,
         value: {
@@ -124,5 +157,6 @@ export const getDataFromChartClick = (
         },
         fieldValues,
         pivotReference,
+        topGroupTuples,
     };
 };

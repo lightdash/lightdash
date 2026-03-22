@@ -93,6 +93,11 @@ export enum FeatureFlags {
      * Enable custom group bins for string dimensions
      */
     CustomGroupBins = 'custom-group-bins',
+
+    /**
+     * Enable group limit feature to cap visible groups and aggregate the rest into "Other"
+     */
+    GroupLimitEnabled = 'group-limit-enabled',
 }
 
 export type FeatureFlag = {

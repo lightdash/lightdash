@@ -87,6 +87,7 @@ export class CommercialCacheService implements ICacheService {
                 pivotValuesColumns: latestMatchingQuery.pivotValuesColumns,
                 pivotTotalColumnCount:
                     latestMatchingQuery.pivotTotalColumnCount,
+                pivotTotalGroupCount: latestMatchingQuery.pivotTotalGroupCount,
             };
         }
 

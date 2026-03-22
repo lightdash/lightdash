@@ -100,6 +100,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
                 columns: [],
                 fileUrl: undefined,
                 columnCount: undefined,
+                groupCount: undefined,
             };
         }
 
@@ -115,6 +116,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
                 valuesColumns,
                 groupByColumns,
                 sortBy,
+                groupLimit: query.groupLimit,
             },
             parameters,
         });
@@ -133,6 +135,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
             valuesColumns: pivotResults.valuesColumns,
             columns,
             columnCount: pivotResults.columnCount,
+            groupCount: pivotResults.groupCount,
         };
     };
 };

@@ -46,6 +46,7 @@ function convertDbQueryHistoryToQueryHistory(
         pivotConfiguration: queryHistory.pivot_configuration,
         pivotValuesColumns: queryHistory.pivot_values_columns,
         pivotTotalColumnCount: queryHistory.pivot_total_column_count,
+        pivotTotalGroupCount: queryHistory.pivot_total_group_count,
         resultsFileName: queryHistory.results_file_name,
         resultsCreatedAt: queryHistory.results_created_at,
         resultsUpdatedAt: queryHistory.results_updated_at,
@@ -109,6 +110,7 @@ export class QueryHistoryModel {
             | 'error'
             | 'pivotValuesColumns'
             | 'pivotTotalColumnCount'
+            | 'pivotTotalGroupCount'
             | 'resultsFileName'
             | 'resultsCreatedAt'
             | 'resultsUpdatedAt'
@@ -150,6 +152,7 @@ export class QueryHistoryModel {
                 pivot_configuration: queryHistory.pivotConfiguration,
                 pivot_values_columns: null,
                 pivot_total_column_count: null,
+                pivot_total_group_count: null,
                 results_file_name: null,
                 results_created_at: null,
                 results_updated_at: null,
@@ -280,6 +283,7 @@ export class QueryHistoryModel {
             cacheKey: result.cache_key,
             pivotValuesColumns: result.pivot_values_columns,
             pivotTotalColumnCount: result.pivot_total_column_count,
+            pivotTotalGroupCount: result.pivot_total_group_count,
             resultsFileName: result.results_file_name,
             resultsCreatedAt: result.results_created_at,
             resultsUpdatedAt: result.results_updated_at,

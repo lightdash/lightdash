@@ -36,6 +36,7 @@ export type DbQueryHistory = {
     pivot_configuration: PivotConfiguration | null;
     pivot_values_columns: Record<string, PivotValuesColumn> | null;
     pivot_total_column_count: number | null;
+    pivot_total_group_count: number | null;
     results_file_name: string | null; // S3 file name
     results_created_at: Date | null;
     results_updated_at: Date | null;
@@ -66,6 +67,7 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pivot_configuration'
         | 'pivot_values_columns'
         | 'pivot_total_column_count'
+        | 'pivot_total_group_count'
         | 'results_file_name'
         | 'results_created_at'
         | 'results_updated_at'

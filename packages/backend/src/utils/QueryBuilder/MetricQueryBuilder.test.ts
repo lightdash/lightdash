@@ -4954,4 +4954,577 @@ describe('Nested aggregate metrics', () => {
             1,
         );
     });
+
+    test('Should emit pivotSource metadata for sum_distinct metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_SUM_DISTINCT,
+            compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_status',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_total_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource).toBeDefined();
+        expect(result.pivotSource?.query).toContain(
+            '"orders".payment_method AS "orders_payment_method"',
+        );
+        expect(result.pivotSource?.query).toContain(
+            '"orders".amount AS "__metric_orders_total_revenue_value"',
+        );
+        expect(result.pivotSource?.metricInputs.orders_total_revenue).toEqual({
+            strategy: 'distinct_dedup',
+            inputAlias: '__metric_orders_total_revenue_value',
+            distinctKeyAliases: ['__metric_orders_total_revenue_dk_0'],
+            aggregateWith: 'SUM',
+        });
+    });
+
+    test('Should emit pivotSource metadata for average metrics using table primary key deduplication', () => {
+        const exploreWithAverageMetric: Explore = {
+            ...EXPLORE_WITH_AVERAGE_DISTINCT,
+            tables: {
+                ...EXPLORE_WITH_AVERAGE_DISTINCT.tables,
+                orders: {
+                    ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders,
+                    metrics: {
+                        ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders.metrics,
+                        avg_shipping_cost: {
+                            ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders
+                                .metrics.avg_shipping_cost,
+                            type: MetricType.AVERAGE,
+                            compiledDistinctKeys: undefined,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithAverageMetric,
+            compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource?.query).toContain(
+            '"orders".shipping_cost AS "__metric_orders_avg_shipping_cost_value"',
+        );
+        expect(result.pivotSource?.query).toContain(
+            '"orders".order_id AS "__metric_orders_avg_shipping_cost_dk_0"',
+        );
+        expect(
+            result.pivotSource?.metricInputs.orders_avg_shipping_cost,
+        ).toEqual({
+            strategy: 'distinct_dedup',
+            inputAlias: '__metric_orders_avg_shipping_cost_value',
+            distinctKeyAliases: ['__metric_orders_avg_shipping_cost_dk_0'],
+            aggregateWith: 'AVG',
+        });
+    });
+
+    test('Should omit average metrics from pivotSource when table primary key is missing', () => {
+        const exploreWithoutPrimaryKeyAverageMetric: Explore = {
+            ...EXPLORE_WITH_AVERAGE_DISTINCT,
+            tables: {
+                ...EXPLORE_WITH_AVERAGE_DISTINCT.tables,
+                orders: {
+                    ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders,
+                    primaryKey: undefined,
+                    metrics: {
+                        ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders.metrics,
+                        avg_shipping_cost: {
+                            ...EXPLORE_WITH_AVERAGE_DISTINCT.tables.orders
+                                .metrics.avg_shipping_cost,
+                            type: MetricType.AVERAGE,
+                            compiledDistinctKeys: undefined,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithoutPrimaryKeyAverageMetric,
+            compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource).toBeUndefined();
+    });
+
+    test('Should emit pivotSource metadata for average_distinct metrics', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_AVERAGE_DISTINCT,
+            compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_payment_method',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_avg_shipping_cost',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource?.query).toContain(
+            '"orders".shipping_cost AS "__metric_orders_avg_shipping_cost_value"',
+        );
+        expect(
+            result.pivotSource?.metricInputs.orders_avg_shipping_cost,
+        ).toEqual({
+            strategy: 'distinct_dedup',
+            inputAlias: '__metric_orders_avg_shipping_cost_value',
+            distinctKeyAliases: ['__metric_orders_avg_shipping_cost_dk_0'],
+            aggregateWith: 'AVG',
+        });
+    });
+
+    test('Should emit pivotSource metadata for count_distinct metrics', () => {
+        const exploreWithCountDistinctMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        unique_users: {
+                            type: MetricType.COUNT_DISTINCT,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'unique_users',
+                            label: 'unique_users',
+                            sql: '${TABLE}.user_id',
+                            compiledSql: 'COUNT(DISTINCT "table1".user_id)',
+                            compiledValueSql: '"table1".user_id',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithCountDistinctMetric,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_unique_users'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'table1_unique_users',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'table1_dim1' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource?.query).toContain(
+            '"table1".user_id AS "__metric_table1_unique_users_value"',
+        );
+        expect(result.pivotSource?.metricInputs.table1_unique_users).toEqual({
+            strategy: 'count_distinct',
+            inputAlias: '__metric_table1_unique_users_value',
+        });
+    });
+
+    test('Should include custom dimension CTEs in pivotSource query', () => {
+        const exploreWithPivotSourceMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        metric1: {
+                            ...EXPLORE.tables.table1.metrics.metric1,
+                            compiledValueSql: '"table1".number_column',
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithPivotSourceMetric,
+            compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'table1_metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'age_range' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(result.pivotSource).toBeDefined();
+        expect(result.pivotSource?.query).toContain('age_range_cte AS (');
+        expect(result.pivotSource?.query).toContain('CROSS JOIN age_range_cte');
+    });
+
+    test('Should omit unsupported custom aggregate metrics from pivotSource inputs', () => {
+        const exploreWithCustomAggregateMetric: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        custom_ratio: {
+                            type: MetricType.NUMBER,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'custom_ratio',
+                            label: 'custom_ratio',
+                            sql: 'SUM(${TABLE}.metric1) / NULLIF(COUNT(${TABLE}.user_id), 0)',
+                            compiledSql:
+                                'SUM("table1".metric1) / NULLIF(COUNT("table1".user_id), 0)',
+                            compiledValueSql:
+                                'SUM("table1".metric1) / NULLIF(COUNT("table1".user_id), 0)',
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        } as CompiledMetric,
+                    },
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: exploreWithCustomAggregateMetric,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_dim1'],
+                metrics: ['table1_custom_ratio'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'table1_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'table1_custom_ratio',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'table1_dim1' }],
+                sortBy: undefined,
+                groupLimit: { enabled: true, maxGroups: 2 },
+            },
+        });
+
+        expect(
+            result.pivotSource?.metricInputs.table1_custom_ratio,
+        ).toBeUndefined();
+    });
+
+    test.each([
+        {
+            metricType: MetricType.SUM,
+            compiledSql: 'SUM("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'SUM',
+        },
+        {
+            metricType: MetricType.MIN,
+            compiledSql: 'MIN("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'MIN',
+        },
+        {
+            metricType: MetricType.MAX,
+            compiledSql: 'MAX("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'MAX',
+        },
+        {
+            metricType: MetricType.COUNT,
+            compiledSql: 'COUNT("table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'simple',
+            expectedAggregateWith: 'COUNT',
+        },
+        {
+            metricType: MetricType.COUNT_DISTINCT,
+            compiledSql: 'COUNT(DISTINCT "table1".number_column)',
+            valueSql: '"table1".number_column',
+            expectedStrategy: 'count_distinct',
+        },
+    ])(
+        'Should emit correct pivotSource strategy for $metricType metrics',
+        ({
+            metricType,
+            compiledSql,
+            valueSql,
+            expectedStrategy,
+            expectedAggregateWith,
+        }) => {
+            const exploreWithMetricType: Explore = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        metrics: {
+                            ...EXPLORE.tables.table1.metrics,
+                            test_metric: {
+                                type: metricType,
+                                fieldType: FieldType.METRIC,
+                                table: 'table1',
+                                tableLabel: 'table1',
+                                name: 'test_metric',
+                                label: 'test_metric',
+                                sql: '${TABLE}.number_column',
+                                compiledSql,
+                                compiledValueSql: valueSql,
+                                tablesReferences: ['table1'],
+                                hidden: false,
+                            } as CompiledMetric,
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore: exploreWithMetricType,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_test_metric'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                pivotConfiguration: {
+                    indexColumn: [
+                        {
+                            reference: 'table1_dim1',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'table1_test_metric',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'table1_dim1' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+            });
+
+            expect(result.pivotSource).toBeDefined();
+            const metricInput =
+                result.pivotSource?.metricInputs.table1_test_metric;
+            expect(metricInput).toBeDefined();
+            expect(metricInput?.strategy).toBe(expectedStrategy);
+            if (expectedAggregateWith && metricInput?.strategy === 'simple') {
+                expect(metricInput.aggregateWith).toBe(expectedAggregateWith);
+            }
+        },
+    );
+
+    test('Should not emit pivotSource when groupLimit is disabled', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_SUM_DISTINCT,
+            compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            pivotConfiguration: {
+                indexColumn: [
+                    {
+                        reference: 'orders_status',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'orders_total_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_payment_method' }],
+                sortBy: undefined,
+                groupLimit: { enabled: false, maxGroups: 5 },
+            },
+        });
+
+        expect(result.pivotSource).toBeUndefined();
+    });
+
+    test.each([
+        MetricType.NUMBER,
+        MetricType.STRING,
+        MetricType.DATE,
+        MetricType.TIMESTAMP,
+        MetricType.BOOLEAN,
+    ])(
+        'Should not produce pivotSource for unsupported metric type %s',
+        (metricType) => {
+            const exploreWithUnsupported: Explore = {
+                ...EXPLORE,
+                tables: {
+                    ...EXPLORE.tables,
+                    table1: {
+                        ...EXPLORE.tables.table1,
+                        metrics: {
+                            test_metric: {
+                                type: metricType,
+                                fieldType: FieldType.METRIC,
+                                table: 'table1',
+                                tableLabel: 'table1',
+                                name: 'test_metric',
+                                label: 'test_metric',
+                                sql: '"table1".number_column',
+                                compiledSql: '"table1".number_column',
+                                compiledValueSql: '"table1".number_column',
+                                tablesReferences: ['table1'],
+                                hidden: false,
+                            } as CompiledMetric,
+                        },
+                    },
+                },
+            };
+
+            const result = buildQuery({
+                explore: exploreWithUnsupported,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_test_metric'],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                pivotConfiguration: {
+                    indexColumn: [
+                        {
+                            reference: 'table1_dim1',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    ],
+                    valuesColumns: [
+                        {
+                            reference: 'table1_test_metric',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'table1_dim1' }],
+                    sortBy: undefined,
+                    groupLimit: { enabled: true, maxGroups: 2 },
+                },
+            });
+
+            // Unsupported types should not produce a pivotSource
+            expect(result.pivotSource).toBeUndefined();
+        },
+    );
 });

@@ -253,6 +253,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { getPivotColumnValueSuffix } from '../pivotColumnReference';
 import { buildMaterializationMetricQuery } from '../PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
@@ -435,6 +436,21 @@ export class ProjectService extends BaseService {
             organizationWarehouseCredentialsModel;
         this.adminNotificationService = adminNotificationService;
         this.spacePermissionService = spacePermissionService;
+    }
+
+    protected async isGroupLimitEnabled(
+        userId: string,
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: userId,
+                organizationUuid,
+                organizationName: '',
+            },
+            featureFlagId: FeatureFlags.GroupLimitEnabled,
+        });
+        return enabled;
     }
 
     static getMetricQueryExecutionProperties({
@@ -3099,12 +3115,18 @@ export class ProjectService extends BaseService {
         // Generate pivot query if pivot configuration is provided
         let pivotQuery: string | undefined;
         if (pivotConfiguration) {
+            const rawOtherEnabled = await this.isGroupLimitEnabled(
+                account.user.id,
+                organizationUuid,
+            );
             const pivotQueryBuilder = new PivotQueryBuilder(
                 compiledQuery.query,
                 pivotConfiguration,
                 warehouseSqlBuilder,
                 metricQuery.limit,
                 compiledQuery.fields,
+                compiledQuery.pivotSource,
+                rawOtherEnabled,
             );
             pivotQuery = pivotQueryBuilder.toSql({
                 columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
@@ -4162,6 +4184,7 @@ export class ProjectService extends BaseService {
         const valuesColumnData = new Map<string, PivotValuesColumn>();
 
         let columnCount: undefined | number;
+        let groupCount: undefined | number;
 
         const fileUrl = await this.downloadFileModel.streamFunction(
             this.fileStorageClient,
@@ -4173,7 +4196,20 @@ export class ProjectService extends BaseService {
                         pivotedSql,
                         async ({ rows, fields }) => {
                             if ('total_columns' in rows[0]) {
-                                columnCount = rows[0].total_columns;
+                                const numberTotalColumns = Number(
+                                    rows[0].total_columns,
+                                );
+                                columnCount = Number.isNaN(numberTotalColumns)
+                                    ? undefined
+                                    : numberTotalColumns;
+                            }
+                            if ('total_groups' in rows[0]) {
+                                const numberTotalGroups = Number(
+                                    rows[0].total_groups,
+                                );
+                                groupCount = Number.isNaN(numberTotalGroups)
+                                    ? undefined
+                                    : numberTotalGroups;
                             }
                             if (
                                 !groupByColumns ||
@@ -4216,9 +4252,11 @@ export class ProjectService extends BaseService {
                                 // Suffix the value column with the group by columns to avoid collisions.
                                 // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
                                 // then the value column will be 'value_1_a_b'
-                                const valueSuffix = groupByColumns
-                                    ?.map((col) => row[col.reference])
-                                    .join('_');
+                                const valueSuffix = getPivotColumnValueSuffix(
+                                    (groupByColumns ?? []).map(
+                                        (col) => row[col.reference],
+                                    ),
+                                );
                                 valuesColumns.forEach((col) => {
                                     const valueColumnReference = `${col.reference}_${col.aggregation}_${valueSuffix}`;
                                     valuesColumnData.set(valueColumnReference, {
@@ -4278,7 +4316,8 @@ export class ProjectService extends BaseService {
             fileUrl,
             valuesColumns: processedColumns,
             indexColumn: indexColumns,
-            columnCount: Number(columnCount) || undefined,
+            columnCount,
+            groupCount,
         };
     }
 

@@ -383,11 +383,49 @@ export enum CartesianSeriesType {
     AREA = 'area',
 }
 
+/**
+ * Configuration for limiting the number of visible groups in a chart.
+ * Groups beyond maxGroups are hidden (ranked by total absolute value).
+ */
+export type GroupLimitConfig = {
+    /** Whether group limiting is enabled */
+    enabled: boolean;
+    /** Maximum number of groups to show (the rest are hidden) */
+    maxGroups: number;
+};
+
+/** Default configuration for group limiting */
+export const DEFAULT_GROUP_LIMIT_CONFIG: GroupLimitConfig = {
+    enabled: false,
+    maxGroups: 5,
+};
+
+const MAX_GROUP_LIMIT = 1000;
+
+export function validateGroupLimitConfig(
+    config: GroupLimitConfig,
+): GroupLimitConfig {
+    if (!config.enabled) return config;
+    if (!Number.isFinite(config.maxGroups)) {
+        return { ...config, enabled: false };
+    }
+    const maxGroups = Math.max(
+        1,
+        Math.min(MAX_GROUP_LIMIT, Math.floor(config.maxGroups)),
+    );
+    return { ...config, maxGroups };
+}
+
+export const OTHER_GROUP_DISPLAY_VALUE = 'Other';
+export const OTHER_GROUP_SENTINEL_VALUE = '$$_lightdash_other_$$';
+
 export type PivotValue = {
     /** Pivot field ID */
     field: string;
     /** Pivot value */
     value: unknown;
+    /** True when this value represents the computed "Other" aggregate bucket, not a real dimension value */
+    isOtherGroup?: boolean;
 };
 
 export type PivotReference = {
@@ -677,6 +715,8 @@ export type CompleteCartesianChartLayout = {
     colorByCategory?: boolean | undefined;
     /** Per-category color overrides (maps category value to hex color) */
     categoryColorOverrides?: Record<string, string> | undefined;
+    /** Configuration for limiting visible groups and aggregating the rest into "Other" */
+    groupLimit?: GroupLimitConfig | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

@@ -9,6 +9,7 @@ import {
     isDimension,
     isMetric,
     isTableCalculation,
+    MetricType,
     TableCalculationType,
     type ItemsMap,
 } from '../types/field';
@@ -19,6 +20,7 @@ import {
     isCartesianChartConfig,
     type SavedChartDAO,
 } from '../types/savedCharts';
+import type { ValuesColumn } from '../types/sqlRunner';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getColumnAxisType,
@@ -155,6 +157,56 @@ const getIndexColumn = (
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 };
 
+function getOtherAggregationForMetric(
+    metricType: MetricType,
+): VizAggregationOptions | null {
+    switch (metricType) {
+        case MetricType.SUM:
+        case MetricType.SUM_DISTINCT:
+            return VizAggregationOptions.SUM;
+        case MetricType.COUNT:
+            return VizAggregationOptions.SUM;
+        case MetricType.COUNT_DISTINCT:
+            return null;
+        case MetricType.MIN:
+            return VizAggregationOptions.MIN;
+        case MetricType.MAX:
+            return VizAggregationOptions.MAX;
+        case MetricType.AVERAGE:
+        case MetricType.AVERAGE_DISTINCT:
+        case MetricType.RUNNING_TOTAL:
+        case MetricType.PERCENTILE:
+        case MetricType.MEDIAN:
+        case MetricType.PERCENT_OF_PREVIOUS:
+        case MetricType.PERCENT_OF_TOTAL:
+        case MetricType.NUMBER:
+        case MetricType.STRING:
+        case MetricType.DATE:
+        case MetricType.TIMESTAMP:
+        case MetricType.BOOLEAN:
+            return null;
+        default:
+            return assertUnreachable(
+                metricType,
+                `Unknown metric type: ${metricType}`,
+            );
+    }
+}
+
+function resolveOtherAggregation(
+    col: ValuesColumn,
+    fields: ItemsMap,
+): VizAggregationOptions | null {
+    if (col.aggregation !== VizAggregationOptions.ANY) {
+        return col.aggregation;
+    }
+    const field = fields[col.reference];
+    if (field && isMetric(field)) {
+        return getOtherAggregationForMetric(field.type);
+    }
+    return null;
+}
+
 function getTablePivotConfiguration(
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     metricQuery: MetricQuery,
@@ -244,6 +296,10 @@ function getCartesianPivotConfiguration(
         layout: { xField, yField },
     } = chartConfig.config;
 
+    const groupLimit = isCartesianChartConfig(chartConfig.config)
+        ? chartConfig.config.layout.groupLimit
+        : undefined;
+
     if (pivotConfig?.columns && xField && yField) {
         // Extract and validate pivot columns
         const groupByColumns = pivotConfig.columns
@@ -254,10 +310,19 @@ function getCartesianPivotConfiguration(
 
         // Extract value columns (metrics and table calculations from yField)
         const valuesColumns = yField
-            .map((yf) => ({
-                reference: yf,
-                aggregation: VizAggregationOptions.ANY,
-            }))
+            .map((yf) => {
+                const base: ValuesColumn = {
+                    reference: yf,
+                    aggregation: VizAggregationOptions.ANY,
+                };
+                if (groupLimit?.enabled) {
+                    base.otherAggregation = resolveOtherAggregation(
+                        base,
+                        fields,
+                    );
+                }
+                return base;
+            })
             .filter(
                 (col) =>
                     metricQuery.dimensions.includes(col.reference) ||
@@ -288,6 +353,7 @@ function getCartesianPivotConfiguration(
                 partialPivotConfiguration,
                 metricQuery,
             ),
+            groupLimit,
         };
 
         return pivotConfiguration;

@@ -501,6 +501,7 @@ export class CartesianChartDataModel {
             timeDimensions,
             pivot,
             customMetrics,
+            groupLimit: this.fieldConfig?.groupLimit,
         };
         const pivotedChartData = await this.getTransformedData(query);
 
@@ -570,6 +571,7 @@ export class CartesianChartDataModel {
     getSpec(
         display?: CartesianChartDisplay,
         colors?: Organization['chartColors'],
+        _options?: { applyGroupLimit?: boolean },
     ): Record<string, AnyType> {
         const transformedData = this.pivotedChartData;
 
@@ -597,13 +599,18 @@ export class CartesianChartDataModel {
             transformedData?.indexColumn,
         )?.reference;
 
-        // Apply 100% stacking transformation if needed
+        const valuesColumnsToRender = transformedData.valuesColumns;
         let dataToRender = transformedData.results;
         let originalValues: Map<string, Map<string, number>> | undefined;
 
+        // Apply 100% stacking transformation if needed
         if (shouldStack100 && xAxisReference) {
             const result = CartesianChartDataModel.convertToPercentageStacking(
-                transformedData,
+                {
+                    ...transformedData,
+                    valuesColumns: valuesColumnsToRender,
+                    results: dataToRender,
+                },
                 xAxisReference,
             );
             dataToRender = result.transformedResults;
@@ -614,7 +621,7 @@ export class CartesianChartDataModel {
         const rightYAxisSeriesReferences: string[] = [];
 
         // Calculate dynamic border radius for non-stacked bars
-        const barSeriesCount = transformedData.valuesColumns.filter(
+        const barSeriesCount = valuesColumnsToRender.filter(
             (col) =>
                 (display?.series?.[col.pivotColumnName]?.type ??
                     display?.series?.[col.referenceField]?.type ??
@@ -630,8 +637,8 @@ export class CartesianChartDataModel {
               )
             : undefined;
 
-        let series: SqlRunnerEChartsSeries[] =
-            transformedData.valuesColumns.map((seriesColumn, index) => {
+        let series: SqlRunnerEChartsSeries[] = valuesColumnsToRender.map(
+            (seriesColumn, index) => {
                 const seriesColumnId = seriesColumn.pivotColumnName;
 
                 // NOTE: seriesColumnId is the post pivoted column name and we now store the display based on that.
@@ -654,7 +661,7 @@ export class CartesianChartDataModel {
 
                 const singleYAxisLabel =
                     // NOTE: When there's only one y-axis left, set the label on the series as well
-                    transformedData.valuesColumns.length === 1 &&
+                    valuesColumnsToRender.length === 1 &&
                     display?.yAxis?.[0]?.label
                         ? display.yAxis[0].label
                         : undefined;
@@ -760,7 +767,8 @@ export class CartesianChartDataModel {
                     // Apply border radius for non-stacked bars
                     ...(itemStyle ? { itemStyle } : {}),
                 };
-            });
+            },
+        );
 
         // Apply rounded corners to stacked bars
         // Skip for 100% stacking to keep data in dataset mode for tooltips
@@ -878,7 +886,7 @@ export class CartesianChartDataModel {
             : getLineChartGridStyle();
 
         // Show legend when there are multiple series
-        const showLegend = transformedData.valuesColumns.length > 1;
+        const showLegend = valuesColumnsToRender.length > 1;
 
         const spec = {
             tooltip: {

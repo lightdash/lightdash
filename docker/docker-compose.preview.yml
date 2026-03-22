@@ -44,6 +44,7 @@ services:
             NODE_ENV: production
             IS_PULL_REQUEST: true
             LIGHTDASH_MODE: pr
+            LIGHTDASH_FORCED_FEATURE_FLAGS: group-limit-enabled
             DBT_DEMO_DIR: /usr/app
             INTERNAL_LIGHTDASH_HOST: http://lightdash-preview:8080
 

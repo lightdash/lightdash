@@ -13,6 +13,7 @@ import {
     isMetric,
     QueryExecutionContext,
     type CreateSavedChartVersion,
+    type FilterGroupItem,
     type FilterRule,
     type Filters,
     type Metric,
@@ -41,6 +42,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
+import { buildPivotFilters } from './pivotFilters';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -184,19 +186,12 @@ const UnderlyingDataModalContent: FC = () => {
                   },
               ];
 
-        const pivotFilter: FilterRule[] = (
-            pivotReference?.pivotValues || []
-        ).map((pivot) => ({
-            id: uuidv4(),
-            target: {
-                fieldId: pivot.field,
-            },
-            operator:
-                pivot.value === null
-                    ? FilterOperator.NULL
-                    : FilterOperator.EQUALS,
-            values: pivot.value === null ? undefined : [pivot.value],
-        }));
+        const pivotFilter: FilterGroupItem[] = pivotReference
+            ? buildPivotFilters({
+                  pivotReference,
+                  topGroupTuples: underlyingDataConfig.topGroupTuples,
+              })
+            : [];
 
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;

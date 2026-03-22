@@ -111,13 +111,16 @@ export const prepareAndFetchChartData = createAsyncThunk(
             filters: [],
         });
 
-        const getChartSpec = (orgColors?: string[]) => {
+        const getChartSpec = (
+            orgColors?: string[],
+            specOptions?: { applyGroupLimit?: boolean },
+        ) => {
             const currentState = getState() as RootState;
             const currentDisplay = selectChartDisplayByKind(
                 currentState,
                 selectedChartType,
             );
-            return vizDataModel.getSpec(currentDisplay, orgColors);
+            return vizDataModel.getSpec(currentDisplay, orgColors, specOptions);
         };
 
         const info = {

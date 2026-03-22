@@ -13,6 +13,7 @@ import {
     getItemLabelWithoutTableName,
     getSeriesId,
     isSeriesWithMixedChartTypes,
+    OTHER_GROUP_DISPLAY_VALUE,
     type CartesianChartLayout,
     type CustomDimension,
     type Field,
@@ -302,13 +303,15 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                     {seriesGroup.map((singleSeries, i) => {
                                         const pivotLabel =
                                             singleSeries.encode.yRef.pivotValues!.reduce(
-                                                (acc, { field, value }) => {
+                                                (acc, pv) => {
                                                     const formattedValue =
-                                                        getFormatterValue(
-                                                            value,
-                                                            field,
-                                                            items,
-                                                        );
+                                                        pv.isOtherGroup
+                                                            ? OTHER_GROUP_DISPLAY_VALUE
+                                                            : getFormatterValue(
+                                                                  pv.value,
+                                                                  pv.field,
+                                                                  items,
+                                                              );
                                                     return acc
                                                         ? `${acc} - ${formattedValue}`
                                                         : formattedValue;

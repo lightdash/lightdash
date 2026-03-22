@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isApiError,
     isVizTableConfig,
     MAX_SAFE_INTEGER,
@@ -18,6 +19,7 @@ import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     getDashboardSqlChartPivotChartData,
     getSqlChartPivotChartData,
@@ -66,6 +68,9 @@ export const useSavedSqlChartResults = (
     const retryConfig = useQueryRetryConfig();
     // Needed for organization colors
     const { data: organization } = useOrganization();
+    const isGroupLimitEnabled = useClientFeatureFlag(
+        FeatureFlags.GroupLimitEnabled,
+    );
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
 
@@ -140,6 +145,9 @@ export const useSavedSqlChartResults = (
                     chartSpec: vizDataModel.getSpec(
                         chart.config.display,
                         organization?.chartColors,
+                        {
+                            applyGroupLimit: isGroupLimitEnabled,
+                        },
                     ),
                     fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                     resultsRunner,

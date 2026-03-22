@@ -17,6 +17,13 @@ export type FeatureFlagLogicArgs = {
     featureFlagId: string;
 };
 
+const FORCED_FEATURE_FLAGS = new Set<string>(
+    (process.env.LIGHTDASH_FORCED_FEATURE_FLAGS ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+);
+
 export class FeatureFlagModel {
     protected readonly database: Knex;
 
@@ -54,6 +61,13 @@ export class FeatureFlagModel {
     }
 
     public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
+        if (FORCED_FEATURE_FLAGS.has(args.featureFlagId)) {
+            return {
+                id: args.featureFlagId,
+                enabled: true,
+            };
+        }
+
         const handler = this.featureFlagHandlers[args.featureFlagId];
         if (handler) {
             return handler(args);

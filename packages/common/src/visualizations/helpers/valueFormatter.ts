@@ -1,6 +1,10 @@
 import { type AnyType } from '../../types/any';
 import { type ItemsMap } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
+import {
+    OTHER_GROUP_DISPLAY_VALUE,
+    OTHER_GROUP_SENTINEL_VALUE,
+} from '../../types/savedCharts';
 import { formatItemValue } from '../../utils/formatting';
 import { type PivotValuesColumn } from '../types';
 
@@ -12,6 +16,9 @@ export const getFormattedValue = (
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
     parameters?: ParametersValuesMap,
 ): string => {
+    if (value === OTHER_GROUP_SENTINEL_VALUE) {
+        return OTHER_GROUP_DISPLAY_VALUE;
+    }
     const pivotValuesColumn = pivotValuesColumnsMap?.[key];
     const item = itemsMap[pivotValuesColumn?.referenceField ?? key];
     return formatItemValue(item, value, convertToUTC, parameters);

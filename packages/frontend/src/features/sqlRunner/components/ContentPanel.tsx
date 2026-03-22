@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    FeatureFlags,
     getFirstIndexColumns,
     getParameterReferences,
     isVizTableConfig,
@@ -57,6 +58,7 @@ import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { formatSql } from '../../../utils/sqlFormatter';
 import { Parameters, useParameters } from '../../parameters';
@@ -111,6 +113,9 @@ export const ContentPanel: FC = () => {
     );
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
+    );
+    const isGroupLimitEnabled = useClientFeatureFlag(
+        FeatureFlags.GroupLimitEnabled,
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
@@ -722,6 +727,10 @@ export const ContentPanel: FC = () => {
                                                                             }
                                                                             spec={pivotedChartInfo?.data?.getChartSpec(
                                                                                 organization?.chartColors,
+                                                                                {
+                                                                                    applyGroupLimit:
+                                                                                        isGroupLimitEnabled,
+                                                                                },
                                                                             )}
                                                                             isLoading={
                                                                                 !!pivotedChartInfo?.loading

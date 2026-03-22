@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useFeatureFlagEnabled as useFeatureFlagEnabledPosthog } from 'posthog-js/react';
 import { lightdashApi } from '../api';
 
+const FORCED_LOCAL_FEATURE_FLAGS = new Set<string>(['group-limit-enabled']);
+
 /**
  * Use Client Feature Flag to get the feature flag from the client directly from posthog.
  *
@@ -16,7 +18,16 @@ import { lightdashApi } from '../api';
  */
 export const useClientFeatureFlag = (
     featureFlag: FeatureFlags | CommercialFeatureFlags,
-) => useFeatureFlagEnabledPosthog(featureFlag) === true;
+) => {
+    const isEnabledInPosthog =
+        useFeatureFlagEnabledPosthog(featureFlag) === true;
+
+    if (import.meta.env.DEV && FORCED_LOCAL_FEATURE_FLAGS.has(featureFlag)) {
+        return true;
+    }
+
+    return isEnabledInPosthog;
+};
 
 /**
  * Use Server Feature Flag to get the feature flag from the server.

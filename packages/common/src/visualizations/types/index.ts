@@ -4,6 +4,7 @@ import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import {
     ChartKind,
+    type GroupLimitConfig,
     type PivotReference,
     type Series,
 } from '../../types/savedCharts';
@@ -130,6 +131,7 @@ export type PivotValuesColumn = {
         referenceField: string;
         value: unknown;
         formatted?: string;
+        isOtherGroup?: boolean;
     }[];
     columnIndex?: number;
 };
@@ -142,6 +144,7 @@ export type PivotChartData = {
     valuesColumns: PivotValuesColumn[];
     columns: VizColumn[];
     columnCount: number | undefined;
+    groupCount?: number;
 };
 
 // TODO: This type is used by both the cartesian and pie chart data models,
@@ -164,6 +167,8 @@ export type PivotChartLayout = {
     groupBy: { reference: string }[] | undefined;
     sortBy?: VizSortBy[];
     stack?: boolean | StackType; // StackType enum or boolean for backward compatibility
+    /** Configuration for limiting visible groups and aggregating the rest into "Other" */
+    groupLimit?: GroupLimitConfig;
 };
 
 export const isPivotChartLayout = (

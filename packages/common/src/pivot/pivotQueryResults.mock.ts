@@ -525,6 +525,7 @@ export const SQL_PIVOT_DETAILS: NonNullable<
     ReadyQueryResultsPage['pivotDetails']
 > = {
     totalColumnCount: 4,
+    totalGroupCount: null,
     valuesColumns: [
         {
             aggregation: VizAggregationOptions.ANY,
@@ -1754,6 +1755,7 @@ export const COMPLEX_SQL_PIVOT_DETAILS: NonNullable<
     ReadyQueryResultsPage['pivotDetails']
 > = {
     totalColumnCount: 3,
+    totalGroupCount: null,
     valuesColumns: [
         {
             aggregation: VizAggregationOptions.ANY,

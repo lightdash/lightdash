@@ -2,11 +2,13 @@
 // Not needed when viewing a cartesian chart on a dashboard
 import {
     ChartKind,
+    DEFAULT_GROUP_LIMIT_CONFIG,
     isFormat,
     StackType,
     VIZ_DEFAULT_AGGREGATION,
     VizAggregationOptions,
     type CartesianChartDisplay,
+    type GroupLimitConfig,
     type PivotValuesColumn,
     type SortByDirection,
     type ValueLabelPositionOptions,
@@ -443,6 +445,43 @@ export const cartesianChartConfigSlice = createSlice({
                     valueLabelPosition: action.payload.valueLabelPosition,
                 };
             }
+        },
+        setGroupLimitEnabled: (
+            { fieldConfig },
+            action: PayloadAction<boolean>,
+        ) => {
+            if (!fieldConfig) return;
+
+            if (action.payload) {
+                // Enable with default config
+                fieldConfig.groupLimit = fieldConfig.groupLimit || {
+                    ...DEFAULT_GROUP_LIMIT_CONFIG,
+                    enabled: true,
+                };
+                fieldConfig.groupLimit.enabled = true;
+            } else {
+                // Disable but keep other settings
+                if (fieldConfig.groupLimit) {
+                    fieldConfig.groupLimit.enabled = false;
+                }
+            }
+        },
+        setGroupLimitMaxGroups: (
+            { fieldConfig },
+            action: PayloadAction<number>,
+        ) => {
+            if (!fieldConfig) return;
+            fieldConfig.groupLimit = fieldConfig.groupLimit || {
+                ...DEFAULT_GROUP_LIMIT_CONFIG,
+            };
+            fieldConfig.groupLimit.maxGroups = Math.max(1, action.payload);
+        },
+        setGroupLimitConfig: (
+            { fieldConfig },
+            action: PayloadAction<GroupLimitConfig | undefined>,
+        ) => {
+            if (!fieldConfig) return;
+            fieldConfig.groupLimit = action.payload;
         },
     },
 });

@@ -17,6 +17,7 @@ export type CacheHitCacheResult = {
     originalColumns: DbQueryHistory['original_columns'];
     pivotValuesColumns: DbQueryHistory['pivot_values_columns'];
     pivotTotalColumnCount: DbQueryHistory['pivot_total_column_count'];
+    pivotTotalGroupCount: DbQueryHistory['pivot_total_group_count'];
 };
 
 export type MissCacheResult = {

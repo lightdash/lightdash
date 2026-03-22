@@ -53,6 +53,7 @@ export type QueryHistory = {
     pivotConfiguration: PivotConfiguration | null;
     pivotValuesColumns: Record<string, PivotValuesColumn> | null;
     pivotTotalColumnCount: number | null;
+    pivotTotalGroupCount: number | null;
     resultsFileName: string | null; // S3 file name
     resultsCreatedAt: Date | null;
     resultsUpdatedAt: Date | null;
