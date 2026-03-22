@@ -1,4 +1,7 @@
-import { OTHER_GROUP_SENTINEL_VALUE } from '@lightdash/common';
+import {
+    OTHER_GROUP_DISPLAY_VALUE,
+    OTHER_GROUP_SENTINEL_VALUE,
+} from '@lightdash/common';
 import {
     getPivotColumnValueKey,
     getPivotColumnValueSuffix,
@@ -56,6 +59,36 @@ describe('pivotColumnReference', () => {
             expect(getPivotColumnValueSuffix([null, 42, 'text'])).toBe(
                 '__NULL___42_text',
             );
+        });
+    });
+
+    describe('sentinel vs real "Other" collision prevention', () => {
+        it('sentinel and real "Other" produce different column keys', () => {
+            const sentinelKey = getPivotColumnValueKey(
+                OTHER_GROUP_SENTINEL_VALUE,
+            );
+            const realOtherKey = getPivotColumnValueKey(
+                OTHER_GROUP_DISPLAY_VALUE,
+            );
+            expect(sentinelKey).not.toBe(realOtherKey);
+        });
+
+        it('sentinel and real "Other" produce different suffixes in multi-value columns', () => {
+            const sentinelSuffix = getPivotColumnValueSuffix([
+                OTHER_GROUP_SENTINEL_VALUE,
+                'channel_a',
+            ]);
+            const realOtherSuffix = getPivotColumnValueSuffix([
+                OTHER_GROUP_DISPLAY_VALUE,
+                'channel_a',
+            ]);
+            expect(sentinelSuffix).not.toBe(realOtherSuffix);
+        });
+
+        it('sentinel value is distinct from any plausible dimension value', () => {
+            expect(OTHER_GROUP_SENTINEL_VALUE).toContain('$$');
+            expect(OTHER_GROUP_SENTINEL_VALUE).not.toBe('Other');
+            expect(OTHER_GROUP_SENTINEL_VALUE).not.toBe('other');
         });
     });
 });

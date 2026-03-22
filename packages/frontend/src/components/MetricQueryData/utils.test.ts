@@ -63,15 +63,13 @@ describe('getDataFromChartClick', () => {
 
         const result = getDataFromChartClick(createClickEvent(2), {}, series);
 
-        expect(result.topGroupValues).toEqual({
-            orders_order_date_month: [
-                '2024-06-01T00:00:00.000Z',
-                '2025-01-01T00:00:00.000Z',
-            ],
-        });
+        expect(result.topGroupTuples).toEqual([
+            { orders_order_date_month: '2024-06-01T00:00:00.000Z' },
+            { orders_order_date_month: '2025-01-01T00:00:00.000Z' },
+        ]);
     });
 
-    it('collects stringified boolean values for an Other series', () => {
+    it('collects tuples preserving multi-pivot field associations', () => {
         const series = [
             {
                 pivotReference: {
@@ -112,13 +110,14 @@ describe('getDataFromChartClick', () => {
 
         const result = getDataFromChartClick(createClickEvent(2), {}, series);
 
-        expect(result.topGroupValues).toEqual({
-            segment: ['enterprise', 'self_serve'],
-            orders_is_completed: ['true', 'false'],
-        });
+        // Tuples preserve field associations — no flattening
+        expect(result.topGroupTuples).toEqual([
+            { segment: 'enterprise', orders_is_completed: true },
+            { segment: 'self_serve', orders_is_completed: false },
+        ]);
     });
 
-    it('returns undefined topGroupValues when no Other series exists', () => {
+    it('returns undefined topGroupTuples when no Other series exists', () => {
         const series = [
             {
                 pivotReference: {
@@ -136,10 +135,10 @@ describe('getDataFromChartClick', () => {
 
         const result = getDataFromChartClick(createClickEvent(0), {}, series);
 
-        expect(result.topGroupValues).toBeUndefined();
+        expect(result.topGroupTuples).toBeUndefined();
     });
 
-    it('deduplicates pivot values across series for Other drill-through', () => {
+    it('deduplicates tuples across series for Other drill-through', () => {
         const series = [
             {
                 pivotReference: {
@@ -169,9 +168,65 @@ describe('getDataFromChartClick', () => {
 
         const result = getDataFromChartClick(createClickEvent(2), {}, series);
 
-        // 'US' appears in two series but should be deduplicated
-        expect(result.topGroupValues).toEqual({
-            region: ['US'],
-        });
+        // 'US' appears in two series but should be deduplicated into one tuple
+        expect(result.topGroupTuples).toEqual([{ region: 'US' }]);
+    });
+
+    it('multi-pivot Other filter excludes only exact tuples, not cross-products', () => {
+        // Regression test for the tuple semantics bug:
+        // With top groups (US, Paid) and (CA, Organic), the filter must exclude
+        // exactly those two tuples but NOT (US, Organic) or (CA, Paid).
+        const series = [
+            {
+                pivotReference: {
+                    field: 'revenue',
+                    pivotValues: [
+                        { field: 'country', value: 'US' },
+                        { field: 'channel', value: 'Paid' },
+                    ],
+                },
+            },
+            {
+                pivotReference: {
+                    field: 'revenue',
+                    pivotValues: [
+                        { field: 'country', value: 'CA' },
+                        { field: 'channel', value: 'Organic' },
+                    ],
+                },
+            },
+            {
+                pivotReference: {
+                    field: 'revenue',
+                    pivotValues: [
+                        {
+                            field: 'country',
+                            value: OTHER_GROUP_DISPLAY_VALUE,
+                            isOtherGroup: true,
+                        },
+                        {
+                            field: 'channel',
+                            value: OTHER_GROUP_DISPLAY_VALUE,
+                            isOtherGroup: true,
+                        },
+                    ],
+                },
+            },
+        ] as EChartsSeries[];
+
+        const result = getDataFromChartClick(createClickEvent(2), {}, series);
+
+        // Each tuple is a full group, not per-field value lists
+        expect(result.topGroupTuples).toEqual([
+            { country: 'US', channel: 'Paid' },
+            { country: 'CA', channel: 'Organic' },
+        ]);
+
+        // Verify tuples are NOT flattened — this was the old (broken) behavior
+        expect(result.topGroupTuples).not.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ country: 'US', channel: 'Organic' }),
+            ]),
+        );
     });
 });
