@@ -234,8 +234,8 @@ describe('combineFilters — Other group tuple exclusion', () => {
         expect(filter.values).toBeUndefined();
     });
 
-    it('handles numeric tuple values without type errors', () => {
-        const topGroupTuples: TopGroupTuple[] = [{ year: 2024 }];
+    it('handles string tuple values for year-like dimensions', () => {
+        const topGroupTuples: TopGroupTuple[] = [{ year: '2024' }];
 
         const result = combineFilters({
             fieldValues: {},
@@ -264,8 +264,7 @@ describe('combineFilters — Other group tuple exclusion', () => {
             }>;
         };
         expect(tuple1.or[0].operator).toBe(FilterOperator.NOT_EQUALS);
-        // Should have the value (even though it's a number, it should be usable)
-        expect(tuple1.or[0].values).toEqual([2024]);
+        expect(tuple1.or[0].values).toEqual(['2024']);
     });
 
     it('returns contradiction filter when Other has no topGroupTuples', () => {

@@ -10,7 +10,7 @@ import {
  * For a single pivot dimension: [{ country: "US" }, { country: "CA" }]
  * For multi-pivot: [{ country: "US", channel: "Paid" }, { country: "CA", channel: "Organic" }]
  */
-export type TopGroupTuple = Record<string, unknown>;
+export type TopGroupTuple = Record<string, string | null>;
 
 export type UnderlyingDataConfig = {
     item: ItemsMap[string] | undefined;

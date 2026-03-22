@@ -55,10 +55,7 @@ export function buildPivotFilters({
                             tupleValue === null
                                 ? FilterOperator.NOT_NULL
                                 : FilterOperator.NOT_EQUALS,
-                        values:
-                            tupleValue === null
-                                ? undefined
-                                : [tupleValue as string],
+                        values: tupleValue === null ? undefined : [tupleValue],
                     }),
                 ),
             }),

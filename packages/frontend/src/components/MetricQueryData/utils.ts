@@ -8,7 +8,7 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import { type UnderlyingDataConfig } from './types';
+import { type TopGroupTuple, type UnderlyingDataConfig } from './types';
 
 /**
  * Extracts field values from ECharts click event data.
@@ -122,20 +122,20 @@ export const getDataFromChartClick = (
             .map((pv) => pv.field);
 
         const tupleSet = new Set<string>();
-        const tuples: Array<Record<string, unknown>> = [];
+        const tuples: TopGroupTuple[] = [];
 
         for (const s of series) {
             if (!s.pivotReference?.pivotValues) continue;
             if (s.pivotReference.pivotValues.some((pv) => pv.isOtherGroup))
                 continue;
 
-            const tuple: Record<string, unknown> = {};
+            const tuple: TopGroupTuple = {};
             for (const field of otherFields) {
                 const pv = s.pivotReference.pivotValues.find(
                     (v) => v.field === field,
                 );
                 if (pv) {
-                    tuple[field] = pv.value;
+                    tuple[field] = (pv.value as string | null) ?? null;
                 }
             }
 
