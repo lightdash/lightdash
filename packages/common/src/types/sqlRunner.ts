@@ -87,6 +87,7 @@ export type SqlRunnerQuery = {
     customMetrics?: (Pick<SqlRunnerField, 'name' | 'aggType'> & {
         baseDimension?: string;
     })[];
+    groupLimit?: { enabled: boolean; maxGroups: number };
 };
 
 export enum SqlRunnerFilterBaseOperator {

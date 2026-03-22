@@ -501,6 +501,7 @@ export class CartesianChartDataModel {
             timeDimensions,
             pivot,
             customMetrics,
+            groupLimit: this.fieldConfig?.groupLimit,
         };
         const pivotedChartData = await this.getTransformedData(query);
 

@@ -116,6 +116,7 @@ export const getPivotQueryFunctionForSqlQuery = ({
                 valuesColumns,
                 groupByColumns,
                 sortBy,
+                groupLimit: query.groupLimit,
             },
             parameters,
         });
