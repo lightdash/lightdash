@@ -42,6 +42,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
+import { buildPivotFilters } from './pivotFilters';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -185,50 +186,12 @@ const UnderlyingDataModalContent: FC = () => {
                   },
               ];
 
-        const topGroupTuples = underlyingDataConfig.topGroupTuples;
-        const hasOtherPivot = pivotReference?.pivotValues?.some(
-            (pv) => pv.isOtherGroup,
-        );
-
-        let pivotFilter: FilterGroupItem[];
-        if (hasOtherPivot && topGroupTuples?.length) {
-            // Build tuple-aware exclusion: NOT((A₁ AND B₁) OR (A₂ AND B₂))
-            // Via De Morgan: (NOT A₁ OR NOT B₁) AND (NOT A₂ OR NOT B₂)
-            pivotFilter = topGroupTuples.map((tuple) => ({
-                id: uuidv4(),
-                or: Object.entries(tuple).map(
-                    ([field, tupleValue]): FilterRule => ({
-                        id: uuidv4(),
-                        target: { fieldId: field },
-                        operator:
-                            tupleValue === null
-                                ? FilterOperator.NOT_NULL
-                                : FilterOperator.NOT_EQUALS,
-                        values:
-                            tupleValue === null
-                                ? undefined
-                                : [tupleValue as string],
-                    }),
-                ),
-            }));
-        } else {
-            pivotFilter = (pivotReference?.pivotValues || [])
-                .filter((pivot) => !pivot.isOtherGroup)
-                .map(
-                    (pivot): FilterRule => ({
-                        id: uuidv4(),
-                        target: {
-                            fieldId: pivot.field,
-                        },
-                        operator:
-                            pivot.value === null
-                                ? FilterOperator.NULL
-                                : FilterOperator.EQUALS,
-                        values:
-                            pivot.value === null ? undefined : [pivot.value],
-                    }),
-                );
-        }
+        const pivotFilter: FilterGroupItem[] = pivotReference
+            ? buildPivotFilters({
+                  pivotReference,
+                  topGroupTuples: underlyingDataConfig.topGroupTuples,
+              })
+            : [];
 
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;
