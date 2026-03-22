@@ -1603,7 +1603,8 @@
                         "format": "double"
                     },
                     "tabUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["uuid", "type", "x", "y", "h", "w"],
@@ -6812,7 +6813,9 @@
                     "NO_DIMENSIONS_FOUND",
                     "SKIPPED_JOIN",
                     "MISSING_TABLE",
-                    "FIELD_ERROR"
+                    "FIELD_ERROR",
+                    "SET_VALIDATION_ERROR",
+                    "INVALID_PARAMETER"
                 ],
                 "type": "string"
             },
@@ -19348,7 +19351,8 @@
             "CreateDashboardTileBase": {
                 "properties": {
                     "tabUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "w": {
                         "type": "number",
@@ -19707,6 +19711,16 @@
                     }
                 },
                 "required": ["schedulerTimezone"],
+                "type": "object"
+            },
+            "UpdateQueryTimezoneSettings": {
+                "properties": {
+                    "queryTimezone": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["queryTimezone"],
                 "type": "object"
             },
             "ApiCreateTagResponse": {
@@ -20081,6 +20095,10 @@
                 },
                 "type": "object"
             },
+            "ContentAsCodeType.CHART": {
+                "enum": ["chart"],
+                "type": "string"
+            },
             "ChartAsCode": {
                 "allOf": [
                     {
@@ -20096,6 +20114,10 @@
                             "spaceSlug": {
                                 "type": "string",
                                 "description": "Slug of the space containing this chart"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentAsCodeType.CHART",
+                                "description": "Content type discriminator"
                             },
                             "version": {
                                 "type": "number",
@@ -20254,7 +20276,8 @@
                         "format": "double"
                     },
                     "tabUuid": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["type", "x", "y", "h", "w"],
@@ -20353,6 +20376,10 @@
                     }
                 ]
             },
+            "ContentAsCodeType.DASHBOARD": {
+                "enum": ["dashboard"],
+                "type": "string"
+            },
             "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__": {
                 "properties": {
                     "label": {
@@ -20434,6 +20461,9 @@
                             "spaceSlug": {
                                 "type": "string"
                             },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
+                            },
                             "version": {
                                 "type": "number",
                                 "format": "double"
@@ -20455,22 +20485,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -20609,6 +20639,10 @@
                         "type": "string",
                         "description": "Slug of the dashboard this chart belongs to (if any)"
                     },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.CHART",
+                        "description": "Content type discriminator"
+                    },
                     "spaceSlug": {
                         "type": "string",
                         "description": "Slug of the space containing this chart"
@@ -20689,6 +20723,10 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ContentAsCodeType.SQL_CHART": {
+                "enum": ["sql_chart"],
+                "type": "string"
+            },
             "SqlChartAsCode": {
                 "allOf": [
                     {
@@ -20706,6 +20744,9 @@
                             },
                             "spaceSlug": {
                                 "type": "string"
+                            },
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
                             },
                             "version": {
                                 "type": "number",
@@ -20792,6 +20833,9 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.SQL_CHART"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -20885,6 +20929,9 @@
                     },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.DASHBOARD"
                     },
                     "spaceSlug": {
                         "type": "string"
@@ -26591,6 +26638,20 @@
                 "$ref": "#/components/schemas/Pick_DownloadAsyncQueryResultsRequestParams.Exclude_keyofDownloadAsyncQueryResultsRequestParams.queryUuid__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
+            "ApiSavedChartResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SavedChart"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiSuccess_ProjectDefaults-or-undefined_": {
                 "properties": {
                     "results": {
@@ -26616,6 +26677,109 @@
                 },
                 "required": ["status"],
                 "type": "object"
+            },
+            "ApiDashboardResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/Dashboard"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_CreateDashboard.name-or-description-or-spaceUuid_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardUnversionedFields": {
+                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid_"
+            },
+            "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/DashboardParameters"
+                    },
+                    "tiles": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardChartTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardMarkdownTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardLoomTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardSqlChartTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardHeadingTile"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "$ref": "#/components/schemas/DashboardFilters"
+                    },
+                    "updatedByUser": {
+                        "$ref": "#/components/schemas/Pick_UpdatedByUser.userUuid_"
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/DashboardTab"
+                        },
+                        "type": "array"
+                    },
+                    "config": {
+                        "$ref": "#/components/schemas/DashboardConfig"
+                    }
+                },
+                "required": ["tiles", "tabs"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DashboardVersionedFields": {
+                "$ref": "#/components/schemas/Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_"
+            },
+            "UpdateDashboard": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardUnversionedFields"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardVersionedFields"
+                    },
+                    {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardUnversionedFields"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DashboardVersionedFields"
+                            }
+                        ]
+                    }
+                ]
             },
             "PreAggregateDailyStatResult": {
                 "properties": {
@@ -28190,6 +28354,57 @@
                 },
                 "required": ["item"],
                 "type": "object"
+            },
+            "KnexPaginatedData_CatalogField-Array_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/CatalogField"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiPaginatedMetricsWithTimeDimensionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_CatalogField-Array_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CatalogSortField": {
+                "type": "string",
+                "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
             }
         },
         "securitySchemes": {
@@ -28208,7 +28423,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2619.1",
+        "version": "0.2647.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37272,6 +37487,57 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/queryTimezoneSettings": {
+            "patch": {
+                "operationId": "updateQueryTimezoneSettings",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update query timezone settings for a project",
+                "summary": "Update query timezone settings",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateQueryTimezoneSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/tags": {
             "post": {
                 "operationId": "createTag",
@@ -45806,6 +46072,102 @@
                 }
             }
         },
+        "/api/v2/projects/{projectUuid}/saved/{chartUuidOrSlug}": {
+            "get": {
+                "operationId": "getProjectSavedChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSavedChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a saved chart by uuid or slug within a project",
+                "summary": "Get chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "deleteProjectSavedChart",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a saved chart by uuid or slug within a project",
+                "summary": "Delete chart",
+                "tags": ["v2", "Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "chartUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/projects/{projectUuid}/defaults": {
             "get": {
                 "operationId": "getProjectDefaults",
@@ -45894,6 +46256,208 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}": {
+            "get": {
+                "operationId": "getProjectDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a dashboard by uuid or slug within a project",
+                "summary": "Get dashboard",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "updateProjectDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update a dashboard by uuid or slug within a project",
+                "summary": "Update dashboard",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateDashboard"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteProjectDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a dashboard by uuid or slug within a project",
+                "summary": "Delete dashboard",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dashboards/{dashboardUuidOrSlug}/comments": {
+            "get": {
+                "operationId": "getProjectDashboardComments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetComments"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets all comments for a dashboard within a project",
+                "summary": "Get comments",
+                "tags": ["v2", "Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/projects/{projectUuid}/pre-aggregates/stats": {
@@ -46914,6 +47478,116 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/dataCatalog/metrics-with-time-dimensions": {
+            "get": {
+                "operationId": "getPaginatedMetricsWithTimeDimensions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPaginatedMetricsWithTimeDimensionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get paginated metrics that have time dimensions available",
+                "summary": "List metrics with time dimensions",
+                "tags": ["v2", "Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "default": 1,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "default": 50,
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/CatalogSortField"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "order",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "tableName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Spotlight category yaml references to filter by (OR mode)",
+                        "in": "query",
+                        "name": "categories",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "description": "dbt tag names to filter by (OR mode)",
+                        "in": "query",
+                        "name": "tags",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ]
             }
         }
     },

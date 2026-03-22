@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -515,6 +516,17 @@ const parseSwagger = (content: string): SwaggerDoc =>
 const toStableJson = (value: JsonObject): string =>
     `${JSON.stringify(sortKeysDeep(value), null, 4)}\n`;
 
+const formatWithOxfmt = (content: string, filePath: string): string => {
+    try {
+        return execFileSync('oxfmt', ['--stdin-filepath', filePath], {
+            input: content,
+            encoding: 'utf8',
+        });
+    } catch {
+        return content;
+    }
+};
+
 const run = (): void => {
     const checkMode = process.argv.includes('--check');
     const swaggerPath = getSwaggerPath();
@@ -523,7 +535,10 @@ const run = (): void => {
     const swaggerContent = fs.readFileSync(swaggerPath, 'utf8');
     const swagger = parseSwagger(swaggerContent);
     const generatedSchema = buildChartAsCodeSchema(swagger);
-    const nextContent = toStableJson(generatedSchema);
+    const nextContent = formatWithOxfmt(
+        toStableJson(generatedSchema),
+        outputPath,
+    );
 
     if (checkMode) {
         const currentContent = fs.readFileSync(outputPath, 'utf8');
