@@ -20,6 +20,27 @@ export function buildPivotFilters({
         (pv) => pv.isOtherGroup,
     );
 
+    if (hasOtherPivot && !topGroupTuples?.length) {
+        // Safety: Other group clicked but no top-N tuples available to build
+        // exclusion filters. Return a contradiction filter (always false) to
+        // prevent an unfiltered query against the entire table.
+        const firstField = pivotReference.pivotValues[0].field;
+        return [
+            {
+                id: uuidv4(),
+                target: { fieldId: firstField },
+                operator: FilterOperator.NULL,
+                values: undefined,
+            } as FilterRule,
+            {
+                id: uuidv4(),
+                target: { fieldId: firstField },
+                operator: FilterOperator.NOT_NULL,
+                values: undefined,
+            } as FilterRule,
+        ];
+    }
+
     if (hasOtherPivot && topGroupTuples?.length) {
         // Build tuple-aware exclusion: NOT((A₁ AND B₁) OR (A₂ AND B₂))
         // Via De Morgan: (NOT A₁ OR NOT B₁) AND (NOT A₂ OR NOT B₂)

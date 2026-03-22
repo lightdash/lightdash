@@ -268,7 +268,7 @@ describe('combineFilters — Other group tuple exclusion', () => {
         expect(tuple1.or[0].values).toEqual([2024]);
     });
 
-    it('skips Other pivot values when topGroupTuples not provided', () => {
+    it('returns contradiction filter when Other has no topGroupTuples', () => {
         const result = combineFilters({
             fieldValues: {},
             metricQuery: emptyMetricQuery,
@@ -282,12 +282,16 @@ describe('combineFilters — Other group tuple exclusion', () => {
                     },
                 ],
             },
-            // No topGroupTuples — should skip Other values, not produce EQUALS 'Other'
         });
 
         const andGroup = result.dimensions;
         const filters = (andGroup as { and: unknown[] }).and;
-        // Other pivot values should be filtered out
-        expect(filters).toHaveLength(0);
+        expect(filters).toHaveLength(2);
+        const [nullFilter, notNullFilter] = filters as Array<{
+            target: { fieldId: string };
+            operator: string;
+        }>;
+        expect(nullFilter.operator).toBe(FilterOperator.NULL);
+        expect(notNullFilter.operator).toBe(FilterOperator.NOT_NULL);
     });
 });

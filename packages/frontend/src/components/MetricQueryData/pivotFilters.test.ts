@@ -157,7 +157,7 @@ describe('buildPivotFilters', () => {
             expect(filter.values).toBeUndefined();
         });
 
-        it('skips Other-flagged values when no topGroupTuples provided', () => {
+        it('returns contradiction filter when Other group has no topGroupTuples', () => {
             const result = buildPivotFilters({
                 pivotReference: {
                     field: 'revenue',
@@ -171,7 +171,15 @@ describe('buildPivotFilters', () => {
                 },
             });
 
-            expect(result).toHaveLength(0);
+            expect(result).toHaveLength(2);
+            const [nullFilter, notNullFilter] = result as Array<{
+                target: { fieldId: string };
+                operator: string;
+            }>;
+            expect(nullFilter.target.fieldId).toBe('region');
+            expect(nullFilter.operator).toBe(FilterOperator.NULL);
+            expect(notNullFilter.target.fieldId).toBe('region');
+            expect(notNullFilter.operator).toBe(FilterOperator.NOT_NULL);
         });
 
         it('returns empty array when pivotValues is undefined', () => {
