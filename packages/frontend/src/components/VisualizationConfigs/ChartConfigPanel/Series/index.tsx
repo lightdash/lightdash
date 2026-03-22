@@ -201,17 +201,19 @@ export const Series: FC<Props> = ({ items }) => {
 
     // Count unique pivot values (groups) across all series
     const hasPivotedSeries = useMemo(() => {
+        if (pivotDimensions && pivotDimensions.length > 0) return true;
         if (!seriesGroupedByField) return false;
         return seriesGroupedByField.some((group) => group.value.length > 1);
-    }, [seriesGroupedByField]);
+    }, [seriesGroupedByField, pivotDimensions]);
 
     // Count total number of unique pivot values (excluding filtered-out series)
     const totalGroups = useMemo(() => {
-        if (!seriesGroupedByField || !hasPivotedSeries) return 0;
+        if (!hasPivotedSeries) return 0;
         const totalGroupCount = resultsData?.pivotDetails?.totalGroupCount;
         if (totalGroupCount !== null && totalGroupCount !== undefined) {
             return totalGroupCount;
         }
+        if (!seriesGroupedByField) return 0;
         // Get the first grouped series and count its non-filtered pivot values
         const groupedEntry = seriesGroupedByField.find(
             (group) => group.value.length > 1,
