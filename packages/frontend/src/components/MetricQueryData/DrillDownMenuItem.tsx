@@ -10,10 +10,11 @@ import { useCallback, useMemo, type FC } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
-import { type DrillDownConfig } from './types';
+import { type DrillDownConfig, type TopGroupTuple } from './types';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 type DrillDownMenuItemProps = Partial<DrillDownConfig> & {
+    topGroupTuples?: TopGroupTuple[];
     trackingData: {
         organizationId: string | undefined;
         userId: string | undefined;
@@ -25,6 +26,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
     item,
     fieldValues,
     pivotReference,
+    topGroupTuples,
     trackingData,
 }) => {
     const { explore, metricQuery, openDrillDownModal } =
@@ -50,6 +52,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
             item,
             fieldValues,
             pivotReference,
+            topGroupTuples,
         });
         track({
             name: EventName.DRILL_BY_CLICKED,
@@ -64,6 +67,7 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
         item,
         openDrillDownModal,
         pivotReference,
+        topGroupTuples,
         track,
         trackingData.organizationId,
         trackingData.projectId,

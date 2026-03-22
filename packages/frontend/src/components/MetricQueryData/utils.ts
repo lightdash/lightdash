@@ -115,24 +115,38 @@ export const getDataFromChartClick = (
         selectedValue = fieldValues[getItemId(selectedField)]?.raw;
     }
 
-    let topGroupValues: Record<string, string[]> | undefined;
+    let topGroupTuples: UnderlyingDataConfig['topGroupTuples'];
     if (pivotReference?.pivotValues?.some((pv) => pv.isOtherGroup)) {
-        topGroupValues = {};
-        for (const pv of pivotReference.pivotValues) {
-            if (pv.isOtherGroup) {
-                const allValues = series
-                    .filter((s) => s.pivotReference)
-                    .flatMap((s) => s.pivotReference?.pivotValues ?? [])
-                    .filter(
-                        (v) =>
-                            v.field === pv.field &&
-                            !v.isOtherGroup &&
-                            v.value !== null,
-                    )
-                    .map((v) => String(v.value));
-                topGroupValues[pv.field] = [...new Set(allValues)];
+        const otherFields = pivotReference.pivotValues
+            .filter((pv) => pv.isOtherGroup)
+            .map((pv) => pv.field);
+
+        const tupleSet = new Set<string>();
+        const tuples: Array<Record<string, unknown>> = [];
+
+        for (const s of series) {
+            if (!s.pivotReference?.pivotValues) continue;
+            if (s.pivotReference.pivotValues.some((pv) => pv.isOtherGroup))
+                continue;
+
+            const tuple: Record<string, unknown> = {};
+            for (const field of otherFields) {
+                const pv = s.pivotReference.pivotValues.find(
+                    (v) => v.field === field,
+                );
+                if (pv) {
+                    tuple[field] = pv.value;
+                }
+            }
+
+            const key = JSON.stringify(tuple);
+            if (!tupleSet.has(key)) {
+                tupleSet.add(key);
+                tuples.push(tuple);
             }
         }
+
+        topGroupTuples = tuples;
     }
 
     return {
@@ -143,6 +157,6 @@ export const getDataFromChartClick = (
         },
         fieldValues,
         pivotReference,
-        topGroupValues,
+        topGroupTuples,
     };
 };

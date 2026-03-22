@@ -1,16 +1,12 @@
 import {
     ChartType,
-    FilterOperator,
     getDimensions,
     getItemId,
     hashFieldReference,
     isField,
     type CompiledDimension,
     type CreateSavedChartVersion,
-    type DashboardFilters,
     type FieldId,
-    type FilterGroupItem,
-    type FilterRule,
     type Filters,
     type MetricQuery,
     type PivotReference,
@@ -20,82 +16,13 @@ import { Button } from '@mantine-8/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
-import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { combineFilters } from './drillDownFilters';
+import type { TopGroupTuple } from './types';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
-
-type CombineFiltersArgs = {
-    fieldValues: Record<string, ResultValue>;
-    metricQuery: MetricQuery;
-    pivotReference?: PivotReference;
-    dashboardFilters?: DashboardFilters;
-    extraFilters?: Filters;
-};
-
-const combineFilters = ({
-    fieldValues,
-    metricQuery,
-    pivotReference,
-    dashboardFilters,
-    extraFilters,
-}: CombineFiltersArgs): Filters => {
-    const combinedDimensionFilters: Array<FilterGroupItem> = [];
-
-    if (metricQuery.filters.dimensions) {
-        combinedDimensionFilters.push(metricQuery.filters.dimensions);
-    }
-    if (dashboardFilters) {
-        combinedDimensionFilters.push(...dashboardFilters.dimensions);
-    }
-    if (pivotReference?.pivotValues) {
-        const pivotFilter: FilterRule[] = pivotReference.pivotValues.map(
-            (pivot) => ({
-                id: uuidv4(),
-                target: {
-                    fieldId: pivot.field,
-                },
-                operator: FilterOperator.EQUALS,
-                values: [pivot.value],
-            }),
-        );
-        combinedDimensionFilters.push(...pivotFilter);
-    }
-    if (extraFilters?.dimensions) {
-        combinedDimensionFilters.push(extraFilters.dimensions);
-    }
-
-    const dimensionFilters: FilterRule[] = metricQuery.dimensions.reduce<
-        FilterRule[]
-    >((acc, dimension) => {
-        const rowValue = fieldValues[dimension];
-        if (!rowValue) {
-            return acc;
-        }
-        const dimensionFilter: FilterRule = {
-            id: uuidv4(),
-            target: {
-                fieldId: dimension,
-            },
-            operator:
-                rowValue.raw === null
-                    ? FilterOperator.NULL
-                    : FilterOperator.EQUALS,
-            values: rowValue.raw === null ? undefined : [rowValue.raw],
-        };
-        return [...acc, dimensionFilter];
-    }, []);
-    combinedDimensionFilters.push(...dimensionFilters);
-
-    return {
-        dimensions: {
-            id: uuidv4(),
-            and: combinedDimensionFilters,
-        },
-    };
-};
 
 type DrillDownExploreUrlArgs = {
     fieldValues: Record<string, ResultValue>;
@@ -106,6 +33,7 @@ type DrillDownExploreUrlArgs = {
     drillByDimension: FieldId;
     extraFilters?: Filters;
     pivotReference?: PivotReference;
+    topGroupTuples?: TopGroupTuple[];
 };
 
 const drillDownExploreUrl = ({
@@ -117,6 +45,7 @@ const drillDownExploreUrl = ({
     drillByDimension,
     extraFilters,
     pivotReference,
+    topGroupTuples,
 }: DrillDownExploreUrlArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
@@ -130,6 +59,7 @@ const drillDownExploreUrl = ({
                 fieldValues,
                 extraFilters,
                 pivotReference,
+                topGroupTuples,
             }),
             limit: 500,
             additionalMetrics: metricQuery.additionalMetrics,
@@ -203,6 +133,7 @@ export const DrillDownModal: FC = () => {
                 drillByMetric: getItemId(drillDownConfig.item),
                 drillByDimension: getItemId(selectedDimension),
                 pivotReference: drillDownConfig.pivotReference,
+                topGroupTuples: drillDownConfig.topGroupTuples,
             });
         }
     }, [selectedDimension, metricQuery, explore, drillDownConfig, projectUuid]);

@@ -13,6 +13,7 @@ import {
     isMetric,
     QueryExecutionContext,
     type CreateSavedChartVersion,
+    type FilterGroupItem,
     type FilterRule,
     type Filters,
     type Metric,
@@ -184,32 +185,50 @@ const UnderlyingDataModalContent: FC = () => {
                   },
               ];
 
-        const topGroupValues = underlyingDataConfig.topGroupValues;
-        const pivotFilter: FilterRule[] = (
-            pivotReference?.pivotValues || []
-        ).map((pivot) => {
-            if (pivot.isOtherGroup && topGroupValues?.[pivot.field]) {
-                return {
-                    id: uuidv4(),
-                    target: {
-                        fieldId: pivot.field,
-                    },
-                    operator: FilterOperator.NOT_EQUALS,
-                    values: topGroupValues[pivot.field],
-                };
-            }
-            return {
+        const topGroupTuples = underlyingDataConfig.topGroupTuples;
+        const hasOtherPivot = pivotReference?.pivotValues?.some(
+            (pv) => pv.isOtherGroup,
+        );
+
+        let pivotFilter: FilterGroupItem[];
+        if (hasOtherPivot && topGroupTuples?.length) {
+            // Build tuple-aware exclusion: NOT((A₁ AND B₁) OR (A₂ AND B₂))
+            // Via De Morgan: (NOT A₁ OR NOT B₁) AND (NOT A₂ OR NOT B₂)
+            pivotFilter = topGroupTuples.map((tuple) => ({
                 id: uuidv4(),
-                target: {
-                    fieldId: pivot.field,
-                },
-                operator:
-                    pivot.value === null
-                        ? FilterOperator.NULL
-                        : FilterOperator.EQUALS,
-                values: pivot.value === null ? undefined : [pivot.value],
-            };
-        });
+                or: Object.entries(tuple).map(
+                    ([field, tupleValue]): FilterRule => ({
+                        id: uuidv4(),
+                        target: { fieldId: field },
+                        operator:
+                            tupleValue === null
+                                ? FilterOperator.NOT_NULL
+                                : FilterOperator.NOT_EQUALS,
+                        values:
+                            tupleValue === null
+                                ? undefined
+                                : [tupleValue as string],
+                    }),
+                ),
+            }));
+        } else {
+            pivotFilter = (pivotReference?.pivotValues || [])
+                .filter((pivot) => !pivot.isOtherGroup)
+                .map(
+                    (pivot): FilterRule => ({
+                        id: uuidv4(),
+                        target: {
+                            fieldId: pivot.field,
+                        },
+                        operator:
+                            pivot.value === null
+                                ? FilterOperator.NULL
+                                : FilterOperator.EQUALS,
+                        values:
+                            pivot.value === null ? undefined : [pivot.value],
+                    }),
+                );
+        }
 
         const metric: Metric | undefined =
             isField(item) && isMetric(item) ? item : undefined;
