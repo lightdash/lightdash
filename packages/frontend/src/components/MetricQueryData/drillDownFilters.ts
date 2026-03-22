@@ -91,8 +91,11 @@ export const combineFilters = ({
                     target: {
                         fieldId: pivot.field,
                     },
-                    operator: FilterOperator.EQUALS,
-                    values: [pivot.value],
+                    operator:
+                        pivot.value === null
+                            ? FilterOperator.NULL
+                            : FilterOperator.EQUALS,
+                    values: pivot.value === null ? undefined : [pivot.value],
                 }));
             combinedDimensionFilters.push(...pivotFilter);
         }

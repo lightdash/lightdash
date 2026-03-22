@@ -212,6 +212,62 @@ describe('combineFilters — Other group tuple exclusion', () => {
         expect(filter.values).toEqual(['US']);
     });
 
+    it('handles null pivot value with NULL operator in non-Other path', () => {
+        const result = combineFilters({
+            fieldValues: {},
+            metricQuery: emptyMetricQuery,
+            pivotReference: {
+                field: 'revenue',
+                pivotValues: [{ field: 'region', value: null }],
+            },
+        });
+
+        const andGroup = result.dimensions;
+        const filters = (andGroup as { and: unknown[] }).and;
+        expect(filters).toHaveLength(1);
+        const filter = filters[0] as {
+            target: { fieldId: string };
+            operator: string;
+            values?: unknown[];
+        };
+        expect(filter.operator).toBe(FilterOperator.NULL);
+        expect(filter.values).toBeUndefined();
+    });
+
+    it('handles numeric tuple values without type errors', () => {
+        const topGroupTuples: TopGroupTuple[] = [{ year: 2024 }];
+
+        const result = combineFilters({
+            fieldValues: {},
+            metricQuery: emptyMetricQuery,
+            pivotReference: {
+                field: 'revenue',
+                pivotValues: [
+                    {
+                        field: 'year',
+                        value: 'Other',
+                        isOtherGroup: true,
+                    },
+                ],
+            },
+            topGroupTuples,
+        });
+
+        const andGroup = result.dimensions;
+        const filters = (andGroup as { and: unknown[] }).and;
+        expect(filters).toHaveLength(1);
+        const tuple1 = filters[0] as {
+            or: Array<{
+                target: { fieldId: string };
+                operator: string;
+                values: unknown[];
+            }>;
+        };
+        expect(tuple1.or[0].operator).toBe(FilterOperator.NOT_EQUALS);
+        // Should have the value (even though it's a number, it should be usable)
+        expect(tuple1.or[0].values).toEqual([2024]);
+    });
+
     it('skips Other pivot values when topGroupTuples not provided', () => {
         const result = combineFilters({
             fieldValues: {},
