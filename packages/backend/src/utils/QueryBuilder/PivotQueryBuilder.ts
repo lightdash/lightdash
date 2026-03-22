@@ -16,6 +16,7 @@ import {
     SortByDirection,
     TableCalculationFunctionCompiler,
     TimeFrames,
+    validateGroupLimitConfig,
     VizAggregationOptions,
     VizSortBy,
     WarehouseSqlBuilder,
@@ -81,7 +82,14 @@ export class PivotQueryBuilder {
         rawOtherEnabled: boolean = false,
     ) {
         this.sql = sql;
-        this.pivotConfiguration = pivotConfiguration;
+        this.pivotConfiguration = pivotConfiguration.groupLimit
+            ? {
+                  ...pivotConfiguration,
+                  groupLimit: validateGroupLimitConfig(
+                      pivotConfiguration.groupLimit,
+                  ),
+              }
+            : pivotConfiguration;
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.itemsMap = itemsMap ?? {};
