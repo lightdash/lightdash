@@ -175,10 +175,12 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
                 data={data}
                 softDeleteEnabled={softDeleteEnabled}
             />
-            <Text fz="sm">
-                This space and its contents will be moved to Recently deleted
-                and permanently removed after {retentionDays} days.
-            </Text>
+            {softDeleteEnabled && (
+                <Text fz="sm">
+                    This space and its contents will be moved to Recently
+                    deleted and permanently removed after {retentionDays} days.
+                </Text>
+            )}
             <DeleteSpaceTextInputConfirmation
                 data={data}
                 setCanDelete={setCanDelete}
