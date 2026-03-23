@@ -15,6 +15,7 @@ import { type EChartsOption, type TreemapSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isTreemapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 
 const EchartsTreemapType = 'treemap';
 
@@ -196,7 +197,9 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
 
         return {
             textStyle: {
-                fontFamily: theme?.other?.chartFont as string | undefined,
+                fontFamily: sanitizeEchartsFontFamily(
+                    theme?.other?.chartFont as string | undefined,
+                ),
             },
             tooltip: {
                 ...getTooltipStyle({ appendToBody: !isTouchDevice }),
