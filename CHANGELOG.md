@@ -1,3 +1,10 @@
+## [0.2648.2](https://github.com/lightdash/lightdash/compare/0.2648.1...0.2648.2) (2026-03-23)
+
+
+### Bug Fixes
+
+* strip tileTargets from filter rules to reduce API payload size ([#21300](https://github.com/lightdash/lightdash/issues/21300)) ([bbacde1](https://github.com/lightdash/lightdash/commit/bbacde185148e5fa9240d1ac19a772446551b778))
+
 ## [0.2648.1](https://github.com/lightdash/lightdash/compare/0.2648.0...0.2648.1) (2026-03-23)
 
 
