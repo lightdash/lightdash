@@ -151,6 +151,7 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             onConfirm={form.onSubmit(handleSubmit)}
             confirmDisabled={!canDelete || isLoading}
             confirmLoading={isLoading}
+            cancelDisabled={isLoading}
         >
             <Text fz="sm">
                 {softDeleteEnabled ? (
