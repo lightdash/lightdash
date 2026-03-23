@@ -147,6 +147,47 @@ const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
     return response?.auth?.snowflake?.enabled ?? false;
 };
 
+const applySnowflakeSsoHandling = async (
+    credentials: CreateWarehouseCredentials,
+): Promise<CreateWarehouseCredentials> => {
+    if (
+        credentials.type !== WarehouseTypes.SNOWFLAKE ||
+        credentials.authenticationType !==
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER
+    ) {
+        return credentials;
+    }
+
+    const snowflakeSsoEnabled = await isSnowflakeSsoEnabled();
+
+    if (snowflakeSsoEnabled) {
+        console.error(
+            styles.info(
+                `\nLightdash server has Snowflake OAuth authentication enabled.
+We will ask for user credentials again on the Lightdash UI.\n`,
+            ),
+        );
+        return {
+            ...credentials,
+            requireUserCredentials: true,
+        };
+    }
+
+    console.error(
+        styles.warning(
+            `\nUser has externalbrowser snowflake authentication.
+We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
+For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
+        ),
+    );
+    const patToken = await createProgramaticallySnowflakePat(credentials);
+    return {
+        ...credentials,
+        authenticationType: SnowflakeAuthenticationType.PASSWORD,
+        password: patToken,
+    };
+};
+
 type LoadWarehouseCredentialsOptions = {
     projectDir: string;
     profilesDir: string;
@@ -206,10 +247,10 @@ export const loadWarehouseCredentialsFromProfiles = async (
         target: options.target,
         startOfWeek: options.startOfWeek,
     });
-    let { credentials } = result;
+    const { credentials } = result;
 
     if (
-        credentials?.type === WarehouseTypes.BIGQUERY &&
+        credentials.type === WarehouseTypes.BIGQUERY &&
         credentials.keyfileContents.project_id &&
         credentials.keyfileContents.project_id !== credentials.project
     ) {
@@ -249,44 +290,10 @@ export const loadWarehouseCredentialsFromProfiles = async (
         }
     }
 
-    if (
-        credentials?.type === WarehouseTypes.SNOWFLAKE &&
-        credentials?.authenticationType ===
-            SnowflakeAuthenticationType.EXTERNAL_BROWSER
-    ) {
-        const snowflakeSsoEnabled = await isSnowflakeSsoEnabled();
-
-        if (snowflakeSsoEnabled) {
-            console.error(
-                styles.info(
-                    `\nLightdash server has Snowflake OAuth authentication enabled.
-We will ask for user credentials again on the Lightdash UI.\n`,
-                ),
-            );
-            credentials = {
-                ...credentials,
-                requireUserCredentials: true,
-            };
-        } else {
-            console.error(
-                styles.warning(
-                    `\nUser has externalbrowser snowflake authentication.
-We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
-For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
-                ),
-            );
-            const patToken =
-                await createProgramaticallySnowflakePat(credentials);
-            credentials = {
-                ...credentials,
-                authenticationType: SnowflakeAuthenticationType.PASSWORD,
-                password: patToken,
-            };
-        }
-    }
+    const finalCredentials = await applySnowflakeSsoHandling(credentials);
 
     return {
-        credentials,
+        credentials: finalCredentials,
         targetName,
         dbtVersionOption,
         isDbtCloudCLI,
