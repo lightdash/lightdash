@@ -82,7 +82,10 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -116,9 +119,10 @@ const SavedChartsHeader: FC = () => {
     const userTimeZonesEnabled = useClientFeatureFlag(
         FeatureFlags.EnableUserTimezones,
     );
-    const changeChartExploreEnabled = useClientFeatureFlag(
+    const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
     );
+    const changeChartExploreEnabled = changeChartExploreFlag?.enabled === true;
 
     const { search, pathname } = useLocation();
     const { projectUuid } = useParams<{
