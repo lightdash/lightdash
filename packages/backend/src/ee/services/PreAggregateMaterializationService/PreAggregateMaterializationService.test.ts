@@ -3,11 +3,11 @@ import {
     QueryHistoryStatus,
     type Account,
 } from '@lightdash/common';
-import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { type PreAggregateModel } from '../../ee/models/PreAggregateModel';
-import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
-import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
+import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { PreAggregateMaterializationService } from './PreAggregateMaterializationService';
 
 describe('PreAggregateMaterializationService', () => {

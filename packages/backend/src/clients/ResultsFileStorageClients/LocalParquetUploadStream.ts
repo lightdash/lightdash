@@ -6,8 +6,8 @@ import {
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { getJsonlSqlTable } from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import type Logger from '../../logging/logger';
-import { getJsonlSqlTable } from '../../services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import { writeWithBackpressure } from '../../utils/streamUtils';
 
 type LocalParquetUploadStreamArgs = {

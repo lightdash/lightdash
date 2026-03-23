@@ -12,13 +12,13 @@ import {
     type PreAggregateMaterializationTrigger,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { type LightdashConfig } from '../../config/parseConfig';
-import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
-import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
-import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
-import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
-import { BaseService } from '../BaseService';
+import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type LightdashConfig } from '../../../config/parseConfig';
+import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { BaseService } from '../../../services/BaseService';
+import { PreAggregateModel } from '../../models/PreAggregateModel';
 
 const QUERY_POLL_INTERVAL_MS = 1000;
 const QUERY_POLL_TIMEOUT_MS = 30 * 60 * 1000;

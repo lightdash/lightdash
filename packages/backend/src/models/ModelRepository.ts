@@ -1,5 +1,7 @@
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
+import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
+import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
@@ -31,8 +33,6 @@ import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCr
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
-import { PreAggregateDailyStatsModel } from './PreAggregateDailyStatsModel';
-import { PreAggregateModel } from './PreAggregateModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';

@@ -1,7 +1,7 @@
 import { DimensionType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
-import { PreAggregateMaterializationsTableName } from '../database/entities/preAggregates';
+import { PreAggregateMaterializationsTableName } from '../ee/database/entities/preAggregates';
 import { PreAggregateModel } from './PreAggregateModel';
 
 describe('PreAggregateModel', () => {
