@@ -1339,7 +1339,6 @@ export class SchedulerService extends BaseService {
             try {
                 const sqlChart = await this.savedSqlModel.getByUuid(
                     scheduler.savedSqlUuid,
-                    {},
                 );
                 projectUuid = sqlChart.project.projectUuid;
             } catch (error) {

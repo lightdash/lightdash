@@ -1138,6 +1138,7 @@ export class SchedulerModel {
                 ),
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
+                this.database.raw(`NULL as saved_sql_name`),
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -1195,6 +1196,7 @@ export class SchedulerModel {
                 ),
                 this.database.raw(`NULL as saved_chart_name`),
                 `${DashboardsTableName}.name as dashboard_name`,
+                this.database.raw(`NULL as saved_sql_name`),
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
