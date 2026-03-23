@@ -678,6 +678,8 @@ export type CompleteCartesianChartLayout = {
     colorByCategory?: boolean | undefined;
     /** Per-category color overrides (maps category value to hex color) */
     categoryColorOverrides?: Record<string, string> | undefined;
+    /** Trellis (small multiples) configuration — splits the chart into a grid by a dimension */
+    trellis?: { fieldId: string } | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

@@ -3237,6 +3237,136 @@ const useEchartsCartesianConfig = (
         validCartesianConfig,
     ]);
 
+    // Trellis (small multiples) transformation:
+    // Splits data by a dimension and creates a grid of sub-charts
+    const trellisOptions = useMemo(() => {
+        const trellisFieldId = validCartesianConfig?.layout?.trellis?.fieldId;
+        if (!trellisFieldId || !eChartsOptions || !dataToRender?.length) {
+            return null;
+        }
+
+        // Group rows by trellis dimension value
+        const groups = new Map<string, Record<string, unknown>[]>();
+        for (const row of dataToRender as Record<string, unknown>[]) {
+            const key = String(row[trellisFieldId] ?? 'Unknown');
+            const group = groups.get(key);
+            if (group) {
+                group.push(row);
+            } else {
+                groups.set(key, [row]);
+            }
+        }
+
+        const trellisValues = Array.from(groups.keys()).sort();
+        const count = trellisValues.length;
+        if (count === 0) return null;
+
+        // Calculate grid layout (aim for ~3 columns)
+        const cols = Math.min(count, 3);
+        const rowCount = Math.ceil(count / cols);
+        const cellWidth = 100 / cols;
+        const cellHeight = 100 / rowCount;
+        const padding = { top: 30, right: 15, bottom: 35, left: 50 };
+
+        const grids: Record<string, unknown>[] = [];
+        const xAxes: Record<string, unknown>[] = [];
+        const yAxes: Record<string, unknown>[] = [];
+        const allSeries: Record<string, unknown>[] = [];
+        const datasets: Record<string, unknown>[] = [];
+        const titles: Record<string, unknown>[] = [];
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const baseXAxis: any = Array.isArray(eChartsOptions.xAxis)
+            ? (eChartsOptions.xAxis[0] ?? {})
+            : (eChartsOptions.xAxis ?? {});
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const baseYAxis: any = Array.isArray(eChartsOptions.yAxis)
+            ? (eChartsOptions.yAxis[0] ?? {})
+            : (eChartsOptions.yAxis ?? {});
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const baseSeries: any[] = Array.isArray(eChartsOptions.series)
+            ? eChartsOptions.series
+            : [];
+
+        for (let i = 0; i < count; i++) {
+            const value = trellisValues[i];
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const isBottomRow = row === rowCount - 1;
+            const isLeftCol = col === 0;
+
+            const datasetId = `trellis_${i}`;
+
+            datasets.push({
+                id: datasetId,
+                source: groups.get(value) ?? [],
+            });
+
+            grids.push({
+                left: `${col * cellWidth + padding.left / 10}%`,
+                top: `${row * cellHeight + padding.top / 10}%`,
+                width: `${cellWidth - (padding.left + padding.right) / 10}%`,
+                height: `${cellHeight - (padding.top + padding.bottom) / 10}%`,
+            });
+
+            titles.push({
+                text: value,
+                textStyle: { fontSize: 11, fontWeight: 'normal' },
+                left: `${col * cellWidth + cellWidth / 2}%`,
+                top: `${row * cellHeight}%`,
+                textAlign: 'center',
+            });
+
+            xAxes.push({
+                ...baseXAxis,
+                gridIndex: i,
+                axisLabel: {
+                    ...(typeof baseXAxis.axisLabel === 'object'
+                        ? baseXAxis.axisLabel
+                        : {}),
+                    show: isBottomRow,
+                },
+                name: undefined, // Only show axis name on the original, not per-cell
+            });
+
+            yAxes.push({
+                ...baseYAxis,
+                gridIndex: i,
+                axisLabel: {
+                    ...(typeof baseYAxis.axisLabel === 'object'
+                        ? baseYAxis.axisLabel
+                        : {}),
+                    show: isLeftCol,
+                },
+                name: undefined,
+            });
+
+            for (const s of baseSeries) {
+                allSeries.push({
+                    ...s,
+                    xAxisIndex: i,
+                    yAxisIndex: i,
+                    datasetId,
+                    // Only show in legend for the first grid cell to avoid duplicates
+                    ...(i > 0 && { legendHoverLink: false }),
+                });
+            }
+        }
+
+        return {
+            ...eChartsOptions,
+            grid: grids,
+            xAxis: xAxes,
+            yAxis: yAxes,
+            // POC: cast series to match expected type — trellis adds xAxisIndex/yAxisIndex/datasetId
+            series: allSeries as typeof eChartsOptions.series,
+            dataset: datasets,
+            title: titles,
+            // Disable dataZoom for trellis
+            dataZoom: undefined,
+        };
+    }, [eChartsOptions, dataToRender, validCartesianConfig?.layout?.trellis]);
+
     if (
         !itemsMap ||
         rows.length <= 0 ||
@@ -3246,7 +3376,7 @@ const useEchartsCartesianConfig = (
         return undefined;
     }
 
-    return eChartsOptions;
+    return trellisOptions ?? eChartsOptions;
 };
 
 export default useEchartsCartesianConfig;

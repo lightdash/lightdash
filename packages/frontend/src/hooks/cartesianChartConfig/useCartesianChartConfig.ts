@@ -606,6 +606,13 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
+    const setTrellis = useCallback((fieldId: string | undefined) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            trellis: fieldId ? { fieldId } : undefined,
+        }));
+    }, []);
+
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
             setDirtyEchartsConfig(
@@ -1183,6 +1190,7 @@ const useCartesianChartConfig = ({
         updateAllGroupedSeries,
         updateYField,
         setFlipAxis,
+        setTrellis,
         setYMinValue,
         setYMaxValue,
         setXMinValue,
