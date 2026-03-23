@@ -21,6 +21,7 @@ import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconAlertCircle,
     IconArrowBack,
+    IconArrowsExchange,
     IconBell,
     IconCirclePlus,
     IconCirclesRelation,
@@ -40,6 +41,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import {
+    lazy,
     useCallback,
     useEffect,
     useMemo,
@@ -80,7 +82,10 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -92,6 +97,9 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
+const ChangeChartExploreModal = lazy(
+    () => import('../../common/modal/ChangeChartExploreModal'),
+);
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
@@ -111,6 +119,10 @@ const SavedChartsHeader: FC = () => {
     const userTimeZonesEnabled = useClientFeatureFlag(
         FeatureFlags.EnableUserTimezones,
     );
+    const { data: changeChartExploreFlag } = useServerFeatureFlag(
+        FeatureFlags.ChangeChartExplore,
+    );
+    const changeChartExploreEnabled = changeChartExploreFlag?.enabled === true;
 
     const { search, pathname } = useLocation();
     const { projectUuid } = useParams<{
@@ -174,6 +186,8 @@ const SavedChartsHeader: FC = () => {
     const [isAddToDashboardModalOpen, addToDashboardModalHandlers] =
         useDisclosure();
     const [isChartDuplicateModalOpen, chartDuplicateModalHandlers] =
+        useDisclosure();
+    const [isChangeExploreModalOpen, changeExploreModalHandlers] =
         useDisclosure();
     const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
         useDisclosure();
@@ -321,6 +335,14 @@ const SavedChartsHeader: FC = () => {
         subject('Explore', {
             organizationUuid: user.data?.organizationUuid,
             projectUuid: savedChart?.projectUuid,
+        }),
+    );
+
+    const userCanUpdateProject = user.data?.ability.can(
+        'update',
+        subject('Project', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
         }),
     );
 
@@ -690,6 +712,22 @@ const SavedChartsHeader: FC = () => {
                                         Version history
                                     </Menu.Item>
                                 )}
+                                {changeChartExploreEnabled &&
+                                    userCanUpdateProject &&
+                                    !isEditMode && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconArrowsExchange}
+                                                />
+                                            }
+                                            onClick={
+                                                changeExploreModalHandlers.open
+                                            }
+                                        >
+                                            Change explore
+                                        </Menu.Item>
+                                    )}
                                 {
                                     <Tooltip
                                         label={
@@ -960,6 +998,19 @@ const SavedChartsHeader: FC = () => {
                     }}
                 />
             )}
+
+            {isChangeExploreModalOpen &&
+                savedChart &&
+                projectUuid &&
+                savedChart.tableName && (
+                    <ChangeChartExploreModal
+                        opened={isChangeExploreModalOpen}
+                        onClose={changeExploreModalHandlers.close}
+                        projectUuid={projectUuid}
+                        chartUuid={savedChart.uuid}
+                        currentExploreName={savedChart.tableName}
+                    />
+                )}
         </TrackSection>
     );
 };
