@@ -46,6 +46,21 @@ docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELEC
 
 # Check 9: Volume snapshot exists (for fast resets)
 docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1 && echo "OK: Volume snapshot exists" || echo "NEED: No volume snapshot (will be created after setup completes)"
+
+# Check 10: PM2 processes running from the correct worktree
+PM2_CWD=$(pm2 jlist 2>/dev/null | python3 -c "import sys,json; procs=json.load(sys.stdin); print(procs[0]['pm2_env']['pm_cwd'] if procs else '')" 2>/dev/null || true)
+if [ -n "$PM2_CWD" ]; then
+  # Resolve the root from the first process's cwd (strip packages/xxx suffix)
+  PM2_ROOT=$(echo "$PM2_CWD" | sed 's|/packages/.*||')
+  CURRENT_ROOT=$(pwd)
+  if [ "$PM2_ROOT" = "$CURRENT_ROOT" ]; then
+    echo "OK: PM2 running from this worktree ($PM2_ROOT)"
+  else
+    echo "MISMATCH: PM2 running from $PM2_ROOT but current worktree is $CURRENT_ROOT"
+  fi
+else
+  echo "OK: No PM2 processes running"
+fi
 ```
 
 **How to interpret the output:**
@@ -54,7 +69,8 @@ docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1 && echo "OK:
 - Lines starting with `OK:` indicate that component is ready
 - If all lines show `OK:`, the environment is ready - just start the dev server
 - Database checks (6-8) use `docker exec` to run psql inside the PostgreSQL container
-- Run checks 1-5 in parallel first, then checks 6-8 in parallel (they depend on Docker running)
+- Run checks 1-5 and 10 in parallel first, then checks 6-8 in parallel (they depend on Docker running)
+- If check 10 shows `MISMATCH:`, **ask the user** (via AskUserQuestion) whether they want to switch PM2 to the current worktree. Explain which directory PM2 is currently running from and which worktree they're in now. If the user confirms, run `pm2 delete all` then `pnpm pm2:start` to re-register processes from the current worktree. If they decline, continue without changing PM2.
 
 ### Why Use `docker exec` for Database Checks?
 
@@ -518,9 +534,15 @@ docker compose -f docker/docker-compose.dev.mini.yml ps
 
 ## Start Development Server
 
-Once all checks pass or setup is complete, start the dev server using PM2:
+Once all checks pass or setup is complete, start the dev server using PM2.
+
+**If PM2 processes are already running from a different worktree** (check 10 showed `MISMATCH`), you must first delete the old processes before starting new ones. A simple `pm2 restart` won't change the working directories — PM2 reuses the original `cwd` paths. Run `pm2 delete all` first, then `pnpm pm2:start`.
 
 ```bash
+# If switching worktrees, delete first:
+pm2 delete all
+
+# Then start (or just start if no mismatch):
 pnpm pm2:start
 ```
 
