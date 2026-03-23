@@ -1,3 +1,18 @@
+# [0.2650.0](https://github.com/lightdash/lightdash/compare/0.2649.0...0.2650.0) (2026-03-23)
+
+
+### Bug Fixes
+
+* improve error handling in chart download and clipboard functionality ([#21310](https://github.com/lightdash/lightdash/issues/21310)) ([57eb2b0](https://github.com/lightdash/lightdash/commit/57eb2b06f34960bad2fc17e119b562d7176f869c)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* Redshift interval syntax to use DATEADD instead of INTERVAL ([#21316](https://github.com/lightdash/lightdash/issues/21316)) ([64e56fa](https://github.com/lightdash/lightdash/commit/64e56fa69768818b260afb021ddd2c47050d9ef4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* sanitize font family quotes in ECharts configurations ([#21304](https://github.com/lightdash/lightdash/issues/21304)) ([2550edd](https://github.com/lightdash/lightdash/commit/2550eddf4d5467db7e9596d604786e51a536d9f0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* update queued query loading message text ([#21319](https://github.com/lightdash/lightdash/issues/21319)) ([c54910c](https://github.com/lightdash/lightdash/commit/c54910c4dc57b3655b6141c183c2ed2766bfacf6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add saved_sql_uuid column to scheduler table ([#21268](https://github.com/lightdash/lightdash/issues/21268)) ([c9a2e3d](https://github.com/lightdash/lightdash/commit/c9a2e3d59b50a5e56b200405ab7f22f552aba1d5))
+
 # [0.2649.0](https://github.com/lightdash/lightdash/compare/0.2648.6...0.2649.0) (2026-03-23)
 
 
