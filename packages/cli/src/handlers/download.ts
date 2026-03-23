@@ -25,7 +25,7 @@ import groupBy from 'lodash/groupBy';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { LightdashAnalytics } from '../analytics/analytics';
-import { getConfig } from '../config';
+import { getConfig, setAnswer } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
@@ -721,11 +721,14 @@ export const downloadHandler = async (
         }
         const baseDir = getDownloadFolder(options.path);
         await writeMetadataFile(baseDir, metadataToWrite);
-        GlobalState.log(
-            styles.warning(
-                `\nNote: ${METADATA_FILENAME} was written to ${baseDir}. Consider adding it to your .gitignore.`,
-            ),
-        );
+        if (!config.answers?.metadataFileGitignoreNoticeShown) {
+            GlobalState.log(
+                styles.warning(
+                    `\nNote: ${METADATA_FILENAME} was written to ${baseDir}. Consider adding it to your .gitignore.`,
+                ),
+            );
+            await setAnswer({ metadataFileGitignoreNoticeShown: true });
+        }
 
         const end = Date.now();
 
