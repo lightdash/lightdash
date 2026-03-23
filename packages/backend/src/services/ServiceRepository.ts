@@ -728,6 +728,9 @@ export class ServiceRepository
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
