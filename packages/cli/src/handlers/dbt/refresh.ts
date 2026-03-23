@@ -69,7 +69,10 @@ export const getErrorStepsMessage = (steps: JobStep[]): string => {
 
 const REFETCH_JOB_INTERVAL = 3000;
 
-const getFinalJobState = async (jobUuid: string): Promise<Job> => {
+export const getFinalJobState = async (
+    jobUuid: string,
+    spinnerPrefix: string = 'Refreshing dbt project',
+): Promise<Job> => {
     const job = await getJobState(jobUuid);
 
     if (job.jobStatus === JobStatusType.DONE) {
@@ -79,10 +82,10 @@ const getFinalJobState = async (jobUuid: string): Promise<Job> => {
         throw new Error(getErrorStepsMessage(job.steps));
     }
     const spinner = GlobalState.getActiveSpinner();
-    spinner?.start(
-        `  Refreshing dbt project, ${getRunningStepsMessage(job.steps)}`,
+    spinner?.start(`  ${spinnerPrefix}, ${getRunningStepsMessage(job.steps)}`);
+    return delay(REFETCH_JOB_INTERVAL).then(() =>
+        getFinalJobState(jobUuid, spinnerPrefix),
     );
-    return delay(REFETCH_JOB_INTERVAL).then(() => getFinalJobState(jobUuid));
 };
 
 type RefreshHandlerOptions = {

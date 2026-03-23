@@ -147,6 +147,159 @@ const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
     return response?.auth?.snowflake?.enabled ?? false;
 };
 
+const applySnowflakeSsoHandling = async (
+    credentials: CreateWarehouseCredentials,
+): Promise<CreateWarehouseCredentials> => {
+    if (
+        credentials.type !== WarehouseTypes.SNOWFLAKE ||
+        credentials.authenticationType !==
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER
+    ) {
+        return credentials;
+    }
+
+    const snowflakeSsoEnabled = await isSnowflakeSsoEnabled();
+
+    if (snowflakeSsoEnabled) {
+        console.error(
+            styles.info(
+                `\nLightdash server has Snowflake OAuth authentication enabled.
+We will ask for user credentials again on the Lightdash UI.\n`,
+            ),
+        );
+        return {
+            ...credentials,
+            requireUserCredentials: true,
+        };
+    }
+
+    console.error(
+        styles.warning(
+            `\nUser has externalbrowser snowflake authentication.
+We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
+For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
+        ),
+    );
+    const patToken = await createProgramaticallySnowflakePat(credentials);
+    return {
+        ...credentials,
+        authenticationType: SnowflakeAuthenticationType.PASSWORD,
+        password: patToken,
+    };
+};
+
+type LoadWarehouseCredentialsOptions = {
+    projectDir: string;
+    profilesDir: string;
+    target?: string;
+    profile?: string;
+    startOfWeek?: number;
+    assumeYes?: boolean;
+    targetPath?: string;
+};
+
+type LoadWarehouseCredentialsResult = {
+    credentials: CreateWarehouseCredentials;
+    targetName: string;
+    dbtVersionOption: DbtVersionOption;
+    isDbtCloudCLI: boolean;
+};
+
+export const loadWarehouseCredentialsFromProfiles = async (
+    options: LoadWarehouseCredentialsOptions,
+): Promise<LoadWarehouseCredentialsResult | null> => {
+    const absoluteProjectPath = path.resolve(options.projectDir);
+
+    const dbtVersionResult = await tryGetDbtVersion();
+    if (!dbtVersionResult.success) {
+        throw dbtVersionResult.error;
+    }
+    const { isDbtCloudCLI } = dbtVersionResult.version;
+    const dbtVersionOption = dbtVersionResult.version.versionOption;
+
+    const context = await getDbtContext({
+        projectDir: absoluteProjectPath,
+        targetPath: options.targetPath,
+    });
+    GlobalState.debug(
+        `> Using profiles dir ${options.profilesDir} and profile ${
+            options.profile || context.profileName
+        }`,
+    );
+    const targetName = await getDbtProfileTargetName({
+        isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+    });
+    GlobalState.debug(`> Using target name ${targetName}`);
+
+    const canStoreWarehouseCredentials =
+        await askPermissionToStoreWarehouseCredentials(options.assumeYes);
+    if (!canStoreWarehouseCredentials) {
+        return null;
+    }
+
+    const result = await getWarehouseClient({
+        isDbtCloudCLI,
+        profilesDir: options.profilesDir,
+        profile: options.profile || context.profileName,
+        target: options.target,
+        startOfWeek: options.startOfWeek,
+    });
+    const { credentials } = result;
+
+    if (
+        credentials.type === WarehouseTypes.BIGQUERY &&
+        credentials.keyfileContents.project_id &&
+        credentials.keyfileContents.project_id !== credentials.project
+    ) {
+        if (GlobalState.isNonInteractive() && !options.assumeYes) {
+            throw new Error(
+                `BigQuery project mismatch: credentials file uses "${credentials.keyfileContents.project_id}" ` +
+                    `but profiles.yml specifies "${credentials.project}". ` +
+                    'This may cause permission issues. Use --assume-yes to bypass this warning.',
+            );
+        }
+
+        if (options.assumeYes) {
+            GlobalState.debug(
+                `> Auto-accepting BigQuery project mismatch (credentials: ${credentials.keyfileContents.project_id}, profiles: ${credentials.project})`,
+            );
+        } else {
+            const spinner = GlobalState.getActiveSpinner();
+            spinner?.stop();
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `${styles.title(
+                        'Warning',
+                    )}: Your project on your credentials file ${styles.title(
+                        credentials.keyfileContents.project_id,
+                    )} does not match your project on your profiles.yml ${styles.title(
+                        credentials.project,
+                    )}, this might cause permission issues when accessing data on the warehouse. Are you sure you want to continue?`,
+                },
+            ]);
+
+            if (!answers.isConfirm) {
+                process.exit(1);
+            }
+            spinner?.start();
+        }
+    }
+
+    const finalCredentials = await applySnowflakeSsoHandling(credentials);
+
+    return {
+        credentials: finalCredentials,
+        targetName,
+        dbtVersionOption,
+        isDbtCloudCLI,
+    };
+};
+
 export const createProject = async (
     options: CreateProjectOptions,
 ): Promise<ApiCreateProjectResults | undefined> => {
@@ -205,122 +358,26 @@ export const createProject = async (
         GlobalState.debug('> Creating project without warehouse credentials');
         // No dbt needed - use defaults set above
     } else {
-        const dbtVersionResult = await tryGetDbtVersion();
-        if (!dbtVersionResult.success) {
-            throw dbtVersionResult.error;
-        }
-        isDbtCloudCLI = dbtVersionResult.version.isDbtCloudCLI;
-        dbtVersionOption = dbtVersionResult.version.versionOption;
-
-        const context = await getDbtContext({
-            projectDir: absoluteProjectPath,
+        const loaded = await loadWarehouseCredentialsFromProfiles({
+            projectDir: options.projectDir,
+            profilesDir: options.profilesDir,
+            target: options.target,
+            profile: options.profile,
+            startOfWeek: options.startOfWeek,
+            assumeYes: options.assumeYes,
             targetPath: options.targetPath,
         });
-        GlobalState.debug(
-            `> Using profiles dir ${options.profilesDir} and profile ${
-                options.profile || context.profileName
-            }`,
-        );
-        targetName = await getDbtProfileTargetName({
-            isDbtCloudCLI,
-            profilesDir: options.profilesDir,
-            profile: options.profile || context.profileName,
-            target: options.target,
-        });
-        GlobalState.debug(`> Using target name ${targetName}`);
-        const canStoreWarehouseCredentials =
-            await askPermissionToStoreWarehouseCredentials(options.assumeYes);
-        if (!canStoreWarehouseCredentials) {
+        if (!loaded) {
+            // User declined to store warehouse credentials
             GlobalState.debug(
                 '> User declined to store warehouse credentials use --no-warehouse-credentials to create a project without warehouse credentials',
             );
             return undefined;
         }
-        const result = await getWarehouseClient({
-            isDbtCloudCLI,
-            profilesDir: options.profilesDir,
-            profile: options.profile || context.profileName,
-            target: options.target,
-            startOfWeek: options.startOfWeek,
-        });
-        credentials = result.credentials;
-    }
-
-    if (
-        credentials?.type === WarehouseTypes.BIGQUERY &&
-        credentials.keyfileContents.project_id &&
-        credentials.keyfileContents.project_id !== credentials.project
-    ) {
-        if (GlobalState.isNonInteractive() && !options.assumeYes) {
-            throw new Error(
-                `BigQuery project mismatch: credentials file uses "${credentials.keyfileContents.project_id}" ` +
-                    `but profiles.yml specifies "${credentials.project}". ` +
-                    'This may cause permission issues. Use --assume-yes to bypass this warning.',
-            );
-        }
-
-        if (options.assumeYes) {
-            GlobalState.debug(
-                `> Auto-accepting BigQuery project mismatch (credentials: ${credentials.keyfileContents.project_id}, profiles: ${credentials.project})`,
-            );
-        } else {
-            const spinner = GlobalState.getActiveSpinner();
-            spinner?.stop();
-            const answers = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'isConfirm',
-                    message: `${styles.title(
-                        'Warning',
-                    )}: Your project on your credentials file ${styles.title(
-                        credentials.keyfileContents.project_id,
-                    )} does not match your project on your profiles.yml ${styles.title(
-                        credentials.project,
-                    )}, this might cause permission issues when accessing data on the warehouse. Are you sure you want to continue?`,
-                },
-            ]);
-
-            if (!answers.isConfirm) {
-                process.exit(1);
-            }
-            spinner?.start();
-        }
-    }
-
-    if (
-        credentials?.type === WarehouseTypes.SNOWFLAKE &&
-        credentials?.authenticationType ===
-            SnowflakeAuthenticationType.EXTERNAL_BROWSER
-    ) {
-        const snowflakeSsoEnabled = await isSnowflakeSsoEnabled();
-
-        if (snowflakeSsoEnabled) {
-            console.error(
-                styles.info(
-                    `\nLightdash server has Snowflake OAuth authentication enabled.
-We will ask for user credentials again on the Lightdash UI.\n`,
-                ),
-            );
-            credentials = {
-                ...credentials,
-                requireUserCredentials: true,
-            };
-        } else {
-            console.error(
-                styles.warning(
-                    `\nUser has externalbrowser snowflake authentication. 
-We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
-For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
-                ),
-            );
-            const patToken =
-                await createProgramaticallySnowflakePat(credentials);
-            credentials = {
-                ...credentials,
-                authenticationType: SnowflakeAuthenticationType.PASSWORD,
-                password: patToken,
-            };
-        }
+        credentials = loaded.credentials;
+        targetName = loaded.targetName;
+        isDbtCloudCLI = loaded.isDbtCloudCLI;
+        dbtVersionOption = loaded.dbtVersionOption;
     }
 
     const project: CreateProjectOptionalCredentials = {
