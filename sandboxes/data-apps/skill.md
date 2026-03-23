@@ -11,7 +11,7 @@ You are building a Lightdash data app. This is a standalone React + Vite project
 ## Approved Packages
 
 - `react`, `react-dom`
-- `@lightdash/sdk` — Lightdash semantic layer SDK (pending GLITCH-274)
+- `@lightdash/query-sdk` — Lightdash semantic layer SDK (pending GLITCH-274)
 - `recharts` — charting library
 - `@tanstack/react-query` — data fetching
 - `@tanstack/react-table` — headless data tables
