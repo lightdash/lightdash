@@ -1,6 +1,7 @@
 module.exports = {
     ignorePatterns: [
         'src/ee/services/McpService/mcp-chart-app/**',
+        'src/ee/sandboxes/**',
         'src/generated/**',
     ],
     parserOptions: {

@@ -1,0 +1,44 @@
+{
+    "name": "lightdash-data-app",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@radix-ui/react-dialog": "^1.1.4",
+        "@radix-ui/react-label": "^2.1.1",
+        "@radix-ui/react-popover": "^1.1.4",
+        "@radix-ui/react-select": "^2.1.4",
+        "@radix-ui/react-separator": "^1.1.1",
+        "@radix-ui/react-slot": "^1.1.1",
+        "@radix-ui/react-tabs": "^1.1.2",
+        "@radix-ui/react-tooltip": "^1.1.6",
+        "@tanstack/react-query": "^5.64.2",
+        "@tanstack/react-table": "^8",
+        "@tanstack/react-virtual": "^3",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "date-fns": "^3",
+        "lodash-es": "^4",
+        "lucide-react": "^0.469.0",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "recharts": "^2.15.3",
+        "tailwind-merge": "^3.0.1",
+        "tailwindcss-animate": "^1.0.7"
+    },
+    "devDependencies": {
+        "@types/react": "^18.3.18",
+        "@types/react-dom": "^18.3.5",
+        "@vitejs/plugin-react": "^4.3.4",
+        "autoprefixer": "^10.4.20",
+        "postcss": "^8.5.1",
+        "tailwindcss": "^3.4.17",
+        "typescript": "^5.7.3",
+        "vite": "^6.0.7"
+    }
+}
