@@ -1,3 +1,10 @@
+## [0.2647.1](https://github.com/lightdash/lightdash/compare/0.2647.0...0.2647.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* scheduler search to use substring matching instead of regex tokens ([#21273](https://github.com/lightdash/lightdash/issues/21273)) ([4f44e9c](https://github.com/lightdash/lightdash/commit/4f44e9c00460f7ef1ad985df3d5d1aad429c2824))
+
 # [0.2647.0](https://github.com/lightdash/lightdash/compare/0.2646.0...0.2647.0) (2026-03-20)
 
 
