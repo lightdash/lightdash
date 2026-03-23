@@ -1493,6 +1493,26 @@
                     "description": "Background color for the map (hex code)",
                     "type": "string"
                 },
+                "clusterConfig": {
+                    "description": "Configuration for scatter point clustering",
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether clustering is enabled",
+                            "type": "boolean"
+                        },
+                        "minPoints": {
+                            "description": "Minimum points required to form a cluster",
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "radius": {
+                            "description": "Cluster pixel radius — how aggressively points group",
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    "type": "object"
+                },
                 "colorOverrides": {
                     "$ref": "#/$defs/Record_string.string_",
                     "description": "Per-value color overrides for categorical color fields"

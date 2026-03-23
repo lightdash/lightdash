@@ -284,6 +284,15 @@ export type MapChart = {
         /** Opacity of the heatmap layer */
         opacity?: number;
     };
+    /** Configuration for scatter point clustering */
+    clusterConfig?: {
+        /** Whether clustering is enabled */
+        enabled?: boolean;
+        /** Cluster pixel radius — how aggressively points group */
+        radius?: number;
+        /** Minimum points required to form a cluster */
+        minPoints?: number;
+    };
     /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;
     /** Map tile background style */
@@ -297,6 +306,12 @@ export type MapChart = {
     /** Save the current map zoom/position */
     saveMapExtent?: boolean;
 };
+
+export const CLUSTER_CONFIG_DEFAULTS = {
+    enabled: true,
+    radius: 60,
+    minPoints: 3,
+} as const;
 
 export enum FunnelChartDataInput {
     ROW = 'row',

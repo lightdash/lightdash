@@ -1,4 +1,5 @@
 import {
+    CLUSTER_CONFIG_DEFAULTS,
     getItemLabelWithoutTableName,
     isNumericItem,
     MapChartLocation,
@@ -75,6 +76,11 @@ export type LeafletMapConfig = {
         radius: number;
         blur: number;
         opacity: number;
+    };
+    clusterConfig: {
+        enabled: boolean;
+        radius: number;
+        minPoints: number;
     };
     tile: TileConfig;
     backgroundColor: string | null;
@@ -218,6 +224,7 @@ const useLeafletMapConfig = ({
             maxBubbleSize,
             sizeFieldId,
             heatmapConfig,
+            clusterConfig,
             tileBackground,
             backgroundColor,
             noDataColor,
@@ -565,6 +572,11 @@ const useLeafletMapConfig = ({
                 radius: heatmapConfig?.radius ?? 25,
                 blur: heatmapConfig?.blur ?? 15,
                 opacity: heatmapConfig?.opacity ?? 0.6,
+            },
+            clusterConfig: {
+                enabled: clusterConfig?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled,
+                radius: clusterConfig?.radius ?? CLUSTER_CONFIG_DEFAULTS.radius,
+                minPoints: clusterConfig?.minPoints ?? CLUSTER_CONFIG_DEFAULTS.minPoints,
             },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,

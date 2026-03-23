@@ -5515,6 +5515,26 @@
                         "format": "double",
                         "description": "Data layer opacity (0.1 to 1)"
                     },
+                    "clusterConfig": {
+                        "properties": {
+                            "minPoints": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Minimum points required to form a cluster"
+                            },
+                            "radius": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Cluster pixel radius — how aggressively points group"
+                            },
+                            "enabled": {
+                                "type": "boolean",
+                                "description": "Whether clustering is enabled"
+                            }
+                        },
+                        "type": "object",
+                        "description": "Configuration for scatter point clustering"
+                    },
                     "heatmapConfig": {
                         "properties": {
                             "opacity": {
@@ -9256,19 +9276,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -28416,7 +28423,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2643.0",
+        "version": "0.2647.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

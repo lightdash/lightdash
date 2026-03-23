@@ -1,4 +1,5 @@
 import {
+    CLUSTER_CONFIG_DEFAULTS,
     ECHARTS_DEFAULT_COLORS,
     getItemId,
     isCustomDimension,
@@ -169,6 +170,7 @@ export const Display: FC = memo(() => {
         setSizeFieldId,
         setValueFieldId,
         setHeatmapConfig,
+        setClusterConfig,
         setTileBackground,
         setBackgroundColor,
         setNoDataColor,
@@ -456,6 +458,74 @@ export const Display: FC = memo(() => {
                                 ]}
                                 mb="md"
                             />
+                        )}
+                    </Config.Section>
+                </Config>
+            )}
+
+            {isScatterMap && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Clustering</Config.Heading>
+                        <Config.Group>
+                            <Config.Label>Cluster nearby points</Config.Label>
+                            <Switch
+                                checked={
+                                    validConfig.clusterConfig?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled
+                                }
+                                onChange={(e) =>
+                                    setClusterConfig({
+                                        enabled: e.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Config.Group>
+                        {(validConfig.clusterConfig?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled) && (
+                            <>
+                                <Text size="xs" mt="sm">
+                                    Cluster radius
+                                </Text>
+                                <Slider
+                                    min={20}
+                                    max={150}
+                                    step={10}
+                                    value={
+                                        validConfig.clusterConfig?.radius ?? CLUSTER_CONFIG_DEFAULTS.radius
+                                    }
+                                    onChange={(value) =>
+                                        setClusterConfig({ radius: value })
+                                    }
+                                    marks={[
+                                        { value: 20, label: '20' },
+                                        { value: 80, label: '80' },
+                                        { value: 150, label: '150' },
+                                    ]}
+                                    mb="md"
+                                />
+                                <Text size="xs" mt="sm">
+                                    Min points to cluster
+                                </Text>
+                                <Slider
+                                    min={2}
+                                    max={50}
+                                    step={1}
+                                    value={
+                                        validConfig.clusterConfig?.minPoints ??
+                                        CLUSTER_CONFIG_DEFAULTS.minPoints
+                                    }
+                                    onChange={(value) =>
+                                        setClusterConfig({
+                                            minPoints: value,
+                                        })
+                                    }
+                                    marks={[
+                                        { value: 2, label: '2' },
+                                        { value: 25, label: '25' },
+                                        { value: 50, label: '50' },
+                                    ]}
+                                    mb="md"
+                                />
+                            </>
                         )}
                     </Config.Section>
                 </Config>

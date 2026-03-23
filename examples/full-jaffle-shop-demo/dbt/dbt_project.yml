@@ -55,6 +55,9 @@ models:
     airports:
       +meta:
         group_label: maps
+    texas_locations:
+      +meta:
+        group_label: maps
 seeds:
   jaffle_shop:
     raw_customers:

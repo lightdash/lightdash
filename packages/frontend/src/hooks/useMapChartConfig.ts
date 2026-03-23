@@ -1,5 +1,6 @@
 import {
     ChartType,
+    CLUSTER_CONFIG_DEFAULTS,
     MapChartLocation,
     MapChartType,
     MapTileBackground,
@@ -48,6 +49,11 @@ type MapChartConfig = {
     setHeatmapConfig: (
         config:
             | { radius?: number; blur?: number; opacity?: number }
+            | undefined,
+    ) => void;
+    setClusterConfig: (
+        config:
+            | { enabled?: boolean; radius?: number; minPoints?: number }
             | undefined,
     ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
@@ -125,6 +131,9 @@ const useMapChartConfig = (
     const [heatmapConfig, setHeatmapConfigState] = useState<
         { radius?: number; blur?: number; opacity?: number } | undefined
     >(initialConfig?.heatmapConfig);
+    const [clusterConfig, setClusterConfigState] = useState<
+        { enabled?: boolean; radius?: number; minPoints?: number } | undefined
+    >(initialConfig?.clusterConfig);
     const [tileBackground, setTileBackgroundState] = useState<
         MapTileBackground | undefined
     >(initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP);
@@ -218,6 +227,7 @@ const useMapChartConfig = (
             maxBubbleSize,
             sizeFieldId,
             heatmapConfig,
+            clusterConfig,
             tileBackground,
             backgroundColor,
             noDataColor,
@@ -244,6 +254,7 @@ const useMapChartConfig = (
         maxBubbleSize,
         sizeFieldId,
         heatmapConfig,
+        clusterConfig,
         tileBackground,
         backgroundColor,
         noDataColor,
@@ -394,6 +405,26 @@ const useMapChartConfig = (
         [],
     );
 
+    const setClusterConfig = useCallback(
+        (
+            config:
+                | { enabled?: boolean; radius?: number; minPoints?: number }
+                | undefined,
+        ) => {
+            if (config === undefined) {
+                setClusterConfigState(undefined);
+            } else {
+                setClusterConfigState((prev) => ({
+                    enabled: prev?.enabled ?? CLUSTER_CONFIG_DEFAULTS.enabled,
+                    radius: prev?.radius ?? CLUSTER_CONFIG_DEFAULTS.radius,
+                    minPoints: prev?.minPoints ?? CLUSTER_CONFIG_DEFAULTS.minPoints,
+                    ...config,
+                }));
+            }
+        },
+        [],
+    );
+
     const setTileBackground = useCallback(
         (background: MapTileBackground | undefined) => {
             setTileBackgroundState(background);
@@ -476,6 +507,7 @@ const useMapChartConfig = (
         setMaxBubbleSize,
         setSizeFieldId,
         setHeatmapConfig,
+        setClusterConfig,
         setTileBackground,
         setBackgroundColor,
         setNoDataColor,
