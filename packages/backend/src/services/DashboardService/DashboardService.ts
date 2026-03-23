@@ -923,6 +923,12 @@ export class DashboardService
             );
         }
 
+        // Auto-remove verification when dashboard is edited
+        await this.contentVerificationModel.unverify(
+            ContentType.DASHBOARD,
+            existingDashboardDao.uuid,
+        );
+
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(
             existingDashboardDao.uuid,
         );

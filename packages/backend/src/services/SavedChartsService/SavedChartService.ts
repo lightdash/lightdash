@@ -503,6 +503,12 @@ export class SavedChartService
             user,
         );
 
+        // Auto-remove verification when chart content is edited
+        await this.contentVerificationModel.unverify(
+            ContentType.CHART,
+            savedChartUuid,
+        );
+
         this.analytics.track({
             event: 'saved_chart_version.created',
             userId: user.userUuid,
@@ -544,6 +550,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
+            verification: null,
             inheritsFromOrgOrProject,
             access,
         };
@@ -589,6 +596,12 @@ export class SavedChartService
             data,
         );
 
+        // Auto-remove verification when chart metadata is edited
+        await this.contentVerificationModel.unverify(
+            ContentType.CHART,
+            savedChartUuid,
+        );
+
         const cachedExplore = await this.projectModel.getExploreFromCache(
             projectUuid,
             savedChart.tableName,
@@ -620,6 +633,7 @@ export class SavedChartService
         }
         return {
             ...savedChart,
+            verification: null,
             inheritsFromOrgOrProject,
             access,
         };

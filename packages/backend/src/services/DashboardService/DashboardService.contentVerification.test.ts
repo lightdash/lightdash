@@ -4,26 +4,24 @@ import {
     FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
-    type ContentVerificationInfo,
-    type PossibleAbilities,
-    type SessionUser,
+    PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
-import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
-import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
-import type { SchedulerService } from '../SchedulerService/SchedulerService';
+import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { DashboardService } from './DashboardService';
 
@@ -33,7 +31,7 @@ const dashboardData = {
     uuid: 'dashboard-uuid',
 };
 
-const verificationInfo: ContentVerificationInfo = {
+const verificationInfo = {
     verifiedBy: {
         userUuid: 'user-uuid',
         firstName: 'Test',
@@ -42,7 +40,7 @@ const verificationInfo: ContentVerificationInfo = {
     verifiedAt: new Date(),
 };
 
-const adminUser: SessionUser = {
+const adminUser = {
     userUuid: 'user-uuid',
     email: 'admin@test.com',
     firstName: 'Admin',
@@ -65,7 +63,7 @@ const adminUser: SessionUser = {
     updatedAt: new Date(),
 };
 
-const editorUser: SessionUser = {
+const editorUser = {
     ...adminUser,
     userUuid: 'editor-uuid',
     email: 'editor@test.com',
@@ -96,18 +94,18 @@ describe('DashboardService - Content Verification', () => {
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
-        spaceModel: {} as SpaceModel,
-        analyticsModel: {} as AnalyticsModel,
-        pinnedListModel: {} as PinnedListModel,
-        schedulerModel: {} as SchedulerModel,
-        schedulerService: {} as SchedulerService,
-        savedChartModel: {} as SavedChartModel,
-        savedChartService: {} as SavedChartService,
-        projectModel: {} as ProjectModel,
-        slackClient: {} as SlackClient,
-        schedulerClient: {} as SchedulerClient,
-        catalogModel: {} as CatalogModel,
-        spacePermissionService: {} as SpacePermissionService,
+        spaceModel: {} as unknown as SpaceModel,
+        analyticsModel: {} as unknown as AnalyticsModel,
+        pinnedListModel: {} as unknown as PinnedListModel,
+        schedulerModel: {} as unknown as SchedulerModel,
+        schedulerService: {} as unknown as SchedulerService,
+        savedChartModel: {} as unknown as SavedChartModel,
+        savedChartService: {} as unknown as SavedChartService,
+        projectModel: {} as unknown as ProjectModel,
+        slackClient: {} as unknown as SlackClient,
+        schedulerClient: {} as unknown as SchedulerClient,
+        catalogModel: {} as unknown as CatalogModel,
+        spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         featureFlagService: featureFlagService as unknown as FeatureFlagService,

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ContentType,
     defineUserAbility,
     ForbiddenError,
     OrganizationMemberRole,
@@ -73,6 +74,10 @@ const savedChartModel = {
     })),
 };
 
+const contentVerificationModel = {
+    unverify: jest.fn(async () => undefined),
+};
+
 const spaceContexts = {
     [space.space_uuid]: {
         organizationUuid: space.organization_uuid,
@@ -133,7 +138,8 @@ describe('DashboardService', () => {
         catalogModel: {} as CatalogModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
-        contentVerificationModel: {} as ContentVerificationModel,
+        contentVerificationModel:
+            contentVerificationModel as unknown as ContentVerificationModel,
         featureFlagService: {} as FeatureFlagService,
     });
     afterEach(() => {
@@ -453,5 +459,21 @@ describe('DashboardService', () => {
         );
 
         expect(result).toEqual([]);
+    });
+    test('should auto-unverify dashboard when details are updated', async () => {
+        await service.update(user, dashboardUuid, updateDashboard);
+
+        expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
+    });
+    test('should auto-unverify dashboard when tiles are updated', async () => {
+        await service.update(user, dashboardUuid, updateDashboardTiles);
+
+        expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
     });
 });
