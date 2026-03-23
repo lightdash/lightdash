@@ -73,6 +73,7 @@ const createMockService = (overrides: AnyType = {}) => {
 
     const projectModel = {
         getDefaultProjectUuids: jest.fn(),
+        getDefaultProjectUuidsByName: jest.fn(),
         getWithSensitiveFields: jest.fn(),
         update: jest.fn(),
         ...overrides.projectModel,
@@ -108,7 +109,10 @@ const createMockService = (overrides: AnyType = {}) => {
         organizationAllowedEmailDomainsModel: {} as AnyType,
         personalAccessTokenModel: personalAccessTokenModel as AnyType,
         emailModel: {} as AnyType,
-        projectService: {} as AnyType,
+        projectService: {
+            scheduleCompileProject: jest.fn(),
+            ...overrides.projectService,
+        } as AnyType,
         serviceAccountModel: serviceAccountModel as AnyType,
         embedModel: {} as AnyType,
         encryptionUtil: { encrypt: jest.fn() } as AnyType,
@@ -273,12 +277,13 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                 },
             });
 
-            await expect(service.updateInstanceConfiguration()).rejects.toThrow(
-                NotFoundError,
-            );
-            await expect(service.updateInstanceConfiguration()).rejects.toThrow(
-                `User ${mockAdminEmail} not found`,
-            );
+            await expect(
+                service.updateInstanceConfiguration(),
+            ).resolves.not.toThrow();
+
+            expect(
+                service['personalAccessTokenModel'].save,
+            ).not.toHaveBeenCalled();
         });
     });
 
@@ -685,6 +690,204 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                     },
                 },
             );
+        });
+    });
+
+    describe('multi-project configuration update scenarios', () => {
+        const multiProjectSetup = [
+            {
+                name: 'Project Alpha',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    serverHostName: 'alpha.databricks.com',
+                    httpPath: '/sql/1.0/warehouses/alpha',
+                    catalog: 'alpha_catalog',
+                    database: 'alpha_db',
+                    personalAccessToken: 'alpha-token',
+                },
+                dbtConnection: {
+                    type: DbtProjectType.GITHUB,
+                    authorization_method: 'personal_access_token',
+                    personal_access_token: 'alpha-dbt-token',
+                    repository: 'org/alpha-repo',
+                    branch: 'main',
+                    project_sub_path: '/',
+                },
+            },
+            {
+                name: 'Project Beta',
+                warehouseConnection: {
+                    type: WarehouseTypes.DATABRICKS,
+                    serverHostName: 'beta.databricks.com',
+                    httpPath: '/sql/1.0/warehouses/beta',
+                    catalog: 'beta_catalog',
+                    database: 'beta_db',
+                    personalAccessToken: 'beta-token',
+                },
+                dbtConnection: {
+                    type: DbtProjectType.GITHUB,
+                    authorization_method: 'personal_access_token',
+                    personal_access_token: 'beta-dbt-token',
+                    repository: 'org/beta-repo',
+                    branch: 'main',
+                    project_sub_path: '/',
+                },
+            },
+        ];
+
+        test('should update multiple projects matched by name', async () => {
+            const mockAlphaProject = {
+                ...mockProject,
+                name: 'Project Alpha',
+                projectUuid: 'alpha-uuid',
+            };
+            const mockBetaProject = {
+                ...mockProject,
+                name: 'Project Beta',
+                projectUuid: 'beta-uuid',
+            };
+
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockImplementation((name: string) => {
+                            if (name === 'Project Alpha')
+                                return Promise.resolve(['alpha-uuid']);
+                            if (name === 'Project Beta')
+                                return Promise.resolve(['beta-uuid']);
+                            return Promise.resolve([]);
+                        }),
+                    getWithSensitiveFields: jest
+                        .fn()
+                        .mockImplementation((uuid: string) => {
+                            if (uuid === 'alpha-uuid')
+                                return Promise.resolve(mockAlphaProject);
+                            if (uuid === 'beta-uuid')
+                                return Promise.resolve(mockBetaProject);
+                            return Promise.reject(
+                                new Error('Project not found'),
+                            );
+                        }),
+                    update: jest.fn().mockResolvedValue(undefined),
+                },
+                updateSetup: { projects: multiProjectSetup },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(service['projectModel'].update).toHaveBeenCalledTimes(2);
+            expect(service['projectModel'].update).toHaveBeenCalledWith(
+                'alpha-uuid',
+                expect.objectContaining({
+                    warehouseConnection:
+                        multiProjectSetup[0].warehouseConnection,
+                    dbtConnection: multiProjectSetup[0].dbtConnection,
+                }),
+            );
+            expect(service['projectModel'].update).toHaveBeenCalledWith(
+                'beta-uuid',
+                expect.objectContaining({
+                    warehouseConnection:
+                        multiProjectSetup[1].warehouseConnection,
+                    dbtConnection: multiProjectSetup[1].dbtConnection,
+                }),
+            );
+        });
+
+        test('should throw ParameterError when multiple projects share the same name', async () => {
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue([
+                            'duplicate-uuid-1',
+                            'duplicate-uuid-2',
+                        ]),
+                },
+                updateSetup: { projects: [multiProjectSetup[0]] },
+            });
+
+            await expect(service.updateInstanceConfiguration()).rejects.toThrow(
+                ParameterError,
+            );
+            await expect(service.updateInstanceConfiguration()).rejects.toThrow(
+                'Multiple projects found with name "Project Alpha"',
+            );
+        });
+
+        test('should create projects not found by name', async () => {
+            const newProjectUuid = 'new-project-uuid';
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue([]),
+                    create: jest.fn().mockResolvedValue(newProjectUuid),
+                },
+                userModel: {
+                    findSessionUserByPrimaryEmail: jest
+                        .fn()
+                        .mockResolvedValue(mockSessionUser),
+                },
+                updateSetup: {
+                    organization: {
+                        admin: { email: mockAdminEmail },
+                    },
+                    projects: [multiProjectSetup[0]],
+                },
+            });
+
+            await expect(
+                service.updateInstanceConfiguration(),
+            ).resolves.not.toThrow();
+
+            expect(service['projectModel'].update).not.toHaveBeenCalled();
+            expect(service['projectModel'].create).toHaveBeenCalledWith(
+                mockUserId,
+                mockOrgUuid,
+                expect.objectContaining({
+                    name: multiProjectSetup[0].name,
+                }),
+            );
+        });
+
+        test('should not update projects when projects is not configured', async () => {
+            service = createMockService({
+                organizationModel: {
+                    getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+                },
+                projectModel: {
+                    getDefaultProjectUuids: jest
+                        .fn()
+                        .mockResolvedValue([mockProjectUuid]),
+                },
+                updateSetup: {},
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(
+                service['projectModel'].getDefaultProjectUuidsByName,
+            ).not.toHaveBeenCalled();
         });
     });
 });
