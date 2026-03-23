@@ -6,6 +6,5 @@ export const sanitizeEchartsFontFamily = (
     // ECharts serializes textStyle.fontFamily into inline SVG style attributes.
     // Double quotes inside the font stack can break that markup, so normalize
     // them to single quotes before the chart is exported or rasterized.
-    console.log(fontFamily, JSON.stringify(fontFamily));
     return fontFamily.replaceAll('"', "'");
 };
