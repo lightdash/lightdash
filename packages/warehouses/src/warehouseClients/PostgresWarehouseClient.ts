@@ -112,6 +112,8 @@ const mapFieldType = (type: string): DimensionType => {
 };
 
 const { builtins } = pg.types;
+const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
+
 const convertDataTypeIdToDimensionType = (
     dataTypeId: number,
 ): DimensionType => {
@@ -217,6 +219,19 @@ export class PostgresClient<
         );
     }
 
+    private static getNoticeError(notice: {
+        code?: string;
+        message?: string;
+    }): WarehouseQueryError | undefined {
+        if (notice.code !== POSTGRES_NAME_TOO_LONG_SQLSTATE) {
+            return undefined;
+        }
+
+        return new WarehouseQueryError(
+            `PostgreSQL identifier is too long: ${notice.message}`,
+        );
+    }
+
     async streamQuery(
         sql: string,
         streamCallback: (data: WarehouseResults) => void | Promise<void>,
@@ -228,6 +243,7 @@ export class PostgresClient<
     ): Promise<void> {
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
+        let activeStream: QueryStream | undefined;
 
         return new Promise<void>((resolve, reject) => {
             pool = new pg.Pool({
@@ -273,10 +289,20 @@ export class PostgresClient<
                     reject(e);
                 });
 
+                client.on('notice', (notice) => {
+                    const error = PostgresClient.getNoticeError(notice);
+                    if (!error) {
+                        return;
+                    }
+
+                    activeStream?.destroy(error);
+                    reject(error);
+                });
+
                 const runQuery = () => {
                     // CodeQL: This will raise a security warning because user defined raw SQL is being passed into the database module.
                     //         In this case this is exactly what we want to do. We're hitting the user's warehouse not the application's database.
-                    const stream = client.query(
+                    activeStream = client.query(
                         // callback is not defined in types when using QueryStream
                         // @ts-ignore
                         new QueryStream(
@@ -337,10 +363,10 @@ export class PostgresClient<
                     writable.on('error', (err2) => {
                         reject(err2);
                     });
-                    stream.on('error', (err2) => {
+                    activeStream.on('error', (err2) => {
                         reject(err2);
                     });
-                    stream.pipe(writable).on('error', (err2) => {
+                    activeStream.pipe(writable).on('error', (err2) => {
                         reject(err2);
                     });
                 };
@@ -361,6 +387,9 @@ export class PostgresClient<
             });
         })
             .catch((e) => {
+                if (e instanceof WarehouseQueryError) {
+                    throw e;
+                }
                 const error = e as pg.DatabaseError;
                 throw this.parseError(error, sql);
             })
