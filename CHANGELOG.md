@@ -1,3 +1,10 @@
+# [0.2648.0](https://github.com/lightdash/lightdash/compare/0.2647.1...0.2648.0) (2026-03-23)
+
+
+### Features
+
+* add theme and background color support for embedded charts ([#21280](https://github.com/lightdash/lightdash/issues/21280)) ([9b66a2e](https://github.com/lightdash/lightdash/commit/9b66a2e2fb072b5e006f8f5d44555310340f8356))
+
 ## [0.2647.1](https://github.com/lightdash/lightdash/compare/0.2647.0...0.2647.1) (2026-03-23)
 
 
