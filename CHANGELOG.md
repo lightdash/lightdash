@@ -1,3 +1,10 @@
+## [0.2648.6](https://github.com/lightdash/lightdash/compare/0.2648.5...0.2648.6) (2026-03-23)
+
+
+### Bug Fixes
+
+* revert EE-in-dev mode (migrations + providers) ([#21317](https://github.com/lightdash/lightdash/issues/21317)) ([6fb934d](https://github.com/lightdash/lightdash/commit/6fb934da48363903d0c020a0c6e59d62f25f0e4b))
+
 ## [0.2648.5](https://github.com/lightdash/lightdash/compare/0.2648.4...0.2648.5) (2026-03-23)
 
 
