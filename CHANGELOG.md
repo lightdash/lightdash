@@ -1,3 +1,10 @@
+## [0.2648.3](https://github.com/lightdash/lightdash/compare/0.2648.2...0.2648.3) (2026-03-23)
+
+
+### Bug Fixes
+
+* pass projectUuid to useAiAgentPermission hook ([#21306](https://github.com/lightdash/lightdash/issues/21306)) ([0cc8033](https://github.com/lightdash/lightdash/commit/0cc80335a5a9d29d331e7d03ba2700ce27a5756d))
+
 ## [0.2648.2](https://github.com/lightdash/lightdash/compare/0.2648.1...0.2648.2) (2026-03-23)
 
 
