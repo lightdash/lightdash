@@ -550,6 +550,7 @@ export class SavedChartService
 
         return {
             ...savedChart,
+            verification: null,
             inheritsFromOrgOrProject,
             access,
         };
@@ -632,6 +633,7 @@ export class SavedChartService
         }
         return {
             ...savedChart,
+            verification: null,
             inheritsFromOrgOrProject,
             access,
         };
