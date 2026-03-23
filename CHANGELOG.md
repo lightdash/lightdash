@@ -1,3 +1,10 @@
+# [0.2652.0](https://github.com/lightdash/lightdash/compare/0.2651.0...0.2652.0) (2026-03-23)
+
+
+### Features
+
+* add Google Sheets Sync UI to SQL runner saved charts ([#21270](https://github.com/lightdash/lightdash/issues/21270)) ([1be5333](https://github.com/lightdash/lightdash/commit/1be5333a1a1521a18b016e95705d200d54b75325))
+
 # [0.2651.0](https://github.com/lightdash/lightdash/compare/0.2650.0...0.2651.0) (2026-03-23)
 
 
