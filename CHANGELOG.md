@@ -1,3 +1,10 @@
+## [0.2654.1](https://github.com/lightdash/lightdash/compare/0.2654.0...0.2654.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* update PoP query to use LEFT JOIN: preventing dropped rows ([#21287](https://github.com/lightdash/lightdash/issues/21287)) ([ae008c0](https://github.com/lightdash/lightdash/commit/ae008c0f533b65c4e22e2deea433c425b89f14eb))
+
 # [0.2654.0](https://github.com/lightdash/lightdash/compare/0.2653.0...0.2654.0) (2026-03-23)
 
 
