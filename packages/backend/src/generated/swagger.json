@@ -20747,6 +20747,15 @@
                     },
                     {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Verification status of this chart. Read-only; ignored on upload."
+                            },
                             "downloadedAt": {
                                 "type": "string",
                                 "format": "date-time",
@@ -21072,6 +21081,15 @@
                     },
                     {
                         "properties": {
+                            "verification": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ContentVerificationInfo"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Verification status of this dashboard. Read-only; ignored on upload."
+                            },
                             "filters": {
                                 "properties": {
                                     "tableCalculations": {
@@ -21229,6 +21247,15 @@
                     "slug": {
                         "type": "string",
                         "description": "Unique identifier slug for this chart"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Verification status of this chart. Read-only; ignored on upload."
                     },
                     "tableName": {
                         "type": "string",
@@ -21538,6 +21565,15 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Verification status of this dashboard. Read-only; ignored on upload."
                     },
                     "filters": {
                         "properties": {

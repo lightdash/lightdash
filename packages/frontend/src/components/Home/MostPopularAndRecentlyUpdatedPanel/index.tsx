@@ -4,12 +4,15 @@ import {
     ResourceViewItemType,
     wrapResource,
     type MostPopularAndRecentlyUpdated,
+    type ResourceViewItem,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
+import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
@@ -27,8 +30,12 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
     const { health } = useApp();
+    const isContentVerificationEnabled = useContentVerificationEnabled();
 
-    const mostPopularAndRecentlyUpdatedItems = useMemo(() => {
+    const { data: verifiedContentData } =
+        useVerifiedContentForHomepage(projectUuid);
+
+    const allItems = useMemo(() => {
         const mostPopularItems =
             data?.mostPopular.map((item) => ({
                 ...wrapResource(
@@ -49,8 +56,24 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                 ),
                 category: ResourceItemCategory.RECENTLY_UPDATED,
             })) ?? [];
-        return [...mostPopularItems, ...recentlyUpdatedItems];
-    }, [data?.mostPopular, data?.recentlyUpdated]);
+        const verifiedItems = isContentVerificationEnabled
+            ? (verifiedContentData?.map((item) => ({
+                  ...wrapResource(
+                      item,
+                      'chartType' in item
+                          ? ResourceViewItemType.CHART
+                          : ResourceViewItemType.DASHBOARD,
+                  ),
+                  category: ResourceItemCategory.VERIFIED,
+              })) ?? [])
+            : [];
+        return [...mostPopularItems, ...recentlyUpdatedItems, ...verifiedItems];
+    }, [
+        data?.mostPopular,
+        data?.recentlyUpdated,
+        verifiedContentData,
+        isContentVerificationEnabled,
+    ]);
 
     const handleCreateChart = () => {
         void navigate(`/projects/${projectUuid}/tables`);
@@ -65,7 +88,7 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
 
     return (
         <ResourceView
-            items={mostPopularAndRecentlyUpdatedItems}
+            items={allItems}
             maxItems={MAX_NUMBER_OF_ITEMS_IN_PANEL}
             tabs={[
                 {
@@ -82,13 +105,25 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                         'category' in item &&
                         item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
+                ...(isContentVerificationEnabled
+                    ? [
+                          {
+                              id: 'verified',
+                              name: 'Verified',
+                              filter: (item: ResourceViewItem) =>
+                                  'category' in item &&
+                                  item.category ===
+                                      ResourceItemCategory.VERIFIED,
+                          },
+                      ]
+                    : []),
             ]}
             listProps={{
                 enableSorting: false,
                 defaultColumnVisibility: { space: false },
             }}
             headerProps={
-                mostPopularAndRecentlyUpdatedItems.length === 0
+                allItems.length === 0
                     ? {
                           title: 'Charts and Dashboards',
                           action: (

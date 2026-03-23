@@ -19464,6 +19464,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        verification: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ContentVerificationInfo' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         downloadedAt: { dataType: 'datetime' },
                         spaceSlug: { dataType: 'string', required: true },
                         contentType: { ref: 'ContentAsCodeType.CHART' },
@@ -19862,6 +19869,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        verification: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'ContentVerificationInfo' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         filters: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
@@ -20031,6 +20045,14 @@ const models: TsoaRoute.Models = {
                 },
                 version: { dataType: 'double', required: true },
                 slug: { dataType: 'string', required: true },
+                verification: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ContentVerificationInfo' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 tableName: { dataType: 'string', required: true },
                 metricQuery: {
                     dataType: 'intersection',
@@ -20301,6 +20323,14 @@ const models: TsoaRoute.Models = {
                     },
                     version: { dataType: 'double', required: true },
                     slug: { dataType: 'string', required: true },
+                    verification: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ContentVerificationInfo' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     filters: {
                         dataType: 'union',
                         subSchemas: [
