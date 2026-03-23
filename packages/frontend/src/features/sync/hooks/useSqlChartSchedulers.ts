@@ -38,7 +38,9 @@ const createSqlChartScheduler = async (
         body: JSON.stringify(data),
     });
 
-export const useSqlChartSchedulerCreateMutation = (projectUuid: string) => {
+export const useSqlChartSchedulerCreateMutation = (
+    projectUuid: string | undefined,
+) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -46,8 +48,12 @@ export const useSqlChartSchedulerCreateMutation = (projectUuid: string) => {
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >(
-        ({ resourceUuid, data }) =>
-            createSqlChartScheduler(projectUuid, resourceUuid, data),
+        ({ resourceUuid, data }) => {
+            if (!projectUuid) {
+                throw new Error('projectUuid is required');
+            }
+            return createSqlChartScheduler(projectUuid, resourceUuid, data);
+        },
         {
             mutationKey: ['create_sql_chart_scheduler'],
             onSuccess: async (_, variables) => {

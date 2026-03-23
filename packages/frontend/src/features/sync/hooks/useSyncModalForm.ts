@@ -32,9 +32,8 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
         isSuccess: isUpdateChartSyncSuccess,
     } = useSchedulersUpdateMutation(currentSchedulerUuid ?? '');
     const chartSchedulerMutation = useChartSchedulerCreateMutation();
-    const sqlChartSchedulerMutation = useSqlChartSchedulerCreateMutation(
-        projectUuid ?? '',
-    );
+    const sqlChartSchedulerMutation =
+        useSqlChartSchedulerCreateMutation(projectUuid);
     const createMutation = projectUuid
         ? sqlChartSchedulerMutation
         : chartSchedulerMutation;
