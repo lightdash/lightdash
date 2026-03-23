@@ -280,3 +280,55 @@ models:
         description: Monthly revenue
       - name: customer_satisfaction_score
         description: Customer satisfaction rating
+
+  - name: stg_country_orders
+    description: Cleaned country-level order data
+    meta:
+      group_label: "staging"
+    columns:
+      - name: order_id
+        description: Unique order identifier
+        tests:
+          - unique
+          - not_null
+        meta:
+          dimension:
+            type: number
+      - name: order_date
+        description: Date of the order
+        meta:
+          dimension:
+            type: date
+      - name: country
+        description: Country of the order
+        meta:
+          dimension:
+            type: string
+      - name: amount
+        description: Order amount
+        meta:
+          dimension:
+            type: number
+
+  - name: stg_order_currencies
+    description: Cleaned order currency conversion data
+    meta:
+      group_label: "staging"
+    columns:
+      - name: order_id
+        description: Reference to order
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+      - name: currency
+        description: Currency code
+        meta:
+          dimension:
+            type: string
+      - name: converted_amount
+        description: Amount converted to the specified currency
+        meta:
+          dimension:
+            type: number
