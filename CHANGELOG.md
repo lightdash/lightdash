@@ -1,3 +1,10 @@
+## [0.2648.5](https://github.com/lightdash/lightdash/compare/0.2648.4...0.2648.5) (2026-03-23)
+
+
+### Bug Fixes
+
+* optimize dashboard filter re-renders during tile drag/resize operations ([#21309](https://github.com/lightdash/lightdash/issues/21309)) ([001b636](https://github.com/lightdash/lightdash/commit/001b6368c14662829879dc49d4dc959278dd229b))
+
 ## [0.2648.4](https://github.com/lightdash/lightdash/compare/0.2648.3...0.2648.4) (2026-03-23)
 
 
