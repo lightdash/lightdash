@@ -1,3 +1,10 @@
+# [0.2655.0](https://github.com/lightdash/lightdash/compare/0.2654.1...0.2655.0) (2026-03-23)
+
+
+### Features
+
+* dashboard verify/unverify from dashboard header ([#20932](https://github.com/lightdash/lightdash/issues/20932)) ([dfd0c24](https://github.com/lightdash/lightdash/commit/dfd0c244e97a2e2dbf2b95b78e997cbeb7d31a15))
+
 ## [0.2654.1](https://github.com/lightdash/lightdash/compare/0.2654.0...0.2654.1) (2026-03-23)
 
 
