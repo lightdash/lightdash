@@ -34,7 +34,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 |---------|-------------|------------|
 | **Guessing filter values** | Case mismatches (`'Payment'` vs `'payment'`) cause charts to silently return no data | Always run `lightdash sql "SELECT DISTINCT column FROM table LIMIT 50" -o values.csv` and use exact values |
 | **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows old title — `title` and `chartName` are independent overrides that do NOT auto-update | Download the dashboard, find tiles with matching `chartSlug`, update `title` and `chartName` to match |
-| **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config (axis, pivot, etc.) |
+| **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config. For cartesian: `layout.xField`, `layout.yField`, or `pivotConfig.columns` |
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 
@@ -205,6 +205,7 @@ chartConfig:
   config: {}        # Type-specific — see individual references
 dashboardSlug: my-dashboard  # Optional: scopes chart to dashboard (won't appear in space)
 metricQuery:
+  exploreName: my_explore     # Required: which explore to query
   dimensions:
     - my_explore_category
   filters: {}
@@ -217,11 +218,25 @@ slug: unique-chart-slug
 spaceSlug: target-space
 tableConfig:
   columnOrder: []
-tableName: my_explore
+tableName: my_explore           # Required: top-level explore/table name
 version: 1
 ```
 
 **Chart scoping:** Use `spaceSlug` only for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard (it won't appear in the space).
+
+### Choosing the Right Chart Type
+
+| Data Pattern | Recommended Chart | Why |
+|--------------|-------------------|-----|
+| Trends over time | Line or area (`cartesian`) | Shows continuous change with time on X-axis |
+| Category comparisons | Bar (`cartesian`) | Easy visual comparison between discrete categories |
+| Part-of-whole relationships | `pie` or `treemap` | Shows proportions summing to 100% |
+| Single KPI metric | `big_number` | Focuses attention on one important value |
+| Conversion stages | `funnel` | Visualizes drop-off between sequential steps |
+| Progress toward target | `gauge` | Shows current value relative to goal |
+| Geographic data | `map` | Plots data points or regions on a map |
+| Detailed records | `table` | Displays raw data with sorting and formatting |
+| Advanced custom needs | `custom` | Full Vega-Lite spec for custom visualizations |
 
 | Type | Use Case | Reference |
 |------|----------|-----------|

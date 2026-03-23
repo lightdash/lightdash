@@ -22,6 +22,7 @@ chartConfig:
     hideRowNumbers: false
     showColumnCalculation: true
 metricQuery:
+  exploreName: "my_explore"
   dimensions:
     - field_id_1
   metrics:
@@ -127,6 +128,7 @@ chartConfig:
     showColumnCalculation: true
     showResultsTotal: true
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - orders_region
     - orders_sales_rep

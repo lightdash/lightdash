@@ -38,6 +38,7 @@ chartConfig:
       yField:
         - "my_explore_total_sales"
 metricQuery:
+  exploreName: "my_explore"
   dimensions:
     - "my_explore_category"
   filters: {}
@@ -107,6 +108,7 @@ chartConfig:
       yField:
         - "orders_total_sales"
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - "orders_partner_name"
   filters: {}
@@ -150,6 +152,7 @@ chartConfig:
       yField:
         - "orders_total_revenue"
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - "orders_order_date_month"
   filters: {}
@@ -193,6 +196,7 @@ chartConfig:
       yField:
         - "orders_total_revenue"
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - "orders_order_date_month"
     - "orders_product_category"
@@ -237,6 +241,7 @@ chartConfig:
       yField:
         - "orders_profit"
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - "orders_order_id"
   filters: {}
@@ -287,6 +292,7 @@ chartConfig:
         - "orders_total_revenue"
         - "profit_margin"
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - "orders_order_date_month"
   filters: {}

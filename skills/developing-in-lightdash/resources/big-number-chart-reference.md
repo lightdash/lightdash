@@ -16,6 +16,7 @@ chartConfig:
     showBigNumberLabel: true
     style: "M"
 metricQuery:
+  exploreName: "orders"
   dimensions: []
   filters: []
   limit: 1
@@ -112,6 +113,7 @@ chartConfig:
     showComparison: true
     style: "M"
 metricQuery:
+  exploreName: "orders"
   dimensions:
     - "orders_created_month"           # 1. Time dimension
   filters: []

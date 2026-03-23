@@ -103,10 +103,10 @@ chartConfig:
     sizeFieldId: "stores_total_revenue"
     tileBackground: "light"
 metricQuery:
+  exploreName: stores
   dimensions:
     - stores_store_name
     - stores_city
-  exploreName: stores
   limit: 500
   metrics:
     - stores_total_revenue
@@ -136,9 +136,9 @@ chartConfig:
     tileBackground: "none"
     valueFieldId: "orders_total_sales"
 metricQuery:
+  exploreName: orders
   dimensions:
     - orders_state
-  exploreName: orders
   limit: 50
   metrics:
     - orders_total_sales
@@ -212,6 +212,6 @@ colorRange: ["#dc2626", "#f3f4f6", "#22c55e"]
 
 ## Related Resources
 
-- [Charts Reference](./charts-reference.md) - Other visualization types
+- [Chart Types](../SKILL.md#chart-types) - Overview of all chart types
 - [Metrics Reference](./metrics-reference.md) - Creating metrics for maps
 - [Dimensions Reference](./dimensions-reference.md) - Location dimensions

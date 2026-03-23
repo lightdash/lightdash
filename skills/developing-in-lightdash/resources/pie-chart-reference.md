@@ -44,9 +44,9 @@ chartConfig:
       - orders_product_category
     metricId: orders_total_revenue
 metricQuery:
+  exploreName: orders
   dimensions:
     - orders_product_category
-  exploreName: orders
   limit: 10
   metrics:
     - orders_total_revenue
@@ -141,9 +141,9 @@ chartConfig:
     showValue: true
     valueLabel: inside
 metricQuery:
+  exploreName: orders
   dimensions:
     - orders_region
-  exploreName: orders
   limit: 8
   metrics:
     - orders_total_revenue
@@ -212,6 +212,6 @@ legendPosition: vertical
 
 ## Related Documentation
 
-- [Charts Reference](./charts-reference.md)
+- [Chart Types](../SKILL.md#chart-types) - Overview of all chart types
 - [Metrics Reference](metrics-reference.md)
 - [Dimensions Reference](dimensions-reference.md)
