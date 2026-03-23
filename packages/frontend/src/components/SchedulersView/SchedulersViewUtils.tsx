@@ -128,34 +128,15 @@ export const getLogStatusIconWithoutTooltip = (
     }
 };
 
-type FetchSqlChartSlug = (
-    projectUuid: string,
-    savedSqlUuid: string,
-) => Promise<string>;
-
-const getProjectUuid = (
+export const getSchedulerLink = (
     item: SchedulerItem | SchedulerRun,
     fallbackProjectUuid?: string | null,
-) =>
-    ('projectUuid' in item ? item.projectUuid : undefined) ??
-    fallbackProjectUuid ??
-    '';
-
-const getSqlChartResourcePath = async (
-    projectUuid: string,
-    savedSqlUuid: string,
-    fetchSqlChartSlug: FetchSqlChartSlug,
 ) => {
-    const slug = await fetchSqlChartSlug(projectUuid, savedSqlUuid);
-    return `/projects/${projectUuid}/sql-runner/${slug}`;
-};
-
-export const getSchedulerLink = async (
-    item: SchedulerItem | SchedulerRun,
-    fallbackProjectUuid?: string | null,
-    fetchSqlChartSlug?: FetchSqlChartSlug,
-) => {
-    const projectUuid = getProjectUuid(item, fallbackProjectUuid);
+    // Use item's projectUuid if available (only on SchedulerItem), otherwise fall back to the provided one
+    const projectUuid =
+        ('projectUuid' in item ? item.projectUuid : undefined) ??
+        fallbackProjectUuid ??
+        '';
 
     const paramName =
         'thresholds' in item && item.thresholds && item.thresholds.length > 0
@@ -173,16 +154,7 @@ export const getSchedulerLink = async (
                 resourcePath = `/projects/${projectUuid}/saved/${item.resourceUuid}/view`;
                 break;
             case SchedulerResourceType.SQL_CHART:
-                if (!fetchSqlChartSlug) {
-                    throw new Error(
-                        'fetchSqlChartSlug is required for SQL chart schedulers',
-                    );
-                }
-                resourcePath = await getSqlChartResourcePath(
-                    projectUuid,
-                    item.resourceUuid,
-                    fetchSqlChartSlug,
-                );
+                resourcePath = `/projects/${projectUuid}/sql-runner/${item.resourceUuid}`;
                 break;
             case SchedulerResourceType.DASHBOARD:
                 resourcePath = `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
@@ -202,57 +174,25 @@ export const getSchedulerLink = async (
         return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view/?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
     if (item.savedSqlUuid) {
-        if (!fetchSqlChartSlug) {
-            throw new Error(
-                'fetchSqlChartSlug is required for SQL chart schedulers',
-            );
-        }
-        const resourcePath = await getSqlChartResourcePath(
-            projectUuid,
-            item.savedSqlUuid,
-            fetchSqlChartSlug,
-        );
-        return `${resourcePath}?${paramName}=${item.schedulerUuid}${syncParam}`;
+        return `/projects/${projectUuid}/sql-runner/${item.savedSqlUuid}?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
     return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
 };
 
-export const getItemLink = async (
+export const getItemLink = (
     item: SchedulerItem,
     fallbackProjectUuid?: string | null,
-    fetchSqlChartSlug?: FetchSqlChartSlug,
 ) => {
+    // Use item's projectUuid if available, otherwise fall back to the provided one
     const projectUuid = item.projectUuid ?? fallbackProjectUuid ?? '';
 
     if (item.savedChartUuid) {
         return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`;
     }
     if (item.savedSqlUuid) {
-        if (!fetchSqlChartSlug) {
-            throw new Error(
-                'fetchSqlChartSlug is required for SQL chart schedulers',
-            );
-        }
-        return getSqlChartResourcePath(
-            projectUuid,
-            item.savedSqlUuid,
-            fetchSqlChartSlug,
-        );
+        return `/projects/${projectUuid}/sql-runner/${item.savedSqlUuid}`;
     }
     return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
-};
-
-export const fetchSqlChartSlug: FetchSqlChartSlug = async (
-    projectUuid,
-    savedSqlUuid,
-) => {
-    const { fetchSavedSqlChart } =
-        await import('../../features/sqlRunner/hooks/useSavedSqlCharts');
-    const chart = await fetchSavedSqlChart({
-        projectUuid,
-        uuid: savedSqlUuid,
-    });
-    return chart.slug;
 };
 
 export const formatTime = (date: Date) =>

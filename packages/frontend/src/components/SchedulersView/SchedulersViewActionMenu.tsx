@@ -9,12 +9,12 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { type FC } from 'react';
+import { Link } from 'react-router';
 import { SchedulerDeleteModal } from '../../features/scheduler';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
 import { useSendNowSchedulerByUuid } from '../../features/scheduler/hooks/useScheduler';
 import MantineIcon from '../common/MantineIcon';
 import {
-    fetchSqlChartSlug,
     getItemLink,
     getSchedulerLink,
     type SchedulerItem,
@@ -70,32 +70,18 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
 
                 <Menu.Dropdown maw={320}>
                     <Menu.Item
-                        component="button"
+                        component={Link}
                         role="menuitem"
                         leftSection={<MantineIcon icon={IconEdit} />}
-                        onClick={async () => {
-                            const link = await getSchedulerLink(
-                                item,
-                                projectUuid,
-                                fetchSqlChartSlug,
-                            );
-                            window.open(link, '_blank');
-                        }}
+                        to={getSchedulerLink(item, projectUuid)}
                     >
                         Edit schedule
                     </Menu.Item>
                     <Menu.Item
-                        component="button"
+                        component={Link}
                         role="menuitem"
                         leftSection={<MantineIcon icon={IconSquarePlus} />}
-                        onClick={async () => {
-                            const link = await getItemLink(
-                                item,
-                                projectUuid,
-                                fetchSqlChartSlug,
-                            );
-                            window.open(link, '_blank');
-                        }}
+                        to={getItemLink(item, projectUuid)}
                     >
                         Go to{' '}
                         {item.savedChartUuid || item.savedSqlUuid

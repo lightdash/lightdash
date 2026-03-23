@@ -52,7 +52,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
-import { useSearchParams } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import { useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
@@ -65,7 +65,6 @@ import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import { SchedulersViewTab } from './SchedulersViewConstants';
 import {
-    fetchSqlChartSlug,
     getSchedulerIcon,
     getSchedulerLink,
     type SchedulerItem,
@@ -315,16 +314,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             {getSchedulerIcon(item)}
                             <Stack gap="two">
                                 <Anchor
-                                    onClick={async (e) => {
-                                        e.preventDefault();
-                                        const link = await getSchedulerLink(
-                                            item,
-                                            itemProjectUuid,
-                                            fetchSqlChartSlug,
-                                        );
-                                        window.open(link, '_blank');
-                                    }}
-                                    style={{ cursor: 'pointer' }}
+                                    component={Link}
+                                    to={getSchedulerLink(item, itemProjectUuid)}
+                                    target="_blank"
                                 >
                                     <Tooltip
                                         fz="xs"

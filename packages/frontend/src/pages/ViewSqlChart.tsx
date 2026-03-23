@@ -15,6 +15,7 @@ import { IconChartHistogram, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
+import { validate as isValidUuid } from 'uuid';
 import { ConditionalVisibility } from '../components/common/ConditionalVisibility';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -57,6 +58,11 @@ const ViewSqlChart = () => {
     // Parameter state management for SQL Runner context
     const parameterValues = useAppSelector(selectParameterValues);
 
+    // The :slug route param may contain a UUID (e.g. when navigating from
+    // the schedulers settings page which only has the savedSqlUuid).
+    const slugParam = params.slug;
+    const isUuid = slugParam ? isValidUuid(slugParam) : false;
+
     const {
         chartQuery: {
             data: chartData,
@@ -72,7 +78,7 @@ const ViewSqlChart = () => {
         getDownloadQueryUuid,
     } = useSavedSqlChartResults({
         projectUuid: params.projectUuid,
-        slug: params.slug,
+        ...(isUuid ? { savedSqlUuid: slugParam } : { slug: slugParam }),
         parameters: parameterValues,
     });
 
