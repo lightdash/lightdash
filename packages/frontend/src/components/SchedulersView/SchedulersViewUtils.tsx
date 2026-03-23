@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerResourceType,
     type SchedulerAndTargets,
     type SchedulerRun,
     type SchedulerWithLogs,
@@ -142,26 +143,40 @@ export const getSchedulerLink = (
             ? 'threshold_uuid'
             : 'scheduler_uuid';
 
+    const syncParam =
+        item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``;
+
     // Handle SchedulerRun (uses resourceType/resourceUuid)
     if ('resourceType' in item) {
-        const resourcePath =
-            item.resourceType === 'chart'
-                ? `/projects/${projectUuid}/saved/${item.resourceUuid}/view`
-                : `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
+        let resourcePath: string;
+        switch (item.resourceType) {
+            case SchedulerResourceType.CHART:
+                resourcePath = `/projects/${projectUuid}/saved/${item.resourceUuid}/view`;
+                break;
+            case SchedulerResourceType.SQL_CHART:
+                resourcePath = `/projects/${projectUuid}/sql-runner/${item.resourceUuid}`;
+                break;
+            case SchedulerResourceType.DASHBOARD:
+                resourcePath = `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
+                break;
+            default:
+                assertUnreachable(
+                    item.resourceType,
+                    'Unknown scheduler resource type',
+                );
+        }
 
-        return `${resourcePath}?${paramName}=${item.schedulerUuid}${
-            item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
-        }`;
+        return `${resourcePath}?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
 
-    // Handle SchedulerItem (uses savedChartUuid/dashboardUuid)
-    return item.savedChartUuid
-        ? `/projects/${projectUuid}/saved/${
-              item.savedChartUuid
-          }/view/?${paramName}=${item.schedulerUuid}${
-              item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
-          }`
-        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
+    // Handle SchedulerItem (uses savedChartUuid/dashboardUuid/savedSqlUuid)
+    if (item.savedChartUuid) {
+        return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view/?${paramName}=${item.schedulerUuid}${syncParam}`;
+    }
+    if (item.savedSqlUuid) {
+        return `/projects/${projectUuid}/sql-runner/${item.savedSqlUuid}?${paramName}=${item.schedulerUuid}${syncParam}`;
+    }
+    return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
 };
 
 export const getItemLink = (
@@ -171,9 +186,13 @@ export const getItemLink = (
     // Use item's projectUuid if available, otherwise fall back to the provided one
     const projectUuid = item.projectUuid ?? fallbackProjectUuid ?? '';
 
-    return item.savedChartUuid
-        ? `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`
-        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
+    if (item.savedChartUuid) {
+        return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`;
+    }
+    if (item.savedSqlUuid) {
+        return `/projects/${projectUuid}/sql-runner/${item.savedSqlUuid}`;
+    }
+    return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
 };
 
 export const formatTime = (date: Date) =>

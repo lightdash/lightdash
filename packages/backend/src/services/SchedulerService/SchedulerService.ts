@@ -1335,6 +1335,17 @@ export class SchedulerService extends BaseService {
                     'Dashboard referenced by scheduler no longer exists',
                 );
             }
+        } else if (scheduler.savedSqlUuid) {
+            try {
+                const sqlChart = await this.savedSqlModel.getByUuid(
+                    scheduler.savedSqlUuid,
+                );
+                projectUuid = sqlChart.project.projectUuid;
+            } catch (error) {
+                throw new NotFoundError(
+                    'SQL chart referenced by scheduler no longer exists',
+                );
+            }
         } else {
             throw new NotFoundError('Scheduler resource not found');
         }

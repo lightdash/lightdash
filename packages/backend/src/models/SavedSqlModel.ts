@@ -261,7 +261,7 @@ export class SavedSqlModel {
 
     async getByUuid(
         uuid: string,
-        options: { projectUuid?: string; deleted?: boolean },
+        options?: { projectUuid?: string; deleted?: boolean },
     ) {
         const results = await this.find({ uuid, ...options });
         const [result] = results;

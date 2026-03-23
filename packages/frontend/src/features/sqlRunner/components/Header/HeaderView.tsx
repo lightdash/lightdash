@@ -18,8 +18,8 @@ import {
     IconLayoutGridAdd,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { useCallback, useEffect, useRef, type FC } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { UpdatedInfo } from '../../../../components/common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPopup/ResourceInfoPopup';
@@ -29,6 +29,10 @@ import { useProject } from '../../../../hooks/useProject';
 import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import { PromotionConfirmDialog } from '../../../promotion/components/PromotionConfirmDialog';
+import {
+    getSchedulerUuidFromUrlParams,
+    isSchedulerTypeSync,
+} from '../../../scheduler/utils';
 import { SqlChartSyncModal } from '../../../sync/components/SqlChartSyncModal';
 import {
     usePromoteSqlChartDiffMutation,
@@ -40,6 +44,7 @@ import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
+    const { search, pathname } = useLocation();
     const dispatch = useAppDispatch();
     const { user, health } = useApp();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -64,6 +69,30 @@ export const HeaderView: FC = () => {
     }, [dispatch]);
 
     const [isSyncModalOpen, syncModalHandlers] = useDisclosure();
+
+    // Open sync modal when navigating from schedulers settings page
+    const hasProcessedUrlParams = useRef(false);
+    useEffect(() => {
+        if (hasProcessedUrlParams.current) return;
+
+        const schedulerUuid = getSchedulerUuidFromUrlParams(search);
+        if (!schedulerUuid) return;
+
+        hasProcessedUrlParams.current = true;
+
+        if (isSchedulerTypeSync(search)) {
+            syncModalHandlers.open();
+        }
+
+        // Clear URL params to prevent modal from reopening on close
+        const newParams = new URLSearchParams(search);
+        newParams.delete('scheduler_uuid');
+        newParams.delete('isSync');
+        void navigate(
+            { pathname, search: newParams.toString() },
+            { replace: true },
+        );
+    }, [search, navigate, pathname, syncModalHandlers]);
 
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',

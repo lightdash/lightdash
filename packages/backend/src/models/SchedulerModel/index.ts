@@ -1138,6 +1138,7 @@ export class SchedulerModel {
                 ),
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
+                this.database.raw(`NULL as saved_sql_name`),
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -1195,6 +1196,7 @@ export class SchedulerModel {
                 ),
                 this.database.raw(`NULL as saved_chart_name`),
                 `${DashboardsTableName}.name as dashboard_name`,
+                this.database.raw(`NULL as saved_sql_name`),
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -1228,13 +1230,61 @@ export class SchedulerModel {
             );
         }
 
+        let schedulerSqlCharts = this.database(SchedulerTableName)
+            .select<SelectScheduler[]>(
+                `${SchedulerTableName}.*`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                ),
+                this.database.raw(`NULL as saved_chart_name`),
+                this.database.raw(`NULL as dashboard_name`),
+                `${SavedSqlTableName}.name as saved_sql_name`,
+            )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(SavedSqlTableName, function nonDeletedSqlChartJoin() {
+                this.on(
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SchedulerTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
+            })
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_uuid`,
+                `${SavedSqlTableName}.space_uuid`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`);
+        if (schedulerUuids?.length) {
+            schedulerSqlCharts = schedulerSqlCharts.whereIn(
+                `${SchedulerTableName}.scheduler_uuid`,
+                schedulerUuids,
+            );
+        }
+
         const schedulerDashboardWithTargets =
             await this.getSchedulersWithTargets(await schedulerDashboards);
         const schedulerChartWithTargets = await this.getSchedulersWithTargets(
             await schedulerCharts,
         );
+        const schedulerSqlChartWithTargets =
+            await this.getSchedulersWithTargets(await schedulerSqlCharts);
 
-        return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
+        return [
+            ...schedulerChartWithTargets,
+            ...schedulerDashboardWithTargets,
+            ...schedulerSqlChartWithTargets,
+        ];
     }
 
     async getSchedulersByUuid(

@@ -28,6 +28,7 @@ import {
     IconChartBar,
     IconCheck,
     IconClock,
+    IconCodeDots,
     IconLayoutDashboard,
     IconMail,
     IconRadar,
@@ -371,6 +372,18 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         />
                                         <Text fz="xs" c="ldGray.6">
                                             {item.savedChartName}
+                                        </Text>
+                                    </Group>
+                                ) : item.savedSqlName ? (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconCodeDots}
+                                            color="ldGray.6"
+                                            size={12}
+                                            strokeWidth={1.5}
+                                        />
+                                        <Text fz="xs" c="ldGray.6">
+                                            {item.savedSqlName}
                                         </Text>
                                     </Group>
                                 ) : item.dashboardName ? (

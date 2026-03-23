@@ -83,7 +83,10 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                         leftSection={<MantineIcon icon={IconSquarePlus} />}
                         to={getItemLink(item, projectUuid)}
                     >
-                        Go to {item.savedChartUuid ? 'chart' : 'dashboard'}
+                        Go to{' '}
+                        {item.savedChartUuid || item.savedSqlUuid
+                            ? 'chart'
+                            : 'dashboard'}
                     </Menu.Item>
                     <Menu.Item
                         component="button"
