@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerResourceType,
     type SchedulerAndTargets,
     type SchedulerRun,
     type SchedulerWithLogs,
@@ -127,53 +128,131 @@ export const getLogStatusIconWithoutTooltip = (
     }
 };
 
-export const getSchedulerLink = (
+type FetchSqlChartSlug = (
+    projectUuid: string,
+    savedSqlUuid: string,
+) => Promise<string>;
+
+const getProjectUuid = (
     item: SchedulerItem | SchedulerRun,
     fallbackProjectUuid?: string | null,
+) =>
+    ('projectUuid' in item ? item.projectUuid : undefined) ??
+    fallbackProjectUuid ??
+    '';
+
+const getSqlChartResourcePath = async (
+    projectUuid: string,
+    savedSqlUuid: string,
+    fetchSqlChartSlug: FetchSqlChartSlug,
 ) => {
-    // Use item's projectUuid if available (only on SchedulerItem), otherwise fall back to the provided one
-    const projectUuid =
-        ('projectUuid' in item ? item.projectUuid : undefined) ??
-        fallbackProjectUuid ??
-        '';
+    const slug = await fetchSqlChartSlug(projectUuid, savedSqlUuid);
+    return `/projects/${projectUuid}/sql-runner/${slug}`;
+};
+
+export const getSchedulerLink = async (
+    item: SchedulerItem | SchedulerRun,
+    fallbackProjectUuid?: string | null,
+    fetchSqlChartSlug?: FetchSqlChartSlug,
+) => {
+    const projectUuid = getProjectUuid(item, fallbackProjectUuid);
 
     const paramName =
         'thresholds' in item && item.thresholds && item.thresholds.length > 0
             ? 'threshold_uuid'
             : 'scheduler_uuid';
 
+    const syncParam =
+        item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``;
+
     // Handle SchedulerRun (uses resourceType/resourceUuid)
     if ('resourceType' in item) {
-        const resourcePath =
-            item.resourceType === 'chart'
-                ? `/projects/${projectUuid}/saved/${item.resourceUuid}/view`
-                : `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
+        let resourcePath: string;
+        switch (item.resourceType) {
+            case SchedulerResourceType.CHART:
+                resourcePath = `/projects/${projectUuid}/saved/${item.resourceUuid}/view`;
+                break;
+            case SchedulerResourceType.SQL_CHART:
+                if (!fetchSqlChartSlug) {
+                    throw new Error(
+                        'fetchSqlChartSlug is required for SQL chart schedulers',
+                    );
+                }
+                resourcePath = await getSqlChartResourcePath(
+                    projectUuid,
+                    item.resourceUuid,
+                    fetchSqlChartSlug,
+                );
+                break;
+            case SchedulerResourceType.DASHBOARD:
+                resourcePath = `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
+                break;
+            default:
+                assertUnreachable(
+                    item.resourceType,
+                    'Unknown scheduler resource type',
+                );
+        }
 
-        return `${resourcePath}?${paramName}=${item.schedulerUuid}${
-            item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
-        }`;
+        return `${resourcePath}?${paramName}=${item.schedulerUuid}${syncParam}`;
     }
 
-    // Handle SchedulerItem (uses savedChartUuid/dashboardUuid)
-    return item.savedChartUuid
-        ? `/projects/${projectUuid}/saved/${
-              item.savedChartUuid
-          }/view/?${paramName}=${item.schedulerUuid}${
-              item.format === SchedulerFormat.GSHEETS ? `&isSync=true` : ``
-          }`
-        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
+    // Handle SchedulerItem (uses savedChartUuid/dashboardUuid/savedSqlUuid)
+    if (item.savedChartUuid) {
+        return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view/?${paramName}=${item.schedulerUuid}${syncParam}`;
+    }
+    if (item.savedSqlUuid) {
+        if (!fetchSqlChartSlug) {
+            throw new Error(
+                'fetchSqlChartSlug is required for SQL chart schedulers',
+            );
+        }
+        const resourcePath = await getSqlChartResourcePath(
+            projectUuid,
+            item.savedSqlUuid,
+            fetchSqlChartSlug,
+        );
+        return `${resourcePath}?${paramName}=${item.schedulerUuid}${syncParam}`;
+    }
+    return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
 };
 
-export const getItemLink = (
+export const getItemLink = async (
     item: SchedulerItem,
     fallbackProjectUuid?: string | null,
+    fetchSqlChartSlug?: FetchSqlChartSlug,
 ) => {
-    // Use item's projectUuid if available, otherwise fall back to the provided one
     const projectUuid = item.projectUuid ?? fallbackProjectUuid ?? '';
 
-    return item.savedChartUuid
-        ? `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`
-        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
+    if (item.savedChartUuid) {
+        return `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`;
+    }
+    if (item.savedSqlUuid) {
+        if (!fetchSqlChartSlug) {
+            throw new Error(
+                'fetchSqlChartSlug is required for SQL chart schedulers',
+            );
+        }
+        return getSqlChartResourcePath(
+            projectUuid,
+            item.savedSqlUuid,
+            fetchSqlChartSlug,
+        );
+    }
+    return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
+};
+
+export const fetchSqlChartSlug: FetchSqlChartSlug = async (
+    projectUuid,
+    savedSqlUuid,
+) => {
+    const { fetchSavedSqlChart } =
+        await import('../../features/sqlRunner/hooks/useSavedSqlCharts');
+    const chart = await fetchSavedSqlChart({
+        projectUuid,
+        uuid: savedSqlUuid,
+    });
+    return chart.slug;
 };
 
 export const formatTime = (date: Date) =>

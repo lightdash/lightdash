@@ -28,6 +28,7 @@ import {
     IconChartBar,
     IconCheck,
     IconClock,
+    IconCodeDots,
     IconLayoutDashboard,
     IconMail,
     IconRadar,
@@ -51,7 +52,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
 import { useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
@@ -64,6 +65,7 @@ import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import { SchedulersViewTab } from './SchedulersViewConstants';
 import {
+    fetchSqlChartSlug,
     getSchedulerIcon,
     getSchedulerLink,
     type SchedulerItem,
@@ -313,9 +315,16 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             {getSchedulerIcon(item)}
                             <Stack gap="two">
                                 <Anchor
-                                    component={Link}
-                                    to={getSchedulerLink(item, itemProjectUuid)}
-                                    target="_blank"
+                                    onClick={async (e) => {
+                                        e.preventDefault();
+                                        const link = await getSchedulerLink(
+                                            item,
+                                            itemProjectUuid,
+                                            fetchSqlChartSlug,
+                                        );
+                                        window.open(link, '_blank');
+                                    }}
+                                    style={{ cursor: 'pointer' }}
                                 >
                                     <Tooltip
                                         fz="xs"
@@ -371,6 +380,18 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                         />
                                         <Text fz="xs" c="ldGray.6">
                                             {item.savedChartName}
+                                        </Text>
+                                    </Group>
+                                ) : item.savedSqlName ? (
+                                    <Group gap="two">
+                                        <MantineIcon
+                                            icon={IconCodeDots}
+                                            color="ldGray.6"
+                                            size={12}
+                                            strokeWidth={1.5}
+                                        />
+                                        <Text fz="xs" c="ldGray.6">
+                                            {item.savedSqlName}
                                         </Text>
                                     </Group>
                                 ) : item.dashboardName ? (

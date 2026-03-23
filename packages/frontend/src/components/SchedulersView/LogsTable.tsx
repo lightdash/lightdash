@@ -38,7 +38,6 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
-import { Link } from 'react-router';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
 import { useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
 import {
@@ -51,6 +50,7 @@ import MantineIcon from '../common/MantineIcon';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
 import {
+    fetchSqlChartSlug,
     formatTime,
     getLogStatusIconWithoutTooltip,
     getSchedulerIcon,
@@ -283,9 +283,16 @@ const LogsTable: FC<LogsTableProps> = ({
                             {getSchedulerIcon(run)}
                             <Stack gap="two">
                                 <Anchor
-                                    component={Link}
-                                    to={getSchedulerLink(run, projectUuid!)}
-                                    target="_blank"
+                                    onClick={async (e) => {
+                                        e.preventDefault();
+                                        const link = await getSchedulerLink(
+                                            run,
+                                            projectUuid!,
+                                            fetchSqlChartSlug,
+                                        );
+                                        window.open(link, '_blank');
+                                    }}
+                                    style={{ cursor: 'pointer' }}
                                 >
                                     <Tooltip
                                         label={
