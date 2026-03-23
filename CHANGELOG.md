@@ -1,3 +1,10 @@
+# [0.2649.0](https://github.com/lightdash/lightdash/compare/0.2648.6...0.2649.0) (2026-03-23)
+
+
+### Features
+
+* add UI to change chart explore (PROD-5986) ([#21303](https://github.com/lightdash/lightdash/issues/21303)) ([fd55116](https://github.com/lightdash/lightdash/commit/fd55116b7e2bfb93b1aee6bf9895fbea0aa6c44a))
+
 ## [0.2648.6](https://github.com/lightdash/lightdash/compare/0.2648.5...0.2648.6) (2026-03-23)
 
 
