@@ -1,6 +1,6 @@
 ---
 name: developing-in-lightdash
-description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, sql), or creating/editing charts, dashboards, metrics, and dimensions as code
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, sql, set-warehouse), or creating/editing charts, dashboards, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
@@ -25,6 +25,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Create charts | `lightdash download`, edit YAML, `lightdash upload` | [Chart Types](#chart-types) |
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
+| Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
 | Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
 | Test changes | `lightdash preview` | [Workflows](./resources/workflows-reference.md) |
 
@@ -97,6 +98,22 @@ dimensions:
   - name: status
     sql: ${TABLE}.STATUS
     type: string
+```
+
+## Setting Up Warehouse Connection
+
+If the project needs a different warehouse connection (e.g., switching from Postgres to BigQuery), update it from your profiles.yml:
+
+```bash
+lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-yes
+```
+
+This reads credentials from profiles.yml, updates the warehouse connection on the currently selected project, and triggers a recompile. Run this before `lightdash deploy`.
+
+To target a specific project:
+
+```bash
+lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --project <uuid> --assume-yes
 ```
 
 ## Core Workflows
