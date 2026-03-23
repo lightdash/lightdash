@@ -23,7 +23,6 @@ import {
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
-    ExploreType,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -106,12 +105,6 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { PreAggregateDailyStatsModel } from '../../ee/models/PreAggregateDailyStatsModel';
-import { findMatch } from '../../ee/preAggregates/matcher';
-import {
-    PreAggregationDuckDbClient,
-    PreAggregationDuckDbResolveReason,
-} from '../../ee/services/AsyncQueryService/PreAggregationDuckDbClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -155,6 +148,12 @@ import { getDuckdbRuntimeConfig } from './getDuckdbRuntimeConfig';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
+    NoOpPreAggregateStrategy,
+    type PreAggregateExecutionResolution,
+    type PreAggregateStrategy,
+    type PreAggregationRoutingDecision,
+} from './PreAggregateStrategy';
+import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
@@ -178,23 +177,12 @@ const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
-type PreAggregationRoutingDecision =
-    | {
-          target: 'warehouse';
-          preAggregateMetadata?: CacheMetadata['preAggregate'];
-      }
-    | {
-          target: 'pre_aggregate';
-          preAggregateMetadata: CacheMetadata['preAggregate'];
-          route: PreAggregationRoute;
-      };
-
 type AsyncQueryExecutionPlan =
     | {
           target: 'warehouse';
           warehouseQuery: string;
           preAggregateResolved?: false;
-          preAggregateResolveReason?: PreAggregationDuckDbResolveReason;
+          preAggregateResolveReason?: string;
       }
     | {
           target: 'pre_aggregate';
@@ -207,7 +195,7 @@ type AsyncQueryExecutionPlan =
           target: 'error';
           error: string;
           preAggregateResolved?: false;
-          preAggregateResolveReason?: PreAggregationDuckDbResolveReason;
+          preAggregateResolveReason?: string;
       };
 
 type AsyncQueryServiceArguments = ProjectServiceArguments & {
@@ -216,15 +204,13 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     resultsStorageClient: S3ResultsFileStorageClient;
-    preAggregateResultsStorageClient?: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
     natsClient: INatsClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
-    preAggregationDuckDbClient?: PreAggregationDuckDbClient;
-    preAggregateDailyStatsModel?: PreAggregateDailyStatsModel;
+    preAggregateStrategy?: PreAggregateStrategy;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -237,8 +223,6 @@ export class AsyncQueryService extends ProjectService {
     savedSqlModel: SavedSqlModel;
 
     resultsStorageClient: S3ResultsFileStorageClient;
-
-    preAggregateResultsStorageClient?: S3ResultsFileStorageClient;
 
     exportsStorageClient: FileStorageClient;
 
@@ -254,9 +238,7 @@ export class AsyncQueryService extends ProjectService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
-    private readonly preAggregationDuckDbClient?: PreAggregationDuckDbClient;
-
-    private preAggregateDailyStatsModel?: PreAggregateDailyStatsModel;
+    protected readonly preAggregateStrategy: PreAggregateStrategy;
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -265,8 +247,6 @@ export class AsyncQueryService extends ProjectService {
         this.cacheService = args.cacheService;
         this.savedSqlModel = args.savedSqlModel;
         this.resultsStorageClient = args.resultsStorageClient;
-        this.preAggregateResultsStorageClient =
-            args.preAggregateResultsStorageClient;
         this.exportsStorageClient = this.fileStorageClient;
         this.pivotTableService = args.pivotTableService;
         this.prometheusMetrics = args.prometheusMetrics;
@@ -274,8 +254,8 @@ export class AsyncQueryService extends ProjectService {
         this.natsClient = args.natsClient;
         this.permissionsService = args.permissionsService;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
-        this.preAggregationDuckDbClient = args.preAggregationDuckDbClient;
-        this.preAggregateDailyStatsModel = args.preAggregateDailyStatsModel;
+        this.preAggregateStrategy =
+            args.preAggregateStrategy ?? new NoOpPreAggregateStrategy();
     }
 
     private recordPreAggregateStats(params: {
@@ -286,35 +266,13 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid: string | null;
         queryContext: string;
     }): void {
-        const { preAggregateMetadata } = params.routingDecision;
-        if (!preAggregateMetadata) {
-            return;
-        }
-
-        void this.preAggregateDailyStatsModel
-            ?.upsert({
-                projectUuid: params.projectUuid,
-                exploreName: params.exploreName,
-                chartUuid: params.chartUuid,
-                dashboardUuid: params.dashboardUuid,
-                queryContext: params.queryContext,
-                hit: preAggregateMetadata.hit,
-                missReason: preAggregateMetadata.reason?.reason ?? null,
-                preAggregateName: preAggregateMetadata.name ?? null,
-            })
-            .catch((e) =>
-                this.logger.error(
-                    'Failed to upsert pre-aggregate daily stats',
-                    e,
-                ),
-            );
+        this.preAggregateStrategy.recordStats(params);
     }
 
     async cleanupPreAggregateDailyStats(
         retentionDays: number,
     ): Promise<number> {
-        if (!this.preAggregateDailyStatsModel) return 0;
-        return this.preAggregateDailyStatsModel.cleanup(retentionDays);
+        return this.preAggregateStrategy.cleanupStats(retentionDays);
     }
 
     private async assertSavedChartAccess(
@@ -355,75 +313,21 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         context: QueryExecutionContext;
     }): PreAggregationRoutingDecision {
-        if (
-            !this.preAggregationDuckDbClient ||
-            !this.isPreAggregationExecutionEnabled()
-        ) {
-            return { target: 'warehouse' };
-        }
-
-        if (explore.type === ExploreType.PRE_AGGREGATE) {
-            if (!explore.preAggregateSource) {
-                throw new UnexpectedServerError(
-                    `Pre-aggregate explore "${explore.name}" is missing source metadata`,
-                );
-            }
-
-            return {
-                target: 'pre_aggregate',
-                preAggregateMetadata: {
-                    hit: true,
-                    name: explore.preAggregateSource.preAggregateName,
-                },
-                route: {
-                    ...explore.preAggregateSource,
-                    mode: 'required',
-                },
-            };
-        }
-
-        if ((explore.preAggregates || []).length === 0) {
-            return { target: 'warehouse' };
-        }
-
-        const matchResult = findMatch(metricQuery, explore);
-        const preAggregateMetadata: CacheMetadata['preAggregate'] = {
-            hit: matchResult.hit,
-            name: matchResult.preAggregateName || undefined,
-            reason: matchResult.miss || undefined,
-        };
-
-        if (
-            matchResult.hit &&
-            matchResult.preAggregateName &&
-            context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
-        ) {
-            return {
-                target: 'pre_aggregate',
-                preAggregateMetadata,
-                route: {
-                    sourceExploreName: metricQuery.exploreName,
-                    preAggregateName: matchResult.preAggregateName,
-                    mode: 'opportunistic',
-                },
-            };
-        }
-
-        return { target: 'warehouse', preAggregateMetadata };
-    }
-
-    private isPreAggregationExecutionEnabled(): boolean {
-        return this.lightdashConfig.preAggregates.enabled;
+        return this.preAggregateStrategy.getRoutingDecision({
+            metricQuery,
+            explore,
+            context,
+        });
     }
 
     private getResultsStorageClientForContext(
         context?: QueryExecutionContext | null,
     ): S3ResultsFileStorageClient {
-        return context ===
-            QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION &&
-            this.preAggregateResultsStorageClient
-            ? this.preAggregateResultsStorageClient
-            : this.resultsStorageClient;
+        const strategyClient =
+            context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                ? this.preAggregateStrategy.getResultsStorageClient()
+                : undefined;
+        return strategyClient ?? this.resultsStorageClient;
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -1647,88 +1551,49 @@ export class AsyncQueryService extends ProjectService {
         availableParameterDefinitions?: ParameterDefinitions;
         queryUuid: string;
     }): Promise<AsyncQueryExecutionPlan> {
-        if (!preAggregationRoute || !this.isPreAggregationExecutionEnabled()) {
-            return {
-                target: 'warehouse',
-                warehouseQuery,
-            };
+        if (!preAggregationRoute) {
+            return { target: 'warehouse', warehouseQuery };
         }
 
-        const isRequiredPreAggregationRoute =
-            preAggregationRoute.mode === 'required';
-        const canResolvePreAggregation =
-            !!userAccessControls && !!availableParameterDefinitions;
+        const resolution = await this.preAggregateStrategy.resolveExecution({
+            projectUuid,
+            queryUuid,
+            warehouseQuery,
+            preAggregationRoute,
+            resolveArgs: {
+                metricQuery,
+                timezone,
+                dateZoom,
+                parameters,
+                fieldsMap,
+                pivotConfiguration,
+                startOfWeek,
+                userAccessControls,
+                availableParameterDefinitions,
+            },
+        });
 
-        if (isRequiredPreAggregationRoute && !canResolvePreAggregation) {
-            const error =
-                PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
-                    {
-                        route: preAggregationRoute,
-                        reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
-                    },
-                );
-            this.logger.warn(
-                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
-            );
-            return {
-                target: 'error',
-                error,
-                preAggregateResolved: false,
-                preAggregateResolveReason:
-                    PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
-            };
-        }
-
-        const preAggResolution =
-            canResolvePreAggregation && this.preAggregationDuckDbClient
-                ? await this.preAggregationDuckDbClient.resolve({
-                      projectUuid,
-                      queryUuid,
-                      metricQuery,
-                      timezone,
-                      dateZoom,
-                      parameters,
-                      preAggregationRoute,
-                      fieldsMap,
-                      pivotConfiguration,
-                      startOfWeek,
-                      userAccessControls,
-                      availableParameterDefinitions,
-                  })
-                : undefined;
-
-        if (preAggResolution?.resolved) {
+        if (resolution.resolved) {
             this.logger.info(
-                `DuckDB pre-agg route selected for ${queryUuid}: ${preAggregationRoute!.sourceExploreName}/${preAggregationRoute!.preAggregateName}`,
+                `DuckDB pre-agg route selected for ${queryUuid}: ${preAggregationRoute.sourceExploreName}/${preAggregationRoute.preAggregateName}`,
             );
             return {
                 target: 'pre_aggregate',
-                preAggregateQuery: preAggResolution.query,
+                preAggregateQuery: resolution.query,
                 warehouseQuery,
                 preAggregateResolved: true,
             };
         }
 
-        if (
-            isRequiredPreAggregationRoute &&
-            preAggResolution &&
-            !preAggResolution.resolved
-        ) {
-            const error =
-                PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
-                    {
-                        route: preAggregationRoute,
-                        reason: preAggResolution.reason,
-                    },
-                );
+        if (resolution.isFatal) {
             this.logger.warn(
-                `Required pre-aggregate resolution failed for ${queryUuid}: ${error}`,
+                `Required pre-aggregate resolution failed for ${queryUuid}: ${resolution.reason}`,
             );
             return {
                 target: 'error',
-                error,
+                error: resolution.reason,
                 preAggregateResolved: false,
-                preAggregateResolveReason: preAggResolution.reason,
+                preAggregateResolveReason: resolution.reason,
             };
         }
 
@@ -1736,9 +1601,7 @@ export class AsyncQueryService extends ProjectService {
             target: 'warehouse',
             warehouseQuery,
             preAggregateResolved: false,
-            preAggregateResolveReason:
-                preAggResolution?.reason ??
-                PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
+            preAggregateResolveReason: resolution.reason,
         };
     }
 
@@ -1759,13 +1622,8 @@ export class AsyncQueryService extends ProjectService {
         queryCreatedAt,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
-            if (!this.preAggregationDuckDbClient) {
-                throw new UnexpectedServerError(
-                    'Pre-aggregate DuckDB client is not available',
-                );
-            }
             const duckDbWarehouseClient =
-                this.preAggregationDuckDbClient.createExecutionWarehouseClient();
+                this.preAggregateStrategy.createExecutionWarehouseClient();
 
             await this.runAsyncWarehouseQuery({
                 userUuid,
@@ -5017,43 +4875,11 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (!this.preAggregateDailyStatsModel) {
-            return {
-                data: { stats: [] },
-                pagination: {
-                    page: paginateArgs?.page ?? 1,
-                    pageSize: paginateArgs?.pageSize ?? 0,
-                    totalResults: 0,
-                    totalPageCount: 0,
-                },
-            };
-        }
-
-        const result = await this.preAggregateDailyStatsModel.getByProject(
+        return this.preAggregateStrategy.getStats(
             projectUuid,
             days,
             paginateArgs,
             filters,
         );
-
-        return {
-            data: {
-                stats: result.data.map((row) => ({
-                    exploreName: row.exploreName,
-                    date: row.date.toISOString(),
-                    chartUuid: row.chartUuid,
-                    chartName: row.chartName,
-                    dashboardUuid: row.dashboardUuid,
-                    dashboardName: row.dashboardName,
-                    queryContext: row.queryContext,
-                    hitCount: row.hitCount,
-                    missCount: row.missCount,
-                    missReason: row.missReason,
-                    preAggregateName: row.preAggregateName,
-                    updatedAt: row.updatedAt.toISOString(),
-                })),
-            },
-            pagination: result.pagination,
-        };
     }
 }

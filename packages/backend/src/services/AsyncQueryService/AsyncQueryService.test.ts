@@ -1,6 +1,7 @@
 import {
     AnyType,
     DimensionType,
+    ExploreType,
     ForbiddenError,
     NotFoundError,
     QueryExecutionContext,
@@ -25,10 +26,6 @@ import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorag
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
-import {
-    PreAggregationDuckDbResolveReason,
-    type PreAggregationDuckDbClient,
-} from '../../ee/services/AsyncQueryService/PreAggregationDuckDbClient';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -85,10 +82,31 @@ import {
     AsyncQueryService,
     QUEUED_QUERY_EXPIRED_MESSAGE,
 } from './AsyncQueryService';
+import {
+    NoOpPreAggregateStrategy,
+    type PreAggregateExecutionResolution,
+    type PreAggregateStrategy,
+} from './PreAggregateStrategy';
 import type {
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
 } from './types';
+
+const noOpStrategy = new NoOpPreAggregateStrategy();
+
+const makeMockStrategy = (
+    resolveResult: PreAggregateExecutionResolution,
+): PreAggregateStrategy => ({
+    getRoutingDecision: noOpStrategy.getRoutingDecision.bind(noOpStrategy),
+    resolveExecution: jest.fn(async () => resolveResult),
+    createExecutionWarehouseClient: jest.fn(
+        () => warehouseClientMock as unknown as WarehouseClient,
+    ),
+    recordStats: jest.fn(),
+    cleanupStats: jest.fn(async () => 0),
+    getStats: noOpStrategy.getStats.bind(noOpStrategy),
+    getResultsStorageClient: jest.fn(() => undefined),
+});
 
 // Import the mocked function
 const mockSshTunnel = {
@@ -223,26 +241,6 @@ const getMockedAsyncQueryService = (
                 close: jest.fn(),
             })),
         } as unknown as S3ResultsFileStorageClient,
-        preAggregateResultsStorageClient: {
-            isEnabled: true,
-            getDownloadStream: jest.fn(() => {
-                const readable = new Readable({
-                    read() {
-                        this.push('{}');
-                        this.push(null);
-                    },
-                });
-                return readable;
-            }),
-            getFirstLine: jest.fn(async () => '{}'),
-            getFileUrl: jest.fn(
-                async () => 'https://example.com/preagg-results.jsonl',
-            ),
-            createUploadStream: jest.fn(() => ({
-                write: jest.fn(),
-                close: jest.fn(),
-            })),
-        } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {} as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
@@ -257,18 +255,10 @@ const getMockedAsyncQueryService = (
         }),
         permissionsService: {} as PermissionsService,
         persistentDownloadFileService: {} as PersistentDownloadFileService,
-        preAggregationDuckDbClient: {
-            resolve: jest.fn(async () => ({
-                resolved: false as const,
-                reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
-            })),
-        } as unknown as PreAggregationDuckDbClient,
+        preAggregateStrategy: new NoOpPreAggregateStrategy(),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
         spacePermissionService: {} as SpacePermissionService,
-        preAggregateDailyStatsModel: {
-            upsert: jest.fn(),
-        } as unknown as import('../../ee/models/PreAggregateDailyStatsModel').PreAggregateDailyStatsModel,
         ...overrides,
     });
 
@@ -765,11 +755,12 @@ describe('AsyncQueryService', () => {
             expect(runAsyncWarehouseQuerySpy).not.toHaveBeenCalled();
         });
 
-        test('does not resolve pre-aggregates when flag is disabled', async () => {
-            const resolveSpy = jest.fn(async () => ({
-                resolved: false as const,
-                reason: PreAggregationDuckDbResolveReason.RESOLVE_ERROR,
-            }));
+        test('does not resolve pre-aggregates when strategy returns not resolved', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: false,
+                reason: 'not_available',
+                isFatal: false,
+            });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 preAggregates: {
@@ -777,9 +768,7 @@ describe('AsyncQueryService', () => {
                     parquetEnabled: false,
                 },
             });
-            (service as AnyType).preAggregationDuckDbClient = {
-                resolve: resolveSpy,
-            } as unknown as PreAggregationDuckDbClient;
+            (service as AnyType).preAggregateStrategy = mockStrategy;
 
             const runAsyncWarehouseQuerySpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
@@ -817,16 +806,18 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            expect(resolveSpy).not.toHaveBeenCalled();
+            // Strategy's resolveExecution is called but returns not-resolved,
+            // so execution falls back to warehouse
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
             expect(runAsyncPreAggregateQuerySpy).not.toHaveBeenCalled();
         });
 
         test('required pre-aggregate routes error when resolution fails and NATS is enabled', async () => {
-            const resolveSpy = jest.fn(async () => ({
-                resolved: false as const,
-                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
-            }));
+            const mockStrategy = makeMockStrategy({
+                resolved: false,
+                reason: 'No active materialization found for pre-aggregate explore "__preagg__valid_explore__rollup"',
+                isFatal: true,
+            });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 natsWorker: {
@@ -838,9 +829,7 @@ describe('AsyncQueryService', () => {
                     enabled: true,
                 },
             });
-            (service as AnyType).preAggregationDuckDbClient = {
-                resolve: resolveSpy,
-            } as unknown as PreAggregationDuckDbClient;
+            (service as AnyType).preAggregateStrategy = mockStrategy;
 
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
@@ -891,7 +880,7 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            expect(resolveSpy).toHaveBeenCalledTimes(1);
+            expect(mockStrategy.resolveExecution).toHaveBeenCalledTimes(1);
             expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
             expect(runAsyncPreAggSpy).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
@@ -906,6 +895,10 @@ describe('AsyncQueryService', () => {
         });
 
         test('resolved pre-aggregate routes enqueue a pre-aggregate job', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: true,
+                query: 'SELECT * FROM duckdb_preagg',
+            });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 natsWorker: {
@@ -917,13 +910,7 @@ describe('AsyncQueryService', () => {
                     enabled: true,
                 },
             });
-            (service as AnyType).preAggregationDuckDbClient = {
-                resolve: jest.fn(async () => ({
-                    resolved: true as const,
-                    query: 'SELECT * FROM duckdb_preagg',
-                    warehouseClient: warehouseClientMock,
-                })),
-            } as unknown as PreAggregationDuckDbClient;
+            (service as AnyType).preAggregateStrategy = mockStrategy;
 
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
@@ -989,10 +976,11 @@ describe('AsyncQueryService', () => {
         });
 
         test('opportunistic pre-aggregate routes enqueue a warehouse job when DuckDB cannot resolve', async () => {
-            const resolveSpy = jest.fn(async () => ({
-                resolved: false as const,
-                reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
-            }));
+            const mockStrategy = makeMockStrategy({
+                resolved: false,
+                reason: 'no_active_materialization',
+                isFatal: false,
+            });
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 natsWorker: {
@@ -1004,9 +992,7 @@ describe('AsyncQueryService', () => {
                     enabled: true,
                 },
             });
-            (service as AnyType).preAggregationDuckDbClient = {
-                resolve: resolveSpy,
-            } as unknown as PreAggregationDuckDbClient;
+            (service as AnyType).preAggregateStrategy = mockStrategy;
 
             (service.queryHistoryModel.create as jest.Mock).mockResolvedValue({
                 queryUuid: 'test-query-uuid',
@@ -1049,7 +1035,7 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            expect(resolveSpy).toHaveBeenCalledTimes(1);
+            expect(mockStrategy.resolveExecution).toHaveBeenCalledTimes(1);
             expect(enqueueWarehouseSpy).toHaveBeenCalledTimes(1);
             expect(enqueueWarehouseSpy).toHaveBeenCalledWith({
                 queryUuid: 'test-query-uuid',
@@ -1060,6 +1046,32 @@ describe('AsyncQueryService', () => {
 
     describe('executeAsyncMetricQuery', () => {
         test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
+            const mockStrategy: PreAggregateStrategy = {
+                ...makeMockStrategy({
+                    resolved: true,
+                    query: 'SELECT * FROM duckdb_preagg',
+                }),
+                getRoutingDecision: ({ explore }) => {
+                    if (
+                        explore.type === ExploreType.PRE_AGGREGATE &&
+                        explore.preAggregateSource
+                    ) {
+                        return {
+                            target: 'pre_aggregate',
+                            preAggregateMetadata: {
+                                hit: true,
+                                name: explore.preAggregateSource
+                                    .preAggregateName,
+                            },
+                            route: {
+                                ...explore.preAggregateSource,
+                                mode: 'required',
+                            },
+                        };
+                    }
+                    return { target: 'warehouse' };
+                },
+            };
             const service = getMockedAsyncQueryService({
                 ...lightdashConfigMock,
                 natsWorker: {
@@ -1071,6 +1083,7 @@ describe('AsyncQueryService', () => {
                     enabled: true,
                 },
             });
+            (service as AnyType).preAggregateStrategy = mockStrategy;
             service.getExplore = jest
                 .fn()
                 .mockResolvedValue(preAggregateExplore);

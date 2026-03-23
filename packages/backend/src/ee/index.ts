@@ -26,6 +26,7 @@ import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiService } from './services/AiService/AiService';
+import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
@@ -298,14 +299,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userModel: models.getUserModel(),
                     queryHistoryModel: models.getQueryHistoryModel(),
-                    preAggregateDailyStatsModel:
-                        models.getPreAggregateDailyStatsModel(),
                     downloadAuditModel: models.getDownloadAuditModel(),
                     cacheService: repository.getCacheService(),
                     savedSqlModel: models.getSavedSqlModel(),
                     resultsStorageClient: clients.getResultsFileStorageClient(),
-                    preAggregateResultsStorageClient:
-                        clients.getPreAggregateResultsFileStorageClient(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
@@ -315,11 +312,21 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     permissionsService: repository.getPermissionsService(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
-                    preAggregationDuckDbClient: new PreAggregationDuckDbClient({
-                        lightdashConfig: context.lightdashConfig,
-                        preAggregateModel: models.getPreAggregateModel(),
-                        projectModel: models.getProjectModel(),
-                        prometheusMetrics,
+                    preAggregateStrategy: new PreAggregateStrategy({
+                        preAggregationDuckDbClient:
+                            new PreAggregationDuckDbClient({
+                                lightdashConfig: context.lightdashConfig,
+                                preAggregateModel:
+                                    models.getPreAggregateModel(),
+                                projectModel: models.getProjectModel(),
+                                prometheusMetrics,
+                            }),
+                        preAggregateDailyStatsModel:
+                            models.getPreAggregateDailyStatsModel(),
+                        preAggregateResultsStorageClient:
+                            clients.getPreAggregateResultsFileStorageClient(),
+                        isEnabled: () =>
+                            context.lightdashConfig.preAggregates.enabled,
                     }),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
