@@ -1,3 +1,10 @@
+## [0.2648.1](https://github.com/lightdash/lightdash/compare/0.2648.0...0.2648.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* only show .gitignore notice for metadata file once ([#21297](https://github.com/lightdash/lightdash/issues/21297)) ([170ff4b](https://github.com/lightdash/lightdash/commit/170ff4be8ba0e979cab669cb0fdd25055ac3f7ed))
+
 # [0.2648.0](https://github.com/lightdash/lightdash/compare/0.2647.1...0.2648.0) (2026-03-23)
 
 
