@@ -1,3 +1,11 @@
+## [0.2648.4](https://github.com/lightdash/lightdash/compare/0.2648.3...0.2648.4) (2026-03-23)
+
+
+### Bug Fixes
+
+* conditionally show soft delete message in DeleteSpaceModal ([#21305](https://github.com/lightdash/lightdash/issues/21305)) ([2dd8240](https://github.com/lightdash/lightdash/commit/2dd8240fccc94e079dbfd0553573dd4de77f4c93))
+* disable cancel button during deletion operations ([#21307](https://github.com/lightdash/lightdash/issues/21307)) ([e61328e](https://github.com/lightdash/lightdash/commit/e61328e24039b2df4a0d18fe4c8df18b8ad85d2b))
+
 ## [0.2648.3](https://github.com/lightdash/lightdash/compare/0.2648.2...0.2648.3) (2026-03-23)
 
 
