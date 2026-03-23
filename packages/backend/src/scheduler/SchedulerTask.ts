@@ -30,6 +30,7 @@ import {
     getItemMap,
     getPivotConfig,
     getRequestMethod,
+    getSchedulerResourceTypeAndId,
     getSchedulerUuid,
     GsheetsNotificationPayload,
     isChartValidationError,
@@ -1161,10 +1162,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'slack',
                     format,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
@@ -1411,10 +1409,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'msteams',
                     format,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
@@ -2511,10 +2506,7 @@ export default class SchedulerTask {
                     type: 'email',
                     format,
                     withPdf: pdfFile !== undefined,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
@@ -3009,7 +3001,7 @@ export default class SchedulerTask {
                             savedSqlUuid: scheduler.savedSqlUuid,
                             invalidateCache: true,
                             context:
-                                QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+                                QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },
                     );
 
@@ -3060,7 +3052,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'gsheets',
                     format,
-                    resourceType: dashboardUuid ? 'dashboard' : 'chart',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                 },
             });
@@ -5082,10 +5074,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'googlechat',
                     format,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },

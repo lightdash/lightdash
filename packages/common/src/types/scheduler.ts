@@ -323,7 +323,7 @@ export const isChartScheduler = (
 ): data is ChartScheduler => 'savedChartUuid' in data && !!data.savedChartUuid;
 
 export const getSchedulerResourceTypeAndId = (
-    scheduler: Scheduler,
+    scheduler: Scheduler | CreateSchedulerAndTargets,
 ): { resourceType: SchedulerResourceType; resourceId: string } => {
     if (isChartScheduler(scheduler)) {
         return {

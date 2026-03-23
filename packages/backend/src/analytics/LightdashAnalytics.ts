@@ -1095,7 +1095,8 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         schedulerId?: string;
         schedulerTargetId?: string;
         groupId: string | undefined;
-        resourceType?: 'dashboard' | 'chart';
+        resourceType?: SchedulerResourceType;
+        resourceId?: string;
         type: 'slack' | 'email' | 'gsheets' | 'msteams' | 'googlechat';
         format?: SchedulerFormat;
         withPdf?: boolean;
