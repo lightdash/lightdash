@@ -108,6 +108,10 @@ import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorage
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { PreAggregateDailyStatsModel } from '../../ee/models/PreAggregateDailyStatsModel';
 import { findMatch } from '../../ee/preAggregates/matcher';
+import {
+    PreAggregationDuckDbClient,
+    PreAggregationDuckDbResolveReason,
+} from '../../ee/services/AsyncQueryService/PreAggregationDuckDbClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -150,10 +154,6 @@ import {
 import { getDuckdbRuntimeConfig } from './getDuckdbRuntimeConfig';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
-import {
-    PreAggregationDuckDbClient,
-    PreAggregationDuckDbResolveReason,
-} from './PreAggregationDuckDbClient';
 import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
@@ -216,15 +216,15 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     resultsStorageClient: S3ResultsFileStorageClient;
-    preAggregateResultsStorageClient: S3ResultsFileStorageClient;
+    preAggregateResultsStorageClient?: S3ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
     natsClient: INatsClient;
     permissionsService: PermissionsService;
     persistentDownloadFileService: PersistentDownloadFileService;
-    preAggregationDuckDbClient: PreAggregationDuckDbClient;
-    preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
+    preAggregationDuckDbClient?: PreAggregationDuckDbClient;
+    preAggregateDailyStatsModel?: PreAggregateDailyStatsModel;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -238,7 +238,7 @@ export class AsyncQueryService extends ProjectService {
 
     resultsStorageClient: S3ResultsFileStorageClient;
 
-    preAggregateResultsStorageClient: S3ResultsFileStorageClient;
+    preAggregateResultsStorageClient?: S3ResultsFileStorageClient;
 
     exportsStorageClient: FileStorageClient;
 
@@ -254,9 +254,9 @@ export class AsyncQueryService extends ProjectService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
-    private readonly preAggregationDuckDbClient: PreAggregationDuckDbClient;
+    private readonly preAggregationDuckDbClient?: PreAggregationDuckDbClient;
 
-    private preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
+    private preAggregateDailyStatsModel?: PreAggregateDailyStatsModel;
 
     constructor(args: AsyncQueryServiceArguments) {
         super(args);
@@ -292,7 +292,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         void this.preAggregateDailyStatsModel
-            .upsert({
+            ?.upsert({
                 projectUuid: params.projectUuid,
                 exploreName: params.exploreName,
                 chartUuid: params.chartUuid,
@@ -313,6 +313,7 @@ export class AsyncQueryService extends ProjectService {
     async cleanupPreAggregateDailyStats(
         retentionDays: number,
     ): Promise<number> {
+        if (!this.preAggregateDailyStatsModel) return 0;
         return this.preAggregateDailyStatsModel.cleanup(retentionDays);
     }
 
@@ -354,7 +355,10 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         context: QueryExecutionContext;
     }): PreAggregationRoutingDecision {
-        if (!this.isPreAggregationExecutionEnabled()) {
+        if (
+            !this.preAggregationDuckDbClient ||
+            !this.isPreAggregationExecutionEnabled()
+        ) {
             return { target: 'warehouse' };
         }
 
@@ -415,7 +419,9 @@ export class AsyncQueryService extends ProjectService {
     private getResultsStorageClientForContext(
         context?: QueryExecutionContext | null,
     ): S3ResultsFileStorageClient {
-        return context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        return context ===
+            QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION &&
+            this.preAggregateResultsStorageClient
             ? this.preAggregateResultsStorageClient
             : this.resultsStorageClient;
     }
@@ -1673,22 +1679,23 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const preAggResolution = canResolvePreAggregation
-            ? await this.preAggregationDuckDbClient.resolve({
-                  projectUuid,
-                  queryUuid,
-                  metricQuery,
-                  timezone,
-                  dateZoom,
-                  parameters,
-                  preAggregationRoute,
-                  fieldsMap,
-                  pivotConfiguration,
-                  startOfWeek,
-                  userAccessControls,
-                  availableParameterDefinitions,
-              })
-            : undefined;
+        const preAggResolution =
+            canResolvePreAggregation && this.preAggregationDuckDbClient
+                ? await this.preAggregationDuckDbClient.resolve({
+                      projectUuid,
+                      queryUuid,
+                      metricQuery,
+                      timezone,
+                      dateZoom,
+                      parameters,
+                      preAggregationRoute,
+                      fieldsMap,
+                      pivotConfiguration,
+                      startOfWeek,
+                      userAccessControls,
+                      availableParameterDefinitions,
+                  })
+                : undefined;
 
         if (preAggResolution?.resolved) {
             this.logger.info(
@@ -1752,6 +1759,11 @@ export class AsyncQueryService extends ProjectService {
         queryCreatedAt,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
+            if (!this.preAggregationDuckDbClient) {
+                throw new UnexpectedServerError(
+                    'Pre-aggregate DuckDB client is not available',
+                );
+            }
             const duckDbWarehouseClient =
                 this.preAggregationDuckDbClient.createExecutionWarehouseClient();
 
@@ -4952,6 +4964,18 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (!this.preAggregateDailyStatsModel) {
+            return {
+                data: { stats: [] },
+                pagination: {
+                    page: paginateArgs?.page ?? 1,
+                    pageSize: paginateArgs?.pageSize ?? 0,
+                    totalResults: 0,
+                    totalPageCount: 0,
+                },
+            };
         }
 
         const result = await this.preAggregateDailyStatsModel.getByProject(

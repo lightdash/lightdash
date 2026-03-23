@@ -25,6 +25,10 @@ import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorag
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import {
+    PreAggregationDuckDbResolveReason,
+    type PreAggregationDuckDbClient,
+} from '../../ee/services/AsyncQueryService/PreAggregationDuckDbClient';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -81,10 +85,6 @@ import {
     AsyncQueryService,
     QUEUED_QUERY_EXPIRED_MESSAGE,
 } from './AsyncQueryService';
-import {
-    PreAggregationDuckDbResolveReason,
-    type PreAggregationDuckDbClient,
-} from './PreAggregationDuckDbClient';
 import type {
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
@@ -268,7 +268,7 @@ const getMockedAsyncQueryService = (
         spacePermissionService: {} as SpacePermissionService,
         preAggregateDailyStatsModel: {
             upsert: jest.fn(),
-        } as unknown as import('../../models/PreAggregateDailyStatsModel').PreAggregateDailyStatsModel,
+        } as unknown as import('../../ee/models/PreAggregateDailyStatsModel').PreAggregateDailyStatsModel,
         ...overrides,
     });
 
