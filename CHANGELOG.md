@@ -1,3 +1,11 @@
+# [0.2656.0](https://github.com/lightdash/lightdash/compare/0.2655.0...0.2656.0) (2026-03-23)
+
+
+### Features
+
+* verified badges in tiles, resource browser, search, and omnibar ([#20943](https://github.com/lightdash/lightdash/issues/20943)) ([5e6b8b7](https://github.com/lightdash/lightdash/commit/5e6b8b72a1ad3787b4d738ce73f1bb0daaaf527b))
+* verified content admin panel + homepage verified tab ([#20947](https://github.com/lightdash/lightdash/issues/20947)) ([fd10039](https://github.com/lightdash/lightdash/commit/fd10039b6e64142b21786a5e59e5da98651bc3e0))
+
 # [0.2655.0](https://github.com/lightdash/lightdash/compare/0.2654.1...0.2655.0) (2026-03-23)
 
 
