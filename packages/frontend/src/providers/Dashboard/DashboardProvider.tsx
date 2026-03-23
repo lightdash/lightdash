@@ -721,6 +721,23 @@ const DashboardProvider: React.FC<
         resetSavedFilterOverrides,
     } = useSavedDashboardFiltersOverrides();
 
+    // Stable key that only changes when the chart-tile mapping changes,
+    // not when tiles are repositioned/resized (x/y/w/h changes).
+    // This prevents unnecessary re-renders of the entire filter chain
+    // during drag/resize operations.
+    const savedChartUuidsAndTileUuidsKey = useMemo(
+        () =>
+            dashboardTiles
+                ?.filter(isDashboardChartTileType)
+                .map(
+                    (tile) =>
+                        `${tile.uuid}:${tile.properties.savedChartUuid ?? ''}`,
+                )
+                .sort()
+                .join(',') ?? '',
+        [dashboardTiles],
+    );
+
     const savedChartUuidsAndTileUuids = useMemo(
         () =>
             dashboardTiles
@@ -737,7 +754,8 @@ const DashboardProvider: React.FC<
                     },
                     [],
                 ),
-        [dashboardTiles],
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [savedChartUuidsAndTileUuidsKey],
     );
 
     /**
@@ -1048,12 +1066,12 @@ const DashboardProvider: React.FC<
         // If this is an embed dashboard, we skip the dashboard check
         if (
             (!dashboard && !embedToken) ||
-            !dashboardTiles ||
+            !savedChartUuidsAndTileUuids ||
             !dashboardAvailableFiltersData
         )
             return;
 
-        const filterFieldsMapping = savedChartUuidsAndTileUuids?.reduce<
+        const filterFieldsMapping = savedChartUuidsAndTileUuids.reduce<
             Record<string, FilterableDimension[]>
         >((acc, { tileUuid }) => {
             const filterFields =
@@ -1074,7 +1092,6 @@ const DashboardProvider: React.FC<
         return filterFieldsMapping;
     }, [
         dashboard,
-        dashboardTiles,
         dashboardAvailableFiltersData,
         savedChartUuidsAndTileUuids,
         embedToken,
