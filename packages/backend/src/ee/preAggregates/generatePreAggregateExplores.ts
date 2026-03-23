@@ -7,9 +7,6 @@ import {
 } from '@lightdash/common';
 import { buildPreAggregateExplore } from './buildPreAggregateExplore';
 
-const isPreAggregateVirtualExploreGenerationEnabled = (): boolean =>
-    process.env.PRE_AGGREGATES_ENABLED === 'true';
-
 const shouldGeneratePreAggregatesForExplore = (explore: Explore): boolean =>
     explore.name === explore.baseTable;
 
@@ -20,10 +17,7 @@ export const generatePreAggregateExplores = ({
     compiledExplores: Array<Explore | ExploreError>;
     parsedPreAggregates: PreAggregateDef[];
 }): Array<Explore | ExploreError> => {
-    if (
-        !isPreAggregateVirtualExploreGenerationEnabled() ||
-        parsedPreAggregates.length === 0
-    ) {
+    if (parsedPreAggregates.length === 0) {
         return compiledExplores;
     }
 
