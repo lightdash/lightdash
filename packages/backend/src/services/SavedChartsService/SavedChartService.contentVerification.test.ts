@@ -1,20 +1,18 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartType,
     ContentType,
     FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
-    type ChartSummary,
-    type ContentVerificationInfo,
-    type PossibleAbilities,
-    type SessionUser,
+    PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
-import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -25,21 +23,18 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import type { SchedulerService } from '../SchedulerService/SchedulerService';
+import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
 import { SavedChartService } from './SavedChartService';
 
-const chartSummary: Pick<
-    ChartSummary,
-    'organizationUuid' | 'projectUuid' | 'uuid'
-> = {
+const chartSummary = {
     organizationUuid: 'org-uuid',
     projectUuid: 'project-uuid',
     uuid: 'chart-uuid',
 };
 
-const verificationInfo: ContentVerificationInfo = {
+const verificationInfo = {
     verifiedBy: {
         userUuid: 'user-uuid',
         firstName: 'Test',
@@ -48,7 +43,27 @@ const verificationInfo: ContentVerificationInfo = {
     verifiedAt: new Date(),
 };
 
-const adminUser: SessionUser = {
+const savedChartData = {
+    ...chartSummary,
+    spaceUuid: 'space-uuid',
+    metricQuery: {
+        metrics: [],
+        dimensions: [],
+        filters: { dimensions: {}, metrics: {}, tableCalculations: {} },
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    },
+    tableName: 'test_table',
+    dashboardUuid: null,
+    chartConfig: {
+        type: 'cartesian',
+        config: { eChartsConfig: { xAxis: [], yAxis: [], series: [] } },
+    },
+    tableConfig: { columnOrder: [] },
+};
+
+const adminUser = {
     userUuid: 'user-uuid',
     email: 'admin@test.com',
     firstName: 'Admin',
@@ -71,7 +86,7 @@ const adminUser: SessionUser = {
     updatedAt: new Date(),
 };
 
-const editorUser: SessionUser = {
+const editorUser = {
     ...adminUser,
     userUuid: 'editor-uuid',
     email: 'editor@test.com',
@@ -87,6 +102,9 @@ const featureFlagService = {
 
 const savedChartModel = {
     getSummary: jest.fn(async () => chartSummary),
+    get: jest.fn(async () => savedChartData),
+    createVersion: jest.fn(async () => savedChartData),
+    update: jest.fn(async () => savedChartData),
 };
 
 const contentVerificationModel = {
@@ -95,27 +113,41 @@ const contentVerificationModel = {
     getByContent: jest.fn(async () => verificationInfo),
 };
 
+const spacePermissionService = {
+    getSpaceAccessContext: jest.fn(async () => ({
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+        inheritsFromOrgOrProject: true,
+        access: [],
+    })),
+};
+
+const projectModel = {
+    getExploreFromCache: jest.fn(async () => null),
+};
+
 jest.spyOn(analyticsMock, 'track');
 
 describe('SavedChartService - Content Verification', () => {
     const service = new SavedChartService({
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
-        projectModel: {} as ProjectModel,
+        projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
-        spaceModel: {} as SpaceModel,
-        analyticsModel: {} as AnalyticsModel,
-        pinnedListModel: {} as PinnedListModel,
-        schedulerModel: {} as SchedulerModel,
-        schedulerService: {} as SchedulerService,
-        schedulerClient: {} as SchedulerClient,
-        slackClient: {} as SlackClient,
-        dashboardModel: {} as DashboardModel,
-        catalogModel: {} as CatalogModel,
-        permissionsService: {} as PermissionsService,
-        googleDriveClient: {} as GoogleDriveClient,
-        userService: {} as UserService,
-        spacePermissionService: {} as SpacePermissionService,
+        spaceModel: {} as unknown as SpaceModel,
+        analyticsModel: {} as unknown as AnalyticsModel,
+        pinnedListModel: {} as unknown as PinnedListModel,
+        schedulerModel: {} as unknown as SchedulerModel,
+        schedulerService: {} as unknown as SchedulerService,
+        schedulerClient: {} as unknown as SchedulerClient,
+        slackClient: {} as unknown as SlackClient,
+        dashboardModel: {} as unknown as DashboardModel,
+        catalogModel: {} as unknown as CatalogModel,
+        permissionsService: {} as unknown as PermissionsService,
+        googleDriveClient: {} as unknown as GoogleDriveClient,
+        userService: {} as unknown as UserService,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         featureFlagService: featureFlagService as unknown as FeatureFlagService,
@@ -203,6 +235,41 @@ describe('SavedChartService - Content Verification', () => {
             ).rejects.toThrow(ForbiddenError);
 
             expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Auto-unverify on edit', () => {
+        it('should auto-unverify chart when content is edited via createVersion', async () => {
+            await service.createVersion(adminUser, 'chart-uuid', {
+                tableName: 'test_table',
+                metricQuery: {
+                    exploreName: 'test',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                chartConfig: { type: ChartType.CARTESIAN },
+                tableConfig: { columnOrder: [] },
+            });
+
+            expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
+                ContentType.CHART,
+                'chart-uuid',
+            );
+        });
+
+        it('should auto-unverify chart when metadata is edited via update', async () => {
+            await service.update(adminUser, 'chart-uuid', {
+                name: 'updated chart name',
+            });
+
+            expect(contentVerificationModel.unverify).toHaveBeenCalledWith(
+                ContentType.CHART,
+                'chart-uuid',
+            );
         });
     });
 });
