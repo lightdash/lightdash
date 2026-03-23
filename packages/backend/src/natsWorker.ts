@@ -4,7 +4,7 @@ import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
 import {
-    NATS_WORKER_STREAMS,
+    getRegisteredStreams,
     natsWorkerStreamSchema,
     type NatsWorkerStream,
 } from './nats/natsConfig';
@@ -18,7 +18,7 @@ const parseStreams = (): NatsWorkerStream[] => {
             streams.push(natsWorkerStreamSchema.parse(args[i + 1]));
         }
     });
-    return streams.length > 0 ? streams : [...NATS_WORKER_STREAMS];
+    return streams.length > 0 ? streams : getRegisteredStreams();
 };
 
 process
