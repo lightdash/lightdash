@@ -1,0 +1,255 @@
+:root {
+    --f1-bg: #15151e;
+    --f1-surface: #1e1e2d;
+    --f1-border: #2a2a3d;
+    --f1-text: #e8e8ed;
+    --f1-muted: #8888a0;
+    --f1-red: #e8002d;
+    --f1-accent: #e8002d;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--f1-bg);
+    color: var(--f1-text);
+    font-family:
+        'Inter',
+        -apple-system,
+        BlinkMacSystemFont,
+        'Segoe UI',
+        sans-serif;
+}
+
+.dashboard {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.dashboard-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--f1-red);
+    padding-bottom: 1rem;
+}
+
+.dashboard-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.dashboard-header .season {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--f1-red);
+}
+
+.dashboard-header .subtitle {
+    color: var(--f1-muted);
+    font-size: 0.85rem;
+    margin-left: auto;
+}
+
+/* KPI row */
+.kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.kpi-card {
+    background: var(--f1-surface);
+    border: 1px solid var(--f1-border);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.kpi-card .label {
+    font-size: 0.75rem;
+    color: var(--f1-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.kpi-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Grid layouts */
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.full-width {
+    margin-bottom: 1.5rem;
+}
+
+/* Card */
+.card {
+    background: var(--f1-surface);
+    border: 1px solid var(--f1-border);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.card h2 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--f1-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.25rem;
+}
+
+/* Bar chart */
+.bar-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.bar-label {
+    width: 140px;
+    font-size: 0.8rem;
+    color: var(--f1-text);
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bar-track {
+    flex: 1;
+    height: 26px;
+    background: #252538;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: 0.75rem;
+    color: white;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    min-width: fit-content;
+    transition: width 0.5s ease;
+}
+
+/* Table */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--f1-border);
+    color: var(--f1-muted);
+    font-weight: 500;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.data-table th.num,
+.data-table td.num {
+    text-align: right;
+}
+
+.data-table td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #1a1a2a;
+    color: var(--f1-text);
+}
+
+.data-table tbody tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.data-table .pos {
+    font-weight: 700;
+    color: var(--f1-muted);
+    width: 2rem;
+}
+
+.data-table .driver-name {
+    font-weight: 600;
+}
+
+.data-table .team-name {
+    color: var(--f1-muted);
+    font-size: 0.8rem;
+}
+
+/* Loading / Error */
+.loading {
+    color: var(--f1-muted);
+    padding: 2rem;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.error {
+    color: var(--f1-red);
+    padding: 2rem;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+/* Stat grid */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 6px;
+}
+
+.stat-item .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.stat-item .stat-label {
+    font-size: 0.7rem;
+    color: var(--f1-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0.25rem;
+}
