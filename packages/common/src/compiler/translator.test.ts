@@ -1,4 +1,5 @@
 import { PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER } from '../preAggregates/buildPreAggregateExplore';
+import { preAggregatePostProcessor } from '../preAggregates/postProcessor';
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import { ExploreType, InlineErrorType, type Explore } from '../types/explore';
 import { DimensionType, FieldType } from '../types/field';
@@ -1248,6 +1249,7 @@ describe('pre-aggregates metadata parsing', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(1);
@@ -1273,6 +1275,7 @@ describe('pre-aggregates metadata parsing', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(1);
@@ -1314,6 +1317,7 @@ describe('pre-aggregates metadata parsing', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(1);
@@ -1349,6 +1353,7 @@ describe('pre-aggregates metadata parsing', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(1);
@@ -1390,6 +1395,7 @@ describe('pre-aggregate virtual explore generation', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(2);
@@ -1439,6 +1445,7 @@ describe('pre-aggregate virtual explore generation', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(2);
@@ -1501,6 +1508,7 @@ describe('pre-aggregate virtual explore generation', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(3);
@@ -1554,6 +1562,7 @@ describe('pre-aggregate virtual explore generation', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(1);
@@ -1590,6 +1599,7 @@ describe('pre-aggregate virtual explore generation', () => {
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
             },
+            { postProcessors: [preAggregatePostProcessor] },
         );
 
         expect(explores).toHaveLength(1);

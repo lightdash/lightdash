@@ -1,0 +1,49 @@
+import attempt from 'lodash/attempt';
+import isError from 'lodash/isError';
+import type { ExplorePostProcessor } from '../compiler/translator';
+import { InlineErrorType, type ExploreError } from '../types/explore';
+import { parseDbtPreAggregates } from './definition';
+import { generatePreAggregateExplores } from './generatePreAggregateExplores';
+
+export const preAggregatePostProcessor: ExplorePostProcessor = (
+    compiledExplores,
+    { model, meta },
+) => {
+    const parsedPreAggregates = attempt(
+        parseDbtPreAggregates,
+        meta.pre_aggregates,
+        model.name,
+    );
+
+    if (isError(parsedPreAggregates)) {
+        return compiledExplores.map(
+            (explore) =>
+                ({
+                    name: explore.name,
+                    label: explore.label,
+                    groupLabel: explore.groupLabel,
+                    errors: [
+                        {
+                            type: InlineErrorType.METADATA_PARSE_ERROR,
+                            message:
+                                parsedPreAggregates.message ||
+                                `Could not parse pre-aggregates for model "${model.name}"`,
+                        },
+                    ],
+                }) satisfies ExploreError,
+        );
+    }
+
+    // Attach parsed defs to explores
+    const exploresWithPreAggregates = compiledExplores.map((explore) =>
+        parsedPreAggregates.length > 0
+            ? { ...explore, preAggregates: parsedPreAggregates }
+            : explore,
+    );
+
+    // Generate virtual pre-aggregate explores
+    return generatePreAggregateExplores({
+        compiledExplores: exploresWithPreAggregates,
+        parsedPreAggregates,
+    });
+};

@@ -117,6 +117,7 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    preAggregatePostProcessor,
     Project,
     ProjectCatalog,
     ProjectDefaults,
@@ -7768,7 +7769,10 @@ export class ProjectService extends BaseService {
                 },
                 defaults: project.projectDefaults,
             },
-            disableTimestampConversion,
+            {
+                disableTimestampConversion,
+                postProcessors: [preAggregatePostProcessor],
+            },
         );
         Logger.info(`Explore count: ${convertedExplores.length}`);
         const previewName = `preview_${jobId}_${prId}`;
