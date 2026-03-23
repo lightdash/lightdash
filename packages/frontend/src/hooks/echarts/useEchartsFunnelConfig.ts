@@ -19,6 +19,7 @@ import round from 'lodash/round';
 import { useMemo } from 'react';
 import { isFunnelVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 export type FunnelSeriesDataPoint = NonNullable<
@@ -234,7 +235,9 @@ const useEchartsFunnelConfig = (
 
         const baseOptions = {
             textStyle: {
-                fontFamily: theme?.other.chartFont as string | undefined,
+                fontFamily: sanitizeEchartsFontFamily(
+                    theme?.other.chartFont as string | undefined,
+                ),
             },
             tooltip: {
                 ...getTooltipStyle({ appendToBody: !isTouchDevice }),

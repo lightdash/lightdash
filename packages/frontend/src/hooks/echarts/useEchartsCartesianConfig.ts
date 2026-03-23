@@ -89,6 +89,7 @@ import {
     defaultGrid,
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
+import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
     getPivotedDataFromPivotDetails,
@@ -3193,7 +3194,9 @@ const useEchartsCartesianConfig = (
             tooltip,
             grid: currentGrid,
             textStyle: {
-                fontFamily: theme?.other.chartFont as string | undefined,
+                fontFamily: sanitizeEchartsFontFamily(
+                    theme?.other.chartFont as string | undefined,
+                ),
             },
             // We assign colors per series, so we specify an empty list here.
             color: [],

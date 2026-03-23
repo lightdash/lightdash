@@ -9,6 +9,7 @@ import toNumber from 'lodash/toNumber';
 import { useMemo } from 'react';
 import { isGaugeVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 
 const EchartsGaugeType = 'gauge';
 
@@ -405,7 +406,9 @@ const useEchartsGaugeConfig = ({
 
         return {
             textStyle: {
-                fontFamily: theme?.other?.chartFont as string | undefined,
+                fontFamily: sanitizeEchartsFontFamily(
+                    theme?.other?.chartFont as string | undefined,
+                ),
             },
             series: gaugeSeries,
             animation: !isInDashboard,
