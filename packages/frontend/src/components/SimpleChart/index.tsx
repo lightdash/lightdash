@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getFormattedValue,
     isLineSeriesOption,
     type PivotReference,
@@ -8,6 +9,7 @@ import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
@@ -78,6 +80,58 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
     onScreenshotError?: () => void;
 };
 
+/**
+ * Threshold for switching to canvas renderer.
+ * When total data points (series × categories) exceeds this,
+ * canvas is used instead of SVG to avoid DOM bloat.
+ */
+const CANVAS_RENDERER_THRESHOLD = 500;
+
+/**
+ * CSS variable pattern: var(--some-variable, fallback)
+ * Matches CSS var() with an optional fallback value.
+ */
+const CSS_VAR_REGEX = /^var\((--[^,)]+)(?:,\s*(.+))?\)$/;
+
+/**
+ * Resolve a single CSS variable string to its computed value.
+ * Falls back to the embedded fallback value if the variable isn't set.
+ */
+const resolveCssVariable = (value: string): string => {
+    const match = value.match(CSS_VAR_REGEX);
+    if (!match) return value;
+
+    const [, varName, fallback] = match;
+    const computed = getComputedStyle(
+        document.documentElement,
+    ).getPropertyValue(varName);
+    return computed.trim() || fallback?.trim() || value;
+};
+
+/**
+ * Recursively walk an object and resolve any CSS variable strings.
+ * Used when switching to canvas renderer, which can't resolve CSS variables.
+ */
+const resolveCssVariablesInOptions = <T,>(obj: T): T => {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'string') {
+        return resolveCssVariable(obj) as unknown as T;
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(resolveCssVariablesInOptions) as unknown as T;
+    }
+    if (typeof obj === 'object') {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(
+            obj as Record<string, unknown>,
+        )) {
+            result[key] = resolveCssVariablesInOptions(value);
+        }
+        return result as T;
+    }
+    return obj;
+};
+
 const SimpleChart: FC<SimpleChartProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
         const {
@@ -87,6 +141,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             itemsMap,
             resultsData,
         } = useVisualizationContext();
+
+        const isLargeChartPerformanceEnabled = useClientFeatureFlag(
+            FeatureFlags.LargeChartPerformance,
+        );
 
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
@@ -184,7 +242,28 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             [onSeriesContextMenu, eChartsOptions],
         );
 
-        const opts = useMemo<Opts>(() => ({ renderer: 'svg' }), []);
+        const opts = useMemo<Opts>(() => {
+            if (!isLargeChartPerformanceEnabled || !eChartsOptions) {
+                return { renderer: 'svg' };
+            }
+            const seriesCount = eChartsOptions.series?.length ?? 0;
+            const datasetRows = eChartsOptions.dataset?.source?.length ?? 0;
+            const totalDataPoints = seriesCount * datasetRows;
+
+            if (totalDataPoints > CANVAS_RENDERER_THRESHOLD) {
+                return { renderer: 'canvas' };
+            }
+            return { renderer: 'svg' };
+        }, [isLargeChartPerformanceEnabled, eChartsOptions]);
+
+        // When using canvas renderer, resolve CSS variables to computed values
+        // since canvas doesn't have DOM access to resolve var(--...) strings.
+        const resolvedEChartsOptions = useMemo(() => {
+            if (!eChartsOptions || opts.renderer !== 'canvas') {
+                return eChartsOptions;
+            }
+            return resolveCssVariablesInOptions(eChartsOptions);
+        }, [eChartsOptions, opts.renderer]);
 
         // Track whether we're currently in item-tooltip mode to avoid
         // redundant setOption calls that cause flickering in mixed charts.
@@ -337,16 +416,23 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 const eCharts = chartRef.current?.getEchartsInstance();
                 if (eCharts) {
                     isItemTooltipActive.current = false;
+                    const tooltipOptions =
+                        resolvedEChartsOptions?.tooltip ??
+                        eChartsOptions?.tooltip;
                     eCharts.setOption(
                         {
-                            tooltip: eChartsOptions?.tooltip,
+                            tooltip: tooltipOptions,
                         },
                         false,
                         true, // lazy update
                     );
                 }
             }, 50);
-        }, [chartRef, eChartsOptions?.tooltip]);
+        }, [
+            chartRef,
+            eChartsOptions?.tooltip,
+            resolvedEChartsOptions?.tooltip,
+        ]);
 
         if (resultsData?.error) return <EmptyChart />;
         if (isLoading) return <LoadingChart />;
@@ -369,7 +455,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                           }
                 }
                 ref={chartRef}
-                option={eChartsOptions}
+                option={resolvedEChartsOptions ?? eChartsOptions}
                 notMerge
                 opts={opts}
                 onEvents={{

@@ -98,6 +98,13 @@ export enum FeatureFlags {
      * Enable changing the explore a chart points to from the chart UI
      */
     ChangeChartExplore = 'change-chart-explore',
+
+    /**
+     * Enable performance optimizations for charts with many series/data points.
+     * Switches to canvas renderer, hides overlapping labels, and enables
+     * data sampling for line charts when datasets are large.
+     */
+    LargeChartPerformance = 'large-chart-performance',
 }
 
 export type FeatureFlag = {

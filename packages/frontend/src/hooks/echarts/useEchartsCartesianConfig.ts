@@ -2467,6 +2467,7 @@ const useEchartsCartesianConfig = (
                                 computedColor,
                             ),
                         },
+                        labelLayout: { hideOverlap: true },
                     }),
                     // Apply reference line styling with readable colors
                     ...(serie.markLine && {
