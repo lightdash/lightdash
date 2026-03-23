@@ -94,7 +94,10 @@ describe('copyImageToClipboard', () => {
             'Clipboard write failed',
         );
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-            'Failed to copy image to clipboard: Clipboard write failed',
+            'Failed to copy image to clipboard',
+            expect.objectContaining({
+                message: 'Clipboard write failed',
+            }),
         );
 
         consoleErrorSpy.mockRestore();

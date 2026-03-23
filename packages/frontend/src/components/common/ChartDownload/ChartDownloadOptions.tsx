@@ -180,7 +180,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 }
             }
         } catch (e) {
-            console.error(`Unable to download ${type} from chart ${e}`);
+            console.error(`Unable to download ${type} from chart`, e);
         } finally {
             // rollback workaround
             if (needsWorkaround) {
