@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ContentType,
     CreateDashboard,
     CreateDashboardChartTile,
     CreateDashboardHeadingTile,
@@ -74,6 +75,7 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import { generateUniqueSlug } from '../../utils/SlugUtils';
+import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
 
@@ -126,6 +128,7 @@ type DashboardModelArguments = {
     lightdashConfig?: {
         dashboard: { versionHistory: { daysLimit: number } };
     };
+    contentVerificationModel?: ContentVerificationModel;
 };
 
 export class DashboardModel {
@@ -133,9 +136,12 @@ export class DashboardModel {
 
     private readonly lightdashConfig?: DashboardModelArguments['lightdashConfig'];
 
+    private contentVerificationModel: ContentVerificationModel | undefined;
+
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
+        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     private static async createVersion(
@@ -1016,6 +1022,12 @@ export class DashboardModel {
         const tableCalculationFilters = view?.filters?.tableCalculations;
         view.filters.tableCalculations = tableCalculationFilters || [];
 
+        const verification =
+            (await this.contentVerificationModel?.getByContent(
+                ContentType.DASHBOARD,
+                dashboard.dashboard_uuid,
+            )) ?? null;
+
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
@@ -1023,6 +1035,7 @@ export class DashboardModel {
             versionUuid: dashboard.dashboard_version_uuid,
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
+            verification,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             pinnedListUuid: dashboard.pinned_list_uuid,
@@ -1926,6 +1939,12 @@ export class DashboardModel {
         const tableCalculationFilters = view?.filters?.tableCalculations;
         view.filters.tableCalculations = tableCalculationFilters || [];
 
+        const verification =
+            (await this.contentVerificationModel?.getByContent(
+                ContentType.DASHBOARD,
+                dashboard.dashboard_uuid,
+            )) ?? null;
+
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
@@ -1933,6 +1952,7 @@ export class DashboardModel {
             versionUuid: dashboard.dashboard_version_uuid,
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
+            verification,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             pinnedListUuid: dashboard.pinned_list_uuid,

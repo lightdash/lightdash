@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     BulkActionable,
+    ContentType,
     CreateDashboard,
     CreateDashboardWithCharts,
     CreateSavedChart,
@@ -12,6 +13,7 @@ import {
     DashboardTileTypes,
     DashboardVersionedFields,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -35,6 +37,7 @@ import {
     UpdateDashboard,
     UpdateMultipleDashboards,
     type ChartFieldUpdates,
+    type ContentVerificationInfo,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
     type DuplicateDashboardParams,
@@ -58,6 +61,7 @@ import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -67,6 +71,7 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
+import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -92,6 +97,8 @@ type DashboardServiceArguments = {
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
     spacePermissionService: SpacePermissionService;
+    contentVerificationModel: ContentVerificationModel;
+    featureFlagService: FeatureFlagService;
 };
 
 export class DashboardService
@@ -128,6 +135,10 @@ export class DashboardService
 
     spacePermissionService: SpacePermissionService;
 
+    contentVerificationModel: ContentVerificationModel;
+
+    featureFlagService: FeatureFlagService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -144,6 +155,8 @@ export class DashboardService
         projectModel,
         catalogModel,
         spacePermissionService,
+        contentVerificationModel,
+        featureFlagService,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -161,6 +174,119 @@ export class DashboardService
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
+        this.contentVerificationModel = contentVerificationModel;
+        this.featureFlagService = featureFlagService;
+    }
+
+    private async assertContentVerificationEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<void> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.ContentVerification,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError('Content verification is not enabled');
+        }
+    }
+
+    async verifyDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<ContentVerificationInfo> {
+        await this.assertContentVerificationEnabled(user);
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const { organizationUuid, projectUuid } = dashboard;
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('Only admins can verify dashboards');
+        }
+
+        await this.contentVerificationModel.verify(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+            projectUuid,
+            user.userUuid,
+        );
+
+        const verification = await this.contentVerificationModel.getByContent(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
+
+        if (!verification) {
+            throw new Error('Failed to verify dashboard');
+        }
+
+        this.analytics.track({
+            event: 'content_verification.created',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentType: ContentType.DASHBOARD,
+                contentId: dashboardUuid,
+            },
+        });
+
+        return verification;
+    }
+
+    async unverifyDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        await this.assertContentVerificationEnabled(user);
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const { organizationUuid, projectUuid } = dashboard;
+
+        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
+            auditLogger: logAuditEvent,
+        });
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Only admins can remove dashboard verification',
+            );
+        }
+
+        await this.contentVerificationModel.unverify(
+            ContentType.DASHBOARD,
+            dashboardUuid,
+        );
+
+        this.analytics.track({
+            event: 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                contentType: ContentType.DASHBOARD,
+                contentId: dashboardUuid,
+            },
+        });
     }
 
     static getCreateEventProperties(
