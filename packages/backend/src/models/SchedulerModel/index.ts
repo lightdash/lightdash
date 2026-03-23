@@ -11,6 +11,7 @@ import {
     isGoogleChatTarget,
     isMsTeamsTarget,
     isSlackTarget,
+    isSqlChartScheduler,
     isUpdateSchedulerEmailTarget,
     isUpdateSchedulerGoogleChatTarget,
     isUpdateSchedulerMsTeamsTarget,
@@ -27,6 +28,7 @@ import {
     SchedulerJobStatus,
     SchedulerLog,
     SchedulerMsTeamsTarget,
+    SchedulerResourceType,
     SchedulerRun,
     SchedulerRunLog,
     SchedulerRunLogsResponse,
@@ -43,6 +45,7 @@ import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import { SavedSqlTableName } from '../../database/entities/savedSql';
 import {
     SchedulerDb,
     SchedulerEmailTargetDb,
@@ -65,6 +68,7 @@ type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
     saved_chart_name: string | null;
     dashboard_name: string | null;
+    saved_sql_name: string | null;
     project_uuid?: string | null;
     project_name?: string | null;
     project_scheduler_timezone?: string | null;
@@ -116,6 +120,8 @@ export class SchedulerModel {
             savedChartName: scheduler.saved_chart_name,
             dashboardUuid: scheduler.dashboard_uuid,
             dashboardName: scheduler.dashboard_name,
+            savedSqlUuid: scheduler.saved_sql_uuid,
+            savedSqlName: scheduler.saved_sql_name,
             format: scheduler.format,
             options: scheduler.options,
             filters: scheduler.filters,
@@ -205,6 +211,7 @@ export class SchedulerModel {
                 ),
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
+                `${SavedSqlTableName}.name as saved_sql_name`,
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -225,6 +232,13 @@ export class SchedulerModel {
                     '=',
                     `${SchedulerTableName}.dashboard_uuid`,
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SavedSqlTableName, function nonDeletedSqlChartJoin() {
+                this.on(
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SchedulerTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
             });
     }
 
@@ -295,7 +309,7 @@ export class SchedulerModel {
         filters?: {
             createdByUserUuids?: string[];
             formats?: string[];
-            resourceType?: 'chart' | 'dashboard';
+            resourceType?: 'chart' | 'dashboard' | 'sqlChart';
             resourceUuids?: string[];
             destinations?: string[];
         };
@@ -308,6 +322,7 @@ export class SchedulerModel {
                 ),
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
+                `${SavedSqlTableName}.name as saved_sql_name`,
                 `${ProjectTableName}.project_uuid as project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
@@ -331,6 +346,13 @@ export class SchedulerModel {
                     '=',
                     `${SchedulerTableName}.dashboard_uuid`,
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SavedSqlTableName, function nonDeletedSqlChartJoin() {
+                this.on(
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SchedulerTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
             });
         // Apply search query if present
         const trimmedSearchQuery = searchQuery?.trim();
@@ -470,6 +492,10 @@ export class SchedulerModel {
             .clone()
             .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
 
+        let schedulerSqlCharts = baseQuery
+            .clone()
+            .whereNotNull(`${SchedulerTableName}.saved_sql_uuid`);
+
         schedulerCharts = schedulerCharts
             // Join to get the dashboard that the chart belongs to (if any)
             .leftJoin(
@@ -511,6 +537,20 @@ export class SchedulerModel {
                 `${SpaceTableName}.project_id`,
             );
 
+        schedulerSqlCharts = schedulerSqlCharts
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_uuid`,
+                    '=',
+                    `${SavedSqlTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            );
+
         // Exclude schedulers for content in deleted spaces
         schedulerCharts = schedulerCharts.whereNull(
             `${SpaceTableName}.deleted_at`,
@@ -532,14 +572,16 @@ export class SchedulerModel {
         }
 
         // Apply resource type filter
+        const noResults = this.database.raw('1 = 0');
         if (filters?.resourceType === 'chart') {
-            // Only include charts
-            schedulerDashboards = schedulerDashboards.where(
-                this.database.raw('1 = 0'),
-            ); // Make dashboards query return no results
+            schedulerDashboards = schedulerDashboards.where(noResults);
+            schedulerSqlCharts = schedulerSqlCharts.where(noResults);
+        } else if (filters?.resourceType === 'sqlChart') {
+            schedulerCharts = schedulerCharts.where(noResults);
+            schedulerDashboards = schedulerDashboards.where(noResults);
         } else if (filters?.resourceType === 'dashboard') {
-            // Only include dashboards
-            schedulerCharts = schedulerCharts.where(this.database.raw('1 = 0')); // Make charts query return no results
+            schedulerCharts = schedulerCharts.where(noResults);
+            schedulerSqlCharts = schedulerSqlCharts.where(noResults);
         }
 
         // Apply resource UUID filter
@@ -552,10 +594,16 @@ export class SchedulerModel {
                 `${SchedulerTableName}.dashboard_uuid`,
                 filters.resourceUuids,
             );
+            schedulerSqlCharts = schedulerSqlCharts.whereIn(
+                `${SchedulerTableName}.saved_sql_uuid`,
+                filters.resourceUuids,
+            );
         }
 
-        // Use union to combine both queries
-        let query = schedulerCharts.unionAll(schedulerDashboards);
+        // Use union to combine all queries
+        let query = schedulerCharts
+            .unionAll(schedulerDashboards)
+            .unionAll(schedulerSqlCharts);
 
         // Apply sorting if present, default to name asc
         if (sort && sort.column && sort.direction) {
@@ -610,6 +658,24 @@ export class SchedulerModel {
     ): Promise<SchedulerAndTargets[]> {
         const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid)
+            .orderBy([
+                {
+                    column: 'name',
+                    order: 'asc',
+                },
+                {
+                    column: 'created_at',
+                    order: 'asc',
+                },
+            ]);
+        return this.getSchedulersWithTargets(await schedulers);
+    }
+
+    async getSqlChartSchedulers(
+        savedSqlUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+            .where(`${SchedulerTableName}.saved_sql_uuid`, savedSqlUuid)
             .orderBy([
                 {
                     column: 'name',
@@ -698,8 +764,7 @@ export class SchedulerModel {
                     timezone: newScheduler.timezone ?? null,
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
-                    // Hardcoded to null until SavedSqlService.createScheduler passes savedSqlUuid
-                    saved_sql_uuid: null,
+                    saved_sql_uuid: newScheduler.savedSqlUuid,
                     updated_at: new Date(),
                     options: newScheduler.options,
                     filters:
@@ -1266,9 +1331,9 @@ export class SchedulerModel {
                     chartUuids: isChartScheduler(s)
                         ? [...acc.chartUuids, s.savedChartUuid]
                         : acc.chartUuids,
-                    dashboardUuids: isChartScheduler(s)
-                        ? acc.dashboardUuids
-                        : [...acc.dashboardUuids, s.dashboardUuid],
+                    dashboardUuids: isDashboardScheduler(s)
+                        ? [...acc.dashboardUuids, s.dashboardUuid]
+                        : acc.dashboardUuids,
                 }),
                 {
                     schedulerUuids: [],
@@ -1507,7 +1572,7 @@ export class SchedulerModel {
             statuses?: SchedulerRunStatus[];
             createdByUserUuids?: string[];
             destinations?: string[];
-            resourceType?: 'chart' | 'dashboard';
+            resourceType?: 'chart' | 'dashboard' | 'sqlChart';
             resourceUuids?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerRun[]>> {
@@ -1544,7 +1609,7 @@ export class SchedulerModel {
             statuses?: SchedulerRunStatus[];
             createdByUserUuids?: string[];
             destinations?: string[];
-            resourceType?: 'chart' | 'dashboard';
+            resourceType?: 'chart' | 'dashboard' | 'sqlChart';
             resourceUuids?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerRun[]>> {
@@ -1607,19 +1672,29 @@ export class SchedulerModel {
         }
 
         if (filters?.resourceType) {
-            filteredSchedulers = filteredSchedulers.filter((s) =>
-                filters.resourceType === 'chart'
-                    ? isChartScheduler(s)
-                    : !isChartScheduler(s),
-            );
+            filteredSchedulers = filteredSchedulers.filter((s) => {
+                switch (filters.resourceType) {
+                    case 'chart':
+                        return isChartScheduler(s);
+                    case 'sqlChart':
+                        return isSqlChartScheduler(s);
+                    case 'dashboard':
+                        return isDashboardScheduler(s);
+                    default:
+                        return true;
+                }
+            });
         }
 
         if (filters?.resourceUuids && filters.resourceUuids.length > 0) {
-            filteredSchedulers = filteredSchedulers.filter((s) =>
-                isChartScheduler(s)
-                    ? filters.resourceUuids!.includes(s.savedChartUuid)
-                    : filters.resourceUuids!.includes(s.dashboardUuid),
-            );
+            filteredSchedulers = filteredSchedulers.filter((s) => {
+                const resourceUuid =
+                    s.savedChartUuid ?? s.savedSqlUuid ?? s.dashboardUuid;
+                return (
+                    resourceUuid !== null &&
+                    filters.resourceUuids!.includes(resourceUuid)
+                );
+            });
         }
 
         if (filteredSchedulers.length === 0) {
@@ -1732,13 +1807,13 @@ export class SchedulerModel {
                 `${SchedulerTableName}.name as scheduler_name`,
                 `${SchedulerTableName}.format`,
                 this.database.raw(
-                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN '${SchedulerResourceType.CHART}' WHEN ${SchedulerTableName}.saved_sql_uuid IS NOT NULL THEN '${SchedulerResourceType.SQL_CHART}' ELSE '${SchedulerResourceType.DASHBOARD}' END as resource_type`,
                 ),
                 this.database.raw(
-                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
+                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.saved_sql_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
                 ),
                 this.database.raw(
-                    `COALESCE(${SavedChartsTableName}.name, ${DashboardsTableName}.name) as resource_name`,
+                    `COALESCE(${SavedChartsTableName}.name, ${SavedSqlTableName}.name, ${DashboardsTableName}.name) as resource_name`,
                 ),
                 `${SchedulerTableName}.created_by as created_by_user_uuid`,
                 this.database.raw(
@@ -1824,6 +1899,13 @@ export class SchedulerModel {
                     '=',
                     `${SchedulerTableName}.dashboard_uuid`,
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SavedSqlTableName, function nonDeletedSqlChartJoin() {
+                this.on(
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SchedulerTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
             });
 
         // Wrap runsQuery as a subquery so we can filter/sort on computed columns like run_status
@@ -1876,7 +1958,7 @@ export class SchedulerModel {
             started_count: string;
             completed_count: string;
             error_count: string;
-            resource_type: 'chart' | 'dashboard';
+            resource_type: SchedulerResourceType;
             resource_uuid: string;
             resource_name: string;
             created_by_user_uuid: string;
@@ -1926,13 +2008,13 @@ export class SchedulerModel {
                 `${SchedulerLogTableName}.*`,
                 `${SchedulerTableName}.name as scheduler_name`,
                 this.database.raw(
-                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN '${SchedulerResourceType.CHART}' WHEN ${SchedulerTableName}.saved_sql_uuid IS NOT NULL THEN '${SchedulerResourceType.SQL_CHART}' ELSE '${SchedulerResourceType.DASHBOARD}' END as resource_type`,
                 ),
                 this.database.raw(
-                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
+                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.saved_sql_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
                 ),
                 this.database.raw(
-                    `COALESCE(${SavedChartsTableName}.name, ${DashboardsTableName}.name) as resource_name`,
+                    `COALESCE(${SavedChartsTableName}.name, ${SavedSqlTableName}.name, ${DashboardsTableName}.name) as resource_name`,
                 ),
                 `${SchedulerTableName}.created_by as created_by_user_uuid`,
                 this.database.raw(
@@ -1962,6 +2044,13 @@ export class SchedulerModel {
                     '=',
                     `${SchedulerTableName}.dashboard_uuid`,
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
+            .leftJoin(SavedSqlTableName, function nonDeletedSqlChartJoin() {
+                this.on(
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SchedulerTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
             })
             .where(`${SchedulerLogTableName}.job_id`, runId)
             .whereRaw(

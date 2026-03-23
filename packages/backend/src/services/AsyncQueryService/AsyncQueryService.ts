@@ -4888,6 +4888,57 @@ export class AsyncQueryService extends ProjectService {
     }
 
     /**
+     * Execute saved SQL chart query and wait for all results.
+     * Uses the chart's visualization config to produce the pivoted/aggregated query.
+     */
+    async executeSqlChartQueryAndGetResults(
+        args: ExecuteAsyncSqlChartArgs,
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+    }> {
+        const { account, projectUuid } = args;
+
+        const { queryUuid, cacheMetadata } =
+            await this.executeAsyncSqlChartQuery(args);
+
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        if (!queryHistory.resultsFileName) {
+            throw new Error('Results file name not found for query');
+        }
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            cacheMetadata,
+        };
+    }
+
+    /**
      * Execute dashboard chart query and wait for all results.
      * Returns raw rows from warehouse with pivot details.
      */

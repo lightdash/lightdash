@@ -30,6 +30,7 @@ import {
     getItemMap,
     getPivotConfig,
     getRequestMethod,
+    getSchedulerResourceTypeAndId,
     getSchedulerUuid,
     GsheetsNotificationPayload,
     isChartValidationError,
@@ -1161,10 +1162,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'slack',
                     format,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
@@ -1411,10 +1409,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'msteams',
                     format,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
@@ -2511,10 +2506,7 @@ export default class SchedulerTask {
                     type: 'email',
                     format,
                     withPdf: pdfFile !== undefined,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },
@@ -2982,6 +2974,68 @@ export default class SchedulerTask {
                         Logger.debug('Error processing charts:', error);
                         throw error;
                     });
+            } else if (scheduler.savedSqlUuid) {
+                const sqlChart =
+                    await this.asyncQueryService.savedSqlModel.getByUuid(
+                        scheduler.savedSqlUuid,
+                        {},
+                    );
+                deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${sqlChart.project.projectUuid}/sql-runner/${sqlChart.slug}?${schedulerUuidParam}&isSync=true`;
+
+                const defaultSchedulerTimezone =
+                    await this.schedulerService.getSchedulerDefaultTimezone(
+                        schedulerUuid,
+                    );
+
+                const refreshToken = await this.userService.getRefreshToken(
+                    scheduler.createdBy,
+                );
+
+                // Execute the SQL chart query using the chart's visualization config
+                // This produces the same pivoted/aggregated results that the chart shows
+                const { rows } =
+                    await this.asyncQueryService.executeSqlChartQueryAndGetResults(
+                        {
+                            account,
+                            projectUuid: sqlChart.project.projectUuid,
+                            savedSqlUuid: scheduler.savedSqlUuid,
+                            invalidateCache: true,
+                            context:
+                                QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
+                        },
+                        SCHEDULER_POLLING_OPTIONS,
+                    );
+
+                await this.googleDriveClient.uploadMetadata(
+                    refreshToken,
+                    gdriveId,
+                    getHumanReadableCronExpression(
+                        scheduler.cron,
+                        scheduler.timezone || defaultSchedulerTimezone,
+                    ),
+                    undefined,
+                    deliveryUrl,
+                );
+
+                // Convert rows to string[][] for Google Sheets
+                const columnNames = rows.length > 0 ? Object.keys(rows[0]) : [];
+                const headerRow = columnNames;
+                const dataRows = rows.map((row) =>
+                    columnNames.map((col) => {
+                        const value = row[col];
+                        if (value === null || value === undefined) return '';
+                        if (value instanceof Date) return value.toISOString();
+                        return String(value);
+                    }),
+                );
+                const csvData = [headerRow, ...dataRows];
+
+                await this.googleDriveClient.appendCsvToSheet(
+                    refreshToken,
+                    gdriveId,
+                    csvData,
+                    tabName,
+                );
             } else {
                 throw new UnexpectedServerError('Not implemented');
             }
@@ -2999,7 +3053,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'gsheets',
                     format,
-                    resourceType: savedChartUuid ? 'chart' : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                 },
             });
@@ -5021,10 +5075,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'googlechat',
                     format,
-                    resourceType:
-                        pageType === LightdashPage.CHART
-                            ? 'chart'
-                            : 'dashboard',
+                    ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                 },

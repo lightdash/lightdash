@@ -88,6 +88,7 @@ export enum QueryExecutionContext {
     GSHEETS = 'gsheets',
     SCHEDULED_GSHEETS_CHART = 'scheduledGsheetsChart',
     SCHEDULED_GSHEETS_DASHBOARD = 'scheduledGsheetsDashboard',
+    SCHEDULED_GSHEETS_SQL_CHART = 'scheduledGsheetsSqlChart',
     SCHEDULED_CHART = 'scheduledChart',
     SCHEDULED_DASHBOARD = 'scheduledDashboard',
     CALCULATE_TOTAL = 'calculateTotal',

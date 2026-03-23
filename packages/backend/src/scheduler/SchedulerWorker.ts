@@ -155,7 +155,7 @@ export class SchedulerWorker extends SchedulerTask {
                                 scheduler.schedulerUuid,
                             );
                         const { organizationUuid, projectUuid } =
-                            await this.schedulerService.getCreateSchedulerResource(
+                            await this.schedulerService.getSchedulerProjectContext(
                                 scheduler,
                             );
 

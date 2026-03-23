@@ -1,22 +1,20 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
-    ChartSummary,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
-    DashboardDAO,
     ForbiddenError,
+    getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     getTzMinutesOffset,
     GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     InvalidUser,
-    isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
-    isDashboardCreateScheduler,
     isDashboardScheduler,
     isSchedulerGsheetsOptions,
+    isSqlChartScheduler,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -32,6 +30,7 @@ import {
     SchedulerCronUpdate,
     SchedulerFormat,
     SchedulerJobStatus,
+    SchedulerResourceType,
     SchedulerRun,
     SchedulerRunLogsResponse,
     SchedulerRunStatus,
@@ -62,6 +61,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -77,6 +77,7 @@ type SchedulerServiceArguments = {
     schedulerModel: SchedulerModel;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     projectModel: ProjectModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
@@ -107,6 +108,8 @@ export class SchedulerService extends BaseService {
 
     savedChartModel: SavedChartModel;
 
+    savedSqlModel: SavedSqlModel;
+
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -129,6 +132,7 @@ export class SchedulerService extends BaseService {
         schedulerModel,
         dashboardModel,
         savedChartModel,
+        savedSqlModel,
         schedulerClient,
         slackClient,
         projectModel,
@@ -144,6 +148,7 @@ export class SchedulerService extends BaseService {
         this.schedulerModel = schedulerModel;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
+        this.savedSqlModel = savedSqlModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
@@ -154,22 +159,30 @@ export class SchedulerService extends BaseService {
         this.spacePermissionService = spacePermissionService;
     }
 
-    private async getSchedulerResource(
-        scheduler: Scheduler,
-    ): Promise<ChartSummary | DashboardDAO> {
-        return isChartScheduler(scheduler)
-            ? this.savedChartModel.getSummary(scheduler.savedChartUuid)
-            : this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid);
-    }
-
-    public async getCreateSchedulerResource(
-        scheduler: CreateSchedulerAndTargets,
-    ): Promise<ChartSummary | DashboardDAO> {
-        if (isChartCreateScheduler(scheduler)) {
-            return this.savedChartModel.getSummary(scheduler.savedChartUuid);
+    public async getSchedulerProjectContext(
+        scheduler: Scheduler | CreateSchedulerAndTargets,
+    ): Promise<{ projectUuid: string; organizationUuid: string }> {
+        if (isChartScheduler(scheduler)) {
+            const { projectUuid, organizationUuid } =
+                await this.savedChartModel.getSummary(scheduler.savedChartUuid);
+            return { projectUuid, organizationUuid };
         }
-        if (isDashboardCreateScheduler(scheduler)) {
-            return this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid);
+        if (isDashboardScheduler(scheduler)) {
+            const { projectUuid, organizationUuid } =
+                await this.dashboardModel.getByIdOrSlug(
+                    scheduler.dashboardUuid,
+                );
+            return { projectUuid, organizationUuid };
+        }
+        if (isSqlChartScheduler(scheduler)) {
+            const sqlChart = await this.savedSqlModel.getByUuid(
+                scheduler.savedSqlUuid,
+                {},
+            );
+            return {
+                projectUuid: sqlChart.project.projectUuid,
+                organizationUuid: sqlChart.organization.organizationUuid,
+            };
         }
         throw new ParameterError('Invalid scheduler type');
     }
@@ -180,12 +193,12 @@ export class SchedulerService extends BaseService {
         sendNow: boolean = false,
     ): Promise<{
         scheduler: Scheduler;
-        resource: ChartSummary | DashboardDAO;
+        resource: { projectUuid: string; organizationUuid: string };
     }> {
         // admins can manage all scheduled deliveries,
         // everyone below can only manage their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
-        const resource = await this.getSchedulerResource(scheduler);
+        const resource = await this.getSchedulerProjectContext(scheduler);
         const { organizationUuid, projectUuid } = resource;
 
         // If sendNow is true, we need to check if the user has permissions to `create` instead of `manage`
@@ -270,9 +283,35 @@ export class SchedulerService extends BaseService {
                 )
             )
                 throw new ForbiddenError();
+        } else if (scheduler.savedSqlUuid) {
+            const sqlChart = await this.savedSqlModel.getByUuid(
+                scheduler.savedSqlUuid,
+                {},
+            );
+            const { organizationUuid } = sqlChart.organization;
+            const { projectUuid } = sqlChart.project;
+            const spaceUuid = sqlChart.space.uuid;
+
+            const { inheritsFromOrgOrProject, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
+            if (
+                user.ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject,
+                        access,
+                    }),
+                )
+            )
+                throw new ForbiddenError();
         } else {
             throw new ParameterError(
-                'Missing savedChartUuid and dashboardUuid on scheduler',
+                'Missing savedChartUuid, dashboardUuid, and savedSqlUuid on scheduler',
             );
         }
     }
@@ -435,7 +474,8 @@ export class SchedulerService extends BaseService {
 
         const scheduler =
             await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
-        const { projectUuid } = await this.getSchedulerResource(scheduler);
+        const { projectUuid } =
+            await this.getSchedulerProjectContext(scheduler);
         const project = await this.projectModel.get(projectUuid);
         return project.schedulerTimezone;
     }
@@ -529,18 +569,13 @@ export class SchedulerService extends BaseService {
                 projectId: projectUuid,
                 organizationId: organizationUuid,
                 schedulerId: scheduler.schedulerUuid,
-                resourceType: isChartScheduler(scheduler)
-                    ? 'chart'
-                    : 'dashboard',
+                ...getSchedulerResourceTypeAndId(scheduler),
                 cronExpression: scheduler.cron,
                 format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,
                 }),
-                resourceId: isChartScheduler(scheduler)
-                    ? scheduler.savedChartUuid
-                    : scheduler.dashboardUuid,
                 targets:
                     scheduler.format === SchedulerFormat.GSHEETS
                         ? []
@@ -782,12 +817,7 @@ export class SchedulerService extends BaseService {
                 projectId: projectUuid,
                 organizationId: organizationUuid,
                 schedulerId: scheduler.schedulerUuid,
-                resourceType: isChartScheduler(scheduler)
-                    ? 'chart'
-                    : 'dashboard',
-                resourceId: isChartScheduler(scheduler)
-                    ? scheduler.savedChartUuid
-                    : scheduler.dashboardUuid,
+                ...getSchedulerResourceTypeAndId(scheduler),
                 softDelete: false,
             },
         });
@@ -833,7 +863,7 @@ export class SchedulerService extends BaseService {
                     projectId: context.projectUuid,
                     organizationId: context.organizationUuid,
                     schedulerId: s.scheduler_uuid,
-                    resourceType: 'chart',
+                    resourceType: SchedulerResourceType.CHART,
                     resourceId: chartUuid,
                     softDelete: true,
                 },
@@ -881,7 +911,7 @@ export class SchedulerService extends BaseService {
                     projectId: context.projectUuid,
                     organizationId: context.organizationUuid,
                     schedulerId: s.scheduler_uuid,
-                    resourceType: 'dashboard',
+                    resourceType: SchedulerResourceType.DASHBOARD,
                     resourceId: dashboardUuid,
                     softDelete: true,
                 },
@@ -925,7 +955,7 @@ export class SchedulerService extends BaseService {
                     projectId: context.projectUuid,
                     organizationId: context.organizationUuid,
                     schedulerId: s.scheduler_uuid,
-                    resourceType: 'chart',
+                    resourceType: SchedulerResourceType.CHART,
                     resourceId: chartUuid,
                 },
             });
@@ -968,7 +998,7 @@ export class SchedulerService extends BaseService {
                     projectId: context.projectUuid,
                     organizationId: context.organizationUuid,
                     schedulerId: s.scheduler_uuid,
-                    resourceType: 'dashboard',
+                    resourceType: SchedulerResourceType.DASHBOARD,
                     resourceId: dashboardUuid,
                 },
             });
@@ -1116,7 +1146,7 @@ export class SchedulerService extends BaseService {
         );
 
         const { organizationUuid, projectUuid } =
-            await this.getCreateSchedulerResource(scheduler);
+            await this.getSchedulerProjectContext(scheduler);
 
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),

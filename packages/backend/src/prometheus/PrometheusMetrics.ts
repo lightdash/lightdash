@@ -43,6 +43,7 @@ const SCHEDULED_CONTEXTS: ReadonlySet<string> = new Set<string>([
     QueryExecutionContext.SCHEDULED_DELIVERY,
     QueryExecutionContext.SCHEDULED_GSHEETS_CHART,
     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
+    QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
     QueryExecutionContext.SCHEDULED_CHART,
     QueryExecutionContext.SCHEDULED_DASHBOARD,
     QueryExecutionContext.CLI,

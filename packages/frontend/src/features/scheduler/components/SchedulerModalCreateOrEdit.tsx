@@ -283,10 +283,19 @@ const useSchedulerFormModal = ({
             ? {
                   savedChartUuid: scheduler.data?.savedChartUuid ?? null,
                   dashboardUuid: scheduler.data?.dashboardUuid ?? null,
+                  savedSqlUuid: scheduler.data?.savedSqlUuid ?? null,
               }
             : isChart
-              ? { savedChartUuid: resourceUuid, dashboardUuid: null }
-              : { dashboardUuid: resourceUuid, savedChartUuid: null };
+              ? {
+                    savedChartUuid: resourceUuid,
+                    dashboardUuid: null,
+                    savedSqlUuid: null,
+                }
+              : {
+                    dashboardUuid: resourceUuid,
+                    savedChartUuid: null,
+                    savedSqlUuid: null,
+                };
 
         const unsavedScheduler: CreateSchedulerAndTargets = {
             ...schedulerData,

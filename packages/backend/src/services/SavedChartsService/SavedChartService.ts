@@ -19,9 +19,9 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
-    isChartScheduler,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
@@ -1288,6 +1288,7 @@ export class SavedChartService
             createdBy: user.userUuid,
             dashboardUuid: null,
             savedChartUuid: chartUuid,
+            savedSqlUuid: null,
         });
 
         const createSchedulerEventData: SchedulerUpsertEvent = {
@@ -1297,18 +1298,13 @@ export class SavedChartService
                 projectId: projectUuid,
                 organizationId: organizationUuid,
                 schedulerId: scheduler.schedulerUuid,
-                resourceType: isChartScheduler(scheduler)
-                    ? 'chart'
-                    : 'dashboard',
+                ...getSchedulerResourceTypeAndId(scheduler),
                 cronExpression: scheduler.cron,
                 format: scheduler.format,
                 cronString: cronstrue.toString(scheduler.cron, {
                     verbose: true,
                     throwExceptionOnParseError: false,
                 }),
-                resourceId: isChartScheduler(scheduler)
-                    ? scheduler.savedChartUuid
-                    : scheduler.dashboardUuid,
                 targets:
                     scheduler.format === SchedulerFormat.GSHEETS
                         ? []

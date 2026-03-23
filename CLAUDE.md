@@ -64,7 +64,11 @@ pnpm -F backend test:dev:nowatch # runs only tests for modified files
 
 **API Generation:**
 
-Generate OpenAPI specs from TSOA controllers, needs to be run when controllers change
+Generate OpenAPI specs from TSOA controllers. Always run this when:
+
+- controllers change
+- return signatures of service functions called by controllers change
+- types returned by those controllers/services change
 
 ```bash
 pnpm generate-api
