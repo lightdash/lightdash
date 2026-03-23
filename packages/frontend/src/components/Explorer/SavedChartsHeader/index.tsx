@@ -706,7 +706,8 @@ const SavedChartsHeader: FC = () => {
                                     </Menu.Item>
                                 )}
                                 {changeChartExploreEnabled &&
-                                    userCanUpdateProject && (
+                                    userCanUpdateProject &&
+                                    !isEditMode && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
@@ -994,13 +995,13 @@ const SavedChartsHeader: FC = () => {
             {isChangeExploreModalOpen &&
                 savedChart &&
                 projectUuid &&
-                unsavedChartVersion.tableName && (
+                savedChart.tableName && (
                     <ChangeChartExploreModal
                         opened={isChangeExploreModalOpen}
                         onClose={changeExploreModalHandlers.close}
                         projectUuid={projectUuid}
                         chartUuid={savedChart.uuid}
-                        currentExploreName={unsavedChartVersion.tableName}
+                        currentExploreName={savedChart.tableName}
                     />
                 )}
         </TrackSection>

@@ -1,4 +1,5 @@
 import {
+    getErrorMessage,
     isSummaryExploreError,
     RenameType,
     type ApiError,
@@ -19,6 +20,7 @@ import { IconArrowsExchange } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
 import { lightdashApi } from '../../../api';
+import { pollJobStatus } from '../../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplores } from '../../../hooks/useExplores';
 import MantineModal from '../MantineModal';
@@ -69,7 +71,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
     const [selectedExplore, setSelectedExplore] = useState<string | null>(null);
     const [fixAll, setFixAll] = useState(false);
     const [search, setSearch] = useState('');
-    const { showToastSuccess, showToastError } = useToaster();
+    const { showToastSuccess, showToastError, showToastInfo } = useToaster();
 
     const { data: explores, isLoading: isLoadingExplores } = useExplores(
         projectUuid,
@@ -117,7 +119,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
         if (!selectedExplore || isSameExplore) return;
 
         try {
-            await rename({
+            const result = await rename({
                 from: currentExploreName,
                 to: selectedExplore,
                 fixAll,
@@ -127,6 +129,29 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
                 key: 'change_chart_explore_toast',
                 title: `Explore changed to "${selectedExplore}"`,
             });
+
+            if (fixAll && result?.jobId) {
+                showToastInfo({
+                    key: 'change_chart_explore_fixall_toast',
+                    title: `Updating other charts using "${currentExploreName}"...`,
+                });
+                pollJobStatus(result.jobId)
+                    .then((status) => {
+                        const totalCharts =
+                            status?.results?.charts?.length || 0;
+                        showToastSuccess({
+                            key: 'change_chart_explore_fixall_toast',
+                            title: `Updated ${totalCharts} other chart${totalCharts === 1 ? '' : 's'}`,
+                        });
+                    })
+                    .catch((jobError) => {
+                        showToastError({
+                            key: 'change_chart_explore_fixall_toast',
+                            title: 'Unable to update other charts',
+                            subtitle: getErrorMessage(jobError),
+                        });
+                    });
+            }
 
             handleClose();
             window.location.reload();
