@@ -1,3 +1,11 @@
+# [0.2651.0](https://github.com/lightdash/lightdash/compare/0.2650.0...0.2651.0) (2026-03-23)
+
+
+### Features
+
+* add Google Sheets sync backend for SQL runner charts ([#21269](https://github.com/lightdash/lightdash/issues/21269)) ([02cb90a](https://github.com/lightdash/lightdash/commit/02cb90a70adfe440a6833cea0403e94f9bb55383))
+* add large chart performance optimizations with canvas renderer and label hiding ([#21320](https://github.com/lightdash/lightdash/issues/21320)) ([436fc86](https://github.com/lightdash/lightdash/commit/436fc86f90dcb079f47b016aedb971be40077e7f))
+
 # [0.2650.0](https://github.com/lightdash/lightdash/compare/0.2649.0...0.2650.0) (2026-03-23)
 
 
