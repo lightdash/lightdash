@@ -361,9 +361,6 @@ export class ServiceRepository
                     slackClient: this.clients.getSlackClient(),
                     catalogModel: this.models.getCatalogModel(),
                     spacePermissionService: this.getSpacePermissionService(),
-                    contentVerificationModel:
-                        this.models.getContentVerificationModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -731,9 +728,6 @@ export class ServiceRepository
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
                     spacePermissionService: this.getSpacePermissionService(),
-                    contentVerificationModel:
-                        this.models.getContentVerificationModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

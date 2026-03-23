@@ -300,11 +300,6 @@ const applyOrganizationMemberStaticAbilities: Record<
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
-
-        can('manage', 'ContentVerification', {
-            organizationUuid: member.organizationUuid,
-        });
-
         can('manage', 'Dashboard', {
             organizationUuid: member.organizationUuid,
         });

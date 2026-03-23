@@ -74,10 +74,6 @@ import {
     type ApiContentResponse,
 } from './content';
 import {
-    type ApiContentVerificationDeleteResponse,
-    type ApiContentVerificationResponse,
-} from './contentVerification';
-import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
@@ -962,9 +958,7 @@ type ApiResults =
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
-    | ApiImpersonationOrganizationSettingsResponse['results']
-    | ApiContentVerificationResponse['results']
-    | ApiContentVerificationDeleteResponse['results'];
+    | ApiImpersonationOrganizationSettingsResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

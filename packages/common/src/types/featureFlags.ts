@@ -105,11 +105,6 @@ export enum FeatureFlags {
      * data sampling for line charts when datasets are large.
      */
     LargeChartPerformance = 'large-chart-performance',
-
-    /**
-     * Enable content verification (verified seal for charts and dashboards)
-     */
-    ContentVerification = 'content-verification',
 }
 
 export type FeatureFlag = {

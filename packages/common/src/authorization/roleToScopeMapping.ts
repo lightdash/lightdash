@@ -103,7 +103,6 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
         'manage:ScheduledDeliveries',
-        'manage:ContentVerification',
     ],
 } as const;
 

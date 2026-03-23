@@ -33,10 +33,6 @@ import {
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
 import {
-    ContentVerificationTable,
-    ContentVerificationTableName,
-} from '../database/entities/contentVerification';
-import {
     DashboardsTableName,
     DashboardTable,
     DashboardTabsTable,
@@ -474,6 +470,5 @@ declare module 'knex/types/tables' {
         [ChangesetsTableName]: ChangesetsTable;
         [ChangesTableName]: ChangesTable;
         [UserFavoritesTableName]: UserFavoritesTable;
-        [ContentVerificationTableName]: ContentVerificationTable;
     }
 }

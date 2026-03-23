@@ -1,4 +1,3 @@
-import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension } from './field';
 import { type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
@@ -187,7 +186,6 @@ export type Dashboard = {
     versionUuid: string;
     uuid: string;
     name: string;
-    verification: ContentVerificationInfo | null;
     description?: string;
     updatedAt: Date;
     tiles: Array<DashboardTile>;

@@ -84,7 +84,6 @@ import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
 import { generateUniqueSlug } from '../utils/SlugUtils';
-import { ContentVerificationModel } from './ContentVerificationModel';
 import { SpaceModel } from './SpaceModel';
 
 type DbSavedChartDetails = {
@@ -453,7 +452,6 @@ export const createSavedChart = async (
 type SavedChartModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
-    contentVerificationModel?: ContentVerificationModel;
 };
 
 type VersionSummaryRow = {
@@ -470,12 +468,9 @@ export class SavedChartModel {
 
     private lightdashConfig: LightdashConfig;
 
-    private contentVerificationModel: ContentVerificationModel | undefined;
-
     constructor(args: SavedChartModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
-        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -1162,12 +1157,6 @@ export class SavedChartModel {
                     return ECHARTS_DEFAULT_COLORS;
                 };
 
-                const verification =
-                    (await this.contentVerificationModel?.getByContent(
-                        ContentType.CHART,
-                        savedQuery.saved_query_uuid,
-                    )) ?? null;
-
                 return {
                     uuid: savedQuery.saved_query_uuid,
                     projectUuid: savedQuery.project_uuid,
@@ -1288,7 +1277,6 @@ export class SavedChartModel {
                     dashboardName: savedQuery.dashboardName,
                     colorPalette: getColorPalette(),
                     slug: savedQuery.slug,
-                    verification,
                     // Soft delete fields (only populated when deleted: true)
                     ...(savedQuery.deleted_at
                         ? {
