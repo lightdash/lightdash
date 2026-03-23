@@ -1,7 +1,10 @@
+import {
+    InlineErrorType,
+    type ExploreError,
+    type ExplorePostProcessor,
+} from '@lightdash/common';
 import attempt from 'lodash/attempt';
 import isError from 'lodash/isError';
-import type { ExplorePostProcessor } from '../compiler/translator';
-import { InlineErrorType, type ExploreError } from '../types/explore';
 import { parseDbtPreAggregates } from './definition';
 import { generatePreAggregateExplores } from './generatePreAggregateExplores';
 

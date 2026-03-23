@@ -1,13 +1,14 @@
-import { SupportedDbtAdapter } from '../types/dbt';
-import { ExploreType, type Explore } from '../types/explore';
 import {
     DimensionType,
+    ExploreType,
     FieldType,
     MetricType,
+    SupportedDbtAdapter,
+    TimeFrames,
     type CompiledDimension,
     type CompiledMetric,
-} from '../types/field';
-import { TimeFrames } from '../types/timeFrames';
+    type Explore,
+} from '@lightdash/common';
 import {
     buildPreAggregateExplore,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,

@@ -1,16 +1,17 @@
-import { type Explore } from '../types/explore';
-import { MetricType, type FieldId } from '../types/field';
-import { flattenFilterGroup } from '../types/filter';
-import { type MetricQuery } from '../types/metricQuery';
 import {
+    flattenFilterGroup,
+    getItemId,
+    getMetricsMapFromTables,
+    MetricType,
     PreAggregateMissReason,
+    timeFrameOrder,
+    type Explore,
+    type FieldId,
+    type MetricQuery,
     type PreAggregateDef,
     type PreAggregateMatchMiss,
-} from '../types/preAggregate';
-import { type TimeFrames } from '../types/timeFrames';
-import { getMetricsMapFromTables } from '../utils/fields';
-import { getItemId } from '../utils/item';
-import { timeFrameOrder } from '../utils/timeFrames';
+    type TimeFrames,
+} from '@lightdash/common';
 import { isPreAggregateCompatible } from './additivity';
 import { getDimensionReferences, getMetricReferences } from './references';
 

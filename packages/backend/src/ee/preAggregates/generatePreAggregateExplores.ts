@@ -3,8 +3,8 @@ import {
     isExploreError,
     type Explore,
     type ExploreError,
-} from '../types/explore';
-import { type PreAggregateDef } from '../types/preAggregate';
+    type PreAggregateDef,
+} from '@lightdash/common';
 import { buildPreAggregateExplore } from './buildPreAggregateExplore';
 
 const isPreAggregateVirtualExploreGenerationEnabled = (): boolean =>

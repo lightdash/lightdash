@@ -25,7 +25,6 @@ import {
     ExploreCompiler,
     ExploreType,
     FieldType,
-    findMatch,
     ForbiddenError,
     formatItemValue,
     formatRawValue,
@@ -107,6 +106,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { findMatch } from '../../ee/preAggregates/matcher';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';

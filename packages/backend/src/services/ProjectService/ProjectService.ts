@@ -75,7 +75,6 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
-    getPreAggregateExploreName,
     getTimeDimensionsMap,
     getTimezoneLabel,
     hasConnectionChanges,
@@ -117,7 +116,6 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
-    preAggregatePostProcessor,
     Project,
     ProjectCatalog,
     ProjectDefaults,
@@ -206,6 +204,8 @@ import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
 import { type DbPreAggregateDefinitionIn } from '../../database/entities/preAggregates';
 import type { DbTagUpdate } from '../../database/entities/tags';
+import { getPreAggregateExploreName } from '../../ee/preAggregates/naming';
+import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';

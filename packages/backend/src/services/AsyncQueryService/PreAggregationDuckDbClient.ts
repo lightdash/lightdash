@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     getErrorMessage,
-    getPreAggregateExploreName,
     isExploreError,
     ItemsMap,
     MetricQuery,
@@ -22,6 +21,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { getPreAggregateExploreName } from '../../ee/preAggregates/naming';
 import Logger from '../../logging/logger';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';

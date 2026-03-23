@@ -1,5 +1,4 @@
-import { MetricType } from '../types/field';
-import assertUnreachable from '../utils/assertUnreachable';
+import { assertUnreachable, MetricType } from '@lightdash/common';
 
 export enum AdditivityType {
     ADDITIVE = 'additive',

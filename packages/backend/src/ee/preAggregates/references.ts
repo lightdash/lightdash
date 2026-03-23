@@ -1,9 +1,9 @@
 import {
+    getItemId,
     type CompiledDimension,
     type CompiledMetric,
     type FieldId,
-} from '../types/field';
-import { getItemId } from '../utils/item';
+} from '@lightdash/common';
 
 export const getDimensionBaseName = (
     dimension: Pick<

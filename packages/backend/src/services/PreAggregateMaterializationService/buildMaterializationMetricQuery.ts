@@ -1,12 +1,8 @@
 import {
     assertUnreachable,
     getItemId,
-    getMetricComponentColumnName,
-    getMetricsByReference,
-    getPreAggregateMetricRepresentation,
     MAX_SAFE_INTEGER,
     MetricType,
-    PreAggregateMetricRepresentationKind,
     type AdditionalMetric,
     type CompiledDimension,
     type CompiledMetric,
@@ -17,6 +13,12 @@ import {
     type MetricQuery,
     type PreAggregateDef,
 } from '@lightdash/common';
+import {
+    getMetricComponentColumnName,
+    getMetricsByReference,
+    getPreAggregateMetricRepresentation,
+    PreAggregateMetricRepresentationKind,
+} from '../../ee/preAggregates';
 
 const getDimensionBaseName = (
     dimension: Pick<

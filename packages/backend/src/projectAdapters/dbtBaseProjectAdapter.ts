@@ -24,7 +24,6 @@ import {
     normaliseModelDatabase,
     NotFoundError,
     ParseError,
-    preAggregatePostProcessor,
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type LightdashProjectConfig,
@@ -34,6 +33,7 @@ import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
 import path from 'path';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { preAggregatePostProcessor } from '../ee/preAggregates/postProcessor';
 import Logger from '../logging/logger';
 import {
     CachedWarehouse,
