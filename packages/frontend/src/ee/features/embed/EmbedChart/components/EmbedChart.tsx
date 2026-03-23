@@ -1,4 +1,4 @@
-import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -13,14 +13,6 @@ import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import MinimalSavedExplorer from '../../../../../pages/MinimalSavedExplorer';
 import useApp from '../../../../../providers/App/useApp';
-
-const themeOverride: MantineThemeOverride = {
-    globalStyles: () => ({
-        'html, body': {
-            backgroundColor: 'white',
-        },
-    }),
-};
 
 const MinimalChartContent = memo(() => {
     const { health } = useApp();
@@ -60,14 +52,12 @@ const MinimalChartContent = memo(() => {
             colorPalette={savedChart.colorPalette}
             parameters={query.data?.usedParametersValues}
         >
-            <MantineProvider inherit theme={themeOverride}>
-                <Box mih="inherit" h="100%">
-                    <LightdashVisualization
-                        className="sentry-block ph-no-capture"
-                        data-testid="visualization"
-                    />
-                </Box>
-            </MantineProvider>
+            <Box mih="inherit" h="100%">
+                <LightdashVisualization
+                    className="sentry-block ph-no-capture"
+                    data-testid="visualization"
+                />
+            </Box>
         </VisualizationProvider>
     );
 });
