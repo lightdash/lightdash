@@ -26,6 +26,7 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useProject } from '../../../../hooks/useProject';
+import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import { PromotionConfirmDialog } from '../../../promotion/components/PromotionConfirmDialog';
 import { SqlChartSyncModal } from '../../../sync/components/SqlChartSyncModal';
@@ -40,7 +41,7 @@ import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
     const space = useAppSelector(
@@ -93,6 +94,10 @@ export const HeaderView: FC = () => {
                 : [],
         }),
     );
+
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
 
     const { mutate: promoteSqlChart } = usePromoteSqlChartMutation(projectUuid);
     const {
@@ -199,16 +204,29 @@ export const HeaderView: FC = () => {
                                     >
                                         Add to dashboard
                                     </Menu.Item>
-                                    <Menu.Item
-                                        icon={
-                                            <MantineIcon
-                                                icon={IconCirclesRelation}
-                                            />
-                                        }
-                                        onClick={syncModalHandlers.open}
-                                    >
-                                        Google Sheets Sync
-                                    </Menu.Item>
+                                    {hasGoogleDriveEnabled && (
+                                        <Can
+                                            I="manage"
+                                            this={subject('GoogleSheets', {
+                                                organizationUuid:
+                                                    user.data?.organizationUuid,
+                                                projectUuid,
+                                            })}
+                                        >
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconCirclesRelation
+                                                        }
+                                                    />
+                                                }
+                                                onClick={syncModalHandlers.open}
+                                            >
+                                                Google Sheets Sync
+                                            </Menu.Item>
+                                        </Can>
+                                    )}
                                     {canPromoteChart && (
                                         <Tooltip
                                             label="You must enable first an upstream project in settings > Data ops"
