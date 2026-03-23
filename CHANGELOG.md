@@ -1,3 +1,10 @@
+# [0.2657.0](https://github.com/lightdash/lightdash/compare/0.2656.0...0.2657.0) (2026-03-23)
+
+
+### Features
+
+* auto-remove verification when charts and dashboards are edited ([#21333](https://github.com/lightdash/lightdash/issues/21333)) ([08485ef](https://github.com/lightdash/lightdash/commit/08485efa1b94a1d47052c8a13d25cf30ddfbadad))
+
 # [0.2656.0](https://github.com/lightdash/lightdash/compare/0.2655.0...0.2656.0) (2026-03-23)
 
 
