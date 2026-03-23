@@ -17,7 +17,7 @@ import {
     type ModalProps,
 } from '@mantine-8/core';
 import { IconArrowsExchange } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, type FC } from 'react';
 import { lightdashApi } from '../../../api';
 import { pollJobStatus } from '../../../features/scheduler/hooks/useScheduler';
@@ -68,6 +68,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
     chartUuid,
     currentExploreName,
 }) => {
+    const queryClient = useQueryClient();
     const [selectedExplore, setSelectedExplore] = useState<string | null>(null);
     const [fixAll, setFixAll] = useState(false);
     const [search, setSearch] = useState('');
@@ -154,7 +155,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
             }
 
             handleClose();
-            window.location.reload();
+            await queryClient.invalidateQueries(['saved_query', chartUuid]);
         } catch (error) {
             const apiError = error as ApiError;
             showToastError({
