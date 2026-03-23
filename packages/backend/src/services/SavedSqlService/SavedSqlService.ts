@@ -714,11 +714,13 @@ export class SavedSqlService
 
     async getSchedulers(
         user: SessionUser,
+        projectUuid: string,
         savedSqlUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {});
+        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            projectUuid,
+        });
         const { organizationUuid } = sqlChart.organization;
-        const { projectUuid } = sqlChart.project;
 
         if (
             user.ability.cannot(
@@ -737,12 +739,14 @@ export class SavedSqlService
 
     async createScheduler(
         user: SessionUser,
+        projectUuid: string,
         savedSqlUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {});
+        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            projectUuid,
+        });
         const { organizationUuid } = sqlChart.organization;
-        const { projectUuid } = sqlChart.project;
 
         if (
             user.ability.cannot(

@@ -1,10 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
-    ChartSummary,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
-    DashboardDAO,
     ForbiddenError,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
@@ -12,10 +10,8 @@ import {
     GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     InvalidUser,
-    isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
-    isDashboardCreateScheduler,
     isDashboardScheduler,
     isSchedulerGsheetsOptions,
     isSqlChartScheduler,
@@ -163,45 +159,22 @@ export class SchedulerService extends BaseService {
         this.spacePermissionService = spacePermissionService;
     }
 
-    private async getSchedulerResource(
-        scheduler: Scheduler,
-    ): Promise<
-        | ChartSummary
-        | DashboardDAO
-        | { projectUuid: string; organizationUuid: string }
-    > {
-        if (isChartScheduler(scheduler)) {
-            return this.savedChartModel.getSummary(scheduler.savedChartUuid);
-        }
-        if (isSqlChartScheduler(scheduler)) {
-            const sqlChart = await this.savedSqlModel.getByUuid(
-                scheduler.savedSqlUuid,
-                {},
-            );
-            return {
-                projectUuid: sqlChart.project.projectUuid,
-                organizationUuid: sqlChart.organization.organizationUuid,
-            };
-        }
-        return this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid);
-    }
-
     public async getSchedulerProjectContext(
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: Scheduler | CreateSchedulerAndTargets,
     ): Promise<{ projectUuid: string; organizationUuid: string }> {
-        if (isChartCreateScheduler(scheduler)) {
+        if (isChartScheduler(scheduler)) {
             const { projectUuid, organizationUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
             return { projectUuid, organizationUuid };
         }
-        if (isDashboardCreateScheduler(scheduler)) {
+        if (isDashboardScheduler(scheduler)) {
             const { projectUuid, organizationUuid } =
                 await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
             return { projectUuid, organizationUuid };
         }
-        if (scheduler.savedSqlUuid) {
+        if (isSqlChartScheduler(scheduler)) {
             const sqlChart = await this.savedSqlModel.getByUuid(
                 scheduler.savedSqlUuid,
                 {},
@@ -225,7 +198,7 @@ export class SchedulerService extends BaseService {
         // admins can manage all scheduled deliveries,
         // everyone below can only manage their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
-        const resource = await this.getSchedulerResource(scheduler);
+        const resource = await this.getSchedulerProjectContext(scheduler);
         const { organizationUuid, projectUuid } = resource;
 
         // If sendNow is true, we need to check if the user has permissions to `create` instead of `manage`
@@ -501,7 +474,8 @@ export class SchedulerService extends BaseService {
 
         const scheduler =
             await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
-        const { projectUuid } = await this.getSchedulerResource(scheduler);
+        const { projectUuid } =
+            await this.getSchedulerProjectContext(scheduler);
         const project = await this.projectModel.get(projectUuid);
         return project.schedulerTimezone;
     }

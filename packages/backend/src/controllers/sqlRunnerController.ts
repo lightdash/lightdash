@@ -669,7 +669,7 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSchedulers(req.user!, savedSqlUuid),
+                .getSchedulers(req.user!, projectUuid, savedSqlUuid),
         };
     }
 
@@ -696,7 +696,7 @@ export class SqlRunnerController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .createScheduler(req.user!, savedSqlUuid, body),
+                .createScheduler(req.user!, projectUuid, savedSqlUuid, body),
         };
     }
 }
