@@ -41,6 +41,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import {
+    lazy,
     useCallback,
     useEffect,
     useMemo,
@@ -93,7 +94,9 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
-import ChangeChartExploreModal from '../../common/modal/ChangeChartExploreModal';
+const ChangeChartExploreModal = lazy(
+    () => import('../../common/modal/ChangeChartExploreModal'),
+);
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
