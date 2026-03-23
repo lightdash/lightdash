@@ -125,3 +125,11 @@ seeds:
         units_sold: integer
         revenue: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
         customer_id: integer
+  - name: raw_country_orders
+    config:
+      column_types:
+        amount: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_order_currencies
+    config:
+      column_types:
+        converted_amount: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"

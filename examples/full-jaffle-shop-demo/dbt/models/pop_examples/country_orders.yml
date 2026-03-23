@@ -1,0 +1,66 @@
+version: 2
+models:
+  - name: country_orders
+    description: |
+      Orders by country, designed to illustrate the period-over-period (PoP)
+      comparison problem when countries appear or disappear between periods.
+
+      - India: new country added in Jan 2025, no 2024 data
+      - Germany: had orders in 2024 but none in 2025
+
+      An inner join PoP comparison will silently drop both India and Germany
+      because they don't exist in both periods. A full outer join or union
+      of period spines is needed to preserve all countries.
+    meta:
+      primary_key: order_id
+      joins:
+        - join: order_currencies
+          relationship: one-to-many
+          sql_on: ${country_orders.order_id} = ${order_currencies.order_id}
+          type: left
+    columns:
+      - name: order_id
+        description: Unique order identifier
+        tests:
+          - unique
+          - not_null
+        meta:
+          dimension:
+            type: number
+            hidden: true
+
+      - name: order_date
+        description: Date the order was placed
+        meta:
+          dimension:
+            type: date
+
+      - name: country
+        description: Country where the order originated (US, UK, Germany, India)
+        meta:
+          dimension:
+            type: string
+
+      - name: amount
+        description: Order amount in USD
+        tests:
+          - not_null
+        meta:
+          dimension:
+            type: number
+            format: usd
+            hidden: true
+          metrics:
+            total_order_amount:
+              type: sum
+              format: usd
+              round: 0
+              label: Total Order Amount
+            order_count:
+              type: count
+              label: Order Count
+            avg_order_amount:
+              type: average
+              format: usd
+              round: 2
+              label: Avg Order Amount
