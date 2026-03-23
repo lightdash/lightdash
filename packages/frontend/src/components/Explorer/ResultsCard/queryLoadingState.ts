@@ -8,7 +8,7 @@ export const getQueryLoadingStateCopy = (
             return {
                 title: 'Your query is queued...',
                 description:
-                    'It will start automatically when a worker is available.',
+                    'We’ll start processing your query as soon as possible.',
             };
         case QueryHistoryStatus.EXECUTING:
             return {
