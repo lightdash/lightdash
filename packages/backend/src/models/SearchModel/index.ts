@@ -1,6 +1,7 @@
 import {
     AllChartsSearchResult,
     ChartKind,
+    ContentType,
     DashboardSearchResult,
     DashboardTabResult,
     Explore,
@@ -36,6 +37,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { ContentVerificationModel } from '../ContentVerificationModel';
 import {
     filterByCreatedAt,
     filterByCreatedByUuid,
@@ -50,6 +52,7 @@ import {
 
 type SearchModelArguments = {
     database: Knex;
+    contentVerificationModel: ContentVerificationModel;
 };
 
 const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
@@ -57,8 +60,11 @@ const SEARCH_LIMIT_PER_ITEM_TYPE = 10;
 export class SearchModel {
     private database: Knex;
 
+    private contentVerificationModel: ContentVerificationModel;
+
     constructor(args: SearchModelArguments) {
         this.database = args.database;
+        this.contentVerificationModel = args.contentVerificationModel;
     }
 
     private async searchSpaces(
@@ -326,6 +332,12 @@ export class SearchModel {
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
 
+        const verificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                dashboardUuids,
+            );
+
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
@@ -464,6 +476,7 @@ export class SearchModel {
                   }
                 : null,
             charts: chartsByDashboard[dashboard.uuid] || [],
+            verification: verificationMap.get(dashboard.uuid) ?? null,
         }));
     }
 
@@ -907,6 +920,12 @@ export class SearchModel {
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
 
+        const savedChartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                chartUuids,
+            );
+
         const validationErrors = await this.database('validations')
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
@@ -948,6 +967,7 @@ export class SearchModel {
                       userUuid: chart.lastUpdatedByUserUuid,
                   }
                 : null,
+            verification: savedChartVerificationMap.get(chart.uuid) ?? null,
         }));
     }
 
@@ -1198,6 +1218,13 @@ export class SearchModel {
             .orderBy('search_rank', 'desc')
             .limit(20);
 
+        const chartUuids = results.map((r) => r.uuid);
+        const chartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                chartUuids,
+            );
+
         return results.map((result) => ({
             uuid: result.uuid,
             slug: result.slug,
@@ -1225,6 +1252,7 @@ export class SearchModel {
                       userUuid: result.lastUpdatedByUserUuid,
                   }
                 : null,
+            verification: chartVerificationMap.get(result.uuid) ?? null,
         }));
     }
 

@@ -20,12 +20,14 @@ import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
 import { clsx } from '@mantine/core';
 import {
     IconArrowAutofitContent,
+    IconCircleCheckFilled,
     IconDots,
     IconEdit,
     IconGripVertical,
     IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -40,6 +42,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     isEditMode,
     title,
     titleLeftIcon,
+    verification = null,
     chartName,
     description = null,
     tile,
@@ -92,7 +95,13 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
+    const isContentVerificationEnabled = useContentVerificationEnabled();
     const hasMenuContent = isEditMode || !!extraMenuItems;
+    const isVerified =
+        isContentVerificationEnabled &&
+        verification !== null &&
+        verification !== undefined;
+    const hasHeaderContent = hasMenuContent || isVerified;
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
@@ -113,7 +122,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
             {((containerHovered && !titleHovered && !chartHovered) ||
                 isMenuOpen ||
                 lockHeaderVisibility) &&
-                hasMenuContent && (
+                hasHeaderContent && (
                     <Paper
                         p={5}
                         className={clsx('non-draggable', styles.tileTooltip)}
@@ -132,6 +141,26 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             )}
 
                             {extraHeaderElement}
+
+                            {isVerified && (
+                                <Tooltip
+                                    label={
+                                        verification?.verifiedBy
+                                            ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
+                                            : 'Verified'
+                                    }
+                                    withArrow
+                                    withinPortal
+                                >
+                                    <IconCircleCheckFilled
+                                        size={14}
+                                        style={{
+                                            flexShrink: 0,
+                                            color: 'var(--mantine-color-green-6)',
+                                        }}
+                                    />
+                                </Tooltip>
+                            )}
 
                             {hasMenuContent && (
                                 <Menu

@@ -1,4 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
+import { type ContentVerificationInfo } from './contentVerification';
 import { type Dashboard } from './dashboard';
 import { type Table } from './explore';
 import { type Dimension, type Metric } from './field';
@@ -44,6 +45,7 @@ export type DashboardSearchResult = Pick<
         chartType: ChartKind;
         viewsCount: number;
     }[];
+    verification: ContentVerificationInfo | null;
 } & RankedItem;
 
 export type SavedChartSearchResult = Pick<
@@ -68,6 +70,7 @@ export type SavedChartSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    verification: ContentVerificationInfo | null;
 } & RankedItem;
 
 export type SqlChartSearchResult = Pick<
@@ -92,6 +95,7 @@ export type SqlChartSearchResult = Pick<
         lastName: string;
         userUuid: string;
     } | null;
+    verification: ContentVerificationInfo | null;
 } & RankedItem;
 
 export type AllChartsSearchResult = Pick<
@@ -114,6 +118,7 @@ export type AllChartsSearchResult = Pick<
             lastName: string;
             userUuid: string;
         } | null;
+        verification: ContentVerificationInfo | null;
     } & RankedItem;
 
 export type TableSearchResult = Pick<
@@ -205,8 +210,7 @@ export const isSqlChartSearchResult = (
 
 export const isDashboardSearchResult = (
     value: SearchResult,
-): value is DashboardSearchResult =>
-    'charts' in value && value.charts.length > 0;
+): value is DashboardSearchResult => 'charts' in value;
 
 export type SearchResults = {
     spaces: SpaceSearchResult[];

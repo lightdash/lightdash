@@ -2,11 +2,15 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
+    isResourceViewItemChart,
+    isResourceViewItemDashboard,
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip } from '@mantine-8/core';
 import {
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCopy,
     IconDatabaseExport,
     IconDots,
@@ -31,6 +35,13 @@ import {
     usePromoteDashboardDiffMutation,
     usePromoteDashboardMutation,
 } from '../../../features/promotion/hooks/usePromoteDashboard';
+import {
+    useUnverifyChartMutation,
+    useUnverifyDashboardMutation,
+    useVerifyChartMutation,
+    useVerifyDashboardMutation,
+} from '../../../hooks/useContentVerification';
+import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -49,6 +60,7 @@ interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps 
     disabled?: boolean;
     item: ResourceViewItem;
     allowDelete?: boolean;
+    hideVerification?: boolean;
     isOpen?: boolean;
     onOpen?: () => void;
     onClose?: () => void;
@@ -58,6 +70,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     disabled = false,
     item,
     allowDelete = true,
+    hideVerification = false,
     isOpen,
     onOpen,
     onClose,
@@ -71,6 +84,24 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
+
+    const isContentVerificationEnabled = useContentVerificationEnabled();
+    const isChartOrDashboard =
+        isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
+    const isVerified = isChartOrDashboard && item.data.verification !== null;
+    const userCanManageVerification =
+        user.data?.ability?.can(
+            'manage',
+            subject('ContentVerification', {
+                organizationUuid,
+                projectUuid,
+            }),
+        ) === true;
+
+    const { mutate: verifyChart } = useVerifyChartMutation();
+    const { mutate: unverifyChart } = useUnverifyChartMutation();
+    const { mutate: verifyDashboard } = useVerifyDashboardMutation();
+    const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
 
     const { mutate: promoteChart } = usePromoteMutation();
     const { mutate: promoteDashboard } = usePromoteDashboardMutation();
@@ -373,6 +404,59 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                         : 'Pin to homepage'}
                                 </Menu.Item>
                             ) : null}
+
+                            {isContentVerificationEnabled &&
+                                userCanManageVerification &&
+                                isChartOrDashboard &&
+                                !hideVerification && (
+                                    <Menu.Item
+                                        component="button"
+                                        role="menuitem"
+                                        leftSection={
+                                            isVerified ? (
+                                                <IconCircleCheckFilled
+                                                    size={18}
+                                                    color="var(--mantine-color-green-6)"
+                                                />
+                                            ) : (
+                                                <IconCircleCheck size={18} />
+                                            )
+                                        }
+                                        onClick={() => {
+                                            if (isVerified) {
+                                                if (
+                                                    isResourceViewItemChart(
+                                                        item,
+                                                    )
+                                                ) {
+                                                    unverifyChart(
+                                                        item.data.uuid,
+                                                    );
+                                                } else {
+                                                    unverifyDashboard(
+                                                        item.data.uuid,
+                                                    );
+                                                }
+                                            } else {
+                                                if (
+                                                    isResourceViewItemChart(
+                                                        item,
+                                                    )
+                                                ) {
+                                                    verifyChart(item.data.uuid);
+                                                } else {
+                                                    verifyDashboard(
+                                                        item.data.uuid,
+                                                    );
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        {isVerified
+                                            ? 'Remove verification'
+                                            : 'Verify'}
+                                    </Menu.Item>
+                                )}
 
                             <Menu.Divider
                                 display={isSqlChart ? 'none' : 'block'}
