@@ -1,3 +1,16 @@
+# [0.2654.0](https://github.com/lightdash/lightdash/compare/0.2653.0...0.2654.0) (2026-03-23)
+
+
+### Bug Fixes
+
+* support SQL chart schedulers in settings page and run history ([#21324](https://github.com/lightdash/lightdash/issues/21324)) ([35d5e7d](https://github.com/lightdash/lightdash/commit/35d5e7dc5166c4aae758b82e15428c86e10759bc))
+
+
+### Features
+
+* add poc of app-sdk ([#21308](https://github.com/lightdash/lightdash/issues/21308)) ([5aa2695](https://github.com/lightdash/lightdash/commit/5aa2695cca20cf64bf85779e687b772bcfdcee6e))
+* **cli:** add lightdash set-warehouse command ([#21294](https://github.com/lightdash/lightdash/issues/21294)) ([e79bd23](https://github.com/lightdash/lightdash/commit/e79bd230e8073489087c429c82ba22d5803a805e))
+
 # [0.2653.0](https://github.com/lightdash/lightdash/compare/0.2652.0...0.2653.0) (2026-03-23)
 
 
