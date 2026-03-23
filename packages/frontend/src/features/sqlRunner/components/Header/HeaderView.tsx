@@ -10,7 +10,9 @@ import {
     Title,
     Tooltip,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
+    IconCirclesRelation,
     IconDatabaseExport,
     IconDots,
     IconLayoutGridAdd,
@@ -24,8 +26,10 @@ import { ResourceInfoPopup } from '../../../../components/common/ResourceInfoPop
 import { TitleBreadCrumbs } from '../../../../components/Explorer/SavedChartsHeader/TitleBreadcrumbs';
 import AddTilesToDashboardModal from '../../../../components/SavedDashboards/AddTilesToDashboardModal';
 import { useProject } from '../../../../hooks/useProject';
+import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import { PromotionConfirmDialog } from '../../../promotion/components/PromotionConfirmDialog';
+import { SqlChartSyncModal } from '../../../sync/components/SqlChartSyncModal';
 import {
     usePromoteSqlChartDiffMutation,
     usePromoteSqlChartMutation,
@@ -37,7 +41,7 @@ import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
     const dispatch = useAppDispatch();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const { data: project } = useProject(projectUuid);
     const space = useAppSelector(
@@ -58,6 +62,8 @@ export const HeaderView: FC = () => {
     const onCloseDeleteModal = useCallback(() => {
         dispatch(toggleModal('deleteChartModal'));
     }, [dispatch]);
+
+    const [isSyncModalOpen, syncModalHandlers] = useDisclosure();
 
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
@@ -88,6 +94,10 @@ export const HeaderView: FC = () => {
                 : [],
         }),
     );
+
+    const hasGoogleDriveEnabled =
+        health.data?.auth.google.oauth2ClientId !== undefined &&
+        health.data?.auth.google.googleDriveApiKey !== undefined;
 
     const { mutate: promoteSqlChart } = usePromoteSqlChartMutation(projectUuid);
     const {
@@ -194,6 +204,29 @@ export const HeaderView: FC = () => {
                                     >
                                         Add to dashboard
                                     </Menu.Item>
+                                    {hasGoogleDriveEnabled && (
+                                        <Can
+                                            I="manage"
+                                            this={subject('GoogleSheets', {
+                                                organizationUuid:
+                                                    user.data?.organizationUuid,
+                                                projectUuid,
+                                            })}
+                                        >
+                                            <Menu.Item
+                                                icon={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconCirclesRelation
+                                                        }
+                                                    />
+                                                }
+                                                onClick={syncModalHandlers.open}
+                                            >
+                                                Google Sheets Sync
+                                            </Menu.Item>
+                                        </Can>
+                                    )}
                                     {canPromoteChart && (
                                         <Tooltip
                                             label="You must enable first an upstream project in settings > Data ops"
@@ -266,6 +299,14 @@ export const HeaderView: FC = () => {
                     uuid={savedSqlChart.savedSqlUuid}
                     dashboardTileType={DashboardTileTypes.SQL_CHART}
                     onClose={onCloseAddToDashboardModal}
+                />
+            )}
+            {isSyncModalOpen && (
+                <SqlChartSyncModal
+                    projectUuid={projectUuid}
+                    savedSqlUuid={savedSqlChart.savedSqlUuid}
+                    opened={isSyncModalOpen}
+                    onClose={syncModalHandlers.close}
                 />
             )}
             {(promoteSqlChartDiff || promoteSqlChartDiffLoading) && (
