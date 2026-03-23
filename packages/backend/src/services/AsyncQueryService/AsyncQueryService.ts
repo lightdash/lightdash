@@ -4881,6 +4881,7 @@ export class AsyncQueryService extends ProjectService {
      */
     async executeSqlChartQueryAndGetResults(
         args: ExecuteAsyncSqlChartArgs,
+        pollingOptions?: PollingOptions,
     ): Promise<{
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
@@ -4890,7 +4891,12 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata } =
             await this.executeAsyncSqlChartQuery(args);
 
-        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid,
+            ...pollingOptions,
+        });
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,

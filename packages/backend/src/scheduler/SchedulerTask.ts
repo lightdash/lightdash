@@ -3003,6 +3003,7 @@ export default class SchedulerTask {
                             context:
                                 QueryExecutionContext.SCHEDULED_GSHEETS_SQL_CHART,
                         },
+                        SCHEDULER_POLLING_OPTIONS,
                     );
 
                 await this.googleDriveClient.uploadMetadata(

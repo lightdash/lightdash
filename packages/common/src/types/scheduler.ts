@@ -132,7 +132,8 @@ export type ChartScheduler = SchedulerBase & {
 
 export const isDashboardScheduler = (
     scheduler: Scheduler | CreateSchedulerAndTargets,
-): scheduler is DashboardScheduler => scheduler.dashboardUuid !== undefined;
+): scheduler is DashboardScheduler =>
+    'dashboardUuid' in scheduler && !!scheduler.dashboardUuid;
 
 export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
@@ -153,7 +154,7 @@ export type SqlChartScheduler = SchedulerBase & {
 export const isSqlChartScheduler = (
     scheduler: Scheduler | CreateSchedulerAndTargets,
 ): scheduler is SqlChartScheduler =>
-    'savedSqlUuid' in scheduler && scheduler.savedSqlUuid !== null;
+    'savedSqlUuid' in scheduler && !!scheduler.savedSqlUuid;
 
 export type Scheduler = ChartScheduler | DashboardScheduler | SqlChartScheduler;
 
