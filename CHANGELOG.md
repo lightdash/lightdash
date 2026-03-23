@@ -1,3 +1,10 @@
+# [0.2653.0](https://github.com/lightdash/lightdash/compare/0.2652.0...0.2653.0) (2026-03-23)
+
+
+### Features
+
+* add data apps Vite scaffold for AI-generated apps ([#21322](https://github.com/lightdash/lightdash/issues/21322)) ([00c855f](https://github.com/lightdash/lightdash/commit/00c855ff05dda922ac39d6e5748837cd6857fa3b))
+
 # [0.2652.0](https://github.com/lightdash/lightdash/compare/0.2651.0...0.2652.0) (2026-03-23)
 
 
