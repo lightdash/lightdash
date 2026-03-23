@@ -1,4 +1,4 @@
-import { ForbiddenError } from '@lightdash/common';
+import { ForbiddenError, isExploreError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -6,6 +6,7 @@ import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
 import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
+import { DeployService } from '../services/DeployService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
@@ -20,6 +21,8 @@ import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuth
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
+import { generatePreAggregateExplores } from './preAggregates/generatePreAggregateExplores';
+import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
@@ -364,6 +367,26 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     slackClient: clients.getSlackClient(),
                     unfurlService: repository.getUnfurlService(),
                     aiAgentService: repository.getAiAgentService(),
+                }),
+            deployService: ({ models, clients, repository }) =>
+                new DeployService({
+                    deploySessionModel: models.getDeploySessionModel(),
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    schedulerClient: clients.getSchedulerClient(),
+                    exploreEnhancer: (explores) =>
+                        explores.flatMap((explore) => {
+                            if (isExploreError(explore)) return [explore];
+                            if (
+                                !explore.preAggregates ||
+                                explore.preAggregates.length === 0
+                            )
+                                return [explore];
+                            return generatePreAggregateExplores({
+                                compiledExplores: [explore],
+                                parsedPreAggregates: explore.preAggregates,
+                            });
+                        }),
                 }),
         },
         modelProviders: {

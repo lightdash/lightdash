@@ -68,6 +68,7 @@ export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';
 export * from './dbt/validation';
 export * from './ee';
+export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
