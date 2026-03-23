@@ -23,9 +23,9 @@ chartConfig:
     dataInput: row
     fieldId: leads_count
 metricQuery:
+  exploreName: leads
   dimensions:
     - leads_stage
-  exploreName: leads
   metrics:
     - leads_count
   sorts:
@@ -132,9 +132,9 @@ chartConfig:
     legendPosition: vertical
     showLegend: true
 metricQuery:
+  exploreName: opportunities
   dimensions:
     - opportunities_stage
-  exploreName: opportunities
   limit: 10
   metrics:
     - opportunities_count

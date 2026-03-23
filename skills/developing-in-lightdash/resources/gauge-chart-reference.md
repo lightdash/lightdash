@@ -70,6 +70,7 @@ chartConfig:
     selectedField: "customer_metrics_csat_score"
     showAxisLabels: true
 metricQuery:
+  exploreName: "customer_metrics"
   dimensions: []
   filters: []
   limit: 1
@@ -109,6 +110,7 @@ chartConfig:
     showAxisLabels: true
     showPercentage: true
 metricQuery:
+  exploreName: "project_metrics"
   dimensions: []
   filters: []
   limit: 1

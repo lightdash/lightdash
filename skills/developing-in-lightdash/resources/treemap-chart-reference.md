@@ -68,10 +68,10 @@ chartConfig:
     sizeMetricId: products_total_revenue
     visibleMin: 1000           # Hide rectangles smaller than $1000
 metricQuery:
+  exploreName: products
   dimensions:
     - products_category
     - products_subcategory
-  exploreName: products
   limit: 50
   metrics:
     - products_total_revenue
@@ -103,9 +103,9 @@ chartConfig:
     sizeMetricId: products_total_revenue
     startColor: "#ef4444"      # Red for low margin
 metricQuery:
+  exploreName: products
   dimensions:
     - products_category
-  exploreName: products
   limit: 25
   metrics:
     - products_total_revenue
@@ -187,6 +187,6 @@ version: 1
 
 ## Related Documentation
 
-- [Charts Reference](./charts-reference.md) - Overview of all chart types
+- [Chart Types](../SKILL.md#chart-types) - Overview of all chart types
 - [Dashboard Reference](./dashboard-reference.md) - Using treemaps in dashboards
 - [Workflows Reference](./workflows-reference.md) - Charts-as-code workflow
