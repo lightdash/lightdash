@@ -1,3 +1,68 @@
+# [0.2650.0](https://github.com/lightdash/lightdash/compare/0.2649.0...0.2650.0) (2026-03-23)
+
+
+### Bug Fixes
+
+* improve error handling in chart download and clipboard functionality ([#21310](https://github.com/lightdash/lightdash/issues/21310)) ([57eb2b0](https://github.com/lightdash/lightdash/commit/57eb2b06f34960bad2fc17e119b562d7176f869c)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* Redshift interval syntax to use DATEADD instead of INTERVAL ([#21316](https://github.com/lightdash/lightdash/issues/21316)) ([64e56fa](https://github.com/lightdash/lightdash/commit/64e56fa69768818b260afb021ddd2c47050d9ef4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* sanitize font family quotes in ECharts configurations ([#21304](https://github.com/lightdash/lightdash/issues/21304)) ([2550edd](https://github.com/lightdash/lightdash/commit/2550eddf4d5467db7e9596d604786e51a536d9f0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* update queued query loading message text ([#21319](https://github.com/lightdash/lightdash/issues/21319)) ([c54910c](https://github.com/lightdash/lightdash/commit/c54910c4dc57b3655b6141c183c2ed2766bfacf6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add saved_sql_uuid column to scheduler table ([#21268](https://github.com/lightdash/lightdash/issues/21268)) ([c9a2e3d](https://github.com/lightdash/lightdash/commit/c9a2e3d59b50a5e56b200405ab7f22f552aba1d5))
+
+# [0.2649.0](https://github.com/lightdash/lightdash/compare/0.2648.6...0.2649.0) (2026-03-23)
+
+
+### Features
+
+* add UI to change chart explore (PROD-5986) ([#21303](https://github.com/lightdash/lightdash/issues/21303)) ([fd55116](https://github.com/lightdash/lightdash/commit/fd55116b7e2bfb93b1aee6bf9895fbea0aa6c44a))
+
+## [0.2648.6](https://github.com/lightdash/lightdash/compare/0.2648.5...0.2648.6) (2026-03-23)
+
+
+### Bug Fixes
+
+* revert EE-in-dev mode (migrations + providers) ([#21317](https://github.com/lightdash/lightdash/issues/21317)) ([6fb934d](https://github.com/lightdash/lightdash/commit/6fb934da48363903d0c020a0c6e59d62f25f0e4b))
+
+## [0.2648.5](https://github.com/lightdash/lightdash/compare/0.2648.4...0.2648.5) (2026-03-23)
+
+
+### Bug Fixes
+
+* optimize dashboard filter re-renders during tile drag/resize operations ([#21309](https://github.com/lightdash/lightdash/issues/21309)) ([001b636](https://github.com/lightdash/lightdash/commit/001b6368c14662829879dc49d4dc959278dd229b))
+
+## [0.2648.4](https://github.com/lightdash/lightdash/compare/0.2648.3...0.2648.4) (2026-03-23)
+
+
+### Bug Fixes
+
+* conditionally show soft delete message in DeleteSpaceModal ([#21305](https://github.com/lightdash/lightdash/issues/21305)) ([2dd8240](https://github.com/lightdash/lightdash/commit/2dd8240fccc94e079dbfd0553573dd4de77f4c93))
+* disable cancel button during deletion operations ([#21307](https://github.com/lightdash/lightdash/issues/21307)) ([e61328e](https://github.com/lightdash/lightdash/commit/e61328e24039b2df4a0d18fe4c8df18b8ad85d2b))
+
+## [0.2648.3](https://github.com/lightdash/lightdash/compare/0.2648.2...0.2648.3) (2026-03-23)
+
+
+### Bug Fixes
+
+* pass projectUuid to useAiAgentPermission hook ([#21306](https://github.com/lightdash/lightdash/issues/21306)) ([0cc8033](https://github.com/lightdash/lightdash/commit/0cc80335a5a9d29d331e7d03ba2700ce27a5756d))
+
+## [0.2648.2](https://github.com/lightdash/lightdash/compare/0.2648.1...0.2648.2) (2026-03-23)
+
+
+### Bug Fixes
+
+* strip tileTargets from filter rules to reduce API payload size ([#21300](https://github.com/lightdash/lightdash/issues/21300)) ([bbacde1](https://github.com/lightdash/lightdash/commit/bbacde185148e5fa9240d1ac19a772446551b778))
+
+## [0.2648.1](https://github.com/lightdash/lightdash/compare/0.2648.0...0.2648.1) (2026-03-23)
+
+
+### Bug Fixes
+
+* only show .gitignore notice for metadata file once ([#21297](https://github.com/lightdash/lightdash/issues/21297)) ([170ff4b](https://github.com/lightdash/lightdash/commit/170ff4be8ba0e979cab669cb0fdd25055ac3f7ed))
+
 # [0.2648.0](https://github.com/lightdash/lightdash/compare/0.2647.1...0.2648.0) (2026-03-23)
 
 

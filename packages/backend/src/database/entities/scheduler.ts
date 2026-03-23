@@ -33,6 +33,7 @@ export type SchedulerDb = {
     timezone: string | null;
     saved_chart_uuid: string | null;
     dashboard_uuid: string | null;
+    saved_sql_uuid: string | null;
     options: Record<string, AnyType>;
     filters: string | null;
     parameters: string | null;
@@ -49,10 +50,17 @@ export type SchedulerDb = {
 export type ChartSchedulerDb = SchedulerDb & {
     saved_chart_uuid: string;
     dashboard_uuid: null;
+    saved_sql_uuid: null;
 };
 export type DashboardSchedulerDB = SchedulerDb & {
     saved_chart_uuid: null;
     dashboard_uuid: string;
+    saved_sql_uuid: null;
+};
+export type SqlChartSchedulerDb = SchedulerDb & {
+    saved_chart_uuid: null;
+    dashboard_uuid: null;
+    saved_sql_uuid: string;
 };
 
 export type SchedulerSlackTargetDb = {
@@ -88,7 +96,7 @@ export type SchedulerEmailTargetDb = {
 export type SchedulerTable = Knex.CompositeTableType<
     SchedulerDb,
     Omit<
-        ChartSchedulerDb | DashboardSchedulerDB,
+        ChartSchedulerDb | DashboardSchedulerDB | SqlChartSchedulerDb,
         'scheduler_uuid' | 'created_at' | 'deleted_at' | 'deleted_by_user_uuid'
     >,
     | Pick<

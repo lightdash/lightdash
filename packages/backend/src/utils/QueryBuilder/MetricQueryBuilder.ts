@@ -205,13 +205,12 @@ export function getIntervalSyntax(
             }, ${columnWithInterval})`;
             break;
         case SupportedDbtAdapter.REDSHIFT: {
-            // Redshift uses standard interval arithmetic
-            // Redshift doesn't support QUARTER interval, convert to months
+            // Redshift uses DATEADD and doesn't support QUARTER directly
             const [redshiftValue, redshiftGranularity] =
                 normalizeIntervalGranularity(value, granularity);
-            intervalExpression = `${columnWithInterval} ${
-                isAdd ? '+' : '-'
-            } INTERVAL '${redshiftValue} ${redshiftGranularity}'`;
+            intervalExpression = `DATEADD(${redshiftGranularity}, ${
+                isAdd ? redshiftValue : -redshiftValue
+            }, ${columnWithInterval})`;
             break;
         }
         case SupportedDbtAdapter.POSTGRES: {

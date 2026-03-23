@@ -698,6 +698,8 @@ export class SchedulerModel {
                     timezone: newScheduler.timezone ?? null,
                     saved_chart_uuid: newScheduler.savedChartUuid,
                     dashboard_uuid: newScheduler.dashboardUuid,
+                    // Hardcoded to null until SavedSqlService.createScheduler passes savedSqlUuid
+                    saved_sql_uuid: null,
                     updated_at: new Date(),
                     options: newScheduler.options,
                     filters:

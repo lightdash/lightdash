@@ -323,6 +323,62 @@ Traces contain contextual attributes beyond timing:
 | Browser snapshot | `mcp__chrome-devtools__take_snapshot` |
 | Open Spotlight UI | http://localhost:8969 |
 
+## Cross-Agent Validation
+
+Use another AI agent to validate your findings, challenge your conclusions, and provide independent evidence. This is not just for when you're stuck — actively seek validation throughout the debugging process to ensure your analysis is sound.
+
+### Detect your environment
+
+```bash
+which claude 2>/dev/null && echo "HAS_CLAUDE=true" || echo "HAS_CLAUDE=false"
+which codex 2>/dev/null && echo "HAS_CODEX=true" || echo "HAS_CODEX=false"
+```
+
+### If you are Claude → ask Codex
+
+```bash
+codex exec "Given this context from a Lightdash debugging session:
+
+<context>
+[paste relevant logs, traces, error messages, or code snippets]
+</context>
+
+<question>
+[your specific question — e.g., 'Does this trace confirm that the query cache is being bypassed?' or 'Given this stack trace, is my conclusion that the middleware short-circuits before auth correct?']
+</question>"
+```
+
+### If you are Codex → ask Claude
+
+```bash
+claude -p "Given this context from a Lightdash debugging session:
+
+<context>
+[paste relevant logs, traces, error messages, or code snippets]
+</context>
+
+<question>
+[your specific question]
+</question>"
+```
+
+### When to consult
+
+- **Validate a hypothesis**: Before concluding root cause, ask the other agent if the evidence supports your theory or if there's an alternative explanation
+- **Verify your interpretation of data**: When reading traces, logs, or query output — confirm you're reading it correctly
+- **Challenge your fix**: Before suggesting a code change, ask whether the fix actually addresses the root cause or just masks a symptom
+- **Cross-check complex logic**: When the issue involves multiple systems (frontend + API + database + permissions), get an independent read on the interaction
+- **Justify a conclusion**: If you're about to tell the user "X is the cause", make sure another perspective agrees — or surface the disagreement
+
+### Guidelines
+
+- **Set a 5-minute timeout**: Codex can take a while to respond. When running `codex exec` via the Bash tool, set the Bash timeout to 300000ms (5 minutes) to avoid premature termination. Do NOT pass `--timeout` to `codex exec` itself — it doesn't support that flag.
+- **Be specific**: Include the actual error, trace output, or code snippet — not just a vague description
+- **Ask for validation, not just answers**: "Does this evidence support my conclusion that X?" is better than "What's wrong?"
+- **Include your current hypothesis**: Let the other agent confirm or challenge it, rather than starting from scratch
+- **Include what you've already ruled out**: This avoids duplicate investigation and focuses the consultation
+- **Always report back to the user**: When you consult another agent, tell the user you did so. Summarize what you asked, what the other agent found, and whether you agree with their assessment. If there's a disagreement, present both perspectives and the supporting evidence for each. The user should never be unaware that another agent was consulted.
+
 ## Test User Credentials
 
 For testing authenticated flows:

@@ -29,6 +29,7 @@ export type Config = {
     };
     answers?: {
         permissionToStoreWarehouseCredentials?: boolean;
+        metadataFileGitignoreNoticeShown?: boolean;
     };
 };
 

@@ -12,6 +12,7 @@ import { type EChartsOption, type SankeySeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 
 /** Strip " - Step N" suffix from node names for display */
 const stripStepSuffix = (name: string) => name.replace(/ - Step \d+$/, '');
@@ -111,7 +112,9 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
 
         return {
             textStyle: {
-                fontFamily: theme?.other.chartFont as string | undefined,
+                fontFamily: sanitizeEchartsFontFamily(
+                    theme?.other.chartFont as string | undefined,
+                ),
             },
             tooltip: {
                 ...getTooltipStyle({ appendToBody: !isTouchDevice }),

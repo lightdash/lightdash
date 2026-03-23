@@ -67,7 +67,10 @@ const AiPageLoading = () => (
 
 const AgentsWelcome = () => {
     const { projectUuid } = useParams();
-    const canCreateAgent = useAiAgentPermission({ action: 'manage' });
+    const canCreateAgent = useAiAgentPermission({
+        action: 'manage',
+        projectUuid,
+    });
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
 
     const isAiCopilotEnabledOrTrial =

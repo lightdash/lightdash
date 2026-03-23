@@ -39,6 +39,9 @@ const envWithPath = {
     PATH: `${venvBinPath}:${process.env.PATH}`,
 };
 
+// Log the root directory so it's obvious which worktree PM2 is running from
+console.log(`\n  Lightdash PM2 root: ${__dirname}\n`);
+
 module.exports = {
     apps: [
         // ─────────────────────────────────────────────────────────────────

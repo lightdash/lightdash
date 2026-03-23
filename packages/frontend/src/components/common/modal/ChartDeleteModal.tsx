@@ -70,6 +70,7 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
             description={description}
             onConfirm={handleConfirm}
             confirmLoading={isDeleting}
+            cancelDisabled={isDeleting}
         >
             {relatedDashboards.length > 0 && (
                 <Callout

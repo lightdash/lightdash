@@ -93,6 +93,11 @@ export enum FeatureFlags {
      * Enable custom group bins for string dimensions
      */
     CustomGroupBins = 'custom-group-bins',
+
+    /**
+     * Enable changing the explore a chart points to from the chart UI
+     */
+    ChangeChartExplore = 'change-chart-explore',
 }
 
 export type FeatureFlag = {

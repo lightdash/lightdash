@@ -20,6 +20,7 @@ import {
 import {
     BuildQueryProps,
     CompiledQuery,
+    getIntervalSyntax,
     MetricQueryBuilder,
 } from './MetricQueryBuilder';
 import {
@@ -785,6 +786,35 @@ const POP_TEST_COUNTRY_FANOUT_METRIC_QUERY: CompiledMetricQuery = {
     ],
     compiledCustomDimensions: [],
 };
+describe('getIntervalSyntax', () => {
+    test('Should use DATEADD for Redshift month granularity', () => {
+        expect(
+            getIntervalSyntax(
+                SupportedDbtAdapter.REDSHIFT,
+                '"orders".order_date',
+                'pop.min_date',
+                '>=',
+                1,
+                'month',
+                false,
+            ),
+        ).toBe('"orders".order_date >= DATEADD(month, -1, pop.min_date)');
+    });
+
+    test('Should convert Redshift quarter granularity to months in DATEADD', () => {
+        expect(
+            getIntervalSyntax(
+                SupportedDbtAdapter.REDSHIFT,
+                '"orders".order_date',
+                'pop.max_date',
+                '<=',
+                1,
+                'quarter',
+                false,
+            ),
+        ).toBe('"orders".order_date <= DATEADD(MONTH, -3, pop.max_date)');
+    });
+});
 
 describe('Query builder', () => {
     test('Should build simple metric query', () => {

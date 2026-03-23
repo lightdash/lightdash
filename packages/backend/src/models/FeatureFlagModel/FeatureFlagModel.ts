@@ -50,6 +50,8 @@ export class FeatureFlagModel {
                 this.getGoogleChatEnabled.bind(this),
             [FeatureFlags.UserImpersonation]:
                 this.getUserImpersonationEnabled.bind(this),
+            [FeatureFlags.ChangeChartExplore]:
+                this.getChangeChartExploreEnabled.bind(this),
         };
     }
 
@@ -303,6 +305,31 @@ export class FeatureFlagModel {
                       userUuid: user.userUuid,
                       organizationUuid: user.organizationUuid,
                   })
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getChangeChartExploreEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.changeChartExplore.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.ChangeChartExplore,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
                 : false);
         return {
             id: featureFlagId,

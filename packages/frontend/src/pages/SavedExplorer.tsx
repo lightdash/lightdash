@@ -85,8 +85,10 @@ const SavedExplorer = () => {
 
         const currentSavedChart = store.getState().explorer.savedChart;
         const isNewChart = currentSavedChart?.uuid !== data.uuid;
+        const isExploreChanged =
+            currentSavedChart?.tableName !== data.tableName;
 
-        if (isNewChart) {
+        if (isNewChart || isExploreChanged) {
             const initialState = buildInitialExplorerState({
                 savedChart: data,
                 isEditMode,

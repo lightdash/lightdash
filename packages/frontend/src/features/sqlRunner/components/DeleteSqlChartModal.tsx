@@ -50,6 +50,7 @@ export const DeleteSqlChartModal: FC<Props> = ({
             description={description}
             onConfirm={mutate}
             confirmLoading={isLoading}
+            cancelDisabled={isLoading}
         />
     );
 };

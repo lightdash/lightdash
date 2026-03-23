@@ -1111,6 +1111,9 @@ export type LightdashConfig = {
     userImpersonation: {
         enabled: boolean | undefined;
     };
+    changeChartExplore: {
+        enabled: boolean | undefined;
+    };
 };
 
 export type SlackConfig = {
@@ -2043,6 +2046,11 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.USER_IMPERSONATION_ENABLED === 'true'
                     ? true
                     : undefined,
+        },
+        changeChartExplore: {
+            enabled: process.env.CHANGE_CHART_EXPLORE_ENABLED
+                ? process.env.CHANGE_CHART_EXPLORE_ENABLED === 'true'
+                : undefined,
         },
     };
 };

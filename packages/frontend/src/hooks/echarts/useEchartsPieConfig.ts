@@ -21,6 +21,7 @@ import { type EChartsOption, type PieSeriesOption } from 'echarts';
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 export type PieSeriesDataPoint = NonNullable<
     PieSeriesOption['data']
@@ -230,7 +231,9 @@ const useEchartsPieConfig = (
 
         return {
             textStyle: {
-                fontFamily: theme?.other?.chartFont as string | undefined,
+                fontFamily: sanitizeEchartsFontFamily(
+                    theme?.other?.chartFont as string | undefined,
+                ),
             },
             legend: {
                 show: showLegend,
