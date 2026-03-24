@@ -150,6 +150,14 @@ export class NatsWorker {
                 );
         }
 
+        if (preAgg && subject === preAgg.subjects.materialization) {
+            return (queryUuid, worker) =>
+                this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
+                    queryUuid,
+                    worker,
+                );
+        }
+
         return null;
     }
 

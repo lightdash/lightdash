@@ -46,6 +46,7 @@ const PRE_AGGREGATE_STREAM_CONFIG: StreamConfig = {
     streamName: 'PRE_AGGREGATE_QUERY_JOBS',
     subjects: {
         query: 'pre_aggregate.query.jobs',
+        materialization: 'pre_aggregate.materialization.jobs',
     },
     durableName: 'worker-pre-aggregate',
 };

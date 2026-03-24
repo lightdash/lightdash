@@ -30,6 +30,7 @@ type EnqueueResult = Promise<{ jobId: string }>;
 export interface INatsClient {
     enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
     enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+    enqueueMaterializationQuery(payload: AsyncQueryJobPayload): EnqueueResult;
 }
 
 type NatsClientArgs = {
@@ -160,6 +161,15 @@ export class NatsClient implements INatsClient {
     ): Promise<{ jobId: string }> {
         return this.enqueue(
             STREAM_CONFIGS['pre-aggregate'].subjects.query,
+            payload,
+        );
+    }
+
+    async enqueueMaterializationQuery(
+        payload: AsyncQueryJobPayload,
+    ): Promise<{ jobId: string }> {
+        return this.enqueue(
+            STREAM_CONFIGS['pre-aggregate'].subjects.materialization,
             payload,
         );
     }

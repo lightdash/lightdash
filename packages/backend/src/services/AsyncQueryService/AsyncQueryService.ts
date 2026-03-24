@@ -192,6 +192,12 @@ type AsyncQueryExecutionPlan =
           preAggregateResolveReason?: undefined;
       }
     | {
+          target: 'materialization';
+          warehouseQuery: string;
+          preAggregateResolved?: false;
+          preAggregateResolveReason?: string;
+      }
+    | {
           target: 'error';
           error: string;
           preAggregateResolved?: false;
@@ -1529,6 +1535,7 @@ export class AsyncQueryService extends ProjectService {
         timezone,
         dateZoom,
         parameters,
+        routingTarget,
         preAggregationRoute,
         fieldsMap,
         pivotConfiguration,
@@ -1543,6 +1550,7 @@ export class AsyncQueryService extends ProjectService {
         timezone: string;
         dateZoom: ExecuteAsyncMetricQueryArgs['dateZoom'];
         parameters: ExecuteAsyncMetricQueryArgs['parameters'];
+        routingTarget: PreAggregationRoutingDecision['target'];
         preAggregationRoute?: PreAggregationRoute;
         fieldsMap: ItemsMap;
         pivotConfiguration?: PivotConfiguration;
@@ -1551,6 +1559,10 @@ export class AsyncQueryService extends ProjectService {
         availableParameterDefinitions?: ParameterDefinitions;
         queryUuid: string;
     }): Promise<AsyncQueryExecutionPlan> {
+        if (routingTarget === 'materialization') {
+            return { target: 'materialization', warehouseQuery };
+        }
+
         if (!preAggregationRoute) {
             return { target: 'warehouse', warehouseQuery };
         }
@@ -2591,6 +2603,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
             timezone?: string;
+            routingTarget?: PreAggregationRoutingDecision['target'];
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
             availableParameterDefinitions?: ParameterDefinitions;
@@ -2616,6 +2629,7 @@ export class AsyncQueryService extends ProjectService {
                     pivotConfiguration,
                     parameters,
                     timezone: resolvedTimezone,
+                    routingTarget,
                     preAggregationRoute,
                     userAccessControls,
                     availableParameterDefinitions,
@@ -2896,6 +2910,7 @@ export class AsyncQueryService extends ProjectService {
                             timezone: resolvedTimezone ?? 'UTC',
                             dateZoom,
                             parameters,
+                            routingTarget: routingTarget ?? 'warehouse',
                             preAggregationRoute,
                             fieldsMap,
                             pivotConfiguration,
@@ -2999,14 +3014,28 @@ export class AsyncQueryService extends ProjectService {
                                 queryUuid: queryHistoryUuid,
                             };
 
-                            const { jobId } =
-                                executionPlan.target === 'pre_aggregate'
-                                    ? await this.natsClient.enqueuePreAggregateQuery(
-                                          natsPayload,
-                                      )
-                                    : await this.natsClient.enqueueWarehouseQuery(
-                                          natsPayload,
-                                      );
+                            const enqueueQuery = () => {
+                                switch (executionPlan.target) {
+                                    case 'pre_aggregate':
+                                        return this.natsClient.enqueuePreAggregateQuery(
+                                            natsPayload,
+                                        );
+                                    case 'materialization':
+                                        return this.natsClient.enqueueMaterializationQuery(
+                                            natsPayload,
+                                        );
+                                    case 'warehouse':
+                                        return this.natsClient.enqueueWarehouseQuery(
+                                            natsPayload,
+                                        );
+                                    default:
+                                        return assertUnreachable(
+                                            executionPlan,
+                                            `Unknown execution target`,
+                                        );
+                                }
+                            };
+                            const { jobId } = await enqueueQuery();
 
                             this.logger.info(
                                 `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,
@@ -3071,16 +3100,29 @@ export class AsyncQueryService extends ProjectService {
 
                         const { query: warehouseSql, ...sharedAsyncQueryArgs } =
                             warehouseArgs;
-                        const runQueryPromise =
-                            executionPlan.target === 'pre_aggregate'
-                                ? this.runAsyncPreAggregateQuery({
-                                      ...sharedAsyncQueryArgs,
-                                      preAggregateQuery:
-                                          executionPlan.preAggregateQuery,
-                                      warehouseQuery:
-                                          executionPlan.warehouseQuery,
-                                  })
-                                : this.runAsyncWarehouseQuery(warehouseArgs);
+                        const getRunQueryPromise = () => {
+                            switch (executionPlan.target) {
+                                case 'pre_aggregate':
+                                    return this.runAsyncPreAggregateQuery({
+                                        ...sharedAsyncQueryArgs,
+                                        preAggregateQuery:
+                                            executionPlan.preAggregateQuery,
+                                        warehouseQuery:
+                                            executionPlan.warehouseQuery,
+                                    });
+                                case 'materialization':
+                                case 'warehouse':
+                                    return this.runAsyncWarehouseQuery(
+                                        warehouseArgs,
+                                    );
+                                default:
+                                    return assertUnreachable(
+                                        executionPlan,
+                                        `Unknown execution target`,
+                                    );
+                            }
+                        };
+                        const runQueryPromise = getRunQueryPromise();
 
                         void runQueryPromise.catch((e) => {
                             this.logger.error(
@@ -3259,6 +3301,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 timezone,
                 pivotConfiguration,
+                routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
                     userAccessControls,
@@ -3496,6 +3539,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
+                routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
                     userAccessControls,
@@ -3792,6 +3836,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
+                routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
                     userAccessControls,
