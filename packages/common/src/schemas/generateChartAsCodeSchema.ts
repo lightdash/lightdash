@@ -61,6 +61,26 @@ const withConstType = (
     };
 };
 
+const makeOptionalPropertiesNullable = (schema: JsonObject): JsonObject => {
+    const properties = toObject(schema.properties);
+    const required = Array.isArray(schema.required)
+        ? new Set((schema.required as JsonValue[]).map((v) => String(v)))
+        : new Set<string>();
+
+    const updatedProperties: JsonObject = {};
+    for (const [key, value] of Object.entries(properties)) {
+        if (!required.has(key) && value && typeof value === 'object') {
+            updatedProperties[key] = {
+                anyOf: [value, { type: 'null' }],
+            };
+        } else {
+            updatedProperties[key] = value;
+        }
+    }
+
+    return { ...schema, properties: updatedProperties };
+};
+
 const tryBuildDiscriminatedChartConfig = (
     components: Record<string, JsonObject>,
 ): JsonObject | null => {
@@ -107,7 +127,8 @@ const tryBuildDiscriminatedChartConfig = (
         const convertedMember = convertOpenApiToDraft07(
             flattenedMember,
         ) as JsonObject;
-        const typedMember = withConstType(convertedMember, typeConst);
+        const nullableMember = makeOptionalPropertiesNullable(convertedMember);
+        const typedMember = withConstType(nullableMember, typeConst);
         if (!typedMember) {
             return null;
         }
