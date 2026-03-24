@@ -27,9 +27,12 @@ if (fs.existsSync('.env')) {
     }
 }
 
-// Pack @lightdash/query-sdk so it can be installed in the sandbox
-console.log('Packing @lightdash/query-sdk...');
+// Build and pack @lightdash/query-sdk so it can be installed in the sandbox
+console.log('Building @lightdash/query-sdk...');
 const sdkDir = path.resolve('../../packages/query-sdk');
+execSync(`pnpm -C ${sdkDir} build`, { stdio: 'inherit' });
+
+console.log('Packing @lightdash/query-sdk...');
 execSync(`pnpm -C ${sdkDir} pack --pack-destination ${process.cwd()}`, {
     stdio: 'inherit',
 });

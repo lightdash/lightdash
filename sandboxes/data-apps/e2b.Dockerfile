@@ -28,4 +28,8 @@ COPY template/src/ ./src/
 # Bootstrap shadcn/ui (generates src/components/ui/ and src/lib/)
 RUN npx shadcn@2.3.0 init --defaults --force
 RUN npx shadcn@2.3.0 add --overwrite --yes \
-    button badge card table dialog tabs select input label popover tooltip separator
+    button badge card table dialog tabs select input label popover tooltip separator \
+    skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress
+
+# E2B sandbox runs as 'user' — make /app writable
+RUN chown -R user:user /app
