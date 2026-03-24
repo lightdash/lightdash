@@ -321,7 +321,7 @@ export class OrganizationService extends BaseService {
             ),
         );
 
-        // Hide preview projects from non-admin/developer users
+        // When feature flag is enabled, hide preview projects from non-admin/developer users
         if (account.isRegisteredUser()) {
             const registeredUser = account.user as {
                 userUuid: string;
@@ -332,9 +332,21 @@ export class OrganizationService extends BaseService {
                 registeredUser.role === OrganizationMemberRole.DEVELOPER;
 
             if (!isAdminOrDeveloper) {
-                return viewableProjects.filter(
-                    (p) => p.type !== ProjectType.PREVIEW,
-                );
+                const flag = await this.featureFlagModel.get({
+                    user: {
+                        userUuid: registeredUser.userUuid,
+                        organizationUuid: organizationUuid!,
+                        organizationName:
+                            account.organization.name ?? organizationUuid!,
+                    },
+                    featureFlagId: FeatureFlags.PreviewAutoCleanup,
+                });
+
+                if (flag.enabled) {
+                    return viewableProjects.filter(
+                        (p) => p.type !== ProjectType.PREVIEW,
+                    );
+                }
             }
         }
 
