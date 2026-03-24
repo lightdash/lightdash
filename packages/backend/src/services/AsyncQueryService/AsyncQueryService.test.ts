@@ -198,6 +198,9 @@ const getMockedAsyncQueryService = (
             enqueuePreAggregateQuery: jest.fn(async () => ({
                 jobId: 'test-nats-pre-agg-job-id',
             })),
+            enqueueMaterializationQuery: jest.fn(async () => ({
+                jobId: 'test-nats-materialization-job-id',
+            })),
         } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,

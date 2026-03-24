@@ -22,6 +22,10 @@ export type PreAggregationRoutingDecision =
           target: 'pre_aggregate';
           preAggregateMetadata: CacheMetadata['preAggregate'];
           route: PreAggregationRoute;
+      }
+    | {
+          target: 'materialization';
+          preAggregateMetadata?: CacheMetadata['preAggregate'];
       };
 
 export type PreAggregateStatsFilters = {

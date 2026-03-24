@@ -94,11 +94,11 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             reason: matchResult.miss || undefined,
         };
 
-        if (
-            matchResult.hit &&
-            matchResult.preAggregateName &&
-            context !== QEC.PRE_AGGREGATE_MATERIALIZATION
-        ) {
+        if (context === QEC.PRE_AGGREGATE_MATERIALIZATION) {
+            return { target: 'materialization', preAggregateMetadata };
+        }
+
+        if (matchResult.hit && matchResult.preAggregateName) {
             return {
                 target: 'pre_aggregate',
                 preAggregateMetadata,
