@@ -40,6 +40,39 @@
             "format": "date-time",
             "description": "Timestamp when the dashboard was last updated (readonly)"
         },
+        "verification": {
+            "description": "Verification status of this dashboard. Read-only; ignored on upload.",
+            "oneOf": [
+                {
+                    "type": "object",
+                    "required": ["verifiedAt", "verifiedBy"],
+                    "properties": {
+                        "verifiedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "verifiedBy": {
+                            "type": "object",
+                            "required": ["firstName", "lastName", "userUuid"],
+                            "properties": {
+                                "firstName": {
+                                    "type": "string"
+                                },
+                                "lastName": {
+                                    "type": "string"
+                                },
+                                "userUuid": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "null"
+                }
+            ]
+        },
         "downloadedAt": {
             "type": "string",
             "format": "date-time",
