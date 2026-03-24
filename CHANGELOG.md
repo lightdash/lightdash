@@ -1,3 +1,10 @@
+## [0.2661.2](https://github.com/lightdash/lightdash/compare/0.2661.1...0.2661.2) (2026-03-24)
+
+
+### Bug Fixes
+
+* update NATS streams and consumers instead of only creating them ([#21378](https://github.com/lightdash/lightdash/issues/21378)) ([e650154](https://github.com/lightdash/lightdash/commit/e65015495c511fe38ec54eb2136183e2f6f73b5c))
+
 ## [0.2661.1](https://github.com/lightdash/lightdash/compare/0.2661.0...0.2661.1) (2026-03-24)
 
 
