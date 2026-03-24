@@ -1,3 +1,11 @@
+## [0.2657.6](https://github.com/lightdash/lightdash/compare/0.2657.5...0.2657.6) (2026-03-24)
+
+
+### Bug Fixes
+
+* align embed dashboard parameter pills ([#21349](https://github.com/lightdash/lightdash/issues/21349)) ([f8c5c92](https://github.com/lightdash/lightdash/commit/f8c5c9282d4f1bb96ad2994ce6d96c683b546108))
+* handle missing cartesian axis configs ([#21346](https://github.com/lightdash/lightdash/issues/21346)) ([9fc7ea6](https://github.com/lightdash/lightdash/commit/9fc7ea602a1a0550208c49421e7880aeb696c95f))
+
 ## [0.2657.5](https://github.com/lightdash/lightdash/compare/0.2657.4...0.2657.5) (2026-03-24)
 
 
