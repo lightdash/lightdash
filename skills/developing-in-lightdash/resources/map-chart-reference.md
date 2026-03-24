@@ -53,6 +53,22 @@ config:
   latitudeFieldId: "events_latitude"
   longitudeFieldId: "events_longitude"
   valueFieldId: "metric_for_intensity"  # Optional
+  heatmapConfig:
+    radius: 25          # Heat point size (1-50)
+    blur: 15            # Blur amount (0-30)
+    opacity: 0.6        # Overlay transparency (0.1-1)
+```
+
+### Custom GeoJSON (Area Maps)
+
+```yaml
+config:
+  locationType: "area"
+  mapType: "custom"
+  customGeoJsonUrl: "https://example.com/regions.geojson"
+  geoJsonPropertyKey: "postal_code"   # Property in GeoJSON to match against
+  locationFieldId: "orders_zip_code"  # Data field matching the GeoJSON property
+  valueFieldId: "orders_total_sales"
 ```
 
 ### Visual Settings
@@ -62,10 +78,26 @@ config:
   tileBackground: "light"       # none, openstreetmap, light, dark, satellite
   showLegend: true
   colorRange:
-    - "#fee2e2"                 # Low values
+    - "#fee2e2"                 # Low values (2-5 colors supported)
     - "#dc2626"                 # High values
   backgroundColor: "#ffffff"
-  noDataColor: "#e5e7eb"        # For area maps
+  noDataColor: "#e5e7eb"        # For area maps — regions with no matching data
+  dataLayerOpacity: 0.8         # Opacity of the data layer (0-1)
+  colorOverrides:               # Per-region color overrides (area maps)
+    "California": "#ff0000"
+    "Texas": "#00ff00"
+```
+
+### Tooltip Settings
+
+```yaml
+config:
+  fieldConfig:
+    stores_store_name:
+      visible: true
+      label: "Store"            # Custom label in tooltip
+    stores_revenue:
+      visible: false            # Hide from tooltip
 ```
 
 ### View Settings
@@ -149,6 +181,76 @@ tableName: orders
 version: 1
 ```
 
+### Example 3: Event Heatmap
+
+```yaml
+contentType: chart
+chartConfig:
+  type: map
+  config:
+    colorRange:
+      - "#fef9c3"
+      - "#f59e0b"
+      - "#dc2626"
+    defaultCenterLat: 40.7128
+    defaultCenterLon: -74.0060
+    defaultZoom: 11
+    heatmapConfig:
+      blur: 15
+      opacity: 0.6
+      radius: 25
+    latitudeFieldId: "events_latitude"
+    locationType: "heatmap"
+    longitudeFieldId: "events_longitude"
+    showLegend: true
+    tileBackground: "dark"
+metricQuery:
+  exploreName: events
+  dimensions:
+    - events_latitude
+    - events_longitude
+  limit: 5000
+  metrics: []
+name: "Event Density"
+slug: event-density
+spaceSlug: analytics
+tableName: events
+version: 1
+```
+
+### Example 4: Custom GeoJSON Regions
+
+```yaml
+contentType: chart
+chartConfig:
+  type: map
+  config:
+    colorRange:
+      - "#e0f2fe"
+      - "#0369a1"
+    customGeoJsonUrl: "https://example.com/zip-codes.geojson"
+    geoJsonPropertyKey: "ZCTA5CE10"
+    locationFieldId: "orders_zip_code"
+    locationType: "area"
+    mapType: "custom"
+    noDataColor: "#f3f4f6"
+    showLegend: true
+    tileBackground: "light"
+    valueFieldId: "orders_total_sales"
+metricQuery:
+  exploreName: orders
+  dimensions:
+    - orders_zip_code
+  limit: 500
+  metrics:
+    - orders_total_sales
+name: "Sales by Zip Code"
+slug: sales-by-zip
+spaceSlug: sales/maps
+tableName: orders
+version: 1
+```
+
 ## Data Requirements
 
 ### For Scatter and Heatmap Maps
@@ -161,9 +263,11 @@ version: 1
 
 - Location field matching GeoJSON properties:
   - USA map: State names ("California", "Texas")
-  - World map: Country names or ISO codes
-  - Custom maps: Values matching `geoJsonPropertyKey`
+  - World map: Country names or ISO 3166-1 alpha-3 codes ("USA", "GBR")
+  - Europe map: Country names or ISO codes
+  - Custom maps: Values matching `geoJsonPropertyKey` from your GeoJSON URL
 - Metric for coloring regions
+- Addresses must be geocoded to region identifiers before mapping
 
 ## GeoJSON Property Keys
 
@@ -174,6 +278,37 @@ version: 1
 | World | `ISO3166-1-Alpha-3` | "USA", "FRA" |
 | Europe | `name` | "Germany", "France" |
 | Custom | User-defined | Matches your GeoJSON |
+
+## All Config Properties
+
+| Property | Type | Applies To | Description |
+|----------|------|------------|-------------|
+| `locationType` | `scatter` \| `area` \| `heatmap` | All | How location data is displayed |
+| `mapType` | `USA` \| `world` \| `europe` \| `custom` | All | Predefined map region |
+| `latitudeFieldId` | string | scatter, heatmap | Field with latitude values |
+| `longitudeFieldId` | string | scatter, heatmap | Field with longitude values |
+| `locationFieldId` | string | area | Field matching GeoJSON properties |
+| `geoJsonPropertyKey` | string | area | GeoJSON property to match against |
+| `customGeoJsonUrl` | string | area (custom) | URL to custom GeoJSON file |
+| `valueFieldId` | string | All | Field for color intensity |
+| `sizeFieldId` | string | scatter | Field for bubble sizing |
+| `minBubbleSize` | number | scatter | Minimum bubble size |
+| `maxBubbleSize` | number | scatter | Maximum bubble size |
+| `colorRange` | string[] | All | Gradient colors (2-5 hex values) |
+| `colorOverrides` | Record | area | Per-region color overrides |
+| `noDataColor` | string | area | Color for regions without data |
+| `backgroundColor` | string | All | Map background color |
+| `tileBackground` | `none` \| `openstreetmap` \| `light` \| `dark` \| `satellite` | All | Base map tile layer |
+| `dataLayerOpacity` | number | All | Data layer opacity (0-1) |
+| `showLegend` | boolean | All | Show/hide legend |
+| `heatmapConfig.radius` | number | heatmap | Heat point size (1-50) |
+| `heatmapConfig.blur` | number | heatmap | Blur amount (0-30) |
+| `heatmapConfig.opacity` | number | heatmap | Heatmap overlay opacity (0.1-1) |
+| `fieldConfig` | Record | All | Tooltip field visibility and labels |
+| `defaultZoom` | number | All | Initial zoom level |
+| `defaultCenterLat` | number | All | Initial center latitude |
+| `defaultCenterLon` | number | All | Initial center longitude |
+| `saveMapExtent` | boolean | All | Preserve zoom/pan on save |
 
 ## Best Practices
 
@@ -209,6 +344,9 @@ colorRange: ["#dc2626", "#f3f4f6", "#22c55e"]
 | Points not appearing | Verify lat/lon are valid (-90 to 90, -180 to 180) |
 | No colors showing | Ensure `valueFieldId` is in your metric query |
 | Bubbles all same size | Add `sizeFieldId` with varying values |
+| Custom GeoJSON not loading | Verify URL is publicly accessible and returns valid GeoJSON |
+| Heatmap too faint | Increase `opacity` (up to 1) and `radius` (up to 50) in `heatmapConfig` |
+| Tooltips showing wrong fields | Use `fieldConfig` to set `visible: false` on unwanted fields |
 
 ## Related Resources
 
