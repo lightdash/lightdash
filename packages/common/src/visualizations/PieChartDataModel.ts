@@ -356,8 +356,18 @@ export class PieChartDataModel {
             return undefined;
         }
 
+        const columns =
+            transformedData.columns.length > 0
+                ? transformedData.columns.map((column) => column.reference)
+                : Object.keys(
+                      transformedData.results.find(
+                          (result): result is RawResultRow =>
+                              typeof result === 'object' && result !== null,
+                      ) ?? {},
+                  );
+
         return {
-            columns: Object.keys(transformedData.results[0]) ?? [],
+            columns,
             rows: transformedData.results,
         };
     }
