@@ -4,6 +4,11 @@
     "private": false,
     "type": "module",
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lightdash/lightdash.git"
+    },
     "sideEffects": false,
     "files": [
         "dist"
