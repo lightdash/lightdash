@@ -127,6 +127,11 @@ export class NatsClient implements INatsClient {
         );
     }
 
+    /** Create or update a JetStream stream.
+     *  Note: `retention` and `storage` are immutable after creation —
+     *  changing them here requires deleting and recreating the stream.
+     */
+
     private static async ensureStream(
         jsm: JetStreamManager,
         streamConfig: StreamConfig,
@@ -141,9 +146,9 @@ export class NatsClient implements INatsClient {
             });
 
         const jetStreamConfig = {
-            subjects,
-            retention: RetentionPolicy.Workqueue,
-            storage: StorageType.Memory,
+            subjects, // mutable — safe to update (e.g. when new subjects are added)
+            retention: RetentionPolicy.Workqueue, // immutable after creation
+            storage: StorageType.Memory, // immutable after creation
             num_replicas: 1,
         };
 
@@ -157,6 +162,10 @@ export class NatsClient implements INatsClient {
         }
     }
 
+    /** Create or update a durable JetStream consumer.
+     *  Note: `ack_policy` and `max_deliver` are immutable after creation —
+     *  changing them here requires deleting and recreating the consumer.
+     */
     private static async ensureConsumer(
         jsm: JetStreamManager,
         streamConfig: StreamConfig,
@@ -171,10 +180,10 @@ export class NatsClient implements INatsClient {
             });
 
         const jetStreamConsumerConfig = {
-            filter_subjects: subjects,
-            ack_policy: AckPolicy.Explicit,
+            filter_subjects: subjects, // mutable since NATS 2.10
+            ack_policy: AckPolicy.Explicit, // immutable after creation
             ack_wait: nanos(ACK_WAIT_MS),
-            max_deliver: 1,
+            max_deliver: 1, // immutable after creation
         };
 
         if (existing) {
