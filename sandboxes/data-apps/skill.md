@@ -1,69 +1,52 @@
-# Data App Scaffold — Claude Code Skill
+# Lightdash Data App — Reference
 
-You are building a Lightdash data app. This is a standalone React + Vite project with Tailwind CSS and shadcn/ui components.
+You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
-## Rules
+## Environment Constraints
 
-1. **Only write files in `src/`** — never modify config files, `package.json`, or anything outside `src/`.
-2. **Never run `npm install`, `pnpm add`, or any package install command** — all dependencies are pre-installed and locked.
-3. **Only import from approved packages** — see list below. Any other import will fail at build time.
+- **Only write files in `src/`** — config files, `package.json`, and everything outside `src/` is locked.
+- **Never install packages** — all dependencies are pre-installed. Any `npm install` or `pnpm add` will fail.
+- **Only import from approved packages** — anything else will fail at build time.
 
-## Approved Packages
+### Approved packages
 
-- `react`, `react-dom`
-- `@lightdash/query-sdk` — Lightdash semantic layer SDK
-- `recharts` — charting library
-- `@tanstack/react-query` — data fetching
-- `@tanstack/react-table` — headless data tables
-- `@tanstack/react-virtual` — virtualised rendering for large lists/tables
-- `date-fns` — date manipulation (tree-shakeable)
-- `lodash-es` — utility functions (tree-shakeable, use named imports)
-- `lucide-react` — icons (tree-shakeable)
-- `clsx`, `tailwind-merge`, `class-variance-authority` — styling utilities
+`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `date-fns`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
 
-## Pre-baked shadcn/ui Components
+### Pre-installed shadcn/ui components
 
-These are already available in `src/components/ui/`:
+Available at `@/components/ui/<name>`:
 
-- `Button`, `Badge`, `Card` (`CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`)
-- `Table` (`TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`)
-- `Dialog`, `Tabs`, `Select`, `Input`, `Label`, `Popover`, `Tooltip`, `Separator`
-
-Import them from `@/components/ui/<name>`.
-
-## Utility
+`Button`, `Badge`, `Card` (+ `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`), `Table` (+ `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), `Dialog`, `Tabs`, `Select`, `Input`, `Label`, `Popover`, `Tooltip`, `Separator`, `Skeleton`, `DropdownMenu`, `Sheet`, `ScrollArea`, `Switch`, `Checkbox`, `Avatar`, `Alert`, `Progress`
 
 `cn()` is available from `@/lib/utils` for merging Tailwind classes.
 
-## Step 1: Read the Data Model
+## Semantic Layer (dbt models)
 
-Before writing any code, read the dbt YAML files at `/workspace/dbt-repo/models/`. These define every model, dimension, metric, and relationship available to you. Use ONLY field names from these files — never guess or hallucinate field names.
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, and join available to you. **Never guess field names** — use only what's in the YAML.
 
-### How to read a dbt YAML file
+### Reading dbt YAML
 
-Two patterns exist — the project may use either or a mix:
+Two patterns exist (projects may use either or both):
 
-**Pattern A — `meta:` directly (most common):**
-
+**Pattern A — `meta:` directly:**
 ```yaml
 models:
     - name: orders
       meta:
-          metrics: # ← model-level metrics
+          metrics:              # model-level metrics
               order_count:
                   type: count
       columns:
           - name: status
             meta:
-                dimension: # ← column = dimension
+                dimension:      # column = dimension
                     type: string
-                metrics: # ← column-level metrics
+                metrics:        # column-level metrics
                     completed_count:
                         type: count_distinct
 ```
 
 **Pattern B — nested under `config.meta:`:**
-
 ```yaml
 columns:
     - name: status
@@ -73,58 +56,40 @@ columns:
                   type: string
 ```
 
-### Extracting field names
+### Dimension vs metric — the critical distinction
 
-| What you need        | Where to find it                                            | SDK usage                             |
-| -------------------- | ----------------------------------------------------------- | ------------------------------------- |
-| Model name           | `models[].name`                                             | `.model('orders')`                    |
-| Dimensions           | `columns[].name` — every column is a dimension              | `.dimensions(['status'])`             |
-| Column-level metrics | `columns[].meta.metrics.<key>`                              | `.metrics(['completed_count'])`       |
-| Model-level metrics  | `meta.metrics.<key>` (at model level)                       | `.metrics(['order_count'])`           |
-| Field types          | `dimension.type` — determines which filter operators to use | `string`, `number`, `date`, `boolean` |
-| Field descriptions   | `description` — what the field actually measures            | Use for UI labels                     |
-| Joins                | `meta.joins[]`                                              | Related models you can query          |
+A field's position in the YAML determines whether it goes in `.dimensions()` or `.metrics()`:
 
-**Use the metric key name, not the label.** YAML might say `label: "Order Count"` but the SDK field name is the key: `order_count`.
+- `columns[].name` or `columns[].meta.dimension` → `.dimensions()`
+- `meta.metrics.<key>` or `columns[].meta.metrics.<key>` → `.metrics()`
+- **Never mix them up.** `.metrics()` on a dimension adds unwanted aggregation. `.dimensions()` on a metric doesn't work.
+- Some models have **zero metrics** — every field is a dimension. Don't invent `.metrics()` calls.
 
-### Dimensions vs metrics — the critical decision
+### Field name mapping
 
-This is the most important thing to get right. A field's position in the YAML tells you whether it goes in `.dimensions()` or `.metrics()`:
+| YAML location | SDK usage |
+|---|---|
+| `models[].name` | `query('orders')` |
+| `columns[].name` | `.dimensions(['status'])` |
+| `columns[].meta.metrics.<key>` | `.metrics(['completed_count'])` |
+| `meta.metrics.<key>` | `.metrics(['order_count'])` |
+| `meta.joins[]` | Related models you can query |
 
-**Decision rule:**
+Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK field name is `order_count`.
 
-- Defined under `columns[].name` or `columns[].meta.dimension` → use `.dimensions()`
-- Defined under `meta.metrics.<key>` or `columns[].meta.metrics.<key>` → use `.metrics()`
-- **Never mix them up.** Using `.metrics()` on a dimension adds unwanted aggregation. Using `.dimensions()` on a metric doesn't work.
+### Understanding data grain
 
-**Models with zero metrics.** Some models have no metrics section at all — every field is a dimension. Don't invent `.metrics()` calls; use `.dimensions()` for everything.
+When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.
 
-## Step 2: Write TODO.md
+## SDK Reference
 
-Before writing any code, create `TODO.md` describing each query you plan to make:
-
-- What component uses it
-- Which model and fields it uses (from Step 1)
-- Whether each field is a dimension or metric
-- **The grain** — what combination of dimensions produces one unique row (e.g., "one row per driver per season per round"). Look at ALL dimensions in the model to figure this out. If the grain includes a dimension you aren't selecting, you likely need a filter on it, otherwise you'll get duplicates or mixed data.
-- **Filters needed** — based on the grain analysis, decide what filters are required to get the right slice of data (e.g., filter to a specific date range, or category)
-- **Estimated row count** — calculate from the grain: `unique values of dim A × unique values of dim B × ...`. This determines your `.limit()`. Setting limit too low silently truncates data.
-
-This forces you to understand the shape of the data before writing code, not just the field names.
-
-## Step 3: Build Components
-
-### SDK usage
-
-A shared client is already set up in `src/lib/lightdash.js` and passed to `<LightdashProvider>` in `main.jsx`. **Always import this single instance** — never call `createClient()` yourself.
+The client and provider are already set up in `main.jsx`. Import `query` and `useLightdash` — that's it.
 
 ```tsx
-import { useLightdash } from '@lightdash/query-sdk';
-import { lightdash } from '@/lib/lightdash';
+import { query, useLightdash } from '@lightdash/query-sdk';
 
 // Define queries at module scope — immutable, safe to hoist out of render
-const revenueQuery = lightdash
-    .model('orders')
+const revenueQuery = query('orders')
     .dimensions(['customer_segment'])
     .metrics(['total_revenue', 'order_count'])
     .filters([
@@ -134,19 +99,17 @@ const revenueQuery = lightdash
     .limit(10);
 
 export function RevenueBySegment() {
-    const { data, loading, error } = useLightdash(revenueQuery);
+    const { data, format, loading, error } = useLightdash(revenueQuery);
 
     if (loading) return <p className="text-gray-500">Loading...</p>;
     if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
-    // data is Row[] — flat objects keyed by short field names
-    // Types preserved: numbers are numbers, strings are strings, null for missing
     return (
         <div className="space-y-2">
             {data.map((row, i) => (
                 <div key={i} className="flex justify-between">
-                    <span>{String(row.customer_segment)}</span>
-                    <span>{Number(row.total_revenue).toFixed(2)}</span>
+                    <span>{format(row, 'customer_segment')}</span>
+                    <span>{format(row, 'total_revenue')}</span>
                 </div>
             ))}
         </div>
@@ -156,106 +119,73 @@ export function RevenueBySegment() {
 
 ### Field names
 
-Use **short names** like `total_revenue`, not qualified names like `orders_total_revenue`. The SDK qualifies them automatically. Results use short names too.
+Use **short names** like `total_revenue`, not qualified names like `orders_total_revenue`. The SDK qualifies them automatically.
 
-### Query patterns
+### Query builder
 
-**KPI cards** — metrics without dimensions gives a single aggregated row:
-
-```ts
-const kpiQuery = lightdash
-    .model('orders')
-    .metrics(['total_revenue', 'order_count'])
-    .limit(1);
-```
-
-**Tables** — use `@tanstack/react-table` with the flat `data` array from `useLightdash`.
-
-**Charts** — use `recharts`. The `data` array works directly as the data prop.
-
-**Reusing queries** — the builder is immutable, so you can derive views from a base:
+The builder is immutable — you can derive variants from a base:
 
 ```ts
-const base = lightdash.model('orders').metrics(['total_revenue']);
+const base = query('orders').metrics(['total_revenue']);
 const bySegment = base.dimensions(['customer_segment']);
 const byRegion = base.dimensions(['region']);
 ```
+
+KPI cards — metrics without dimensions gives a single aggregated row:
+```ts
+query('orders').metrics(['total_revenue', 'order_count']).limit(1);
+```
+
+### `useLightdash(query)` return value
+
+| Field | Type | Use for |
+|---|---|---|
+| `data` | `Row[]` | Flat objects keyed by short field name. Raw values. Use for charts. |
+| `columns` | `Column[]` | Field metadata (`name`, `label`, `type`). Use for table headers. |
+| `format` | `(row, fieldName) => string` | Formatted display value (currency, %, dates). Use for text. |
+| `loading` | `boolean` | True while query is in flight. |
+| `error` | `Error \| null` | Query error. |
+| `refetch` | `() => void` | Re-run the query on demand. |
 
 ### Filters
 
 ```ts
 type Filter = {
-    field: string; // short field name
+    field: string;
     operator: FilterOperator;
-    value?: FilterValue | FilterValue[]; // omit for isNull/notNull
+    value?: FilterValue | FilterValue[];
     unit?: UnitOfTime; // required for date/time operators
 };
 ```
 
-| Category   | Operators                                                                                 | Notes                                                                 |
-| ---------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Comparison | `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual` | Multi-value: `value: ['a', 'b']`                                      |
-| Null       | `isNull`, `notNull`                                                                       | No `value` needed                                                     |
-| String     | `startsWith`, `endsWith`, `include`, `doesNotInclude`                                     |                                                                       |
-| Date/time  | `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`               | Requires `unit`: `'days'`/`'weeks'`/`'months'`/`'quarters'`/`'years'` |
-| Range      | `inBetween`, `notInBetween`                                                               |                                                                       |
-
-### Results
-
-`useLightdash(query)` returns `{ data, loading, error, refetch }`:
-
-- `data`: `Row[]` — flat objects keyed by short field name. Types preserved.
-- `loading`: true while query is in flight.
-- `error`: `Error | null`.
-- `refetch`: `() => void` to re-run on demand.
+| Category | Operators | Notes |
+|---|---|---|
+| Comparison | `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual` | Multi-value: `value: ['a', 'b']` |
+| Null | `isNull`, `notNull` | No `value` needed |
+| String | `startsWith`, `endsWith`, `include`, `doesNotInclude` | |
+| Date/time | `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent` | Requires `unit`: `'days'`/`'weeks'`/`'months'`/`'quarters'`/`'years'` |
+| Range | `inBetween`, `notInBetween` | |
 
 ### User context
 
 ```ts
-const user = await lightdash.auth.getUser();
-// { name: 'Jane Doe', email: '...', role: 'editor', orgId: '...', attributes: {} }
+import { useLightdashClient } from '@lightdash/query-sdk';
+const client = useLightdashClient();
+const user = await client.auth.getUser();
 ```
 
-## Debugging
+## Common Pitfalls
 
-**Query returns empty data:**
-
-- Check filter values match the field type. `value: '2025'` (string) won't match `type: number`. Use `value: 2025`.
-- If using a pre-aggregated model, make sure you're not accidentally adding `.metrics()`.
-
-**API error: "Unknown field":**
-
-- Field name doesn't exist in the model. Check the YAML — use the key, not the label.
-- Wrong model. Check `models[].name`.
-
-**API error after field name looks correct:**
-
-- Using a qualified name (`orders_total_revenue`) — the SDK qualifies again. Use short name (`total_revenue`).
-
-**Numbers look wrong:**
-
-- Unused dimensions in `.dimensions()` change the GROUP BY. Only include dimensions you render.
-
-**Infinite loading / re-fetching:**
-
-- `createClient()` inside a component or duplicated across files. Import the shared client from `@/lib/lightdash`.
-
-**Build fails:**
-
-- Check imports — only use packages listed in Available Packages above.
-
-## Common Mistakes
-
-| Mistake                                                                               | Why it breaks                                                                           | Fix                                                                                |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Guessing field names                                                                  | API returns opaque errors                                                               | Read the dbt YAML first — always                                                   |
-| `.metrics()` on a pre-aggregated model                                                | Re-aggregates already-aggregated values → wrong numbers                                 | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])`                  |
-| `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts                     | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)?   |
-| Unused dimensions in `.dimensions()`                                                  | Changes GROUP BY → "results may be incorrect"                                           | Only include dimensions you render                                                 |
-| Querying hidden fields (`driver_id`)                                                  | Leaks internal IDs                                                                      | Skip fields with `hidden: true`                                                    |
-| Calling `createClient()` instead of importing the shared client                        | Multiple instances → cache misses, potential infinite loops if inside a component        | `import { lightdash } from '@/lib/lightdash'`                                      |
-| Qualified names like `orders_total_revenue`                                           | Double-qualified → unknown field                                                        | Short names only                                                                   |
-| `value: '2025'` for a number column                                                   | String won't match number                                                               | `value: 2025`                                                                      |
-| Not filtering on grain dimensions you don't render                                    | Duplicates, mixed data, wrong totals — the query returns every combination of the grain | Identify the model's grain in Step 2, filter any grain dimension you don't display |
-| `.limit()` too low                                                                    | Silently truncates rows — charts end early, tables are incomplete                       | Estimate row count from the grain in Step 2, set limit above that                  |
-| Running `npm install`                                                                 | Not available in this environment                                                       | Use only pre-installed packages                                                    |
+| Mistake | Why it breaks | Fix |
+|---|---|---|
+| Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
+| `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
+| `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
+| Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
+| Querying hidden fields (`driver_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
+| Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
+| Qualified names like `orders_total_revenue` | Double-qualified → unknown field | Short names only |
+| `value: '2025'` for a number column | String won't match number | `value: 2025` |
+| Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
+| `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
+| Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
