@@ -1,3 +1,16 @@
+# [0.2659.0](https://github.com/lightdash/lightdash/compare/0.2658.1...0.2659.0) (2026-03-24)
+
+
+### Bug Fixes
+
+* accept verification in content as code schemas ([#21360](https://github.com/lightdash/lightdash/issues/21360)) ([bf2445e](https://github.com/lightdash/lightdash/commit/bf2445e1fa46f8a01328242d6db5c901a21700fc))
+* pre-aggregate status not updating immediately after rebuild ([#21358](https://github.com/lightdash/lightdash/issues/21358)) ([2c792ec](https://github.com/lightdash/lightdash/commit/2c792ecf2183938c7aa2414d866334323f8530ec))
+
+
+### Features
+
+* update case sensitivity in INCLUDE filters to be consistent with the other string filters ([#20749](https://github.com/lightdash/lightdash/issues/20749)) ([58e0b32](https://github.com/lightdash/lightdash/commit/58e0b32e44d7ef0643e6954a6eabd5af0c035d11))
+
 ## [0.2658.1](https://github.com/lightdash/lightdash/compare/0.2658.0...0.2658.1) (2026-03-24)
 
 
