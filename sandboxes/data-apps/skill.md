@@ -116,10 +116,11 @@ This forces you to understand the shape of the data before writing code, not jus
 
 ### SDK usage
 
-```tsx
-import { createClient, useLightdash } from '@lightdash/query-sdk';
+A shared client is already set up in `src/lib/lightdash.js` and passed to `<LightdashProvider>` in `main.jsx`. **Always import this single instance** — never call `createClient()` yourself.
 
-const lightdash = createClient();
+```tsx
+import { useLightdash } from '@lightdash/query-sdk';
+import { lightdash } from '@/lib/lightdash';
 
 // Define queries at module scope — immutable, safe to hoist out of render
 const revenueQuery = lightdash
@@ -237,7 +238,7 @@ const user = await lightdash.auth.getUser();
 
 **Infinite loading / re-fetching:**
 
-- `createClient()` inside a component. Move to module scope.
+- `createClient()` inside a component or duplicated across files. Import the shared client from `@/lib/lightdash`.
 
 **Build fails:**
 
@@ -252,7 +253,7 @@ const user = await lightdash.auth.getUser();
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts                     | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)?   |
 | Unused dimensions in `.dimensions()`                                                  | Changes GROUP BY → "results may be incorrect"                                           | Only include dimensions you render                                                 |
 | Querying hidden fields (`driver_id`)                                                  | Leaks internal IDs                                                                      | Skip fields with `hidden: true`                                                    |
-| `createClient()` inside a component                                                   | New instance per render → infinite loop                                                 | Module scope                                                                       |
+| Calling `createClient()` instead of importing the shared client                        | Multiple instances → cache misses, potential infinite loops if inside a component        | `import { lightdash } from '@/lib/lightdash'`                                      |
 | Qualified names like `orders_total_revenue`                                           | Double-qualified → unknown field                                                        | Short names only                                                                   |
 | `value: '2025'` for a number column                                                   | String won't match number                                                               | `value: 2025`                                                                      |
 | Not filtering on grain dimensions you don't render                                    | Duplicates, mixed data, wrong totals — the query returns every combination of the grain | Identify the model's grain in Step 2, filter any grain dimension you don't display |
