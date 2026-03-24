@@ -1,3 +1,11 @@
+## [0.2658.1](https://github.com/lightdash/lightdash/compare/0.2658.0...0.2658.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* clear stale project reference from localStorage when project not found ([#21355](https://github.com/lightdash/lightdash/issues/21355)) ([d7268d0](https://github.com/lightdash/lightdash/commit/d7268d0a5f83d2d6fd2d549f90ddfe00197aba6d))
+* verified content homepage excludes SQL charts ([#21353](https://github.com/lightdash/lightdash/issues/21353)) ([840fd3c](https://github.com/lightdash/lightdash/commit/840fd3c03eb5ed8732c3c4f5704d48e28278c24c))
+
 # [0.2658.0](https://github.com/lightdash/lightdash/compare/0.2657.6...0.2658.0) (2026-03-24)
 
 
