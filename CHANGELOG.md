@@ -1,3 +1,16 @@
+# [0.2660.0](https://github.com/lightdash/lightdash/compare/0.2659.0...0.2660.0) (2026-03-24)
+
+
+### Bug Fixes
+
+* add semaphore to prevent DuckDB instance creation race conditions ([#21362](https://github.com/lightdash/lightdash/issues/21362)) ([2831e93](https://github.com/lightdash/lightdash/commit/2831e9367a38161091bb92915ba42da1fe95adc7))
+
+
+### Features
+
+* add initial release of lightdash/query-sdk ([#21361](https://github.com/lightdash/lightdash/issues/21361)) ([5d89644](https://github.com/lightdash/lightdash/commit/5d89644febe38ec3ab4f8c61cf4bf946d0102703))
+* add materialization query routing and NATS handling ([#21356](https://github.com/lightdash/lightdash/issues/21356)) ([0677a79](https://github.com/lightdash/lightdash/commit/0677a79d88e0306bda6ae5b8fbd6901f92b3f56f))
+
 # [0.2659.0](https://github.com/lightdash/lightdash/compare/0.2658.1...0.2659.0) (2026-03-24)
 
 
