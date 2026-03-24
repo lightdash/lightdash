@@ -1,5 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { IconBolt } from '@tabler/icons-react';
+import { IconRefreshDot } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useSchedulerJobsContext from '../providers/SchedulerJobs/useSchedulerJobsContext';
@@ -30,12 +30,16 @@ export const useRefreshAllPreAggregates = (
         {
             mutationKey: ['refreshAllPreAggregates', projectUuid],
             onSuccess: (data) => {
+                // Immediately refetch so the table shows in_progress status
+                void queryClient.invalidateQueries({
+                    queryKey: ['preAggregateMaterializations', projectUuid],
+                });
                 registerJobs({
                     jobIds: data.jobIds,
                     showToast,
-                    toastKey: 'pre-aggregate-refresh',
-                    toastTitle: 'Pre-aggregate refresh',
-                    toastIcon: IconBolt,
+                    toastKey: 'pre-aggregate-rebuild',
+                    toastTitle: 'Rebuilding pre-aggregates',
+                    toastIcon: IconRefreshDot,
                     onComplete: () => {
                         void queryClient.invalidateQueries({
                             queryKey: [
@@ -48,7 +52,7 @@ export const useRefreshAllPreAggregates = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to refresh pre-aggregates',
+                    title: 'Failed to rebuild pre-aggregates',
                     apiError: error,
                 });
             },
@@ -84,13 +88,17 @@ export const useRefreshPreAggregateByDefinitionName = (
         {
             mutationKey: ['refreshPreAggregateByDefinitionName', projectUuid],
             onSuccess: (data, preAggregateDefinitionName) => {
+                // Immediately refetch so the table shows in_progress status
+                void queryClient.invalidateQueries({
+                    queryKey: ['preAggregateMaterializations', projectUuid],
+                });
                 registerJobs({
                     jobIds: data.jobIds,
                     label: preAggregateDefinitionName,
                     showToast,
-                    toastKey: 'pre-aggregate-refresh',
-                    toastTitle: 'Pre-aggregate refresh',
-                    toastIcon: IconBolt,
+                    toastKey: 'pre-aggregate-rebuild',
+                    toastTitle: 'Rebuilding pre-aggregate',
+                    toastIcon: IconRefreshDot,
                     onComplete: () => {
                         void queryClient.invalidateQueries({
                             queryKey: [
@@ -103,7 +111,7 @@ export const useRefreshPreAggregateByDefinitionName = (
             },
             onError: ({ error }) => {
                 showToastApiError({
-                    title: 'Failed to refresh pre-aggregate',
+                    title: 'Failed to rebuild pre-aggregate',
                     apiError: error,
                 });
             },
