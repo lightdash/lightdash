@@ -1560,22 +1560,18 @@ describe('duplicate metric/dimension names', () => {
         );
     });
 
-    it('should use plural warning message for multiple duplicates', () => {
+    it('should emit one warning per duplicate when multiple duplicates exist', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_WRONG_METRICS,
             [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
-        expect(result.warnings).toBeDefined();
-        const duplicateWarning = result.warnings!.find((w) =>
-            w.message.includes('Skipped metrics'),
+        const duplicateWarnings = result.warnings!.filter(
+            (w) => w.type === InlineErrorType.DUPLICATE_FIELD_NAME,
         );
-        expect(duplicateWarning).toBeDefined();
-        expect(duplicateWarning!.message).toMatch(
-            /^Skipped metrics with names that conflict with dimensions:/,
-        );
-        expect(duplicateWarning!.message).toContain('user_id');
-        expect(duplicateWarning!.message).toContain('user_id2');
+        expect(duplicateWarnings).toHaveLength(2);
+        expect(duplicateWarnings[0].message).toContain('user_id');
+        expect(duplicateWarnings[1].message).toContain('user_id2');
     });
 });

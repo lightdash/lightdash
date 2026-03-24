@@ -940,14 +940,10 @@ export const convertTable = (
     if (duplicatedNames.length > 0) {
         duplicatedNames.forEach((name) => {
             delete allMetrics[name];
-        });
-        const message =
-            duplicatedNames.length > 1
-                ? `Skipped metrics with names that conflict with dimensions: ${duplicatedNames.join(', ')}. Dimensions take priority.`
-                : `Skipped metric "${duplicatedNames[0]}" because a dimension with the same name exists. Dimensions take priority.`;
-        tableWarnings.push({
-            type: InlineErrorType.DUPLICATE_FIELD_NAME,
-            message,
+            tableWarnings.push({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: `Skipped metric "${name}" because a dimension with the same name exists. Dimensions take priority.`,
+            });
         });
     }
 
