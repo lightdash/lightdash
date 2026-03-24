@@ -727,7 +727,9 @@
             ]
         },
         "ContentAsCodeType.CHART": {
-            "enum": ["chart"],
+            "enum": [
+                "chart"
+            ],
             "type": "string"
         },
         "ContentVerificationInfo": {
@@ -999,6 +1001,135 @@
         },
         "DimensionType": {
             "enum": ["string", "number", "timestamp", "date", "boolean"],
+            "type": "string"
+        },
+        "DrillConfig": {
+            "description": "Configuration for developer-defined drill paths on a saved chart",
+            "properties": {
+                "paths": {
+                    "description": "Ordered list of drill paths available in the context menu",
+                    "items": {
+                        "$ref": "#/$defs/DrillPath"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "paths"
+            ],
+            "type": "object"
+        },
+        "DrillDownPath": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DrillPathBase"
+                },
+                {
+                    "properties": {
+                        "dimensions": {
+                            "description": "Dimensions to show in the drilled view",
+                            "items": {
+                                "$ref": "#/$defs/FieldId"
+                            },
+                            "type": "array"
+                        },
+                        "metrics": {
+                            "description": "Optional metric override — defaults to the original chart's metrics",
+                            "items": {
+                                "$ref": "#/$defs/FieldId"
+                            },
+                            "type": "array"
+                        },
+                        "sorts": {
+                            "description": "Optional sort override for the drilled view",
+                            "items": {
+                                "$ref": "#/$defs/SortField"
+                            },
+                            "type": "array"
+                        },
+                        "type": {
+                            "enum": [
+                                "drillDown"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "dimensions",
+                        "type"
+                    ],
+                    "type": "object"
+                }
+            ],
+            "description": "Drill-down path — explores deeper into the same chart by swapping dimensions/metrics"
+        },
+        "DrillPath": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/DrillDownPath"
+                },
+                {
+                    "$ref": "#/$defs/DrillThroughPath"
+                }
+            ],
+            "description": "A single preconfigured drill path that appears in the chart's context menu"
+        },
+        "DrillPathBase": {
+            "properties": {
+                "id": {
+                    "description": "Unique identifier for this drill path",
+                    "type": "string"
+                },
+                "label": {
+                    "description": "Display label in the context menu (e.g., \"By Region\")",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "label",
+                "id"
+            ],
+            "type": "object"
+        },
+        "DrillThroughPath": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DrillPathBase"
+                },
+                {
+                    "properties": {
+                        "linkedChartUuid": {
+                            "description": "UUID of the saved chart to display when drilling",
+                            "type": "string"
+                        },
+                        "target": {
+                            "$ref": "#/$defs/DrillThroughTarget",
+                            "description": "How to open the target chart. Defaults to 'modal'."
+                        },
+                        "type": {
+                            "enum": [
+                                "drillThrough"
+                            ],
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "target",
+                        "linkedChartUuid",
+                        "type"
+                    ],
+                    "type": "object"
+                }
+            ],
+            "description": "Drill-through path — navigates to another saved chart, passing clicked values as filters"
+        },
+        "DrillThroughTarget": {
+            "description": "How a drill-through target chart should be opened",
+            "enum": [
+                "modal",
+                "navigate",
+                "newTab"
+            ],
             "type": "string"
         },
         "EChartsConfig": {
@@ -1517,6 +1648,26 @@
                 "backgroundColor": {
                     "description": "Background color for the map (hex code)",
                     "type": "string"
+                },
+                "clusterConfig": {
+                    "description": "Configuration for scatter point clustering",
+                    "properties": {
+                        "enabled": {
+                            "description": "Whether clustering is enabled",
+                            "type": "boolean"
+                        },
+                        "minPoints": {
+                            "description": "Minimum points required to form a cluster",
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "radius": {
+                            "description": "Cluster pixel radius — how aggressively points group",
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    "type": "object"
                 },
                 "colorOverrides": {
                     "$ref": "#/$defs/Record_string.string_",
@@ -3213,6 +3364,10 @@
             "description": "Timestamp when this chart was downloaded from Lightdash",
             "format": "date-time",
             "type": "string"
+        },
+        "drillConfig": {
+            "$ref": "#/$defs/DrillConfig",
+            "description": "Preconfigured drill paths for in-place chart drill-into"
         },
         "metricQuery": {
             "allOf": [

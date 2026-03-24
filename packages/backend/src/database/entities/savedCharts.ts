@@ -10,6 +10,7 @@ import {
     DBFieldTypes,
     DimensionOverrides,
     DimensionType,
+    type DrillConfig,
     MetricFilterRule,
     MetricOverrides,
     MetricType,
@@ -100,6 +101,7 @@ export type DbSavedChartVersion = {
     saved_query_id: number;
     chart_config: ChartConfig['config'] | null;
     pivot_dimensions: string[] | null;
+    drill_config: DrillConfig | null; // JSONB
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
     timezone: string | null;
@@ -121,6 +123,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'chart_type'
     | 'pivot_dimensions'
     | 'chart_config'
+    | 'drill_config'
     | 'parameters'
     | 'updated_by_user_uuid'
     | 'timezone'
