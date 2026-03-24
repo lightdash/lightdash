@@ -1,5 +1,5 @@
 import { enableFetchMocks } from 'jest-fetch-mock';
-import {lightdashConfigMock} from "./src/config/lightdashConfig.mock";
+import { lightdashConfigMock } from './src/config/lightdashConfig.mock';
 
 enableFetchMocks();
 
