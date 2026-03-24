@@ -1501,6 +1501,42 @@ describe('duplicate metric/dimension names', () => {
         expect(result.warnings).toHaveLength(1);
     });
 
+    it('should not break set validation when a set references a duplicate name', () => {
+        const modelWithSetAndDuplicate: DbtModelNode & {
+            relation_name: string;
+        } = {
+            ...model,
+            columns: {
+                user_id: {
+                    name: 'user_id',
+                    data_type: DimensionType.STRING,
+                    meta: {
+                        metrics: {
+                            user_id: { type: MetricType.COUNT_DISTINCT },
+                        },
+                    },
+                },
+            },
+            meta: {
+                sets: {
+                    my_set: {
+                        fields: ['user_id'],
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            modelWithSetAndDuplicate,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings![0]).toContain('Skipped metric');
+        expect(result.dimensions).toHaveProperty('user_id');
+        expect(result.metrics).not.toHaveProperty('user_id');
+    });
+
     it('should use singular warning message for one duplicate', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
