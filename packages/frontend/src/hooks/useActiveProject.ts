@@ -84,8 +84,9 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         useProject(shouldFetchLastProject ? lastProjectUuid : undefined, {
             onError: () => {
                 console.warn(
-                    `Couldn't find last project ${lastProjectUuid}. Will default to organization default or fallback project.`,
+                    `Couldn't find last project ${lastProjectUuid}. Clearing stale reference and falling back to organization default or fallback project.`,
                 );
+                localStorage.removeItem(LAST_PROJECT_KEY);
             },
         });
 
