@@ -1636,11 +1636,12 @@ export class DashboardService
                     tile.properties.savedChartUuid,
             );
 
-            // Get version tiles with saved charts
+            // Get version tiles with dashboard-owned charts (only these are rolled back)
             const versionChartTiles = dashboard.tiles.filter(
                 (tile) =>
                     isDashboardChartTileType(tile) &&
-                    tile.properties.savedChartUuid,
+                    tile.properties.savedChartUuid &&
+                    tile.properties.belongsToDashboard === true,
             );
 
             // Compare charts that exist in the version
@@ -1745,24 +1746,6 @@ export class DashboardService
             throw new NotFoundError('Dashboard version not found');
         }
 
-        // Only rollback charts that belong to the dashboard
-        const dashboardOwnedChartTiles = targetVersion.tiles.filter(
-            (tile) =>
-                isDashboardChartTileType(tile) &&
-                tile.properties.savedChartUuid &&
-                tile.properties.belongsToDashboard === true,
-        );
-
-        const chartUuids = dashboardOwnedChartTiles
-            .map((tile) =>
-                isDashboardChartTileType(tile)
-                    ? tile.properties.savedChartUuid!
-                    : null,
-            )
-            .filter((uuid): uuid is string => uuid !== null);
-
-        const uniqueChartUuids = [...new Set(chartUuids)];
-
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
             // Rollback dashboard version
@@ -1779,6 +1762,25 @@ export class DashboardService
                 dashboardDao.projectUuid,
                 tx,
             );
+
+            // Only rollback charts that belong to the dashboard
+            const uniqueChartUuids = [
+                ...new Set(
+                    targetVersion.tiles
+                        .filter(
+                            (tile) =>
+                                isDashboardChartTileType(tile) &&
+                                tile.properties.savedChartUuid &&
+                                tile.properties.belongsToDashboard === true,
+                        )
+                        .map((tile) =>
+                            isDashboardChartTileType(tile)
+                                ? tile.properties.savedChartUuid!
+                                : '',
+                        )
+                        .filter(Boolean),
+                ),
+            ];
 
             // Rollback each dashboard-owned chart to its version at the target dashboard version time
             if (uniqueChartUuids.length > 0) {

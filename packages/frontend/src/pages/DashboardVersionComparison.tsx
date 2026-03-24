@@ -39,6 +39,7 @@ import {
     type MRT_ColumnDef,
 } from 'mantine-react-table';
 import { useMemo, useRef, useState } from 'react';
+import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../components/common/MantineIcon';
@@ -1179,6 +1180,11 @@ const DashboardVersionComparison = ({
                         );
                     })()}
                 >
+                    <Callout variant="info">
+                        Only charts created within this dashboard are affected
+                        by a rollback. Charts added from the space will keep
+                        their current version.
+                    </Callout>
                     <ChartsTable
                         data={comparison.alignedCharts}
                         projectUuid={projectUuid}
