@@ -472,6 +472,12 @@ export class SavedChartModel {
 
     private contentVerificationModel: ContentVerificationModel | undefined;
 
+    async transaction<T>(
+        callback: (tx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(callback);
+    }
+
     constructor(args: SavedChartModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
@@ -604,6 +610,32 @@ export class SavedChartModel {
         return SavedChartModel.convertVersionSummary(chartVersion);
     }
 
+    async getLatestVersionSummary(
+        chartUuid: string,
+    ): Promise<ChartVersionSummary | undefined> {
+        const row = await this.getVersionSummaryQuery()
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .first();
+        return row ? SavedChartModel.convertVersionSummary(row) : undefined;
+    }
+
+    async getVersionSummaryAtTimestamp(
+        chartUuid: string,
+        targetTimestamp: Date,
+    ): Promise<ChartVersionSummary | undefined> {
+        const row = await this.getVersionSummaryQuery()
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .where(
+                `${SavedChartVersionsTableName}.created_at`,
+                '<=',
+                targetTimestamp,
+            )
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .first();
+        return row ? SavedChartModel.convertVersionSummary(row) : undefined;
+    }
+
     async getLatestVersionSummaries(
         chartUuid: string,
     ): Promise<ChartVersionSummary[]> {
@@ -664,8 +696,9 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
         user: SessionUser | undefined,
+        tx?: Knex,
     ): Promise<SavedChartDAO> {
-        await this.database.transaction(async (trx) => {
+        const doWork = async (trx: Knex) => {
             const [savedChart] = await trx(SavedChartsTableName)
                 .select(['saved_query_id'])
                 .where('saved_query_uuid', savedChartUuid)
@@ -691,7 +724,13 @@ export class SavedChartModel {
                 })
                 .where('saved_query_uuid', savedChartUuid)
                 .whereNull('deleted_at');
-        });
+        };
+
+        if (tx) {
+            await doWork(tx);
+        } else {
+            await this.database.transaction(async (trx) => doWork(trx));
+        }
 
         return this.get(savedChartUuid);
     }
@@ -2138,8 +2177,10 @@ export class SavedChartModel {
     async getVersionAtTimestamp(
         savedChartUuid: string,
         targetTimestamp: Date,
-    ): Promise<{ saved_queries_version_id: number } | undefined> {
-        const chart = await this.database(SavedChartsTableName)
+        tx?: Knex,
+    ): Promise<{ saved_queries_version_uuid: string } | undefined> {
+        const db = tx || this.database;
+        const chart = await db(SavedChartsTableName)
             .select('saved_query_id')
             .where('saved_query_uuid', savedChartUuid)
             .whereNull('deleted_at')
@@ -2149,8 +2190,8 @@ export class SavedChartModel {
             throw new NotFoundError('Chart not found');
         }
 
-        const version = await this.database(SavedChartVersionsTableName)
-            .select('saved_queries_version_id', 'created_at')
+        const version = await db(SavedChartVersionsTableName)
+            .select('saved_queries_version_uuid', 'created_at')
             .where('saved_query_id', chart.saved_query_id)
             .where('created_at', '<=', targetTimestamp)
             .orderBy('created_at', 'desc')
@@ -2161,64 +2202,27 @@ export class SavedChartModel {
     }
 
     /**
-     * Rollback a chart to a specific version
+     * Rollback a chart to the version that was active at the given timestamp.
+     * Returns undefined if no version existed at that time.
      */
-    async rollbackToVersion(
+    async rollbackToVersionAtTimestamp(
         savedChartUuid: string,
-        versionId: number,
-        userUuid: string,
-        tx?: Knex.Transaction,
-    ): Promise<void> {
-        const trx = tx || this.database;
-
-        // Get the chart
-        const chart = await trx(SavedChartsTableName)
-            .select('saved_query_id')
-            .where('saved_query_uuid', savedChartUuid)
-            .whereNull('deleted_at')
-            .first();
-
-        if (!chart) {
-            throw new NotFoundError('Chart not found');
+        targetTimestamp: Date,
+        user: SessionUser,
+        tx?: Knex,
+    ): Promise<SavedChartDAO | undefined> {
+        const version = await this.getVersionAtTimestamp(
+            savedChartUuid,
+            targetTimestamp,
+            tx,
+        );
+        if (!version) {
+            return undefined;
         }
-
-        // Get the version data
-        const targetVersion = await trx(SavedChartVersionsTableName)
-            .select('*')
-            .where('saved_queries_version_id', versionId)
-            .where('saved_query_id', chart.saved_query_id)
-            .first();
-
-        if (!targetVersion) {
-            throw new NotFoundError('Chart version not found');
-        }
-
-        // Create a new version with the old data
-        // Simply copy the core version fields
-        await trx(SavedChartVersionsTableName)
-            .insert({
-                saved_query_id: chart.saved_query_id,
-                explore_name: targetVersion.explore_name,
-                filters: targetVersion.filters,
-                row_limit: targetVersion.row_limit,
-                chart_type: targetVersion.chart_type,
-                chart_config: targetVersion.chart_config,
-                pivot_dimensions: targetVersion.pivot_dimensions,
-                timezone: targetVersion.timezone,
-                metric_overrides: targetVersion.metric_overrides,
-                dimension_overrides: targetVersion.dimension_overrides,
-                parameters: targetVersion.parameters,
-                updated_by_user_uuid: userUuid,
-            })
-            .returning('saved_queries_version_id');
-
-        // Note: For a complete rollback, we would also need to copy related tables:
-        // - saved_queries_version_fields
-        // - saved_queries_version_sorts
-        // - saved_queries_version_table_calculations
-        // - saved_queries_version_additional_metrics
-        // - saved_queries_version_custom_dimensions
-        // - saved_queries_version_custom_sql_dimensions
-        // However, the core chart config should be sufficient for dashboard rollback
+        const chartVersion = await this.get(
+            savedChartUuid,
+            version.saved_queries_version_uuid,
+        );
+        return this.createVersion(savedChartUuid, chartVersion, user, tx);
     }
 }

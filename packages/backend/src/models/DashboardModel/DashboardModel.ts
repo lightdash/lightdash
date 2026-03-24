@@ -1376,8 +1376,10 @@ export class DashboardModel {
         version: DashboardVersionedFields,
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
-        const [dashboard] = await this.database(DashboardsTableName)
+        const db = tx || this.database;
+        const [dashboard] = await db(DashboardsTableName)
             .select(['dashboard_id'])
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('deleted_at')
@@ -1385,13 +1387,21 @@ export class DashboardModel {
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
         }
-        await this.database.transaction(async (trx) => {
+
+        const doWork = async (trx: Knex.Transaction) => {
             await DashboardModel.createVersion(trx, dashboard.dashboard_id, {
                 ...version,
                 tabs: version.tabs || [],
                 updatedByUser: user,
             });
-        });
+        };
+
+        if (tx) {
+            await doWork(tx);
+        } else {
+            await this.database.transaction(async (trx) => doWork(trx));
+        }
+
         return this.getByIdOrSlug(dashboardUuid);
     }
 

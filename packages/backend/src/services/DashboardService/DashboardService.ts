@@ -37,9 +37,9 @@ import {
     UpdateDashboard,
     UpdateMultipleDashboards,
     type ChartFieldUpdates,
-    type ContentVerificationInfo,
     type ChartVersionDifference,
     type ChartVersionSummary,
+    type ContentVerificationInfo,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
     type DashboardVersion,
@@ -1661,23 +1661,18 @@ export class DashboardService
                     let selectedChartVersion: ChartVersionSummary | null = null;
 
                     try {
-                        // Get all version summaries for this chart
-                        const chartVersions =
-                            await this.savedChartModel.getLatestVersionSummaries(
+                        // Get the current (latest) chart version
+                        currentChartVersion =
+                            (await this.savedChartModel.getLatestVersionSummary(
                                 chartUuid,
-                            );
+                            )) ?? null;
 
-                        // The most recent version is the current one
-                        if (chartVersions.length > 0) {
-                            [currentChartVersion] = chartVersions;
-                        }
-
-                        // For the selected version, we would need to track which chart version
-                        // was active when the dashboard version was created
-                        // For now, we'll use the second most recent as an approximation
-                        if (chartVersions.length > 1) {
-                            [, selectedChartVersion] = chartVersions;
-                        }
+                        // Get the chart version that was active when the dashboard version was created
+                        selectedChartVersion =
+                            (await this.savedChartModel.getVersionSummaryAtTimestamp(
+                                chartUuid,
+                                dashboard.updatedAt,
+                            )) ?? null;
                     } catch (error) {
                         // Chart might have been deleted or inaccessible
                         this.logger.debug(
@@ -1752,22 +1747,7 @@ export class DashboardService
             throw new NotFoundError('Dashboard version not found');
         }
 
-        // Rollback dashboard version first
-        await this.dashboardModel.addVersion(
-            dashboardUuid,
-            {
-                tiles: targetVersion.tiles,
-                filters: targetVersion.filters,
-                parameters: targetVersion.parameters,
-                tabs: targetVersion.tabs,
-                config: targetVersion.config,
-            },
-            user,
-            dashboardDao.projectUuid,
-        );
-
         // Only rollback charts that belong to the dashboard
-        // Charts not belonging to the dashboard should remain at their current version
         const dashboardOwnedChartTiles = targetVersion.tiles.filter(
             (tile) =>
                 isDashboardChartTileType(tile) &&
@@ -1783,52 +1763,54 @@ export class DashboardService
             )
             .filter((uuid): uuid is string => uuid !== null);
 
-        // Get unique chart UUIDs
         const uniqueChartUuids = [...new Set(chartUuids)];
 
-        // Rollback each dashboard-owned chart to its version at the target dashboard version time
-        if (uniqueChartUuids.length > 0) {
-            this.logger.info(
-                `Rolling back ${uniqueChartUuids.length} dashboard-owned charts`,
+        // Rollback dashboard and all owned charts in a single transaction
+        await this.savedChartModel.transaction(async (tx) => {
+            // Rollback dashboard version
+            await this.dashboardModel.addVersion(
+                dashboardUuid,
+                {
+                    tiles: targetVersion.tiles,
+                    filters: targetVersion.filters,
+                    parameters: targetVersion.parameters,
+                    tabs: targetVersion.tabs,
+                    config: targetVersion.config,
+                },
+                user,
+                dashboardDao.projectUuid,
+                tx,
             );
 
-            await Promise.all(
-                uniqueChartUuids.map(async (chartUuid) => {
-                    try {
-                        // Get the chart version that was active when the dashboard version was created
-                        const chartVersion =
-                            await this.savedChartModel.getVersionAtTimestamp(
+            // Rollback each dashboard-owned chart to its version at the target dashboard version time
+            if (uniqueChartUuids.length > 0) {
+                this.logger.info(
+                    `Rolling back ${uniqueChartUuids.length} dashboard-owned charts`,
+                );
+
+                await Promise.all(
+                    uniqueChartUuids.map(async (chartUuid) => {
+                        const result =
+                            await this.savedChartModel.rollbackToVersionAtTimestamp(
                                 chartUuid,
                                 targetVersion.updatedAt,
+                                user,
+                                tx,
                             );
 
-                        if (chartVersion) {
-                            // Rollback the chart to that version
-                            await this.savedChartModel.rollbackToVersion(
-                                chartUuid,
-                                chartVersion.saved_queries_version_id,
-                                user.userUuid,
-                            );
-
-                            this.logger.info(
-                                `Rolled back chart ${chartUuid} to version ${chartVersion.saved_queries_version_id}`,
-                            );
+                        if (result) {
+                            this.logger.info(`Rolled back chart ${chartUuid}`);
                         } else {
                             this.logger.warn(
                                 `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}. Chart may have been created after this dashboard version.`,
                             );
                         }
-                    } catch (error) {
-                        // Log error but continue with other charts
-                        this.logger.error(
-                            `Failed to rollback chart ${chartUuid}: ${error}`,
-                        );
-                    }
-                }),
-            );
-        } else {
-            this.logger.info('No dashboard-owned charts to rollback');
-        }
+                    }),
+                );
+            } else {
+                this.logger.info('No dashboard-owned charts to rollback');
+            }
+        });
 
         this.analytics.track({
             event: 'dashboard_version.rollback',
