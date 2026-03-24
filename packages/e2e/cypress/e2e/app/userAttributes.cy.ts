@@ -25,6 +25,7 @@ describe('User attributes sql_filter', () => {
     it('Error on runquery if user attribute does not exist', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        cy.findByPlaceholderText('Search tables').type('Users');
         cy.findByText('Users').click();
         cy.findByText('First name').click();
 
@@ -55,6 +56,7 @@ describe('User attributes sql_filter', () => {
     it('Should return results with user attribute', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        cy.findByPlaceholderText('Search tables').type('Users');
         cy.findByText('Users').click();
         cy.findByText('First name').click();
 
@@ -75,6 +77,7 @@ describe('User attributes sql_filter', () => {
     it('Should return results with new user attribute', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        cy.findByPlaceholderText('Search tables').type('Users');
         cy.findByText('Users').click();
         cy.findByText('First name').click();
 
@@ -127,6 +130,7 @@ describe('User attributes dimension required_attribute', () => {
     it('Should not see last_name dimension', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        cy.findByPlaceholderText('Search tables').type('Users');
         cy.findByText('Users').click();
         cy.findByText('Last name').should('not.exist');
     });
@@ -147,6 +151,7 @@ describe('User attributes dimension required_attribute', () => {
     it('Should see last_name attribute', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        cy.findByPlaceholderText('Search tables').type('Users');
         cy.findByText('Users').click();
         cy.findByText('Last name').click();
 
@@ -167,6 +172,7 @@ describe('User attributes dimension required_attribute', () => {
     it('Should not see last_name dimension', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
+        cy.findByPlaceholderText('Search tables').type('Users');
         cy.findByText('Users').click();
         cy.findByText('Last name').should('not.exist');
     });
