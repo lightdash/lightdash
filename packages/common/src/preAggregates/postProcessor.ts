@@ -1,13 +1,15 @@
-import {
-    InlineErrorType,
-    parseDbtPreAggregates,
-    type ExploreError,
-    type ExplorePostProcessor,
-} from '@lightdash/common';
 import attempt from 'lodash/attempt';
 import isError from 'lodash/isError';
-import { generatePreAggregateExplores } from './generatePreAggregateExplores';
+import type { ExplorePostProcessor } from '../compiler/translator';
+import { InlineErrorType, type ExploreError } from '../types/explore';
+import { parseDbtPreAggregates } from './definition';
 
+/**
+ * Base post-processor that parses pre-aggregate definitions from dbt meta
+ * and attaches them to compiled explores. Does NOT generate virtual
+ * pre-aggregate explores — that is handled by the EE post-processor
+ * which extends this behavior.
+ */
 export const preAggregatePostProcessor: ExplorePostProcessor = (
     compiledExplores,
     { model, meta },
@@ -37,16 +39,10 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
         );
     }
 
-    // Attach parsed defs to explores
-    const exploresWithPreAggregates = compiledExplores.map((explore) =>
+    // Attach parsed defs to explores (no virtual explore generation)
+    return compiledExplores.map((explore) =>
         parsedPreAggregates.length > 0
             ? { ...explore, preAggregates: parsedPreAggregates }
             : explore,
     );
-
-    // Generate virtual pre-aggregate explores
-    return generatePreAggregateExplores({
-        compiledExplores: exploresWithPreAggregates,
-        parsedPreAggregates,
-    });
 };

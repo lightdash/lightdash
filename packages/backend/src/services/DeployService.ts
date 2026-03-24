@@ -13,6 +13,10 @@ import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { BaseService } from './BaseService';
 
+export type DeployExploreEnhancer = (
+    explores: (Explore | ExploreError)[],
+) => (Explore | ExploreError)[];
+
 type ProjectServiceInterface = {
     saveExploresToCacheAndIndexCatalog: (
         userUuid: string,
@@ -29,6 +33,7 @@ type DeployServiceArguments = {
     projectModel: ProjectModel;
     projectService: ProjectServiceInterface;
     schedulerClient: SchedulerClient;
+    exploreEnhancer?: DeployExploreEnhancer;
 };
 
 export class DeployService extends BaseService {
@@ -40,12 +45,15 @@ export class DeployService extends BaseService {
 
     private readonly schedulerClient: SchedulerClient;
 
+    private readonly exploreEnhancer: DeployExploreEnhancer;
+
     constructor(args: DeployServiceArguments) {
         super({ serviceName: 'DeployService' });
         this.deploySessionModel = args.deploySessionModel;
         this.projectModel = args.projectModel;
         this.projectService = args.projectService;
         this.schedulerClient = args.schedulerClient;
+        this.exploreEnhancer = args.exploreEnhancer ?? ((e) => e);
     }
 
     async startDeploySession(
@@ -189,9 +197,11 @@ export class DeployService extends BaseService {
                 DeploySessionStatus.FINALIZING,
             );
 
-            // Get all explores from the session
-            const explores =
+            // Get all explores from the session and enhance them
+            // (e.g., EE generates virtual pre-aggregate explores from attached defs)
+            const uploadedExplores =
                 await this.deploySessionModel.getAllExplores(sessionUuid);
+            const explores = this.exploreEnhancer(uploadedExplores);
 
             this.logger.info(
                 `Finalizing deploy session ${sessionUuid} with ${explores.length} explores`,

@@ -1,9 +1,7 @@
-import {
-    ParseError,
-    TimeFrames,
-    type DbtPreAggregateDef,
-    type PreAggregateDef,
-} from '@lightdash/common';
+import type { DbtPreAggregateDef } from '../types/dbt';
+import { ParseError } from '../types/errors';
+import type { PreAggregateDef } from '../types/preAggregate';
+import { TimeFrames } from '../types/timeFrames';
 
 const PRE_AGGREGATE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
 

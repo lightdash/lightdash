@@ -16,6 +16,7 @@ import {
     isSupportedDbtAdapter,
     LightdashProjectConfig,
     ParseError,
+    preAggregatePostProcessor,
     WarehouseCatalog,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -101,6 +102,7 @@ const getExploresFromLightdashYmlProject = async (
             disableTimestampConversion,
             allowPartialCompilation:
                 process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+            postProcessors: [preAggregatePostProcessor],
         },
     );
 
@@ -338,6 +340,7 @@ export const compile = async (options: CompileHandlerOptions) => {
                 disableTimestampConversion: options.disableTimestampConversion,
                 allowPartialCompilation:
                     process.env.PARTIAL_COMPILATION_ENABLED !== 'false',
+                postProcessors: [preAggregatePostProcessor],
             },
         );
         console.error('');
