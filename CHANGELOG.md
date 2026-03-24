@@ -1,3 +1,10 @@
+## [0.2657.4](https://github.com/lightdash/lightdash/compare/0.2657.3...0.2657.4) (2026-03-24)
+
+
+### Bug Fixes
+
+* improve error handling for user activity CSV download ([#21335](https://github.com/lightdash/lightdash/issues/21335)) ([9d2e45d](https://github.com/lightdash/lightdash/commit/9d2e45ddc8cf225a7b5c3a430ae0f01e12bb3503)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2657.3](https://github.com/lightdash/lightdash/compare/0.2657.2...0.2657.3) (2026-03-24)
 
 
