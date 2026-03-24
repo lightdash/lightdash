@@ -1,3 +1,10 @@
+## [0.2657.1](https://github.com/lightdash/lightdash/compare/0.2657.0...0.2657.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* remove PRE_AGGREGATES_ENABLED environment variable check ([#21321](https://github.com/lightdash/lightdash/issues/21321)) ([a6e1520](https://github.com/lightdash/lightdash/commit/a6e15203c40157010fcf26ece5c5a822f2fdd332)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2657.0](https://github.com/lightdash/lightdash/compare/0.2656.0...0.2657.0) (2026-03-23)
 
 
