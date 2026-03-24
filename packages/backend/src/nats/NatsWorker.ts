@@ -118,24 +118,45 @@ export class NatsWorker {
     ): Promise<void> {
         const workerLabel = workerId ?? 'unknown';
 
-        if (message.subject === STREAM_CONFIGS.warehouse.subjects.query) {
-            await this.handleWarehouseMessage(message, workerLabel);
-        } else if (
-            STREAM_CONFIGS['pre-aggregate'] &&
-            message.subject === STREAM_CONFIGS['pre-aggregate'].subjects.query
-        ) {
-            await this.handlePreAggregateMessage(message, workerLabel);
-        } else {
+        const runQuery = this.getQueryRunner(message.subject);
+        if (!runQuery) {
             Logger.error(
                 `Worker ${workerLabel} received async query job on unexpected subject "${message.subject}"`,
             );
             message.term();
+            return;
         }
+
+        await this.handleQueryMessage(message, workerLabel, runQuery);
     }
 
-    private async handleWarehouseMessage(
+    private getQueryRunner(
+        subject: string,
+    ): ((queryUuid: string, worker: string) => Promise<boolean>) | null {
+        if (subject === STREAM_CONFIGS.warehouse.subjects.query) {
+            return (queryUuid, worker) =>
+                this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
+                    queryUuid,
+                    worker,
+                );
+        }
+
+        const preAgg = STREAM_CONFIGS['pre-aggregate'];
+        if (preAgg && subject === preAgg.subjects.query) {
+            return (queryUuid, worker) =>
+                this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
+                    queryUuid,
+                    worker,
+                );
+        }
+
+        return null;
+    }
+
+    private async handleQueryMessage(
         message: JsMsg,
         workerLabel: string,
+        runQuery: (queryUuid: string, worker: string) => Promise<boolean>,
     ): Promise<void> {
         const parsed = this.parseMessage(message);
         if (!parsed) {
@@ -150,7 +171,7 @@ export class NatsWorker {
         };
 
         Logger.info(
-            `Worker ${workerLabel} started warehouse query job ${parsed.jobId ?? '<unknown>'}`,
+            `Worker ${workerLabel} started query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}`,
             jobMetadata,
         );
 
@@ -175,10 +196,7 @@ export class NatsWorker {
                                 },
                             },
                             () =>
-                                this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
-                                    parsed.payload.queryUuid,
-                                    workerLabel,
-                                ),
+                                runQuery(parsed.payload.queryUuid, workerLabel),
                         ),
                 ),
             );
@@ -190,81 +208,12 @@ export class NatsWorker {
 
             message.ack();
             Logger.info(
-                `Worker ${workerLabel} completed warehouse query job ${parsed.jobId ?? '<unknown>'}`,
+                `Worker ${workerLabel} completed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}`,
                 jobMetadata,
             );
         } catch (error) {
             Logger.error(
-                `Worker ${workerLabel} failed warehouse query job ${parsed.jobId ?? '<unknown>'}: ${getErrorMessage(error)}`,
-                { error, ...jobMetadata },
-            );
-            message.nak();
-        }
-    }
-
-    private async handlePreAggregateMessage(
-        message: JsMsg,
-        workerLabel: string,
-    ): Promise<void> {
-        const parsed = this.parseMessage(message);
-        if (!parsed) {
-            message.term();
-            return;
-        }
-
-        const jobMetadata = {
-            jobId: parsed.jobId,
-            queryUuid: parsed.payload.queryUuid,
-            subject: message.subject,
-        };
-
-        Logger.info(
-            `Worker ${workerLabel} started pre-aggregate query job ${parsed.jobId ?? '<unknown>'}`,
-            jobMetadata,
-        );
-
-        try {
-            const didRun = await NatsWorker.runWithAckProgress(message, () =>
-                Sentry.continueTrace(
-                    {
-                        sentryTrace: parsed.trace.traceHeader,
-                        baggage: parsed.trace.baggageHeader,
-                    },
-                    () =>
-                        Sentry.startSpan(
-                            {
-                                op: 'queue.process',
-                                name: 'queue_consumer',
-                                attributes: {
-                                    'messaging.message.id': parsed.jobId ?? '',
-                                    'messaging.destination.name':
-                                        message.subject,
-                                    'lightdash.queryUuid':
-                                        parsed.payload.queryUuid,
-                                },
-                            },
-                            () =>
-                                this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
-                                    parsed.payload.queryUuid,
-                                    workerLabel,
-                                ),
-                        ),
-                ),
-            );
-
-            if (!didRun) {
-                message.term();
-                return;
-            }
-
-            message.ack();
-            Logger.info(
-                `Worker ${workerLabel} completed pre-aggregate query job ${parsed.jobId ?? '<unknown>'}`,
-                jobMetadata,
-            );
-        } catch (error) {
-            Logger.error(
-                `Worker ${workerLabel} failed pre-aggregate query job ${parsed.jobId ?? '<unknown>'}: ${getErrorMessage(error)}`,
+                `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
             );
             message.nak();
