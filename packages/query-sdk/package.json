@@ -21,7 +21,8 @@
         "typecheck": "tsc --noEmit",
         "lint": "eslint src/",
         "format": "oxfmt ./src --check",
-        "fix-format": "oxfmt ./src"
+        "fix-format": "oxfmt ./src",
+        "release": "pnpm publish --no-git-checks --access public"
     },
     "peerDependencies": {
         "react": "^18.x || ^19.x"
