@@ -1,3 +1,11 @@
+## [0.2660.1](https://github.com/lightdash/lightdash/compare/0.2660.0...0.2660.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* search for Users before clicking on it in userAttributes.cy.ts ([#21365](https://github.com/lightdash/lightdash/issues/21365)) ([a99137b](https://github.com/lightdash/lightdash/commit/a99137bf37f3dbba0f1f871b6474b20dc4abd9d9))
+* simplify field reference in query-sdk README (and fix release) ([#21368](https://github.com/lightdash/lightdash/issues/21368)) ([7f22e78](https://github.com/lightdash/lightdash/commit/7f22e787754b7ebb26edd84e0fdbbfe5bbcdc3c7))
+
 # [0.2660.0](https://github.com/lightdash/lightdash/compare/0.2659.0...0.2660.0) (2026-03-24)
 
 
