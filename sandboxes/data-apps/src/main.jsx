@@ -5,7 +5,15 @@ import { createClient, LightdashProvider } from '@lightdash/query-sdk';
 import App from './App';
 import './index.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            retry: 1,
+            staleTime: 30_000,
+            refetchOnWindowFocus: false,
+        },
+    },
+});
 const lightdash = createClient();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
