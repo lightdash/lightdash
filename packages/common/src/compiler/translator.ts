@@ -937,11 +937,14 @@ export const convertTable = (
         Object.keys(dimensions).includes(metric),
     );
     if (duplicatedNames.length > 0) {
+        duplicatedNames.forEach((name) => {
+            delete allMetrics[name];
+        });
         const message =
             duplicatedNames.length > 1
-                ? 'Found multiple metrics and a dimensions with the same name:'
-                : 'Found a metric and a dimension with the same name:';
-        throw new ParseError(`${message} ${duplicatedNames}`);
+                ? `Skipped metrics with names that conflict with dimensions: ${duplicatedNames.join(', ')}. Dimensions take priority.`
+                : `Skipped metric "${duplicatedNames[0]}" because a dimension with the same name exists. Dimensions take priority.`;
+        tableWarnings.push(message);
     }
 
     const groupDetails: Record<string, GroupType> = {};

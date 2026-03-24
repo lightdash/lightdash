@@ -56,6 +56,7 @@ import {
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DIMENSION_AI_HINT,
     MODEL_WITH_DIMENSION_AI_HINT_ARRAY,
+    MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME,
     MODEL_WITH_GROUP_LABEL,
     MODEL_WITH_GROUPS_BLOCK,
     MODEL_WITH_METRIC,
@@ -429,29 +430,38 @@ describe('convert tables from dbt models', () => {
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS);
     });
-    it('should throw an error when metric and dimension have the same name', async () => {
-        expect(() =>
-            convertTable(
-                SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_WRONG_METRIC,
-                [],
-                DEFAULT_SPOTLIGHT_CONFIG,
-            ),
-        ).toThrowError(
-            'Found a metric and a dimension with the same name: user_id',
+    it('should warn and skip metric when metric and dimension have the same name', async () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_WRONG_METRIC,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
         );
+        expect(result.warnings).toBeDefined();
+        expect(result.warnings).toEqual(
+            expect.arrayContaining([expect.stringContaining('user_id')]),
+        );
+        expect(result.dimensions).toHaveProperty('user_id');
+        expect(result.metrics).not.toHaveProperty('user_id');
     });
-    it('should throw an error when multiple metrics and dimensions have the same name', async () => {
-        expect(() =>
-            convertTable(
-                SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_WRONG_METRICS,
-                [],
-                DEFAULT_SPOTLIGHT_CONFIG,
-            ),
-        ).toThrowError(
-            'Found multiple metrics and a dimensions with the same name: user_id,user_id2',
+    it('should warn and skip metrics when multiple metrics and dimensions have the same name', async () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_WRONG_METRICS,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
         );
+        expect(result.warnings).toBeDefined();
+        expect(result.warnings).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('user_id'),
+                expect.stringContaining('user_id2'),
+            ]),
+        );
+        expect(result.dimensions).toHaveProperty('user_id');
+        expect(result.dimensions).toHaveProperty('user_id2');
+        expect(result.metrics).not.toHaveProperty('user_id');
+        expect(result.metrics).not.toHaveProperty('user_id2');
     });
 
     it('should convert dbt model with group label', async () => {
@@ -1406,6 +1416,58 @@ describe('custom granularities', () => {
             expect(explore.warnings).toHaveLength(1);
             expect(explore.warnings[0].message).toContain('unknown_one');
             expect(explore.warnings[0].message).not.toContain('slt_week');
+        }
+    });
+});
+
+describe('duplicate metric/dimension names', () => {
+    it('should produce a warning instead of an error when a metric and dimension share the same name', async () => {
+        const result = await convertExplores(
+            [MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(result).toHaveLength(1);
+        const explore = result[0];
+        expect('errors' in explore).toBe(false);
+        expect('warnings' in explore).toBe(true);
+        if ('warnings' in explore && explore.warnings) {
+            expect(explore.warnings).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        type: InlineErrorType.FIELD_ERROR,
+                        message: expect.stringContaining('myColumnName'),
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it('should keep the dimension and remove the duplicate metric', async () => {
+        const result = await convertExplores(
+            [MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        expect(result).toHaveLength(1);
+        const explore = result[0];
+        expect('errors' in explore).toBe(false);
+        if (!('errors' in explore)) {
+            const table = explore.tables[explore.baseTable];
+            expect(table.dimensions).toHaveProperty('myColumnName');
+            expect(table.metrics).not.toHaveProperty('myColumnName');
         }
     });
 });
