@@ -1,6 +1,6 @@
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import { InlineErrorType, type Explore } from '../types/explore';
-import { DimensionType, FieldType } from '../types/field';
+import { DimensionType, FieldType, MetricType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
 import { warehouseClientMock } from './exploreCompiler.mock';
@@ -1469,5 +1469,67 @@ describe('duplicate metric/dimension names', () => {
             expect(table.dimensions).toHaveProperty('myColumnName');
             expect(table.metrics).not.toHaveProperty('myColumnName');
         }
+    });
+
+    it('should preserve non-duplicate metrics alongside removed duplicates', () => {
+        const modelWithMixedMetrics: DbtModelNode & {
+            relation_name: string;
+        } = {
+            ...model,
+            columns: {
+                user_id: {
+                    name: 'user_id',
+                    data_type: DimensionType.STRING,
+                    meta: {
+                        metrics: {
+                            user_id: { type: MetricType.COUNT_DISTINCT },
+                            user_id_count: { type: MetricType.COUNT },
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            modelWithMixedMetrics,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dimensions).toHaveProperty('user_id');
+        expect(result.metrics).not.toHaveProperty('user_id');
+        expect(result.metrics).toHaveProperty('user_id_count');
+        expect(result.warnings).toHaveLength(1);
+    });
+
+    it('should use singular warning message for one duplicate', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_WRONG_METRIC,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.warnings).toHaveLength(1);
+        expect(result.warnings![0]).toMatch(
+            /^Skipped metric "user_id" because a dimension with the same name exists/,
+        );
+    });
+
+    it('should use plural warning message for multiple duplicates', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_WRONG_METRICS,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.warnings).toBeDefined();
+        const duplicateWarning = result.warnings!.find((w) =>
+            w.includes('Skipped metrics'),
+        );
+        expect(duplicateWarning).toBeDefined();
+        expect(duplicateWarning).toMatch(
+            /^Skipped metrics with names that conflict with dimensions:/,
+        );
+        expect(duplicateWarning).toContain('user_id');
+        expect(duplicateWarning).toContain('user_id2');
     });
 });
