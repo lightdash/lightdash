@@ -110,6 +110,7 @@ import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
+import { NATS_CONTRACT } from '../../nats/NatsContract';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -3020,28 +3021,47 @@ export class AsyncQueryService extends ProjectService {
                                 queryUuid: queryHistoryUuid,
                             };
 
-                            const enqueueQuery = () => {
+                            const natsSubject = (() => {
                                 switch (executionPlan.target) {
-                                    case 'pre_aggregate':
-                                        return this.natsClient.enqueuePreAggregateQuery(
-                                            natsPayload,
-                                        );
-                                    case 'materialization':
-                                        return this.natsClient.enqueueMaterializationQuery(
-                                            natsPayload,
-                                        );
                                     case 'warehouse':
-                                        return this.natsClient.enqueueWarehouseQuery(
-                                            natsPayload,
-                                        );
+                                        return NATS_CONTRACT.warehouse.jobs
+                                            .query.subject;
+                                    case 'pre_aggregate':
+                                        if (
+                                            !this.lightdashConfig.preAggregates
+                                                .enabled
+                                        ) {
+                                            throw new Error(
+                                                'NATS subject for pre-aggregate queries is not configured',
+                                            );
+                                        }
+
+                                        return NATS_CONTRACT['pre-aggregate']
+                                            .jobs.query.subject;
+                                    case 'materialization':
+                                        if (
+                                            !this.lightdashConfig.preAggregates
+                                                .enabled
+                                        ) {
+                                            throw new Error(
+                                                'NATS subject for pre-aggregate materializations is not configured',
+                                            );
+                                        }
+
+                                        return NATS_CONTRACT['pre-aggregate']
+                                            .jobs.materialization.subject;
                                     default:
                                         return assertUnreachable(
                                             executionPlan,
-                                            `Unknown execution target`,
+                                            'Unknown execution target',
                                         );
                                 }
-                            };
-                            const { jobId } = await enqueueQuery();
+                            })();
+
+                            const { jobId } = await this.natsClient.enqueue({
+                                subject: natsSubject,
+                                payload: natsPayload,
+                            });
 
                             this.logger.info(
                                 `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,

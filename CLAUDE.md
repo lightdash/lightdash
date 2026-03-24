@@ -212,6 +212,14 @@ The canonical source of truth for field types is `packages/common/src/types/fiel
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
 -   **Always wrap `JSON.parse` in try/catch**: Parse errors crash the app. On failure, considering showing a warning toast or falling back to a sensible default.
+-   **Prefer TypeScript inference over redundant annotations**: Let the compiler infer obvious types instead of writing noisy or misleading annotations/casts
+    -   ✅ Good: `const greeting = 'hello'`
+    -   ❌ Avoid: `const greeting: string = 'hello' as string`
+    -   Add explicit annotations only when they improve intent, constrain a public API, or prevent unsafe widening
+-   **Avoid `as` casts whenever possible**: Re-structure code, add helper functions, use `satisfies`, generics, or type guards before reaching for a cast
+    -   Treat `as` as a last resort because it can hide real runtime mismatches
+    -   If a cast is truly unavoidable due to a TypeScript limitation, keep it as narrow as possible and prefer documenting why
+-   **Validate once at trust boundaries**: Use Zod/runtime validation where untrusted data enters the system, but avoid re-parsing the same payload multiple times along a single code path unless you explicitly need a second transform
 
 ## TypeScript Utilities
 

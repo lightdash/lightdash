@@ -52,6 +52,7 @@ import type { UserAttributesModel } from '../../models/UserAttributesModel';
 import type { UserModel } from '../../models/UserModel';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { NATS_CONTRACT } from '../../nats/NatsContract';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
@@ -157,6 +158,12 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
+const warehouseQuerySubject = NATS_CONTRACT.warehouse.jobs.query.subject;
+const preAggregateQuerySubject =
+    NATS_CONTRACT['pre-aggregate'].jobs.query.subject;
+const preAggregateMaterializationSubject =
+    NATS_CONTRACT['pre-aggregate'].jobs.materialization.subject;
+
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
     overrides: Partial<AsyncQueryService> = {},
@@ -192,15 +199,20 @@ const getMockedAsyncQueryService = (
             scheduleTask: jest.fn(),
         } as unknown as SchedulerClient,
         natsClient: {
-            enqueueWarehouseQuery: jest.fn(async () => ({
-                jobId: 'test-nats-job-id',
-            })),
-            enqueuePreAggregateQuery: jest.fn(async () => ({
-                jobId: 'test-nats-pre-agg-job-id',
-            })),
-            enqueueMaterializationQuery: jest.fn(async () => ({
-                jobId: 'test-nats-materialization-job-id',
-            })),
+            enqueue: jest.fn(async ({ subject }) => {
+                switch (subject) {
+                    case warehouseQuerySubject:
+                        return { jobId: 'test-nats-job-id' };
+                    case preAggregateQuerySubject:
+                        return { jobId: 'test-nats-pre-agg-job-id' };
+                    case preAggregateMaterializationSubject:
+                        return {
+                            jobId: 'test-nats-materialization-job-id',
+                        };
+                    default:
+                        return { jobId: 'test-nats-unknown-job-id' };
+                }
+            }),
         } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
@@ -924,10 +936,7 @@ describe('AsyncQueryService', () => {
             const runAsyncWarehouseSpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
-            const enqueuePreAggregateSpy = jest.spyOn(
-                service.natsClient,
-                'enqueuePreAggregateQuery',
-            );
+            const enqueueSpy = jest.spyOn(service.natsClient, 'enqueue');
 
             await service.executeAsyncQuery(
                 {
@@ -965,9 +974,12 @@ describe('AsyncQueryService', () => {
                 },
             );
 
-            expect(enqueuePreAggregateSpy).toHaveBeenCalledTimes(1);
-            expect(enqueuePreAggregateSpy).toHaveBeenCalledWith({
-                queryUuid: 'test-query-uuid',
+            expect(enqueueSpy).toHaveBeenCalledTimes(1);
+            expect(enqueueSpy).toHaveBeenCalledWith({
+                subject: preAggregateQuerySubject,
+                payload: {
+                    queryUuid: 'test-query-uuid',
+                },
             });
             expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
                 'test-query-uuid',
@@ -1006,10 +1018,7 @@ describe('AsyncQueryService', () => {
             const runAsyncSpy = jest
                 .spyOn(service, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
-            const enqueueWarehouseSpy = jest.spyOn(
-                service.natsClient,
-                'enqueueWarehouseQuery',
-            );
+            const enqueueSpy = jest.spyOn(service.natsClient, 'enqueue');
 
             await service.executeAsyncQuery(
                 {
@@ -1041,9 +1050,12 @@ describe('AsyncQueryService', () => {
             );
 
             expect(mockStrategy.resolveExecution).toHaveBeenCalledTimes(1);
-            expect(enqueueWarehouseSpy).toHaveBeenCalledTimes(1);
-            expect(enqueueWarehouseSpy).toHaveBeenCalledWith({
-                queryUuid: 'test-query-uuid',
+            expect(enqueueSpy).toHaveBeenCalledTimes(1);
+            expect(enqueueSpy).toHaveBeenCalledWith({
+                subject: warehouseQuerySubject,
+                payload: {
+                    queryUuid: 'test-query-uuid',
+                },
             });
             expect(runAsyncSpy).not.toHaveBeenCalled();
         });

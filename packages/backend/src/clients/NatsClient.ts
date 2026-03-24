@@ -19,20 +19,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
-    STREAM_CONFIGS,
-    type AsyncQueryJobPayload,
-    type AsyncQueryNatsEnvelope,
-    type StreamConfig,
-} from '../nats/natsConfig';
+    getNatsJobContract,
+    type NatsEnqueueArgs,
+    type NatsEnvelope,
+    type NatsManagedStream,
+    type NatsSubject,
+} from '../nats/NatsContract';
 
 const ACK_WAIT_MS = 30_000;
 
 type EnqueueResult = Promise<{ jobId: string }>;
 
 export interface INatsClient {
-    enqueueWarehouseQuery(payload: AsyncQueryJobPayload): EnqueueResult;
-    enqueuePreAggregateQuery(payload: AsyncQueryJobPayload): EnqueueResult;
-    enqueueMaterializationQuery(payload: AsyncQueryJobPayload): EnqueueResult;
+    enqueue<TSubject extends NatsSubject>(
+        args: NatsEnqueueArgs<TSubject>,
+    ): EnqueueResult;
 }
 
 type NatsClientArgs = {
@@ -48,7 +49,7 @@ export class NatsClient implements INatsClient {
 
     private readonly codec = StringCodec();
 
-    private managedStreams: StreamConfig[] = [];
+    private managedStreams: NatsManagedStream[] = [];
 
     /**
      * Lazy-init with retry-on-error: caches the connection promise so
@@ -112,7 +113,7 @@ export class NatsClient implements INatsClient {
     // ── Stream infrastructure ───────────────────────────────────
 
     async ensureStreamsAndConsumers(
-        managedStreams: StreamConfig[],
+        managedStreams: NatsManagedStream[],
     ): Promise<void> {
         this.managedStreams = managedStreams;
         if (this.managedStreams.length === 0) return;
@@ -120,7 +121,7 @@ export class NatsClient implements INatsClient {
         const conn = await this.getOrCreateConnection();
         const jsm = await conn.jetstreamManager();
         await Promise.all(
-            this.managedStreams.map(async (streamConfig: StreamConfig) => {
+            this.managedStreams.map(async (streamConfig: NatsManagedStream) => {
                 await NatsClient.ensureStream(jsm, streamConfig);
                 await NatsClient.ensureConsumer(jsm, streamConfig);
             }),
@@ -134,9 +135,9 @@ export class NatsClient implements INatsClient {
 
     private static async ensureStream(
         jsm: JetStreamManager,
-        streamConfig: StreamConfig,
+        streamConfig: NatsManagedStream,
     ): Promise<void> {
-        const subjects = Object.values(streamConfig.subjects);
+        const subjects = [...streamConfig.subjects];
 
         const existing = await jsm.streams
             .info(streamConfig.streamName)
@@ -168,9 +169,9 @@ export class NatsClient implements INatsClient {
      */
     private static async ensureConsumer(
         jsm: JetStreamManager,
-        streamConfig: StreamConfig,
+        streamConfig: NatsManagedStream,
     ): Promise<void> {
-        const subjects = Object.values(streamConfig.subjects);
+        const subjects = [...streamConfig.subjects];
 
         const existing = await jsm.consumers
             .info(streamConfig.streamName, streamConfig.durableName)
@@ -202,28 +203,23 @@ export class NatsClient implements INatsClient {
 
     // ── Publishing (INatsClient) ─────────────────────────────
 
-    async enqueueWarehouseQuery(
-        payload: AsyncQueryJobPayload,
-    ): Promise<{ jobId: string }> {
-        return this.enqueue(STREAM_CONFIGS.warehouse.subjects.query, payload);
-    }
+    async enqueue<TSubject extends NatsSubject>({
+        subject,
+        payload,
+    }: NatsEnqueueArgs<TSubject>): Promise<{ jobId: string }> {
+        const job = getNatsJobContract(subject);
 
-    async enqueuePreAggregateQuery(
-        payload: AsyncQueryJobPayload,
-    ): Promise<{ jobId: string }> {
-        return this.enqueue(
-            STREAM_CONFIGS['pre-aggregate'].subjects.query,
-            payload,
-        );
-    }
+        const parsedPayload = job.payloadSchema.safeParse(payload);
+        if (!parsedPayload.success) {
+            throw new Error(
+                `Invalid payload for NATS subject "${subject}": ${parsedPayload.error.message}`,
+            );
+        }
 
-    async enqueueMaterializationQuery(
-        payload: AsyncQueryJobPayload,
-    ): Promise<{ jobId: string }> {
-        return this.enqueue(
-            STREAM_CONFIGS['pre-aggregate'].subjects.materialization,
-            payload,
-        );
+        return this.publishToSubject({
+            subject: job.subject,
+            payload: parsedPayload.data,
+        });
     }
 
     // ── Private ─────────────────────────────────────────────────
@@ -312,10 +308,13 @@ export class NatsClient implements INatsClient {
         }
     }
 
-    private async enqueue(
-        subject: string,
-        payload: AsyncQueryJobPayload,
-    ): Promise<{ jobId: string }> {
+    private async publishToSubject<TPayload>({
+        subject,
+        payload,
+    }: {
+        subject: string;
+        payload: TPayload;
+    }): Promise<{ jobId: string }> {
         const jobId = uuidv4();
 
         return Sentry.startSpan(
@@ -339,7 +338,7 @@ export class NatsClient implements INatsClient {
                     : undefined;
                 const sentryMessageId = jobId;
 
-                const message: AsyncQueryNatsEnvelope<AsyncQueryJobPayload> = {
+                const message: NatsEnvelope<TPayload> = {
                     jobId,
                     payload,
                     traceHeader,
@@ -365,7 +364,7 @@ export class NatsClient implements INatsClient {
                         this.connection = undefined;
                     }
                     Logger.error(
-                        `Failed to publish async query job ${jobId} to ${subject}: ${getErrorMessage(
+                        `Failed to publish NATS job ${jobId} to ${subject}: ${getErrorMessage(
                             error,
                         )}`,
                     );

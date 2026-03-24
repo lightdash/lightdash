@@ -13,7 +13,7 @@ import { type NatsClient } from './clients/NatsClient';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
+import { getNatsStreamConfig, type NatsStreamKey } from './nats/NatsContract';
 import { NatsWorker } from './nats/NatsWorker';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { IGNORE_ERRORS } from './sentry';
@@ -37,7 +37,7 @@ type NatsWorkerAppArguments = {
     clientProviders?: ClientProviderMap;
     modelProviders?: ModelProviderMap;
     utilProviders?: UtilProviderMap;
-    streams: NatsWorkerStream[];
+    streams: NatsStreamKey[];
     natsWorkerFactory?: typeof natsWorkerFactory;
 };
 
@@ -45,7 +45,7 @@ const natsWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
     natsClient: NatsClient;
     serviceRepository: ServiceRepository;
-    streams: NatsWorkerStream[];
+    streams: NatsStreamKey[];
 }) =>
     new NatsWorker({
         natsClient: context.natsClient,
@@ -76,7 +76,7 @@ export default class NatsWorkerApp {
 
     private readonly database: Knex;
 
-    private readonly streams: NatsWorkerStream[];
+    private readonly streams: NatsStreamKey[];
 
     private readonly natsWorkerFactory: typeof natsWorkerFactory;
 
@@ -183,7 +183,7 @@ export default class NatsWorkerApp {
         const natsClient = this.clients.getNatsClient();
         await natsClient.connect();
         await natsClient.ensureStreamsAndConsumers(
-            this.streams.map((stream) => STREAM_CONFIGS[stream]),
+            this.streams.map((stream) => getNatsStreamConfig(stream)),
         );
 
         const worker = this.natsWorkerFactory({

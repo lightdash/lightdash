@@ -1,54 +1,51 @@
-import { getErrorMessage } from '@lightdash/common';
+import { assertUnreachable, getErrorMessage } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { StringCodec, type Consumer, type JsMsg } from 'nats';
-import { z } from 'zod';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import {
-    STREAM_CONFIGS,
-    type AsyncQueryJobPayload,
+    getNatsJobContract,
+    getNatsStreamConfig,
+    isKnownNatsSubject,
+    NATS_CONTRACT,
+    natsEnvelopeSchema,
+    type NatsManagedStream,
+    type NatsStreamKey,
+    type NatsSubject,
     type NatsTraceProperties,
-    type NatsWorkerStream,
-    type StreamConfig,
-} from './natsConfig';
+    type PayloadForSubject,
+} from './NatsContract';
 
-const asyncQueryPayloadSchema = z.object({
-    queryUuid: z.string().min(1),
-});
-
-const asyncQueryEnvelopeSchema = z.object({
-    jobId: z.string().min(1),
-    payload: asyncQueryPayloadSchema,
-    traceHeader: z.string().optional(),
-    baggageHeader: z.string().optional(),
-    sentryMessageId: z.string().optional(),
-});
-
-type ParsedMessage = {
-    jobId?: string;
-    payload: AsyncQueryJobPayload;
+type ParsedEnvelope = {
+    jobId: string;
+    payload: unknown;
     trace: NatsTraceProperties;
 };
 
 type NatsWorkerArgs = {
     natsClient: NatsClient;
     asyncQueryService: AsyncQueryService;
-    streams: NatsWorkerStream[];
+    streams: NatsStreamKey[];
     workerConcurrency: number;
 };
 
 const FETCH_EXPIRES_MS = 30 * 1000;
 const ACK_PROGRESS_INTERVAL_MS = 5 * 1000;
 
-export class NatsWorker {
-    private readonly asyncQueryService: AsyncQueryService;
+type TelemetryAttributes = Record<string, string | number | boolean>;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null;
+
+export class NatsWorker {
     private readonly natsClient: NatsClient;
+
+    private readonly asyncQueryService: AsyncQueryService;
 
     private readonly codec = StringCodec();
 
-    private readonly activeConfigs: StreamConfig[];
+    private readonly activeStreams: NatsManagedStream[];
 
     private consumePromise: Promise<void> | undefined;
 
@@ -65,9 +62,9 @@ export class NatsWorker {
         this.natsClient = args.natsClient;
         this.asyncQueryService = args.asyncQueryService;
         this.workerConcurrency = args.workerConcurrency;
-        this.activeConfigs = args.streams
-            .filter((s) => STREAM_CONFIGS[s] !== undefined)
-            .map((s) => STREAM_CONFIGS[s]);
+        this.activeStreams = args.streams.map((streamKey) =>
+            getNatsStreamConfig(streamKey),
+        );
     }
 
     public async run(): Promise<void> {
@@ -77,10 +74,10 @@ export class NatsWorker {
 
         const workerLoops = (
             await Promise.all(
-                this.activeConfigs.map(async (config) => {
+                this.activeStreams.map(async (stream) => {
                     const consumer = await jetStream.consumers.get(
-                        config.streamName,
-                        config.durableName,
+                        stream.streamName,
+                        stream.durableName,
                     );
 
                     return Array.from(
@@ -88,14 +85,16 @@ export class NatsWorker {
                         (_, i) =>
                             this.spawnWorkerLoop(
                                 consumer,
-                                `${config.durableName}-${i + 1}`,
+                                `${stream.durableName}-${i + 1}`,
                             ),
                     );
                 }),
             )
         ).flat();
 
-        const streamNames = this.activeConfigs.map((c) => c.streamName);
+        const streamNames = this.activeStreams.map(
+            (stream) => stream.streamName,
+        );
         Logger.info(
             `NATS worker started. streams=${streamNames.join(',')}, concurrency=${this.workerConcurrency}`,
         );
@@ -117,69 +116,50 @@ export class NatsWorker {
         workerId?: string,
     ): Promise<void> {
         const workerLabel = workerId ?? 'unknown';
+        const { subject } = message;
 
-        const runQuery = this.getQueryRunner(message.subject);
-        if (!runQuery) {
+        if (!isKnownNatsSubject(subject)) {
             Logger.error(
-                `Worker ${workerLabel} received async query job on unexpected subject "${message.subject}"`,
+                `Worker ${workerLabel} received job on unexpected subject "${subject}"`,
+            );
+            Sentry.captureException(
+                new Error(`Unexpected NATS subject: ${subject}`),
+            );
+            message.term();
+            return;
+        }
+        const parsedEnvelope = this.parseEnvelope(message);
+        if (!parsedEnvelope) {
+            message.term();
+            return;
+        }
+
+        const jobContract = getNatsJobContract(subject);
+        const parsedPayload = jobContract.payloadSchema.safeParse(
+            parsedEnvelope.payload,
+        );
+        if (!parsedPayload.success) {
+            Logger.error(
+                `Invalid payload for NATS subject "${subject}"`,
+                parsedPayload.error,
             );
             message.term();
             return;
         }
 
-        await this.handleQueryMessage(message, workerLabel, runQuery);
-    }
-
-    private getQueryRunner(
-        subject: string,
-    ): ((queryUuid: string, worker: string) => Promise<boolean>) | null {
-        if (subject === STREAM_CONFIGS.warehouse.subjects.query) {
-            return (queryUuid, worker) =>
-                this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
-                    queryUuid,
-                    worker,
-                );
-        }
-
-        const preAgg = STREAM_CONFIGS['pre-aggregate'];
-        if (preAgg && subject === preAgg.subjects.query) {
-            return (queryUuid, worker) =>
-                this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
-                    queryUuid,
-                    worker,
-                );
-        }
-
-        if (preAgg && subject === preAgg.subjects.materialization) {
-            return (queryUuid, worker) =>
-                this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
-                    queryUuid,
-                    worker,
-                );
-        }
-
-        return null;
-    }
-
-    private async handleQueryMessage(
-        message: JsMsg,
-        workerLabel: string,
-        runQuery: (queryUuid: string, worker: string) => Promise<boolean>,
-    ): Promise<void> {
-        const parsed = this.parseMessage(message);
-        if (!parsed) {
-            message.term();
-            return;
-        }
-
+        const payload = parsedPayload.data;
+        const payloadTelemetry = NatsWorker.getPayloadTelemetry({
+            payload,
+            capturePayloadKeys: jobContract.telemetry?.capturePayloadKeys ?? [],
+        });
         const jobMetadata = {
-            jobId: parsed.jobId,
-            queryUuid: parsed.payload.queryUuid,
-            subject: message.subject,
+            jobId: parsedEnvelope.jobId,
+            subject,
+            ...payloadTelemetry.metadata,
         };
 
         Logger.info(
-            `Worker ${workerLabel} started query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}`,
+            `Worker ${workerLabel} started job ${parsedEnvelope.jobId} on ${subject}`,
             jobMetadata,
         );
 
@@ -187,8 +167,8 @@ export class NatsWorker {
             const didRun = await NatsWorker.runWithAckProgress(message, () =>
                 Sentry.continueTrace(
                     {
-                        sentryTrace: parsed.trace.traceHeader,
-                        baggage: parsed.trace.baggageHeader,
+                        sentryTrace: parsedEnvelope.trace.traceHeader,
+                        baggage: parsedEnvelope.trace.baggageHeader,
                     },
                     () =>
                         Sentry.startSpan(
@@ -196,15 +176,18 @@ export class NatsWorker {
                                 op: 'queue.process',
                                 name: 'queue_consumer',
                                 attributes: {
-                                    'messaging.message.id': parsed.jobId ?? '',
-                                    'messaging.destination.name':
-                                        message.subject,
-                                    'lightdash.queryUuid':
-                                        parsed.payload.queryUuid,
+                                    'messaging.message.id':
+                                        parsedEnvelope.jobId,
+                                    'messaging.destination.name': subject,
+                                    ...payloadTelemetry.sentryAttributes,
                                 },
                             },
                             () =>
-                                runQuery(parsed.payload.queryUuid, workerLabel),
+                                this.runJobForSubject({
+                                    subject,
+                                    payload,
+                                    workerLabel,
+                                }),
                         ),
                 ),
             );
@@ -216,15 +199,44 @@ export class NatsWorker {
 
             message.ack();
             Logger.info(
-                `Worker ${workerLabel} completed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}`,
+                `Worker ${workerLabel} completed job ${parsedEnvelope.jobId} on ${subject}`,
                 jobMetadata,
             );
         } catch (error) {
             Logger.error(
-                `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
+                `Worker ${workerLabel} failed job ${parsedEnvelope.jobId} on ${subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
             );
             message.nak();
+        }
+    }
+
+    private runJobForSubject<TSubject extends NatsSubject>({
+        subject,
+        payload,
+        workerLabel,
+    }: {
+        subject: TSubject;
+        payload: PayloadForSubject<TSubject>;
+        workerLabel: string;
+    }): Promise<boolean> {
+        switch (subject) {
+            case NATS_CONTRACT.warehouse.jobs.query.subject:
+            case NATS_CONTRACT['pre-aggregate'].jobs.materialization.subject:
+                return this.asyncQueryService.runAsyncWarehouseQueryFromHistory(
+                    payload.queryUuid,
+                    workerLabel,
+                );
+            case NATS_CONTRACT['pre-aggregate'].jobs.query.subject:
+                return this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
+                    payload.queryUuid,
+                    workerLabel,
+                );
+            default:
+                return assertUnreachable(
+                    subject,
+                    `Unhandled NATS subject: ${subject}`,
+                );
         }
     }
 
@@ -233,7 +245,7 @@ export class NatsWorker {
         workerId: string,
     ): Promise<void> {
         Logger.info(
-            `Async query worker ${workerId} spawned (concurrency=${this.workerConcurrency})`,
+            `Worker ${workerId} spawned (concurrency=${this.workerConcurrency})`,
         );
 
         while (this.isRunning) {
@@ -249,21 +261,55 @@ export class NatsWorker {
                 }
             } catch (error) {
                 if (!this.isRunning) break;
-                Logger.error(
-                    `Async query worker ${workerId} fetch error`,
-                    error,
-                );
+                Logger.error(`Worker ${workerId} fetch error`, error);
             }
         }
 
-        Logger.info(`Async query worker ${workerId} stopped`);
+        Logger.info(`Worker ${workerId} stopped`);
     }
 
-    private parseMessage(message: JsMsg): ParsedMessage | null {
-        try {
-            const raw = JSON.parse(this.codec.decode(message.data)) as unknown;
+    private static getPayloadTelemetry({
+        payload,
+        capturePayloadKeys,
+    }: {
+        payload: unknown;
+        capturePayloadKeys: readonly string[];
+    }): {
+        metadata: TelemetryAttributes;
+        sentryAttributes: TelemetryAttributes;
+    } {
+        if (!isRecord(payload)) {
+            return {
+                metadata: {},
+                sentryAttributes: {},
+            };
+        }
 
-            const parsedEnvelope = asyncQueryEnvelopeSchema.safeParse(raw);
+        const metadata: TelemetryAttributes = {};
+        const sentryAttributes: TelemetryAttributes = {};
+
+        for (const key of capturePayloadKeys) {
+            const value = payload[key];
+            if (
+                typeof value === 'string' ||
+                typeof value === 'number' ||
+                typeof value === 'boolean'
+            ) {
+                metadata[key] = value;
+                sentryAttributes[`lightdash.${key}`] = value;
+            }
+        }
+
+        return {
+            metadata,
+            sentryAttributes,
+        };
+    }
+
+    private parseEnvelope(message: JsMsg): ParsedEnvelope | null {
+        try {
+            const raw: unknown = JSON.parse(this.codec.decode(message.data));
+            const parsedEnvelope = natsEnvelopeSchema.safeParse(raw);
             if (parsedEnvelope.success) {
                 const value = parsedEnvelope.data;
                 return {
@@ -278,13 +324,13 @@ export class NatsWorker {
             }
 
             Logger.error(
-                `Invalid async query message for subject "${message.subject}"`,
+                `Invalid message envelope for subject "${message.subject}"`,
                 parsedEnvelope.error,
             );
             return null;
         } catch (error) {
             Logger.error(
-                `Unable to parse async query message for subject "${message.subject}"`,
+                `Unable to parse message envelope for subject "${message.subject}"`,
                 error,
             );
             return null;

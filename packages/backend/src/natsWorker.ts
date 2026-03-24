@@ -1,24 +1,48 @@
-import { z } from 'zod';
 import { lightdashConfig } from './config/lightdashConfig';
 import { getEnterpriseAppArguments } from './ee';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
-import {
-    getRegisteredStreams,
-    natsWorkerStreamSchema,
-    type NatsWorkerStream,
-} from './nats/natsConfig';
+import { type NatsStreamKey } from './nats/NatsContract';
 import NatsWorkerApp from './NatsWorkerApp';
 
-const parseStreams = (): NatsWorkerStream[] => {
-    const streams: NatsWorkerStream[] = [];
+const getAvailableStreamKeys = (): NatsStreamKey[] =>
+    lightdashConfig.preAggregates.enabled &&
+    !!lightdashConfig.license.licenseKey
+        ? ['warehouse', 'pre-aggregate']
+        : ['warehouse'];
+
+const isAvailableStreamKey = (
+    streamKey: string,
+    availableStreamKeys: readonly NatsStreamKey[],
+): streamKey is NatsStreamKey =>
+    availableStreamKeys.some(
+        (availableStreamKey) => availableStreamKey === streamKey,
+    );
+
+const parseStreams = (): NatsStreamKey[] => {
+    const availableStreamKeys = getAvailableStreamKeys();
+    const streams: NatsStreamKey[] = [];
+    const unknownStreams: string[] = [];
     const args = process.argv.slice(2);
+
     args.forEach((arg, i) => {
-        if (arg === '--stream' && args[i + 1]) {
-            streams.push(natsWorkerStreamSchema.parse(args[i + 1]));
+        const streamKey = args[i + 1];
+        if (arg === '--stream' && streamKey) {
+            if (isAvailableStreamKey(streamKey, availableStreamKeys)) {
+                streams.push(streamKey);
+            } else {
+                unknownStreams.push(streamKey);
+            }
         }
     });
-    return streams.length > 0 ? streams : getRegisteredStreams();
+
+    if (unknownStreams.length > 0) {
+        throw new Error(
+            `Unknown NATS stream key(s): ${unknownStreams.join(', ')}. Available streams: ${availableStreamKeys.join(', ')}`,
+        );
+    }
+
+    return streams.length > 0 ? streams : availableStreamKeys;
 };
 
 process
