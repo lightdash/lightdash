@@ -439,7 +439,12 @@ describe('convert tables from dbt models', () => {
         );
         expect(result.warnings).toBeDefined();
         expect(result.warnings).toEqual(
-            expect.arrayContaining([expect.stringContaining('user_id')]),
+            expect.arrayContaining([
+                expect.objectContaining({
+                    type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                    message: expect.stringContaining('user_id'),
+                }),
+            ]),
         );
         expect(result.dimensions).toHaveProperty('user_id');
         expect(result.metrics).not.toHaveProperty('user_id');
@@ -454,8 +459,10 @@ describe('convert tables from dbt models', () => {
         expect(result.warnings).toBeDefined();
         expect(result.warnings).toEqual(
             expect.arrayContaining([
-                expect.stringContaining('user_id'),
-                expect.stringContaining('user_id2'),
+                expect.objectContaining({
+                    type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                    message: expect.stringContaining('user_id'),
+                }),
             ]),
         );
         expect(result.dimensions).toHaveProperty('user_id');
@@ -1441,7 +1448,7 @@ describe('duplicate metric/dimension names', () => {
             expect(explore.warnings).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        type: InlineErrorType.FIELD_ERROR,
+                        type: InlineErrorType.DUPLICATE_FIELD_NAME,
                         message: expect.stringContaining('myColumnName'),
                     }),
                 ]),
@@ -1532,7 +1539,10 @@ describe('duplicate metric/dimension names', () => {
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.warnings).toHaveLength(1);
-        expect(result.warnings![0]).toContain('Skipped metric');
+        expect(result.warnings![0]).toMatchObject({
+            type: InlineErrorType.DUPLICATE_FIELD_NAME,
+            message: expect.stringContaining('Skipped metric'),
+        });
         expect(result.dimensions).toHaveProperty('user_id');
         expect(result.metrics).not.toHaveProperty('user_id');
     });
@@ -1545,7 +1555,7 @@ describe('duplicate metric/dimension names', () => {
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.warnings).toHaveLength(1);
-        expect(result.warnings![0]).toMatch(
+        expect(result.warnings![0].message).toMatch(
             /^Skipped metric "user_id" because a dimension with the same name exists/,
         );
     });
@@ -1559,13 +1569,13 @@ describe('duplicate metric/dimension names', () => {
         );
         expect(result.warnings).toBeDefined();
         const duplicateWarning = result.warnings!.find((w) =>
-            w.includes('Skipped metrics'),
+            w.message.includes('Skipped metrics'),
         );
         expect(duplicateWarning).toBeDefined();
-        expect(duplicateWarning).toMatch(
+        expect(duplicateWarning!.message).toMatch(
             /^Skipped metrics with names that conflict with dimensions:/,
         );
-        expect(duplicateWarning).toContain('user_id');
-        expect(duplicateWarning).toContain('user_id2');
+        expect(duplicateWarning!.message).toContain('user_id');
+        expect(duplicateWarning!.message).toContain('user_id2');
     });
 });

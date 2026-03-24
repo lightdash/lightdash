@@ -1,3 +1,4 @@
+import { type InlineError } from './explore';
 import { type ModelRequiredFilterRule } from './filter';
 import type { DefaultTimeDimension } from './timeFrames';
 
@@ -38,5 +39,5 @@ export type TableBase = {
     groupDetails?: Record<string, GroupType>;
     defaultTimeDimension?: DefaultTimeDimension;
     aiHint?: string | string[];
-    warnings?: string[];
+    warnings?: InlineError[];
 };
