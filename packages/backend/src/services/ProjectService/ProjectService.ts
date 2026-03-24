@@ -6291,9 +6291,12 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Get verified content UUIDs
+        // Get verified content UUIDs (lightweight query without joins to
+        // saved_queries/dashboards, so SQL charts are not excluded)
         const verifiedItems =
-            await this.contentVerificationModel.getAllForProject(projectUuid);
+            await this.contentVerificationModel.getVerifiedContentUuidsForProject(
+                projectUuid,
+            );
 
         if (verifiedItems.length === 0) return [];
 

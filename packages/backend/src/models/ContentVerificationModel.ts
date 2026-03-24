@@ -129,6 +129,22 @@ export class ContentVerificationModel {
             .delete();
     }
 
+    async getVerifiedContentUuidsForProject(
+        projectUuid: string,
+    ): Promise<{ contentType: ContentType; contentUuid: string }[]> {
+        const rows = await this.database(ContentVerificationTableName)
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
+            .select(
+                `${ContentVerificationTableName}.content_type`,
+                `${ContentVerificationTableName}.content_uuid`,
+            );
+
+        return rows.map((row) => ({
+            contentType: row.content_type as ContentType,
+            contentUuid: row.content_uuid,
+        }));
+    }
+
     async getAllForProject(
         projectUuid: string,
     ): Promise<VerifiedContentListItem[]> {
