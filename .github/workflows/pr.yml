@@ -610,10 +610,9 @@ jobs:
 
   # CLI download & lint - validates that the API-generated schema is correct
   cli-download-and-lint:
-    if: needs.files-changed.outputs.cli == 'true' || needs.files-changed.outputs.backend == 'true'
     timeout-minutes: 15
     runs-on: depot-ubuntu-24.04-4
-    needs: [preview, files-changed]
+    needs: [preview]
     name: "CLI: Download & Lint"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
