@@ -2171,37 +2171,6 @@ export class SavedChartModel {
     }
 
     /**
-     * Get the chart version that was active at a specific timestamp
-     * Returns the most recent version where created_at <= targetTimestamp
-     */
-    async getVersionAtTimestamp(
-        savedChartUuid: string,
-        targetTimestamp: Date,
-        tx?: Knex,
-    ): Promise<{ saved_queries_version_uuid: string } | undefined> {
-        const db = tx || this.database;
-        const chart = await db(SavedChartsTableName)
-            .select('saved_query_id')
-            .where('saved_query_uuid', savedChartUuid)
-            .whereNull('deleted_at')
-            .first();
-
-        if (!chart) {
-            throw new NotFoundError('Chart not found');
-        }
-
-        const version = await db(SavedChartVersionsTableName)
-            .select('saved_queries_version_uuid', 'created_at')
-            .where('saved_query_id', chart.saved_query_id)
-            .where('created_at', '<=', targetTimestamp)
-            .orderBy('created_at', 'desc')
-            .limit(1)
-            .first();
-
-        return version;
-    }
-
-    /**
      * Rollback a chart to the version that was active at the given timestamp.
      * Returns undefined if no version existed at that time.
      */
@@ -2211,17 +2180,16 @@ export class SavedChartModel {
         user: SessionUser,
         tx?: Knex,
     ): Promise<SavedChartDAO | undefined> {
-        const version = await this.getVersionAtTimestamp(
+        const version = await this.getVersionSummaryAtTimestamp(
             savedChartUuid,
             targetTimestamp,
-            tx,
         );
         if (!version) {
             return undefined;
         }
         const chartVersion = await this.get(
             savedChartUuid,
-            version.saved_queries_version_uuid,
+            version.versionUuid,
         );
         return this.createVersion(savedChartUuid, chartVersion, user, tx);
     }
