@@ -167,6 +167,7 @@ export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
 let sharedInstance: DuckdbInstance | null = null;
 let httpfsInstalled = false;
 let cachesConfigured = false;
+let s3SecretConfigured = false;
 let sharedBootstrapQueue: Promise<void> = Promise.resolve();
 
 /**
@@ -215,6 +216,7 @@ async function getOrCreateSharedInstance(
         const createMs = performance.now() - t0;
         httpfsInstalled = false;
         cachesConfigured = false;
+        s3SecretConfigured = false;
         logger?.info(
             `DuckDB shared instance created: path=${databasePath} createMs=${Math.round(createMs)}ms`,
         );
@@ -234,6 +236,7 @@ function clearSharedInstance(logger?: DuckdbLogger): void {
         sharedInstance = null;
         httpfsInstalled = false;
         cachesConfigured = false;
+        s3SecretConfigured = false;
         sharedBootstrapQueue = Promise.resolve();
         logger?.info('DuckDB shared instance cleared');
     }
@@ -244,6 +247,7 @@ export function resetSharedDuckdbStateForTesting(): void {
     sharedInstance = null;
     httpfsInstalled = false;
     cachesConfigured = false;
+    s3SecretConfigured = false;
     sharedBootstrapQueue = Promise.resolve();
 }
 
@@ -437,11 +441,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             return;
         }
 
-        // CREATE SECRET on every connection — DuckDB secrets may not reliably
-        // persist across connections on all DuckDB versions, so always set it.
-        // Serialize via the lock to avoid "Catalog write-write conflict on alter"
-        // when concurrent connections both run CREATE OR REPLACE SECRET.
+        // DuckDB secrets are instance-level — they persist across all
+        // connections on the same instance. Create once and skip on
+        // subsequent connections.
         const s3ConfigMs = await withSharedBootstrapLock(async () => {
+            if (s3SecretConfigured) return 0;
+
             const t2 = performance.now();
 
             const regionClause = this.s3Config!.region
@@ -463,6 +468,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 URL_STYLE '${this.s3Config!.forcePathStyle ? 'path' : 'vhost'}',
                 USE_SSL ${this.s3Config!.useSsl}
             );`);
+
+            s3SecretConfigured = true;
+            this.logger?.info(
+                `DuckDB S3 secret configured (first use): ${Math.round(performance.now() - t2)}ms`,
+            );
 
             return performance.now() - t2;
         });
