@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    FeatureFlags,
     ProjectType,
     type OrganizationProject,
 } from '@lightdash/common';
@@ -40,7 +39,6 @@ import {
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
@@ -241,12 +239,6 @@ const ProjectSwitcher = () => {
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
-
-    const { data: previewAutoCleanupFlag } = useServerFeatureFlag(
-        FeatureFlags.PreviewAutoCleanup,
-    );
-    const isPreviewAutoCleanupEnabled =
-        previewAutoCleanupFlag?.enabled ?? false;
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
     const [groupStates, setGroupStates] = useState<GroupStates>({
@@ -550,7 +542,9 @@ const ProjectSwitcher = () => {
                             <Box>
                                 <Menu.Divider />
                                 <GroupHeader
-                                    title="Preview"
+                                    title={
+                                        'Your Previews'
+                                    }
                                     count={previewProjects.length}
                                     state={groupStates.preview}
                                     onToggle={() =>
@@ -576,9 +570,7 @@ const ProjectSwitcher = () => {
                                                         item.projectUuid ===
                                                         activeProjectUuid
                                                     }
-                                                    showExpiration={
-                                                        isPreviewAutoCleanupEnabled
-                                                    }
+                                                    showExpiration
                                                 />
                                             ))}
                                         </Stack>
