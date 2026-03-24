@@ -65,6 +65,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     const { data: lastProjectUuid, isFetched: isLastProjectUuidFetched } =
         useActiveProject();
     const { mutate } = useUpdateActiveProjectMutation();
+    const { mutate: deleteActiveProject } = useDeleteActiveProjectMutation();
 
     // Get organization to access defaultProjectUuid (lightweight call, usually cached)
     const { data: organization, isInitialLoading: isLoadingOrg } =
@@ -86,7 +87,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
                 console.warn(
                     `Couldn't find last project ${lastProjectUuid}. Clearing stale reference and falling back to organization default or fallback project.`,
                 );
-                localStorage.removeItem(LAST_PROJECT_KEY);
+                deleteActiveProject();
             },
         });
 
