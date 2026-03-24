@@ -72,6 +72,24 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     pivotResults?: boolean;
 };
 
+export type ExecuteAsyncSavedChartDrillQueryArgs = CommonAsyncQueryArgs & {
+    chartUuid: string;
+    drillSteps: Array<{
+        drillPathId: string;
+        drillDimensionValues: Record<string, unknown>;
+        linkedChartUuid?: string;
+        inlineDimensions?: string[];
+        inlineMetrics?: string[];
+        inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+    }>;
+    /** Optional dashboard context for drills from dashboard tiles */
+    dashboardFilters?: DashboardFilters;
+    dashboardSorts?: SortField[];
+    dateZoom?: DateZoom;
+    limit?: number | null | undefined;
+    pivotResults?: boolean;
+};
+
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     chartUuid: string;
     tileUuid: string;

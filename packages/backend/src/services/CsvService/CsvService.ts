@@ -9,6 +9,7 @@ import {
     DimensionType,
     DownloadCsvPayload,
     DownloadFileType,
+    DrillStep,
     DownloadMetricCsv,
     ExportCsvDashboardPayload,
     ForbiddenError,
@@ -960,6 +961,10 @@ export class CsvService extends BaseService {
         dashboardFilters: DashboardFilters,
         selectedTabs: string[] | null,
         dateZoomGranularity?: DateGranularity | string,
+        tileDrillSteps?: Record<
+            string,
+            { chartUuid: string; drillSteps: DrillStep[] }
+        >,
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -980,6 +985,7 @@ export class CsvService extends BaseService {
             dashboardFilters,
             dateZoomGranularity,
             selectedTabs,
+            tileDrillSteps,
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,

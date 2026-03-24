@@ -5771,6 +5771,117 @@
                     }
                 ]
             },
+            "DrillPathBase": {
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "description": "Display label in the context menu (e.g., \"By Region\")"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for this drill path"
+                    }
+                },
+                "required": ["label", "id"],
+                "type": "object"
+            },
+            "DrillDownPath": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DrillPathBase"
+                    },
+                    {
+                        "properties": {
+                            "sorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array",
+                                "description": "Optional sort override for the drilled view"
+                            },
+                            "metrics": {
+                                "items": {
+                                    "$ref": "#/components/schemas/FieldId"
+                                },
+                                "type": "array",
+                                "description": "Optional metric override — defaults to the original chart's metrics"
+                            },
+                            "dimensions": {
+                                "items": {
+                                    "$ref": "#/components/schemas/FieldId"
+                                },
+                                "type": "array",
+                                "description": "Dimensions to show in the drilled view"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["drillDown"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dimensions", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Drill-down path — explores deeper into the same chart by swapping dimensions/metrics"
+            },
+            "DrillThroughTarget": {
+                "type": "string",
+                "enum": ["modal", "navigate", "newTab"],
+                "description": "How a drill-through target chart should be opened"
+            },
+            "DrillThroughPath": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DrillPathBase"
+                    },
+                    {
+                        "properties": {
+                            "target": {
+                                "$ref": "#/components/schemas/DrillThroughTarget",
+                                "description": "How to open the target chart. Defaults to 'modal'."
+                            },
+                            "linkedChartUuid": {
+                                "type": "string",
+                                "description": "UUID of the saved chart to display when drilling"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["drillThrough"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["target", "linkedChartUuid", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Drill-through path — navigates to another saved chart, passing clicked values as filters"
+            },
+            "DrillPath": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DrillDownPath"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DrillThroughPath"
+                    }
+                ],
+                "description": "A single preconfigured drill path that appears in the chart's context menu"
+            },
+            "DrillConfig": {
+                "properties": {
+                    "paths": {
+                        "items": {
+                            "$ref": "#/components/schemas/DrillPath"
+                        },
+                        "type": "array",
+                        "description": "Ordered list of drill paths available in the context menu"
+                    }
+                },
+                "required": ["paths"],
+                "type": "object",
+                "description": "Configuration for developer-defined drill paths on a saved chart"
+            },
             "Record_string.ParameterValue_": {
                 "properties": {},
                 "additionalProperties": {
@@ -5868,6 +5979,10 @@
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
+                    },
+                    "drillConfig": {
+                        "$ref": "#/components/schemas/DrillConfig",
+                        "description": "Preconfigured drill paths for in-place chart drill-into"
                     },
                     "tableConfig": {
                         "properties": {
@@ -16256,6 +16371,10 @@
                         "type": "object",
                         "description": "Table view configuration"
                     },
+                    "drillConfig": {
+                        "$ref": "#/components/schemas/DrillConfig",
+                        "description": "Preconfigured drill paths for in-place chart drill-into"
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -17450,6 +17569,10 @@
                             },
                             "chartType": {
                                 "$ref": "#/components/schemas/ChartType"
+                            },
+                            "tableName": {
+                                "type": "string",
+                                "description": "Explore name — available on metric-query charts, undefined on SQL charts"
                             }
                         },
                         "type": "object"
@@ -20291,7 +20414,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_": {
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-drillConfig-or-parameters_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -20342,6 +20465,10 @@
                         "required": ["columnOrder"],
                         "type": "object",
                         "description": "Table view configuration"
+                    },
+                    "drillConfig": {
+                        "$ref": "#/components/schemas/DrillConfig",
+                        "description": "Preconfigured drill paths for in-place chart drill-into"
                     }
                 },
                 "required": [
@@ -20355,7 +20482,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CreateChartBase": {
-                "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_"
+                "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-drillConfig-or-parameters_"
             },
             "CreateChartInSpace": {
                 "allOf": [
@@ -20606,7 +20733,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__": {
+            "Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-drillConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-drillConfig-or-slug-or-parameters_.metricQuery__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -20644,14 +20771,18 @@
                         "required": ["columns"],
                         "type": "object",
                         "description": "Pivot table configuration"
+                    },
+                    "drillConfig": {
+                        "$ref": "#/components/schemas/DrillConfig",
+                        "description": "Preconfigured drill paths for in-place chart drill-into"
                     }
                 },
                 "required": ["name", "chartConfig", "slug", "tableName"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery_": {
-                "$ref": "#/components/schemas/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery__",
+            "Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-drillConfig-or-slug-or-parameters_.metricQuery_": {
+                "$ref": "#/components/schemas/Pick_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-drillConfig-or-slug-or-parameters_.Exclude_keyofPick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-drillConfig-or-slug-or-parameters_.metricQuery__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "Pick_CompiledDimension.name-or-label-or-table_": {
@@ -20878,7 +21009,7 @@
             "ChartAsCode": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-slug-or-parameters_.metricQuery_"
+                        "$ref": "#/components/schemas/Omit_Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-pivotConfig-or-drillConfig-or-slug-or-parameters_.metricQuery_"
                     },
                     {
                         "properties": {
@@ -21437,6 +21568,10 @@
                         "required": ["columnOrder"],
                         "type": "object",
                         "description": "Table configuration. Defaults to empty column order if omitted."
+                    },
+                    "drillConfig": {
+                        "$ref": "#/components/schemas/DrillConfig",
+                        "description": "Preconfigured drill paths for in-place chart drill-into"
                     },
                     "dashboardSlug": {
                         "type": "string",
@@ -27174,6 +27309,96 @@
                             }
                         },
                         "required": ["chartUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DrillStep": {
+                "properties": {
+                    "inlineSorts": {
+                        "items": {
+                            "properties": {
+                                "descending": {
+                                    "type": "boolean"
+                                },
+                                "fieldId": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["descending", "fieldId"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "inlineMetrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "inlineDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Inline drill path data (used when drillConfig isn't saved yet)"
+                    },
+                    "linkedChartUuid": {
+                        "type": "string",
+                        "description": "For linked chart drill-through: UUID of the target chart"
+                    },
+                    "drillDimensionValues": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "Raw dimension values from the clicked row, keyed by field ID"
+                    },
+                    "drillPathId": {
+                        "type": "string",
+                        "description": "ID of the drill path from the chart's drillConfig"
+                    }
+                },
+                "required": ["drillDimensionValues", "drillPathId"],
+                "type": "object"
+            },
+            "ExecuteAsyncSavedChartDrillRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "pivotResults": {
+                                "type": "boolean"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "dashboardSorts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/SortField"
+                                },
+                                "type": "array"
+                            },
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters",
+                                "description": "Optional dashboard context for drills initiated from dashboard tiles"
+                            },
+                            "drillSteps": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DrillStep"
+                                },
+                                "type": "array",
+                                "description": "Ordered list of drill steps to apply (supports multi-level drill)"
+                            },
+                            "chartUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["drillSteps", "chartUuid"],
                         "type": "object"
                     }
                 ]
@@ -46869,6 +47094,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncSavedChartRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/chart-drill": {
+            "post": {
+                "operationId": "executeAsyncSavedChartDrillQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Executes a saved chart with drill-into overrides (swapped dimensions and filters from clicked value)",
+                "summary": "Execute chart drill",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncSavedChartDrillRequestParams"
                             }
                         }
                     }

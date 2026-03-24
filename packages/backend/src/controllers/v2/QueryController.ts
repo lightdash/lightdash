@@ -22,6 +22,7 @@ import {
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
+    type ExecuteAsyncSavedChartDrillRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
@@ -210,6 +211,47 @@ export class QueryController extends BaseController {
                 invalidateCache: body.invalidateCache,
                 chartUuid: body.chartUuid,
                 versionUuid: body.versionUuid,
+                context: context ?? QueryExecutionContext.API,
+                limit: body.limit,
+                parameters: body.parameters,
+                pivotResults: body.pivotResults,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Executes a saved chart with drill-into overrides (swapped dimensions and filters from clicked value)
+     * @summary Execute chart drill
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart-drill')
+    @OperationId('executeAsyncSavedChartDrillQuery')
+    async executeAsyncSavedChartDrillQuery(
+        @Body()
+        body: ExecuteAsyncSavedChartDrillRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+        this.setStatus(200);
+
+        const context = body.context ?? getContextFromHeader(req);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncSavedChartDrillQuery({
+                account: req.account!,
+                projectUuid,
+                invalidateCache: body.invalidateCache,
+                chartUuid: body.chartUuid,
+                drillSteps: body.drillSteps,
+                dashboardFilters: body.dashboardFilters,
+                dashboardSorts: body.dashboardSorts,
+                dateZoom: body.dateZoom,
                 context: context ?? QueryExecutionContext.API,
                 limit: body.limit,
                 parameters: body.parameters,

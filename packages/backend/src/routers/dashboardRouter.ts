@@ -178,6 +178,7 @@ dashboardRouter.post(
                     req.body.filters,
                     validatedSelectedTabs,
                     req.body.dateZoomGranularity,
+                    req.body.tileDrillSteps,
                 );
 
             res.json({
