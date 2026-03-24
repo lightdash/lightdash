@@ -1,3 +1,15 @@
+# [0.2661.0](https://github.com/lightdash/lightdash/compare/0.2660.1...0.2661.0) (2026-03-24)
+
+
+### Bug Fixes
+
+* use useDeleteActiveProjectMutation instead of bare localStorage removal ([#21357](https://github.com/lightdash/lightdash/issues/21357)) ([9edb542](https://github.com/lightdash/lightdash/commit/9edb542abf405ab8fd206ed5429cc335c64637b9))
+
+
+### Features
+
+* enable upload of loose content files ([#21291](https://github.com/lightdash/lightdash/issues/21291)) ([d275ece](https://github.com/lightdash/lightdash/commit/d275ece4e439c16becf0d94994c2507ac14a7165))
+
 ## [0.2660.1](https://github.com/lightdash/lightdash/compare/0.2660.0...0.2660.1) (2026-03-24)
 
 
