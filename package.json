@@ -141,6 +141,8 @@
         "generate-api-dev": "pnpm run common-build && pnpm -F backend generate-api-dev",
         "generate:chart-as-code-schema": "pnpm -F common generate:chart-as-code-schema",
         "check:chart-as-code-schema": "pnpm -F common check:chart-as-code-schema",
+        "generate:dashboard-as-code-schema": "pnpm -F common generate:dashboard-as-code-schema",
+        "check:dashboard-as-code-schema": "pnpm -F common check:dashboard-as-code-schema",
         "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
         "clean-build-cache": "./scripts/clean-build-cache.sh",
         "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
