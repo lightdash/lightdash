@@ -2354,3 +2354,24 @@ export const MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES: DbtModelNode
         },
     },
 };
+
+export const MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        myColumnName: {
+            name: 'myColumnName',
+            data_type: DimensionType.STRING,
+            meta: {},
+        },
+    },
+    meta: {
+        metrics: {
+            myColumnName: {
+                type: MetricType.COUNT,
+                sql: '${TABLE}.myColumnName',
+            },
+        },
+    },
+};

@@ -634,7 +634,7 @@ export const convertTable = (
     // Config block takes priority, then meta block
     const meta = merge({}, model.meta, model.config?.meta);
     const tableLabel = meta.label || friendlyName(model.name);
-    const tableWarnings: string[] = [];
+    const tableWarnings: InlineError[] = [];
 
     const [dimensions, metrics]: [
         Record<string, Dimension>,
@@ -745,9 +745,10 @@ export const convertTable = (
                     >((acc, customName) => {
                         const granularity = customGranularities?.[customName];
                         if (!granularity) {
-                            tableWarnings.push(
-                                `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
-                            );
+                            tableWarnings.push({
+                                type: InlineErrorType.FIELD_ERROR,
+                                message: `Unknown time interval "${customName}" on column "${dim.name}" in model "${model.name}". It is not a standard time frame or a custom granularity defined in lightdash.config.yml.`,
+                            });
                             return acc;
                         }
 
@@ -937,11 +938,13 @@ export const convertTable = (
         Object.keys(dimensions).includes(metric),
     );
     if (duplicatedNames.length > 0) {
-        const message =
-            duplicatedNames.length > 1
-                ? 'Found multiple metrics and a dimensions with the same name:'
-                : 'Found a metric and a dimension with the same name:';
-        throw new ParseError(`${message} ${duplicatedNames}`);
+        duplicatedNames.forEach((name) => {
+            delete allMetrics[name];
+            tableWarnings.push({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: `Skipped metric "${name}" because a dimension with the same name exists. Dimensions take priority.`,
+            });
+        });
     }
 
     const groupDetails: Record<string, GroupType> = {};
@@ -962,10 +965,7 @@ export const convertTable = (
             meta,
             allowPartialCompilation,
         );
-        // Add set validation warnings to table warnings
-        warnings.forEach((warning) => {
-            tableWarnings.push(warning.message);
-        });
+        tableWarnings.push(...warnings);
     }
 
     const sqlTable = meta.sql_from || model.relation_name;
