@@ -314,11 +314,16 @@ export class AsyncQueryService extends ProjectService {
         metricQuery,
         explore,
         context,
+        forceWarehouse,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
+        forceWarehouse: boolean;
     }): PreAggregationRoutingDecision {
+        if (forceWarehouse) {
+            return { target: 'warehouse' };
+        }
         return this.preAggregateStrategy.getRoutingDecision({
             metricQuery,
             explore,
@@ -3162,6 +3167,7 @@ export class AsyncQueryService extends ProjectService {
         context,
         metricQuery,
         invalidateCache,
+        usePreAggregateCache,
         parameters,
         pivotConfiguration,
         userAttributeOverrides,
@@ -3271,6 +3277,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery,
             explore,
             context,
+            forceWarehouse: usePreAggregateCache === false,
         });
 
         this.logger.info(
@@ -3506,6 +3513,8 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
+            // TODO: allow per-chart preference to bypass pre-aggregate cache
+            forceWarehouse: false,
         });
 
         if (routingDecision.preAggregateMetadata) {
@@ -3802,6 +3811,8 @@ export class AsyncQueryService extends ProjectService {
             metricQuery: metricQueryWithLimit,
             explore,
             context,
+            // TODO: allow dashboard-level option to bypass pre-aggregate cache
+            forceWarehouse: false,
         });
 
         if (routingDecision.preAggregateMetadata) {

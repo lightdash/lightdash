@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     getItemId,
+    getPreAggregateMetricComponentColumnName,
     MetricType,
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
@@ -14,7 +15,6 @@ import {
     type MetricQuery,
     type PreAggregateDef,
 } from '@lightdash/common';
-import { getMetricComponentColumnName } from '../../preAggregates';
 
 const getDimensionsByReference = (sourceExplore: Explore) =>
     Object.values(sourceExplore.tables).reduce<
@@ -230,10 +230,11 @@ export const buildMaterializationMetricQuery = ({
                 const countFieldId = getItemId(countMetric);
 
                 representation.components.forEach((component, index) => {
-                    const expectedFieldId = getMetricComponentColumnName(
-                        metricFieldId,
-                        component,
-                    );
+                    const expectedFieldId =
+                        getPreAggregateMetricComponentColumnName(
+                            metricFieldId,
+                            component,
+                        );
                     const actualFieldId =
                         index === 0 ? sumFieldId : countFieldId;
                     if (actualFieldId !== expectedFieldId) {

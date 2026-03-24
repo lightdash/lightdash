@@ -232,6 +232,27 @@ export const selectPivotConfig = createSelector(
     (unsavedChartVersion) => unsavedChartVersion.pivotConfig,
 );
 
+// Pre-aggregate selectors
+const selectPreAggregate = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.preAggregate,
+);
+
+export const selectPreAggregateMatchResult = createSelector(
+    [selectPreAggregate],
+    (preAggregate) => preAggregate.matchResult,
+);
+
+export const selectPreAggEnabled = createSelector(
+    [selectPreAggregate],
+    (preAggregate) => preAggregate.isEnabled,
+);
+
+export const selectPreAggCacheEnabled = createSelector(
+    [selectPreAggregate],
+    (preAggregate) => preAggregate.cacheEnabled,
+);
+
 // Navigation context selectors
 export const selectFromDashboard = createSelector(
     [selectExplorerState],

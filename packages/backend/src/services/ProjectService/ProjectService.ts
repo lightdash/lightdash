@@ -74,6 +74,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getPreAggregateExploreName,
     getTimeDimensionsMap,
     getTimezoneLabel,
     hasConnectionChanges,
@@ -116,6 +117,7 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    preAggregateUtils,
     Project,
     ProjectCatalog,
     ProjectDefaults,
@@ -205,7 +207,6 @@ import { normalizeDatabricksHostLenient } from '../../controllers/authentication
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
-import { getPreAggregateExploreName } from '../../ee/preAggregates/naming';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
@@ -3027,6 +3028,7 @@ export class ProjectService extends BaseService {
                 pivotDimensions?: string[];
             };
             projectUuid: string;
+            usePreAggregateCache?: boolean;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
@@ -3061,10 +3063,36 @@ export class ProjectService extends BaseService {
             throw new CustomSqlQueryForbiddenError();
         }
 
-        const explore =
+        const sourceExplore =
             'explore' in args
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
+
+        // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
+        let explore = sourceExplore;
+        if (args.usePreAggregateCache !== false) {
+            const matchResult = preAggregateUtils.findMatch(
+                metricQuery,
+                sourceExplore,
+            );
+            if (matchResult.hit) {
+                const preAggExploreName = getPreAggregateExploreName(
+                    sourceExplore.name,
+                    matchResult.preAggregateName,
+                );
+                try {
+                    explore = await this.getExplore(
+                        account,
+                        projectUuid,
+                        preAggExploreName,
+                    );
+                } catch {
+                    this.logger.warn(
+                        `Pre-aggregate explore "${preAggExploreName}" not found, falling back to source explore`,
+                    );
+                }
+            }
+        }
 
         // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
         const warehouseCredentials =

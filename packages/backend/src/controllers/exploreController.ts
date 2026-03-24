@@ -137,6 +137,7 @@ export class ExploreController extends BaseController {
         body: MetricQuery & {
             parameters?: ParametersValuesMap;
             pivotConfiguration?: PivotConfiguration;
+            usePreAggregateCache?: boolean;
         },
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
@@ -148,6 +149,7 @@ export class ExploreController extends BaseController {
                 body,
                 projectUuid,
                 exploreName: exploreId,
+                usePreAggregateCache: body.usePreAggregateCache,
             });
 
         return {

@@ -12,6 +12,7 @@ import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import AutoFetchResultsSwitch from './AutoFetchResultsSwitch';
 import LimitInput from './LimitInput';
+import PreAggregateCacheSwitch from './PreAggregateCacheSwitch';
 
 export type Props = {
     size?: MantineSize;
@@ -20,6 +21,7 @@ export type Props = {
     limit: number;
     onLimitChange: (value: number) => void;
     showAutoFetchSetting?: boolean;
+    showPreAggregateSetting?: boolean;
     targetProps?: ButtonProps;
 };
 
@@ -31,6 +33,7 @@ const RunQuerySettings: FC<Props> = memo(
         limit,
         onLimitChange,
         showAutoFetchSetting = false,
+        showPreAggregateSetting = false,
         targetProps,
     }) => {
         const [opened, { open, close }] = useDisclosure(false);
@@ -93,10 +96,18 @@ const RunQuerySettings: FC<Props> = memo(
                             mouseDownInsideRef.current = true;
                         }}
                     >
+                        {showPreAggregateSetting && (
+                            <PreAggregateCacheSwitch size={size} />
+                        )}
+                        {showPreAggregateSetting && showAutoFetchSetting && (
+                            <Divider />
+                        )}
                         {showAutoFetchSetting && (
                             <AutoFetchResultsSwitch size={size} />
                         )}
-                        {showAutoFetchSetting && <Divider />}
+                        {(showAutoFetchSetting || showPreAggregateSetting) && (
+                            <Divider />
+                        )}
                         <LimitInput
                             maxLimit={maxLimit}
                             limit={tempLimit}
