@@ -101,22 +101,26 @@ This is the most important thing to get right. A field's position in the YAML te
 
 ## Step 2: Write TODO.md
 
-Before writing any code, create `TODO.md` describing:
+Before writing any code, create `TODO.md` describing each query you plan to make:
 
-- What components you'll build
-- Which model and fields each component uses (from Step 1)
+- What component uses it
+- Which model and fields it uses (from Step 1)
 - Whether each field is a dimension or metric
+- **The grain** — what combination of dimensions produces one unique row (e.g., "one row per driver per season per round"). Look at ALL dimensions in the model to figure this out. If the grain includes a dimension you aren't selecting, you likely need a filter on it, otherwise you'll get duplicates or mixed data.
+- **Filters needed** — based on the grain analysis, decide what filters are required to get the right slice of data (e.g., filter to a specific date range, or category)
+- **Estimated row count** — calculate from the grain: `unique values of dim A × unique values of dim B × ...`. This determines your `.limit()`. Setting limit too low silently truncates data.
 
-This forces you to verify field names and classifications before writing code.
+This forces you to understand the shape of the data before writing code, not just the field names.
 
 ## Step 3: Build Components
 
 ### SDK usage
 
-```tsx
-import { createClient, useLightdash } from '@lightdash/query-sdk';
+A shared client is already set up in `src/lib/lightdash.js` and passed to `<LightdashProvider>` in `main.jsx`. **Always import this single instance** — never call `createClient()` yourself.
 
-const lightdash = createClient();
+```tsx
+import { useLightdash } from '@lightdash/query-sdk';
+import { lightdash } from '@/lib/lightdash';
 
 // Define queries at module scope — immutable, safe to hoist out of render
 const revenueQuery = lightdash
@@ -234,7 +238,7 @@ const user = await lightdash.auth.getUser();
 
 **Infinite loading / re-fetching:**
 
-- `createClient()` inside a component. Move to module scope.
+- `createClient()` inside a component or duplicated across files. Import the shared client from `@/lib/lightdash`.
 
 **Build fails:**
 
@@ -242,14 +246,16 @@ const user = await lightdash.auth.getUser();
 
 ## Common Mistakes
 
-| Mistake                                                                               | Why it breaks                                                       | Fix                                                                              |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Guessing field names                                                                  | API returns opaque errors                                           | Read the dbt YAML first — always                                                 |
-| `.metrics()` on a pre-aggregated model                                                | Re-aggregates already-aggregated values → wrong numbers             | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])`                |
-| `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
-| Unused dimensions in `.dimensions()`                                                  | Changes GROUP BY → "results may be incorrect"                       | Only include dimensions you render                                               |
-| Querying hidden fields (`driver_id`)                                                  | Leaks internal IDs                                                  | Skip fields with `hidden: true`                                                  |
-| `createClient()` inside a component                                                   | New instance per render → infinite loop                             | Module scope                                                                     |
-| Qualified names like `orders_total_revenue`                                           | Double-qualified → unknown field                                    | Short names only                                                                 |
-| `value: '2025'` for a number column                                                   | String won't match number                                           | `value: 2025`                                                                    |
-| Running `npm install`                                                                 | Not available in this environment                                   | Use only pre-installed packages                                                  |
+| Mistake                                                                               | Why it breaks                                                                           | Fix                                                                                |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Guessing field names                                                                  | API returns opaque errors                                                               | Read the dbt YAML first — always                                                   |
+| `.metrics()` on a pre-aggregated model                                                | Re-aggregates already-aggregated values → wrong numbers                                 | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])`                  |
+| `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts                     | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)?   |
+| Unused dimensions in `.dimensions()`                                                  | Changes GROUP BY → "results may be incorrect"                                           | Only include dimensions you render                                                 |
+| Querying hidden fields (`driver_id`)                                                  | Leaks internal IDs                                                                      | Skip fields with `hidden: true`                                                    |
+| Calling `createClient()` instead of importing the shared client                        | Multiple instances → cache misses, potential infinite loops if inside a component        | `import { lightdash } from '@/lib/lightdash'`                                      |
+| Qualified names like `orders_total_revenue`                                           | Double-qualified → unknown field                                                        | Short names only                                                                   |
+| `value: '2025'` for a number column                                                   | String won't match number                                                               | `value: 2025`                                                                      |
+| Not filtering on grain dimensions you don't render                                    | Duplicates, mixed data, wrong totals — the query returns every combination of the grain | Identify the model's grain in Step 2, filter any grain dimension you don't display |
+| `.limit()` too low                                                                    | Silently truncates rows — charts end early, tables are incomplete                       | Estimate row count from the grain in Step 2, set limit above that                  |
+| Running `npm install`                                                                 | Not available in this environment                                                       | Use only pre-installed packages                                                    |
