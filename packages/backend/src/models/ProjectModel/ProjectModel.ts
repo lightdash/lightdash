@@ -511,9 +511,7 @@ export class ProjectModel {
                         data.organizationWarehouseCredentialsUuid ?? null,
                     ...(data.type === ProjectType.PREVIEW
                         ? {
-                              expires_at: trx.raw(
-                                  `NOW() + INTERVAL '30 days'`,
-                              ),
+                              expires_at: trx.raw(`NOW() + INTERVAL '30 days'`),
                           }
                         : {}),
                 })
