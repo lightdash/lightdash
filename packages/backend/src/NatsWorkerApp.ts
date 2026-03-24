@@ -182,7 +182,7 @@ export default class NatsWorkerApp {
     }> {
         const natsClient = this.clients.getNatsClient();
         await natsClient.connect();
-        await natsClient.ensureStreams(
+        await natsClient.ensureStreamsAndConsumers(
             this.streams.map((stream) => STREAM_CONFIGS[stream]),
         );
 
