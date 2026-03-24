@@ -83,6 +83,7 @@ import {
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
     type DashboardHistory,
+    type DashboardVersion,
 } from './dashboard';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
@@ -859,6 +860,7 @@ type ApiResults =
     | ChartHistory
     | ChartVersion
     | DashboardHistory
+    | DashboardVersion
     | EmbedUrl
     | DecodedEmbed
     | Array<GitRepo>

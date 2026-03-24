@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { formatTimestamp, TimeFrames } from '@lightdash/common';
+import {
+    formatTimestamp,
+    isDashboardChartTileType,
+    TimeFrames,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -12,12 +16,14 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
+    IconChartBar,
     IconDots,
     IconHistory,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -32,6 +38,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { Can } from '../providers/Ability';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
+import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
     const navigate = useNavigate();
@@ -49,6 +56,17 @@ const DashboardHistory = () => {
     const historyQuery = useDashboardHistory(dashboardUuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);
+
+    // Count the number of charts in the dashboard
+    // Must be before early returns to maintain hook order
+    const chartCount = useMemo(() => {
+        if (!dashboardQuery.data?.tiles) return 0;
+        return dashboardQuery.data.tiles.filter(
+            (tile) =>
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid,
+        ).length;
+    }, [dashboardQuery.data?.tiles]);
 
     if (historyQuery.isInitialLoading || dashboardQuery.isInitialLoading) {
         return (
@@ -186,11 +204,19 @@ const DashboardHistory = () => {
                 </Stack>
             }
         >
-            <EmptyState
-                maw={500}
-                icon={<NoTableIcon />}
-                title="Preview not available"
-            />
+            {selectedVersionUuid ? (
+                <DashboardVersionComparison
+                    dashboardUuid={dashboardUuid}
+                    projectUuid={projectUuid}
+                    versionUuid={selectedVersionUuid}
+                />
+            ) : (
+                <EmptyState
+                    maw={500}
+                    icon={<NoTableIcon />}
+                    title="Select a version to compare"
+                />
+            )}
 
             <MantineModal
                 opened={isRollbackModalOpen}
@@ -219,11 +245,37 @@ const DashboardHistory = () => {
                     </Button>
                 }
             >
-                <Text>
-                    By restoring to this dashboard version, a new version will
-                    be generated and saved. All previous versions are still
-                    safely stored and can be restored at any time.
-                </Text>
+                <Stack gap="md">
+                    <Text>
+                        By restoring to this dashboard version, a new version
+                        will be generated and saved. All previous versions are
+                        still safely stored and can be restored at any time.
+                    </Text>
+                    {chartCount > 0 && (
+                        <Callout variant="info">
+                            <Stack gap="xs">
+                                <Flex align="center" gap="xs">
+                                    <MantineIcon
+                                        icon={IconChartBar}
+                                        size="sm"
+                                    />
+                                    <Text size="sm" fw={600}>
+                                        Complete restoration including charts
+                                    </Text>
+                                </Flex>
+                                <Text size="sm">
+                                    This restoration will include all{' '}
+                                    {chartCount} chart
+                                    {chartCount !== 1 ? 's' : ''}
+                                    in the dashboard. Each chart will be
+                                    restored to its exact state at the time this
+                                    dashboard version was created, ensuring a
+                                    complete point-in-time recovery.
+                                </Text>
+                            </Stack>
+                        </Callout>
+                    )}
+                </Stack>
             </MantineModal>
         </Page>
     );

@@ -38,8 +38,11 @@ import {
     UpdateMultipleDashboards,
     type ChartFieldUpdates,
     type ContentVerificationInfo,
+    type ChartVersionDifference,
+    type ChartVersionSummary,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
+    type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
@@ -1566,6 +1569,144 @@ export class DashboardService
         return { history: versions };
     }
 
+    async getVersion(
+        user: SessionUser,
+        dashboardUuid: string,
+        versionUuid: string,
+    ): Promise<DashboardVersion> {
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboardDao.spaceUuid,
+            );
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboardDao,
+                    inheritsFromOrgOrProject,
+                    access,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to view this dashboard version",
+            );
+        }
+
+        const [versionSummaries, dashboard] = await Promise.all([
+            this.dashboardModel.getLatestVersionSummaries(dashboardUuid),
+            this.dashboardModel.getVersionByUuid(dashboardUuid, versionUuid),
+        ]);
+
+        // Find the specific version summary
+        const versionSummary = versionSummaries.find(
+            (v) => v.versionUuid === versionUuid,
+        );
+
+        if (!versionSummary || !dashboard) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+
+        // Construct a full dashboard object from the version
+        const fullDashboard: Dashboard = {
+            ...dashboardDao,
+            tiles: dashboard.tiles,
+            filters: dashboard.filters,
+            parameters: dashboard.parameters,
+            tabs: dashboard.tabs,
+            config: dashboard.config,
+            updatedAt: dashboard.updatedAt,
+            updatedByUser: dashboard.updatedByUser,
+            inheritsFromOrgOrProject,
+            access,
+        };
+
+        // Check if this is the current version
+        const isCurrentVersion = dashboardDao.versionUuid === versionUuid;
+
+        // Calculate chart version differences only if not the current version
+        const chartVersionDifferences: ChartVersionDifference[] = [];
+
+        if (!isCurrentVersion) {
+            // Get current tiles with saved charts
+            const currentChartTiles = dashboardDao.tiles.filter(
+                (tile) =>
+                    isDashboardChartTileType(tile) &&
+                    tile.properties.savedChartUuid,
+            );
+
+            // Get version tiles with saved charts
+            const versionChartTiles = dashboard.tiles.filter(
+                (tile) =>
+                    isDashboardChartTileType(tile) &&
+                    tile.properties.savedChartUuid,
+            );
+
+            // Compare charts that exist in the version
+            const versionChartDifferencesPromises = versionChartTiles
+                .filter(isDashboardChartTileType)
+                .filter((tile) => tile.properties.savedChartUuid)
+                .map(async (versionTile) => {
+                    const chartUuid = versionTile.properties.savedChartUuid!;
+                    const currentTile = currentChartTiles.find(
+                        (tile) =>
+                            isDashboardChartTileType(tile) &&
+                            tile.properties.savedChartUuid === chartUuid,
+                    );
+
+                    let currentChartVersion: ChartVersionSummary | null = null;
+                    let selectedChartVersion: ChartVersionSummary | null = null;
+
+                    try {
+                        // Get all version summaries for this chart
+                        const chartVersions =
+                            await this.savedChartModel.getLatestVersionSummaries(
+                                chartUuid,
+                            );
+
+                        // The most recent version is the current one
+                        if (chartVersions.length > 0) {
+                            [currentChartVersion] = chartVersions;
+                        }
+
+                        // For the selected version, we would need to track which chart version
+                        // was active when the dashboard version was created
+                        // For now, we'll use the second most recent as an approximation
+                        if (chartVersions.length > 1) {
+                            [, selectedChartVersion] = chartVersions;
+                        }
+                    } catch (error) {
+                        // Chart might have been deleted or inaccessible
+                        this.logger.debug(
+                            `Could not fetch chart versions for ${chartUuid}: ${error}`,
+                        );
+                    }
+
+                    return {
+                        tileUuid: versionTile.uuid,
+                        chartUuid,
+                        chartName: versionTile.properties.chartName || null,
+                        currentVersion: currentChartVersion,
+                        selectedVersion: selectedChartVersion,
+                    };
+                });
+
+            const versionChartDifferences = await Promise.all(
+                versionChartDifferencesPromises,
+            );
+            chartVersionDifferences.push(...versionChartDifferences);
+        }
+
+        return {
+            ...versionSummary,
+            dashboard: fullDashboard,
+            chartVersionDifferences,
+        };
+    }
+
     async rollback(
         user: SessionUser,
         dashboardUuid: string,
@@ -1573,6 +1714,15 @@ export class DashboardService
     ): Promise<void> {
         const dashboardDao =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        // Check if trying to rollback to current version
+        if (dashboardDao.versionUuid === versionUuid) {
+            this.logger.info(
+                `Ignoring rollback request - version ${versionUuid} is already the current version for dashboard ${dashboardUuid}`,
+            );
+            return;
+        }
+
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1616,13 +1766,16 @@ export class DashboardService
             dashboardDao.projectUuid,
         );
 
-        // Rollback charts to their state at the target version's creation time
-        const chartUuids = targetVersion.tiles
-            .filter(
-                (tile) =>
-                    isDashboardChartTileType(tile) &&
-                    tile.properties.savedChartUuid,
-            )
+        // Only rollback charts that belong to the dashboard
+        // Charts not belonging to the dashboard should remain at their current version
+        const dashboardOwnedChartTiles = targetVersion.tiles.filter(
+            (tile) =>
+                isDashboardChartTileType(tile) &&
+                tile.properties.savedChartUuid &&
+                tile.properties.belongsToDashboard === true,
+        );
+
+        const chartUuids = dashboardOwnedChartTiles
             .map((tile) =>
                 isDashboardChartTileType(tile)
                     ? tile.properties.savedChartUuid!
@@ -1633,41 +1786,49 @@ export class DashboardService
         // Get unique chart UUIDs
         const uniqueChartUuids = [...new Set(chartUuids)];
 
-        // Rollback each chart to its version at the target dashboard version time
-        await Promise.all(
-            uniqueChartUuids.map(async (chartUuid) => {
-                try {
-                    // Get the chart version that was active when the dashboard version was created
-                    const chartVersion =
-                        await this.savedChartModel.getVersionAtTimestamp(
-                            chartUuid,
-                            targetVersion.updatedAt,
-                        );
+        // Rollback each dashboard-owned chart to its version at the target dashboard version time
+        if (uniqueChartUuids.length > 0) {
+            this.logger.info(
+                `Rolling back ${uniqueChartUuids.length} dashboard-owned charts`,
+            );
 
-                    if (chartVersion) {
-                        // Rollback the chart to that version
-                        await this.savedChartModel.rollbackToVersion(
-                            chartUuid,
-                            chartVersion.saved_queries_version_id,
-                            user.userUuid,
-                        );
+            await Promise.all(
+                uniqueChartUuids.map(async (chartUuid) => {
+                    try {
+                        // Get the chart version that was active when the dashboard version was created
+                        const chartVersion =
+                            await this.savedChartModel.getVersionAtTimestamp(
+                                chartUuid,
+                                targetVersion.updatedAt,
+                            );
 
-                        this.logger.info(
-                            `Rolled back chart ${chartUuid} to version ${chartVersion.saved_queries_version_id}`,
-                        );
-                    } else {
-                        this.logger.warn(
-                            `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}`,
+                        if (chartVersion) {
+                            // Rollback the chart to that version
+                            await this.savedChartModel.rollbackToVersion(
+                                chartUuid,
+                                chartVersion.saved_queries_version_id,
+                                user.userUuid,
+                            );
+
+                            this.logger.info(
+                                `Rolled back chart ${chartUuid} to version ${chartVersion.saved_queries_version_id}`,
+                            );
+                        } else {
+                            this.logger.warn(
+                                `No chart version found for ${chartUuid} at timestamp ${targetVersion.updatedAt}. Chart may have been created after this dashboard version.`,
+                            );
+                        }
+                    } catch (error) {
+                        // Log error but continue with other charts
+                        this.logger.error(
+                            `Failed to rollback chart ${chartUuid}: ${error}`,
                         );
                     }
-                } catch (error) {
-                    // Log error but continue with other charts
-                    this.logger.error(
-                        `Failed to rollback chart ${chartUuid}: ${error}`,
-                    );
-                }
-            }),
-        );
+                }),
+            );
+        } else {
+            this.logger.info('No dashboard-owned charts to rollback');
+        }
 
         this.analytics.track({
             event: 'dashboard_version.rollback',
