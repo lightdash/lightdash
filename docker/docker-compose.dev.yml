@@ -11,9 +11,9 @@ x-lightdash-build: &lightdash-build
     target: dev
 
 x-lightdash-volumes: &lightdash-volumes
-    - '../:/usr/app'
-    - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
-    - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+    - "../:/usr/app"
+    - "../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt"
+    - "node_modules:/usr/app/node_modules/" # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
     # - ${HOME}/.config/gcloud:/root/.config/gcloud # Uncomment this line if you want to use your credential as gcloud ADC in dev container
 
 x-lightdash-environment: &lightdash-environment
@@ -37,6 +37,7 @@ x-lightdash-environment: &lightdash-environment
     EXPOSED_SITE_URL: ${EXPOSED_SITE_URL}
     ALLOW_MULTIPLE_ORGS: ${ALLOW_MULTIPLE_ORGS}
     LIGHTDASH_QUERY_MAX_LIMIT: ${LIGHTDASH_QUERY_MAX_LIMIT}
+    CURATED_DRILL_INTO_ENABLED: ${CURATED_DRILL_INTO_ENABLED}
     HEADLESS_BROWSER_HOST: ${HEADLESS_BROWSER_HOST}
     HEADLESS_BROWSER_PORT: ${HEADLESS_BROWSER_PORT}
     INTERNAL_LIGHTDASH_HOST: ${INTERNAL_LIGHTDASH_HOST}
@@ -135,10 +136,10 @@ services:
             LIGHTDASH_PROMETHEUS_PORT: ${LIGHTDASH_PROMETHEUS_PORT}
             LIGHTDASH_PROMETHEUS_PATH: ${LIGHTDASH_PROMETHEUS_PATH}
         ports:
-            - '8080:8080'
-            - '9090:9090'
-            - '3000:3000'
-            - '6006:6006'
-            - '9229:9229'
-        command: ''
-        entrypoint: ['/bin/sh', '-c', 'sleep infinity']
+            - "8080:8080"
+            - "9090:9090"
+            - "3000:3000"
+            - "6006:6006"
+            - "9229:9229"
+        command: ""
+        entrypoint: ["/bin/sh", "-c", "sleep infinity"]

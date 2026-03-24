@@ -52,6 +52,8 @@ export class FeatureFlagModel {
                 this.getUserImpersonationEnabled.bind(this),
             [FeatureFlags.ChangeChartExplore]:
                 this.getChangeChartExploreEnabled.bind(this),
+            [FeatureFlags.CuratedDrillInto]:
+                this.getCuratedDrillIntoEnabled.bind(this),
         };
     }
 
@@ -328,6 +330,27 @@ export class FeatureFlagModel {
                       {
                           throwOnTimeout: false,
                           timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getCuratedDrillIntoEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.curatedDrillInto.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.CuratedDrillInto,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
                       },
                   )
                 : false);

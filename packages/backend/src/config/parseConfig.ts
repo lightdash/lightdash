@@ -1259,6 +1259,9 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     appRuntime: AppRuntimeConfig;
+    curatedDrillInto: {
+        enabled: boolean | undefined;
+    };
 };
 
 export type SlackConfig = {
@@ -2257,5 +2260,11 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
+        curatedDrillInto: {
+            enabled:
+                process.env.CURATED_DRILL_INTO_ENABLED === 'true'
+                    ? true
+                    : undefined,
+        },
     };
 };

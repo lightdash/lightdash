@@ -122,6 +122,11 @@ export enum FeatureFlags {
      * browser memory to 3 GB+ when all tab data stays in memory.
      */
     DashboardTabsInMemory = 'dashboard-tabs-in-memory',
+
+    /**
+     * Enable curated drill-into paths on charts (drill down + drill through)
+     */
+    CuratedDrillInto = 'curated-drill-into',
 }
 
 export type FeatureFlag = {
