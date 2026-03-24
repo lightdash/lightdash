@@ -26,12 +26,10 @@ export type StreamConfig = {
     durableName: string;
 };
 
-// All known stream types
 export const natsWorkerStreamSchema = z.enum(['warehouse', 'pre-aggregate']);
 export type NatsWorkerStream = z.infer<typeof natsWorkerStreamSchema>;
 
-// OSS streams — always available
-const OSS_STREAM_CONFIGS: Record<'warehouse', StreamConfig> = {
+export const NATS_STREAMS = {
     warehouse: {
         streamName: 'WAREHOUSE_QUERY_JOBS',
         subjects: {
@@ -39,21 +37,33 @@ const OSS_STREAM_CONFIGS: Record<'warehouse', StreamConfig> = {
         },
         durableName: 'worker-warehouse',
     },
-};
-
-// Pre-aggregate stream config — registered by EE
-const PRE_AGGREGATE_STREAM_CONFIG: StreamConfig = {
-    streamName: 'PRE_AGGREGATE_QUERY_JOBS',
-    subjects: {
-        query: 'pre_aggregate.query.jobs',
-        materialization: 'pre_aggregate.materialization.jobs',
+    'pre-aggregate': {
+        streamName: 'PRE_AGGREGATE_QUERY_JOBS',
+        subjects: {
+            query: 'pre_aggregate.query.jobs',
+            materialization: 'pre_aggregate.materialization.jobs',
+        },
+        durableName: 'worker-pre-aggregate',
     },
-    durableName: 'worker-pre-aggregate',
-};
+} as const satisfies Record<NatsWorkerStream, StreamConfig>;
+
+type NatsStreamDefs = typeof NATS_STREAMS;
+export type NatsSubject = {
+    [S in keyof NatsStreamDefs]: NatsStreamDefs[S]['subjects'][keyof NatsStreamDefs[S]['subjects']];
+}[keyof NatsStreamDefs];
+
+const KNOWN_SUBJECTS: ReadonlySet<string> = new Set(
+    Object.values(NATS_STREAMS).flatMap((config) =>
+        Object.values(config.subjects),
+    ),
+);
+
+export const isKnownNatsSubject = (subject: string): subject is NatsSubject =>
+    KNOWN_SUBJECTS.has(subject);
 
 // Extensible stream configs — EE registers additional streams
 export const STREAM_CONFIGS: Record<string, StreamConfig> = {
-    ...OSS_STREAM_CONFIGS,
+    warehouse: NATS_STREAMS.warehouse,
 };
 
 export const NATS_WORKER_STREAMS = natsWorkerStreamSchema.options;
@@ -79,5 +89,5 @@ export const registerStreamConfig = (
  * Register the pre-aggregate stream. Called from EE initialization.
  */
 export const registerPreAggregateStream = (): void => {
-    registerStreamConfig('pre-aggregate', PRE_AGGREGATE_STREAM_CONFIG);
+    registerStreamConfig('pre-aggregate', NATS_STREAMS['pre-aggregate']);
 };
