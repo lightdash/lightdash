@@ -3,7 +3,6 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AlreadyExistsError,
-    AlreadyProcessingError,
     AndFilterGroup,
     AnyType,
     ApiChartAndResults,
@@ -97,6 +96,7 @@ import {
     ItemsMap,
     Job,
     JobStatusType,
+    JobStepStatusType,
     JobStepType,
     JobType,
     LightdashError,
@@ -5035,7 +5035,12 @@ export class ProjectService extends BaseService {
         };
 
         const onLockFailed = async () => {
-            throw new AlreadyProcessingError('Project is already compiling');
+            await this.jobModel.updateJobStep(
+                job.jobUuid,
+                JobStepStatusType.ERROR,
+                JobStepType.COMPILING,
+                'Compilation is already in progress for this project',
+            );
         };
 
         const timings = {
