@@ -53,6 +53,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
+    const tileDrillSteps = useDashboardContext((c) => c.tileDrillSteps);
 
     // Image export state
     const [previews, setPreviews] = useState<Record<string, string>>({});
@@ -93,6 +94,12 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         : undefined;
 
     const handleCsvExport = useCallback(() => {
+        // Only include drill steps for tiles that have active drills
+        const activeDrillSteps =
+            Object.keys(tileDrillSteps).length > 0
+                ? tileDrillSteps
+                : undefined;
+
         exportCsvDashboardMutation.mutate({
             dashboard,
             filters: dashboardFilters,
@@ -103,6 +110,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                 selectedTabs.length > 0
                     ? selectedTabs
                     : null,
+            tileDrillSteps: activeDrillSteps,
         });
         onClose();
     }, [
@@ -113,6 +121,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         isDashboardTabsAvailable,
         allTabsSelected,
         selectedTabs,
+        tileDrillSteps,
         onClose,
     ]);
 

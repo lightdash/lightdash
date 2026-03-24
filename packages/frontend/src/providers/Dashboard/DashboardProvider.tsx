@@ -16,6 +16,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardParameters,
+    type DrillStep,
     type FilterableDimension,
     type InteractivityOptions,
     type ParameterDefinitions,
@@ -599,6 +600,28 @@ const DashboardProvider: React.FC<
 
     const markTileScreenshotErrored = useCallback((tileUuid: string) => {
         setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
+    }, []);
+
+    // Per-tile drill steps for dashboard CSV export
+    const [tileDrillSteps, setTileDrillStepsState] = useState<
+        Record<string, { chartUuid: string; drillSteps: DrillStep[] }>
+    >({});
+    const setTileDrillSteps = useCallback(
+        (tileUuid: string, chartUuid: string, drillSteps: DrillStep[]) => {
+            setTileDrillStepsState((prev) => ({
+                ...prev,
+                [tileUuid]: { chartUuid, drillSteps },
+            }));
+        },
+        [],
+    );
+    const clearTileDrillSteps = useCallback((tileUuid: string) => {
+        setTileDrillStepsState((prev) => {
+            if (!(tileUuid in prev)) return prev;
+            const next = { ...prev };
+            delete next[tileUuid];
+            return next;
+        });
     }, []);
 
     const expectedScreenshotTileUuids = useMemo(() => {
@@ -1564,6 +1587,9 @@ const DashboardProvider: React.FC<
         screenshotReadyTilesCount: screenshotReadyTiles.size,
         screenshotErroredTilesCount: screenshotErroredTiles.size,
         expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
+        tileDrillSteps,
+        setTileDrillSteps,
+        clearTileDrillSteps,
     };
     return (
         <DashboardContext.Provider value={value}>
