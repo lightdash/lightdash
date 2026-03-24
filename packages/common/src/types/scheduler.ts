@@ -1,5 +1,6 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AnyType } from './any';
+import { type DrillStep } from './api/paginatedQuery';
 import { type ApiSuccess } from './api/success';
 import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
@@ -714,6 +715,11 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardFilters: DashboardFilters;
     selectedTabs: string[] | null;
     dateZoomGranularity?: DateGranularity | string;
+    /** Per-tile drill steps keyed by tileUuid — tiles with entries use the chart-drill endpoint */
+    tileDrillSteps?: Record<
+        string,
+        { chartUuid: string; drillSteps: DrillStep[] }
+    >;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
