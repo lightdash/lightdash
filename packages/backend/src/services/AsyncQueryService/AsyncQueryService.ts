@@ -78,6 +78,8 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
+    type DateZoom,
+    type SavedChartDAO,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
@@ -3432,13 +3434,67 @@ export class AsyncQueryService extends ProjectService {
             account.isRegisteredUser() ? account.user.id : null,
         );
 
-        const requestParameters: ExecuteAsyncSavedChartRequestParams = {
-            context,
-            chartUuid,
-            versionUuid,
-            limit,
-        };
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            savedChartTableName,
+            savedChartOrganizationUuid,
+        );
 
+        return this.executeChartQueryPipeline({
+            account,
+            projectUuid,
+            context,
+            invalidateCache,
+            limit,
+            parameters,
+            pivotResults,
+            savedChart,
+            metricQuery,
+            explore,
+            chartParameters: savedChartParameters,
+            requestParameters: { context, chartUuid, versionUuid, limit },
+            enablePreAggregation: true,
+        });
+    }
+
+    /**
+     * Shared execution pipeline for saved chart queries and drill queries.
+     * Handles: limit enforcement, warehouse SQL generation, parameter combination,
+     * field resolution, pivot configuration, SQL preparation, optional pre-aggregation
+     * routing, and async query dispatch.
+     */
+    private async executeChartQueryPipeline({
+        account,
+        projectUuid,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        dateZoom,
+        savedChart,
+        metricQuery,
+        explore,
+        chartParameters,
+        requestParameters,
+        enablePreAggregation,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        invalidateCache?: boolean;
+        limit?: number | null;
+        parameters?: ParametersValuesMap;
+        pivotResults?: boolean;
+        dateZoom?: DateZoom;
+        savedChart: SavedChartDAO;
+        metricQuery: MetricQuery;
+        explore: Explore;
+        chartParameters?: ParametersValuesMap;
+        requestParameters: ExecuteAsyncQueryRequestParams;
+        enablePreAggregation: boolean;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
         const metricQueryWithLimit = applyMetricQueryLimit(
             metricQuery,
             limit,
@@ -3448,19 +3504,12 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
-            organization_uuid: savedChartOrganizationUuid,
+            organization_uuid: savedChart.organizationUuid,
             project_uuid: projectUuid,
-            chart_uuid: chartUuid,
-            explore_name: savedChartTableName,
+            chart_uuid: savedChart.uuid,
+            explore_name: savedChart.tableName,
             query_context: context,
         };
-
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            savedChartTableName,
-            savedChartOrganizationUuid,
-        );
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -3474,12 +3523,11 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        // Combine default parameter values, saved chart parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             explore,
             parameters,
-            savedChartParameters,
+            chartParameters,
         );
 
         const { fields } = await this.getMetricQueryFields({
@@ -3487,6 +3535,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             warehouseSqlBuilder,
             projectUuid,
+            dateZoom,
         });
 
         const pivotConfiguration = pivotResults
@@ -3511,35 +3560,54 @@ export class AsyncQueryService extends ProjectService {
             account,
             metricQuery: metricQueryWithLimit,
             explore,
+            dateZoom,
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery: metricQueryWithLimit,
-            explore,
-            context,
-            // TODO: allow per-chart preference to bypass pre-aggregate cache
-            forceWarehouse: false,
-        });
+        let preAggregateMetadata:
+            | CacheMetadata['preAggregate']
+            | undefined;
+        let preAggregateSpread: Record<string, unknown> = {};
 
-        if (routingDecision.preAggregateMetadata) {
-            this.prometheusMetrics?.incrementPreAggregateMatch(
-                routingDecision.preAggregateMetadata.hit,
-                routingDecision.preAggregateMetadata.reason?.reason,
-            );
+        if (enablePreAggregation) {
+            const routingDecision = this.getPreAggregationRoutingDecision({
+                metricQuery: metricQueryWithLimit,
+                explore,
+                context,
+                // TODO: allow per-chart preference to bypass pre-aggregate cache
+                forceWarehouse: false,
+            });
+
+            preAggregateMetadata = routingDecision.preAggregateMetadata;
+
+            if (preAggregateMetadata) {
+                this.prometheusMetrics?.incrementPreAggregateMatch(
+                    preAggregateMetadata.hit,
+                    preAggregateMetadata.reason?.reason,
+                );
+            }
+
+            this.recordPreAggregateStats({
+                projectUuid,
+                exploreName: explore.name,
+                routingDecision,
+                chartUuid: savedChart.uuid,
+                dashboardUuid: null,
+                queryContext: context,
+            });
+
+            preAggregateSpread = {
+                routingTarget: routingDecision.target,
+                ...(routingDecision.target === 'pre_aggregate' && {
+                    preAggregationRoute: routingDecision.route,
+                    userAccessControls,
+                    availableParameterDefinitions,
+                }),
+            };
         }
-
-        this.recordPreAggregateStats({
-            projectUuid,
-            exploreName: explore.name,
-            routingDecision,
-            chartUuid: savedChart.uuid,
-            dashboardUuid: null,
-            queryContext: context,
-        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -3556,12 +3624,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
-                routingTarget: routingDecision.target,
-                ...(routingDecision.target === 'pre_aggregate' && {
-                    preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
-                }),
+                ...preAggregateSpread,
             },
             requestParameters,
         );
@@ -3570,7 +3633,9 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata: {
                 ...cacheMetadata,
-                preAggregate: routingDecision.preAggregateMetadata,
+                ...(preAggregateMetadata && {
+                    preAggregate: preAggregateMetadata,
+                }),
             },
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
@@ -3848,104 +3913,22 @@ export class AsyncQueryService extends ProjectService {
                       targetChart.organizationUuid,
                   );
 
-        const metricQueryWithLimit = applyMetricQueryLimit(
-            currentMetricQuery,
-            limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
-        );
-
-        const queryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            organization_uuid: targetChart.organizationUuid,
-            project_uuid: projectUuid,
-            chart_uuid: targetChart.uuid,
-            explore_name: targetChart.tableName,
-            query_context: context,
-        };
-
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
-
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
-            targetChart.parameters,
-        );
-
-        const { fields, dateZoomApplied } = await this.getMetricQueryFields({
-            metricQuery: metricQueryWithLimit,
-            explore,
-            warehouseSqlBuilder,
-            projectUuid,
-            dateZoom,
-        });
-
-        const pivotConfiguration = pivotResults
-            ? derivePivotConfigurationFromChart(
-                  savedChart,
-                  metricQueryWithLimit,
-                  fields,
-              )
-            : undefined;
-
-        const {
-            sql,
-            fields: fieldsWithOverrides,
-            warnings,
-            parameterReferences,
-            missingParameterReferences,
-            usedParameters,
-            responseMetricQuery,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        return this.executeChartQueryPipeline({
             account,
-            metricQuery: metricQueryWithLimit,
-            explore,
-            dateZoom,
-            warehouseSqlBuilder,
-            parameters: combinedParameters,
             projectUuid,
-            pivotConfiguration,
+            context,
+            invalidateCache,
+            limit,
+            parameters,
+            pivotResults,
+            dateZoom,
+            savedChart,
+            metricQuery: currentMetricQuery,
+            explore,
+            chartParameters: targetChart.parameters,
+            requestParameters: { context, chartUuid },
+            enablePreAggregation: false,
         });
-
-        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
-            {
-                account,
-                projectUuid,
-                explore,
-                context,
-                queryTags,
-                invalidateCache,
-                metricQuery: metricQueryWithLimit,
-                parameters: combinedParameters,
-                fields: fieldsWithOverrides,
-                sql,
-                originalColumns: undefined,
-                missingParameterReferences,
-                pivotConfiguration,
-            },
-            { context, chartUuid },
-        );
-
-        return {
-            queryUuid,
-            cacheMetadata,
-            metricQuery: responseMetricQuery,
-            fields: fieldsWithOverrides,
-            warnings,
-            parameterReferences,
-            usedParametersValues: usedParameters,
-        };
     }
 
     private async checkDashboardChartQueryPermissions(
