@@ -2,6 +2,8 @@ export * from './AiAgent';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';
 export * from './embed';
+export * from './preAggregates/types';
+export * as preAggregateUtils from './preAggregates/utils';
 export * from './scim/errors';
 export * from './scim/types';
 export * from './serviceAccounts/types';

@@ -2,6 +2,8 @@ import {
     assertUnreachable,
     getItemId,
     MetricType,
+    PreAggregateMetricRepresentationKind,
+    preAggregateUtils,
     type AdditionalMetric,
     type CompiledDimension,
     type CompiledMetric,
@@ -12,48 +14,22 @@ import {
     type MetricQuery,
     type PreAggregateDef,
 } from '@lightdash/common';
-import {
-    getMetricComponentColumnName,
-    getMetricsByReference,
-    getPreAggregateMetricRepresentation,
-    PreAggregateMetricRepresentationKind,
-} from '../../preAggregates';
-
-const getDimensionBaseName = (
-    dimension: Pick<
-        CompiledDimension,
-        'name' | 'timeIntervalBaseDimensionName'
-    >,
-): string => dimension.timeIntervalBaseDimensionName ?? dimension.name;
-
-const getDimensionReferences = (
-    dimension: Pick<
-        CompiledDimension,
-        'table' | 'name' | 'timeIntervalBaseDimensionName'
-    >,
-    baseTable: string,
-): string[] => {
-    const baseName = getDimensionBaseName(dimension);
-    const tableQualifiedRef = `${dimension.table}.${baseName}`;
-
-    if (dimension.table === baseTable) {
-        return [baseName, tableQualifiedRef];
-    }
-
-    return [tableQualifiedRef];
-};
+import { getMetricComponentColumnName } from '../../preAggregates';
 
 const getDimensionsByReference = (sourceExplore: Explore) =>
     Object.values(sourceExplore.tables).reduce<
         Map<string, CompiledDimension[]>
     >((acc, table) => {
         Object.values(table.dimensions).forEach((dimension) => {
-            getDimensionReferences(dimension, sourceExplore.baseTable).forEach(
-                (reference) => {
+            preAggregateUtils
+                .getDimensionReferences({
+                    dimension,
+                    baseTable: sourceExplore.baseTable,
+                })
+                .forEach((reference) => {
                     const existingDimensions = acc.get(reference) || [];
                     acc.set(reference, [...existingDimensions, dimension]);
-                },
-            );
+                });
         });
 
         return acc;
@@ -118,7 +94,8 @@ const getDimensionFieldId = ({
 
     const isTimeDimensionReference =
         !!preAggregateDef.timeDimension &&
-        getDimensionBaseName(candidates[0]) === preAggregateDef.timeDimension;
+        preAggregateUtils.getDimensionBaseName(candidates[0]) ===
+            preAggregateDef.timeDimension;
 
     if (
         isTimeDimensionReference &&
@@ -127,7 +104,7 @@ const getDimensionFieldId = ({
     ) {
         const timeGranularityDimension = candidates.find(
             (dimension) =>
-                getDimensionBaseName(dimension) ===
+                preAggregateUtils.getDimensionBaseName(dimension) ===
                     preAggregateDef.timeDimension &&
                 dimension.timeInterval === preAggregateDef.granularity,
         );
@@ -166,7 +143,7 @@ const hasTimeDimensionReference = ({
 
         return candidates.some(
             (dimension) =>
-                getDimensionBaseName(dimension) ===
+                preAggregateUtils.getDimensionBaseName(dimension) ===
                 preAggregateDef.timeDimension,
         );
     });
@@ -185,7 +162,7 @@ export const buildMaterializationMetricQuery = ({
     preAggregateDef: PreAggregateDef;
     materializationConfig: MaterializationConfig;
 }): MaterializationMetricQueryPayload => {
-    const metricsByReference = getMetricsByReference({
+    const metricsByReference = preAggregateUtils.getMetricsByReference({
         tables: sourceExplore.tables,
         baseTable: sourceExplore.baseTable,
     });
@@ -241,7 +218,9 @@ export const buildMaterializationMetricQuery = ({
     const metricComponents = Array.from(metricsByFieldId.entries()).reduce<
         Record<string, MaterializationMetricComponent[]>
     >((acc, [metricFieldId, metric]) => {
-        const representation = getPreAggregateMetricRepresentation(metric.type);
+        const representation = preAggregateUtils.getMetricRepresentation(
+            metric.type,
+        );
 
         switch (representation.kind) {
             case PreAggregateMetricRepresentationKind.DECOMPOSED: {
