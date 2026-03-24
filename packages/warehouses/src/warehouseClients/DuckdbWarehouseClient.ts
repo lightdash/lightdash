@@ -169,23 +169,59 @@ let httpfsInstalled = false;
 let cachesConfigured = false;
 let sharedBootstrapQueue: Promise<void> = Promise.resolve();
 
+/**
+ * Simple single-permit semaphore (mutex) for async code.
+ * Ensures only one caller at a time enters the critical section,
+ * while others await their turn.
+ */
+class AsyncSemaphore {
+    private queue: Array<() => void> = [];
+
+    private held = false;
+
+    acquire(): Promise<void> {
+        if (!this.held) {
+            this.held = true;
+            return Promise.resolve();
+        }
+        return new Promise<void>((resolve) => {
+            this.queue.push(resolve);
+        });
+    }
+
+    release(): void {
+        const next = this.queue.shift();
+        if (next) {
+            next();
+        } else {
+            this.held = false;
+        }
+    }
+}
+
+const instanceSemaphore = new AsyncSemaphore();
+
 async function getOrCreateSharedInstance(
     databasePath: string,
     logger?: DuckdbLogger,
 ): Promise<DuckdbInstance> {
-    if (!sharedInstance) {
+    if (sharedInstance) return sharedInstance;
+    await instanceSemaphore.acquire();
+    try {
+        if (sharedInstance) return sharedInstance;
+
         const t0 = performance.now();
-        sharedInstance = (await DuckDBInstance.create(
-            databasePath,
-        )) as DuckdbInstance;
+        sharedInstance = await DuckDBInstance.create(databasePath);
         const createMs = performance.now() - t0;
         httpfsInstalled = false;
         cachesConfigured = false;
         logger?.info(
             `DuckDB shared instance created: path=${databasePath} createMs=${Math.round(createMs)}ms`,
         );
+        return sharedInstance;
+    } finally {
+        instanceSemaphore.release();
     }
-    return sharedInstance;
 }
 
 function clearSharedInstance(logger?: DuckdbLogger): void {
