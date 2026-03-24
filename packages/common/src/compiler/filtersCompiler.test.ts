@@ -1063,7 +1063,9 @@ describe('case sensitivity', () => {
                 "'",
                 false, // caseSensitive = false
             ),
-        ).toBe(`(UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Bob%') OR (${stringFilterDimension}) IS NULL)`);
+        ).toBe(
+            `(UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Bob%') OR (${stringFilterDimension}) IS NULL)`,
+        );
     });
     test('should not apply UPPER() when caseSensitive is true for NOT_INCLUDE', () => {
         const filter = {
@@ -1077,7 +1079,9 @@ describe('case sensitivity', () => {
                 "'",
                 true, // caseSensitive = true (default)
             ),
-        ).toBe(`((${stringFilterDimension}) NOT LIKE '%Bob%' OR (${stringFilterDimension}) IS NULL)`);
+        ).toBe(
+            `((${stringFilterDimension}) NOT LIKE '%Bob%' OR (${stringFilterDimension}) IS NULL)`,
+        );
     });
     test('should apply UPPER() when caseSensitive is false for NOT_INCLUDE with multiple values', () => {
         const filter = {
