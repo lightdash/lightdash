@@ -1,3 +1,11 @@
+## [0.2661.1](https://github.com/lightdash/lightdash/compare/0.2661.0...0.2661.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* add repository URL to query sdk ([#21375](https://github.com/lightdash/lightdash/issues/21375)) ([4b1736c](https://github.com/lightdash/lightdash/commit/4b1736c3a59fb90f276da75de1f3efa1fb059b81))
+* duplicate metric/dimension names should warn, not error the entire explore ([#21348](https://github.com/lightdash/lightdash/issues/21348)) ([97eb2c5](https://github.com/lightdash/lightdash/commit/97eb2c52e74ae89707f2df3a8df2d6ad4758de5a))
+
 # [0.2661.0](https://github.com/lightdash/lightdash/compare/0.2660.1...0.2661.0) (2026-03-24)
 
 
