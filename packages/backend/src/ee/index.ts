@@ -240,6 +240,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAdminNotificationService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
                 }),
             instanceConfigurationService: ({
                 models,
