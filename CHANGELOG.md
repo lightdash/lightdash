@@ -1,3 +1,11 @@
+## [0.2657.5](https://github.com/lightdash/lightdash/compare/0.2657.4...0.2657.5) (2026-03-24)
+
+
+### Bug Fixes
+
+* handle PostgreSQL identifier truncation notices in warehouse queries ([#21318](https://github.com/lightdash/lightdash/issues/21318)) ([53f328b](https://github.com/lightdash/lightdash/commit/53f328ba1e455253e14d23e8eb09c587644ef13c)), closes [#21315](https://github.com/lightdash/lightdash/issues/21315) [#150](https://github.com/lightdash/lightdash/issues/150)
+* update job step status instead of throwing error when compilation lock fails ([#21340](https://github.com/lightdash/lightdash/issues/21340)) ([07e7234](https://github.com/lightdash/lightdash/commit/07e7234d670c945e29fe1ff5918d542217f161f0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2657.4](https://github.com/lightdash/lightdash/compare/0.2657.3...0.2657.4) (2026-03-24)
 
 
