@@ -2717,23 +2717,26 @@ export class ProjectService extends BaseService {
         const expiredProjects =
             await this.projectModel.getExpiredPreviewProjects();
 
-        let deletedCount = 0;
-        for (const { projectUuid } of expiredProjects) {
-            try {
-                await this.projectModel.delete(projectUuid);
-                deletedCount++;
-                this.logger.info(
-                    `Deleted expired preview project: ${projectUuid}`,
-                );
-            } catch (error) {
-                this.logger.error(
-                    `Failed to delete expired preview project ${projectUuid}`,
-                    { error },
-                );
-            }
-        }
+        const results = await Promise.allSettled(
+            expiredProjects.map(({ projectUuid }) =>
+                this.projectModel.delete(projectUuid).then(() => {
+                    this.logger.info(
+                        `Deleted expired preview project: ${projectUuid}`,
+                    );
+                }),
+            ),
+        );
 
-        return deletedCount;
+        results
+            .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+            .forEach((r, i) => {
+                this.logger.error(
+                    `Failed to delete expired preview project ${expiredProjects[i].projectUuid}`,
+                    { error: r.reason },
+                );
+            });
+
+        return results.filter((r) => r.status === 'fulfilled').length;
     }
 
     private async buildAdapter(
