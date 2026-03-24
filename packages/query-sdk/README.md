@@ -80,7 +80,7 @@ const lightdash = createClient({
 
 ## Query builder
 
-Queries are built with a chainable, immutable API. Field names use short names (e.g. `driver_name`), and the SDK qualifies them automatically for the API.
+Queries are built with a chainable, immutable API. Fields use short names (e.g. `driver_name`), and the SDK qualifies them automatically for the API.
 
 ```ts
 lightdash
