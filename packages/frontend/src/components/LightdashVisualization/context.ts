@@ -2,10 +2,13 @@ import type {
     ApiErrorDetail,
     ChartConfig,
     ChartType,
+    DrillConfig,
+    DrillPath,
     EChartsSeries,
     ItemsMap,
     MetricQuery,
     ParametersValuesMap,
+    ResultValue,
     StackType,
 } from '@lightdash/common';
 import type { Map as LeafletMap } from 'leaflet';
@@ -54,6 +57,18 @@ type VisualizationContext = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    drillConfig?: DrillConfig;
+    onDrill?: (params: {
+        drillPath: DrillPath;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
+    onLinkedChartDrill?: (params: {
+        drillPathId: string;
+        linkedChartUuid: string;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
 };

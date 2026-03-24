@@ -7,11 +7,14 @@ import {
     type ChartConfig,
     type DashboardFilters,
     type DateZoom,
+    type DrillConfig,
+    type DrillPath,
     type EChartsSeries,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
     type PivotValue,
+    type ResultValue,
     type Series,
     type StackType,
     type TableCalculationMetadata,
@@ -87,6 +90,17 @@ export type VisualizationProviderProps = {
     containerHeight?: number;
     isDashboard?: boolean;
     isEditMode?: boolean;
+    drillConfig?: DrillConfig;
+    onDrill?: (params: {
+        drillPath: DrillPath;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
+    onLinkedChartDrill?: (params: {
+        linkedChartUuid: string;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
     dateZoom?: DateZoom;
 };
 
@@ -119,6 +133,9 @@ const VisualizationProvider: FC<
     containerHeight,
     isDashboard,
     isEditMode,
+    drillConfig,
+    onDrill,
+    onLinkedChartDrill,
     dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
@@ -363,6 +380,9 @@ const VisualizationProvider: FC<
         containerHeight,
         isDashboard,
         isEditMode,
+        drillConfig,
+        onDrill,
+        onLinkedChartDrill,
         isTouchDevice,
     };
 

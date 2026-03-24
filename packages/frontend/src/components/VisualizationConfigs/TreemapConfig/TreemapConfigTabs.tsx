@@ -1,5 +1,7 @@
 import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { useDrillFeatureFlag } from '../../../hooks/useDrillFeatureFlag';
+import DrillConfigPanel from '../DrillConfigPanel/DrillConfigPanel';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { Display } from './TreemapDisplayConfig';
 import { Layout } from './TreemapLayoutConfig';
@@ -11,6 +13,8 @@ export const ConfigTabs: FC = memo(() => {
         [colorScheme],
     );
 
+    const drillEnabled = useDrillFeatureFlag();
+
     return (
         <MantineProvider inherit theme={themeOverride}>
             <Tabs defaultValue="layout" keepMounted={false}>
@@ -21,6 +25,11 @@ export const ConfigTabs: FC = memo(() => {
                     <Tabs.Tab px="sm" value="display">
                         Display
                     </Tabs.Tab>
+                    {drillEnabled && (
+                        <Tabs.Tab px="sm" value="drill">
+                            Drill
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
 
                 <Tabs.Panel value="layout">
@@ -30,6 +39,12 @@ export const ConfigTabs: FC = memo(() => {
                 <Tabs.Panel value="display">
                     <Display />
                 </Tabs.Panel>
+
+                {drillEnabled && (
+                    <Tabs.Panel value="drill">
+                        <DrillConfigPanel />
+                    </Tabs.Panel>
+                )}
             </Tabs>
         </MantineProvider>
     );

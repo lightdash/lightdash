@@ -7,6 +7,7 @@ import {
     useGenerateChartMetadata,
 } from '../../../ee/features/ambientAi';
 import {
+    selectDrillState,
     selectHasUnsavedChanges,
     selectIsValidQuery,
     selectSavedChart,
@@ -97,8 +98,12 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
         onComplete: handleMetadataComplete,
     });
 
+    const drillState = useExplorerSelector(selectDrillState);
+    const isDrillActive = !!drillState;
+
     const isDisabled =
         disabled ||
+        isDrillActive ||
         !unsavedChartVersion.tableName ||
         !hasUnsavedChanges ||
         foundCustomMetricWithDuplicateId ||
@@ -120,9 +125,11 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
         <>
             <Tooltip
                 label={
-                    'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
+                    isDrillActive
+                        ? 'Exit the drill-into view before saving'
+                        : 'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
                 }
-                disabled={!foundCustomMetricWithDuplicateId}
+                disabled={!isDrillActive && !foundCustomMetricWithDuplicateId}
                 withinPortal
                 multiline
                 position={'bottom'}
