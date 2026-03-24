@@ -1,3 +1,10 @@
+## [0.2657.2](https://github.com/lightdash/lightdash/compare/0.2657.1...0.2657.2) (2026-03-24)
+
+
+### Performance Improvements
+
+* optimize dashboard tab rendering with memoized grid panels ([#21313](https://github.com/lightdash/lightdash/issues/21313)) ([f63d2df](https://github.com/lightdash/lightdash/commit/f63d2df8f61e6f6d67137c764872b5b9861f9756))
+
 ## [0.2657.1](https://github.com/lightdash/lightdash/compare/0.2657.0...0.2657.1) (2026-03-24)
 
 
