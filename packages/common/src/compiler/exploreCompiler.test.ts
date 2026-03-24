@@ -400,7 +400,7 @@ describe('Compile metrics with filters', () => {
                 [],
             ).compiledSql,
         ).toStrictEqual(
-            `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN ("table1".number_column) ELSE NULL END)`,
+            `MAX(CASE WHEN (("table1".shared) LIKE '%foo%') THEN ("table1".number_column) ELSE NULL END)`,
         );
     });
     test('should show filters as columns metric2', () => {
@@ -423,7 +423,7 @@ describe('Compile metrics with filters', () => {
                 [],
             ).compiledSql,
         ).toStrictEqual(
-            `MAX(CASE WHEN (LOWER("table1".shared) LIKE LOWER('%foo%')) THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
+            `MAX(CASE WHEN (("table1".shared) LIKE '%foo%') THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
         );
     });
 });
