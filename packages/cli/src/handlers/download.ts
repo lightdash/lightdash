@@ -19,6 +19,7 @@ import {
     PromotionAction,
     PromotionChanges,
     SqlChartAsCode,
+    type SpaceAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs, type Stats } from 'fs';
 import * as yaml from 'js-yaml';
@@ -201,6 +202,48 @@ const writeContent = async (
         type: metadataType,
         downloadedAt: downloadedAtString,
     };
+};
+
+/**
+ * Writes space YAML files for each space in the download results.
+ * In flat mode, files go in the base download directory.
+ * In nested mode, files go in the root of each space's directory.
+ */
+const writeSpaceFiles = async (
+    spaces: SpaceAsCode[],
+    projectName: string,
+    customPath?: string,
+    folderScheme: FolderScheme = 'flat',
+): Promise<void> => {
+    if (spaces.length === 0) return;
+
+    const baseDir = getDownloadFolder(customPath);
+    const seen = new Set<string>();
+
+    for (const space of spaces) {
+        // Deduplicate across paginated API responses
+        if (!seen.has(space.slug)) {
+            seen.add(space.slug);
+
+            let outputDir: string;
+            if (folderScheme === 'nested') {
+                outputDir = path.join(baseDir, projectName, space.slug);
+            } else {
+                outputDir = baseDir;
+            }
+
+            await fs.mkdir(outputDir, { recursive: true });
+
+            const fileName = `${generateSlug(space.spaceName)}.space.yml`;
+            const filePath = path.join(outputDir, fileName);
+            const content = yaml.dump(space, {
+                quotingType: '"',
+                sortKeys: true,
+            });
+            await fs.writeFile(filePath, content);
+            GlobalState.debug(`Wrote space file: ${filePath}`);
+        }
+    }
 };
 
 const hasUnsortedKeys = (obj: unknown): boolean => {
@@ -408,6 +451,8 @@ const readLooseCodeFiles = async (
                                 metadata,
                             ),
                         );
+                    } else if (contentType === ContentAsCodeTypeEnum.SPACE) {
+                        // Space YAML files are metadata-only until the next PR
                     } else {
                         GlobalState.debug(
                             `Skipping ${file.name}: no recognized contentType`,
@@ -560,6 +605,7 @@ export const downloadContent = async (
     let total = 0;
     let chartSlugs: string[] = [];
     let allMetadataEntries: MetadataEntry[] = [];
+    let allSpaces: SpaceAsCode[] = [];
 
     do {
         GlobalState.debug(
@@ -656,9 +702,17 @@ export const downloadContent = async (
             }
         }
 
+        // Accumulate space metadata from each page
+        if ('spaces' in results && results.spaces) {
+            allSpaces = [...allSpaces, ...results.spaces];
+        }
+
         offset = results.offset;
         total = results.total;
     } while (offset < total);
+
+    // Write space YAML files
+    await writeSpaceFiles(allSpaces, projectName, customPath, folderScheme);
 
     return [total, [...new Set(chartSlugs)], allMetadataEntries];
 };
