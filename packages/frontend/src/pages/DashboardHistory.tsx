@@ -57,14 +57,15 @@ const DashboardHistory = () => {
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);
 
-    // Count the number of charts in the dashboard
+    // Count only dashboard-owned charts (only these are affected by rollback)
     // Must be before early returns to maintain hook order
     const chartCount = useMemo(() => {
         if (!dashboardQuery.data?.tiles) return 0;
         return dashboardQuery.data.tiles.filter(
             (tile) =>
                 isDashboardChartTileType(tile) &&
-                tile.properties.savedChartUuid,
+                tile.properties.savedChartUuid &&
+                tile.properties.belongsToDashboard,
         ).length;
     }, [dashboardQuery.data?.tiles]);
 

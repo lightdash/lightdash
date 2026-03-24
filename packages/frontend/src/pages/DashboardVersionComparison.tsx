@@ -843,16 +843,18 @@ const DashboardVersionComparison = ({
         const versionTileCount = version.tiles.length;
         const tileDiff = versionTileCount - currentTileCount;
 
-        // Count charts
+        // Count only dashboard-owned charts (only these are affected by rollback)
         const currentCharts = current.tiles.filter(
             (tile) =>
                 isDashboardChartTileType(tile) &&
-                tile.properties.savedChartUuid,
+                tile.properties.savedChartUuid &&
+                tile.properties.belongsToDashboard,
         );
         const versionCharts = version.tiles.filter(
             (tile) =>
                 isDashboardChartTileType(tile) &&
-                tile.properties.savedChartUuid,
+                tile.properties.savedChartUuid &&
+                tile.properties.belongsToDashboard,
         );
 
         // Count SQL charts
