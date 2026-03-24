@@ -30,7 +30,7 @@ const TreemapContextMenu: FC<TreemapContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig, drillConfig, onDrill, onLinkedChartDrill } =
+    const { visualizationConfig, drillConfig, onDrillDown, onDrillThrough } =
         useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
@@ -108,12 +108,12 @@ const TreemapContextMenu: FC<TreemapContextMenuProps> = ({
                     />
                 )}
 
-                {onDrill && drillConfig && (
+                {onDrillDown && drillConfig && (
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
-                        onDrill={onDrill}
-                        onLinkedChartDrill={onLinkedChartDrill}
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
                     />
                 )}
             </Menu.Dropdown>

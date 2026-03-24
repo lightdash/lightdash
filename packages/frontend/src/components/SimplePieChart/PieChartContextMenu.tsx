@@ -41,7 +41,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     canViewUnderlyingData,
 }) => {
     const projectUuid = useProjectUuid();
-    const { visualizationConfig, drillConfig, onDrill, onLinkedChartDrill, itemsMap } =
+    const { visualizationConfig, drillConfig, onDrillDown, onDrillThrough, itemsMap } =
         useVisualizationContext();
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
@@ -155,12 +155,12 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     <FilterDashboardTo filters={filters ?? []} />
                 )}
 
-                {onDrill && drillConfig && (
+                {onDrillDown && drillConfig && (
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
-                        onDrill={onDrill}
-                        onLinkedChartDrill={onLinkedChartDrill}
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
                     />
                 )}
             </Menu.Dropdown>

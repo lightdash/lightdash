@@ -248,10 +248,10 @@ const DrillExplorerContent: FC<{
                             setEchartsRef={setEchartsRef}
                             isDashboard
                             drillConfig={unsavedChartVersion.drillConfig}
-                            onDrill={(params) =>
+                            onDrillDown={(params) =>
                                 dispatch(explorerActions.applyDrill(params))
                             }
-                            onLinkedChartDrill={({
+                            onDrillThrough={({
                                 drillPathId,
                                 linkedChartUuid,
                                 fieldValues: clickedValues,

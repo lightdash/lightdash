@@ -24,14 +24,15 @@ type DrillIntoSubmenuProps = {
     fieldValues: Record<string, ResultValue> | undefined;
     /** Current drill stack — used to exclude already-filtered dimensions */
     drillStack?: DrillStack;
-    /** Called for inline drill paths (modifies Redux state) */
-    onDrill: (params: {
+    /** Called for drill-down paths (modifies Redux state) */
+    onDrillDown: (params: {
         drillPath: DrillPath;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
-    /** Called for linked chart drill paths (opens modal) */
-    onLinkedChartDrill?: (params: {
+    /** Called for drill-through paths (opens modal / navigates to linked chart) */
+    onDrillThrough?: (params: {
+        drillPathId: string;
         linkedChartUuid: string;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
@@ -42,8 +43,8 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
     drillConfig,
     fieldValues,
     drillStack,
-    onDrill,
-    onLinkedChartDrill,
+    onDrillDown,
+    onDrillThrough,
 }) => {
     const drillEnabled = useDrillFeatureFlag();
     const metricQueryData = useMetricQueryDataContext(true);
@@ -118,23 +119,23 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
 
             if (
                 isDrillThroughPath(drillPath) &&
-                onLinkedChartDrill
+                onDrillThrough
             ) {
-                onLinkedChartDrill({
+                onDrillThrough({
                     drillPathId: drillPath.id,
                     linkedChartUuid: drillPath.linkedChartUuid,
                     fieldValues,
                     dimensionIds: metricQuery.dimensions,
                 });
             } else {
-                onDrill({
+                onDrillDown({
                     drillPath,
                     fieldValues,
                     dimensionIds: metricQuery.dimensions,
                 });
             }
         },
-        [fieldValues, metricQuery, onDrill, onLinkedChartDrill, track],
+        [fieldValues, metricQuery, onDrillDown, onDrillThrough, track],
     );
 
     if (!drillEnabled || accessiblePaths.length === 0 || !fieldValues || !metricQuery) {

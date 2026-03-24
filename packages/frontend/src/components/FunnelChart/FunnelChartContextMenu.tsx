@@ -30,7 +30,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig, drillConfig, onDrill, onLinkedChartDrill } =
+    const { visualizationConfig, drillConfig, onDrillDown, onDrillThrough } =
         useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
@@ -118,12 +118,12 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     />
                 )}
 
-                {onDrill && drillConfig && (
+                {onDrillDown && drillConfig && (
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
-                        onDrill={onDrill}
-                        onLinkedChartDrill={onLinkedChartDrill}
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
                     />
                 )}
             </Menu.Dropdown>

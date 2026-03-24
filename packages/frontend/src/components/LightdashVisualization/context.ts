@@ -58,12 +58,12 @@ type VisualizationContext = {
     isDashboard?: boolean;
     isEditMode?: boolean;
     drillConfig?: DrillConfig;
-    onDrill?: (params: {
+    onDrillDown?: (params: {
         drillPath: DrillPath;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
-    onLinkedChartDrill?: (params: {
+    onDrillThrough?: (params: {
         drillPathId: string;
         linkedChartUuid: string;
         fieldValues: Record<string, ResultValue>;

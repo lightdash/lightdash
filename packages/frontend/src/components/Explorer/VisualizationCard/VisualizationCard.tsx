@@ -162,9 +162,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
 
-    const { modalState: linkedChartDrillConfig, handleDrillThrough, closeModal: closeDrillThroughModal } = useDrillThroughAction();
+    const { modalState: linkedChartDrillConfig, handleDrillThrough: dispatchDrillThrough, closeModal: closeDrillThroughModal } = useDrillThroughAction();
 
-    const handleLinkedChartDrill = useCallback(
+    const handleDrillThrough = useCallback(
         ({
             linkedChartUuid,
             fieldValues,
@@ -181,7 +181,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 drillState?.stack ?? [],
             );
 
-            handleDrillThrough(
+            dispatchDrillThrough(
                 buildLinkedChartDrillConfig({
                     sourceChartUuid: savedChart.uuid,
                     drillPathId,
@@ -338,10 +338,10 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 isDashboard={false}
                 isEditMode={isEditMode}
                 drillConfig={unsavedChartVersion.drillConfig}
-                onDrill={(params) =>
+                onDrillDown={(params) =>
                     dispatch(explorerActions.applyDrill(params))
                 }
-                onLinkedChartDrill={handleLinkedChartDrill}
+                onDrillThrough={handleDrillThrough}
             >
                 <CollapsableCard
                     title="Chart"

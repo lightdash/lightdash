@@ -230,10 +230,10 @@ export const SeriesContextMenu: FC<{
                     drillConfig={unsavedChartVersion.drillConfig}
                     fieldValues={underlyingData?.fieldValues}
                     drillStack={drillState?.stack}
-                    onDrill={(params) =>
+                    onDrillDown={(params) =>
                         dispatch(explorerActions.applyDrill(params))
                     }
-                    onLinkedChartDrill={({
+                    onDrillThrough={({
                         drillPathId,
                         linkedChartUuid,
                         fieldValues: clickedValues,

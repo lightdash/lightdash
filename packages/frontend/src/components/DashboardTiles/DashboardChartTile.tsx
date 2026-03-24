@@ -246,7 +246,7 @@ const ValidDashboardChartTile: FC<{
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
-    onDrill?: (params: {
+    onDrillDown?: (params: {
         drillPath: DrillPath;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
@@ -258,7 +258,7 @@ const ValidDashboardChartTile: FC<{
     dashboardChartReadyQuery,
     resultsData,
     onSeriesContextMenu,
-    onDrill,
+    onDrillDown,
     setEchartsRef,
 }) => {
     const addResultsCacheTime = useDashboardContext(
@@ -371,7 +371,7 @@ const ValidDashboardChartTile: FC<{
             containerHeight={containerHeight}
             isDashboard
             drillConfig={chart.drillConfig}
-            onDrill={onDrill}
+            onDrillDown={onDrillDown}
             dateZoom={{ granularity: dateZoomGranularity }}
         >
             <LightdashVisualization
@@ -874,7 +874,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     );
 
     // Curated drill handler — sets activeDrill which mounts DrillExplorerProvider
-    const handleDrill = useCallback(
+    const handleDrillDown = useCallback(
         (params: {
             drillPath: DrillPath;
             fieldValues: Record<string, ResultValue>;
@@ -894,7 +894,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     // Linked chart drill-through modal state (for non-drilled tile context menu)
     const { modalState: linkedChartDrillConfig, handleDrillThrough, closeModal: closeDrillThroughModal } = useDrillThroughAction();
 
-    const handleLinkedChartDrill = useCallback(
+    const handleDrillThroughFromTile = useCallback(
         ({
             drillPathId,
             linkedChartUuid,
@@ -1612,9 +1612,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             fieldValues={
                                                 viewUnderlyingDataOptions?.fieldValues
                                             }
-                                            onDrill={handleDrill}
-                                            onLinkedChartDrill={
-                                                handleLinkedChartDrill
+                                            onDrillDown={handleDrillDown}
+                                            onDrillThrough={
+                                                handleDrillThroughFromTile
                                             }
                                         />
                                     )}
@@ -1640,7 +1640,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             project={chart.projectUuid}
                             isTitleHidden={hideTitle}
                             onSeriesContextMenu={onSeriesContextMenu}
-                            onDrill={handleDrill}
+                            onDrillDown={handleDrillDown}
                             setEchartsRef={setEchartRef}
                         />
                     </>

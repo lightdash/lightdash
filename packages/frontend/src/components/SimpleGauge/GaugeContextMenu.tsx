@@ -31,8 +31,8 @@ const GaugeContextMenu: FC<GaugeContextMenuProps> = ({
         visualizationConfig,
         resultsData,
         drillConfig,
-        onDrill,
-        onLinkedChartDrill,
+        onDrillDown,
+        onDrillThrough,
     } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
@@ -125,12 +125,12 @@ const GaugeContextMenu: FC<GaugeContextMenuProps> = ({
                     />
                 )}
 
-                {onDrill && drillConfig && (
+                {onDrillDown && drillConfig && (
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
-                        onDrill={onDrill}
-                        onLinkedChartDrill={onLinkedChartDrill}
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
                     />
                 )}
             </Menu.Dropdown>

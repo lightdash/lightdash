@@ -40,7 +40,7 @@ const DashboardCellContextMenu: FC<
     const clipboard = useClipboard({ timeout: 200 });
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
-    const { drillConfig, onDrill, onLinkedChartDrill } = useVisualizationContext();
+    const { drillConfig, onDrillDown, onDrillThrough } = useVisualizationContext();
 
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
@@ -190,12 +190,12 @@ const DashboardCellContextMenu: FC<
                 />
             </Can>
 
-            {onDrill && drillConfig && (
+            {onDrillDown && drillConfig && (
                 <DrillIntoSubmenu
                     drillConfig={drillConfig}
                     fieldValues={fieldValues}
-                    onDrill={onDrill}
-                    onLinkedChartDrill={onLinkedChartDrill}
+                    onDrillDown={onDrillDown}
+                    onDrillThrough={onDrillThrough}
                 />
             )}
 

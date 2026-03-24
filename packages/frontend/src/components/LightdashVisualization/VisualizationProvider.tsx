@@ -91,12 +91,12 @@ export type VisualizationProviderProps = {
     isDashboard?: boolean;
     isEditMode?: boolean;
     drillConfig?: DrillConfig;
-    onDrill?: (params: {
+    onDrillDown?: (params: {
         drillPath: DrillPath;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
-    onLinkedChartDrill?: (params: {
+    onDrillThrough?: (params: {
         linkedChartUuid: string;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
@@ -134,8 +134,8 @@ const VisualizationProvider: FC<
     isDashboard,
     isEditMode,
     drillConfig,
-    onDrill,
-    onLinkedChartDrill,
+    onDrillDown,
+    onDrillThrough,
     dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
@@ -381,8 +381,8 @@ const VisualizationProvider: FC<
         isDashboard,
         isEditMode,
         drillConfig,
-        onDrill,
-        onLinkedChartDrill,
+        onDrillDown,
+        onDrillThrough,
         isTouchDevice,
     };
 

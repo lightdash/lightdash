@@ -71,7 +71,7 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const { itemsMap, drillConfig, onDrill, onLinkedChartDrill } = useVisualizationContext();
+    const { itemsMap, drillConfig, onDrillDown, onDrillThrough } = useVisualizationContext();
     const { user } = useApp();
     const projectUuid = useProjectUuid();
 
@@ -220,14 +220,14 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
                             </Can>
                         )}
 
-                        {onDrill &&
+                        {onDrillDown &&
                             drillConfig &&
                             fieldValues && (
                                 <DrillIntoSubmenu
                                     drillConfig={drillConfig}
                                     fieldValues={fieldValues}
-                                    onDrill={onDrill}
-                                    onLinkedChartDrill={onLinkedChartDrill}
+                                    onDrillDown={onDrillDown}
+                                    onDrillThrough={onDrillThrough}
                                 />
                             )}
                     </>

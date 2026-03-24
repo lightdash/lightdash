@@ -28,7 +28,7 @@ import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryData
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
-    const { drillConfig, onDrill, onLinkedChartDrill } = useVisualizationContext();
+    const { drillConfig, onDrillDown, onDrillThrough } = useVisualizationContext();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -135,12 +135,12 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                 />
             </Can>
 
-            {onDrill && drillConfig && (
+            {onDrillDown && drillConfig && (
                 <DrillIntoSubmenu
                     drillConfig={drillConfig}
                     fieldValues={fieldValues}
-                    onDrill={onDrill}
-                    onLinkedChartDrill={onLinkedChartDrill}
+                    onDrillDown={onDrillDown}
+                    onDrillThrough={onDrillThrough}
                 />
             )}
         </>
