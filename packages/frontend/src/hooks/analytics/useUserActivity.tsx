@@ -34,10 +34,12 @@ const downloadUserActivityCsv = async (projectUuid: string) =>
     });
 
 export const useDownloadUserActivityCsv = () => {
+    const setErrorResponse = useQueryError();
     return useMutation<ApiUserActivityDownloadCsv['results'], ApiError, string>(
         downloadUserActivityCsv,
         {
             mutationKey: ['download_user_activity_csv'],
+            onError: (result) => setErrorResponse(result),
         },
     );
 };

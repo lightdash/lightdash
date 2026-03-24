@@ -5,6 +5,7 @@ import {
     ApiDownloadCsv,
     ForbiddenError,
     isUserWithOrg,
+    NotFoundError,
     SchedulerJobStatus,
     SessionUser,
     UnusedContent,
@@ -114,6 +115,10 @@ export class AnalyticsService extends BaseService {
         });
 
         const results = await this.analyticsModel.getViewsRawData(projectUuid);
+        if (results.length === 0) {
+            throw new NotFoundError('No user activity data found');
+        }
+
         const fileName = `lightdash raw usage analytics.csv`;
         const csvHeader = Object.keys(results[0]);
         const csvBody = stringify(results, {
