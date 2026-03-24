@@ -1596,17 +1596,15 @@ export class DashboardService
             );
         }
 
-        const [versionSummaries, dashboard] = await Promise.all([
-            this.dashboardModel.getLatestVersionSummaries(dashboardUuid),
+        const [versionSummary, dashboard] = await Promise.all([
+            this.dashboardModel.getVersionSummaryByUuid(
+                dashboardUuid,
+                versionUuid,
+            ),
             this.dashboardModel.getVersionByUuid(dashboardUuid, versionUuid),
         ]);
 
-        // Find the specific version summary
-        const versionSummary = versionSummaries.find(
-            (v) => v.versionUuid === versionUuid,
-        );
-
-        if (!versionSummary || !dashboard) {
+        if (!dashboard) {
             throw new NotFoundError('Dashboard version not found');
         }
 

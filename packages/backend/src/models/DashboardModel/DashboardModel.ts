@@ -1594,6 +1594,63 @@ export class DashboardModel {
             .limit(1);
     }
 
+    async getVersionSummaryByUuid(
+        dashboardUuid: string,
+        versionUuid: string,
+    ): Promise<DashboardVersionSummary> {
+        type VersionSummaryRow = {
+            dashboard_uuid: string;
+            dashboard_version_uuid: string;
+            created_at: Date;
+            user_uuid: string | null;
+            first_name: string | null;
+            last_name: string | null;
+        };
+
+        const row = await this.database(DashboardVersionsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+            )
+            .select<VersionSummaryRow[]>(
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                `${DashboardVersionsTableName}.created_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where(
+                `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                versionUuid,
+            )
+            .first();
+
+        if (!row) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+
+        return {
+            dashboardUuid: row.dashboard_uuid,
+            versionUuid: row.dashboard_version_uuid,
+            createdAt: row.created_at,
+            createdBy: row.user_uuid
+                ? {
+                      userUuid: row.user_uuid,
+                      firstName: row.first_name ?? '',
+                      lastName: row.last_name ?? '',
+                  }
+                : null,
+        };
+    }
+
     async getLatestVersionSummaries(
         dashboardUuid: string,
     ): Promise<DashboardVersionSummary[]> {
