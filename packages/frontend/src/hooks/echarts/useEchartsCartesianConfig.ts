@@ -1961,7 +1961,7 @@ const getEchartAxes = ({
                             hideOverlap: true,
                         },
                     }),
-                inverse: !!xAxisConfiguration?.[0].inverse,
+                inverse: !!xAxisConfiguration?.[0]?.inverse,
                 ...bottomAxisExtraConfig,
                 min: bottomAxisBounds.min,
                 max: maxXAxisValue,
@@ -2077,7 +2077,7 @@ const getEchartAxes = ({
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
                 ),
-                inverse: !!yAxisConfiguration?.[0].inverse,
+                inverse: !!yAxisConfiguration?.[0]?.inverse,
                 ...leftAxisExtraConfig,
             },
             {
