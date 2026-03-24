@@ -286,7 +286,7 @@ export class ExploreCompiler {
 
         // Collect warnings from the base table (e.g. unresolved custom granularities, duplicate field names)
         if (tables[baseTable].warnings) {
-            exploreWarnings.push(...tables[baseTable].warnings);
+            exploreWarnings.push(...(tables[baseTable].warnings ?? []));
         }
 
         // Filter joined tables - skip missing tables when partial compilation is enabled
