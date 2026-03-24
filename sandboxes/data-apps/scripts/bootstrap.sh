@@ -6,13 +6,34 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
 cd "$PROJECT_DIR"
 
-echo "==> Installing dependencies..."
-pnpm install --ignore-workspace
+# In the monorepo, package.json uses "workspace:*" for @lightdash/query-sdk.
+# pnpm can't resolve that outside the workspace, so we temporarily rewrite it
+# to a local link. In standalone environments (E2B) the version is already a
+# real semver range, so this is a no-op.
+QUERY_SDK_DIR="$PROJECT_DIR/../../packages/query-sdk"
+if grep -q '"workspace:\*"' package.json && [ -d "$QUERY_SDK_DIR" ]; then
+    echo "==> Rewriting workspace:* → link: for @lightdash/query-sdk..."
+    sed -i.bak 's|"workspace:\*"|"link:../../packages/query-sdk"|' package.json
+    RESTORE_PKG_JSON=true
+else
+    RESTORE_PKG_JSON=false
+fi
 
-# Create a temporary pnpm-workspace.yaml so shadcn's internal
-# `pnpm add` calls don't walk up to the monorepo root.
+# Create a temporary pnpm-workspace.yaml so pnpm treats this directory as its
+# own workspace root instead of walking up to the monorepo. This also prevents
+# shadcn's internal `pnpm add` calls from touching the monorepo lockfile.
 echo "packages: []" > pnpm-workspace.yaml
-trap 'rm -f pnpm-workspace.yaml' EXIT
+
+cleanup() {
+    rm -f pnpm-workspace.yaml
+    if [ "$RESTORE_PKG_JSON" = true ]; then
+        mv -f package.json.bak package.json
+    fi
+}
+trap cleanup EXIT
+
+echo "==> Installing dependencies..."
+pnpm install
 
 echo "==> Initializing shadcn/ui..."
 npx shadcn@2.3.0 init --defaults --force
