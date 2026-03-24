@@ -1,5 +1,5 @@
 import { Code, List, Text } from '@mantine-8/core';
-import { IconRefresh } from '@tabler/icons-react';
+import { IconRefreshDot } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useRefreshPreAggregateByDefinitionName } from '../../../hooks/usePreAggregateRefresh';
 import MantineModal from '../MantineModal';
@@ -29,15 +29,15 @@ const DashboardPreAggRefreshModal: FC<DashboardPreAggRefreshModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Refresh pre-aggregates"
-            icon={IconRefresh}
+            title="Rebuild pre-aggregates"
+            icon={IconRefreshDot}
             size="lg"
             onConfirm={handleConfirm}
-            confirmLabel="Refresh"
+            confirmLabel="Rebuild"
             confirmLoading={isLoading}
         >
             <Text fz="sm">
-                This will refresh {preAggregateNames.length} pre-aggregate
+                This will rebuild {preAggregateNames.length} pre-aggregate
                 {preAggregateNames.length === 1 ? '' : 's'} used by this
                 dashboard:
             </Text>

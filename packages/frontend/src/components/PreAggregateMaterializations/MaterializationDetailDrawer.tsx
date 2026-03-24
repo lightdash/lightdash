@@ -28,7 +28,7 @@ import {
     IconFile,
     IconFilterExclamation,
     IconHourglass,
-    IconRefresh,
+    IconRefreshDot,
     IconTableRow,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
@@ -290,7 +290,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         Last materialization
                                     </Text>
                                 </Group>
-                                <Tooltip label="Refresh this pre-aggregate">
+                                <Tooltip label="Rebuild this pre-aggregate">
                                     <ActionIcon
                                         variant="subtle"
                                         color="gray"
@@ -301,7 +301,7 @@ const MaterializationDetailDrawer: FC<Props> = ({
                                         }
                                     >
                                         <MantineIcon
-                                            icon={IconRefresh}
+                                            icon={IconRefreshDot}
                                             size="sm"
                                         />
                                     </ActionIcon>

@@ -37,7 +37,7 @@ import {
     IconPencil,
     IconPin,
     IconPinnedOff,
-    IconRefresh,
+    IconRefreshDot,
     IconSend,
     IconStar,
     IconStarFilled,
@@ -738,7 +738,7 @@ const DashboardHeader = ({
                                                                 leftSection={
                                                                     <MantineIcon
                                                                         icon={
-                                                                            IconRefresh
+                                                                            IconRefreshDot
                                                                         }
                                                                     />
                                                                 }
@@ -746,7 +746,7 @@ const DashboardHeader = ({
                                                                     preAggRefreshHandlers.open
                                                                 }
                                                             >
-                                                                Refresh
+                                                                Rebuild
                                                                 pre-aggregates
                                                             </Menu.Item>
                                                         )}

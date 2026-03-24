@@ -35,7 +35,7 @@ export const StatusBadge: FC<{
         case 'in_progress':
             return (
                 <Badge color="blue" variant="light" size="sm">
-                    In progress
+                    Building
                 </Badge>
             );
         case 'failed':

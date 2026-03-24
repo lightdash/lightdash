@@ -54,7 +54,7 @@ import {
     IconCopy,
     IconFilter,
     IconFolders,
-    IconRefresh,
+    IconRefreshDot,
     IconTableExport,
     IconTelescope,
     IconVariable,
@@ -1371,7 +1371,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             <Menu.Item
                                                 leftSection={
                                                     <MantineIcon
-                                                        icon={IconRefresh}
+                                                        icon={IconRefreshDot}
                                                     />
                                                 }
                                                 disabled={
@@ -1384,7 +1384,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                                     )
                                                 }
                                             >
-                                                Refresh pre-aggregate
+                                                Rebuild pre-aggregate
                                             </Menu.Item>
                                         )}
                                 </Box>
