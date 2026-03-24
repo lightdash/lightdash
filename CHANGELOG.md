@@ -1,3 +1,10 @@
+# [0.2658.0](https://github.com/lightdash/lightdash/compare/0.2657.6...0.2658.0) (2026-03-24)
+
+
+### Features
+
+* add configurable row limit for pre-aggregate materializations ([#21072](https://github.com/lightdash/lightdash/issues/21072)) ([e85af8a](https://github.com/lightdash/lightdash/commit/e85af8ad24a3d48f4d3a6b6a116ffb7d5affa71c))
+
 ## [0.2657.6](https://github.com/lightdash/lightdash/compare/0.2657.5...0.2657.6) (2026-03-24)
 
 
