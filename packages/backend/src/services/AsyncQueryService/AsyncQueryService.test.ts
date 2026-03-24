@@ -766,6 +766,7 @@ describe('AsyncQueryService', () => {
                 preAggregates: {
                     enabled: false,
                     parquetEnabled: false,
+                    materializationMaxRows: null,
                 },
             });
             (service as AnyType).preAggregateStrategy = mockStrategy;

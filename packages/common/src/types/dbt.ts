@@ -114,6 +114,7 @@ export type DbtPreAggregateDef = {
     metrics: string[];
     time_dimension?: string;
     granularity?: string;
+    max_rows?: number;
     refresh?: {
         cron?: string;
     };

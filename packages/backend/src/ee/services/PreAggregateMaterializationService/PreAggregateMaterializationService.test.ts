@@ -95,6 +95,8 @@ describe('PreAggregateMaterializationService', () => {
                     tableCalculations: [],
                 },
                 metricComponents: {},
+                timeDimensionFieldId: null,
+                resolvedMaxRows: null,
             },
             materializationQueryError: null,
         });
@@ -152,6 +154,60 @@ describe('PreAggregateMaterializationService', () => {
         });
     });
 
+    test('sorts by dimensions with time dimension first and descending', async () => {
+        const queryUpdatedAt = new Date('2024-02-01T10:00:00.000Z');
+        preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            preAggregateDefinitionUuid: 'def-1',
+            materializationMetricQuery: {
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_status', 'orders_order_date_day'],
+                    metrics: ['orders_total_order_amount'],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                metricComponents: {},
+                timeDimensionFieldId: 'orders_order_date_day',
+                resolvedMaxRows: null,
+            },
+            materializationQueryError: null,
+        });
+        asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+            queryUuid: 'query-1',
+        });
+        queryHistoryModel.pollForQueryCompletion.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'query-1-results',
+            resultsUpdatedAt: queryUpdatedAt,
+            totalRowCount: 50,
+            columns: null,
+        });
+        preAggregateResultsStorageClient.getFileSize.mockResolvedValue(1234);
+        preAggregateModel.promoteToActive.mockResolvedValue({
+            status: 'active',
+        });
+
+        await service.materializePreAggregate({
+            account: {} as Account,
+            projectUuid: 'project-1',
+            preAggregateDefinitionUuid: 'def-1',
+            trigger: 'manual',
+        });
+
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({
+                    sorts: [
+                        { fieldId: 'orders_order_date_day', descending: true },
+                        { fieldId: 'orders_status', descending: false },
+                    ],
+                }),
+            }),
+        );
+    });
+
     test('marks run as failed when ready query has no persisted results file', async () => {
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
             preAggregateDefinitionUuid: 'def-1',
@@ -166,6 +222,8 @@ describe('PreAggregateMaterializationService', () => {
                     tableCalculations: [],
                 },
                 metricComponents: {},
+                timeDimensionFieldId: null,
+                resolvedMaxRows: null,
             },
             materializationQueryError: null,
         });

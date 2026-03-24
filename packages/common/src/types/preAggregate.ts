@@ -13,6 +13,8 @@ export type MaterializationMetricComponent = {
 export type MaterializationMetricQueryPayload = {
     metricQuery: MetricQuery;
     metricComponents: Record<string, MaterializationMetricComponent[]>;
+    timeDimensionFieldId: string | null;
+    resolvedMaxRows: number | null;
 };
 
 export type PreAggregateMaterializationStatus =
@@ -38,6 +40,7 @@ export type PreAggregateDef = {
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;
     granularity?: TimeFrames;
+    maxRows?: number;
     refresh?: {
         cron?: string;
     };
@@ -154,22 +157,47 @@ export const preAggregateMissReasonLabels: Record<
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;
 
-export type PreAggregateMaterializationWarning = {
-    type: 'row_count_exceeded';
-    message: string;
-    rowCount: number;
-    threshold: number;
-};
+export type PreAggregateMaterializationWarning =
+    | {
+          type: 'row_count_exceeded';
+          message: string;
+          rowCount: number;
+          threshold: number;
+      }
+    | {
+          type: 'max_rows_applied';
+          message: string;
+          maxRows: number;
+      };
 
 export const computePreAggregateWarnings = (
     materialization: {
         rowCount: number | null;
     } | null,
-    rowCountThreshold: number = PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
+    options: {
+        rowCountThreshold?: number;
+        materializationMaxRows?: number | null;
+    } = {},
 ): PreAggregateMaterializationWarning[] => {
+    const {
+        rowCountThreshold = PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
+        materializationMaxRows = null,
+    } = options;
     const warnings: PreAggregateMaterializationWarning[] = [];
 
     const rowCount = materialization?.rowCount;
+    if (
+        materializationMaxRows != null &&
+        rowCount != null &&
+        rowCount >= materializationMaxRows
+    ) {
+        warnings.push({
+            type: 'max_rows_applied',
+            message: `This pre-aggregate was capped at ${materializationMaxRows.toLocaleString()} rows. Results may be incomplete.`,
+            maxRows: materializationMaxRows,
+        });
+    }
+
     if (rowCount != null && rowCount > rowCountThreshold) {
         warnings.push({
             type: 'row_count_exceeded',
@@ -193,6 +221,7 @@ export type PreAggregateMaterializationSummary = {
     granularity: TimeFrames | null;
     refreshCron: string | null;
     definitionError: string | null;
+    resolvedMaxRows: number | null;
     warnings: PreAggregateMaterializationWarning[];
     materialization: {
         materializationUuid: string;

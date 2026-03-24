@@ -32,6 +32,7 @@ import {
     IconExternalLink,
     IconFile,
     IconFilter,
+    IconFilterExclamation,
     IconFilterOff,
     IconHourglass,
     IconRefresh,
@@ -340,22 +341,35 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         (w: PreAggregateMaterializationWarning) =>
                             w.type === 'row_count_exceeded',
                     );
+                    const hasRowLimitWarning = row.original.warnings.some(
+                        (w: PreAggregateMaterializationWarning) =>
+                            w.type === 'max_rows_applied',
+                    );
                     return (
                         <Group gap={4} wrap="nowrap">
-                            <Text
-                                size="xs"
-                                c={hasRowCountWarning ? 'yellow.7' : 'ldGray.6'}
-                                ff="monospace"
-                            >
+                            <Text size="xs" c="ldGray.6" ff="monospace">
                                 {rowCount != null
                                     ? rowCount.toLocaleString()
                                     : '\u2014'}
                             </Text>
+                            {hasRowLimitWarning && (
+                                <Tooltip
+                                    label="Max rows applied"
+                                    withArrow
+                                    position="top"
+                                >
+                                    <MantineIcon
+                                        icon={IconFilterExclamation}
+                                        size="sm"
+                                        color="ldGray.6"
+                                    />
+                                </Tooltip>
+                            )}
                             {hasRowCountWarning && (
                                 <MantineIcon
                                     icon={IconAlertTriangle}
                                     size="sm"
-                                    color="yellow.6"
+                                    color="ldGray.6"
                                 />
                             )}
                         </Group>

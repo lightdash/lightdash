@@ -349,6 +349,7 @@ export const lightdashConfigMock: LightdashConfig = {
     preAggregates: {
         enabled: false,
         parquetEnabled: false,
+        materializationMaxRows: null,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',
