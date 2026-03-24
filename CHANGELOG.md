@@ -1,3 +1,10 @@
+## [0.2657.3](https://github.com/lightdash/lightdash/compare/0.2657.2...0.2657.3) (2026-03-24)
+
+
+### Bug Fixes
+
+* make data-apps sandbox bootstrap work in the monorepo ([#21341](https://github.com/lightdash/lightdash/issues/21341)) ([b6b10a0](https://github.com/lightdash/lightdash/commit/b6b10a004954accfce2fe41275e94ba497855227))
+
 ## [0.2657.2](https://github.com/lightdash/lightdash/compare/0.2657.1...0.2657.2) (2026-03-24)
 
 
