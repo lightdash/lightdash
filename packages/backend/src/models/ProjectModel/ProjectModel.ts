@@ -648,10 +648,7 @@ export class ProjectModel {
             .where('projects.project_type', ProjectType.PREVIEW)
             .whereNotNull('projects.expires_at')
             .where('projects.expires_at', '<=', this.database.fn.now())
-            .select(
-                'projects.project_uuid',
-                'organizations.organization_uuid',
-            );
+            .select('projects.project_uuid', 'organizations.organization_uuid');
 
         return results.map((r) => ({
             projectUuid: r.project_uuid,
