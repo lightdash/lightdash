@@ -1,5 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    buildLinkedChartDrillConfig,
+    drillStackToSteps,
+    getDimensions,
     getItemMap,
     hasCustomBinDimension,
     type ApiExploreResults,
@@ -16,6 +19,15 @@ import {
     useState,
     type FC,
 } from 'react';
+import {
+    explorerActions,
+    selectDrillState,
+    selectSavedChart,
+    selectUnsavedChartVersion,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../../features/explorer/store';
+import { useDrillThroughAction } from '../../../hooks/useDrillThroughAction';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
@@ -25,6 +37,8 @@ import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
+import DrillIntoSubmenu from '../../MetricQueryData/DrillIntoSubmenu';
+import LinkedChartDrillModal from '../../MetricQueryData/LinkedChartDrillModal';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
@@ -45,6 +59,17 @@ export const SeriesContextMenu: FC<{
 
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
+    const dispatch = useExplorerDispatch();
+    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const drillState = useExplorerSelector(selectDrillState);
+
+    const savedChart = useExplorerSelector(selectSavedChart);
+
+    const {
+        modalState: linkedChartDrillConfig,
+        handleDrillThrough,
+        closeModal: closeDrillThroughModal,
+    } = useDrillThroughAction();
 
     const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
         left: number;
@@ -123,6 +148,7 @@ export const SeriesContextMenu: FC<{
     const onClose = useCallback(() => setContextMenuIsOpen(false), []);
 
     return (
+        <>
         <Menu
             opened={contextMenuIsOpen}
             onClose={onClose}
@@ -192,7 +218,63 @@ export const SeriesContextMenu: FC<{
                         }}
                     />
                 </Can>
+
+                <Can
+                    I="view"
+                    this={subject('UnderlyingData', {
+                        organizationUuid: user.data?.organizationUuid,
+                        projectUuid: projectUuid,
+                    })}
+                >
+                <DrillIntoSubmenu
+                    drillConfig={unsavedChartVersion.drillConfig}
+                    fieldValues={underlyingData?.fieldValues}
+                    drillStack={drillState?.stack}
+                    onDrill={(params) =>
+                        dispatch(explorerActions.applyDrill(params))
+                    }
+                    onLinkedChartDrill={({
+                        drillPathId,
+                        linkedChartUuid,
+                        fieldValues: clickedValues,
+                        dimensionIds: clickedDims,
+                    }) => {
+                        if (!savedChart?.uuid) return;
+
+                        const existingSteps = drillStackToSteps(
+                            drillState?.stack ?? [],
+                        );
+
+                        handleDrillThrough(
+                            buildLinkedChartDrillConfig({
+                                sourceChartUuid: savedChart.uuid,
+                                drillPathId,
+                                linkedChartUuid,
+                                drillConfig: unsavedChartVersion.drillConfig,
+                                fieldValues: clickedValues,
+                                dimensionIds: clickedDims,
+                                dimensions: explore
+                                    ? getDimensions(explore)
+                                    : [],
+                                existingDrillSteps: existingSteps,
+                            }),
+                        );
+                    }}
+                />
+                </Can>
             </Menu.Dropdown>
         </Menu>
+
+        {linkedChartDrillConfig && (
+            <LinkedChartDrillModal
+                opened={!!linkedChartDrillConfig}
+                onClose={closeDrillThroughModal}
+                sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}
+                linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
+                drillSteps={linkedChartDrillConfig.drillSteps}
+                filterSummary={linkedChartDrillConfig.filterSummary}
+            />
+        )}
+    </>
     );
 });

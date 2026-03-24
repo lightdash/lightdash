@@ -26,7 +26,9 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const DashboardCellContextMenu: FC<
@@ -38,6 +40,7 @@ const DashboardCellContextMenu: FC<
     const clipboard = useClipboard({ timeout: 200 });
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
+    const { drillConfig, onDrill, onLinkedChartDrill } = useVisualizationContext();
 
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
@@ -186,6 +189,15 @@ const DashboardCellContextMenu: FC<
                     }}
                 />
             </Can>
+
+            {onDrill && drillConfig && (
+                <DrillIntoSubmenu
+                    drillConfig={drillConfig}
+                    fieldValues={fieldValues}
+                    onDrill={onDrill}
+                    onLinkedChartDrill={onLinkedChartDrill}
+                />
+            )}
 
             {filters.length > 0 && (
                 <FilterDashboardTo

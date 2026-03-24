@@ -18,6 +18,7 @@ import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isPieVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 export type PieChartContextMenuProps = {
@@ -40,14 +41,14 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     canViewUnderlyingData,
 }) => {
     const projectUuid = useProjectUuid();
-    const { visualizationConfig } = useVisualizationContext();
+    const { visualizationConfig, drillConfig, onDrill, onLinkedChartDrill, itemsMap } =
+        useVisualizationContext();
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const metricQueryData = useMetricQueryDataContext(true);
-    const { itemsMap } = useVisualizationContext();
 
     if (!value || !metricQueryData || !projectUuid) {
         return null;
@@ -68,19 +69,19 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
         }
     };
 
+    const fieldValues = chartConfig.groupFieldIds.reduce<
+        Record<string, ResultValue>
+    >((acc, fieldId) => {
+        if (!fieldId) return acc;
+
+        const fieldValue = rows?.[0]?.[fieldId]?.value;
+        if (!fieldValue) return acc;
+
+        return { ...acc, [fieldId]: fieldValue };
+    }, {});
+
     const handleOpenUnderlyingDataModal = () => {
         if (!chartConfig.selectedMetric) return;
-
-        const fieldValues = chartConfig.groupFieldIds.reduce<
-            Record<string, ResultValue>
-        >((acc, fieldId) => {
-            if (!fieldId) return acc;
-
-            const fieldValue = rows?.[0]?.[fieldId]?.value;
-            if (!fieldValue) return acc;
-
-            return { ...acc, [fieldId]: fieldValue };
-        }, {});
 
         openUnderlyingDataModal({
             item: chartConfig.selectedMetric,
@@ -153,7 +154,15 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                 {isDashboardPage && (
                     <FilterDashboardTo filters={filters ?? []} />
                 )}
-                {/* TODO: implement drill-into functionality when ready */}
+
+                {onDrill && drillConfig && (
+                    <DrillIntoSubmenu
+                        drillConfig={drillConfig}
+                        fieldValues={fieldValues}
+                        onDrill={onDrill}
+                        onLinkedChartDrill={onLinkedChartDrill}
+                    />
+                )}
             </Menu.Dropdown>
         </Menu>
     );

@@ -1,4 +1,4 @@
-import { type ResultRow, type ResultValue } from '@lightdash/common';
+import { type ResultValue } from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
@@ -6,25 +6,25 @@ import { type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
-import { isFunnelVisualizationConfig } from '../LightdashVisualization/types';
+import { isTreemapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
-export type FunnelChartContextMenuProps = {
+export type TreemapContextMenuProps = {
     menuPosition?: {
         left: number;
         top: number;
     };
     value?: ResultValue;
-    rows?: ResultRow[];
+    fieldValues?: Record<string, ResultValue>;
     canViewUnderlyingData: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
-const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
+const TreemapContextMenu: FC<TreemapContextMenuProps> = ({
     menuPosition,
     value,
-    rows,
+    fieldValues,
     opened,
     onOpen,
     onClose,
@@ -43,10 +43,6 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
 
-    if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
-
-    const { chartConfig } = visualizationConfig;
-
     const handleCopy = () => {
         if (value) {
             clipboard.copy(value.formatted);
@@ -56,21 +52,15 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
         }
     };
 
-    const fieldValues =
-        rows && rows.length > 0
-            ? Object.keys(rows[0]).reduce<Record<string, ResultValue>>(
-                  (acc, key) => {
-                      return { ...acc, [key]: rows[0][key].value };
-                  },
-                  {},
-              )
-            : undefined;
-
     const handleOpenUnderlyingDataModal = () => {
-        if (!chartConfig.selectedField || !fieldValues) return;
+        if (!fieldValues || !isTreemapVisualizationConfig(visualizationConfig))
+            return;
+
+        const { chartConfig } = visualizationConfig;
+        if (!chartConfig.selectedSizeMetric) return;
 
         openUnderlyingDataModal({
-            item: chartConfig.selectedField,
+            item: chartConfig.selectedSizeMetric,
             value,
             fieldValues,
         });
@@ -131,4 +121,4 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     );
 };
 
-export default FunnelChartContextMenu;
+export default TreemapContextMenu;

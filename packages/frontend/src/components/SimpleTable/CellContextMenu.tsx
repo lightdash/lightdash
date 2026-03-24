@@ -20,12 +20,15 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
+    const { drillConfig, onDrill, onLinkedChartDrill } = useVisualizationContext();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -131,6 +134,15 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     }}
                 />
             </Can>
+
+            {onDrill && drillConfig && (
+                <DrillIntoSubmenu
+                    drillConfig={drillConfig}
+                    fieldValues={fieldValues}
+                    onDrill={onDrill}
+                    onLinkedChartDrill={onLinkedChartDrill}
+                />
+            )}
         </>
     );
 };

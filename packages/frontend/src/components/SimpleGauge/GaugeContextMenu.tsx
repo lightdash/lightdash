@@ -1,77 +1,82 @@
-import { type ResultRow, type ResultValue } from '@lightdash/common';
+import { type ResultValue } from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
-import { type FC } from 'react';
+import mapValues from 'lodash/mapValues';
+import { useMemo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
-import { isFunnelVisualizationConfig } from '../LightdashVisualization/types';
+import { isGaugeVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
-export type FunnelChartContextMenuProps = {
+export type GaugeContextMenuProps = {
     menuPosition?: {
         left: number;
         top: number;
     };
-    value?: ResultValue;
-    rows?: ResultRow[];
     canViewUnderlyingData: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
-const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
+const GaugeContextMenu: FC<GaugeContextMenuProps> = ({
     menuPosition,
-    value,
-    rows,
     opened,
     onOpen,
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig, drillConfig, onDrill, onLinkedChartDrill } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        resultsData,
+        drillConfig,
+        onDrill,
+        onLinkedChartDrill,
+    } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
     const metricQueryData = useMetricQueryDataContext(true);
 
-    if (!value || !metricQueryData) {
+    const fieldValues: Record<string, ResultValue> | undefined = useMemo(() => {
+        if (!resultsData?.rows?.[0]) return undefined;
+        return mapValues(resultsData.rows[0], (col) => col.value);
+    }, [resultsData]);
+
+    const gaugeValue = useMemo(() => {
+        if (!isGaugeVisualizationConfig(visualizationConfig) || !fieldValues)
+            return undefined;
+        const { selectedField } = visualizationConfig.chartConfig;
+        if (!selectedField) return undefined;
+        return fieldValues[selectedField];
+    }, [visualizationConfig, fieldValues]);
+
+    if (!metricQueryData || !fieldValues) {
         return null;
     }
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
 
-    if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
-
-    const { chartConfig } = visualizationConfig;
-
     const handleCopy = () => {
-        if (value) {
-            clipboard.copy(value.formatted);
-            showToastSuccess({
-                title: 'Copied to clipboard!',
-            });
+        if (gaugeValue) {
+            clipboard.copy(gaugeValue.formatted);
+            showToastSuccess({ title: 'Copied to clipboard!' });
         }
     };
 
-    const fieldValues =
-        rows && rows.length > 0
-            ? Object.keys(rows[0]).reduce<Record<string, ResultValue>>(
-                  (acc, key) => {
-                      return { ...acc, [key]: rows[0][key].value };
-                  },
-                  {},
-              )
-            : undefined;
-
     const handleOpenUnderlyingDataModal = () => {
-        if (!chartConfig.selectedField || !fieldValues) return;
+        if (!isGaugeVisualizationConfig(visualizationConfig) || !gaugeValue)
+            return;
+
+        const item = visualizationConfig.chartConfig.getField(
+            visualizationConfig.chartConfig.selectedField,
+        );
+        if (!item) return;
 
         openUnderlyingDataModal({
-            item: chartConfig.selectedField,
-            value,
+            item,
+            value: gaugeValue,
             fieldValues,
         });
     };
@@ -104,12 +109,14 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
             </Portal>
 
             <Menu.Dropdown>
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconCopy} />}
-                    onClick={handleCopy}
-                >
-                    Copy value
-                </Menu.Item>
+                {gaugeValue && (
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconCopy} />}
+                        onClick={handleCopy}
+                    >
+                        Copy value
+                    </Menu.Item>
+                )}
 
                 {metricQuery && canViewUnderlyingData && (
                     <UnderlyingDataMenuItem
@@ -131,4 +138,4 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     );
 };
 
-export default FunnelChartContextMenu;
+export default GaugeContextMenu;

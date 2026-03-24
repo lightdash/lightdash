@@ -1,0 +1,169 @@
+import {
+    isDrillDownPath,
+    isDrillThroughPath,
+    type DrillConfig,
+    type DrillPath,
+    type ResultValue,
+} from '@lightdash/common';
+import { Menu } from '@mantine-8/core';
+import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC } from 'react';
+import { useDrillFeatureFlag } from '../../hooks/useDrillFeatureFlag';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
+import MantineIcon from '../common/MantineIcon';
+import { useMetricQueryDataContext } from './useMetricQueryDataContext';
+
+type DrillStack = Array<{
+    drillPath: DrillPath;
+    drillDimensionValues: Record<string, unknown>;
+}>;
+
+type DrillIntoSubmenuProps = {
+    drillConfig: DrillConfig | undefined;
+    fieldValues: Record<string, ResultValue> | undefined;
+    /** Current drill stack — used to exclude already-filtered dimensions */
+    drillStack?: DrillStack;
+    /** Called for inline drill paths (modifies Redux state) */
+    onDrill: (params: {
+        drillPath: DrillPath;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
+    /** Called for linked chart drill paths (opens modal) */
+    onLinkedChartDrill?: (params: {
+        linkedChartUuid: string;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
+};
+
+const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
+    drillConfig,
+    fieldValues,
+    drillStack,
+    onDrill,
+    onLinkedChartDrill,
+}) => {
+    const drillEnabled = useDrillFeatureFlag();
+    const metricQueryData = useMetricQueryDataContext(true);
+    const metricQuery = metricQueryData?.metricQuery;
+    const explore = metricQueryData?.explore;
+    const { track } = useTracking();
+
+    // Filter out drill paths that reference fields the user can't access
+    const accessiblePaths = useMemo(() => {
+        if (!drillConfig || !explore) return [];
+
+        const availableFieldIds = new Set(
+            Object.values(explore.tables).flatMap((table) => [
+                ...Object.keys(table.dimensions).map(
+                    (name) => `${table.name}_${name}`,
+                ),
+                ...Object.keys(table.metrics).map(
+                    (name) => `${table.name}_${name}`,
+                ),
+            ]),
+        );
+
+        // Dimensions currently displayed + dimensions filtered in earlier drill levels
+        const currentDimensions = new Set(metricQuery?.dimensions ?? []);
+        const filteredInStack = new Set(
+            (drillStack ?? []).flatMap((level) =>
+                Object.keys(level.drillDimensionValues),
+            ),
+        );
+        const usedDimensions = new Set([
+            ...currentDimensions,
+            ...filteredInStack,
+        ]);
+
+        return drillConfig.paths.filter((path) => {
+            // Drill-through paths: show only if a target chart is configured
+            if (isDrillThroughPath(path))
+                return path.linkedChartUuid !== '';
+
+            // Drill-down paths: check field accessibility
+            if (!isDrillDownPath(path)) return true;
+
+            // Exclude inline paths where every dimension is already displayed or filtered
+            const allDimsUsed = path.dimensions.every((d) =>
+                usedDimensions.has(d),
+            );
+            if (allDimsUsed) return false;
+
+            // Exclude inline paths with inaccessible fields
+            const allFields = [
+                ...path.dimensions,
+                ...(path.metrics ?? []),
+            ];
+            return allFields.every((fieldId) =>
+                availableFieldIds.has(fieldId),
+            );
+        });
+    }, [drillConfig, explore, metricQuery?.dimensions, drillStack]);
+
+    const handleDrill = useCallback(
+        (drillPath: DrillPath) => {
+            if (!fieldValues || !metricQuery) return;
+
+            track({
+                name: EventName.DRILL_INTO_CLICKED,
+                properties: {
+                    drillType: isDrillThroughPath(drillPath)
+                        ? 'linkedChart'
+                        : 'inline',
+                },
+            });
+
+            if (
+                isDrillThroughPath(drillPath) &&
+                onLinkedChartDrill
+            ) {
+                onLinkedChartDrill({
+                    drillPathId: drillPath.id,
+                    linkedChartUuid: drillPath.linkedChartUuid,
+                    fieldValues,
+                    dimensionIds: metricQuery.dimensions,
+                });
+            } else {
+                onDrill({
+                    drillPath,
+                    fieldValues,
+                    dimensionIds: metricQuery.dimensions,
+                });
+            }
+        },
+        [fieldValues, metricQuery, onDrill, onLinkedChartDrill, track],
+    );
+
+    if (!drillEnabled || accessiblePaths.length === 0 || !fieldValues || !metricQuery) {
+        return null;
+    }
+
+    return (
+        <>
+            <Menu.Divider />
+            <Menu.Label>Drill down</Menu.Label>
+            {accessiblePaths.map((path) => (
+                <Menu.Item
+                    key={path.id}
+                    leftSection={
+                        <MantineIcon
+                            icon={
+                                isDrillThroughPath(path)
+                                    ? IconExternalLink
+                                    : IconArrowBarToDown
+                            }
+                        />
+                    }
+                    onClick={() => handleDrill(path)}
+                >
+                    {path.label}
+                </Menu.Item>
+            ))}
+        </>
+    );
+};
+
+export default DrillIntoSubmenu;

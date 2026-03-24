@@ -1,13 +1,19 @@
 import { IconGauge } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import clamp from 'lodash/clamp';
-import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import GaugeContextMenu, {
+    type GaugeContextMenuProps,
+} from './GaugeContextMenu';
 
 const EmptyChart = () => (
     <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
@@ -82,9 +88,16 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimpleGauge: FC<SimpleGaugeProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
-        const { chartRef, isLoading } = useVisualizationContext();
+        const { chartRef, isLoading, minimal } = useVisualizationContext();
         const [chartWidth, setChartWidth] = useState(0);
         const [chartHeight, setChartHeight] = useState(0);
+        const { shouldShowMenu, canViewUnderlyingData } =
+            useContextMenuPermissions({ minimal });
+
+        const [isOpen, { open, close }] = useDisclosure();
+        const [menuPosition, setMenuPosition] = useState<
+            GaugeContextMenuProps['menuPosition']
+        >();
 
         const hasSignaledScreenshotReady = useRef(false);
 
@@ -162,6 +175,23 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
             };
         });
 
+        const handleOpenContextMenu = useCallback(
+            (e: ECElementEvent) => {
+                const event = e.event?.event as unknown as PointerEvent;
+                setMenuPosition({
+                    left: event.pageX,
+                    top: event.pageY,
+                });
+                open();
+            },
+            [open],
+        );
+
+        const handleCloseContextMenu = useCallback(() => {
+            setMenuPosition(undefined);
+            close();
+        }, [close]);
+
         if (isLoading) return <LoadingChart />;
         if (!gaugeOptions) return <EmptyChart />;
 
@@ -187,7 +217,20 @@ const SimpleGauge: FC<SimpleGaugeProps> = memo(
                     option={gaugeOptions.eChartsOption}
                     notMerge
                     {...props}
+                    onEvents={{
+                        click: handleOpenContextMenu,
+                        oncontextmenu: handleOpenContextMenu,
+                    }}
                 />
+
+                {shouldShowMenu && (
+                    <GaugeContextMenu
+                        menuPosition={menuPosition}
+                        opened={isOpen}
+                        onClose={handleCloseContextMenu}
+                        canViewUnderlyingData={canViewUnderlyingData}
+                    />
+                )}
             </>
         );
     },

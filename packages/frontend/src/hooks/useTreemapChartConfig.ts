@@ -6,6 +6,8 @@ import type {
     Metric,
     MetricQuery,
     ParametersValuesMap,
+    ResultRow,
+    ResultValue,
     TableCalculation,
     TableCalculationMetadata,
     TreemapChart,
@@ -49,17 +51,26 @@ type TreemapChartConfig = {
     data: TreemapNode[];
 };
 
+type TreemapNodeMeta = {
+    /** Dimension field values accumulated from root to this node */
+    fieldValues: Record<string, ResultValue>;
+    /** Matching result rows for leaf nodes */
+    rows: ResultRow[];
+};
+
 type MutableTreemapNode = {
     name: string;
     value: number[];
     children: Record<string, MutableTreemapNode>;
+    meta: TreemapNodeMeta;
 };
 
 //For use with eCharts config
-type TreemapNode = {
+export type TreemapNode = {
     name: string;
     value: number[];
     children?: TreemapNode[];
+    meta?: TreemapNodeMeta;
 };
 
 export type TreemapChartConfigFn = (
@@ -241,10 +252,14 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             return [];
         }
 
-        const getEmptyTreemapNode = (name: string): MutableTreemapNode => ({
+        const getEmptyTreemapNode = (
+            name: string,
+            fieldValues: Record<string, ResultValue> = {},
+        ): MutableTreemapNode => ({
             name,
             value: [0, 0],
             children: {},
+            meta: { fieldValues, rows: [] },
         });
 
         const rootTreemapNode = resultsData.rows.reduce<MutableTreemapNode>(
@@ -259,23 +274,33 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 
                 // Assumes parent-child relationship is determined by the order of groupFieldIds
                 for (let i = 0; i < groupFieldIds.length; i++) {
+                    const fieldId = groupFieldIds[i];
                     const dimensionValueRaw = String(
-                        row[groupFieldIds[i]]?.value?.raw,
+                        row[fieldId]?.value?.raw,
                     );
-
                     const dimensionValueFormatted = String(
-                        row[groupFieldIds[i]]?.value?.formatted,
+                        row[fieldId]?.value?.formatted,
                     );
 
                     if (!parent.children[dimensionValueRaw]) {
+                        // Build cumulative field values for this path
+                        const nodeFieldValues: Record<string, ResultValue> = {
+                            ...parent.meta.fieldValues,
+                            [fieldId]: row[fieldId]?.value,
+                        };
                         parent.children[dimensionValueRaw] =
-                            getEmptyTreemapNode(dimensionValueFormatted);
+                            getEmptyTreemapNode(
+                                dimensionValueFormatted,
+                                nodeFieldValues,
+                            );
                     }
                     if (i === groupFieldIds.length - 1) {
                         parent.children[dimensionValueRaw].value = [
                             rowSizeMetricValue,
                             rowColorMetricValue,
                         ];
+                        // Store the matching row on leaf nodes
+                        parent.children[dimensionValueRaw].meta.rows.push(row);
                     }
                     parent = parent.children[dimensionValueRaw];
                 }
@@ -294,6 +319,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
                     name: node.name,
                     value: node.value,
                     children: children.length > 0 ? children : undefined,
+                    meta: node.meta,
                 },
             ];
         };
