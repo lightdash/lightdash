@@ -386,7 +386,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
     async updateClient(
         clientId: string,
-        organizationUuid: string,
+        organizationUuid: string | null,
         {
             clientName,
             redirectUris,
@@ -395,9 +395,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
             redirectUris: string[];
         },
     ): Promise<OAuthClientSummary | null> {
-        const [updated] = await this.database('oauth2_clients')
-            .where('client_id', clientId)
-            .andWhere('organization_uuid', organizationUuid)
+        let query = this.database('oauth2_clients').where(
+            'client_id',
+            clientId,
+        );
+
+        if (organizationUuid === null) {
+            query = query.whereNull('organization_uuid');
+        } else {
+            query = query.andWhere('organization_uuid', organizationUuid);
+        }
+
+        const [updated] = await query
             .update({
                 client_name: clientName,
                 redirect_uris: redirectUris,
@@ -418,12 +427,20 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
     async deleteClient(
         clientId: string,
-        organizationUuid: string,
+        organizationUuid: string | null,
     ): Promise<boolean> {
-        const result = await this.database('oauth2_clients')
-            .where('client_id', clientId)
-            .andWhere('organization_uuid', organizationUuid)
-            .del();
+        let query = this.database('oauth2_clients').where(
+            'client_id',
+            clientId,
+        );
+
+        if (organizationUuid === null) {
+            query = query.whereNull('organization_uuid');
+        } else {
+            query = query.andWhere('organization_uuid', organizationUuid);
+        }
+
+        const result = await query.del();
 
         return result > 0;
     }

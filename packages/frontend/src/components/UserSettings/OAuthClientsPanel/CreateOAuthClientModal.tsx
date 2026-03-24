@@ -3,6 +3,7 @@ import {
     Button,
     CopyButton,
     Stack,
+    Textarea,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
@@ -92,7 +93,7 @@ export const CreateOAuthClientModal: FC<{
                             required
                             {...form.getInputProps('clientName')}
                         />
-                        <TextInput
+                        <Textarea
                             label="Redirect URI"
                             disabled={isLoading}
                             placeholder="https://myapp.example.com/callback"
