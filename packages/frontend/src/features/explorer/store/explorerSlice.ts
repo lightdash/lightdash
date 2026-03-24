@@ -1,8 +1,10 @@
 import {
+    buildDrilledMetricQuery,
     ChartType,
     convertFieldRefToFieldId,
     getFieldRef,
     getItemId,
+    isDrillDownPath,
     isSqlTableCalculation,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
@@ -13,6 +15,8 @@ import {
     type CustomDimension,
     type CustomFormat,
     type Dimension,
+    type DrillConfig,
+    type DrillPath,
     type FieldId,
     type Item,
     type ItemsMap,
@@ -22,6 +26,7 @@ import {
     type ParameterValue,
     type PreAggregateMatchResult,
     type ReplaceCustomFields,
+    type ResultValue,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -973,6 +978,153 @@ const explorerSlice = createSlice({
             }
             state.cachedChartConfigs[ChartType.MAP].tempMapExtent =
                 action.payload;
+        },
+
+        // --- Drill-into reducers ---
+
+        applyDrill: (
+            state,
+            action: PayloadAction<{
+                drillPath: DrillPath;
+                fieldValues: Record<string, ResultValue>;
+                dimensionIds: string[];
+            }>,
+        ) => {
+            const { drillPath, fieldValues, dimensionIds } = action.payload;
+            const currentMQ = current(state).unsavedChartVersion.metricQuery;
+            const currentCC = current(state).unsavedChartVersion.chartConfig;
+
+            const level = {
+                drillPath,
+                filterLabels: Object.fromEntries(
+                    dimensionIds
+                        .filter((id) => fieldValues[id])
+                        .map((id) => [id, fieldValues[id].formatted]),
+                ),
+                drillDimensionValues: Object.fromEntries(
+                    dimensionIds
+                        .filter((id) => fieldValues[id])
+                        .map((id) => [id, fieldValues[id].raw]),
+                ),
+            };
+
+            if (!state.drillState) {
+                // First drill — snapshot originals
+                state.drillState = {
+                    stack: [level],
+                    originalMetricQuery: currentMQ,
+                    originalChartConfig: currentCC,
+                    originalColumnOrder: current(state).unsavedChartVersion.tableConfig.columnOrder,
+                };
+            } else {
+                // Multi-level drill — push onto stack
+                state.drillState.stack.push(level);
+            }
+
+            // For inline drill paths, modify the metricQuery in place
+            // For linked chart paths, the query manager handles fetching the linked chart
+            if (isDrillDownPath(drillPath)) {
+                const drilledQuery = buildDrilledMetricQuery(
+                    currentMQ,
+                    drillPath,
+                    fieldValues,
+                    dimensionIds,
+                );
+                state.unsavedChartVersion.metricQuery = drilledQuery;
+
+                // Update columnOrder so table charts show all drilled fields
+                state.unsavedChartVersion.tableConfig.columnOrder = [
+                    ...drilledQuery.dimensions,
+                    ...drilledQuery.metrics,
+                    ...drilledQuery.tableCalculations.map((tc) => tc.name),
+                ];
+
+                // Map charts require structural dimensions (lat/lon) that get
+                // removed by the drill. Switch to a table so the drilled
+                // breakdown is still renderable.
+                if (
+                    state.unsavedChartVersion.chartConfig.type === ChartType.MAP
+                ) {
+                    state.unsavedChartVersion.chartConfig = {
+                        type: ChartType.TABLE,
+                        config: {},
+                    } as ChartConfig;
+                }
+            }
+
+            // Trigger query re-execution
+            state.queryExecution.pendingFetch = true;
+        },
+
+        popDrillTo: (state, action: PayloadAction<number>) => {
+            if (!state.drillState) return;
+
+            const targetIndex = action.payload;
+
+            // Restore to original state first
+            let metricQuery = state.drillState.originalMetricQuery;
+            state.unsavedChartVersion.chartConfig =
+                state.drillState.originalChartConfig;
+
+            // Replay stack up to target index
+            const newStack = state.drillState.stack.slice(0, targetIndex + 1);
+            for (const level of newStack) {
+                if (isDrillDownPath(level.drillPath)) {
+                    const fieldValues: Record<
+                        string,
+                        { raw: unknown; formatted: string }
+                    > = Object.fromEntries(
+                        Object.entries(level.filterLabels).map(
+                            ([key, label]) => [
+                                key,
+                                {
+                                    raw: level.drillDimensionValues[key],
+                                    formatted: label,
+                                },
+                            ],
+                        ),
+                    );
+
+                    metricQuery = buildDrilledMetricQuery(
+                        metricQuery,
+                        level.drillPath,
+                        fieldValues,
+                        metricQuery.dimensions,
+                    );
+                }
+            }
+
+            state.unsavedChartVersion.metricQuery = metricQuery;
+            state.unsavedChartVersion.tableConfig.columnOrder = [
+                ...metricQuery.dimensions,
+                ...metricQuery.metrics,
+                ...metricQuery.tableCalculations.map((tc) => tc.name),
+            ];
+            state.drillState.stack = newStack;
+            state.queryExecution.pendingFetch = true;
+        },
+
+        clearDrill: (state) => {
+            if (state.drillState) {
+                state.unsavedChartVersion.metricQuery =
+                    state.drillState.originalMetricQuery;
+                state.unsavedChartVersion.chartConfig =
+                    state.drillState.originalChartConfig;
+                state.unsavedChartVersion.tableConfig.columnOrder =
+                    state.drillState.originalColumnOrder;
+                state.drillState = null;
+
+                // Trigger query re-execution
+                state.queryExecution.pendingFetch = true;
+            }
+        },
+
+
+        setDrillConfig: (
+            state,
+            action: PayloadAction<DrillConfig | undefined>,
+        ) => {
+            state.unsavedChartVersion.drillConfig = action.payload;
         },
     },
 });

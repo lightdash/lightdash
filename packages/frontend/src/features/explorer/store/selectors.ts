@@ -265,6 +265,12 @@ export const selectSavedChart = createSelector(
     (explorer) => explorer.savedChart,
 );
 
+// Drill state selector
+export const selectDrillState = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.drillState,
+);
+
 // Metadata selectors
 export const selectTableCalculationsMetadata = createSelector(
     [selectExplorerState],
@@ -524,6 +530,7 @@ export const selectHasUnsavedChanges = createSelector(
                 metricQuery: savedChart.metricQuery,
                 tableConfig: savedChart.tableConfig,
                 pivotConfig: savedChart.pivotConfig,
+                drillConfig: savedChart.drillConfig,
                 parameters: savedChart.parameters,
             }),
             removeEmptyProperties({
@@ -534,6 +541,7 @@ export const selectHasUnsavedChanges = createSelector(
                 metricQuery: unsavedChartVersion.metricQuery,
                 tableConfig: unsavedChartVersion.tableConfig,
                 pivotConfig: unsavedChartVersion.pivotConfig,
+                drillConfig: unsavedChartVersion.drillConfig,
                 parameters: unsavedChartVersion.parameters,
             }),
         );

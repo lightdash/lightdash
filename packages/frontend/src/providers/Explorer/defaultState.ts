@@ -72,4 +72,5 @@ export const defaultState: ExplorerSliceState = {
         isEnabled: false,
         cacheEnabled: true,
     },
+    drillState: null,
 };

@@ -21,6 +21,7 @@ import {
 } from 'react-router';
 import {
     explorerActions,
+    selectDrillState,
     selectMetricQuery,
     selectTableName,
     selectUnsavedChartVersion,
@@ -220,11 +221,13 @@ export const useExplorerRoute = () => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
+    const drillState = useExplorerSelector(selectDrillState);
 
     // Update url params based on pristine state
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
+    // Skip URL updates when drill state is active to avoid persisting drilled query in URL
     useEffect(() => {
-        if (pathParams.tableId && metricQuery && tableName) {
+        if (pathParams.tableId && metricQuery && tableName && !drillState) {
             void navigate(
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
@@ -240,6 +243,7 @@ export const useExplorerRoute = () => {
         pathParams.tableId,
         unsavedChartVersion,
         tableName,
+        drillState,
     ]);
 
     useEffect(() => {
@@ -329,6 +333,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     isExploreFromHere: isExploreFromHere,
                     queryExecution: defaultQueryExecution,
                     preAggregate: defaultState.preAggregate,
+                    drillState: null,
                 };
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';
