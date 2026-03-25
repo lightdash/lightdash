@@ -1,3 +1,10 @@
+# [0.2663.0](https://github.com/lightdash/lightdash/compare/0.2662.3...0.2663.0) (2026-03-25)
+
+
+### Features
+
+* add chart rollback support for dashboard version rollback ([#21216](https://github.com/lightdash/lightdash/issues/21216)) ([55e2fac](https://github.com/lightdash/lightdash/commit/55e2facb187c34bc7392e5854f8db6bd1e4ad23d))
+
 ## [0.2662.3](https://github.com/lightdash/lightdash/compare/0.2662.2...0.2662.3) (2026-03-25)
 
 
