@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    FeatureFlags,
     getItemId,
     isCustomDimension,
     isDimension,
@@ -10,6 +11,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
+import { NumberInput } from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
@@ -22,6 +24,7 @@ import {
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -37,6 +40,10 @@ type Props = {
 export const Layout: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -192,6 +199,10 @@ export const Layout: FC<Props> = ({ items }) => {
         updateYField,
         removeSingleSeries,
         addSingleSeries,
+        showFromRow,
+        setShowFromRow,
+        showToRow,
+        setShowToRow,
     } = visualizationConfig.chartConfig;
 
     return (
@@ -465,6 +476,40 @@ export const Layout: FC<Props> = ({ items }) => {
                     )}
                 </Config.Section>
             </Config>
+
+            {isShowHideRowsEnabled && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Row range</Config.Heading>
+                        <NumberInput
+                            label="Show from row"
+                            placeholder="First row"
+                            min={1}
+                            value={showFromRow ?? ''}
+                            onChange={(value) =>
+                                setShowFromRow(
+                                    typeof value === 'number'
+                                        ? value
+                                        : undefined,
+                                )
+                            }
+                        />
+                        <NumberInput
+                            label="Show to row"
+                            placeholder="Last row"
+                            min={1}
+                            value={showToRow ?? ''}
+                            onChange={(value) =>
+                                setShowToRow(
+                                    typeof value === 'number'
+                                        ? value
+                                        : undefined,
+                                )
+                            }
+                        />
+                    </Config.Section>
+                </Config>
+            )}
         </Stack>
     );
 };
