@@ -1,3 +1,10 @@
+# [0.2664.0](https://github.com/lightdash/lightdash/compare/0.2663.2...0.2664.0) (2026-03-25)
+
+
+### Features
+
+* preview lightdash vibe apps ([#21370](https://github.com/lightdash/lightdash/issues/21370)) ([0694b20](https://github.com/lightdash/lightdash/commit/0694b20baa93d3b077a65c9ae9bf501c6119a805))
+
 ## [0.2663.2](https://github.com/lightdash/lightdash/compare/0.2663.1...0.2663.2) (2026-03-25)
 
 
