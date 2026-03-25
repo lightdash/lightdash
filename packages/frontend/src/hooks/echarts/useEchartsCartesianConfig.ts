@@ -91,6 +91,7 @@ import {
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
+import { sliceRows } from '../../utils/sliceRows';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
     getPivotedDataFromPivotDetails,
@@ -2351,16 +2352,15 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
-    const rows = useMemo(() => {
-        if (!isShowHideRowsEnabled) return allRows;
-        const limit = validCartesianConfig?.rowLimit;
-        if (!limit) return allRows;
-        const count = Math.max(0, limit.count);
-        if (limit.direction === 'first') {
-            return allRows.slice(0, count);
-        }
-        return allRows.slice(Math.max(0, allRows.length - count));
-    }, [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit]);
+    const rows = useMemo(
+        () =>
+            sliceRows(
+                allRows,
+                isShowHideRowsEnabled,
+                validCartesianConfig?.rowLimit,
+            ),
+        [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
+    );
 
     const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {

@@ -1,31 +1,5 @@
 import { describe, expect, it } from 'vitest';
-
-type RowLimit = {
-    direction: 'first' | 'last';
-    count: number;
-};
-
-function sliceRows<T>(
-    allRows: T[],
-    isShowHideRowsEnabled: boolean,
-    rowLimit: RowLimit | undefined,
-): T[] {
-    if (!isShowHideRowsEnabled || !rowLimit) return allRows;
-    const count = Math.max(0, rowLimit.count);
-    if (rowLimit.direction === 'first') {
-        return allRows.slice(0, count);
-    }
-    return allRows.slice(Math.max(0, allRows.length - count));
-}
-
-function computeTotalRowsCount(
-    serverTotal: number,
-    isShowHideRowsEnabled: boolean,
-    rowLimit: RowLimit | undefined,
-): number {
-    if (!isShowHideRowsEnabled || !rowLimit) return serverTotal;
-    return Math.min(Math.max(0, rowLimit.count), serverTotal);
-}
+import { computeLimitedRowCount, sliceRows } from '../../utils/sliceRows';
 
 const makeRows = (n: number) => Array.from({ length: n }, (_, i) => i);
 
@@ -109,12 +83,12 @@ describe('sliceRows', () => {
     });
 });
 
-describe('computeTotalRowsCount', () => {
+describe('computeLimitedRowCount', () => {
     const serverTotal = 5000;
 
     it('returns server total when flag is off', () => {
         expect(
-            computeTotalRowsCount(serverTotal, false, {
+            computeLimitedRowCount(serverTotal, false, {
                 direction: 'first',
                 count: 10,
             }),
@@ -122,12 +96,12 @@ describe('computeTotalRowsCount', () => {
     });
 
     it('returns server total when rowLimit is undefined', () => {
-        expect(computeTotalRowsCount(serverTotal, true, undefined)).toBe(5000);
+        expect(computeLimitedRowCount(serverTotal, true, undefined)).toBe(5000);
     });
 
     it('returns count when within server total', () => {
         expect(
-            computeTotalRowsCount(serverTotal, true, {
+            computeLimitedRowCount(serverTotal, true, {
                 direction: 'first',
                 count: 10,
             }),
@@ -136,7 +110,7 @@ describe('computeTotalRowsCount', () => {
 
     it('clamps to server total when count exceeds it', () => {
         expect(
-            computeTotalRowsCount(serverTotal, true, {
+            computeLimitedRowCount(serverTotal, true, {
                 direction: 'first',
                 count: 10000,
             }),
@@ -145,7 +119,7 @@ describe('computeTotalRowsCount', () => {
 
     it('works the same for last direction', () => {
         expect(
-            computeTotalRowsCount(serverTotal, true, {
+            computeLimitedRowCount(serverTotal, true, {
                 direction: 'last',
                 count: 10,
             }),
@@ -154,7 +128,7 @@ describe('computeTotalRowsCount', () => {
 
     it('handles zero count', () => {
         expect(
-            computeTotalRowsCount(serverTotal, true, {
+            computeLimitedRowCount(serverTotal, true, {
                 direction: 'first',
                 count: 0,
             }),

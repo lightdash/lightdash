@@ -8,6 +8,7 @@ import {
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { computeLimitedRowCount, sliceRows } from '../../utils/sliceRows';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -196,6 +197,26 @@ const SimpleTable: FC<SimpleTableProps> = ({
             : [];
     }, [visualizationConfig]);
 
+    const rowLimit = isTableVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig.rowLimit
+        : undefined;
+
+    const slicedRows = useMemo(
+        () =>
+            sliceRows(resultsData?.rows || [], isShowHideRowsEnabled, rowLimit),
+        [resultsData?.rows, isShowHideRowsEnabled, rowLimit],
+    );
+
+    const totalRowsCount = useMemo(
+        () =>
+            computeLimitedRowCount(
+                resultsData?.totalResults || 0,
+                isShowHideRowsEnabled,
+                rowLimit,
+            ),
+        [resultsData?.totalResults, isShowHideRowsEnabled, rowLimit],
+    );
+
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
 
     const {
@@ -208,7 +229,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showResultsTotal,
         showSubtotals,
         updateColumnProperty,
-        rowLimit,
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
@@ -298,22 +318,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
             </Box>
         );
     }
-
-    const allRows = resultsData?.rows || [];
-    const isSlicing = isShowHideRowsEnabled && rowLimit !== undefined;
-    const slicedRows = (() => {
-        if (!isSlicing) return allRows;
-        const count = Math.max(0, rowLimit.count);
-        if (rowLimit.direction === 'first') {
-            return allRows.slice(0, count);
-        }
-        return allRows.slice(Math.max(0, allRows.length - count));
-    })();
-
-    const serverTotal = resultsData?.totalResults || 0;
-    const totalRowsCount = isSlicing
-        ? Math.min(Math.max(0, rowLimit.count), serverTotal)
-        : serverTotal;
 
     return (
         <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">
