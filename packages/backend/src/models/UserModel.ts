@@ -1,4 +1,4 @@
-import { AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     ActivateUser,
     AlreadyExistsError,
@@ -18,6 +18,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
+    PossibleAbilities,
     ProjectMemberProfile,
     ProjectMemberRole,
     Role,
@@ -156,6 +157,23 @@ export class UserModel {
         return this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
     }
 
+    /**
+     * Reconstruct a SessionUser from Redis-cached data.
+     * JSON serialization loses Date instances and CASL Ability methods,
+     * so we rebuild them from the raw cached object.
+     */
+    private static hydrateSessionUser(cached: SessionUser): SessionUser {
+        return {
+            ...cached,
+            createdAt: new Date(cached.createdAt),
+            updatedAt: new Date(cached.updatedAt),
+            organizationCreatedAt: cached.organizationCreatedAt
+                ? new Date(cached.organizationCreatedAt)
+                : undefined,
+            ability: new Ability<PossibleAbilities>(cached.abilityRules),
+        };
+    }
+
     async getSessionUserFromCacheOrDB(
         userUuid: string,
         organizationUuid: string,
@@ -166,7 +184,10 @@ export class UserModel {
         const kvCached =
             await this.keyValueCacheClient?.get<SessionUser>(cacheKey);
         if (kvCached) {
-            return { sessionUser: kvCached, cacheHit: true };
+            return {
+                sessionUser: UserModel.hydrateSessionUser(kvCached),
+                cacheHit: true,
+            };
         }
 
         // Fall back to in-memory NodeCache
