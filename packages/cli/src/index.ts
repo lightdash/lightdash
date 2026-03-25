@@ -735,6 +735,11 @@ program
         parseProjectArgument,
         undefined,
     )
+    .option(
+        '--skip-spaces',
+        'skip writing space metadata files during download',
+        false,
+    )
     .action(downloadHandler);
 
 program
