@@ -302,6 +302,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         this.onQueryProfile = args.onQueryProfile;
     }
 
+    private static readonly CONNECT_RETRIES_BEFORE_RECREATE = 2;
+
     async close(): Promise<void> {
         clearSharedInstance(this.logger);
     }
@@ -319,19 +321,31 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             this.databasePath,
             this.logger,
         );
-        try {
-            return await instance.connect();
-        } catch (firstError) {
-            this.logger?.info(
-                `DuckDB connect failed, retrying with fresh instance: ${firstError}`,
-            );
-            clearSharedInstance(this.logger);
-            const freshInstance = await getOrCreateSharedInstance(
-                this.databasePath,
-                this.logger,
-            );
-            return freshInstance.connect();
+
+        for (
+            let attempt = 1;
+            attempt <= DuckdbWarehouseClient.CONNECT_RETRIES_BEFORE_RECREATE;
+            attempt += 1
+        ) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                return await instance.connect();
+            } catch (error) {
+                this.logger?.info(
+                    `DuckDB connect attempt ${attempt} failed: ${error}`,
+                );
+            }
         }
+
+        this.logger?.info(
+            'DuckDB connect retries exhausted, recreating instance',
+        );
+        clearSharedInstance(this.logger);
+        const freshInstance = await getOrCreateSharedInstance(
+            this.databasePath,
+            this.logger,
+        );
+        return freshInstance.connect();
     }
 
     /** Ephemeral DuckDB instance with resource limits (e.g. parquet conversion). */
