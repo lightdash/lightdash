@@ -1,9 +1,6 @@
-import { useLightdash } from '@lightdash/query-sdk';
-import { fmt } from '../format';
-import { lightdash } from '../lightdash';
+import { query, useLightdash } from '@lightdash/query-sdk';
 
-const standingsQuery = lightdash
-    .model('fct_race_results')
+const standingsQuery = query('fct_race_results')
     .dimensions(['driver_name', 'constructor_name'])
     .metrics([
         'total_points',
@@ -17,7 +14,7 @@ const standingsQuery = lightdash
     .limit(20);
 
 export function DriverStandings() {
-    const { data, loading, error } = useLightdash(standingsQuery);
+    const { data, format, loading, error } = useLightdash(standingsQuery);
 
     if (loading) return <div className="card loading">Loading...</div>;
     if (error) return <div className="card error">{error.message}</div>;
@@ -48,14 +45,14 @@ export function DriverStandings() {
                             <td className="team-name">
                                 {String(row.constructor_name)}
                             </td>
-                            <td className="num">{fmt(row.total_points)}</td>
-                            <td className="num">{fmt(row.total_wins)}</td>
-                            <td className="num">{fmt(row.total_podiums)}</td>
+                            <td className="num">{format(row, 'total_points')}</td>
+                            <td className="num">{format(row, 'total_wins')}</td>
+                            <td className="num">{format(row, 'total_podiums')}</td>
                             <td className="num">
-                                {fmt(row.average_grid_position, 1)}
+                                {format(row, 'average_grid_position')}
                             </td>
                             <td className="num">
-                                {fmt(row.average_finish_position, 1)}
+                                {format(row, 'average_finish_position')}
                             </td>
                         </tr>
                     ))}

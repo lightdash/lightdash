@@ -1,4 +1,8 @@
-import { LightdashProvider, type LightdashUser } from '@lightdash/query-sdk';
+import {
+    LightdashProvider,
+    useLightdashClient,
+    type LightdashUser,
+} from '@lightdash/query-sdk';
 import { useEffect, useState } from 'react';
 import { ConstructorChart } from './components/ConstructorChart';
 import { DriverStandings } from './components/DriverStandings';
@@ -8,10 +12,11 @@ import { lightdash } from './lightdash';
 import './App.css';
 
 function UserGreeting() {
+    const client = useLightdashClient();
     const [user, setUser] = useState<LightdashUser | null>(null);
     useEffect(() => {
-        lightdash.auth.getUser().then(setUser).catch(console.error);
-    }, []);
+        client?.auth.getUser().then(setUser).catch(console.error);
+    }, [client]);
     return (
         <span className="subtitle">
             {user ? `Hello, ${user.name}` : 'Loading...'}
