@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { KeyValueCacheClient } from '../clients/CacheClient';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -55,14 +56,18 @@ import type { GetDashboardDetailsQuery } from './DashboardModel/DashboardModel';
 
 type SpaceModelArguments = {
     database: Knex;
+    keyValueCacheClient?: KeyValueCacheClient;
 };
 export class SpaceModel {
     private database: Knex;
+
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
 
     public MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: number;
 
     constructor(args: SpaceModelArguments) {
         this.database = args.database;
+        this.keyValueCacheClient = args.keyValueCacheClient;
         this.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT = 10;
     }
 
@@ -259,6 +264,10 @@ export class SpaceModel {
         );
     }
 
+    private async invalidateSpaceCache(spaceUuid: string): Promise<void> {
+        await this.keyValueCacheClient?.delByPrefix(`space:${spaceUuid}`);
+    }
+
     async get(
         spaceUuid: string,
     ): Promise<
@@ -272,6 +281,22 @@ export class SpaceModel {
             | 'inheritsFromOrgOrProject'
         >
     > {
+        type SpaceGetResult = Omit<
+            Space,
+            | 'queries'
+            | 'dashboards'
+            | 'access'
+            | 'groupsAccess'
+            | 'childSpaces'
+            | 'inheritsFromOrgOrProject'
+        >;
+        const cacheKey = `space:${spaceUuid}`;
+        const cached =
+            await this.keyValueCacheClient?.get<SpaceGetResult>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const [row] = await this.database(SpaceTableName)
             .leftJoin(
                 ProjectTableName,
@@ -314,7 +339,7 @@ export class SpaceModel {
                 `space with spaceUuid ${spaceUuid} does not exist`,
             );
 
-        return {
+        const result: SpaceGetResult = {
             organizationUuid: row.organization_uuid,
             name: row.name,
             uuid: row.space_uuid,
@@ -326,6 +351,9 @@ export class SpaceModel {
             path: row.path,
             inheritParentPermissions: row.inherit_parent_permissions,
         };
+
+        await this.keyValueCacheClient?.set(cacheKey, result, 45);
+        return result;
     }
 
     async getSpaceDashboards(
@@ -828,6 +856,16 @@ export class SpaceModel {
         spaceUuid: string,
         options?: { deleted?: boolean },
     ): Promise<SpaceSummaryBase> {
+        const isCacheable = !options?.deleted;
+        if (isCacheable) {
+            const cacheKey = `space:${spaceUuid}:summary`;
+            const cached =
+                await this.keyValueCacheClient?.get<SpaceSummaryBase>(cacheKey);
+            if (cached) {
+                return cached;
+            }
+        }
+
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
             {},
@@ -840,6 +878,13 @@ export class SpaceModel {
                     throw new NotFoundError(
                         `Space with spaceUuid ${spaceUuid} does not exist`,
                     );
+                if (isCacheable) {
+                    await this.keyValueCacheClient?.set(
+                        `space:${spaceUuid}:summary`,
+                        space,
+                        45,
+                    );
+                }
                 return space;
             },
         );
@@ -1256,6 +1301,7 @@ export class SpaceModel {
         spaceUuid: string,
         space: Partial<UpdateSpace>,
     ): Promise<void> {
+        await this.invalidateSpaceCache(spaceUuid);
         await this.database(SpaceTableName)
             .update({
                 name: space.name,

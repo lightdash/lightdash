@@ -37,6 +37,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
+import { KeyValueCacheClient } from '../../clients/CacheClient';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -129,6 +130,7 @@ type DashboardModelArguments = {
         dashboard: { versionHistory: { daysLimit: number } };
     };
     contentVerificationModel?: ContentVerificationModel;
+    keyValueCacheClient?: KeyValueCacheClient;
 };
 
 export class DashboardModel {
@@ -138,10 +140,19 @@ export class DashboardModel {
 
     private contentVerificationModel: ContentVerificationModel | undefined;
 
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.contentVerificationModel = args.contentVerificationModel;
+        this.keyValueCacheClient = args.keyValueCacheClient;
+    }
+
+    private async invalidateDashboardCache(
+        dashboardUuid: string,
+    ): Promise<void> {
+        await this.keyValueCacheClient?.del(`dashboard:${dashboardUuid}`);
     }
 
     private static async createVersion(
@@ -719,6 +730,17 @@ export class DashboardModel {
         dashboardUuidOrSlug: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
     ): Promise<DashboardDAO> {
+        // Only cache default lookups (no deleted filter)
+        const isCacheable = !options?.deleted;
+        if (isCacheable) {
+            const cacheKey = `dashboard:${dashboardUuidOrSlug}`;
+            const cached =
+                await this.keyValueCacheClient?.get<DashboardDAO>(cacheKey);
+            if (cached) {
+                return cached;
+            }
+        }
+
         const query = this.database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
@@ -1029,7 +1051,7 @@ export class DashboardModel {
                 dashboard.dashboard_uuid,
             )) ?? null;
 
-        return {
+        const result: DashboardDAO = {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
             dashboardVersionId: dashboard.dashboard_version_id,
@@ -1178,6 +1200,16 @@ export class DashboardModel {
                   }
                 : {}),
         };
+
+        if (isCacheable) {
+            await this.keyValueCacheClient?.set(
+                `dashboard:${dashboardUuidOrSlug}`,
+                result,
+                30,
+            );
+        }
+
+        return result;
     }
 
     /*
@@ -1231,6 +1263,7 @@ export class DashboardModel {
         dashboardUuidOrSlug: string,
         dashboard: DashboardUnversionedFields,
     ): Promise<DashboardDAO> {
+        await this.invalidateDashboardCache(dashboardUuidOrSlug);
         const withSpaceId = dashboard.spaceUuid
             ? {
                   space_id: (
@@ -1301,6 +1334,7 @@ export class DashboardModel {
     }
 
     async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
+        await this.invalidateDashboardCache(dashboardUuid);
         const dashboard = await this.getByIdOrSlug(dashboardUuid, {
             deleted: 'any',
         });
@@ -1314,6 +1348,7 @@ export class DashboardModel {
         dashboardUuid: string,
         userUuid: string,
     ): Promise<DashboardDAO> {
+        await this.invalidateDashboardCache(dashboardUuid);
         const dashboard = await this.getByIdOrSlug(dashboardUuid);
         const now = new Date();
         await this.database(DashboardsTableName)
