@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
@@ -6,6 +7,7 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -52,6 +54,10 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const shouldPaginateResults = useMemo(() => {
         return Boolean(
@@ -295,13 +301,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     const allRows = resultsData?.rows || [];
-    const slicedRows =
-        showFromRow === undefined && showToRow === undefined
-            ? allRows
-            : allRows.slice(
-                  showFromRow !== undefined ? showFromRow - 1 : 0,
-                  showToRow !== undefined ? showToRow : allRows.length,
-              );
+    const slicedRows = (() => {
+        if (!isShowHideRowsEnabled) return allRows;
+        if (showFromRow === undefined && showToRow === undefined)
+            return allRows;
+        const start = Math.max(0, (showFromRow ?? 1) - 1);
+        const end = Math.max(start, showToRow ?? allRows.length);
+        return allRows.slice(start, end);
+    })();
 
     return (
         <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">

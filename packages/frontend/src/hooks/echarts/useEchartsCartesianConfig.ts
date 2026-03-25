@@ -8,6 +8,7 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
+    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -97,6 +98,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -2282,6 +2284,10 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2346,15 +2352,16 @@ const useEchartsCartesianConfig = (
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
     const rows = useMemo(() => {
+        if (!isShowHideRowsEnabled) return allRows;
         const fromRow = validCartesianConfig?.showFromRow;
         const toRow = validCartesianConfig?.showToRow;
         if (fromRow === undefined && toRow === undefined) return allRows;
-        return allRows.slice(
-            fromRow !== undefined ? fromRow - 1 : 0,
-            toRow !== undefined ? toRow : allRows.length,
-        );
+        const start = Math.max(0, (fromRow ?? 1) - 1);
+        const end = Math.max(start, toRow ?? allRows.length);
+        return allRows.slice(start, end);
     }, [
         allRows,
+        isShowHideRowsEnabled,
         validCartesianConfig?.showFromRow,
         validCartesianConfig?.showToRow,
     ]);
