@@ -1,3 +1,11 @@
+## [0.2663.2](https://github.com/lightdash/lightdash/compare/0.2663.1...0.2663.2) (2026-03-25)
+
+
+### Bug Fixes
+
+* improve error handling for chart field usage during dashboard duplication ([#21395](https://github.com/lightdash/lightdash/issues/21395)) ([fbf2b4e](https://github.com/lightdash/lightdash/commit/fbf2b4ee2b6ad7016a8434712dadb59b1229f2d5))
+* move savedChart property inside explorerState object ([#21399](https://github.com/lightdash/lightdash/issues/21399)) ([7b75cf3](https://github.com/lightdash/lightdash/commit/7b75cf3e2c2245dbbcc26e1ff8fa7aad68b47b58))
+
 ## [0.2663.1](https://github.com/lightdash/lightdash/compare/0.2663.0...0.2663.1) (2026-03-25)
 
 
