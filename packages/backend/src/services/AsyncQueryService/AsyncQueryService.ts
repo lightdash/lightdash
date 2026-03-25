@@ -3695,18 +3695,7 @@ export class AsyncQueryService extends ProjectService {
                 };
             }
 
-            // Try to resolve from chart's saved drillConfig first
-            const drillPath = savedChart.drillConfig?.paths.find(
-                (p) => p.id === step.drillPathId,
-            );
-            if (drillPath) {
-                return {
-                    drillPath,
-                    drillDimensionValues: step.drillDimensionValues,
-                };
-            }
-
-            // Fall back to inline data from the request (unsaved drill config)
+            // Prefer inline data when present (supports unsaved drill config edits)
             if (step.inlineDimensions?.length) {
                 return {
                     drillPath: {
@@ -3717,6 +3706,17 @@ export class AsyncQueryService extends ProjectService {
                         metrics: step.inlineMetrics,
                         sorts: step.inlineSorts,
                     },
+                    drillDimensionValues: step.drillDimensionValues,
+                };
+            }
+
+            // Fall back to saved drillConfig
+            const drillPath = savedChart.drillConfig?.paths.find(
+                (p) => p.id === step.drillPathId,
+            );
+            if (drillPath) {
+                return {
+                    drillPath,
                     drillDimensionValues: step.drillDimensionValues,
                 };
             }
