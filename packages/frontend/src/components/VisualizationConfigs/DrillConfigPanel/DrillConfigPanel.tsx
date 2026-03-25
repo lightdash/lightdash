@@ -1,5 +1,12 @@
 import {
+    DragDropContext,
+    Draggable,
+    Droppable,
+    type DropResult,
+} from '@hello-pangea/dnd';
+import {
     ChartKind,
+    DrillPathType,
     getDimensions,
     getMetrics,
     isDrillDownPath,
@@ -15,7 +22,7 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import { IconInfoCircle } from '@tabler/icons-react';
+import { IconGripVertical, IconInfoCircle } from '@tabler/icons-react';
 import React, {
     useCallback,
     useEffect,
@@ -35,6 +42,7 @@ import {
 import { useCharts } from '../../../hooks/useCharts';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon } from '../../common/ResourceIcon';
 import { AccordionControl } from '../common/AccordionControl';
 import { AddButton } from '../common/AddButton';
@@ -85,15 +93,13 @@ const LabelInput: FC<{
     );
 };
 
-type DrillPathType = 'drillDown' | 'drillThrough';
-
 type DrillConfigPanelProps = {
     /** Which drill path types the user can configure. Defaults to both. */
     allowedTypes?: DrillPathType[];
 };
 
 const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
-    allowedTypes = ['drillDown', 'drillThrough'],
+    allowedTypes = [DrillPathType.DRILL_DOWN, DrillPathType.DRILL_THROUGH],
 }) => {
     const dispatch = useExplorerDispatch();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
@@ -115,6 +121,13 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
         () => unsavedChartVersion?.drillConfig?.paths ?? [],
         [unsavedChartVersion?.drillConfig?.paths],
     );
+
+    const visiblePaths = useMemo(
+        () => allPaths.filter((p) => allowedTypes.includes(p.type)),
+        [allPaths, allowedTypes],
+    );
+
+    const hiddenCount = allPaths.length - visiblePaths.length;
 
     const dimensionOptions = useMemo(() => {
         if (!explore) return [];
@@ -179,17 +192,17 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
     const handleAdd = useCallback(() => {
         const defaultType = allowedTypes[0];
         const newPath: DrillPath =
-            defaultType === 'drillThrough'
+            defaultType === DrillPathType.DRILL_THROUGH
                 ? {
                       id: uuidv4(),
-                      type: 'drillThrough',
+                      type: DrillPathType.DRILL_THROUGH,
                       label: '',
                       linkedChartUuid: '',
                       target: 'modal' as const,
                   }
                 : {
                       id: uuidv4(),
-                      type: 'drillDown',
+                      type: DrillPathType.DRILL_DOWN,
                       label: '',
                       dimensions: [],
                   };
@@ -200,6 +213,19 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
     const handleRemove = useCallback(
         (index: number) => {
             updatePaths(allPaths.filter((_, i) => i !== index));
+        },
+        [allPaths, updatePaths],
+    );
+
+    const handleDragEnd = useCallback(
+        (result: DropResult) => {
+            if (!result.destination) return;
+            if (result.destination.index === result.source.index) return;
+
+            const reordered = [...allPaths];
+            const [moved] = reordered.splice(result.source.index, 1);
+            reordered.splice(result.destination.index, 0, moved);
+            updatePaths(reordered);
         },
         [allPaths, updatePaths],
     );
@@ -216,22 +242,22 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
     );
 
     const handleSwitchType = useCallback(
-        (id: string, newType: 'drillDown' | 'drillThrough') => {
+        (id: string, newType: DrillPathType) => {
             const existing = allPaths.find((p) => p.id === id);
             if (!existing) return;
 
             const newPath: DrillPath =
-                newType === 'drillThrough'
+                newType === DrillPathType.DRILL_THROUGH
                     ? {
                           id: existing.id,
-                          type: 'drillThrough',
+                          type: DrillPathType.DRILL_THROUGH,
                           label: existing.label,
                           linkedChartUuid: '',
                           target: 'modal' as const,
                       }
                     : {
                           id: existing.id,
-                          type: 'drillDown' as const,
+                          type: DrillPathType.DRILL_DOWN,
                           label: existing.label,
                           dimensions: [],
                       };
@@ -262,198 +288,349 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                     <AddButton onClick={handleAdd} />
                 </Config.Group>
 
-                <Accordion
-                    multiple
-                    variant="contained"
-                    value={openItems}
-                    onChange={handleAccordionChange}
-                    styles={(theme) => ({
-                        control: {
-                            padding: theme.spacing.xs,
-                        },
-                        label: {
-                            padding: 0,
-                        },
-                        panel: {
-                            padding: 0,
-                        },
-                    })}
-                >
-                    {allPaths.map((path, index) => (
-                        <Accordion.Item key={path.id} value={`${index}`}>
-                            <AccordionControl
-                                label={path.label || `Drill path ${index + 1}`}
-                                onControlClick={() =>
-                                    handleAccordionChange(
-                                        openItems.includes(`${index}`)
-                                            ? openItems.filter(
-                                                  (i) => i !== `${index}`,
-                                              )
-                                            : [...openItems, `${index}`],
-                                    )
-                                }
-                                onRemove={() => handleRemove(index)}
-                            />
-                            <Accordion.Panel>
-                                <Stack spacing="xs" p="xs">
-                                    <LabelInput
-                                        value={path.label}
-                                        onChange={(label) =>
-                                            handleUpdatePath(path.id, {
-                                                label,
-                                            })
-                                        }
-                                    />
-
-                                    {allowedTypes.length > 1 && (
-                                        <SegmentedControl
-                                            size="xs"
-                                            fullWidth
-                                            value={
-                                                isDrillThroughPath(path)
-                                                    ? 'drillThrough'
-                                                    : 'drillDown'
-                                            }
-                                            onChange={(v) =>
-                                                handleSwitchType(
-                                                    path.id,
-                                                    v as DrillPathType,
-                                                )
-                                            }
-                                            data={[
-                                                {
-                                                    value: 'drillDown',
-                                                    label: 'Drill down',
-                                                },
-                                                {
-                                                    value: 'drillThrough',
-                                                    label: 'Drill through',
-                                                },
-                                            ]}
-                                        />
-                                    )}
-
-                                    {allowedTypes.length > 1 && (
-                                        <div
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'flex-start',
-                                                gap: 4,
-                                            }}
+                <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="drill-paths">
+                        {(droppableProvided) => (
+                            <Accordion
+                                multiple
+                                variant="contained"
+                                value={openItems}
+                                onChange={handleAccordionChange}
+                                styles={(theme) => ({
+                                    control: {
+                                        padding: theme.spacing.xs,
+                                    },
+                                    label: {
+                                        padding: 0,
+                                    },
+                                    panel: {
+                                        padding: 0,
+                                    },
+                                })}
+                                ref={droppableProvided.innerRef}
+                                {...droppableProvided.droppableProps}
+                            >
+                                {visiblePaths.map((path, visibleIndex) => {
+                                    const index = allPaths.indexOf(path);
+                                    return (
+                                        <Draggable
+                                            key={path.id}
+                                            draggableId={path.id}
+                                            index={visibleIndex}
                                         >
-                                            <IconInfoCircle
-                                                size={14}
-                                                style={{
-                                                    opacity: 0.4,
-                                                    flexShrink: 0,
-                                                    marginTop: 1,
-                                                }}
-                                            />
-                                            <Text size="xs" color="dimmed">
-                                                {isDrillDownPath(path)
-                                                    ? 'Explores deeper into this chart by a different dimension'
-                                                    : 'Opens another chart filtered to the selected value'}
-                                            </Text>
-                                        </div>
-                                    )}
+                                            {(draggableProvided) => (
+                                                <div
+                                                    ref={
+                                                        draggableProvided.innerRef
+                                                    }
+                                                    {...draggableProvided.draggableProps}
+                                                >
+                                                    <Accordion.Item
+                                                        key={path.id}
+                                                        value={`${index}`}
+                                                    >
+                                                        <AccordionControl
+                                                            label={
+                                                                path.label ||
+                                                                `Drill path ${index + 1}`
+                                                            }
+                                                            extraControlElements={
+                                                                <div
+                                                                    {...draggableProvided.dragHandleProps}
+                                                                    style={{
+                                                                        cursor: 'grab',
+                                                                        display:
+                                                                            'flex',
+                                                                        alignItems:
+                                                                            'center',
+                                                                        padding:
+                                                                            '8px 4px',
+                                                                        margin: '-8px -4px',
+                                                                    }}
+                                                                >
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconGripVertical
+                                                                        }
+                                                                        size={
+                                                                            14
+                                                                        }
+                                                                        style={{
+                                                                            opacity: 0.4,
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            }
+                                                            onControlClick={() =>
+                                                                handleAccordionChange(
+                                                                    openItems.includes(
+                                                                        `${index}`,
+                                                                    )
+                                                                        ? openItems.filter(
+                                                                              (
+                                                                                  i,
+                                                                              ) =>
+                                                                                  i !==
+                                                                                  `${index}`,
+                                                                          )
+                                                                        : [
+                                                                              ...openItems,
+                                                                              `${index}`,
+                                                                          ],
+                                                                )
+                                                            }
+                                                            onRemove={() =>
+                                                                handleRemove(
+                                                                    index,
+                                                                )
+                                                            }
+                                                        />
+                                                        <Accordion.Panel>
+                                                            <Stack
+                                                                spacing="xs"
+                                                                p="xs"
+                                                            >
+                                                                <LabelInput
+                                                                    value={
+                                                                        path.label
+                                                                    }
+                                                                    onChange={(
+                                                                        label,
+                                                                    ) =>
+                                                                        handleUpdatePath(
+                                                                            path.id,
+                                                                            {
+                                                                                label,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                />
 
-                                    {isDrillDownPath(path) && (
-                                        <>
-                                            <Select
-                                                label="Dimension"
-                                                placeholder="Select dimension"
-                                                size="xs"
-                                                data={dimensionOptions}
-                                                value={
-                                                    path.dimensions[0] ?? null
-                                                }
-                                                onChange={(value) =>
-                                                    handleUpdatePath(path.id, {
-                                                        dimensions: value
-                                                            ? [value]
-                                                            : [],
-                                                    })
-                                                }
-                                                searchable
-                                                clearable
-                                            />
+                                                                {allowedTypes.length >
+                                                                    1 && (
+                                                                    <SegmentedControl
+                                                                        size="xs"
+                                                                        fullWidth
+                                                                        value={
+                                                                            isDrillThroughPath(
+                                                                                path,
+                                                                            )
+                                                                                ? DrillPathType.DRILL_THROUGH
+                                                                                : DrillPathType.DRILL_DOWN
+                                                                        }
+                                                                        onChange={(
+                                                                            v,
+                                                                        ) =>
+                                                                            handleSwitchType(
+                                                                                path.id,
+                                                                                v as DrillPathType,
+                                                                            )
+                                                                        }
+                                                                        data={[
+                                                                            {
+                                                                                value: DrillPathType.DRILL_DOWN,
+                                                                                label: 'Drill down',
+                                                                            },
+                                                                            {
+                                                                                value: DrillPathType.DRILL_THROUGH,
+                                                                                label: 'Drill through',
+                                                                            },
+                                                                        ]}
+                                                                    />
+                                                                )}
 
-                                            <Select
-                                                label="Metric override"
-                                                placeholder="Keep original"
-                                                size="xs"
-                                                data={metricOptions}
-                                                value={
-                                                    path.metrics?.[0] ?? null
-                                                }
-                                                onChange={(value) =>
-                                                    handleUpdatePath(path.id, {
-                                                        metrics: value
-                                                            ? [value]
-                                                            : undefined,
-                                                    })
-                                                }
-                                                searchable
-                                                clearable
-                                            />
-                                        </>
-                                    )}
+                                                                {allowedTypes.length >
+                                                                    1 && (
+                                                                    <div
+                                                                        style={{
+                                                                            display:
+                                                                                'flex',
+                                                                            alignItems:
+                                                                                'flex-start',
+                                                                            gap: 4,
+                                                                        }}
+                                                                    >
+                                                                        <IconInfoCircle
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                            style={{
+                                                                                opacity: 0.4,
+                                                                                flexShrink: 0,
+                                                                                marginTop: 1,
+                                                                            }}
+                                                                        />
+                                                                        <Text
+                                                                            size="xs"
+                                                                            color="dimmed"
+                                                                        >
+                                                                            {isDrillDownPath(
+                                                                                path,
+                                                                            )
+                                                                                ? 'Explores deeper into this chart by a different dimension'
+                                                                                : 'Opens another chart filtered to the selected value'}
+                                                                        </Text>
+                                                                    </div>
+                                                                )}
 
-                                    {isDrillThroughPath(path) && (
-                                        <>
-                                            <Select
-                                                label="Target chart"
-                                                placeholder="Select a chart"
-                                                size="xs"
-                                                data={chartOptions}
-                                                value={
-                                                    path.linkedChartUuid || null
-                                                }
-                                                onChange={(value) =>
-                                                    handleUpdatePath(path.id, {
-                                                        type: 'drillThrough',
-                                                        linkedChartUuid:
-                                                            value ?? '',
-                                                    })
-                                                }
-                                                itemComponent={ChartSelectItem}
-                                                searchable
-                                                clearable
-                                            />
+                                                                {isDrillDownPath(
+                                                                    path,
+                                                                ) && (
+                                                                    <>
+                                                                        <Select
+                                                                            label="Dimension"
+                                                                            placeholder="Select dimension"
+                                                                            size="xs"
+                                                                            data={
+                                                                                dimensionOptions
+                                                                            }
+                                                                            value={
+                                                                                path
+                                                                                    .dimensions[0] ??
+                                                                                null
+                                                                            }
+                                                                            onChange={(
+                                                                                value,
+                                                                            ) =>
+                                                                                handleUpdatePath(
+                                                                                    path.id,
+                                                                                    {
+                                                                                        dimensions:
+                                                                                            value
+                                                                                                ? [
+                                                                                                      value,
+                                                                                                  ]
+                                                                                                : [],
+                                                                                    },
+                                                                                )
+                                                                            }
+                                                                            searchable
+                                                                            clearable
+                                                                        />
 
-                                            <Select
-                                                label="Opens in"
-                                                size="xs"
-                                                data={[
-                                                    {
-                                                        value: 'modal',
-                                                        label: 'Popup',
-                                                    },
-                                                    {
-                                                        value: 'navigate',
-                                                        label: 'Same tab',
-                                                    },
-                                                    {
-                                                        value: 'newTab',
-                                                        label: 'New tab',
-                                                    },
-                                                ]}
-                                                value={path.target}
-                                                onChange={(value) =>
-                                                    handleUpdatePath(path.id, {
-                                                        target:
-                                                            (value as DrillThroughTarget) ??
-                                                            'modal',
-                                                    })
-                                                }
-                                            />
-                                        </>
-                                    )}
-                                </Stack>
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                    ))}
-                </Accordion>
+                                                                        <Select
+                                                                            label="Metric override"
+                                                                            placeholder="Keep original"
+                                                                            size="xs"
+                                                                            data={
+                                                                                metricOptions
+                                                                            }
+                                                                            value={
+                                                                                path
+                                                                                    .metrics?.[0] ??
+                                                                                null
+                                                                            }
+                                                                            onChange={(
+                                                                                value,
+                                                                            ) =>
+                                                                                handleUpdatePath(
+                                                                                    path.id,
+                                                                                    {
+                                                                                        metrics:
+                                                                                            value
+                                                                                                ? [
+                                                                                                      value,
+                                                                                                  ]
+                                                                                                : undefined,
+                                                                                    },
+                                                                                )
+                                                                            }
+                                                                            searchable
+                                                                            clearable
+                                                                        />
+                                                                    </>
+                                                                )}
+
+                                                                {isDrillThroughPath(
+                                                                    path,
+                                                                ) && (
+                                                                    <>
+                                                                        <Select
+                                                                            label="Target chart"
+                                                                            placeholder="Select a chart"
+                                                                            size="xs"
+                                                                            data={
+                                                                                chartOptions
+                                                                            }
+                                                                            value={
+                                                                                path.linkedChartUuid ||
+                                                                                null
+                                                                            }
+                                                                            onChange={(
+                                                                                value,
+                                                                            ) =>
+                                                                                handleUpdatePath(
+                                                                                    path.id,
+                                                                                    {
+                                                                                        type: DrillPathType.DRILL_THROUGH,
+                                                                                        linkedChartUuid:
+                                                                                            value ??
+                                                                                            '',
+                                                                                    },
+                                                                                )
+                                                                            }
+                                                                            itemComponent={
+                                                                                ChartSelectItem
+                                                                            }
+                                                                            searchable
+                                                                            clearable
+                                                                        />
+
+                                                                        <Select
+                                                                            label="Opens in"
+                                                                            size="xs"
+                                                                            data={[
+                                                                                {
+                                                                                    value: 'modal',
+                                                                                    label: 'Popup',
+                                                                                },
+                                                                                {
+                                                                                    value: 'navigate',
+                                                                                    label: 'Same tab',
+                                                                                },
+                                                                                {
+                                                                                    value: 'newTab',
+                                                                                    label: 'New tab',
+                                                                                },
+                                                                            ]}
+                                                                            value={
+                                                                                path.target
+                                                                            }
+                                                                            onChange={(
+                                                                                value,
+                                                                            ) =>
+                                                                                handleUpdatePath(
+                                                                                    path.id,
+                                                                                    {
+                                                                                        target:
+                                                                                            (value as DrillThroughTarget) ??
+                                                                                            'modal',
+                                                                                    },
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                    </>
+                                                                )}
+                                                            </Stack>
+                                                        </Accordion.Panel>
+                                                    </Accordion.Item>
+                                                </div>
+                                            )}
+                                        </Draggable>
+                                    );
+                                })}
+                                {droppableProvided.placeholder}
+                            </Accordion>
+                        )}
+                    </Droppable>
+                </DragDropContext>
+                {hiddenCount > 0 && (
+                    <Text size="xs" color="dimmed" mt="xs">
+                        {hiddenCount} drill-down{' '}
+                        {hiddenCount === 1 ? 'path is' : 'paths are'} hidden
+                        because this chart type only supports drill-through.
+                    </Text>
+                )}
             </Config.Section>
         </Config>
     );

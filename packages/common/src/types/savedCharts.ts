@@ -799,6 +799,11 @@ export type SavedChartType = ChartType;
 
 // --- Drill-into configuration ---
 
+export enum DrillPathType {
+    DRILL_DOWN = 'drillDown',
+    DRILL_THROUGH = 'drillThrough',
+}
+
 type DrillPathBase = {
     /** Unique identifier for this drill path */
     id: string;
@@ -808,7 +813,7 @@ type DrillPathBase = {
 
 /** Drill-down path — explores deeper into the same chart by swapping dimensions/metrics */
 export type DrillDownPath = DrillPathBase & {
-    type: 'drillDown';
+    type: DrillPathType.DRILL_DOWN;
     /** Dimensions to show in the drilled view */
     dimensions: FieldId[];
     /** Optional metric override — defaults to the original chart's metrics */
@@ -822,7 +827,7 @@ export type DrillThroughTarget = 'modal' | 'navigate' | 'newTab';
 
 /** Drill-through path — navigates to another saved chart, passing clicked values as filters */
 export type DrillThroughPath = DrillPathBase & {
-    type: 'drillThrough';
+    type: DrillPathType.DRILL_THROUGH;
     /** UUID of the saved chart to display when drilling */
     linkedChartUuid: string;
     /** How to open the target chart. Defaults to 'modal'. */
@@ -832,13 +837,11 @@ export type DrillThroughPath = DrillPathBase & {
 /** A single preconfigured drill path that appears in the chart's context menu */
 export type DrillPath = DrillDownPath | DrillThroughPath;
 
-export const isDrillDownPath = (
-    path: DrillPath,
-): path is DrillDownPath => path.type === 'drillDown';
+export const isDrillDownPath = (path: DrillPath): path is DrillDownPath =>
+    path.type === DrillPathType.DRILL_DOWN;
 
-export const isDrillThroughPath = (
-    path: DrillPath,
-): path is DrillThroughPath => path.type === 'drillThrough';
+export const isDrillThroughPath = (path: DrillPath): path is DrillThroughPath =>
+    path.type === DrillPathType.DRILL_THROUGH;
 
 /** Configuration for developer-defined drill paths on a saved chart */
 export type DrillConfig = {

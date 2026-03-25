@@ -1,4 +1,4 @@
-import { type ResultValue } from '@lightdash/common';
+import { DrillPathType, type ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
@@ -14,6 +14,7 @@ import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 type BigNumberContextMenuProps = {
@@ -27,8 +28,14 @@ const BigNumberContextMenu: FC<
 > = ({ children, isMinimal = false, canDrillInto, canViewUnderlyingData }) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
-    const { resultsData, visualizationConfig, itemsMap } =
-        useVisualizationContext();
+    const {
+        resultsData,
+        visualizationConfig,
+        itemsMap,
+        drillConfig,
+        onDrillDown,
+        onDrillThrough,
+    } = useVisualizationContext();
     // Always fail silently - parent component controls when this menu is rendered
     const metricQueryData = useMetricQueryDataContext(true);
 
@@ -144,6 +151,16 @@ const BigNumberContextMenu: FC<
                             {value.formatted}
                         </Text>
                     </Menu.Item>
+                )}
+
+                {onDrillDown && drillConfig && (
+                    <DrillIntoSubmenu
+                        drillConfig={drillConfig}
+                        fieldValues={{}}
+                        allowedTypes={[DrillPathType.DRILL_THROUGH]}
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
+                    />
                 )}
             </Menu.Dropdown>
         </Menu>

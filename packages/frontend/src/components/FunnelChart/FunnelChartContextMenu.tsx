@@ -1,4 +1,9 @@
-import { type ResultRow, type ResultValue } from '@lightdash/common';
+import {
+    DrillPathType,
+    FunnelChartDataInput,
+    type ResultRow,
+    type ResultValue,
+} from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
@@ -122,6 +127,11 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
+                        allowedTypes={
+                            chartConfig.dataInput === FunnelChartDataInput.ROW
+                                ? [DrillPathType.DRILL_THROUGH]
+                                : undefined
+                        }
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}
                     />

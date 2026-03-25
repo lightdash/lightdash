@@ -1,4 +1,5 @@
 import {
+    DrillPathType,
     FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
@@ -304,7 +305,13 @@ export const ConfigTabs: FC = memo(() => {
                 </Tabs.Panel>
                 {drillEnabled && (
                     <Tabs.Panel value="drill">
-                        <DrillConfigPanel />
+                        <DrillConfigPanel
+                            allowedTypes={
+                                dataInput === FunnelChartDataInput.ROW
+                                    ? [DrillPathType.DRILL_THROUGH]
+                                    : undefined
+                            }
+                        />
                     </Tabs.Panel>
                 )}
             </Tabs>

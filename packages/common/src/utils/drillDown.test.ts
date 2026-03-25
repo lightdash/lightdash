@@ -1,10 +1,10 @@
 import { FilterOperator } from '../types/filter';
 import type { MetricQuery } from '../types/metricQuery';
 import type { ResultValue } from '../types/results';
-import type { DrillDownPath } from '../types/savedCharts';
+import { DrillPathType, type DrillDownPath } from '../types/savedCharts';
 import {
-    buildDrillFilters,
     buildDrilledMetricQuery,
+    buildDrillFilters,
     mergeDrillFilters,
 } from './drillDown';
 
@@ -13,7 +13,10 @@ describe('drillDown utilities', () => {
         it('should create EQUALS filters for dimension values', () => {
             const fieldValues: Record<string, ResultValue> = {
                 orders_status: { raw: 'completed', formatted: 'Completed' },
-                orders_category: { raw: 'Electronics', formatted: 'Electronics' },
+                orders_category: {
+                    raw: 'Electronics',
+                    formatted: 'Electronics',
+                },
             };
 
             const filters = buildDrillFilters(fieldValues, [
@@ -143,7 +146,7 @@ describe('drillDown utilities', () => {
 
         const drillPath: DrillDownPath = {
             id: 'drill-1',
-            type: 'drillDown',
+            type: DrillPathType.DRILL_DOWN,
             label: 'By Region',
             dimensions: ['orders_region', 'orders_city'],
         };
@@ -161,10 +164,7 @@ describe('drillDown utilities', () => {
                 baseQuery.dimensions,
             );
 
-            expect(result.dimensions).toEqual([
-                'orders_region',
-                'orders_city',
-            ]);
+            expect(result.dimensions).toEqual(['orders_region', 'orders_city']);
         });
 
         it('should keep original metrics when drill path has no metric override', () => {
@@ -281,16 +281,13 @@ describe('drillDown utilities', () => {
                 baseQuery.dimensions,
             );
 
-            expect(level1.dimensions).toEqual([
-                'orders_region',
-                'orders_city',
-            ]);
+            expect(level1.dimensions).toEqual(['orders_region', 'orders_city']);
 
             // Level 2: [region, city] → drill to [source]
             // Clicked values: region=East, city=NYC
             const level2Path: DrillDownPath = {
                 id: 'drill-2',
-                type: 'drillDown',
+                type: DrillPathType.DRILL_DOWN,
                 label: 'By Source',
                 dimensions: ['orders_source'],
             };
@@ -315,17 +312,16 @@ describe('drillDown utilities', () => {
             // Level 1 filters: status=completed, category=Electronics
             // Level 2 filters: region=East, city=NYC
             const filtersAnd =
-                level2.filters.dimensions &&
-                'and' in level2.filters.dimensions
+                level2.filters.dimensions && 'and' in level2.filters.dimensions
                     ? level2.filters.dimensions.and
                     : [];
             // Flatten all filter rules from nested AND groups
-            const allFilterRules = filtersAnd.flatMap((item: any) =>
+            const allFilterRules = filtersAnd.flatMap((item) =>
                 'and' in item ? item.and : [item],
             );
 
-            const filterTargets = allFilterRules.map(
-                (f: any) => f.target?.fieldId,
+            const filterTargets = allFilterRules.map((f) =>
+                'target' in f ? f.target.fieldId : undefined,
             );
 
             // Level 1 filters (from original dimensions)

@@ -1,4 +1,4 @@
-import { type ResultValue } from '@lightdash/common';
+import { DrillPathType, type ResultValue } from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
@@ -128,7 +128,8 @@ const GaugeContextMenu: FC<GaugeContextMenuProps> = ({
                 {onDrillDown && drillConfig && (
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
-                        fieldValues={fieldValues}
+                        fieldValues={{}}
+                        allowedTypes={[DrillPathType.DRILL_THROUGH]}
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}
                     />

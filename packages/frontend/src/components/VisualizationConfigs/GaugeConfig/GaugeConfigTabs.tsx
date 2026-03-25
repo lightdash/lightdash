@@ -1,3 +1,4 @@
+import { DrillPathType } from '@lightdash/common';
 import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useDrillFeatureFlag } from '../../../hooks/useDrillFeatureFlag';
@@ -42,7 +43,9 @@ export const ConfigTabs: FC = memo(() => {
 
                 {drillEnabled && (
                     <Tabs.Panel value="drill">
-                        <DrillConfigPanel allowedTypes={['drillThrough']} />
+                        <DrillConfigPanel
+                            allowedTypes={[DrillPathType.DRILL_THROUGH]}
+                        />
                     </Tabs.Panel>
                 )}
             </Tabs>

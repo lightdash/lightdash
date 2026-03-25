@@ -3,6 +3,7 @@ import {
     isDrillThroughPath,
     type DrillConfig,
     type DrillPath,
+    type DrillPathType,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
@@ -24,6 +25,8 @@ type DrillIntoSubmenuProps = {
     fieldValues: Record<string, ResultValue> | undefined;
     /** Current drill stack — used to exclude already-filtered dimensions */
     drillStack?: DrillStack;
+    /** Restrict which drill path types are shown. Defaults to both. */
+    allowedTypes?: DrillPathType[];
     /** Called for drill-down paths (modifies Redux state) */
     onDrillDown: (params: {
         drillPath: DrillPath;
@@ -43,6 +46,7 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
     drillConfig,
     fieldValues,
     drillStack,
+    allowedTypes,
     onDrillDown,
     onDrillThrough,
 }) => {
@@ -80,9 +84,11 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
         ]);
 
         return drillConfig.paths.filter((path) => {
+            // Filter by allowed types when specified
+            if (allowedTypes && !allowedTypes.includes(path.type)) return false;
+
             // Drill-through paths: show only if a target chart is configured
-            if (isDrillThroughPath(path))
-                return path.linkedChartUuid !== '';
+            if (isDrillThroughPath(path)) return path.linkedChartUuid !== '';
 
             // Drill-down paths: check field accessibility
             if (!isDrillDownPath(path)) return true;
@@ -94,15 +100,16 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
             if (allDimsUsed) return false;
 
             // Exclude inline paths with inaccessible fields
-            const allFields = [
-                ...path.dimensions,
-                ...(path.metrics ?? []),
-            ];
-            return allFields.every((fieldId) =>
-                availableFieldIds.has(fieldId),
-            );
+            const allFields = [...path.dimensions, ...(path.metrics ?? [])];
+            return allFields.every((fieldId) => availableFieldIds.has(fieldId));
         });
-    }, [drillConfig, explore, metricQuery?.dimensions, drillStack]);
+    }, [
+        drillConfig,
+        explore,
+        metricQuery?.dimensions,
+        drillStack,
+        allowedTypes,
+    ]);
 
     const handleDrill = useCallback(
         (drillPath: DrillPath) => {
@@ -117,10 +124,7 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
                 },
             });
 
-            if (
-                isDrillThroughPath(drillPath) &&
-                onDrillThrough
-            ) {
+            if (isDrillThroughPath(drillPath) && onDrillThrough) {
                 onDrillThrough({
                     drillPathId: drillPath.id,
                     linkedChartUuid: drillPath.linkedChartUuid,
@@ -138,7 +142,12 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
         [fieldValues, metricQuery, onDrillDown, onDrillThrough, track],
     );
 
-    if (!drillEnabled || accessiblePaths.length === 0 || !fieldValues || !metricQuery) {
+    if (
+        !drillEnabled ||
+        accessiblePaths.length === 0 ||
+        !fieldValues ||
+        !metricQuery
+    ) {
         return null;
     }
 
