@@ -267,10 +267,7 @@ describe('validation', () => {
     it('Should validate only dashboards in project', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
-        ).mockImplementationOnce(async () => [
-            explore,
-            exploreWithoutDimension,
-        ]);
+        ).mockImplementationOnce(async () => [exploreWithoutDimension]);
 
         const errors = await validationService.generateValidation(
             'projectUuid',
@@ -447,6 +444,35 @@ describe('validation', () => {
 
         // Chart uses "additional_explore" as tableName but has same fields as base "table"
         // Should validate without errors because fields are indexed by both baseTable and explore name
+        expect(errors.length).toEqual(0);
+    });
+
+    it('Should not let derived explores overwrite base table validation fields', async () => {
+        const preAggregateLikeExplore = {
+            ...explore,
+            name: '__preagg__table__daily',
+            tables: {
+                table: {
+                    ...explore.tables.table!,
+                    dimensions: {},
+                    metrics: {},
+                },
+            },
+        };
+
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            explore,
+            preAggregateLikeExplore,
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
         expect(errors.length).toEqual(0);
     });
 });
