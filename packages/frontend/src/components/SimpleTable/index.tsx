@@ -301,14 +301,24 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     const allRows = resultsData?.rows || [];
+    const isSlicing =
+        isShowHideRowsEnabled &&
+        (showFromRow !== undefined || showToRow !== undefined);
     const slicedRows = (() => {
-        if (!isShowHideRowsEnabled) return allRows;
-        if (showFromRow === undefined && showToRow === undefined)
-            return allRows;
+        if (!isSlicing) return allRows;
         const start = Math.max(0, (showFromRow ?? 1) - 1);
         const end = Math.max(start, showToRow ?? allRows.length);
         return allRows.slice(start, end);
     })();
+
+    const serverTotal = resultsData?.totalResults || 0;
+    const totalRowsCount = isSlicing
+        ? Math.max(
+              0,
+              Math.min(showToRow ?? serverTotal, serverTotal) -
+                  Math.max(0, (showFromRow ?? 1) - 1),
+          )
+        : serverTotal;
 
     return (
         <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">
@@ -319,7 +329,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 className={className}
                 status={loadResultsStatus}
                 data={slicedRows}
-                totalRowsCount={slicedRows.length}
+                totalRowsCount={totalRowsCount}
                 isFetchingRows={!!resultsData?.isFetchingRows}
                 loadingState={() => <LoadingChart />}
                 emptyState={isDashboard ? DashboardEmptyState : undefined}
