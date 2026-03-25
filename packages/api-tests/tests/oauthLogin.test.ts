@@ -675,6 +675,197 @@ describe('OAuth API Integration Tests', () => {
         });
     });
 
+    describe('OAuth UserInfo Endpoint', () => {
+        it('Should return user info with valid OAuth token', async () => {
+            const { fetchWithAuth } = await createAuthenticatedFetcher();
+
+            // Get auth code and exchange for token
+            const formData = {
+                response_type: 'code',
+                client_id: 'lightdash-cli',
+                redirect_uri: 'http://localhost:8100/callback',
+                scope: 'read write',
+                state: 'test-state',
+                code_challenge: PKCE_TEST_VALUES.codeChallenge,
+                code_challenge_method: 'S256',
+                approve: 'true',
+            };
+
+            const postResponse = await postFormEncoded(
+                fetchWithAuth,
+                `${apiUrl}/authorize`,
+                formData,
+            );
+            expect(postResponse.status).toBe(200);
+            const location = extractRedirectUrlFromHtml(
+                postResponse.body as string,
+            );
+            const code = new URL(location).searchParams.get('code') || '';
+            expect(code).not.toBe('');
+
+            const tokenResponse = await postFormEncoded<OAuthTokenResponse>(
+                fetchWithAuth,
+                `${apiUrl}/token`,
+                {
+                    grant_type: 'authorization_code',
+                    code,
+                    client_id: 'lightdash-cli',
+                    client_secret: '',
+                    redirect_uri: 'http://localhost:8100/callback',
+                    code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                },
+            );
+            expect(tokenResponse.status).toBe(200);
+
+            // Call userinfo endpoint with the OAuth token
+            const userinfoResponse = await fetchWithAuth(`${apiUrl}/userinfo`, {
+                headers: {
+                    Authorization: `Bearer ${tokenResponse.body.access_token}`,
+                },
+            });
+
+            expect(userinfoResponse.status).toBe(200);
+            const userinfo = userinfoResponse.body as Record<string, unknown>;
+            expect(userinfo).toHaveProperty('sub');
+            expect(userinfo).toHaveProperty('name');
+            expect(userinfo).toHaveProperty('given_name');
+            expect(userinfo).toHaveProperty('family_name');
+            expect(userinfo).toHaveProperty('email');
+            expect(userinfo).toHaveProperty('organization_uuid');
+            expect(userinfo).toHaveProperty('organization_name');
+
+            // UserInfo is not wrapped in {status, results}
+            expect(userinfo).not.toHaveProperty('status');
+            expect(userinfo).not.toHaveProperty('results');
+        });
+    });
+
+    describe('OAuth Token on Regular API Endpoints', () => {
+        it('Should access /api/v1/org/projects with only OAuth bearer token', async () => {
+            const { fetchWithAuth } = await createAuthenticatedFetcher();
+
+            // Get OAuth token
+            const formData = {
+                response_type: 'code',
+                client_id: 'lightdash-cli',
+                redirect_uri: 'http://localhost:8100/callback',
+                scope: 'read write',
+                state: 'test-state',
+                code_challenge: PKCE_TEST_VALUES.codeChallenge,
+                code_challenge_method: 'S256',
+                approve: 'true',
+            };
+
+            const postResponse = await postFormEncoded(
+                fetchWithAuth,
+                `${apiUrl}/authorize`,
+                formData,
+            );
+            expect(postResponse.status).toBe(200);
+            const location = extractRedirectUrlFromHtml(
+                postResponse.body as string,
+            );
+            const code = new URL(location).searchParams.get('code') || '';
+
+            const tokenResponse = await postFormEncoded<OAuthTokenResponse>(
+                fetchWithAuth,
+                `${apiUrl}/token`,
+                {
+                    grant_type: 'authorization_code',
+                    code,
+                    client_id: 'lightdash-cli',
+                    client_secret: '',
+                    redirect_uri: 'http://localhost:8100/callback',
+                    code_verifier: PKCE_TEST_VALUES.codeVerifier,
+                },
+            );
+            expect(tokenResponse.status).toBe(200);
+
+            // Use ONLY Bearer token (no session cookies) to call a regular API endpoint
+            const apiResponse = await fetch(`${SITE_URL}/api/v1/org/projects`, {
+                headers: {
+                    Authorization: `Bearer ${tokenResponse.body.access_token}`,
+                },
+            });
+
+            expect(apiResponse.status).toBe(200);
+            const body = (await apiResponse.json()) as {
+                status: string;
+                results: unknown[];
+            };
+            expect(body).toHaveProperty('status', 'ok');
+            expect(body).toHaveProperty('results');
+            expect(Array.isArray(body.results)).toBe(true);
+        });
+    });
+
+    describe('OAuth Client Management', () => {
+        it('Should create, list, and delete OAuth clients', async () => {
+            const { fetchWithAuth } = await createAuthenticatedFetcher();
+
+            // Create a new OAuth client
+            const createResponse = await fetchWithAuth(`${apiUrl}/clients`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientName: 'Test OAuth App',
+                    redirectUris: ['http://localhost:9999/callback'],
+                }),
+            });
+
+            expect(createResponse.status).toBe(201);
+            const createBody = createResponse.body as {
+                status: string;
+                results: {
+                    clientId: string;
+                    clientSecret: string;
+                    clientName: string;
+                };
+            };
+            expect(createBody.status).toBe('ok');
+            expect(createBody.results).toHaveProperty('clientId');
+            expect(createBody.results).toHaveProperty('clientSecret');
+            expect(createBody.results.clientName).toBe('Test OAuth App');
+
+            const { clientId } = createBody.results;
+
+            // List clients
+            const listResponse = await fetchWithAuth(`${apiUrl}/clients`, {
+                method: 'GET',
+            });
+
+            expect(listResponse.status).toBe(200);
+            const listBody = listResponse.body as {
+                status: string;
+                results: Array<{ clientId: string; clientName: string }>;
+            };
+            expect(listBody.status).toBe('ok');
+            const found = listBody.results.find((c) => c.clientId === clientId);
+            expect(found).toBeDefined();
+            expect(found?.clientName).toBe('Test OAuth App');
+
+            // Delete the client
+            const deleteResponse = await fetchWithAuth(
+                `${apiUrl}/clients/${clientId}`,
+                { method: 'DELETE' },
+            );
+            expect(deleteResponse.status).toBe(200);
+
+            // Verify it's gone
+            const listAfterDelete = await fetchWithAuth(`${apiUrl}/clients`, {
+                method: 'GET',
+            });
+            const listAfterBody = listAfterDelete.body as {
+                status: string;
+                results: Array<{ clientId: string }>;
+            };
+            const notFound = listAfterBody.results.find(
+                (c) => c.clientId === clientId,
+            );
+            expect(notFound).toBeUndefined();
+        });
+    });
+
     describe('OAuth Authentication Middleware', () => {
         it('Should authenticate with valid OAuth token', async () => {
             const { fetchWithAuth } = await createAuthenticatedFetcher();

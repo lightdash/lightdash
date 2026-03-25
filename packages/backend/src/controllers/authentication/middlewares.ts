@@ -44,6 +44,11 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
+/*
+This middleware allows ONLY OAuth bearer token authentication (no PAT, no service account).
+Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT from an OAuth token.
+For most endpoints, use allowApiKeyAuthentication which includes OAuth + all other auth methods.
+*/
 export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
     if (req.isAuthenticated()) {
         next();
@@ -56,7 +61,6 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
-            // attach token info to the authInfo request
             req.services
                 .getUserService()
                 .findSessionUser({
@@ -77,24 +81,19 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     next();
                 })
                 .catch((userError) => {
-                    // This was a valid oauth token, but the user was not found in the database
-                    // in this case, we will throw an error
                     next(userError);
                 });
         })
-        .catch((error) => {
-            // This middleware might be trying to authenticate with a non Oauth token
-            // in that case, we will not throw an error, and we will continue with the next middleware
-            Logger.warn(
-                `OAuth authentication failed: ${JSON.stringify(error)}`,
-            );
+        .catch(() => {
+            // Not an OAuth token — continue without authenticating
             next();
         });
 };
+
 /*
-This middleware is used to enable Api tokens and service accounts
-We first check service accounts (bearer header),
-then we check Personal access tokens (ApiKey header), which can throw an error if the token is invalid
+This middleware is used to enable OAuth, Api tokens, and service accounts.
+We first try OAuth (bearer header), then service accounts (bearer header),
+then Personal access tokens (ApiKey header), which can throw an error if the token is invalid.
 */
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
     if (req.isAuthenticated()) {
@@ -102,40 +101,86 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         return;
     }
 
-    const authenticateWithPat = () => {
+    const authenticateWithServiceAccountOrPat = () => {
         if (req.isAuthenticated()) {
             next();
             return;
         }
-        if (!lightdashConfig.auth.pat.enabled) {
-            throw new AuthorizationError('Personal access tokens are disabled');
-        }
-        passport.authenticate('headerapikey', { session: false })(
-            req,
-            res,
-            () => {
-                if (req?.account?.isAuthenticated()) {
-                    Logger.warn(
-                        buildAccountExistsWarning('ApiKey'),
-                        req.account?.authentication?.type,
-                    );
-                }
 
-                if (req.user) {
-                    req.account = fromApiKey(
-                        req.user!,
-                        req.headers.authorization || '',
-                    );
-                }
+        const authenticateWithPat = () => {
+            if (req.isAuthenticated()) {
                 next();
-            },
-        );
+                return;
+            }
+            if (!lightdashConfig.auth.pat.enabled) {
+                throw new AuthorizationError(
+                    'Personal access tokens are disabled',
+                );
+            }
+            passport.authenticate('headerapikey', { session: false })(
+                req,
+                res,
+                () => {
+                    if (req?.account?.isAuthenticated()) {
+                        Logger.warn(
+                            buildAccountExistsWarning('ApiKey'),
+                            req.account?.authentication?.type,
+                        );
+                    }
+
+                    if (req.user) {
+                        req.account = fromApiKey(
+                            req.user!,
+                            req.headers.authorization || '',
+                        );
+                    }
+                    next();
+                },
+            );
+        };
+        try {
+            authenticateServiceAccount(req, res, authenticateWithPat);
+        } catch (e) {
+            authenticateWithPat();
+        }
     };
-    try {
-        authenticateServiceAccount(req, res, authenticateWithPat);
-    } catch (e) {
-        authenticateWithPat();
-    }
+
+    // Try OAuth bearer token first
+    const oauthReq = new OAuth2Server.Request(req);
+    const oauthRes = new OAuth2Server.Response(res);
+
+    req.services
+        .getOauthService()
+        .authenticate(oauthReq, oauthRes)
+        .then((token) => {
+            req.services
+                .getUserService()
+                .findSessionUser({
+                    id: token.user.userUuid,
+                    organization: token.user.organizationUuid,
+                })
+                .then((user) => {
+                    if (req.account?.isAuthenticated()) {
+                        Logger.warn(
+                            buildAccountExistsWarning('OAuth'),
+                            req.account?.authentication?.type,
+                        );
+                    }
+                    if (user) {
+                        req.account = fromOauth(user, token);
+                    }
+                    req.user = user;
+                    next();
+                })
+                .catch((userError) => {
+                    // Valid oauth token but user not found — throw
+                    next(userError);
+                });
+        })
+        .catch(() => {
+            // Not an OAuth token — try service account and PAT
+            authenticateWithServiceAccountOrPat();
+        });
 };
 
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {

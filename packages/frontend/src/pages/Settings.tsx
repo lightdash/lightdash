@@ -59,6 +59,7 @@ import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel'
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
+import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
@@ -405,6 +406,13 @@ const Settings: FC = () => {
             });
         }
 
+        if (user?.ability.can('manage', 'Organization')) {
+            allowedRoutes.push({
+                path: '/oauthClients',
+                element: <OAuthClientsPanel />,
+            });
+        }
+
         // Commercial route
         if (
             user?.ability.can('manage', 'Organization') &&
@@ -724,6 +732,17 @@ const Settings: FC = () => {
                                         label="Integrations"
                                         exact
                                         to="/generalSettings/integrations"
+                                        leftSection={
+                                            <MantineIcon icon={IconPlug} />
+                                        }
+                                    />
+                                )}
+
+                                {user.ability.can('manage', 'Organization') && (
+                                    <RouterNavLink
+                                        label="OAuth applications"
+                                        exact
+                                        to="/generalSettings/oauthClients"
                                         leftSection={
                                             <MantineIcon icon={IconPlug} />
                                         }

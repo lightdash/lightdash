@@ -71,7 +71,8 @@ apiV1Router.use('/my-resource', myRouter);
 **Authentication Middleware**: All routers use consistent middleware patterns:
 
 - `isAuthenticated`: Requires valid session or API key
-- `allowApiKeyAuthentication`: Enables API key auth for CLI/integrations
+- `allowApiKeyAuthentication`: Enables OAuth + API key + service account auth (tries OAuth bearer first, then service account, then PAT)
+- `allowOauthAuthentication`: Restricted variant — only session or OAuth bearer (no PAT, no service account)
 - `unauthorisedInDemo`: Blocks write operations in demo environments
 
 **Service Layer Access**: Routers access business logic via `req.services` dependency injection container. Never implement business logic directly in routers.
@@ -80,7 +81,15 @@ apiV1Router.use('/my-resource', myRouter);
 
 **Route Parameters**: Project-scoped routers use `{ mergeParams: true }` to access parent route params like `:projectUuid`.
 
-**OAuth implementation**: the oauthRouter.ts implements the necesary endpoint to let Lightdash work as a oauth server. We mainly use this to authenticate with the CLI.
+**OAuth implementation**: `oauthRouter.ts` implements Lightdash as an OAuth 2.0 authorization server for MCP clients and external integrations. Key endpoints:
+- `/oauth/authorize` — authorization code flow (requires user session)
+- `/oauth/token` — token exchange (unauthenticated, per spec)
+- `/oauth/register` — dynamic client registration (unauthenticated, RFC 7591, needed for MCP)
+- `/oauth/introspect` — token introspection (requires user session, intentionally deviates from RFC 7662)
+- `/oauth/revoke` — token revocation (unauthenticated, per RFC 7009)
+- `/oauth/userinfo` — OpenID Connect user info (requires auth)
+- `/oauth/clients` — admin CRUD for OAuth clients (requires org admin)
+- `/.well-known/oauth-authorization-server` — OAuth2 discovery metadata
 
 **API Versioning**: All routes are under `/api/v1` prefix. Future versions would create new router modules.
 </importantToKnow>

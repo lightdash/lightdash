@@ -115,6 +115,10 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
 import {
+    type CreateOAuthClientResponse,
+    type OAuthClientSummary,
+} from './oauth';
+import {
     type DeleteOpenIdentity,
     type OpenIdIdentitySummary,
 } from './openIdIdentity';
@@ -966,7 +970,10 @@ type ApiResults =
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
-    | ApiVerifiedContentListResponse['results'];
+    | ApiVerifiedContentListResponse['results']
+    | OAuthClientSummary[]
+    | OAuthClientSummary
+    | CreateOAuthClientResponse;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

@@ -1,5 +1,9 @@
 /* eslint-disable class-methods-use-this */
-import { AuthTokenPrefix, UserWithOrganizationUuid } from '@lightdash/common';
+import {
+    AuthTokenPrefix,
+    UserWithOrganizationUuid,
+    type OAuthClientSummary,
+} from '@lightdash/common';
 import type {
     AuthorizationCode,
     AuthorizationCodeModel,
@@ -314,6 +318,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
         grantTypes = ['authorization_code', 'refresh_token'],
         scopes = [],
         clientSecret,
+        organizationUuid,
+        createdByUserUuid,
     }: {
         clientName: string;
         redirectUris: string[];
@@ -321,6 +327,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         scopes?: string[];
         clientSecret?: string;
         organizationUuid?: string;
+        createdByUserUuid?: string;
     }): Promise<{
         clientId: string;
         clientSecret?: string;
@@ -330,7 +337,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
         scopes: string[];
         createdAt: Date;
     }> {
-        const clientId = `mcp-${nanoid(16)}`;
+        const clientId = organizationUuid
+            ? `oauth-${nanoid(16)}`
+            : `mcp-${nanoid(16)}`;
         const generatedClientSecret = clientSecret || nanoid(32);
 
         const [client] = await this.database('oauth2_clients')
@@ -341,6 +350,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 grants: grantTypes,
                 scopes,
                 client_name: clientName,
+                organization_uuid: organizationUuid || null,
+                created_by_user_uuid: createdByUserUuid || null,
             })
             .returning('*');
 
@@ -355,9 +366,82 @@ export class OAuth2Model implements AuthorizationCodeModel {
         };
     }
 
-    // Optional not implemented methods
-    // We will be using the default implementation from the oauth2-server library
+    async listClientsByOrganization(
+        organizationUuid: string,
+    ): Promise<OAuthClientSummary[]> {
+        const clients = await this.database('oauth2_clients')
+            .select('*')
+            .where('organization_uuid', organizationUuid)
+            .orderBy('created_at', 'desc');
 
-    // async generateAuthorizationCode(client: Client,user: User,scope: Scope,): Promise<string>
-    // async verifyScope(token: Token, scope: Scope): Promise<boolean>
+        return clients.map((client) => ({
+            clientId: client.client_id,
+            clientName: client.client_name,
+            redirectUris: client.redirect_uris,
+            scopes: client.scopes || [],
+            createdAt: client.created_at,
+            createdByUserUuid: client.created_by_user_uuid,
+        }));
+    }
+
+    async updateClient(
+        clientId: string,
+        organizationUuid: string | null,
+        {
+            clientName,
+            redirectUris,
+        }: {
+            clientName: string;
+            redirectUris: string[];
+        },
+    ): Promise<OAuthClientSummary | null> {
+        let query = this.database('oauth2_clients').where(
+            'client_id',
+            clientId,
+        );
+
+        if (organizationUuid === null) {
+            query = query.whereNull('organization_uuid');
+        } else {
+            query = query.andWhere('organization_uuid', organizationUuid);
+        }
+
+        const [updated] = await query
+            .update({
+                client_name: clientName,
+                redirect_uris: redirectUris,
+            })
+            .returning('*');
+
+        if (!updated) return null;
+
+        return {
+            clientId: updated.client_id,
+            clientName: updated.client_name,
+            redirectUris: updated.redirect_uris,
+            scopes: updated.scopes || [],
+            createdAt: updated.created_at,
+            createdByUserUuid: updated.created_by_user_uuid,
+        };
+    }
+
+    async deleteClient(
+        clientId: string,
+        organizationUuid: string | null,
+    ): Promise<boolean> {
+        let query = this.database('oauth2_clients').where(
+            'client_id',
+            clientId,
+        );
+
+        if (organizationUuid === null) {
+            query = query.whereNull('organization_uuid');
+        } else {
+            query = query.andWhere('organization_uuid', organizationUuid);
+        }
+
+        const result = await query.del();
+
+        return result > 0;
+    }
 }

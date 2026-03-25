@@ -111,3 +111,39 @@ export type UserWithOrganizationUuid = {
     userId: number;
     organizationUuid: string;
 };
+
+// OAuth UserInfo (OpenID Connect standard claims)
+export interface OAuthUserInfoResponse {
+    sub: string;
+    name: string;
+    given_name: string;
+    family_name: string;
+    email: string | undefined;
+    email_verified: boolean;
+    organization_uuid: string | undefined;
+    organization_name: string | undefined;
+}
+
+// OAuth Client Management
+export interface OAuthClientSummary {
+    clientId: string;
+    clientName: string;
+    redirectUris: string[];
+    scopes: string[];
+    createdAt: Date;
+    createdByUserUuid: string | null;
+}
+
+export interface CreateOAuthClientRequest {
+    clientName: string;
+    redirectUris: string[];
+}
+
+export interface CreateOAuthClientResponse extends OAuthClientSummary {
+    clientSecret: string;
+}
+
+export interface UpdateOAuthClientRequest {
+    clientName: string;
+    redirectUris: string[];
+}
