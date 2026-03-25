@@ -1,3 +1,10 @@
+## [0.2664.1](https://github.com/lightdash/lightdash/compare/0.2664.0...0.2664.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* pass saved metrics tree flag to docker compose ([#21403](https://github.com/lightdash/lightdash/issues/21403)) ([e0a8ab5](https://github.com/lightdash/lightdash/commit/e0a8ab5c0e6530910fbefdd6ea236cdc201f63cc))
+
 # [0.2664.0](https://github.com/lightdash/lightdash/compare/0.2663.2...0.2664.0) (2026-03-25)
 
 
