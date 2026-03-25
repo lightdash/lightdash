@@ -685,12 +685,11 @@ const getDashboardVersion = async (
     dashboardUuid: string,
     versionUuid: string,
 ): Promise<DashboardVersion> => {
-    const result = await lightdashApi<DashboardHistory>({
+    return lightdashApi<DashboardVersion>({
         url: `/dashboards/${dashboardUuid}/version/${versionUuid}`,
         method: 'GET',
         body: undefined,
     });
-    return result as unknown as DashboardVersion;
 };
 
 export const useDashboardVersion = (
