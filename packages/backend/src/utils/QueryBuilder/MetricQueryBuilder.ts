@@ -1108,6 +1108,7 @@ export class MetricQueryBuilder {
                         dimension,
                         filterRule,
                         dimensionsFilterGroup,
+                        explore,
                     )
                 )
                     return acc;

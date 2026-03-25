@@ -30,7 +30,6 @@ import {
     isAndFilterGroup,
     isFilterGroup,
     isFilterRule,
-    isFilterRuleDefinedForFieldId,
     isJoinModelRequiredFilter,
     UnitOfTime,
     type AndFilterGroup,
@@ -1189,24 +1188,60 @@ export const isFilterRuleInQuery = (
     dimension: Dimension,
     filterRule: FilterRule,
     dimensionsFilterGroup: FilterGroup | undefined,
+    explore: Explore,
 ): undefined | boolean => {
-    let dimensionFieldId = filterRule.target.fieldId;
-    const timeDimension =
-        dimension.isIntervalBase || dimension.timeInterval !== undefined;
-    if (!dimension.isIntervalBase && dimension.timeInterval) {
-        dimensionFieldId = dimensionFieldId.replace(
-            `_${dimension.timeInterval.toLowerCase()}`,
-            '',
+    if (!dimensionsFilterGroup) return undefined;
+
+    const getBaseTimeDimensionName = (
+        timeDimension: Dimension,
+    ): string | undefined => {
+        if (timeDimension.isIntervalBase) return timeDimension.name;
+        return timeDimension.timeIntervalBaseDimensionName;
+    };
+
+    const getDimensionFromExplore = (fieldId: string): Dimension | undefined =>
+        Object.values(explore.tables)
+            .flatMap((table) => Object.values(table.dimensions))
+            .find(
+                (candidateDimension) =>
+                    getItemId(candidateDimension) === fieldId,
+            );
+
+    const isCompatibleDerivedTimeDimension = (
+        candidateDimension: Dimension,
+    ): boolean => {
+        const shouldAllowSiblingTimeDimensions =
+            dimension.isIntervalBase || dimension.timeInterval !== undefined;
+
+        if (!shouldAllowSiblingTimeDimensions) {
+            return false;
+        }
+
+        const requiredBaseDimensionName = getBaseTimeDimensionName(dimension);
+        const candidateBaseDimensionName =
+            getBaseTimeDimensionName(candidateDimension);
+
+        return (
+            requiredBaseDimensionName !== undefined &&
+            candidateBaseDimensionName === requiredBaseDimensionName &&
+            candidateDimension.table === dimension.table &&
+            getFilterTypeFromItem(candidateDimension) ===
+                getFilterTypeFromItem(dimension)
         );
-    }
-    return (
-        dimensionsFilterGroup &&
-        isFilterRuleDefinedForFieldId(
-            dimensionsFilterGroup,
-            dimensionFieldId,
-            timeDimension,
-        )
-    );
+    };
+
+    return getFilterRulesFromGroup(dimensionsFilterGroup).some((queryRule) => {
+        if (queryRule.target.fieldId === filterRule.target.fieldId) {
+            return true;
+        }
+
+        const queryDimension = getDimensionFromExplore(
+            queryRule.target.fieldId,
+        );
+        return queryDimension
+            ? isCompatibleDerivedTimeDimension(queryDimension)
+            : false;
+    });
 };
 
 export const reduceRequiredDimensionFiltersToFilterRules = (
@@ -1238,7 +1273,10 @@ export const reduceRequiredDimensionFiltersToFilterRules = (
             );
         }
 
-        if (dimension && !isFilterRuleInQuery(dimension, filterRule, filters)) {
+        if (
+            dimension &&
+            !isFilterRuleInQuery(dimension, filterRule, filters, explore)
+        ) {
             return [...acc, filterRule];
         }
         return acc;

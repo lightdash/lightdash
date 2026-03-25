@@ -1551,6 +1551,86 @@ describe('Query builder', () => {
         );
     });
 
+    it('Should not let string-derived time filters satisfy required date filters', () => {
+        const exploreWithStringDerivedTimeDimension: Explore = {
+            ...EXPLORE_WITH_DATE_DIMENSION,
+            tables: {
+                ...EXPLORE_WITH_DATE_DIMENSION.tables,
+                orders: {
+                    ...EXPLORE_WITH_DATE_DIMENSION.tables.orders,
+                    requiredFilters: [
+                        {
+                            id: 'required-created-at',
+                            target: {
+                                fieldRef: 'created_at',
+                            },
+                            operator: FilterOperator.IN_BETWEEN,
+                            values: ['2024-09-01', '2024-09-04'],
+                            required: true,
+                        },
+                    ],
+                    dimensions: {
+                        ...EXPLORE_WITH_DATE_DIMENSION.tables.orders.dimensions,
+                        created_at: {
+                            ...EXPLORE_WITH_DATE_DIMENSION.tables.orders
+                                .dimensions.created_at,
+                            isIntervalBase: true,
+                        },
+                        created_at_fiscal_quarter: {
+                            type: DimensionType.STRING,
+                            name: 'created_at_fiscal_quarter',
+                            label: 'created_at_fiscal_quarter',
+                            table: 'orders',
+                            tableLabel: 'orders',
+                            fieldType: FieldType.DIMENSION,
+                            sql: '${TABLE}.created_at_fiscal_quarter',
+                            compiledSql: '"orders".created_at_fiscal_quarter',
+                            tablesReferences: ['orders'],
+                            hidden: false,
+                            timeIntervalBaseDimensionName: 'created_at',
+                            customTimeInterval: 'fiscal_quarter',
+                        },
+                    },
+                },
+            },
+        };
+
+        const queryWithOnlyStringDerivedTimeFilter: CompiledMetricQuery = {
+            ...METRIC_QUERY_WITH_DATE_FILTER,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: 'string-derived-filter',
+                            target: {
+                                fieldId: 'orders_created_at_fiscal_quarter',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['FY2024-Q1'],
+                        },
+                    ],
+                },
+            },
+        };
+
+        const query = replaceWhitespace(
+            buildQuery({
+                explore: exploreWithStringDerivedTimeDimension,
+                compiledMetricQuery: queryWithOnlyStringDerivedTimeFilter,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }).query,
+        );
+
+        expect(query).toContain(
+            replaceWhitespace(
+                '(("orders".created_at) >= (\'2024-09-01\') AND ("orders".created_at) <= (\'2024-09-04\'))',
+            ),
+        );
+    });
+
     it('Should build metric query with metric filters', () => {
         expect(
             replaceWhitespace(
