@@ -44,6 +44,8 @@ export type DrillStep = {
     inlineDimensions?: string[];
     inlineMetrics?: string[];
     inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+    /** Field mappings for cross-explore drill-through (source field ID → target field ID) */
+    inlineFieldMappings?: Record<string, string>;
 };
 
 export type ExecuteAsyncSavedChartDrillRequestParams =

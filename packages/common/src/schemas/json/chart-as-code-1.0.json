@@ -727,9 +727,7 @@
             ]
         },
         "ContentAsCodeType.CHART": {
-            "enum": [
-                "chart"
-            ],
+            "enum": ["chart"],
             "type": "string"
         },
         "ContentVerificationInfo": {
@@ -1014,9 +1012,7 @@
                     "type": "array"
                 }
             },
-            "required": [
-                "paths"
-            ],
+            "required": ["paths"],
             "type": "object"
         },
         "DrillDownPath": {
@@ -1048,16 +1044,10 @@
                             "type": "array"
                         },
                         "type": {
-                            "enum": [
-                                "drillDown"
-                            ],
-                            "type": "string"
+                            "$ref": "#/$defs/DrillPathType.DRILL_DOWN"
                         }
                     },
-                    "required": [
-                        "dimensions",
-                        "type"
-                    ],
+                    "required": ["dimensions", "type"],
                     "type": "object"
                 }
             ],
@@ -1085,11 +1075,16 @@
                     "type": "string"
                 }
             },
-            "required": [
-                "label",
-                "id"
-            ],
+            "required": ["label", "id"],
             "type": "object"
+        },
+        "DrillPathType.DRILL_DOWN": {
+            "enum": ["drillDown"],
+            "type": "string"
+        },
+        "DrillPathType.DRILL_THROUGH": {
+            "enum": ["drillThrough"],
+            "type": "string"
         },
         "DrillThroughPath": {
             "allOf": [
@@ -1098,6 +1093,10 @@
                 },
                 {
                     "properties": {
+                        "fieldMappings": {
+                            "$ref": "#/$defs/Record_FieldId.FieldId_",
+                            "description": "Maps source field IDs to target field IDs for cross-explore drill-through.\nWhen absent, only same-ID fields are matched."
+                        },
                         "linkedChartUuid": {
                             "description": "UUID of the saved chart to display when drilling",
                             "type": "string"
@@ -1107,17 +1106,10 @@
                             "description": "How to open the target chart. Defaults to 'modal'."
                         },
                         "type": {
-                            "enum": [
-                                "drillThrough"
-                            ],
-                            "type": "string"
+                            "$ref": "#/$defs/DrillPathType.DRILL_THROUGH"
                         }
                     },
-                    "required": [
-                        "target",
-                        "linkedChartUuid",
-                        "type"
-                    ],
+                    "required": ["target", "linkedChartUuid", "type"],
                     "type": "object"
                 }
             ],
@@ -1125,11 +1117,7 @@
         },
         "DrillThroughTarget": {
             "description": "How a drill-through target chart should be opened",
-            "enum": [
-                "modal",
-                "navigate",
-                "newTab"
-            ],
+            "enum": ["modal", "navigate", "newTab"],
             "type": "string"
         },
         "EChartsConfig": {
@@ -1648,26 +1636,6 @@
                 "backgroundColor": {
                     "description": "Background color for the map (hex code)",
                     "type": "string"
-                },
-                "clusterConfig": {
-                    "description": "Configuration for scatter point clustering",
-                    "properties": {
-                        "enabled": {
-                            "description": "Whether clustering is enabled",
-                            "type": "boolean"
-                        },
-                        "minPoints": {
-                            "description": "Minimum points required to form a cluster",
-                            "format": "double",
-                            "type": "number"
-                        },
-                        "radius": {
-                            "description": "Cluster pixel radius — how aggressively points group",
-                            "format": "double",
-                            "type": "number"
-                        }
-                    },
-                    "type": "object"
                 },
                 "colorOverrides": {
                     "$ref": "#/$defs/Record_string.string_",
@@ -2479,6 +2447,14 @@
                 }
             },
             "required": ["value", "field"],
+            "type": "object"
+        },
+        "Record_FieldId.FieldId_": {
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
             "type": "object"
         },
         "Record_string.ColumnProperties_": {

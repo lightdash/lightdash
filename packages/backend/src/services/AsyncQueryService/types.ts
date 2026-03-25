@@ -82,6 +82,7 @@ export type ExecuteAsyncSavedChartDrillQueryArgs = CommonAsyncQueryArgs & {
         inlineDimensions?: string[];
         inlineMetrics?: string[];
         inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+        inlineFieldMappings?: Record<string, string>;
     }>;
     /** Optional dashboard context for drills from dashboard tiles */
     dashboardFilters?: DashboardFilters;

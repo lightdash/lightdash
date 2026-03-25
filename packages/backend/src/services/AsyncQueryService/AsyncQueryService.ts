@@ -3702,6 +3702,7 @@ export class AsyncQueryService extends ProjectService {
                         label: '',
                         linkedChartUuid: step.linkedChartUuid,
                         target: 'modal' as const,
+                        fieldMappings: step.inlineFieldMappings,
                     },
                     drillDimensionValues: step.drillDimensionValues,
                 };
@@ -3899,15 +3900,28 @@ export class AsyncQueryService extends ProjectService {
             );
 
             // Apply drill filters from ALL steps to the linked chart's query,
-            // skipping dimensions that don't exist in the linked chart's explore
-            for (const { drillDimensionValues } of resolvedSteps) {
-                for (const key of Object.keys(drillDimensionValues)) {
+            // remapping source field IDs via fieldMappings and skipping unresolvable dimensions
+            for (const { drillPath, drillDimensionValues } of resolvedSteps) {
+                const mappings = isDrillThroughPath(drillPath)
+                    ? drillPath.fieldMappings
+                    : undefined;
+
+                // Remap source field IDs to target field IDs
+                const remappedDimValues: Record<string, unknown> = {};
+                for (const [key, value] of Object.entries(
+                    drillDimensionValues,
+                )) {
+                    const targetKey = mappings?.[key] ?? key;
+                    remappedDimValues[targetKey] = value;
+                }
+
+                for (const key of Object.keys(remappedDimValues)) {
                     if (!linkedFieldIds.has(key)) {
                         skippedDrillDimensions.push(key);
                     }
                 }
                 const compatibleDimValues = Object.fromEntries(
-                    Object.entries(drillDimensionValues).filter(([key]) =>
+                    Object.entries(remappedDimValues).filter(([key]) =>
                         linkedFieldIds.has(key),
                     ),
                 );
@@ -4000,7 +4014,7 @@ export class AsyncQueryService extends ProjectService {
             result.warnings = [
                 ...result.warnings,
                 {
-                    message: `Some drill filters could not be applied because the target chart does not have these fields: ${uniqueSkipped.join(', ')}`,
+                    message: `Some drill filters could not be applied because the target chart does not have these fields: ${uniqueSkipped.join(', ')}. Consider adding field mappings in the drill path configuration.`,
                     fields: uniqueSkipped,
                 },
             ];

@@ -124,6 +124,12 @@ export const drillStackToSteps = (
         }
         if (isDrillThroughPath(level.drillPath)) {
             step.linkedChartUuid = level.drillPath.linkedChartUuid;
+            if (
+                level.drillPath.fieldMappings &&
+                Object.keys(level.drillPath.fieldMappings).length > 0
+            ) {
+                step.inlineFieldMappings = level.drillPath.fieldMappings;
+            }
         }
         return step;
     });
@@ -209,6 +215,12 @@ export const buildDrillThroughState = ({
                 drillPathId: linkedPath?.id ?? '',
                 drillDimensionValues: clickedRawValues,
                 linkedChartUuid,
+                ...(linkedPath &&
+                isDrillThroughPath(linkedPath) &&
+                linkedPath.fieldMappings &&
+                Object.keys(linkedPath.fieldMappings).length > 0
+                    ? { inlineFieldMappings: linkedPath.fieldMappings }
+                    : {}),
             },
         ],
         filterSummary: summary,

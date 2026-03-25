@@ -832,6 +832,9 @@ export type DrillThroughPath = DrillPathBase & {
     linkedChartUuid: string;
     /** How to open the target chart. Defaults to 'modal'. */
     target: DrillThroughTarget;
+    /** Maps source field IDs to target field IDs for cross-explore drill-through.
+     *  When absent, only same-ID fields are matched. */
+    fieldMappings?: Record<FieldId, FieldId>;
 };
 
 /** A single preconfigured drill path that appears in the chart's context menu */
