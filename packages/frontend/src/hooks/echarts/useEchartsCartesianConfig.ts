@@ -2353,18 +2353,14 @@ const useEchartsCartesianConfig = (
 
     const rows = useMemo(() => {
         if (!isShowHideRowsEnabled) return allRows;
-        const fromRow = validCartesianConfig?.showFromRow;
-        const toRow = validCartesianConfig?.showToRow;
-        if (fromRow === undefined && toRow === undefined) return allRows;
-        const start = Math.max(0, (fromRow ?? 1) - 1);
-        const end = Math.max(start, toRow ?? allRows.length);
-        return allRows.slice(start, end);
-    }, [
-        allRows,
-        isShowHideRowsEnabled,
-        validCartesianConfig?.showFromRow,
-        validCartesianConfig?.showToRow,
-    ]);
+        const limit = validCartesianConfig?.rowLimit;
+        if (!limit) return allRows;
+        const count = Math.max(0, limit.count);
+        if (limit.direction === 'first') {
+            return allRows.slice(0, count);
+        }
+        return allRows.slice(Math.max(0, allRows.length - count));
+    }, [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit]);
 
     const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {

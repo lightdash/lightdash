@@ -208,8 +208,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showResultsTotal,
         showSubtotals,
         updateColumnProperty,
-        showFromRow,
-        showToRow,
+        rowLimit,
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
@@ -301,23 +300,19 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     const allRows = resultsData?.rows || [];
-    const isSlicing =
-        isShowHideRowsEnabled &&
-        (showFromRow !== undefined || showToRow !== undefined);
+    const isSlicing = isShowHideRowsEnabled && rowLimit !== undefined;
     const slicedRows = (() => {
         if (!isSlicing) return allRows;
-        const start = Math.max(0, (showFromRow ?? 1) - 1);
-        const end = Math.max(start, showToRow ?? allRows.length);
-        return allRows.slice(start, end);
+        const count = Math.max(0, rowLimit.count);
+        if (rowLimit.direction === 'first') {
+            return allRows.slice(0, count);
+        }
+        return allRows.slice(Math.max(0, allRows.length - count));
     })();
 
     const serverTotal = resultsData?.totalResults || 0;
     const totalRowsCount = isSlicing
-        ? Math.max(
-              0,
-              Math.min(showToRow ?? serverTotal, serverTotal) -
-                  Math.max(0, (showFromRow ?? 1) - 1),
-          )
+        ? Math.min(Math.max(0, rowLimit.count), serverTotal)
         : serverTotal;
 
     return (

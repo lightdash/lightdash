@@ -11,7 +11,13 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { NumberInput } from '@mantine-8/core';
+import {
+    Group as Group8,
+    NumberInput,
+    SegmentedControl as SegmentedControl8,
+    Switch,
+    Text as Text8,
+} from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
@@ -199,10 +205,8 @@ export const Layout: FC<Props> = ({ items }) => {
         updateYField,
         removeSingleSeries,
         addSingleSeries,
-        showFromRow,
-        setShowFromRow,
-        showToRow,
-        setShowToRow,
+        rowLimit,
+        setRowLimit,
     } = visualizationConfig.chartConfig;
 
     return (
@@ -480,33 +484,69 @@ export const Layout: FC<Props> = ({ items }) => {
             {isShowHideRowsEnabled && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Row range</Config.Heading>
-                        <NumberInput
-                            label="Show from row"
-                            placeholder="First row"
-                            min={1}
-                            value={showFromRow ?? ''}
-                            onChange={(value) =>
-                                setShowFromRow(
-                                    typeof value === 'number'
-                                        ? value
+                        <Config.Heading>Data</Config.Heading>
+                        <Switch
+                            label="Limit displayed rows"
+                            checked={rowLimit !== undefined}
+                            onChange={(e) =>
+                                setRowLimit(
+                                    e.currentTarget.checked
+                                        ? {
+                                              direction: 'first',
+                                              count: 50,
+                                          }
                                         : undefined,
                                 )
                             }
                         />
-                        <NumberInput
-                            label="Show to row"
-                            placeholder="Last row"
-                            min={1}
-                            value={showToRow ?? ''}
-                            onChange={(value) =>
-                                setShowToRow(
-                                    typeof value === 'number'
-                                        ? value
-                                        : undefined,
-                                )
-                            }
-                        />
+                        {rowLimit !== undefined && (
+                            <Group8 gap="xs" wrap="nowrap">
+                                <Text8 fz="xs" c="ldGray.6">
+                                    Show the
+                                </Text8>
+                                <SegmentedControl8
+                                    size="xs"
+                                    data={[
+                                        {
+                                            label: 'First',
+                                            value: 'first',
+                                        },
+                                        {
+                                            label: 'Last',
+                                            value: 'last',
+                                        },
+                                    ]}
+                                    value={rowLimit.direction}
+                                    onChange={(value) =>
+                                        setRowLimit({
+                                            ...rowLimit,
+                                            direction: value as
+                                                | 'first'
+                                                | 'last',
+                                        })
+                                    }
+                                />
+                                <NumberInput
+                                    size="xs"
+                                    w={60}
+                                    min={1}
+                                    allowDecimal={false}
+                                    value={rowLimit.count}
+                                    onChange={(value) =>
+                                        setRowLimit({
+                                            ...rowLimit,
+                                            count:
+                                                typeof value === 'number'
+                                                    ? value
+                                                    : 50,
+                                        })
+                                    }
+                                />
+                                <Text8 fz="xs" c="ldGray.6">
+                                    rows
+                                </Text8>
+                            </Group8>
+                        )}
                     </Config.Section>
                 </Config>
             )}

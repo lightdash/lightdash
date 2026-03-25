@@ -16,6 +16,7 @@ import {
     type ItemsMap,
     type MarkLineData,
     type MetricQuery,
+    type RowLimit,
     type Series,
     type SeriesMetadata,
     type TableCalculationMetadata,
@@ -220,11 +221,8 @@ const useCartesianChartConfig = ({
 
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
 
-    const [showFromRow, setShowFromRow] = useState<number | undefined>(
-        initialChartConfig?.showFromRow,
-    );
-    const [showToRow, setShowToRow] = useState<number | undefined>(
-        initialChartConfig?.showToRow,
+    const [rowLimit, setRowLimit] = useState<RowLimit | undefined>(
+        initialChartConfig?.rowLimit,
     );
 
     const setLegend = useCallback((legend: EchartsLegend) => {
@@ -1148,8 +1146,7 @@ const useCartesianChartConfig = ({
                   }
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
             metadata: dirtyMetadata,
-            showFromRow,
-            showToRow,
+            rowLimit,
         };
     }, [
         dirtyLayout,
@@ -1157,8 +1154,7 @@ const useCartesianChartConfig = ({
         dirtyMetadata,
         tooltip,
         tooltipSort,
-        showFromRow,
-        showToRow,
+        rowLimit,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
@@ -1232,10 +1228,8 @@ const useCartesianChartConfig = ({
         tooltipSort,
         setTooltipSort,
         updateMetadata,
-        showFromRow,
-        setShowFromRow,
-        showToRow,
-        setShowToRow,
+        rowLimit,
+        setRowLimit,
     };
 };
 

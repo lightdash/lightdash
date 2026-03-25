@@ -356,6 +356,13 @@ export type ColumnProperties = {
     width?: number;
 };
 
+export type RowLimit = {
+    /** Whether to show the first or last N rows */
+    direction: 'first' | 'last';
+    /** Number of rows to display */
+    count: number;
+};
+
 export type TableChart = {
     /** Show column totals/calculations */
     showColumnCalculation?: boolean;
@@ -375,10 +382,8 @@ export type TableChart = {
     conditionalFormattings?: ConditionalFormattingConfig[];
     /** Display metrics as rows instead of columns */
     metricsAsRows?: boolean;
-    /** 1-indexed first row to display (default: 1, i.e. from the start) */
-    showFromRow?: number;
-    /** 1-indexed last row to display (default: total row count, i.e. to the end) */
-    showToRow?: number;
+    /** Limit displayed rows to first/last N */
+    rowLimit?: RowLimit;
 };
 
 export enum CartesianSeriesType {
@@ -698,10 +703,8 @@ export type CartesianChart = {
     eChartsConfig: EChartsConfig;
     /** Metadata for series (colors, etc.) */
     metadata?: Record<string, SeriesMetadata>;
-    /** 1-indexed first row to display (default: 1, i.e. from the start) */
-    showFromRow?: number;
-    /** 1-indexed last row to display (default: total row count, i.e. to the end) */
-    showToRow?: number;
+    /** Limit displayed rows to first/last N */
+    rowLimit?: RowLimit;
 };
 
 export type BigNumberConfig = {
