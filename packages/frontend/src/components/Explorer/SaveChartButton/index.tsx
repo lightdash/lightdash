@@ -126,7 +126,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
             <Tooltip
                 label={
                     isDrillActive
-                        ? 'Exit the drill-into view before saving'
+                        ? 'Exit the drill-down view before saving'
                         : 'A custom metric ID matches an existing table metric. Rename it to avoid conflicts.'
                 }
                 disabled={!isDrillActive && !foundCustomMetricWithDuplicateId}

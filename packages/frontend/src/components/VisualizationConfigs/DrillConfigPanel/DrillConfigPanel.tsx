@@ -51,9 +51,7 @@ const ChartSelectItem = React.forwardRef<HTMLDivElement, ChartSelectItemProps>(
     ({ label, chartKind, ...others }, ref) => (
         <div ref={ref} {...others}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ChartIcon
-                    chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
-                />
+                <ChartIcon chartKind={chartKind ?? ChartKind.VERTICAL_BAR} />
                 <Text size="xs" fw={500}>
                     {label}
                 </Text>
@@ -238,9 +236,7 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                           dimensions: [],
                       };
 
-            updatePaths(
-                allPaths.map((p) => (p.id === id ? newPath : p)),
-            );
+            updatePaths(allPaths.map((p) => (p.id === id ? newPath : p)));
         },
         [allPaths, updatePaths],
     );
@@ -250,9 +246,8 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
             <Config>
                 <Config.Section>
                     <Text size="xs" color="dimmed">
-                        Drill path configuration is disabled while a
-                        drill-into view is active. Exit the drill view to
-                        edit drill paths.
+                        Drill path configuration is disabled while a drill-down
+                        view is active. Exit the drill view to edit drill paths.
                     </Text>
                 </Config.Section>
             </Config>
@@ -287,10 +282,7 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                     {allPaths.map((path, index) => (
                         <Accordion.Item key={path.id} value={`${index}`}>
                             <AccordionControl
-                                label={
-                                    path.label ||
-                                    `Drill path ${index + 1}`
-                                }
+                                label={path.label || `Drill path ${index + 1}`}
                                 onControlClick={() =>
                                     handleAccordionChange(
                                         openItems.includes(`${index}`)
@@ -342,10 +334,20 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                     )}
 
                                     {allowedTypes.length > 1 && (
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
+                                        <div
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: 4,
+                                            }}
+                                        >
                                             <IconInfoCircle
                                                 size={14}
-                                                style={{ opacity: 0.4, flexShrink: 0, marginTop: 1 }}
+                                                style={{
+                                                    opacity: 0.4,
+                                                    flexShrink: 0,
+                                                    marginTop: 1,
+                                                }}
                                             />
                                             <Text size="xs" color="dimmed">
                                                 {isDrillDownPath(path)
@@ -363,21 +365,14 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                 size="xs"
                                                 data={dimensionOptions}
                                                 value={
-                                                    path.dimensions[0] ??
-                                                    null
+                                                    path.dimensions[0] ?? null
                                                 }
                                                 onChange={(value) =>
-                                                    handleUpdatePath(
-                                                        path.id,
-                                                        {
-                                                            dimensions:
-                                                                value
-                                                                    ? [
-                                                                          value,
-                                                                      ]
-                                                                    : [],
-                                                        },
-                                                    )
+                                                    handleUpdatePath(path.id, {
+                                                        dimensions: value
+                                                            ? [value]
+                                                            : [],
+                                                    })
                                                 }
                                                 searchable
                                                 clearable
@@ -389,18 +384,14 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                 size="xs"
                                                 data={metricOptions}
                                                 value={
-                                                    path.metrics?.[0] ??
-                                                    null
+                                                    path.metrics?.[0] ?? null
                                                 }
                                                 onChange={(value) =>
-                                                    handleUpdatePath(
-                                                        path.id,
-                                                        {
-                                                            metrics: value
-                                                                ? [value]
-                                                                : undefined,
-                                                        },
-                                                    )
+                                                    handleUpdatePath(path.id, {
+                                                        metrics: value
+                                                            ? [value]
+                                                            : undefined,
+                                                    })
                                                 }
                                                 searchable
                                                 clearable
@@ -416,22 +407,16 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                 size="xs"
                                                 data={chartOptions}
                                                 value={
-                                                    path.linkedChartUuid ||
-                                                    null
+                                                    path.linkedChartUuid || null
                                                 }
                                                 onChange={(value) =>
-                                                    handleUpdatePath(
-                                                        path.id,
-                                                        {
-                                                            type: 'drillThrough',
-                                                            linkedChartUuid:
-                                                                value ?? '',
-                                                        },
-                                                    )
+                                                    handleUpdatePath(path.id, {
+                                                        type: 'drillThrough',
+                                                        linkedChartUuid:
+                                                            value ?? '',
+                                                    })
                                                 }
-                                                itemComponent={
-                                                    ChartSelectItem
-                                                }
+                                                itemComponent={ChartSelectItem}
                                                 searchable
                                                 clearable
                                             />
@@ -455,14 +440,11 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                 ]}
                                                 value={path.target}
                                                 onChange={(value) =>
-                                                    handleUpdatePath(
-                                                        path.id,
-                                                        {
-                                                            target:
-                                                                (value as DrillThroughTarget) ??
-                                                                'modal',
-                                                        },
-                                                    )
+                                                    handleUpdatePath(path.id, {
+                                                        target:
+                                                            (value as DrillThroughTarget) ??
+                                                            'modal',
+                                                    })
                                                 }
                                             />
                                         </>

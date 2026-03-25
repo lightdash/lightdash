@@ -2,17 +2,14 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
-    buildDrillFilters,
-    buildDrilledMetricQuery,
-    isDrillDownPath,
-    isDrillThroughPath,
-    mergeDrillFilters,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     ApiPreAggregateStatsResults,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildDrilledMetricQuery,
+    buildDrillFilters,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
@@ -30,7 +27,6 @@ import {
     ExploreCompiler,
     FieldType,
     ForbiddenError,
-    ParameterError,
     formatItemValue,
     formatRawValue,
     formatRow,
@@ -48,6 +44,8 @@ import {
     isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
+    isDrillDownPath,
+    isDrillThroughPath,
     isExploreError,
     isField,
     isJwtUser,
@@ -56,9 +54,11 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    mergeDrillFilters,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    ParameterError,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -78,11 +78,10 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
-    type DateZoom,
-    type SavedChartDAO,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DateZoom,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
@@ -97,6 +96,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     type RunQueryTags,
+    type SavedChartDAO,
     type SpaceSummaryBase,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -3567,9 +3567,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
-        let preAggregateMetadata:
-            | CacheMetadata['preAggregate']
-            | undefined;
+        let preAggregateMetadata: CacheMetadata['preAggregate'] | undefined;
         let preAggregateSpread: Record<string, unknown> = {};
 
         if (enablePreAggregation) {
@@ -3661,9 +3659,13 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncSavedChartDrillQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(chartUuid, undefined, {
-            projectUuid,
-        });
+        const savedChart = await this.savedChartModel.get(
+            chartUuid,
+            undefined,
+            {
+                projectUuid,
+            },
+        );
 
         if (savedChart.projectUuid !== projectUuid) {
             throw new ForbiddenError('Chart does not belong to project');
@@ -3698,7 +3700,10 @@ export class AsyncQueryService extends ProjectService {
                 (p) => p.id === step.drillPathId,
             );
             if (drillPath) {
-                return { drillPath, drillDimensionValues: step.drillDimensionValues };
+                return {
+                    drillPath,
+                    drillDimensionValues: step.drillDimensionValues,
+                };
             }
 
             // Fall back to inline data from the request (unsaved drill config)
@@ -3751,7 +3756,7 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError(
-                'You need Interactive Viewer access to use drill-into',
+                'You need Interactive Viewer access to use drill-down',
             );
         }
 
@@ -3877,28 +3882,27 @@ export class AsyncQueryService extends ProjectService {
 
         // Chain inline drill steps (skipped if last step was a linked chart)
         if (!isDrillThroughPath(lastStep.drillPath)) {
-            for (const {
-                drillPath,
-                drillDimensionValues,
-            } of resolvedSteps) {
-                if (!isDrillDownPath(drillPath)) continue;
+            for (const { drillPath, drillDimensionValues } of resolvedSteps) {
+                if (isDrillDownPath(drillPath)) {
+                    const fieldValues: Record<
+                        string,
+                        { raw: unknown; formatted: string }
+                    > = Object.fromEntries(
+                        Object.entries(drillDimensionValues).map(
+                            ([key, raw]) => [
+                                key,
+                                { raw, formatted: String(raw ?? '') },
+                            ],
+                        ),
+                    );
 
-                const fieldValues: Record<
-                    string,
-                    { raw: unknown; formatted: string }
-                > = Object.fromEntries(
-                    Object.entries(drillDimensionValues).map(([key, raw]) => [
-                        key,
-                        { raw, formatted: String(raw ?? '') },
-                    ]),
-                );
-
-                currentMetricQuery = buildDrilledMetricQuery(
-                    currentMetricQuery,
-                    drillPath,
-                    fieldValues,
-                    currentMetricQuery.dimensions,
-                );
+                    currentMetricQuery = buildDrilledMetricQuery(
+                        currentMetricQuery,
+                        drillPath,
+                        fieldValues,
+                        currentMetricQuery.dimensions,
+                    );
+                }
             }
         }
 
