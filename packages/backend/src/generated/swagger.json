@@ -5785,6 +5785,10 @@
                 "required": ["label", "id"],
                 "type": "object"
             },
+            "DrillPathType.DRILL_DOWN": {
+                "enum": ["drillDown"],
+                "type": "string"
+            },
             "DrillDownPath": {
                 "allOf": [
                     {
@@ -5814,9 +5818,7 @@
                                 "description": "Dimensions to show in the drilled view"
                             },
                             "type": {
-                                "type": "string",
-                                "enum": ["drillDown"],
-                                "nullable": false
+                                "$ref": "#/components/schemas/DrillPathType.DRILL_DOWN"
                             }
                         },
                         "required": ["dimensions", "type"],
@@ -5824,6 +5826,10 @@
                     }
                 ],
                 "description": "Drill-down path — explores deeper into the same chart by swapping dimensions/metrics"
+            },
+            "DrillPathType.DRILL_THROUGH": {
+                "enum": ["drillThrough"],
+                "type": "string"
             },
             "DrillThroughTarget": {
                 "type": "string",
@@ -5846,9 +5852,7 @@
                                 "description": "UUID of the saved chart to display when drilling"
                             },
                             "type": {
-                                "type": "string",
-                                "enum": ["drillThrough"],
-                                "nullable": false
+                                "$ref": "#/components/schemas/DrillPathType.DRILL_THROUGH"
                             }
                         },
                         "required": ["target", "linkedChartUuid", "type"],
@@ -27395,10 +27399,11 @@
                                 "description": "Ordered list of drill steps to apply (supports multi-level drill)"
                             },
                             "chartUuid": {
-                                "type": "string"
+                                "type": "string",
+                                "description": "Source chart UUID. Optional for drill-through (unsaved charts can drill to linked charts)."
                             }
                         },
-                        "required": ["drillSteps", "chartUuid"],
+                        "required": ["drillSteps"],
                         "type": "object"
                     }
                 ]

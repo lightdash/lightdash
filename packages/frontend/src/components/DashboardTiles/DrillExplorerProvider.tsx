@@ -1,7 +1,7 @@
 import {
+    buildDrillThroughState,
     CartesianSeriesType,
     ECHARTS_DEFAULT_COLORS,
-    buildDrillThroughState,
     getDimensions,
     type ApiExploreResults,
     type DrillPath,
@@ -22,15 +22,6 @@ import {
     type RefObject,
 } from 'react';
 import { Provider } from 'react-redux';
-import { Limit } from '../ExportResults/types';
-import { type EChartsReact } from '../EChartsReactWrapper';
-import {
-    getExpectedSeriesMap,
-    mergeExistingAndExpectedSeries,
-} from '../../hooks/cartesianChartConfig/utils';
-import { useOrganization } from '../../hooks/organization/useOrganization';
-import { useDrillQuery } from '../../hooks/useDrillQuery';
-import { useDrillThroughAction } from '../../hooks/useDrillThroughAction';
 import {
     buildInitialExplorerState,
     createExplorerStore,
@@ -39,14 +30,23 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../features/explorer/store';
+import {
+    getExpectedSeriesMap,
+    mergeExistingAndExpectedSeries,
+} from '../../hooks/cartesianChartConfig/utils';
+import { useOrganization } from '../../hooks/organization/useOrganization';
+import { useDrillQuery } from '../../hooks/useDrillQuery';
+import { useDrillThroughAction } from '../../hooks/useDrillThroughAction';
 import { ExplorerSection } from '../../providers/Explorer/types';
 import DrillDownBreadcrumb from '../common/DrillDownBreadcrumb';
+import { type EChartsReact } from '../EChartsReactWrapper';
+import { SeriesContextMenu } from '../Explorer/VisualizationCard/SeriesContextMenu';
+import { type Limit } from '../ExportResults/types';
+import LightdashVisualization from '../LightdashVisualization';
+import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import DrillThroughModal from '../MetricQueryData/DrillThroughModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
-import LightdashVisualization from '../LightdashVisualization';
-import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
-import { SeriesContextMenu } from '../Explorer/VisualizationCard/SeriesContextMenu';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 
 type DrillExplorerProviderProps = {
@@ -82,7 +82,14 @@ const DrillExplorerContent: FC<{
         ) => Promise<string>,
         totalResults: number | undefined,
     ) => void;
-}> = ({ chart, explore, tileUuid, onDrillEnd, setEchartsRef, onDrillExportReady }) => {
+}> = ({
+    chart,
+    explore,
+    tileUuid,
+    onDrillEnd,
+    setEchartsRef,
+    onDrillExportReady,
+}) => {
     const dispatch = useExplorerDispatch();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
@@ -127,7 +134,11 @@ const DrillExplorerContent: FC<{
     );
 
     // Linked chart drill-through modal
-    const { modalState: linkedChartDrillConfig, handleDrillThrough, closeModal: closeDrillThroughModal } = useDrillThroughAction();
+    const {
+        modalState: linkedChartDrillConfig,
+        handleDrillThrough,
+        closeModal: closeDrillThroughModal,
+    } = useDrillThroughAction();
 
     // Compute series for the drilled chart (empty eChartsConfig needs explicit series)
     const computedSeries: Series[] = useMemo(() => {
@@ -207,12 +218,10 @@ const DrillExplorerContent: FC<{
                                     type: unsavedChartVersion.chartConfig.type,
                                     config: {
                                         layout: {
-                                            xField:
-                                                drillResults.metricQuery
-                                                    .dimensions[0],
-                                            yField:
-                                                drillResults.metricQuery
-                                                    .metrics,
+                                            xField: drillResults.metricQuery
+                                                .dimensions[0],
+                                            yField: drillResults.metricQuery
+                                                .metrics,
                                             flipAxes: false,
                                         },
                                         eChartsConfig: {},
@@ -262,7 +271,8 @@ const DrillExplorerContent: FC<{
                                         sourceChartUuid: chart.uuid,
                                         drillPathId,
                                         linkedChartUuid,
-                                        drillConfig: unsavedChartVersion.drillConfig,
+                                        drillConfig:
+                                            unsavedChartVersion.drillConfig,
                                         fieldValues: clickedValues,
                                         dimensionIds: clickedDims,
                                         dimensions: getDimensions(explore),
@@ -279,9 +289,7 @@ const DrillExplorerContent: FC<{
 
                             <SeriesContextMenu
                                 echartsSeriesClickEvent={echartsClickEvent}
-                                dimensions={
-                                    drillResults.metricQuery.dimensions
-                                }
+                                dimensions={drillResults.metricQuery.dimensions}
                                 series={clickSeries}
                                 explore={explore}
                             />
@@ -298,6 +306,7 @@ const DrillExplorerContent: FC<{
                         linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
                         drillSteps={linkedChartDrillConfig.drillSteps}
                         filterSummary={linkedChartDrillConfig.filterSummary}
+                        filterDetails={linkedChartDrillConfig.filterDetails}
                     />
                 )}
             </div>

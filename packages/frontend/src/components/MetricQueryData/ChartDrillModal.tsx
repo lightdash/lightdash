@@ -1,12 +1,21 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     type ChartConfig,
+    type DrillFilterDetail,
     type DrillStep,
     type MetricQuery,
 } from '@lightdash/common';
-import { Badge, Center, Group, Loader, Stack, Text } from '@mantine-8/core';
-import { IconFilter } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    Badge,
+    Center,
+    Group,
+    Loader,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
+import { useMemo, type FC } from 'react';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useDrillThroughResults } from '../../hooks/useDrillThroughResults';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -22,11 +31,12 @@ import VisualizationProvider from '../LightdashVisualization/VisualizationProvid
 type Props = {
     opened: boolean;
     onClose: () => void;
-    /** The source chart that contains the drill config */
-    sourceChartUuid: string;
+    /** The source chart that contains the drill config. Undefined for unsaved charts. */
+    sourceChartUuid: string | undefined;
     /** Drill steps to send to the chart-drill endpoint */
     drillSteps: DrillStep[];
     filterSummary: string;
+    filterDetails: DrillFilterDetail[];
     /** Title override — defaults to linked chart name or source chart name */
     title?: string;
 } & (
@@ -51,7 +61,7 @@ const ChartDrillModal: FC<Props> = (props) => {
         onClose,
         sourceChartUuid,
         drillSteps,
-        filterSummary,
+        filterDetails,
         title: titleOverride,
     } = props;
 
@@ -102,6 +112,11 @@ const ChartDrillModal: FC<Props> = (props) => {
             ? (linkedChart?.name ?? 'Loading...')
             : 'Drill down');
 
+    const skippedFieldIds = useMemo(() => {
+        const warnings = drillResults?.warnings ?? [];
+        return new Set(warnings.flatMap((w) => w.fields ?? []));
+    }, [drillResults?.warnings]);
+
     const isReady =
         props.mode === 'inline'
             ? !isLoading && !queryError && drillResults
@@ -115,32 +130,44 @@ const ChartDrillModal: FC<Props> = (props) => {
             title={displayTitle}
             cancelLabel={false}
         >
-            {filterSummary && (
+            {filterDetails.length > 0 && (
                 <Group gap="xs">
-                    <Badge
-                        size="sm"
-                        variant="light"
-                        color="gray"
-                        leftSection={<IconFilter size={10} />}
-                    >
-                        {filterSummary.split(', ').map((part, i) => {
-                            const colonIdx = part.indexOf(': ');
-                            if (colonIdx === -1) return part;
-                            return (
-                                <Text key={i} component="span" fz="inherit">
-                                    {i > 0 && ', '}
-                                    <Text
-                                        component="span"
-                                        fz="inherit"
-                                        fw={700}
-                                    >
-                                        {part.slice(0, colonIdx)}
-                                    </Text>
-                                    {part.slice(colonIdx)}
+                    {filterDetails.map((detail) => {
+                        const isSkipped = skippedFieldIds.has(detail.fieldId);
+                        const badge = (
+                            <Badge
+                                key={detail.fieldId}
+                                size="sm"
+                                variant="light"
+                                color={isSkipped ? 'yellow' : 'gray'}
+                                leftSection={
+                                    isSkipped ? (
+                                        <IconAlertTriangle size={10} />
+                                    ) : (
+                                        <IconFilter size={10} />
+                                    )
+                                }
+                            >
+                                <Text component="span" fz="inherit" fw={700}>
+                                    {detail.label}
                                 </Text>
+                                {`: ${detail.formattedValue}`}
+                            </Badge>
+                        );
+
+                        if (isSkipped) {
+                            return (
+                                <Tooltip
+                                    key={detail.fieldId}
+                                    label="This filter was not applied because the target chart does not have this field"
+                                    withArrow
+                                >
+                                    {badge}
+                                </Tooltip>
                             );
-                        })}
-                    </Badge>
+                        }
+                        return badge;
+                    })}
                 </Group>
             )}
 

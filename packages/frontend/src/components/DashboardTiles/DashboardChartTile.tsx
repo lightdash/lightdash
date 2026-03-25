@@ -1720,6 +1720,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                     linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
                     drillSteps={linkedChartDrillConfig.drillSteps}
                     filterSummary={linkedChartDrillConfig.filterSummary}
+                    filterDetails={linkedChartDrillConfig.filterDetails}
                 />
             )}
         </>

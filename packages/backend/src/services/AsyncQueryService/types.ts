@@ -73,7 +73,8 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
 };
 
 export type ExecuteAsyncSavedChartDrillQueryArgs = CommonAsyncQueryArgs & {
-    chartUuid: string;
+    /** Source chart UUID. Optional for drill-through on unsaved charts. */
+    chartUuid?: string;
     drillSteps: Array<{
         drillPathId: string;
         drillDimensionValues: Record<string, unknown>;

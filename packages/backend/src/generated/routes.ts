@@ -4889,6 +4889,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DrillPathType.DRILL_DOWN': {
+        dataType: 'refEnum',
+        enums: ['drillDown'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DrillDownPath: {
         dataType: 'refAlias',
         type: {
@@ -4912,8 +4917,7 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         type: {
-                            dataType: 'enum',
-                            enums: ['drillDown'],
+                            ref: 'DrillPathType.DRILL_DOWN',
                             required: true,
                         },
                     },
@@ -4921,6 +4925,11 @@ const models: TsoaRoute.Models = {
             ],
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DrillPathType.DRILL_THROUGH': {
+        dataType: 'refEnum',
+        enums: ['drillThrough'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DrillThroughTarget: {
@@ -4948,8 +4957,7 @@ const models: TsoaRoute.Models = {
                         target: { ref: 'DrillThroughTarget', required: true },
                         linkedChartUuid: { dataType: 'string', required: true },
                         type: {
-                            dataType: 'enum',
-                            enums: ['drillThrough'],
+                            ref: 'DrillPathType.DRILL_THROUGH',
                             required: true,
                         },
                     },
@@ -26253,7 +26261,7 @@ const models: TsoaRoute.Models = {
                             array: { dataType: 'refAlias', ref: 'DrillStep' },
                             required: true,
                         },
-                        chartUuid: { dataType: 'string', required: true },
+                        chartUuid: { dataType: 'string' },
                     },
                 },
             ],

@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    buildDrillThroughState,
     derivePivotConfigurationFromChart,
+    drillStackToSteps,
     ECHARTS_DEFAULT_COLORS,
     getDimensions,
     getFieldsFromMetricQuery,
@@ -13,8 +15,6 @@ import {
     type EChartsSeries,
     type FieldId,
     type ResultValue,
-    buildDrillThroughState,
-    drillStackToSteps,
 } from '@lightdash/common';
 import { Button, useMantineColorScheme } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
@@ -46,6 +46,7 @@ import {
 } from '../../../features/explorer/store';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useDrillThroughAction } from '../../../hooks/useDrillThroughAction';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { Can } from '../../../providers/Ability';
@@ -53,12 +54,11 @@ import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
-import DrillDownBreadcrumb from '../../common/DrillDownBreadcrumb';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
+import DrillDownBreadcrumb from '../../common/DrillDownBreadcrumb';
 import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
-import { useDrillThroughAction } from '../../../hooks/useDrillThroughAction';
 import DrillThroughModal from '../../MetricQueryData/DrillThroughModal';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
@@ -162,7 +162,11 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
 
-    const { modalState: linkedChartDrillConfig, handleDrillThrough: dispatchDrillThrough, closeModal: closeDrillThroughModal } = useDrillThroughAction();
+    const {
+        modalState: linkedChartDrillConfig,
+        handleDrillThrough: dispatchDrillThrough,
+        closeModal: closeDrillThroughModal,
+    } = useDrillThroughAction();
 
     const handleDrillThrough = useCallback(
         ({
@@ -176,15 +180,11 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             fieldValues: Record<string, ResultValue>;
             dimensionIds: string[];
         }) => {
-            if (!savedChart?.uuid) return;
-
-            const existingSteps = drillStackToSteps(
-                drillState?.stack ?? [],
-            );
+            const existingSteps = drillStackToSteps(drillState?.stack ?? []);
 
             dispatchDrillThrough(
                 buildDrillThroughState({
-                    sourceChartUuid: savedChart.uuid,
+                    sourceChartUuid: savedChart?.uuid,
                     drillPathId,
                     linkedChartUuid,
                     drillConfig: unsavedChartVersion.drillConfig,
@@ -195,7 +195,13 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 }),
             );
         },
-        [savedChart?.uuid, drillState?.stack, unsavedChartVersion.drillConfig, explore],
+        [
+            savedChart?.uuid,
+            drillState?.stack,
+            unsavedChartVersion.drillConfig,
+            explore,
+            dispatchDrillThrough,
+        ],
     );
 
     const openVisualizationConfig = useCallback(
@@ -235,7 +241,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             closeVisualizationConfig();
         }
     }, [closeVisualizationConfig, isOpen]);
-
 
     const onSeriesContextMenu = useCallback(
         (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
@@ -440,9 +445,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                 dispatch(explorerActions.clearDrill())
                             }
                             onPopTo={(index) =>
-                                dispatch(
-                                    explorerActions.popDrillTo(index),
-                                )
+                                dispatch(explorerActions.popDrillTo(index))
                             }
                         />
                     )}
@@ -468,6 +471,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
                     drillSteps={linkedChartDrillConfig.drillSteps}
                     filterSummary={linkedChartDrillConfig.filterSummary}
+                    filterDetails={linkedChartDrillConfig.filterDetails}
                 />
             )}
         </ErrorBoundary>

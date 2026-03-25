@@ -8,6 +8,7 @@ import {
     type ApiQueryResults,
     type DashboardFilters,
     type DrillStep,
+    type QueryWarning,
     type ResultRow,
     type SortField,
 } from '@lightdash/common';
@@ -17,6 +18,7 @@ import { useProjectUuid } from './useProjectUuid';
 
 type DrillThroughResults = ApiQueryResults & {
     queryUuid: string;
+    warnings: QueryWarning[];
 };
 
 export type DashboardDrillContext = {
@@ -32,7 +34,7 @@ export type DashboardDrillContext = {
  */
 const getDrillThroughResults = async (
     projectUuid: string,
-    sourceChartUuid: string,
+    sourceChartUuid: string | undefined,
     drillSteps: DrillStep[],
     dashboardContext?: DashboardDrillContext,
 ): Promise<DrillThroughResults> => {
@@ -42,7 +44,9 @@ const getDrillThroughResults = async (
             version: 'v2',
             method: 'POST',
             body: JSON.stringify({
-                chartUuid: sourceChartUuid,
+                ...(sourceChartUuid
+                    ? { chartUuid: sourceChartUuid }
+                    : undefined),
                 drillSteps,
                 ...dashboardContext,
             }),
@@ -121,6 +125,7 @@ const getDrillThroughResults = async (
         cacheMetadata: executeResponse.cacheMetadata,
         rows: allRows,
         fields: executeResponse.fields,
+        warnings: executeResponse.warnings ?? [],
     };
 };
 
@@ -144,7 +149,7 @@ export const useDrillThroughResults = (
             drillSteps,
             dashboardContext,
         ],
-        enabled: enabled && !!projectUuid && !!sourceChartUuid && drillSteps.length > 0,
+        enabled: enabled && !!projectUuid && drillSteps.length > 0,
         queryFn: () =>
             getDrillThroughResults(
                 projectUuid!,

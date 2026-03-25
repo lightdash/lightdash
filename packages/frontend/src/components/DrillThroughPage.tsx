@@ -13,13 +13,15 @@ import {
     Stack,
     Text,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
 import {
+    IconAlertTriangle,
     IconArrowLeft,
     IconExternalLink,
     IconFilter,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useDrillThroughResults } from '../hooks/useDrillThroughResults';
@@ -55,6 +57,10 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
         true,
     );
 
+    const skippedFieldIds = useMemo(() => {
+        const warnings = drillResults?.warnings ?? [];
+        return new Set(warnings.flatMap((w) => w.fields ?? []));
+    }, [drillResults?.warnings]);
     const isLoading = isChartLoading || isQueryLoading;
     const isReady = !isLoading && !queryError && linkedChart && drillResults;
 
@@ -101,41 +107,48 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                             <Title order={5}>
                                 {linkedChart?.name ?? 'Loading...'}
                             </Title>
-                            {drillContext.filterSummary && (
-                                <Badge
-                                    size="sm"
-                                    variant="light"
-                                    color="gray"
-                                    leftSection={<IconFilter size={10} />}
-                                >
-                                    {drillContext.filterSummary
-                                        .split(', ')
-                                        .map((part, i) => {
-                                            const colonIdx = part.indexOf(': ');
-                                            if (colonIdx === -1) return part;
-                                            return (
-                                                <Text
-                                                    key={i}
-                                                    component="span"
-                                                    fz="inherit"
-                                                >
-                                                    {i > 0 && ', '}
-                                                    <Text
-                                                        component="span"
-                                                        fz="inherit"
-                                                        fw={700}
-                                                    >
-                                                        {part.slice(
-                                                            0,
-                                                            colonIdx,
-                                                        )}
-                                                    </Text>
-                                                    {part.slice(colonIdx)}
-                                                </Text>
-                                            );
-                                        })}
-                                </Badge>
-                            )}
+                            {drillContext.filterDetails.map((detail) => {
+                                const isSkipped = skippedFieldIds.has(
+                                    detail.fieldId,
+                                );
+                                const badge = (
+                                    <Badge
+                                        key={detail.fieldId}
+                                        size="sm"
+                                        variant="light"
+                                        color={isSkipped ? 'yellow' : 'gray'}
+                                        leftSection={
+                                            isSkipped ? (
+                                                <IconAlertTriangle size={10} />
+                                            ) : (
+                                                <IconFilter size={10} />
+                                            )
+                                        }
+                                    >
+                                        <Text
+                                            component="span"
+                                            fz="inherit"
+                                            fw={700}
+                                        >
+                                            {detail.label}
+                                        </Text>
+                                        {`: ${detail.formattedValue}`}
+                                    </Badge>
+                                );
+
+                                if (isSkipped) {
+                                    return (
+                                        <Tooltip
+                                            key={detail.fieldId}
+                                            label="This filter was not applied because the target chart does not have this field"
+                                            withArrow
+                                        >
+                                            {badge}
+                                        </Tooltip>
+                                    );
+                                }
+                                return badge;
+                            })}
                         </Group>
                         <Button
                             variant="subtle"

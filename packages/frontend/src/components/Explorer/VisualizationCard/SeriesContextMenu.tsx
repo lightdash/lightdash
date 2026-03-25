@@ -242,15 +242,13 @@ export const SeriesContextMenu: FC<{
                             fieldValues: clickedValues,
                             dimensionIds: clickedDims,
                         }) => {
-                            if (!savedChart?.uuid) return;
-
                             const existingSteps = drillStackToSteps(
                                 drillState?.stack ?? [],
                             );
 
                             handleDrillThrough(
                                 buildDrillThroughState({
-                                    sourceChartUuid: savedChart.uuid,
+                                    sourceChartUuid: savedChart?.uuid,
                                     drillPathId,
                                     linkedChartUuid,
                                     drillConfig:
@@ -276,6 +274,7 @@ export const SeriesContextMenu: FC<{
                     linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
                     drillSteps={linkedChartDrillConfig.drillSteps}
                     filterSummary={linkedChartDrillConfig.filterSummary}
+                    filterDetails={linkedChartDrillConfig.filterDetails}
                 />
             )}
         </>

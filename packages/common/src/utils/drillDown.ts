@@ -128,12 +128,20 @@ export const drillStackToSteps = (
         return step;
     });
 
+export type DrillFilterDetail = {
+    fieldId: string;
+    label: string;
+    formattedValue: string;
+};
+
 /** State for a drill-through action (navigating to a linked chart) */
 export type DrillThroughState = {
-    sourceChartUuid: string;
+    sourceChartUuid: string | undefined;
     linkedChartUuid: string;
     drillSteps: DrillStep[];
     filterSummary: string;
+    /** Structured filter details for per-dimension rendering */
+    filterDetails: DrillFilterDetail[];
     /** How to open the target chart */
     target: DrillThroughTarget;
 };
@@ -153,7 +161,7 @@ export const buildDrillThroughState = ({
     dimensions,
     existingDrillSteps,
 }: {
-    sourceChartUuid: string;
+    sourceChartUuid: string | undefined;
     /** ID of the specific drill path the user clicked */
     drillPathId: string;
     linkedChartUuid: string;
@@ -171,12 +179,19 @@ export const buildDrillThroughState = ({
             .map((id) => [id, fieldValues[id].raw]),
     );
 
-    const summary = dimensionIds
+    const filterDetails: DrillFilterDetail[] = dimensionIds
         .filter((id) => fieldValues[id])
         .map((id) => {
             const dim = dimensions.find((d) => `${d.table}_${d.name}` === id);
-            return `${dim?.label ?? id}: ${fieldValues[id].formatted}`;
-        })
+            return {
+                fieldId: id,
+                label: dim?.label ?? id,
+                formattedValue: fieldValues[id].formatted,
+            };
+        });
+
+    const summary = filterDetails
+        .map((d) => `${d.label}: ${d.formattedValue}`)
         .join(', ');
 
     // Resolve target from the matched drill path, defaulting to modal
@@ -197,6 +212,7 @@ export const buildDrillThroughState = ({
             },
         ],
         filterSummary: summary,
+        filterDetails,
         target,
     };
 };

@@ -48,7 +48,8 @@ export type DrillStep = {
 
 export type ExecuteAsyncSavedChartDrillRequestParams =
     CommonExecuteQueryRequestParams & {
-        chartUuid: string;
+        /** Source chart UUID. Optional for drill-through (unsaved charts can drill to linked charts). */
+        chartUuid?: string;
         /** Ordered list of drill steps to apply (supports multi-level drill) */
         drillSteps: DrillStep[];
         /** Optional dashboard context for drills initiated from dashboard tiles */

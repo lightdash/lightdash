@@ -1,14 +1,15 @@
+import { type DrillFilterDetail, type DrillStep } from '@lightdash/common';
 import { type FC } from 'react';
-import { type DrillStep } from '@lightdash/common';
 import ChartDrillModal from './ChartDrillModal';
 
 type Props = {
     opened: boolean;
     onClose: () => void;
-    sourceChartUuid: string;
+    sourceChartUuid: string | undefined;
     linkedChartUuid: string;
     drillSteps: DrillStep[];
     filterSummary: string;
+    filterDetails: DrillFilterDetail[];
 };
 
 /**
