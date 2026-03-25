@@ -1,4 +1,4 @@
-import { AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     ActivateUser,
     AlreadyExistsError,
@@ -18,6 +18,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
+    PossibleAbilities,
     ProjectMemberProfile,
     ProjectMemberRole,
     Role,
@@ -29,6 +30,7 @@ import {
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import NodeCache from 'node-cache';
+import { KeyValueCacheClient } from '../clients/CacheClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     createEmail,
@@ -123,6 +125,7 @@ const userDetailsQueryBuilder = (
 type UserModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    keyValueCacheClient?: KeyValueCacheClient;
 };
 
 const sessionUserCache =
@@ -138,13 +141,37 @@ export class UserModel {
 
     private readonly database: Knex;
 
-    constructor({ database, lightdashConfig }: UserModelArguments) {
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
+    constructor({
+        database,
+        lightdashConfig,
+        keyValueCacheClient,
+    }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
+        this.keyValueCacheClient = keyValueCacheClient;
     }
 
     private canTrackingBeAnonymized() {
         return this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
+    }
+
+    /**
+     * Reconstruct a SessionUser from key-value-cached data.
+     * JSON serialization loses Date instances and CASL Ability methods,
+     * so we rebuild them from the raw cached object.
+     */
+    private static hydrateSessionUser(cached: SessionUser): SessionUser {
+        return {
+            ...cached,
+            createdAt: new Date(cached.createdAt),
+            updatedAt: new Date(cached.updatedAt),
+            organizationCreatedAt: cached.organizationCreatedAt
+                ? new Date(cached.organizationCreatedAt)
+                : undefined,
+            ability: new Ability<PossibleAbilities>(cached.abilityRules),
+        };
     }
 
     async getSessionUserFromCacheOrDB(
@@ -152,19 +179,33 @@ export class UserModel {
         organizationUuid: string,
     ) {
         const cacheKey = `${userUuid}::${organizationUuid}`;
-        // Try to get from cache first
+
+        // Try key-value cache first (if available)
+        const kvCached =
+            await this.keyValueCacheClient?.get<SessionUser>(cacheKey);
+        if (kvCached) {
+            return {
+                sessionUser: UserModel.hydrateSessionUser(kvCached),
+                cacheHit: true,
+            };
+        }
+
+        // Fall back to in-memory NodeCache
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
         if (cachedUser) {
-            // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
-        // If not in cache, get from database
+
+        // If not in any cache, get from database
         const sessionUser = await this.findSessionUserAndOrgByUuid(
             userUuid,
             organizationUuid,
         );
-        // Store in cache
+
+        // Store in both caches
         sessionUserCache?.set(cacheKey, sessionUser);
+        await this.keyValueCacheClient?.set(cacheKey, sessionUser, 30);
+
         return { sessionUser, cacheHit: false };
     }
 

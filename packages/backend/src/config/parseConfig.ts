@@ -1116,6 +1116,11 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     appRuntime: AppRuntimeConfig;
+    redis:
+        | {
+        url: string;
+    }
+        | undefined;
 };
 
 export type SlackConfig = {
@@ -2108,5 +2113,8 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
+        redis: process.env.REDIS_URL
+            ? { url: process.env.REDIS_URL }
+            : undefined,
     };
 };

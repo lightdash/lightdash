@@ -46,6 +46,12 @@ services:
             MP_SMTP_AUTH_ACCEPT_ANY: 1
             MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
+    redis:
+        image: redis:7-alpine
+        restart: always
+        ports:
+            - '6379:6379'
+
     nats:
         image: nats:2.11-alpine
         command: ['-js']

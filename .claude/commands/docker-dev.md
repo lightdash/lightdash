@@ -130,6 +130,9 @@ EMAIL_SMTP_ALLOW_INVALID_CERT=true
 EMAIL_SMTP_SENDER_NAME=Lightdash
 EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 
+# Redis cache (optional — enables shared caching across services)
+# REDIS_URL=redis://localhost:6379
+
 # Dev API access (auto-provisioned PAT from seed data)
 # Not used by the app — only for agent/skill convenience (e.g. debug-local curl commands)
 LIGHTDASH_API_URL=http://localhost:8080
@@ -161,7 +164,7 @@ cat >> CLAUDE.local.md << 'EOF'
 
 ### Prerequisites: Docker Services
 
-Start the Docker services (PostgreSQL, MinIO, headless browser, Mailpit) before running the dev server:
+Start the Docker services (PostgreSQL, Redis, MinIO, headless browser, Mailpit) before running the dev server:
 
 ```bash
 /docker-dev
@@ -595,6 +598,7 @@ pnpx dotenv-cli -e .env.development -- pnpm dev
 | Backend (Express) | 8080      | API server                       |
 | Scheduler         | 8081      | Background job processor         |
 | PostgreSQL        | 5432      | Database                         |
+| Redis             | 6379      | Cache (optional, for REDIS_URL)  |
 | MinIO             | 9000/9001 | S3-compatible storage/console    |
 | Headless Browser  | 3001      | PDF/image generation             |
 | Mailpit           | 8025/1025 | Email testing Web UI/SMTP server |
@@ -614,6 +618,28 @@ docker compose -f docker/docker-compose.dev.mini.yml ps
 ```
 
 All services should show "running" state.
+
+### Enabling Redis Cache
+
+Redis is optional. When `REDIS_URL` is not set, the app uses in-memory NodeCache only (per-pod, lost on restart). To enable Redis for shared cross-pod caching:
+
+1. Redis is included in the Docker infrastructure (`docker-compose.infra.yml`) and starts automatically with `/docker-dev`.
+2. Uncomment `REDIS_URL` in `.env.development.local`:
+
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+3. Restart the backend (`pnpm pm2:restart:api` and `pnpm pm2:restart:scheduler`).
+
+With Redis enabled, both caches are used: Redis is checked first, then in-memory NodeCache, then the database. Writes go to both caches.
+
+To verify Redis is working:
+
+```bash
+docker exec docker-redis-1 redis-cli ping
+# Should return: PONG
+```
 
 ### MinIO Connection Refused / Query Results Error
 

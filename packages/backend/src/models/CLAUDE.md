@@ -136,8 +136,95 @@ Review each result. If it's a SELECT, JOIN, or subquery returning data, it needs
 - **Slug generation**: Slugs must be unique across all records including deleted ones. Deleted content can be restored, so slug uniqueness checks must include soft-deleted rows.
 - **Soft delete feature itself**: Queries that list deleted content (`whereNotNull('deleted_at')`), restore deleted content, or permanently delete content should obviously not exclude deleted records.
 
+## KeyValue Cache Client
+
+Models can optionally receive a `KeyValueCacheClient` for external caching. This is injected via `ModelRepository` and sits alongside the existing in-memory `NodeCache`. When `REDIS_URL` is not set, the client is `undefined` and everything falls back to NodeCache (or no cache at all).
+
+### How it flows
+
+1. `ModelRepository` receives an optional `keyValueCacheClient` (created when `REDIS_URL` is set)
+2. `ModelRepository` passes the same client instance to any model that needs caching
+3. Models accept the client as an optional constructor arg
+4. Models are responsible for using well-structured keys (see naming conventions below) — there is no automatic prefix. This allows multiple models to read/write/invalidate the same cache entries when needed.
+
+### Adding caching to a model
+
+1. Add `keyValueCacheClient?: KeyValueCacheClient` to the model's constructor args type
+2. Store it as a private readonly property
+3. In `ModelRepository`, pass `this.keyValueCacheClient` to the model
+4. In the model method, check cache then DB. Write back to cache on miss.
+
+```typescript
+// In ModelRepository
+public getMyModel(): MyModel {
+    return this.getModel(
+        'myModel',
+        () =>
+            new MyModel({
+                database: this.database,
+                keyValueCacheClient: this.keyValueCacheClient,
+            }),
+    );
+}
+
+// In the model method
+async getExpensiveThing(projectUuid: string): Promise<Thing> {
+    const cacheKey = `project:${projectUuid}:thing`;
+
+    // 1. Try cache
+    const cached = await this.keyValueCacheClient?.get<Thing>(cacheKey);
+    if (cached) return cached;
+
+    // 2. Query DB
+    const result = await this.database('things').where('project_uuid', projectUuid).first();
+
+    // 3. Write to cache
+    await this.keyValueCacheClient?.set(cacheKey, result, 30);
+
+    return result;
+}
+```
+
+### Key naming conventions
+
+Keys must follow the pattern `<entity>:<uuid>:<property>` to be consistent and debuggable:
+
+| Pattern | Example | Used for |
+|---------|---------|----------|
+| `project:<uuid>:<property>` | `project:abc-123:warehouseCredentials` | Project-scoped data |
+| `project:<uuid>:explores:<names>:<changeset>` | `project:abc-123:explores:all:2024-01-01T00:00:00.000Z` | Explores with versioning |
+| `<userUuid>::<orgUuid>` | `user-123::org-456` | Session user cache |
+
+Rules:
+- **Use colons as separators** — they make `SCAN`/`delByPrefix` predictable
+- **Lead with the entity type** (e.g., `project`, `user`) so keys are grouped logically
+- **Include the UUID** of the owning entity so cache entries are scoped and independently invalidatable
+- **End with the property name** to distinguish different cached values for the same entity
+- **Include versioning info** (timestamps, changesets) in the key when the data is version-sensitive — this makes stale entries expire naturally via TTL without explicit invalidation
+
+### Invalidation
+
+- **On mutation**: When a model method updates or deletes an entity, explicitly `del` the corresponding cache keys
+- **On delete**: Use `delByPrefix` to wipe all cached data for an entity (e.g., `delByPrefix("project:<uuid>:")` on project delete)
+- **TTL-based**: All caches use 30-second TTL as the default. Prefer short TTLs over complex invalidation logic.
+- **Version-in-key**: For data that changes with a known version (e.g., explores with changesets), embed the version in the key so old entries expire naturally via TTL without explicit invalidation
+
+### Interface
+
+```typescript
+interface KeyValueCacheClient {
+    get<T>(key: string): Promise<T | undefined>;
+    set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;
+    del(key: string): Promise<void>;
+    delByPrefix(prefix: string): Promise<void>;
+}
+```
+
+Source: `packages/backend/src/clients/CacheClient/`
+
 <links>
 - Database entities: @/packages/backend/src/database/entities
 - Common types: @/packages/common/src/types
 - API controllers: @/packages/backend/src/controllers
+- Cache client: @/packages/backend/src/clients/CacheClient
 </links>

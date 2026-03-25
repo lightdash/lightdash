@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import { KeyValueCacheClient } from '../clients/CacheClient';
 import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
@@ -189,21 +190,26 @@ abstract class ModelRepositoryBase {
 
     protected readonly utils: UtilRepository;
 
+    protected readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
     constructor({
         modelProviders,
         lightdashConfig,
         database,
         utils,
+        keyValueCacheClient,
     }: {
         modelProviders?: ModelProviderMap<ModelManifest>;
         lightdashConfig: LightdashConfig;
         database: Knex;
         utils: UtilRepository;
+        keyValueCacheClient?: KeyValueCacheClient;
     }) {
         this.providers = modelProviders ?? {};
         this.lightdashConfig = lightdashConfig;
         this.database = database;
         this.utils = utils;
+        this.keyValueCacheClient = keyValueCacheClient;
     }
 }
 
@@ -451,6 +457,7 @@ export class ModelRepository
                     changesetModel: this.getChangesetModel(),
                     lightdashConfig: this.lightdashConfig,
                     encryptionUtil: this.utils.getEncryptionUtil(),
+                    keyValueCacheClient: this.keyValueCacheClient,
                 }),
         );
     }
@@ -579,6 +586,7 @@ export class ModelRepository
                 new UserModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    keyValueCacheClient: this.keyValueCacheClient,
                 }),
         );
     }
