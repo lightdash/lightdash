@@ -31,6 +31,7 @@ import MantineIcon from './common/MantineIcon';
 import Page from './common/Page/Page';
 import LightdashVisualization from './LightdashVisualization';
 import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
+import MetricQueryDataProvider from './MetricQueryData/MetricQueryDataProvider';
 
 type Props = {
     drillContext: DrillThroughState;
@@ -195,44 +196,52 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                         )}
 
                         {isReady && linkedChart.chartConfig && drillResults && (
-                            <VisualizationProvider
-                                chartConfig={linkedChart.chartConfig}
-                                initialPivotDimensions={
-                                    linkedChart.pivotConfig?.columns
-                                }
-                                unsavedMetricQuery={
-                                    drillResults.metricQuery ??
-                                    linkedChart.metricQuery
-                                }
-                                resultsData={{
-                                    rows: drillResults.rows,
-                                    metricQuery: drillResults.metricQuery,
-                                    fields: drillResults.fields,
-                                    isInitialLoading: false,
-                                    isFetchingFirstPage: false,
-                                    isFetchingRows: false,
-                                    isFetchingAllPages: false,
-                                    fetchMoreRows: () => {},
-                                    setFetchAll: () => {},
-                                    fetchAll: false,
-                                    hasFetchedAllRows: true,
-                                    totalClientFetchTimeMs: undefined,
-                                    error: null,
-                                }}
-                                minimal
-                                isLoading={false}
-                                columnOrder={
-                                    linkedChart.tableConfig.columnOrder ?? []
-                                }
-                                pivotTableMaxColumnLimit={1000}
-                                colorPalette={colorPalette}
-                                isDashboard={false}
+                            <MetricQueryDataProvider
+                                metricQuery={drillResults.metricQuery}
+                                tableName={linkedChart.tableName}
+                                explore={undefined}
+                                queryUuid={drillResults.queryUuid}
                             >
-                                <LightdashVisualization
-                                    className="sentry-block ph-no-capture"
-                                    data-testid="drill-visualization"
-                                />
-                            </VisualizationProvider>
+                                <VisualizationProvider
+                                    chartConfig={linkedChart.chartConfig}
+                                    initialPivotDimensions={
+                                        linkedChart.pivotConfig?.columns
+                                    }
+                                    unsavedMetricQuery={
+                                        drillResults.metricQuery ??
+                                        linkedChart.metricQuery
+                                    }
+                                    resultsData={{
+                                        rows: drillResults.rows,
+                                        metricQuery: drillResults.metricQuery,
+                                        fields: drillResults.fields,
+                                        isInitialLoading: false,
+                                        isFetchingFirstPage: false,
+                                        isFetchingRows: false,
+                                        isFetchingAllPages: false,
+                                        fetchMoreRows: () => {},
+                                        setFetchAll: () => {},
+                                        fetchAll: false,
+                                        hasFetchedAllRows: true,
+                                        totalClientFetchTimeMs: undefined,
+                                        error: null,
+                                    }}
+                                    minimal
+                                    isLoading={false}
+                                    columnOrder={
+                                        linkedChart.tableConfig.columnOrder ??
+                                        []
+                                    }
+                                    pivotTableMaxColumnLimit={1000}
+                                    colorPalette={colorPalette}
+                                    isDashboard={false}
+                                >
+                                    <LightdashVisualization
+                                        className="sentry-block ph-no-capture"
+                                        data-testid="drill-visualization"
+                                    />
+                                </VisualizationProvider>
+                            </MetricQueryDataProvider>
                         )}
                     </div>
                 </Paper>
