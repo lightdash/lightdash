@@ -39,7 +39,6 @@ import {
     type MRT_ColumnDef,
 } from 'mantine-react-table';
 import { useMemo, useRef, useState } from 'react';
-import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../components/common/MantineIcon';
@@ -584,7 +583,7 @@ const ChartsTable = ({
     const table = useMantineReactTable({
         columns,
         data: filteredData,
-        enableRowVirtualization: true,
+        enableRowVirtualization: false,
         enableStickyHeader: true,
         enableColumnResizing: false,
         enablePagination: false,
@@ -890,22 +889,7 @@ const DashboardVersionComparison = ({
         ).length;
 
         // Use the chart version differences from the API if available
-        const allChartVersionDiffs =
-            versionQuery.data.chartVersionDifferences || [];
-        const chartsWithDifferentVersions = allChartVersionDiffs.filter(
-            (diff) =>
-                diff.currentVersion &&
-                diff.selectedVersion &&
-                diff.currentVersion.versionUuid !==
-                    diff.selectedVersion.versionUuid,
-        );
-
-        // Create a map for quick lookup - includes ALL charts with version info from API
-        const chartVersionMap = new Map(
-            allChartVersionDiffs.map((c) => [c.chartUuid, c]),
-        );
-
-        // Combine all charts from both versions
+        // Combine all dashboard-owned chart UUIDs from both versions
         const allChartUuids = new Set<string>();
         currentCharts.forEach((tile) => {
             if (
@@ -923,6 +907,22 @@ const DashboardVersionComparison = ({
                 allChartUuids.add(tile.properties.savedChartUuid);
             }
         });
+
+        const allChartVersionDiffs =
+            versionQuery.data.chartVersionDifferences || [];
+        const chartsWithDifferentVersions = allChartVersionDiffs.filter(
+            (diff) =>
+                diff.currentVersion &&
+                diff.selectedVersion &&
+                diff.currentVersion.versionUuid !==
+                    diff.selectedVersion.versionUuid &&
+                allChartUuids.has(diff.chartUuid),
+        );
+
+        // Create a map for quick lookup
+        const chartVersionMap = new Map(
+            allChartVersionDiffs.map((c) => [c.chartUuid, c]),
+        );
 
         // Create aligned chart comparison data
         const alignedCharts = Array.from(allChartUuids)
@@ -1164,9 +1164,12 @@ const DashboardVersionComparison = ({
                     icon={IconChartBar}
                     color="violet"
                     badge={(() => {
-                        const totalChanges =
-                            comparison.chartsWithDifferentVersions.length +
-                            Math.abs(comparison.chartDiff);
+                        const totalChanges = comparison.alignedCharts.filter(
+                            (c) =>
+                                c.hasDifferentVersion ||
+                                !c.inCurrent ||
+                                !c.inVersion,
+                        ).length;
                         if (totalChanges === 0) {
                             return (
                                 <Badge color="gray" variant="light" size="lg">
@@ -1182,11 +1185,11 @@ const DashboardVersionComparison = ({
                         );
                     })()}
                 >
-                    <Callout variant="info">
+                    <Text size="xs" c="dimmed" mb="sm">
                         Only charts created within this dashboard are affected
                         by a rollback. Charts added from the space will keep
                         their current version.
-                    </Callout>
+                    </Text>
                     <ChartsTable
                         data={comparison.alignedCharts}
                         projectUuid={projectUuid}

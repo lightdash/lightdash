@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    formatTimestamp,
-    isDashboardChartTileType,
-    TimeFrames,
-} from '@lightdash/common';
+import { formatTimestamp, TimeFrames } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -16,12 +12,11 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import {
-    IconChartBar,
     IconDots,
     IconHistory,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
@@ -56,18 +51,6 @@ const DashboardHistory = () => {
     const historyQuery = useDashboardHistory(dashboardUuid);
 
     const rollbackMutation = useDashboardVersionRollbackMutation(dashboardUuid);
-
-    // Count only dashboard-owned charts (only these are affected by rollback)
-    // Must be before early returns to maintain hook order
-    const chartCount = useMemo(() => {
-        if (!dashboardQuery.data?.tiles) return 0;
-        return dashboardQuery.data.tiles.filter(
-            (tile) =>
-                isDashboardChartTileType(tile) &&
-                tile.properties.savedChartUuid &&
-                tile.properties.belongsToDashboard,
-        ).length;
-    }, [dashboardQuery.data?.tiles]);
 
     if (historyQuery.isInitialLoading || dashboardQuery.isInitialLoading) {
         return (
@@ -252,30 +235,13 @@ const DashboardHistory = () => {
                         will be generated and saved. All previous versions are
                         still safely stored and can be restored at any time.
                     </Text>
-                    {chartCount > 0 && (
-                        <Callout variant="info">
-                            <Stack gap="xs">
-                                <Flex align="center" gap="xs">
-                                    <MantineIcon
-                                        icon={IconChartBar}
-                                        size="sm"
-                                    />
-                                    <Text size="sm" fw={600}>
-                                        Complete restoration including charts
-                                    </Text>
-                                </Flex>
-                                <Text size="sm">
-                                    This restoration will include all{' '}
-                                    {chartCount} chart
-                                    {chartCount !== 1 ? 's' : ''}
-                                    in the dashboard. Each chart will be
-                                    restored to its exact state at the time this
-                                    dashboard version was created, ensuring a
-                                    complete point-in-time recovery.
-                                </Text>
-                            </Stack>
-                        </Callout>
-                    )}
+                    <Callout variant="info">
+                        <Text size="sm">
+                            Charts created within this dashboard will also be
+                            restored to their version at the time this dashboard
+                            version was created.
+                        </Text>
+                    </Callout>
                 </Stack>
             </MantineModal>
         </Page>
