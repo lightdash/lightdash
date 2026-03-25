@@ -232,9 +232,7 @@ echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.lo
 
 ### Add Local Dev Instructions to CLAUDE.local.md
 
-**Ask the user for permission first** (via AskUserQuestion). If declined, skip this step.
-
-Once permission is granted, append to `CLAUDE.local.md`:
+Append to `CLAUDE.local.md` (creates file if it doesn't exist):
 
 ````bash
 cat >> CLAUDE.local.md << EOF
