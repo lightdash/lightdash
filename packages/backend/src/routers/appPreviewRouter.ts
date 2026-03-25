@@ -53,6 +53,25 @@ const isSafeFilename = (filename: string): boolean =>
 export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
     const router = express.Router({ strict: true });
 
+    // Host header validation — defense-in-depth for domain isolation.
+    // When APP_RUNTIME_PREVIEW_ORIGIN is set (production), reject requests
+    // that arrive on the wrong hostname (e.g. the main app domain).
+    // previewOrigin is a full URL (e.g. "https://preview.lightdash.cloud")
+    // consistent with other *_ORIGIN env vars, so we extract the hostname.
+    if (config.previewOrigin) {
+        const previewHostname = new URL(config.previewOrigin).hostname;
+        router.use((req, res, next) => {
+            if (req.hostname !== previewHostname) {
+                res.status(404).json({
+                    status: 'error',
+                    error: { message: 'Not found' },
+                });
+                return;
+            }
+            next();
+        });
+    }
+
     const s3 =
         config.s3 !== null
             ? new S3({
@@ -131,16 +150,16 @@ export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
 
     // Serve index.html for an app version.
     // Redirect to trailing slash so relative asset paths resolve correctly.
-    // e.g. "assets/foo.css" from "/preview/apps/X/versions/Y" resolves to
-    //       "/preview/apps/X/versions/assets/foo.css" (wrong, missing Y)
-    // but from "/preview/apps/X/versions/Y/" resolves to
-    //       "/preview/apps/X/versions/Y/assets/foo.css" (correct)
+    // e.g. "assets/foo.css" from "/api/apps/X/versions/Y" resolves to
+    //       "/api/apps/X/versions/assets/foo.css" (wrong, missing Y)
+    // but from "/api/apps/X/versions/Y/" resolves to
+    //       "/api/apps/X/versions/Y/assets/foo.css" (correct)
     // No trailing slash → redirect to add one
-    router.get('/apps/:appUuid/versions/:versionUuid', (req, res) => {
+    router.get('/:appUuid/versions/:versionUuid', (req, res) => {
         res.redirect(302, `${req.originalUrl}/`);
     });
 
-    router.get('/apps/:appUuid/versions/:versionUuid/', async (req, res) => {
+    router.get('/:appUuid/versions/:versionUuid/', async (req, res) => {
         const { appUuid, versionUuid } = req.params;
 
         if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
@@ -170,7 +189,7 @@ export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
 
     // Serve static assets (JS, CSS, fonts) for local dev without CDN
     router.get(
-        '/apps/:appUuid/versions/:versionUuid/assets/:filename',
+        '/:appUuid/versions/:versionUuid/assets/:filename',
         async (req, res) => {
             const { appUuid, versionUuid, filename } = req.params;
 
