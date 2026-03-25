@@ -367,5 +367,6 @@ export const lightdashConfigMock: LightdashConfig = {
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         s3: null,
+        e2bApiKey: null,
     },
 };

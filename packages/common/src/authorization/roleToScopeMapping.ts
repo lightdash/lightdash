@@ -89,6 +89,7 @@ const BASE_ROLE_SCOPES = {
         'manage:ContentAsCode',
         'manage:AiAgent',
         'manage:AiAgentThread@self', // User's own threads
+        'manage:DataApp',
     ],
 
     [ProjectMemberRole.ADMIN]: [
@@ -168,6 +169,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgent',
         'manage:AiAgentThread',
         'manage:ContentAsCode',
+        'manage:DataApp',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

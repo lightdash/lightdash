@@ -283,6 +283,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
             //  userUuid: userUuid,
         });
+        can('manage', 'DataApp', {
+            organizationUuid,
+        });
         can('manage', 'Dashboard', {
             organizationUuid,
         });

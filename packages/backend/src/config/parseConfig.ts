@@ -1162,6 +1162,7 @@ export type AppRuntimeConfig = {
     lightdashOrigin: string;
     cdnOrigin: string | null;
     s3: S3Config | null;
+    e2bApiKey: string | null;
 };
 
 export type IntercomConfig = {
@@ -1365,6 +1366,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         s3,
+        e2bApiKey: process.env.E2B_API_KEY || null,
     };
 };
 

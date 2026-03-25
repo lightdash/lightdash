@@ -119,6 +119,7 @@ interface ServiceManifest {
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
+    appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
     aiAgentService: unknown;
@@ -1111,6 +1112,12 @@ export class ServiceRepository
                     projectService: this.getProjectService(),
                 }),
         );
+    }
+
+    public getAppGenerateService<
+        AppGenerateServiceImplT,
+    >(): AppGenerateServiceImplT {
+        return this.getService('appGenerateService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
