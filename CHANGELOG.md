@@ -1,3 +1,10 @@
+## [0.2662.1](https://github.com/lightdash/lightdash/compare/0.2662.0...0.2662.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* prevent derived explores from breaking validation field lookups ([#21387](https://github.com/lightdash/lightdash/issues/21387)) ([fd321c4](https://github.com/lightdash/lightdash/commit/fd321c4e37bedce4dda565ed09258c1de2b912ff))
+
 # [0.2662.0](https://github.com/lightdash/lightdash/compare/0.2661.2...0.2662.0) (2026-03-25)
 
 
