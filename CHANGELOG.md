@@ -1,3 +1,11 @@
+## [0.2663.1](https://github.com/lightdash/lightdash/compare/0.2663.0...0.2663.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* improve batch writing for materialization streaming to file ([#21388](https://github.com/lightdash/lightdash/issues/21388)) ([70afd3e](https://github.com/lightdash/lightdash/commit/70afd3e3134052fd42bd388fd016313be721cc27))
+* optimize DuckDB S3 secret creation to run once per instance ([#21373](https://github.com/lightdash/lightdash/issues/21373)) ([d9dc954](https://github.com/lightdash/lightdash/commit/d9dc95467d41033d212e808bea3b3312c092501c))
+
 # [0.2663.0](https://github.com/lightdash/lightdash/compare/0.2662.3...0.2663.0) (2026-03-25)
 
 
