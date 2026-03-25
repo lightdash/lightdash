@@ -11,6 +11,7 @@ import {
     UserAllowedOrganization,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { KeyValueCacheClient } from '../clients/CacheClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     DbOrganizationColorPalette,
@@ -182,9 +183,20 @@ export class OrganizationModel {
 
     private lightdashConfig: LightdashConfig | undefined;
 
-    constructor(database: Knex, lightdashConfig?: LightdashConfig) {
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
+    constructor(
+        database: Knex,
+        lightdashConfig?: LightdashConfig,
+        keyValueCacheClient?: KeyValueCacheClient,
+    ) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
+        this.keyValueCacheClient = keyValueCacheClient;
+    }
+
+    private async invalidateOrgCache(organizationUuid: string): Promise<void> {
+        await this.keyValueCacheClient?.del(`org:${organizationUuid}`);
     }
 
     static mapDBObjectToOrganization(
@@ -219,6 +231,13 @@ export class OrganizationModel {
     }
 
     async get(organizationUuid: string): Promise<Organization> {
+        const cacheKey = `org:${organizationUuid}`;
+        const cached =
+            await this.keyValueCacheClient?.get<Organization>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .select('*');
@@ -227,29 +246,36 @@ export class OrganizationModel {
             throw new NotFoundError(`No organization found`);
         }
 
+        let result: Organization;
+
         // If override color palette is configured, always override the active palette
         if (
             this.lightdashConfig?.appearance?.overrideColorPalette &&
             this.lightdashConfig.appearance.overrideColorPalette.length > 0
         ) {
-            return OrganizationModel.mapDBObjectToOrganization(
+            result = OrganizationModel.mapDBObjectToOrganization(
                 org,
                 this.lightdashConfig.appearance.overrideColorPalette,
                 undefined,
             );
+        } else {
+            const palette = await this.database(
+                OrganizationColorPaletteTableName,
+            )
+                .where('color_palette_uuid', org.color_palette_uuid)
+                .andWhere('organization_uuid', organizationUuid)
+                .select('*')
+                .first();
+
+            result = OrganizationModel.mapDBObjectToOrganization(
+                org,
+                palette?.colors,
+                palette?.dark_colors,
+            );
         }
 
-        const palette = await this.database(OrganizationColorPaletteTableName)
-            .where('color_palette_uuid', org.color_palette_uuid)
-            .andWhere('organization_uuid', organizationUuid)
-            .select('*')
-            .first();
-
-        return OrganizationModel.mapDBObjectToOrganization(
-            org,
-            palette?.colors,
-            palette?.dark_colors,
-        );
+        await this.keyValueCacheClient?.set(cacheKey, result, 120);
+        return result;
     }
 
     async create(data: CreateOrganization): Promise<Organization> {
@@ -279,6 +305,7 @@ export class OrganizationModel {
         organizationUuid: string,
         data: UpdateOrganization,
     ): Promise<Organization> {
+        await this.invalidateOrgCache(organizationUuid);
         // Undefined values are ignored by .update (it DOES NOT set null)
         const updateData: {
             organization_name?: string;
@@ -321,6 +348,7 @@ export class OrganizationModel {
         organizationUuid: string,
         userUuids: string[],
     ): Promise<void> {
+        await this.invalidateOrgCache(organizationUuid);
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .select('*');

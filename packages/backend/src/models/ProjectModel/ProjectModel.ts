@@ -823,6 +823,14 @@ export class ProjectModel {
     }
 
     async getSummary(projectUuid: string): Promise<ProjectSummary> {
+        const cacheKey = `project:${projectUuid}:summary`;
+
+        const cached =
+            await this.keyValueCacheClient?.get<ProjectSummary>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const project = await this.database(ProjectTableName)
             .leftJoin(
                 OrganizationTableName,
@@ -852,13 +860,16 @@ export class ProjectModel {
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
-        return {
+        const result: ProjectSummary = {
             organizationUuid: project.organization_uuid,
             projectUuid: project.project_uuid,
             name: project.name,
             type: project.project_type,
             upstreamProjectUuid: project.copied_from_project_uuid || undefined,
         };
+
+        await this.keyValueCacheClient?.set(cacheKey, result, 60);
+        return result;
     }
 
     /*
@@ -941,6 +952,13 @@ export class ProjectModel {
     }
 
     async get(projectUuid: string): Promise<Project> {
+        const cacheKey = `project:${projectUuid}:get`;
+
+        const cached = await this.keyValueCacheClient?.get<Project>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;
 
@@ -968,7 +986,7 @@ export class ProjectModel {
                 nonSensitiveCredentials,
             );
 
-        return {
+        const result: Project = {
             organizationUuid: project.organizationUuid,
             projectUuid,
             name: project.name,
@@ -985,6 +1003,9 @@ export class ProjectModel {
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
         };
+
+        await this.keyValueCacheClient?.set(cacheKey, result, 60);
+        return result;
     }
 
     async getTablesConfiguration(

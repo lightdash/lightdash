@@ -254,6 +254,7 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                     contentVerificationModel:
                         this.getContentVerificationModel(),
+                    keyValueCacheClient: this.keyValueCacheClient,
                 }),
         );
     }
@@ -408,7 +409,12 @@ export class ModelRepository
     public getOrganizationModel(): OrganizationModel {
         return this.getModel(
             'organizationModel',
-            () => new OrganizationModel(this.database, this.lightdashConfig),
+            () =>
+                new OrganizationModel(
+                    this.database,
+                    this.lightdashConfig,
+                    this.keyValueCacheClient,
+                ),
         );
     }
 
@@ -489,6 +495,7 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                     contentVerificationModel:
                         this.getContentVerificationModel(),
+                    keyValueCacheClient: this.keyValueCacheClient,
                 }),
         );
     }
@@ -543,7 +550,11 @@ export class ModelRepository
     public getSpaceModel(): SpaceModel {
         return this.getModel(
             'spaceModel',
-            () => new SpaceModel({ database: this.database }),
+            () =>
+                new SpaceModel({
+                    database: this.database,
+                    keyValueCacheClient: this.keyValueCacheClient,
+                }),
         );
     }
 

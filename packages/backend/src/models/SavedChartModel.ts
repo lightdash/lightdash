@@ -49,6 +49,7 @@ import {
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import { validate as isValidUuid } from 'uuid';
+import { KeyValueCacheClient } from '../clients/CacheClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     DashboardsTableName,
@@ -454,6 +455,7 @@ type SavedChartModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     contentVerificationModel?: ContentVerificationModel;
+    keyValueCacheClient?: KeyValueCacheClient;
 };
 
 type VersionSummaryRow = {
@@ -472,6 +474,8 @@ export class SavedChartModel {
 
     private contentVerificationModel: ContentVerificationModel | undefined;
 
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
     async transaction<T>(
         callback: (tx: Knex.Transaction) => Promise<T>,
     ): Promise<T> {
@@ -482,6 +486,11 @@ export class SavedChartModel {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.contentVerificationModel = args.contentVerificationModel;
+        this.keyValueCacheClient = args.keyValueCacheClient;
+    }
+
+    private async invalidateChartCache(savedChartUuid: string): Promise<void> {
+        await this.keyValueCacheClient?.delByPrefix(`chart:${savedChartUuid}`);
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -698,6 +707,7 @@ export class SavedChartModel {
         user: SessionUser | undefined,
         tx?: Knex,
     ): Promise<SavedChartDAO> {
+        await this.invalidateChartCache(savedChartUuid);
         const doWork = async (trx: Knex) => {
             const [savedChart] = await trx(SavedChartsTableName)
                 .select(['saved_query_id'])
@@ -739,6 +749,7 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: UpdateSavedChart,
     ): Promise<SavedChartDAO> {
+        await this.invalidateChartCache(savedChartUuid);
         await this.database(SavedChartsTableName)
             .update({
                 name: data.name,
@@ -759,6 +770,7 @@ export class SavedChartModel {
     async updateMultiple(
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChartDAO[]> {
+        await Promise.all(data.map((d) => this.invalidateChartCache(d.uuid)));
         await this.database.transaction(async (trx) => {
             const promises = data.map(async (savedChart) =>
                 trx(SavedChartsTableName)
@@ -783,6 +795,7 @@ export class SavedChartModel {
     }
 
     async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
+        await this.invalidateChartCache(savedChartUuid);
         const savedChart = await this.get(savedChartUuid, undefined, {
             deleted: 'any',
         });
@@ -796,6 +809,7 @@ export class SavedChartModel {
         savedChartUuid: string,
         userUuid: string,
     ): Promise<SavedChartDAO> {
+        await this.invalidateChartCache(savedChartUuid);
         const savedChart = await this.get(savedChartUuid);
         await this.database(SavedChartsTableName)
             .update({
@@ -902,6 +916,19 @@ export class SavedChartModel {
                 name: 'SavedChartModel.get',
             },
             async () => {
+                // Only cache default lookups (no version, no deleted filter)
+                const isCacheable = !versionUuid && !options?.deleted;
+                if (isCacheable) {
+                    const cacheKey = `chart:${savedChartUuidOrSlug}`;
+                    const cached =
+                        await this.keyValueCacheClient?.get<SavedChartDAO>(
+                            cacheKey,
+                        );
+                    if (cached) {
+                        return cached;
+                    }
+                }
+
                 const isUuid = isValidUuid(savedChartUuidOrSlug);
                 const filterField = isUuid ? 'saved_query_uuid' : 'slug';
 
@@ -1207,7 +1234,7 @@ export class SavedChartModel {
                         savedQuery.saved_query_uuid,
                     )) ?? null;
 
-                return {
+                const result: SavedChartDAO = {
                     uuid: savedQuery.saved_query_uuid,
                     projectUuid: savedQuery.project_uuid,
                     name: savedQuery.name,
@@ -1347,11 +1374,28 @@ export class SavedChartModel {
                           }
                         : {}),
                 };
+
+                if (isCacheable) {
+                    await this.keyValueCacheClient?.set(
+                        `chart:${savedChartUuidOrSlug}`,
+                        result,
+                        30,
+                    );
+                }
+
+                return result;
             },
         );
     }
 
     async getSummary(savedChartUuid: string): Promise<ChartSummary> {
+        const cacheKey = `chart:${savedChartUuid}:summary`;
+        const cached =
+            await this.keyValueCacheClient?.get<ChartSummary>(cacheKey);
+        if (cached) {
+            return cached;
+        }
+
         return Sentry.startSpan(
             {
                 op: 'SavedChartModel.getSummary',
@@ -1367,6 +1411,7 @@ export class SavedChartModel {
                 if (chart === undefined) {
                     throw new NotFoundError('Saved query not found');
                 }
+                await this.keyValueCacheClient?.set(cacheKey, chart, 30);
                 return chart;
             },
         );
