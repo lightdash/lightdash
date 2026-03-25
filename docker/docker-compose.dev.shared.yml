@@ -1,0 +1,43 @@
+volumes:
+    minio_data:
+
+services:
+    minio:
+        image: coollabsio/minio:latest
+        ports:
+            - '9000:9000'
+            - '9001:9001'
+        environment:
+            - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+            - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS:-default,results,lightdash-apps}
+            - MINIO_BROWSER=${MINIO_BROWSER:-off}
+        volumes:
+            - minio_data:/minio/data
+            - ./init-minio.sh:/init-minio.sh
+        entrypoint: '/init-minio.sh'
+
+    headless-browser:
+        build:
+            dockerfile: Dockerfile.headless-browser
+        restart: always
+        ports:
+            - '3001:3000'
+
+    mailpit:
+        image: axllent/mailpit:latest
+        restart: unless-stopped
+        ports:
+            - '8025:8025'
+            - '1025:1025'
+        environment:
+            MP_MAX_MESSAGES: 5000
+            MP_SMTP_AUTH_ACCEPT_ANY: 1
+            MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+    nats:
+        image: nats:2.11-alpine
+        command: ['-js']
+        ports:
+            - '4222:4222'
+            - '8222:8222'

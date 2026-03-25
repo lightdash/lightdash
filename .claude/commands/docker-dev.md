@@ -1,27 +1,88 @@
-Manage Docker dev environment. Args: (none) = start, `reset` = reset db from snapshot, `hard-reset` = full rebuild, `stop` = stop services, `snapshot [name]` = save named snapshot (auto-names if omitted), `list-snapshots` = list saved snapshots, `use-snapshot <name>` = restore a named snapshot.
+Manage Docker dev environment. Args: (none) = show status & help, `start` = auto-detect and setup, `stop` = stop this instance, `stop-all` = stop everything, `reset` = reset db from snapshot, `rebuild` = full db rebuild, `snapshot [name]` = save db snapshot, `list-snapshots` = list snapshots, `restore <name>` = restore named snapshot, `list-instances` = show all instances.
 
-**NEVER use `scripts/reset-db.sh`** — it requires a local `psql` client which is not available. Instead, use `docker exec docker-db-dev-1 psql` to run SQL commands inside the container, then run migrate/seed via pnpm.
+**NEVER use `scripts/reset-db.sh`** — it requires a local `psql` client which is not available. Instead, use `docker exec` to run psql inside the container, then run migrate/seed via pnpm.
 
 ## Arguments
 
-- **No arguments**: Auto-detect state and run what's needed (fresh setup, migrations, or just start). Automatically snapshots the db volume after initial setup.
-- **`reset`**: Restore database from volume snapshot (fast, ~3 seconds). Fails if no snapshot exists — run initial setup or `hard-reset` first.
-- **`hard-reset`**: Purge the snapshot volume, then do a full database reset (drop schema, migrate, seed, dbt). Automatically takes a new snapshot when done.
-- **`stop`**: Stop Docker services (preserves data volumes)
-- **`snapshot [name]`**: Save a named snapshot of the current database state. Name is optional — if omitted, auto-generate a descriptive name based on what the user is currently working on (e.g., `pre-migration-auth-refactor`, `after-seed-with-test-orgs`). The name must be alphanumeric with hyphens/underscores only. Creates a Docker volume named `docker_postgres_data_snapshot_<name>`.
+- **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
+- **`start`**: Auto-detect state and run what's needed (fresh setup, migrations, or just start PM2). Uses shared base snapshot to bootstrap new instances fast.
+- **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
+- **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
+- **`reset`**: Restore database from this instance's volume snapshot (fast, ~3 seconds). Fails if no snapshot exists.
+- **`rebuild`**: Full database reset from scratch (drop schema, migrate, seed, dbt). Takes a new snapshot when done.
+- **`snapshot [name]`**: Save a named snapshot of the current database state. Name is optional — if omitted, auto-generate a descriptive name.
 - **`list-snapshots`**: List all named snapshots with their creation dates and sizes.
-- **`use-snapshot <name>`**: Restore the database from a named snapshot. Does NOT overwrite the default snapshot used by `reset`.
+- **`restore <name>`**: Restore the database from a named snapshot.
+- **`list-instances`**: Show all active development instances and their port assignments.
+
+---
+
+## Step 0: Port Allocation (ALWAYS run first, for ALL commands)
+
+Before any other work, claim a port slot and load env vars:
+
+```bash
+./scripts/dev-ports.sh claim
+eval "$(./scripts/dev-ports.sh env)"
+```
+
+This gives you:
+- `$LD_INSTANCE_ID` — instance name (worktree basename)
+- `$LD_COMPOSE_PROJECT` — docker compose project name
+- `$LD_VOLUME_PREFIX` / `$LD_CONTAINER_PREFIX` — prefixes for volumes and containers
+- `$LD_PG_PORT` — per-instance PostgreSQL port
+- `$PORT`, `$FE_PORT`, `$SCHEDULER_PORT`, `$DEBUG_PORT`, `$SDK_TEST_PORT`, `$SPOTLIGHT_PORT`, `$LIGHTDASH_PROMETHEUS_PORT` — per-instance app ports
+- `$PGPORT`, `$SITE_URL`, `$S3_ENDPOINT`, `$HEADLESS_BROWSER_PORT`, `$EMAIL_SMTP_PORT` — app config (shared ports hardcoded: S3=9000, browser=3001, SMTP=1025)
+
+**Shared services** (minio, headless-browser, mailpit, nats) run once on fixed ports via `docker-compose.dev.shared.yml`. Only PostgreSQL is per-instance via `docker-compose.dev.instance.yml`.
+
+---
+
+## No Arguments: Status & Help
+
+Show the current state of this instance. Run port allocation (Step 0) first, then:
+
+```bash
+./scripts/dev-ports.sh show
+```
+
+Then run the **State Detection** checks below and present the results as a status summary. After showing status, list available commands:
+
+```
+Available commands:
+  /docker-dev start          Auto-detect and start what's needed
+  /docker-dev stop           Stop this instance (preserves data)
+  /docker-dev stop-all       Stop ALL instances and shared services
+  /docker-dev reset          Restore db from snapshot (~3s)
+  /docker-dev rebuild        Full db rebuild from scratch
+  /docker-dev snapshot       Save current db state
+  /docker-dev list-snapshots List saved snapshots
+  /docker-dev restore        Restore a named snapshot
+  /docker-dev list-instances Show all active instances
+```
+
+---
+
+## `list-instances`
+
+```bash
+./scripts/dev-ports.sh list
+```
+
+---
 
 ## State Detection
 
-Before taking action, check the current environment state. **Run these checks in parallel** to quickly determine what needs to be done:
-
-### All Checks (run in parallel)
+Run these checks to determine what needs to be done. **Run checks 1-5 and 10 in parallel first**, then checks 6-8 in parallel (they depend on Docker running):
 
 ```bash
-# Check 1: All Docker services running (db, minio, headless-browser, mailpit)
-RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
-[ "$RUNNING_COUNT" -ge 4 ] && echo "OK: All Docker services running ($RUNNING_COUNT)" || echo "NEED: Start Docker services (only $RUNNING_COUNT/4 running)"
+# Check 1a: Shared Docker services running (minio, headless-browser, mailpit, nats)
+SHARED_COUNT=$(docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
+[ "$SHARED_COUNT" -ge 4 ] && echo "OK: Shared Docker services running ($SHARED_COUNT)" || echo "NEED: Start shared Docker services (only $SHARED_COUNT/4 running)"
+
+# Check 1b: Per-instance PostgreSQL running
+INSTANCE_COUNT=$(docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
+[ "$INSTANCE_COUNT" -ge 1 ] && echo "OK: Instance PostgreSQL running" || echo "NEED: Start instance PostgreSQL"
 
 # Check 2: Environment file exists
 test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Create .env.development.local"
@@ -36,92 +97,126 @@ test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies i
 test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
 
 # Check 6: Database migrated (requires Docker running)
-docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='sessions') THEN 'migrated' ELSE 'not_migrated' END" 2>&1 | grep -q "^migrated" && echo "OK: Database migrated" || echo "NEED: Run migrations"
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='sessions') THEN 'migrated' ELSE 'not_migrated' END" 2>&1 | grep -q "^migrated" && echo "OK: Database migrated" || echo "NEED: Run migrations"
 
 # Check 7: Database seeded (requires Docker running)
-docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') THEN 'seeded' ELSE 'not_seeded' END" 2>&1 | grep -q "^seeded" && echo "OK: Database seeded" || echo "NEED: Seed database"
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') THEN 'seeded' ELSE 'not_seeded' END" 2>&1 | grep -q "^seeded" && echo "OK: Database seeded" || echo "NEED: Seed database"
 
 # Check 8: dbt models built (requires Docker running)
-docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders') THEN 'built' ELSE 'not_built' END" 2>&1 | grep -q "^built" && echo "OK: dbt models built" || echo "NEED: Build dbt models"
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders') THEN 'built' ELSE 'not_built' END" 2>&1 | grep -q "^built" && echo "OK: dbt models built" || echo "NEED: Build dbt models"
 
 # Check 9: Volume snapshot exists (for fast resets)
-docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1 && echo "OK: Volume snapshot exists" || echo "NEED: No volume snapshot (will be created after setup completes)"
+docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1 && echo "OK: Volume snapshot exists" || echo "NEED: No volume snapshot (will be created after setup completes)"
 
-# Check 10: PM2 processes running from the correct worktree
-PM2_CWD=$(pm2 jlist 2>/dev/null | python3 -c "import sys,json; procs=json.load(sys.stdin); print(procs[0]['pm2_env']['pm_cwd'] if procs else '')" 2>/dev/null || true)
-if [ -n "$PM2_CWD" ]; then
-  # Resolve the root from the first process's cwd (strip packages/xxx suffix)
-  PM2_ROOT=$(echo "$PM2_CWD" | sed 's|/packages/.*||')
-  CURRENT_ROOT=$(pwd)
-  if [ "$PM2_ROOT" = "$CURRENT_ROOT" ]; then
-    echo "OK: PM2 running from this worktree ($PM2_ROOT)"
-  else
-    echo "MISMATCH: PM2 running from $PM2_ROOT but current worktree is $CURRENT_ROOT"
-  fi
-else
-  echo "OK: No PM2 processes running"
-fi
+# Check 10: PM2 processes running for this instance
+PM2_PROC=$(pm2 jlist 2>/dev/null | python3 -c "
+import sys, json
+procs = json.load(sys.stdin)
+instance_procs = [p for p in procs if p['name'].startswith('${LD_INSTANCE_ID}-')]
+if instance_procs:
+    cwd = instance_procs[0]['pm2_env']['pm_cwd']
+    root = cwd.rsplit('/packages/', 1)[0] if '/packages/' in cwd else cwd
+    print(f'RUNNING:{root}')
+else:
+    other = [p for p in procs if not p['name'].startswith('${LD_INSTANCE_ID}-')]
+    if other:
+        print('OTHER')
+    else:
+        print('NONE')
+" 2>/dev/null || echo "NONE")
+
+case "$PM2_PROC" in
+  RUNNING:$(pwd)) echo "OK: PM2 running for this instance from this worktree" ;;
+  RUNNING:*) echo "MISMATCH: PM2 for instance ${LD_INSTANCE_ID} running from ${PM2_PROC#RUNNING:} but current worktree is $(pwd)" ;;
+  OTHER) echo "OK: Other PM2 instances running (no conflict)" ;;
+  NONE) echo "OK: No PM2 processes running for this instance" ;;
+esac
 ```
 
-**How to interpret the output:**
+**Interpreting results:**
+- `OK:` = ready
+- `NEED:` = setup step required
+- `MISMATCH:` = ask user before switching PM2 to this worktree
 
-- Lines starting with `NEED:` indicate setup steps that must be run
-- Lines starting with `OK:` indicate that component is ready
-- If all lines show `OK:`, the environment is ready - just start the dev server
-- Database checks (6-8) use `docker exec` to run psql inside the PostgreSQL container
-- Run checks 1-5 and 10 in parallel first, then checks 6-8 in parallel (they depend on Docker running)
-- If check 10 shows `MISMATCH:`, **ask the user** (via AskUserQuestion) whether they want to switch PM2 to the current worktree. Explain which directory PM2 is currently running from and which worktree they're in now. If the user confirms, run `pm2 delete all` then `pnpm pm2:start` to re-register processes from the current worktree. If they decline, continue without changing PM2.
+### Database Check Notes
 
-### Why Use `docker exec` for Database Checks?
+- Uses `docker exec ${LD_CONTAINER_PREFIX}-db-dev-1 psql` (no local psql needed)
+- `information_schema` queries avoid "relation does not exist" errors
+- `emails` table is checked for seed status (not `users` — Lightdash separates identity from emails)
 
-PostgreSQL runs inside a Docker container, so we use `docker exec docker-db-dev-1 psql` instead of a local `psql` client. This:
+---
 
-- Works without requiring psql installed locally
-- Uses the exact same connection the app uses
-- Fails clearly if Docker isn't running (which is the first thing to fix anyway)
+## `start`: Auto-detect and Setup
 
-### Database Check Details
-
-**Why `information_schema` instead of direct queries?**
-
-- Checking `SELECT 1 FROM tablename` can fail with "relation does not exist" errors
-- Using `information_schema.tables` always succeeds and returns a clean result
-- The `CASE WHEN EXISTS(...)` pattern returns deterministic strings for easy parsing
-
-**Why check `emails` table for seeded status?**
-
-- The demo user's email (`demo@lightdash.com`) is in the `emails` table, not `users`
-- The `users` table doesn't have an `email` column (Lightdash separates user identity from emails)
-- There's also a `jaffle.users` dbt model that would cause ambiguity
-
-## Setup Steps (Run as Needed)
-
-### Prerequisites (macOS)
-
-If `pnpm install` fails with canvas errors - read this guide: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
+Run State Detection first. For each `NEED:`, run the corresponding setup step below. If all checks show `OK:`, just start PM2.
 
 ### Start Docker Services
 
 ```bash
-docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development up -d
+# Shared services (idempotent — safe if already running)
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .env.development up -d
+
+# Per-instance PostgreSQL
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml --env-file .env.development up -d
 ```
 
-Wait a few seconds for PostgreSQL to be ready.
+### Bootstrap from Shared Base Snapshot (fast path for new instances)
+
+If this instance's database is empty (checks 6-8 show `NEED`) but a shared base snapshot exists, clone it instead of running full setup:
+
+```bash
+# Check if shared base snapshot exists
+if docker volume inspect ld-shared_postgres_base >/dev/null 2>&1; then
+  echo "Bootstrapping from shared base snapshot..."
+
+  # Stop the db container
+  docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
+
+  # Clone the shared base into this instance's volume
+  docker run --rm \
+    -v "ld-shared_postgres_base:/source:ro" \
+    -v "${LD_VOLUME_PREFIX}_postgres_data:/target" \
+    alpine sh -c "rm -rf /target/* && cd /source && tar cf - . | (cd /target && tar xf -)"
+
+  # Restart db
+  docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
+
+  # Wait for postgres to be ready
+  for i in $(seq 1 10); do
+    docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres 2>/dev/null && break
+    sleep 1
+  done
+
+  echo "Bootstrap complete — skipping migrations, seed, and dbt."
+fi
+```
+
+**If the shared base snapshot does NOT exist**, this is the first instance — run the full setup (migrations, seed, dbt) below, then create the shared base snapshot at the end.
+
+**After bootstrapping, skip directly to "Auto-Snapshot" and "Start PM2".**
 
 ### Create Environment File
 
-Create `.env.development.local` with localhost overrides:
-
 ```bash
-cat > .env.development.local << 'EOF'
-# Local development overrides
+cat > .env.development.local << EOF
+# Local development overrides (instance: ${LD_INSTANCE_ID})
+LD_INSTANCE_ID=${LD_INSTANCE_ID}
 PGHOST=localhost
+PGPORT=${LD_PG_PORT}
+PORT=${PORT}
+FE_PORT=${FE_PORT}
+SCHEDULER_PORT=${SCHEDULER_PORT}
+DEBUG_PORT=${DEBUG_PORT}
+SDK_TEST_PORT=${SDK_TEST_PORT}
+SPOTLIGHT_PORT=${SPOTLIGHT_PORT}
+LIGHTDASH_PROMETHEUS_PORT=${LIGHTDASH_PROMETHEUS_PORT}
+SITE_URL=http://localhost:${FE_PORT}
 S3_ENDPOINT=http://localhost:9000
 HEADLESS_BROWSER_HOST=localhost
 HEADLESS_BROWSER_PORT=3001
-INTERNAL_LIGHTDASH_HOST=http://localhost:3000
+INTERNAL_LIGHTDASH_HOST=http://localhost:${FE_PORT}
 
-# Email - Mailpit (view emails at http://localhost:8025)
+# Email - Mailpit (shared service, view emails at http://localhost:8025)
 EMAIL_SMTP_HOST=localhost
 EMAIL_SMTP_PORT=1025
 EMAIL_SMTP_SECURE=false
@@ -131,92 +226,76 @@ EMAIL_SMTP_SENDER_NAME=Lightdash
 EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 
 # Dev API access (auto-provisioned PAT from seed data)
-# Not used by the app — only for agent/skill convenience (e.g. debug-local curl commands)
-LIGHTDASH_API_URL=http://localhost:8080
+LIGHTDASH_API_URL=http://localhost:${PORT}
 LDPAT=ldpat_deadbeefdeadbeefdeadbeefdeadbeef
 EOF
-```
-
-Then add the DBT_DEMO_DIR with the actual path:
-
-```bash
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
 
 ### Add Local Dev Instructions to CLAUDE.local.md
 
-**IMPORTANT: You MUST ask the user for permission before modifying CLAUDE.local.md.** Use AskUserQuestion to confirm:
-
-> "The docker-dev setup can add PM2 commands and debugging instructions to CLAUDE.local.md. This includes PM2 start/stop/restart commands and guidance on using the /debug-local skill with Spotlight. May I add these instructions?"
-
-**Only proceed with this step after the user confirms.** If declined, skip this step and continue with the remaining setup.
-
-Once permission is granted, append local development instructions to `CLAUDE.local.md` (creates file if it doesn't exist, appends if it does):
+Append to `CLAUDE.local.md` (creates file if it doesn't exist):
 
 ````bash
-cat >> CLAUDE.local.md << 'EOF'
+cat >> CLAUDE.local.md << EOF
 # Local Development Environment
 
 ## Starting Development Services
 
-### Prerequisites: Docker Services
+Start the Docker services before running the dev server:
 
-Start the Docker services (PostgreSQL, MinIO, headless browser, Mailpit) before running the dev server:
+\`\`\`bash
+/docker-dev start
+\`\`\`
 
-```bash
-/docker-dev
-````
+### PM2 Commands
 
-### PM2 (Recommended for LLM Development)
-
-PM2 provides process isolation, individual service restarts, and monitoring:
-
-```bash
+\`\`\`bash
 pnpm pm2:start          # Start all services
 pnpm pm2:logs           # Stream all logs
-pnpm pm2:logs:api --lines 50 --nostream  # View last 50 lines without streaming
+pm2 logs ${LD_INSTANCE_ID}-api --lines 50 --nostream  # View last 50 API lines
 pnpm pm2:status         # Check process status
-pnpm pm2:restart:api    # Restart only the API server
-pnpm pm2:monit          # Interactive monitoring dashboard
-pnpm pm2:stop           # Stop all services
-```
+pm2 restart ${LD_INSTANCE_ID}-api       # Restart only the API server
+pm2 restart ${LD_INSTANCE_ID}-scheduler # Restart only the scheduler
+pm2 restart ${LD_INSTANCE_ID}-frontend  # Restart only the frontend
+\`\`\`
 
 ## Debugging
 
-**When facing problems, the first step is always to use the `/debug-local` skill** to understand what's happening. This skill provides a comprehensive debugging workflow.
+Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Spotlight traces, and browser automation.
 
-Use the `/debug-local` skill for comprehensive debugging workflows combining:
-
-- **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
-- **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
-- **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
-
-Spotlight UI is available at http://localhost:8969 when running `pnpm pm2:start`.
+Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 
 ## Database Snapshots
 
-Snapshots let you save and restore the exact state of the local PostgreSQL database. Use them to:
-
-- **Preserve a bug reproduction**: After reproducing a bug, snapshot the db so you can return to that exact state later.
-- **Safeguard before mutations**: Before running migrations, seed changes, or manual SQL that alters data, take a snapshot so you can revert instantly.
-
-### Quick Commands
-
-```bash
-/docker-dev snapshot bug-repro-12345   # Save current db state with a name
-/docker-dev snapshot                   # Save with auto-generated name
+\`\`\`bash
+/docker-dev snapshot bug-repro-12345   # Save current db state
 /docker-dev list-snapshots             # See all saved snapshots
-/docker-dev use-snapshot bug-repro-12345  # Restore a named snapshot (~3s)
-/docker-dev reset                      # Restore the default snapshot (from initial setup)
-```
+/docker-dev restore bug-repro-12345    # Restore a named snapshot (~3s)
+/docker-dev reset                      # Restore the default snapshot
+\`\`\`
 
-### Tips
+## Access the Application
 
-- Snapshot names must be alphanumeric with hyphens/underscores only (e.g., `pre-migration`, `with-broken-org-data`)
-- The default snapshot (used by `reset`) is separate from named snapshots — named snapshots don't overwrite it
-- The db container is briefly stopped during snapshot/restore to ensure data consistency, then automatically restarted
+- **Frontend**: http://localhost:${FE_PORT}
+- **Backend API**: http://localhost:${PORT}
+- **Demo login**: \`demo@lightdash.com\` / \`demo_password!\`
+- **Mailpit** (email inbox): http://localhost:8025
+- **Spotlight** (traces): http://localhost:${SPOTLIGHT_PORT}
+
+## Service Ports (this instance)
+
+| Service           | Port      | URL                                |
+| ----------------- | --------- | ---------------------------------- |
+| Frontend (Vite)   | ${FE_PORT}      | http://localhost:${FE_PORT}              |
+| Backend (Express) | ${PORT}      | http://localhost:${PORT}              |
+| Scheduler         | ${SCHEDULER_PORT}      |                                    |
+| PostgreSQL        | ${LD_PG_PORT}      |                                    |
+| MinIO             | 9000/9001 |                                    |
+| Headless Browser  | 3001      |                                    |
+| Mailpit           | 8025/1025 | http://localhost:8025         |
+| Spotlight         | ${SPOTLIGHT_PORT}      | http://localhost:${SPOTLIGHT_PORT}             |
 EOF
-
 ````
 
 ### Install Dependencies
@@ -224,7 +303,9 @@ EOF
 ```bash
 pnpm install
 pnpm -F common build && pnpm -F warehouses build
-````
+```
+
+If `pnpm install` fails with canvas errors: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
 
 ### Set Up Python/dbt
 
@@ -235,409 +316,287 @@ pip install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0'
 ln -sf dbt venv/bin/dbt1.7
 ```
 
-### Run Migrations
+### Run Migrations (skip if bootstrapped)
 
 ```bash
-PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
 ```
 
-### Seed Database
+### Seed Database (skip if bootstrapped)
 
 ```bash
 export PATH="$(pwd)/venv/bin:$PATH"
 export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
-PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
 ```
 
-### Build dbt Models
-
-**Important**: Use the full path to `dbt` from the venv to avoid "command not found" errors:
+### Build dbt Models (skip if bootstrapped)
 
 ```bash
-PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
+PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
   "$(pwd)/venv/bin/dbt" seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
-PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
+PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
   "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
-### Auto-Snapshot After Initial Setup
+### Create Shared Base Snapshot (first instance only)
 
-After all setup steps complete successfully and no snapshot exists yet, **automatically take a volume snapshot** (see "Taking a Snapshot" below). This ensures future `/docker-dev reset` calls use the fast path.
-
-## Volume Snapshot & Restore
-
-### Volume Names
-
-The Docker Compose project name determines the volume prefix. The compose file is at `docker/docker-compose.dev.mini.yml`, so Docker prefixes volumes with `docker_`:
-
-- **Live volume**: `docker_postgres_data`
-- **Snapshot volume**: `docker_postgres_data_snapshot`
-
-### Taking a Snapshot
-
-Run this after initial setup completes or after a hard-reset. **The db container MUST be stopped before snapshotting** to ensure data consistency (PostgreSQL needs a clean shutdown):
+After full setup completes (migrations + seed + dbt), create the shared base snapshot so future instances can bootstrap fast:
 
 ```bash
-# Stop only the db container (clean PostgreSQL shutdown)
-docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
-
-# Remove any existing snapshot volume
-docker volume rm docker_postgres_data_snapshot 2>/dev/null || true
-
-# Create fresh snapshot volume
-docker volume create docker_postgres_data_snapshot
-
-# Clone the data using a temporary Alpine container
-docker run --rm \
-  -v docker_postgres_data:/source:ro \
-  -v docker_postgres_data_snapshot:/snapshot \
-  alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
-
-# Restart the db container
-docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+if ! docker volume inspect ld-shared_postgres_base >/dev/null 2>&1; then
+  echo "Creating shared base snapshot for future instances..."
+  docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
+  docker volume create ld-shared_postgres_base
+  docker run --rm \
+    -v "${LD_VOLUME_PREFIX}_postgres_data:/source:ro" \
+    -v "ld-shared_postgres_base:/snapshot" \
+    alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
+  docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
+  echo "Shared base snapshot created."
+fi
 ```
 
-## Reset Steps (When `reset` Argument Provided)
+### Auto-Snapshot (per-instance)
 
-Restore the database from the volume snapshot. This is fast (~3 seconds).
-
-**If no snapshot exists, tell the user** to run `/docker-dev` (initial setup) or `/docker-dev hard-reset` first. Do NOT fall back to a full reset automatically.
+After setup or bootstrap completes, take this instance's own snapshot for fast `/docker-dev reset`:
 
 ```bash
-# Verify snapshot exists
-if ! docker volume inspect docker_postgres_data_snapshot >/dev/null 2>&1; then
-  echo "ERROR: No snapshot volume found. Run /docker-dev (initial setup) or /docker-dev hard-reset first."
+if ! docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1; then
+  docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
+  docker volume create "${LD_VOLUME_PREFIX}_postgres_data_snapshot"
+  docker run --rm \
+    -v "${LD_VOLUME_PREFIX}_postgres_data:/source:ro" \
+    -v "${LD_VOLUME_PREFIX}_postgres_data_snapshot:/snapshot" \
+    alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
+  docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
+fi
+```
+
+### Start PM2
+
+If PM2 shows `MISMATCH`, delete this instance's processes first:
+
+```bash
+pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+```
+
+Then start:
+
+```bash
+pnpm pm2:start
+```
+
+**Instance-specific PM2 commands:**
+
+| Command | Description |
+|---------|-------------|
+| `pm2 logs ${LD_INSTANCE_ID}-api` | Stream API logs |
+| `pm2 restart ${LD_INSTANCE_ID}-api` | Restart API |
+| `pm2 restart ${LD_INSTANCE_ID}-scheduler` | Restart scheduler |
+| `pm2 restart ${LD_INSTANCE_ID}-frontend` | Restart frontend |
+| `pnpm pm2:status` | All process status |
+
+### Access the Application
+
+- **Frontend**: http://localhost:${FE_PORT}
+- **Backend API**: http://localhost:${PORT}
+- **Demo login**: `demo@lightdash.com` / `demo_password!`
+
+---
+
+## `stop`: Stop This Instance
+
+Stop this instance's services. Shared services and other instances are not affected.
+
+```bash
+pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
+
+./scripts/dev-ports.sh release
+```
+
+---
+
+## `stop-all`: Stop Everything
+
+Stop ALL instances, shared services, and release all port slots.
+
+```bash
+# Delete only Lightdash instance PM2 processes (not unrelated PM2 apps)
+for f in ~/.lightdash/dev-instances/*.json; do
+  [ -f "$f" ] || continue
+  INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
+  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
+done
+
+for f in ~/.lightdash/dev-instances/*.json; do
+  [ -f "$f" ] || continue
+  PROJECT=$(python3 -c "import json; print(json.load(open('$f'))['composeProject'])")
+  docker compose -p "$PROJECT" -f docker/docker-compose.dev.instance.yml down 2>/dev/null || true
+done
+
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml down
+
+for f in ~/.lightdash/dev-instances/*.json; do
+  [ -f "$f" ] || continue
+  rm "$f"
+done
+
+echo "All instances and shared services stopped."
+```
+
+---
+
+## `reset`: Restore Database from Snapshot
+
+```bash
+if ! docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1; then
+  echo "ERROR: No snapshot found. Run /docker-dev start or /docker-dev rebuild first."
   exit 1
 fi
 
-# Stop only the db container
-docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
 
-# Wipe the live volume and restore from snapshot
 docker run --rm \
-  -v docker_postgres_data:/target \
-  -v docker_postgres_data_snapshot:/snapshot:ro \
+  -v "${LD_VOLUME_PREFIX}_postgres_data:/target" \
+  -v "${LD_VOLUME_PREFIX}_postgres_data_snapshot:/snapshot:ro" \
   alpine sh -c "rm -rf /target/* && cd /snapshot && tar cf - . | (cd /target && tar xf -)"
 
-# Restart the db container
-docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres
 ```
 
-Wait a few seconds for PostgreSQL to start accepting connections, then verify:
+---
+
+## `rebuild`: Full Database Rebuild
+
+Ensure env file, dependencies, and python/dbt are ready first (run pre-flight checks from `start`). Then:
 
 ```bash
-docker exec docker-db-dev-1 pg_isready -U postgres
+# Remove instance snapshot (will be recreated after rebuild)
+docker volume rm "${LD_VOLUME_PREFIX}_postgres_data_snapshot" 2>/dev/null || true
+
+# Ensure Docker is running
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .env.development up -d
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml --env-file .env.development up -d
+
+export PATH="$(pwd)/venv/bin:$PATH"
+export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
+
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -c 'drop schema public cascade; create schema public;'
+
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
+
+PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
+  "$(pwd)/venv/bin/dbt" seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
+PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
+  "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
-## Named Snapshot Steps (When `snapshot [name]` Argument Provided)
-
-Save the current database state as a named snapshot. This is useful for preserving specific states (e.g., after importing test data, before a migration, etc.).
-
-**If no name is provided**, auto-generate one based on the current context. Use these signals to pick a good name:
-- The current git branch name (e.g., `charliedowler/auth-refactor` → `auth-refactor`)
-- What the user has been working on in this conversation (e.g., "after adding test orgs" → `after-test-orgs`)
-- Prefix with `pre-` or `post-` if the snapshot is being taken before/after a specific operation (e.g., `pre-migration`, `post-seed`)
-- Keep it short, descriptive, and lowercase with hyphens (e.g., `clean-seed`, `with-custom-roles`, `pre-auth-migration`)
+After completion, take an instance snapshot (see "Auto-Snapshot" in `start`). Also update the shared base snapshot so future instances get the latest:
 
 ```bash
-# Validate the snapshot name (alphanumeric, hyphens, underscores only)
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
+docker volume rm ld-shared_postgres_base 2>/dev/null || true
+docker volume create ld-shared_postgres_base
+docker run --rm \
+  -v "${LD_VOLUME_PREFIX}_postgres_data:/source:ro" \
+  -v "ld-shared_postgres_base:/snapshot" \
+  alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
+```
+
+---
+
+## `snapshot [name]`: Save Database Snapshot
+
+If no name provided, auto-generate from context (branch name, current work). Names must be alphanumeric with hyphens/underscores.
+
+```bash
 SNAPSHOT_NAME="<chosen-or-provided-name>"
 if ! echo "$SNAPSHOT_NAME" | grep -qE '^[a-zA-Z0-9_-]+$'; then
-  echo "ERROR: Snapshot name must contain only alphanumeric characters, hyphens, and underscores."
+  echo "ERROR: Invalid snapshot name."
   exit 1
 fi
 
-SNAPSHOT_VOLUME="docker_postgres_data_snapshot_${SNAPSHOT_NAME}"
+SNAPSHOT_VOLUME="${LD_VOLUME_PREFIX}_postgres_data_snapshot_${SNAPSHOT_NAME}"
 
-# Check if a snapshot with this name already exists
 if docker volume inspect "$SNAPSHOT_VOLUME" >/dev/null 2>&1; then
-  echo "ERROR: Snapshot '$SNAPSHOT_NAME' already exists. Remove it first or choose a different name."
-  echo "To overwrite, run: docker volume rm $SNAPSHOT_VOLUME"
+  echo "ERROR: Snapshot '$SNAPSHOT_NAME' already exists."
   exit 1
 fi
 
-# Stop the db container for a consistent snapshot
-docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
-
-# Create the named snapshot volume
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
 docker volume create "$SNAPSHOT_VOLUME"
-
-# Clone the data
 docker run --rm \
-  -v docker_postgres_data:/source:ro \
+  -v "${LD_VOLUME_PREFIX}_postgres_data:/source:ro" \
   -v "${SNAPSHOT_VOLUME}:/snapshot" \
   alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
-
-# Restart the db container
-docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
 ```
 
-Report the snapshot name and confirm it was created successfully.
+---
 
-## List Snapshots Steps (When `list-snapshots` Argument Provided)
-
-List all named snapshots that have been saved.
+## `list-snapshots`
 
 ```bash
-# List all Docker volumes matching the named snapshot pattern
-docker volume ls --format '{{.Name}}' | grep '^docker_postgres_data_snapshot_' | while read vol; do
-  # Strip the prefix to get the snapshot name
-  name="${vol#docker_postgres_data_snapshot_}"
-  # Get creation date and size
+docker volume ls --format '{{.Name}}' | grep "^${LD_VOLUME_PREFIX}_postgres_data_snapshot_" | while read vol; do
+  name="${vol#${LD_VOLUME_PREFIX}_postgres_data_snapshot_}"
   created=$(docker volume inspect "$vol" --format '{{.CreatedAt}}' | cut -d'T' -f1)
-  # Get actual disk size using a temporary container
   size=$(docker run --rm -v "${vol}:/data" alpine du -sh /data 2>/dev/null | cut -f1)
   echo "  $name  (created: $created, size: $size)"
 done
 ```
 
-If no snapshots are found (no output), report: "No named snapshots found. Use `/docker-dev snapshot <name>` to create one."
+Also check if the default snapshot exists: `docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot"`
 
-Also note whether the default snapshot (`docker_postgres_data_snapshot`) exists, as a separate line.
+---
 
-## Use Snapshot Steps (When `use-snapshot <name>` Argument Provided)
-
-Restore the database from a named snapshot. This does NOT affect the default snapshot used by `reset`.
+## `restore <name>`
 
 ```bash
-SNAPSHOT_NAME="$1"
-SNAPSHOT_VOLUME="docker_postgres_data_snapshot_${SNAPSHOT_NAME}"
+SNAPSHOT_NAME="<name>"
+SNAPSHOT_VOLUME="${LD_VOLUME_PREFIX}_postgres_data_snapshot_${SNAPSHOT_NAME}"
 
-# Verify the named snapshot exists
 if ! docker volume inspect "$SNAPSHOT_VOLUME" >/dev/null 2>&1; then
-  echo "ERROR: Snapshot '$SNAPSHOT_NAME' not found. Use /docker-dev list-snapshots to see available snapshots."
+  echo "ERROR: Snapshot '$SNAPSHOT_NAME' not found."
   exit 1
 fi
 
-# Stop the db container
-docker compose -f docker/docker-compose.dev.mini.yml stop db-dev
-
-# Wipe the live volume and restore from the named snapshot
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev
 docker run --rm \
-  -v docker_postgres_data:/target \
+  -v "${LD_VOLUME_PREFIX}_postgres_data:/target" \
   -v "${SNAPSHOT_VOLUME}:/snapshot:ro" \
   alpine sh -c "rm -rf /target/* && cd /snapshot && tar cf - . | (cd /target && tar xf -)"
-
-# Restart the db container
-docker compose -f docker/docker-compose.dev.mini.yml start db-dev
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres
 ```
 
-Wait for PostgreSQL to be ready:
-
-```bash
-docker exec docker-db-dev-1 pg_isready -U postgres
-```
-
-Report which snapshot was restored and that the database is ready.
-
-## Hard Reset Steps (When `hard-reset` Argument Provided)
-
-Purge the snapshot volume, then do a full database reset from scratch. Automatically takes a new snapshot when done.
-
-### Pre-flight: Verify Environment Configuration
-
-Before doing any destructive work, verify that the local configuration files are correct. **Run these checks in parallel:**
-
-```bash
-# Check 1: .env.development.local exists and has required variables
-REQUIRED_VARS="PGHOST S3_ENDPOINT HEADLESS_BROWSER_HOST HEADLESS_BROWSER_PORT DBT_DEMO_DIR"
-MISSING_VARS=""
-if [ ! -f .env.development.local ]; then
-  echo "NEED: .env.development.local does not exist"
-else
-  for var in $REQUIRED_VARS; do
-    grep -q "^${var}=" .env.development.local || MISSING_VARS="$MISSING_VARS $var"
-  done
-  if [ -n "$MISSING_VARS" ]; then
-    echo "NEED: .env.development.local is missing required variables:$MISSING_VARS"
-  else
-    echo "OK: .env.development.local has all required variables"
-  fi
-fi
-
-# Check 2: CLAUDE.local.md has local dev instructions
-grep -q "## Starting Development Services" CLAUDE.local.md 2>/dev/null && echo "OK: CLAUDE.local.md has local dev instructions" || echo "NEED: CLAUDE.local.md missing local dev instructions"
-
-# Check 3: Python/dbt environment ready
-test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
-
-# Check 4: Dependencies installed
-test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies installed" || echo "NEED: Run pnpm install and build"
-```
-
-**If any checks show `NEED:`**, fix them before proceeding with the reset:
-
-- **Missing `.env.development.local`**: Create it using the "Create Environment File" steps above
-- **Missing variables in `.env.development.local`**: Add the missing variables. The required variables and their expected values are:
-  - `PGHOST=localhost`
-  - `S3_ENDPOINT=http://localhost:9000`
-  - `HEADLESS_BROWSER_HOST=localhost`
-  - `HEADLESS_BROWSER_PORT=3001`
-  - `DBT_DEMO_DIR=<absolute-path-to-repo>/examples/full-jaffle-shop-demo`
-- **Missing CLAUDE.local.md instructions**: Run the "Add Local Dev Instructions to CLAUDE.local.md" step (ask user for permission first)
-- **Missing Python/dbt**: Run the "Set Up Python/dbt" steps
-- **Missing dependencies**: Run the "Install Dependencies" steps
-
-### Perform Hard Reset
-
-Once all pre-flight checks pass:
-
-```bash
-# Purge existing snapshot
-docker volume rm docker_postgres_data_snapshot 2>/dev/null || true
-
-# Ensure Docker is running first
-docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development up -d
-
-# Set up environment
-export PATH="$(pwd)/venv/bin:$PATH"
-export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
-
-# Drop and recreate the public schema via docker exec (NEVER use scripts/reset-db.sh — it requires local psql)
-docker exec docker-db-dev-1 psql -U postgres -c 'drop schema public cascade; create schema public;'
-
-# Run migrations and seed
-PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
-PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
-
-# Rebuild dbt models
-PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
-  "$(pwd)/venv/bin/dbt" seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
-PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
-  "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
-```
-
-**After hard-reset completes, automatically take a snapshot** using the snapshot steps below.
-
-## Stop Steps (When `stop` Argument Provided)
-
-If the user passes `stop` as an argument, stop both the Lightdash app and Docker services:
-
-```bash
-# Stop PM2 processes first
-pnpm pm2:stop
-
-# Then stop Docker services
-docker compose -f docker/docker-compose.dev.mini.yml down
-```
-
-This stops PM2 processes (keeps them registered for quick restart) and removes Docker containers but **preserves the data volumes** (database data, MinIO files).
-
-To verify everything is stopped:
-
-```bash
-pnpm pm2:status
-docker compose -f docker/docker-compose.dev.mini.yml ps
-```
-
-**Note**: When `stop` is passed, do not proceed to "Start Development Server" - just stop services and report the status.
-
-## Start Development Server
-
-Once all checks pass or setup is complete, start the dev server using PM2.
-
-**If PM2 processes are already running from a different worktree** (check 10 showed `MISMATCH`), you must first delete the old processes before starting new ones. A simple `pm2 restart` won't change the working directories — PM2 reuses the original `cwd` paths. Run `pm2 delete all` first, then `pnpm pm2:start`.
-
-```bash
-# If switching worktrees, delete first:
-pm2 delete all
-
-# Then start (or just start if no mismatch):
-pnpm pm2:start
-```
-
-PM2 provides process isolation, individual service restarts, and monitoring - ideal for LLM-driven development.
-
-**Useful PM2 commands:**
-
-| Command                      | Description                      |
-| ---------------------------- | -------------------------------- |
-| `pnpm pm2:logs`              | Stream all process logs          |
-| `pnpm pm2:status`            | Show process status table        |
-| `pnpm pm2:restart:api`       | Restart only the API server      |
-| `pnpm pm2:restart:scheduler` | Restart only the scheduler       |
-| `pnpm pm2:restart:frontend`  | Restart only the frontend        |
-| `pnpm pm2:monit`             | Interactive monitoring dashboard |
-| `pnpm pm2:stop`              | Stop all processes               |
-| `pnpm pm2:delete`            | Stop and remove all processes    |
-
-### Alternative: Traditional Dev Server
-
-If the user specifically requests `pnpm dev`, use the traditional single-terminal approach:
-
-```bash
-export PGHOST=localhost S3_ENDPOINT=http://localhost:9000 HEADLESS_BROWSER_HOST=localhost HEADLESS_BROWSER_PORT=3001
-pnpx dotenv-cli -e .env.development -- pnpm dev
-```
-
-**Why PM2 is preferred:**
-
-| Feature                    | `pnpm dev`         | `pnpm pm2:start`        |
-| -------------------------- | ------------------ | ----------------------- |
-| Process visibility         | Interleaved output | Individual status/logs  |
-| Restart individual service | Not possible       | `pnpm pm2:restart:api`  |
-| Memory/CPU monitoring      | Not available      | `pnpm pm2:monit`        |
-| Log management             | Terminal only      | Persistent log files    |
-| Background running         | No                 | Yes (processes persist) |
-| Best for                   | Quick terminal dev | LLM control, debugging  |
-
-## Access the Application
-
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8080
-- **Demo login**: `demo@lightdash.com` / `demo_password!`
-
-## Service Ports Reference
-
-| Service           | Port      | Description                      |
-| ----------------- | --------- | -------------------------------- |
-| Frontend (Vite)   | 3000      | React development server         |
-| Backend (Express) | 8080      | API server                       |
-| Scheduler         | 8081      | Background job processor         |
-| PostgreSQL        | 5432      | Database                         |
-| MinIO             | 9000/9001 | S3-compatible storage/console    |
-| Headless Browser  | 3001      | PDF/image generation             |
-| Mailpit           | 8025/1025 | Email testing Web UI/SMTP server |
+---
 
 ## Troubleshooting
 
-### Canvas Installation Fails (macOS)
-
-If `pnpm install` fails with canvas errors - read this guide: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
-
 ### PostgreSQL Connection Refused
 
-Wait for Docker services to fully start:
-
 ```bash
-docker compose -f docker/docker-compose.dev.mini.yml ps
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps
+docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml ps
 ```
 
-All services should show "running" state.
-
-### MinIO Connection Refused / Query Results Error
-
-If queries fail with `ECONNREFUSED` when uploading results, MinIO isn't running:
+### MinIO Connection Refused
 
 ```bash
-# Check if MinIO is running
-docker compose -f docker/docker-compose.dev.mini.yml ps | grep minio
-
-# If not running, start all services
-docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development up -d
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps | grep minio
+docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .env.development up -d
 ```
 
-MinIO is required for storing async query results. The app will fail to load query results without it.
+### Port Conflicts
 
-### "relation does not exist" Errors
-
-- **`sessions`**: Migrations not run → This command will detect and run them
-- **`jaffle.orders`**: dbt models not built → This command will detect and build them
-
-### Redirected to /register Instead of Login
-
-Database not seeded → This command will detect and seed it
-
-### dbt Command Not Found
-
-Python venv not set up → This command will detect and set it up
+```bash
+./scripts/dev-ports.sh list
+./scripts/dev-ports.sh gc
+./scripts/dev-ports.sh release && ./scripts/dev-ports.sh claim
+```
