@@ -698,6 +698,10 @@ export type CartesianChart = {
     eChartsConfig: EChartsConfig;
     /** Metadata for series (colors, etc.) */
     metadata?: Record<string, SeriesMetadata>;
+    /** 1-indexed first row to display (default: 1, i.e. from the start) */
+    showFromRow?: number;
+    /** 1-indexed last row to display (default: total row count, i.e. to the end) */
+    showToRow?: number;
 };
 
 export type BigNumberConfig = {
