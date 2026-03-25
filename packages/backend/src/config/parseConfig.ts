@@ -1161,14 +1161,7 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     lightdashOrigin: string;
     cdnOrigin: string | null;
-    s3: {
-        bucket: string;
-        region: string;
-        endpoint: string;
-        accessKey?: string;
-        secretKey?: string;
-        forcePathStyle?: boolean;
-    } | null;
+    s3: S3Config | null;
 };
 
 export type IntercomConfig = {
@@ -1334,21 +1327,38 @@ const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const enabled = process.env.APPS_RUNTIME_ENABLED === 'true';
-    const bucket = process.env.APPS_S3_BUCKET;
-    const region = process.env.APPS_S3_REGION;
-    const endpoint = process.env.APPS_S3_ENDPOINT;
+    const appsBucket = process.env.APPS_S3_BUCKET;
 
-    const s3 =
-        bucket && region && endpoint
-            ? {
-                  bucket,
-                  region,
-                  endpoint,
-                  accessKey: process.env.APPS_S3_ACCESS_KEY,
-                  secretKey: process.env.APPS_S3_SECRET_KEY,
-                  forcePathStyle: true,
-              }
-            : null;
+    const baseS3Config = parseBaseS3Config();
+
+    let s3: S3Config | null = null;
+
+    if (baseS3Config) {
+        const {
+            endpoint: baseEndpoint,
+            bucket: baseBucket,
+            region: baseRegion,
+            accessKey: baseAccessKey,
+            secretKey: baseSecretKey,
+            forcePathStyle: baseForcePathStyle,
+            useCredentialsFrom: baseUseCredentialsFrom,
+        } = baseS3Config;
+
+        const bucket = appsBucket || baseBucket;
+        const region = process.env.APPS_S3_REGION || baseRegion;
+        const accessKey = process.env.APPS_S3_ACCESS_KEY || baseAccessKey;
+        const secretKey = process.env.APPS_S3_SECRET_KEY || baseSecretKey;
+
+        s3 = {
+            endpoint: baseEndpoint,
+            forcePathStyle: baseForcePathStyle,
+            bucket,
+            region,
+            accessKey,
+            secretKey,
+            useCredentialsFrom: baseUseCredentialsFrom,
+        };
+    }
 
     return {
         enabled,
