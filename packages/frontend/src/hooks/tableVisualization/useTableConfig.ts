@@ -84,6 +84,13 @@ const useTableConfig = (
         tableChartConfig?.metricsAsRows || false,
     );
 
+    const [showFromRow, setShowFromRow] = useState<number | undefined>(
+        tableChartConfig?.showFromRow,
+    );
+    const [showToRow, setShowToRow] = useState<number | undefined>(
+        tableChartConfig?.showToRow,
+    );
+
     useEffect(() => {
         if (
             tableChartConfig?.showTableNames === undefined &&
@@ -620,6 +627,8 @@ const useTableConfig = (
             hideRowNumbers,
             conditionalFormattings,
             metricsAsRows,
+            showFromRow,
+            showToRow,
         }),
         [
             showColumnCalculation,
@@ -631,6 +640,8 @@ const useTableConfig = (
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
+            showFromRow,
+            showToRow,
         ],
     );
 
@@ -671,6 +682,10 @@ const useTableConfig = (
             isPivotTableEnabled,
             canUseSubtotals,
             groupedSubtotals,
+            showFromRow,
+            setShowFromRow,
+            showToRow,
+            setShowToRow,
         }),
         [
             selectedItemIds,
@@ -708,6 +723,10 @@ const useTableConfig = (
             isPivotTableEnabled,
             canUseSubtotals,
             groupedSubtotals,
+            showFromRow,
+            setShowFromRow,
+            showToRow,
+            setShowToRow,
         ],
     );
 };
