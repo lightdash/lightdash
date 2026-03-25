@@ -1,3 +1,10 @@
+## [0.2666.1](https://github.com/lightdash/lightdash/compare/0.2666.0...0.2666.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* add min-width to number input in date filter and allow unit selector to shrink ([#21421](https://github.com/lightdash/lightdash/issues/21421)) ([01ce423](https://github.com/lightdash/lightdash/commit/01ce423cdfcde9b225b0b9ba06bb77097fbf309d))
+
 # [0.2666.0](https://github.com/lightdash/lightdash/compare/0.2665.0...0.2666.0) (2026-03-25)
 
 
