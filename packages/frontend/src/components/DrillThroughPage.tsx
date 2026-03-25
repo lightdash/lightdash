@@ -197,10 +197,9 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
 
                         {isReady && linkedChart.chartConfig && drillResults && (
                             <MetricQueryDataProvider
-                                metricQuery={drillResults.metricQuery}
+                                metricQuery={undefined}
                                 tableName={linkedChart.tableName}
                                 explore={undefined}
-                                queryUuid={drillResults.queryUuid}
                             >
                                 <VisualizationProvider
                                     chartConfig={linkedChart.chartConfig}

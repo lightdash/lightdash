@@ -15,7 +15,7 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
     cell,
 }) => {
     const { showToastSuccess } = useToaster();
-    const { openUnderlyingDataModal, metricQuery, explore } =
+    const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
 
     const meta = cell.column.columnDef.meta;
@@ -66,7 +66,7 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
                 Copy value
             </Menu.Item>
 
-            {item && !isDimension(item) && metricQuery && explore && (
+            {item && !isDimension(item) && metricQuery && (
                 <UnderlyingDataMenuItem
                     metricQuery={metricQuery}
                     onViewUnderlyingData={handleViewUnderlyingData}
