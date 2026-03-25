@@ -1,3 +1,10 @@
+# [0.2666.0](https://github.com/lightdash/lightdash/compare/0.2665.0...0.2666.0) (2026-03-25)
+
+
+### Features
+
+* client-side row show/hide for table and cartesian charts ([#21407](https://github.com/lightdash/lightdash/issues/21407)) ([ea34828](https://github.com/lightdash/lightdash/commit/ea34828ea2ad2c690c915b029ebe3e561669a7d4))
+
 # [0.2665.0](https://github.com/lightdash/lightdash/compare/0.2664.1...0.2665.0) (2026-03-25)
 
 
