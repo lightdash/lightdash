@@ -1107,51 +1107,6 @@ const DashboardProvider: React.FC<
         setDateZoomGranularity,
     ]);
 
-    const {
-        isInitialLoading: isLoadingDashboardFilters,
-        isFetching: isFetchingDashboardFilters,
-        data: dashboardAvailableFiltersData,
-    } = useDashboardsAvailableFilters(
-        savedChartUuidsAndTileUuids ?? [],
-        projectUuid,
-        embedToken,
-    );
-
-    const filterableFieldsByTileUuid = useMemo(() => {
-        // If this is an embed dashboard, we skip the dashboard check
-        if (
-            (!dashboard && !embedToken) ||
-            !savedChartUuidsAndTileUuids ||
-            !dashboardAvailableFiltersData
-        )
-            return;
-
-        const filterFieldsMapping = savedChartUuidsAndTileUuids.reduce<
-            Record<string, FilterableDimension[]>
-        >((acc, { tileUuid }) => {
-            const filterFields =
-                dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(
-                    (index) =>
-                        dashboardAvailableFiltersData.allFilterableFields[
-                            index
-                        ],
-                );
-
-            if (filterFields) {
-                acc[tileUuid] = filterFields;
-            }
-
-            return acc;
-        }, {});
-
-        return filterFieldsMapping;
-    }, [
-        dashboard,
-        dashboardAvailableFiltersData,
-        savedChartUuidsAndTileUuids,
-        embedToken,
-    ]);
-
     const allFilterableFieldsMap = useMemo(() => {
         return dashboardAvailableFiltersData?.allFilterableFields &&
             dashboardAvailableFiltersData.allFilterableFields.length > 0
