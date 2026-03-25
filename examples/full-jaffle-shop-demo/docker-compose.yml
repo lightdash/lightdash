@@ -15,6 +15,7 @@ services:
             - SECURE_COOKIES=false
             - TRUST_PROXY=false
             - LIGHTDASH_SECRET='not very secret'
+            - SAVED_METRICS_TREE_ENABLED=${SAVED_METRICS_TREE_ENABLED:-false}
 
         volumes:
             - './profiles:/usr/app/profiles'
