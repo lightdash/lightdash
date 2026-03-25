@@ -54,6 +54,7 @@ import { Knex } from 'knex';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import { KeyValueCacheClient } from '../../clients/CacheClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     DashboardsTableName,
@@ -123,6 +124,7 @@ export type ProjectModelArguments = {
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
     changesetModel: ChangesetModel;
+    keyValueCacheClient?: KeyValueCacheClient;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -167,12 +169,15 @@ export class ProjectModel {
 
     private readonly exploreCache: ExploreCache;
 
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.changesetModel = args.changesetModel;
         this.encryptionUtil = args.encryptionUtil;
-        this.exploreCache = new ExploreCache();
+        this.keyValueCacheClient = args.keyValueCacheClient;
+        this.exploreCache = new ExploreCache(args.keyValueCacheClient);
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -557,6 +562,7 @@ export class ProjectModel {
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
+        await this.keyValueCacheClient?.delByPrefix(`project:${projectUuid}:`);
 
         await this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
@@ -594,8 +600,9 @@ export class ProjectModel {
     }
 
     async delete(projectUuid: string): Promise<void> {
-        // Invalidate warehouse credentials cache
+        // Invalidate all caches for this project
         warehouseCredentialsCache?.del(projectUuid);
+        await this.keyValueCacheClient?.delByPrefix(`project:${projectUuid}:`);
 
         await this.database.transaction(async (trx) => {
             const [project] = await trx('projects')
@@ -1070,7 +1077,7 @@ export class ProjectModel {
                     );
 
                 // Try to get from cache first
-                const cachedExplores = this.exploreCache?.getExplores(
+                const cachedExplores = await this.exploreCache?.getExplores(
                     projectUuid,
                     exploreNames,
                     applyChangeset ? changeset?.updatedAt : undefined,
@@ -1118,7 +1125,7 @@ export class ProjectModel {
                     );
                 }
 
-                this.exploreCache?.setExplores(
+                await this.exploreCache?.setExplores(
                     projectUuid,
                     exploreNames,
                     applyChangeset ? changeset?.updatedAt : undefined,
@@ -1784,7 +1791,18 @@ export class ProjectModel {
     async getWarehouseCredentialsForProject(
         projectUuid: string,
     ): Promise<CreateWarehouseCredentials> {
-        // Try to get from cache first
+        const cacheKey = `project:${projectUuid}:warehouseCredentials`;
+
+        // Try key-value cache first (if available)
+        const kvCached =
+            await this.keyValueCacheClient?.get<CreateWarehouseCredentials>(
+                cacheKey,
+            );
+        if (kvCached) {
+            return kvCached;
+        }
+
+        // Fall back to in-memory NodeCache
         const cachedCredentials =
             warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
                 projectUuid,
@@ -1823,14 +1841,14 @@ export class ProjectModel {
             );
         }
         if (row.organization_warehouse_credentials_uuid) {
-            // If organization_warehouse_credentials_uuid is set, we overwrite the credentials with the organization credentials
             const orgCredentials =
                 await this.getOrganizationWarehouseCredentials(
                     row.organization_warehouse_credentials_uuid,
                     row.organization_uuid,
                 );
-            // Store in cache
+            // Store in both caches
             warehouseCredentialsCache?.set(projectUuid, orgCredentials);
+            await this.keyValueCacheClient?.set(cacheKey, orgCredentials, 30);
             return orgCredentials;
         }
 
@@ -1838,8 +1856,9 @@ export class ProjectModel {
             const credentials = JSON.parse(
                 this.encryptionUtil.decrypt(row.encrypted_credentials),
             ) as CreateWarehouseCredentials;
-            // Store in cache
+            // Store in both caches
             warehouseCredentialsCache?.set(projectUuid, credentials);
+            await this.keyValueCacheClient?.set(cacheKey, credentials, 30);
             return credentials;
         } catch (e) {
             throw new UnexpectedServerError(

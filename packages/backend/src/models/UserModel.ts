@@ -29,6 +29,7 @@ import {
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import NodeCache from 'node-cache';
+import { KeyValueCacheClient } from '../clients/CacheClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
     createEmail,
@@ -123,6 +124,7 @@ const userDetailsQueryBuilder = (
 type UserModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    keyValueCacheClient?: KeyValueCacheClient;
 };
 
 const sessionUserCache =
@@ -138,9 +140,16 @@ export class UserModel {
 
     private readonly database: Knex;
 
-    constructor({ database, lightdashConfig }: UserModelArguments) {
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
+    constructor({
+        database,
+        lightdashConfig,
+        keyValueCacheClient,
+    }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
+        this.keyValueCacheClient = keyValueCacheClient;
     }
 
     private canTrackingBeAnonymized() {
@@ -152,19 +161,30 @@ export class UserModel {
         organizationUuid: string,
     ) {
         const cacheKey = `${userUuid}::${organizationUuid}`;
-        // Try to get from cache first
+
+        // Try key-value cache first (if available)
+        const kvCached =
+            await this.keyValueCacheClient?.get<SessionUser>(cacheKey);
+        if (kvCached) {
+            return { sessionUser: kvCached, cacheHit: true };
+        }
+
+        // Fall back to in-memory NodeCache
         const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
         if (cachedUser) {
-            // Return cached user
             return { sessionUser: cachedUser, cacheHit: true };
         }
-        // If not in cache, get from database
+
+        // If not in any cache, get from database
         const sessionUser = await this.findSessionUserAndOrgByUuid(
             userUuid,
             organizationUuid,
         );
-        // Store in cache
+
+        // Store in both caches
         sessionUserCache?.set(cacheKey, sessionUser);
+        await this.keyValueCacheClient?.set(cacheKey, sessionUser, 30);
+
         return { sessionUser, cacheHit: false };
     }
 

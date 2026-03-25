@@ -368,4 +368,5 @@ export const lightdashConfigMock: LightdashConfig = {
         cdnOrigin: null,
         s3: null,
     },
+    redis: undefined,
 };

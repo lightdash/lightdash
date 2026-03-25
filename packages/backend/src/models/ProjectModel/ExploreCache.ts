@@ -1,13 +1,16 @@
 import { Explore, ExploreError } from '@lightdash/common';
 import NodeCache from 'node-cache';
+import { KeyValueCacheClient } from '../../clients/CacheClient';
 
 type CachedExplores = Record<string, Explore | ExploreError>;
 
 export class ExploreCache {
     private readonly cache: NodeCache | undefined;
 
-    constructor() {
-        // Initialize cache with 30 seconds TTL
+    private readonly keyValueCacheClient: KeyValueCacheClient | undefined;
+
+    constructor(keyValueCacheClient?: KeyValueCacheClient) {
+        // Initialize in-memory cache with 30 seconds TTL
         this.cache =
             process.env.EXPERIMENTAL_CACHE === 'true'
                 ? new NodeCache({
@@ -15,6 +18,7 @@ export class ExploreCache {
                       checkperiod: 60, // cleanup interval in seconds
                   })
                 : undefined;
+        this.keyValueCacheClient = keyValueCacheClient;
     }
 
     private static getCacheKey(
@@ -25,39 +29,50 @@ export class ExploreCache {
         const exploreNamesString = exploreNames?.join(',') || 'all';
 
         const cacheKey = changesetUpdatedAt
-            ? `explores::${projectUuid}::${exploreNamesString}::${changesetUpdatedAt.toISOString()}`
-            : `explores::${projectUuid}::${exploreNamesString}`;
+            ? `project:${projectUuid}:explores:${exploreNamesString}:${changesetUpdatedAt.toISOString()}`
+            : `project:${projectUuid}:explores:${exploreNamesString}`;
 
         return cacheKey;
     }
 
-    public getExplores(
+    public async getExplores(
         projectUuid: string,
         exploreNames: string[] | undefined,
         changesetUpdatedAt: Date | undefined,
-    ): CachedExplores | undefined {
-        return this.cache?.get<CachedExplores>(
-            ExploreCache.getCacheKey(
-                projectUuid,
-                exploreNames,
-                changesetUpdatedAt,
-            ),
+    ): Promise<CachedExplores | undefined> {
+        const cacheKey = ExploreCache.getCacheKey(
+            projectUuid,
+            exploreNames,
+            changesetUpdatedAt,
         );
+
+        // Try key-value cache first (if available)
+        if (this.keyValueCacheClient) {
+            const kvCached =
+                await this.keyValueCacheClient.get<CachedExplores>(cacheKey);
+            if (kvCached) {
+                return kvCached;
+            }
+        }
+
+        // Fall back to in-memory NodeCache
+        return this.cache?.get<CachedExplores>(cacheKey);
     }
 
-    public setExplores(
+    public async setExplores(
         projectUuid: string,
         exploreNames: string[] | undefined,
         changesetUpdatedAt: Date | undefined,
         explore: CachedExplores,
-    ): void {
-        this.cache?.set(
-            ExploreCache.getCacheKey(
-                projectUuid,
-                exploreNames,
-                changesetUpdatedAt,
-            ),
-            explore,
+    ): Promise<void> {
+        const cacheKey = ExploreCache.getCacheKey(
+            projectUuid,
+            exploreNames,
+            changesetUpdatedAt,
         );
+
+        // Store in both caches
+        this.cache?.set(cacheKey, explore);
+        await this.keyValueCacheClient?.set(cacheKey, explore, 30);
     }
 }
