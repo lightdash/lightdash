@@ -20,6 +20,11 @@
 
 set -euo pipefail
 
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required but not found. Install it or activate your venv." >&2
+    exit 1
+fi
+
 REGISTRY_DIR="$HOME/.lightdash/dev-instances"
 
 # Shared service ports (fixed, single instance for all worktrees)
@@ -64,6 +69,10 @@ compute_ports() {
     #
     # Only per-instance ports are computed here.
     # Shared services (minio, browser, mailpit, nats) use fixed ports.
+    #
+    # Note: with stride 10, cross-slot collisions are theoretically possible
+    # (e.g. slot 3 FRONTEND_PORT=3030 vs slot 0 SDK_TEST_PORT=3030).
+    # validate_slot_ports() checks lsof at claim time to catch these at runtime.
     PG_PORT=$((5432 + slot * 100))
     FRONTEND_PORT=$((3000 + slot * 10))
     API_PORT=$((8080 + slot * 10))
@@ -135,11 +144,15 @@ write_instance_file() {
     local compose_project="ld-${id}"
     local file="$REGISTRY_DIR/${id}.json"
 
+    # Escape backslashes and quotes in paths for valid JSON
+    local safe_path="${worktree_path//\\/\\\\}"
+    safe_path="${safe_path//\"/\\\"}"
+
     cat > "$file" << ENDJSON
 {
   "slot": ${slot},
   "instanceId": "${id}",
-  "worktreePath": "${worktree_path}",
+  "worktreePath": "${safe_path}",
   "composeProject": "${compose_project}",
   "ports": {
     "pg": ${PG_PORT},
@@ -220,14 +233,21 @@ cmd_claim() {
         return 0
     fi
 
-    # Find next available slot
-    local slot
-    slot=$(find_next_slot)
-
-    # Try to validate ports aren't in use, skip slots with conflicts
+    # Find next available slot, re-reading taken slots each iteration
+    # to avoid claiming a slot already assigned to another instance.
     local max_attempts=10
     local attempt=0
+    local slot
+    slot=$(find_next_slot)
     while [ "$attempt" -lt "$max_attempts" ]; do
+        local taken
+        taken=$(get_taken_slots)
+        if echo "$taken" | grep -qw "$slot"; then
+            echo "Slot $slot already taken, trying next..." >&2
+            slot=$((slot + 1))
+            attempt=$((attempt + 1))
+            continue
+        fi
         if validate_slot_ports "$slot"; then
             break
         fi

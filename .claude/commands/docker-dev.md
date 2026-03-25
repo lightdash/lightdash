@@ -182,8 +182,10 @@ if docker volume inspect ld-shared_postgres_base >/dev/null 2>&1; then
   docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
 
   # Wait for postgres to be ready
-  sleep 3
-  docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres
+  for i in $(seq 1 10); do
+    docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" pg_isready -U postgres 2>/dev/null && break
+    sleep 1
+  done
 
   echo "Bootstrap complete — skipping migrations, seed, and dbt."
 fi
@@ -422,7 +424,12 @@ docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.ym
 Stop ALL instances, shared services, and release all port slots.
 
 ```bash
-pm2 delete all 2>/dev/null || true
+# Delete only Lightdash instance PM2 processes (not unrelated PM2 apps)
+for f in ~/.lightdash/dev-instances/*.json; do
+  [ -f "$f" ] || continue
+  INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
+  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
+done
 
 for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
