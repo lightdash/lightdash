@@ -51,7 +51,6 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
-import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { KeyValueCacheClient } from '../../clients/CacheClient';
@@ -128,15 +127,6 @@ export type ProjectModelArguments = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
-
-// Initialize cache for warehouse credentials with 30 seconds TTL
-const warehouseCredentialsCache =
-    process.env.EXPERIMENTAL_CACHE === 'true'
-        ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
-              checkperiod: 60, // cleanup interval in seconds
-          })
-        : undefined;
 
 type RawSummaryRow = {
     name: Explore['name'];
@@ -560,8 +550,6 @@ export class ProjectModel {
     }
 
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
-        // Invalidate warehouse credentials cache
-        warehouseCredentialsCache?.del(projectUuid);
         await this.keyValueCacheClient?.delByPrefix(`project:${projectUuid}:`);
 
         await this.database.transaction(async (trx) => {
@@ -600,8 +588,6 @@ export class ProjectModel {
     }
 
     async delete(projectUuid: string): Promise<void> {
-        // Invalidate all caches for this project
-        warehouseCredentialsCache?.del(projectUuid);
         await this.keyValueCacheClient?.delByPrefix(`project:${projectUuid}:`);
 
         await this.database.transaction(async (trx) => {
@@ -1793,22 +1779,12 @@ export class ProjectModel {
     ): Promise<CreateWarehouseCredentials> {
         const cacheKey = `project:${projectUuid}:warehouseCredentials`;
 
-        // Try key-value cache first (if available)
-        const kvCached =
+        const cached =
             await this.keyValueCacheClient?.get<CreateWarehouseCredentials>(
                 cacheKey,
             );
-        if (kvCached) {
-            return kvCached;
-        }
-
-        // Fall back to in-memory NodeCache
-        const cachedCredentials =
-            warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
-                projectUuid,
-            );
-        if (cachedCredentials) {
-            return cachedCredentials;
+        if (cached) {
+            return cached;
         }
 
         const [row] = await this.database('warehouse_credentials')
@@ -1846,8 +1822,6 @@ export class ProjectModel {
                     row.organization_warehouse_credentials_uuid,
                     row.organization_uuid,
                 );
-            // Store in both caches
-            warehouseCredentialsCache?.set(projectUuid, orgCredentials);
             await this.keyValueCacheClient?.set(cacheKey, orgCredentials, 30);
             return orgCredentials;
         }
@@ -1856,8 +1830,6 @@ export class ProjectModel {
             const credentials = JSON.parse(
                 this.encryptionUtil.decrypt(row.encrypted_credentials),
             ) as CreateWarehouseCredentials;
-            // Store in both caches
-            warehouseCredentialsCache?.set(projectUuid, credentials);
             await this.keyValueCacheClient?.set(cacheKey, credentials, 30);
             return credentials;
         } catch (e) {

@@ -29,7 +29,6 @@ import {
 } from '@lightdash/common';
 import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
-import NodeCache from 'node-cache';
 import { KeyValueCacheClient } from '../clients/CacheClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
@@ -128,14 +127,6 @@ type UserModelArguments = {
     keyValueCacheClient?: KeyValueCacheClient;
 };
 
-const sessionUserCache =
-    process.env.EXPERIMENTAL_CACHE === 'true'
-        ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
-              checkperiod: 60, // cleanup interval in seconds
-          })
-        : undefined;
-
 export class UserModel {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -180,30 +171,20 @@ export class UserModel {
     ) {
         const cacheKey = `${userUuid}::${organizationUuid}`;
 
-        // Try key-value cache first (if available)
-        const kvCached =
+        const cached =
             await this.keyValueCacheClient?.get<SessionUser>(cacheKey);
-        if (kvCached) {
+        if (cached) {
             return {
-                sessionUser: UserModel.hydrateSessionUser(kvCached),
+                sessionUser: UserModel.hydrateSessionUser(cached),
                 cacheHit: true,
             };
         }
 
-        // Fall back to in-memory NodeCache
-        const cachedUser = sessionUserCache?.get<SessionUser>(cacheKey);
-        if (cachedUser) {
-            return { sessionUser: cachedUser, cacheHit: true };
-        }
-
-        // If not in any cache, get from database
         const sessionUser = await this.findSessionUserAndOrgByUuid(
             userUuid,
             organizationUuid,
         );
 
-        // Store in both caches
-        sessionUserCache?.set(cacheKey, sessionUser);
         await this.keyValueCacheClient?.set(cacheKey, sessionUser, 30);
 
         return { sessionUser, cacheHit: false };

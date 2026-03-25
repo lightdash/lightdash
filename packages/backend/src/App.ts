@@ -32,7 +32,7 @@ import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
-import { RedisCacheClient } from './clients/CacheClient';
+import { createCacheClient } from './clients/CacheClient';
 import {
     ClientProviderMap,
     ClientRepository,
@@ -219,9 +219,9 @@ export default class App {
             utilProviders: args.utilProviders,
             lightdashConfig: this.lightdashConfig,
         });
-        const keyValueCacheClient = this.lightdashConfig.redis
-            ? new RedisCacheClient(this.lightdashConfig.redis)
-            : undefined;
+        const keyValueCacheClient = createCacheClient(
+            this.lightdashConfig.redis,
+        );
         this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
