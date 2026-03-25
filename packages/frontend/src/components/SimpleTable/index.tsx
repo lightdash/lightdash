@@ -52,6 +52,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData,
         isLoading,
         isEditMode,
+        drillConfig,
+        onDrillDown,
+        onDrillThrough,
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
@@ -309,6 +312,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 visualizationConfig.chartConfig.columnProperties
                             }
                             onColumnWidthChange={onColumnWidthChange}
+                            drillConfig={drillConfig}
+                            onDrillDown={onDrillDown}
+                            onDrillThrough={onDrillThrough}
                             {...rest}
                         />
                         {showResultsTotal && (

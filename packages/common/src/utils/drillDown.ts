@@ -1,8 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { DrillStep } from '../types/api/paginatedQuery';
-import type { Dimension } from '../types/field';
+import type { Dimension, FieldId } from '../types/field';
 import { FilterOperator, type FilterRule, type Filters } from '../types/filter';
-import type { FieldId } from '../types/field';
 import type { MetricQuery, SortField } from '../types/metricQuery';
 import type { ResultValue } from '../types/results';
 import {
@@ -12,6 +11,7 @@ import {
     type DrillDownPath,
     type DrillPath,
     type DrillThroughTarget,
+    type PivotReference,
 } from '../types/savedCharts';
 
 /**
@@ -163,9 +163,7 @@ export const buildDrillThroughState = ({
     dimensions: Dimension[];
     existingDrillSteps?: DrillStep[];
 }): DrillThroughState => {
-    const linkedPath = drillConfig?.paths.find(
-        (p) => p.id === drillPathId,
-    );
+    const linkedPath = drillConfig?.paths.find((p) => p.id === drillPathId);
 
     const clickedRawValues = Object.fromEntries(
         dimensionIds
@@ -176,9 +174,7 @@ export const buildDrillThroughState = ({
     const summary = dimensionIds
         .filter((id) => fieldValues[id])
         .map((id) => {
-            const dim = dimensions.find(
-                (d) => `${d.table}_${d.name}` === id,
-            );
+            const dim = dimensions.find((d) => `${d.table}_${d.name}` === id);
             return `${dim?.label ?? id}: ${fieldValues[id].formatted}`;
         })
         .join(', ');
@@ -203,4 +199,31 @@ export const buildDrillThroughState = ({
         filterSummary: summary,
         target,
     };
+};
+
+/**
+ * Inject pivot dimension values into fieldValues under their raw dimension IDs.
+ *
+ * In grouped/pivoted charts, fieldValues keys use hashed references
+ * (e.g. "metric.pivotDim.value") but the drill system expects plain
+ * dimension IDs (e.g. "orders_status"). This normalizes them so drill
+ * filters include the pivot dimension.
+ */
+export const normalizePivotFieldValues = (
+    fieldValues: Record<string, ResultValue> | undefined,
+    pivotReference: PivotReference | undefined,
+): Record<string, ResultValue> | undefined => {
+    if (!fieldValues) return undefined;
+    if (!pivotReference?.pivotValues) return fieldValues;
+
+    const values = { ...fieldValues };
+    for (const pv of pivotReference.pivotValues) {
+        if (!values[pv.field]) {
+            values[pv.field] = {
+                raw: pv.value,
+                formatted: String(pv.value ?? ''),
+            };
+        }
+    }
+    return values;
 };

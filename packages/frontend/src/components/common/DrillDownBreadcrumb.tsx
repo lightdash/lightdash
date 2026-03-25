@@ -62,23 +62,22 @@ const DrillDownBreadcrumb: FC<Props> = ({
             {stack.map((level, index) => {
                 const isLast = index === stack.length - 1;
                 const filterEntries = Object.entries(level.filterLabels);
-                const dimLabel =
+
+                const pairs =
                     filterEntries.length > 0
-                        ? filterEntries
-                              .map(([fieldId]) => {
-                                  const parts = fieldId.split('_');
-                                  const name =
-                                      parts.length > 1
-                                          ? parts.slice(1).join('_')
-                                          : fieldId;
-                                  return friendlyName(name);
-                              })
-                              .join(', ')
-                        : level.drillPath.label;
-                const valueLabel =
-                    filterEntries.length > 0
-                        ? `: ${filterEntries.map(([, v]) => v).join(', ')}`
-                        : '';
+                        ? filterEntries.map(([fieldId, value]) => {
+                              const parts = fieldId.split('_');
+                              const name =
+                                  parts.length > 1
+                                      ? parts.slice(1).join('_')
+                                      : fieldId;
+                              return {
+                                  dim: friendlyName(name),
+                                  value,
+                              };
+                          })
+                        : [{ dim: level.drillPath.label, value: '' }];
+
                 return (
                     <Group gap={6} key={level.drillPath.id} wrap="nowrap">
                         {index > 0 && (
@@ -94,14 +93,25 @@ const DrillDownBreadcrumb: FC<Props> = ({
                             style={{ whiteSpace: 'nowrap' }}
                         >
                             {isLast ? (
-                                <Text
-                                    fz="xs"
-                                    fw={600}
-                                    c="foreground"
-                                    component="span"
-                                >
-                                    {dimLabel}
-                                </Text>
+                                pairs.map((pair, pairIndex) => (
+                                    <Text
+                                        key={pairIndex}
+                                        component="span"
+                                        fz="xs"
+                                        c="dimmed"
+                                    >
+                                        {pairIndex > 0 && ', '}
+                                        <Text
+                                            fz="xs"
+                                            fw={600}
+                                            c="foreground"
+                                            component="span"
+                                        >
+                                            {pair.dim}
+                                        </Text>
+                                        {pair.value ? `: ${pair.value}` : ''}
+                                    </Text>
+                                ))
                             ) : (
                                 <Anchor
                                     fz="xs"
@@ -110,10 +120,14 @@ const DrillDownBreadcrumb: FC<Props> = ({
                                     type="button"
                                     onClick={() => handlePopTo(index)}
                                 >
-                                    {dimLabel}
+                                    {pairs
+                                        .map(
+                                            (pair) =>
+                                                `${pair.dim}${pair.value ? `: ${pair.value}` : ''}`,
+                                        )
+                                        .join(', ')}
                                 </Anchor>
                             )}
-                            {valueLabel}
                         </Text>
                     </Group>
                 );

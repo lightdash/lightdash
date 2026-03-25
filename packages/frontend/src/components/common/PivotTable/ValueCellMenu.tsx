@@ -2,6 +2,8 @@ import {
     createDashboardFilterRuleFromField,
     isDimension,
     isDimensionValueInvalidDate,
+    type DrillConfig,
+    type DrillPath,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
@@ -17,6 +19,7 @@ import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { UnderlyingDataMenuItem } from '../../DashboardTiles/UnderlyingDataMenuItem';
+import DrillIntoSubmenu from '../../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
@@ -32,6 +35,18 @@ type ValueCellMenuProps = {
         rowIndex: number,
     ) => Record<string, ResultValue>;
     isMinimal?: boolean;
+    drillConfig?: DrillConfig;
+    onDrillDown?: (params: {
+        drillPath: DrillPath;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
+    onDrillThrough?: (params: {
+        drillPathId: string;
+        linkedChartUuid: string;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
@@ -46,6 +61,9 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     onClose,
     onCopy,
     isMinimal = false,
+    drillConfig,
+    onDrillDown,
+    onDrillThrough,
 }) => {
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
@@ -201,6 +219,21 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                         </Text>
                     </Menu.Item>
                 )}
+                {onDrillDown && drillConfig && hasUnderlyingData && (
+                    <DrillIntoSubmenu
+                        drillConfig={drillConfig}
+                        fieldValues={
+                            getUnderlyingFieldValues &&
+                            rowIndex !== undefined &&
+                            colIndex !== undefined
+                                ? getUnderlyingFieldValues(rowIndex, colIndex)
+                                : undefined
+                        }
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
+                    />
+                )}
+
                 {isDashboardPage && filters.length > 0 && (
                     <FilterDashboardTo filters={filters} />
                 )}

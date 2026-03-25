@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    buildDrillThroughState,
     CartesianSeriesType,
     ChartType,
     createDashboardFilterRuleFromField,
@@ -19,6 +20,7 @@ import {
     isDashboardChartTileType,
     isFilterableField,
     isTableChartConfig,
+    normalizePivotFieldValues,
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
@@ -33,7 +35,6 @@ import {
     type ResultValue,
     type SavedChart,
     type Series,
-    buildDrillThroughState,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import {
@@ -92,7 +93,6 @@ import {
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
 import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
-import { type Limit } from '../ExportResults/types';
 import {
     useDashboardChartReadyQuery,
     type DashboardChartReadyQuery,
@@ -127,6 +127,7 @@ import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { type Limit } from '../ExportResults/types';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -723,7 +724,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             ) => Promise<string>,
             total: number | undefined,
         ) => {
-            setDrillExport({ getDownloadQueryUuid: getDownloadQueryUuidFn, totalResults: total });
+            setDrillExport({
+                getDownloadQueryUuid: getDownloadQueryUuidFn,
+                totalResults: total,
+            });
         },
         [],
     );
@@ -892,7 +896,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const [isImageExportModalOpen, setIsImageExportModalOpen] = useState(false);
 
     // Linked chart drill-through modal state (for non-drilled tile context menu)
-    const { modalState: linkedChartDrillConfig, handleDrillThrough, closeModal: closeDrillThroughModal } = useDrillThroughAction();
+    const {
+        modalState: linkedChartDrillConfig,
+        handleDrillThrough,
+        closeModal: closeDrillThroughModal,
+    } = useDrillThroughAction();
 
     const handleDrillThroughFromTile = useCallback(
         ({
@@ -918,7 +926,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 }),
             );
         },
-        [chart.uuid, chart.drillConfig, explore],
+        [chart.uuid, chart.drillConfig, explore, handleDrillThrough],
     );
 
     const onSeriesContextMenu = useCallback(
@@ -1557,9 +1565,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             <Portal>
                                 <Menu.Target>
                                     <div
-                                        onContextMenu={
-                                            handleCancelContextMenu
-                                        }
+                                        onContextMenu={handleCancelContextMenu}
                                         style={{
                                             position: 'absolute',
                                             ...contextMenuTargetOffset,
@@ -1572,59 +1578,50 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                 {viewUnderlyingDataOptions?.value && (
                                     <Menu.Item
                                         leftSection={
-                                            <MantineIcon
-                                                icon={IconCopy}
-                                            />
+                                            <MantineIcon icon={IconCopy} />
                                         }
                                         onClick={handleCopyToClipboard}
                                     >
                                         Copy value
                                     </Menu.Item>
                                 )}
-                                {metricQuery &&
-                                    canViewUnderlyingData && (
-                                        <UnderlyingDataMenuItem
-                                            metricQuery={metricQuery}
-                                            onViewUnderlyingData={
-                                                handleViewUnderlyingData
-                                            }
-                                        />
-                                    )}
+                                {metricQuery && canViewUnderlyingData && (
+                                    <UnderlyingDataMenuItem
+                                        metricQuery={metricQuery}
+                                        onViewUnderlyingData={
+                                            handleViewUnderlyingData
+                                        }
+                                    />
+                                )}
 
                                 {canDrillInto && (
                                     <DrillDownMenuItem
                                         {...viewUnderlyingDataOptions}
                                         trackingData={{
-                                            organizationId:
-                                                organizationUuid,
+                                            organizationId: organizationUuid,
                                             userId: account?.user?.id,
                                             projectId: projectUuid,
                                         }}
                                     />
                                 )}
 
-                                {canViewUnderlyingData &&
-                                    chart.drillConfig && (
-                                        <DrillIntoSubmenu
-                                            drillConfig={
-                                                chart.drillConfig
-                                            }
-                                            fieldValues={
-                                                viewUnderlyingDataOptions?.fieldValues
-                                            }
-                                            onDrillDown={handleDrillDown}
-                                            onDrillThrough={
-                                                handleDrillThroughFromTile
-                                            }
-                                        />
-                                    )}
-
-                                {dashboardTileFilterOptions.length >
-                                    0 && (
-                                    <FilterDashboardTo
-                                        filters={
-                                            dashboardTileFilterOptions
+                                {canViewUnderlyingData && chart.drillConfig && (
+                                    <DrillIntoSubmenu
+                                        drillConfig={chart.drillConfig}
+                                        fieldValues={normalizePivotFieldValues(
+                                            viewUnderlyingDataOptions?.fieldValues,
+                                            viewUnderlyingDataOptions?.pivotReference,
+                                        )}
+                                        onDrillDown={handleDrillDown}
+                                        onDrillThrough={
+                                            handleDrillThroughFromTile
                                         }
+                                    />
+                                )}
+
+                                {dashboardTileFilterOptions.length > 0 && (
+                                    <FilterDashboardTo
+                                        filters={dashboardTileFilterOptions}
                                         onAddFilter={handleAddFilter}
                                     />
                                 )}
@@ -1633,9 +1630,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
                         <ValidDashboardChartTile
                             tileUuid={tileUuid}
-                            dashboardChartReadyQuery={
-                                dashboardChartReadyQuery
-                            }
+                            dashboardChartReadyQuery={dashboardChartReadyQuery}
                             resultsData={resultsData}
                             project={chart.projectUuid}
                             isTitleHidden={hideTitle}
@@ -1696,9 +1691,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         : true
                 }
                 chartName={title || chart.name}
-                columnOrder={
-                    activeDrill ? [] : chart.tableConfig.columnOrder
-                }
+                columnOrder={activeDrill ? [] : chart.tableConfig.columnOrder}
                 customLabels={
                     activeDrill
                         ? undefined
@@ -1711,9 +1704,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         ? undefined
                         : getHiddenTableFields(chart.chartConfig)
                 }
-                pivotConfig={
-                    activeDrill ? undefined : getPivotConfig(chart)
-                }
+                pivotConfig={activeDrill ? undefined : getPivotConfig(chart)}
             />
             <ExportImageModal
                 echartRef={echartRef}

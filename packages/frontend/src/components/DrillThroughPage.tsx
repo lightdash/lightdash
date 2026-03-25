@@ -14,15 +14,19 @@ import {
     Text,
     Title,
 } from '@mantine-8/core';
-import { IconArrowLeft, IconExternalLink, IconFilter } from '@tabler/icons-react';
+import {
+    IconArrowLeft,
+    IconExternalLink,
+    IconFilter,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useDrillThroughResults } from '../hooks/useDrillThroughResults';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
-import Page from './common/Page/Page';
 import MantineIcon from './common/MantineIcon';
+import Page from './common/Page/Page';
 import LightdashVisualization from './LightdashVisualization';
 import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
 
@@ -55,7 +59,7 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
     const isReady = !isLoading && !queryError && linkedChart && drillResults;
 
     const handleViewChart = () => {
-        navigate(
+        void navigate(
             `/projects/${projectUuid}/saved/${drillContext.linkedChartUuid}`,
         );
     };
@@ -66,7 +70,12 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                 <Paper
                     withBorder
                     radius="sm"
-                    style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}
+                    style={{
+                        flex: 1,
+                        minHeight: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                    }}
                 >
                     <Group
                         gap="sm"
@@ -74,7 +83,8 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                         px="sm"
                         py="xs"
                         style={{
-                            borderBottom: '1px solid var(--mantine-color-default-border)',
+                            borderBottom:
+                                '1px solid var(--mantine-color-default-border)',
                         }}
                     >
                         <Group gap="xs">
@@ -98,7 +108,32 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                                     color="gray"
                                     leftSection={<IconFilter size={10} />}
                                 >
-                                    {drillContext.filterSummary}
+                                    {drillContext.filterSummary
+                                        .split(', ')
+                                        .map((part, i) => {
+                                            const colonIdx = part.indexOf(': ');
+                                            if (colonIdx === -1) return part;
+                                            return (
+                                                <Text
+                                                    key={i}
+                                                    component="span"
+                                                    fz="inherit"
+                                                >
+                                                    {i > 0 && ', '}
+                                                    <Text
+                                                        component="span"
+                                                        fz="inherit"
+                                                        fw={700}
+                                                    >
+                                                        {part.slice(
+                                                            0,
+                                                            colonIdx,
+                                                        )}
+                                                    </Text>
+                                                    {part.slice(colonIdx)}
+                                                </Text>
+                                            );
+                                        })}
                                 </Badge>
                             )}
                         </Group>
@@ -114,7 +149,13 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                         </Button>
                     </Group>
 
-                    <div style={{ flex: 1, minHeight: 0, padding: 'var(--mantine-spacing-sm)' }}>
+                    <div
+                        style={{
+                            flex: 1,
+                            minHeight: 0,
+                            padding: 'var(--mantine-spacing-sm)',
+                        }}
+                    >
                         {isLoading && (
                             <Center h="100%">
                                 <Loader size="md" />
@@ -140,50 +181,46 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
                             </Center>
                         )}
 
-                        {isReady &&
-                            linkedChart.chartConfig &&
-                            drillResults && (
-                                <VisualizationProvider
-                                    chartConfig={linkedChart.chartConfig}
-                                    initialPivotDimensions={
-                                        linkedChart.pivotConfig?.columns
-                                    }
-                                    unsavedMetricQuery={
-                                        drillResults.metricQuery ??
-                                        linkedChart.metricQuery
-                                    }
-                                    resultsData={{
-                                        rows: drillResults.rows,
-                                        metricQuery:
-                                            drillResults.metricQuery,
-                                        fields: drillResults.fields,
-                                        isInitialLoading: false,
-                                        isFetchingFirstPage: false,
-                                        isFetchingRows: false,
-                                        isFetchingAllPages: false,
-                                        fetchMoreRows: () => {},
-                                        setFetchAll: () => {},
-                                        fetchAll: false,
-                                        hasFetchedAllRows: true,
-                                        totalClientFetchTimeMs: undefined,
-                                        error: null,
-                                    }}
-                                    minimal
-                                    isLoading={false}
-                                    columnOrder={
-                                        linkedChart.tableConfig
-                                            .columnOrder ?? []
-                                    }
-                                    pivotTableMaxColumnLimit={1000}
-                                    colorPalette={colorPalette}
-                                    isDashboard={false}
-                                >
-                                    <LightdashVisualization
-                                        className="sentry-block ph-no-capture"
-                                        data-testid="drill-visualization"
-                                    />
-                                </VisualizationProvider>
-                            )}
+                        {isReady && linkedChart.chartConfig && drillResults && (
+                            <VisualizationProvider
+                                chartConfig={linkedChart.chartConfig}
+                                initialPivotDimensions={
+                                    linkedChart.pivotConfig?.columns
+                                }
+                                unsavedMetricQuery={
+                                    drillResults.metricQuery ??
+                                    linkedChart.metricQuery
+                                }
+                                resultsData={{
+                                    rows: drillResults.rows,
+                                    metricQuery: drillResults.metricQuery,
+                                    fields: drillResults.fields,
+                                    isInitialLoading: false,
+                                    isFetchingFirstPage: false,
+                                    isFetchingRows: false,
+                                    isFetchingAllPages: false,
+                                    fetchMoreRows: () => {},
+                                    setFetchAll: () => {},
+                                    fetchAll: false,
+                                    hasFetchedAllRows: true,
+                                    totalClientFetchTimeMs: undefined,
+                                    error: null,
+                                }}
+                                minimal
+                                isLoading={false}
+                                columnOrder={
+                                    linkedChart.tableConfig.columnOrder ?? []
+                                }
+                                pivotTableMaxColumnLimit={1000}
+                                colorPalette={colorPalette}
+                                isDashboard={false}
+                            >
+                                <LightdashVisualization
+                                    className="sentry-block ph-no-capture"
+                                    data-testid="drill-visualization"
+                                />
+                            </VisualizationProvider>
+                        )}
                     </div>
                 </Paper>
             </Stack>

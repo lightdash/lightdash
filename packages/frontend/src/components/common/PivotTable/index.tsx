@@ -14,6 +14,8 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
+    type DrillConfig,
+    type DrillPath,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -126,6 +128,18 @@ type PivotTableProps = BoxProps & // TODO: remove this
         isMinimal: boolean;
         isDashboard?: boolean;
         onColumnWidthChange?: (fieldId: string, width: number) => void;
+        drillConfig?: DrillConfig;
+        onDrillDown?: (params: {
+            drillPath: DrillPath;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => void;
+        onDrillThrough?: (params: {
+            drillPathId: string;
+            linkedChartUuid: string;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => void;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -141,6 +155,9 @@ const PivotTable: FC<PivotTableProps> = ({
     isMinimal = false,
     isDashboard = false,
     onColumnWidthChange,
+    drillConfig,
+    onDrillDown,
+    onDrillThrough,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -1132,6 +1149,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 onClose={onClose}
                                                 onCopy={onCopy}
                                                 isMinimal={isMinimal}
+                                                drillConfig={drillConfig}
+                                                onDrillDown={onDrillDown}
+                                                onDrillThrough={onDrillThrough}
                                             >
                                                 {render()}
                                             </ValueCellMenu>

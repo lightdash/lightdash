@@ -123,7 +123,23 @@ const ChartDrillModal: FC<Props> = (props) => {
                         color="gray"
                         leftSection={<IconFilter size={10} />}
                     >
-                        {filterSummary}
+                        {filterSummary.split(', ').map((part, i) => {
+                            const colonIdx = part.indexOf(': ');
+                            if (colonIdx === -1) return part;
+                            return (
+                                <Text key={i} component="span" fz="inherit">
+                                    {i > 0 && ', '}
+                                    <Text
+                                        component="span"
+                                        fz="inherit"
+                                        fw={700}
+                                    >
+                                        {part.slice(0, colonIdx)}
+                                    </Text>
+                                    {part.slice(colonIdx)}
+                                </Text>
+                            );
+                        })}
                     </Badge>
                 </Group>
             )}
