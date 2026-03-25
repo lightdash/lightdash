@@ -202,6 +202,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showResultsTotal,
         showSubtotals,
         updateColumnProperty,
+        showFromRow,
+        showToRow,
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
@@ -292,6 +294,15 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     }
 
+    const allRows = resultsData?.rows || [];
+    const slicedRows =
+        showFromRow === undefined && showToRow === undefined
+            ? allRows
+            : allRows.slice(
+                  showFromRow !== undefined ? showFromRow - 1 : 0,
+                  showToRow !== undefined ? showToRow : allRows.length,
+              );
+
     return (
         <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">
             <Table
@@ -300,8 +311,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 $shouldExpand={$shouldExpand}
                 className={className}
                 status={loadResultsStatus}
-                data={resultsData?.rows || []}
-                totalRowsCount={resultsData?.totalResults || 0}
+                data={slicedRows}
+                totalRowsCount={slicedRows.length}
                 isFetchingRows={!!resultsData?.isFetchingRows}
                 loadingState={() => <LoadingChart />}
                 emptyState={isDashboard ? DashboardEmptyState : undefined}
