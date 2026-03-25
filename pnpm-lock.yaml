@@ -871,6 +871,9 @@ importers:
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
+      '@lightdash/query-sdk':
+        specifier: workspace:*
+        version: link:../query-sdk
       '@mantine-8/core':
         specifier: npm:@mantine/core@8.0.0
         version: '@mantine/core@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'
@@ -1420,6 +1423,9 @@ importers:
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@24.3.1)(jiti@1.21.7)(jsdom@24.0.0(canvas@3.2.1))(lightningcss@1.22.0)(sugarss@5.0.1(postcss@8.5.6))(tsx@4.19.4)(yaml@2.8.2)
 
   packages/sdk-next-test-app:
     dependencies:
@@ -7425,7 +7431,6 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
-    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:

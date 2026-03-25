@@ -10,6 +10,7 @@ import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
+import AppPreviewTest from './pages/AppPreviewTest';
 import AuthPopupResult from './pages/AuthPopupResult';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
@@ -336,6 +337,10 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
                 <Home />
             </TrackPage>
         ),
+    },
+    {
+        path: 'apps/:appUuid/versions/:versionUuid/preview',
+        element: <AppPreviewTest />,
     },
     {
         path: 'user-activity',

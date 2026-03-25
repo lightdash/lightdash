@@ -19,7 +19,14 @@ export type {
     FormatFunction,
     LightdashClientConfig,
     LightdashUser,
+    QueryDefinition,
+    QueryResult,
     Row,
     Sort,
+    Transport,
     UnitOfTime,
 } from './types';
+
+// Transports
+export { createApiTransport } from './apiTransport';
+export { extractHashToken, getTokenFromHash } from './hashToken';

@@ -303,6 +303,12 @@ try {
     // ------------------------------------------------------------------
     console.log('\n\n--- Building app ---\n');
 
+    // Set base to relative so the built app works when served from any path
+    await sandbox.commands.run(
+        `echo 'VITE_ASSET_BASE_URL=./' >> /app/.env`,
+        { timeoutMs: 5_000 },
+    );
+
     const buildResult = await sandbox.commands.run('pnpm build', {
         cwd: '/app',
         timeoutMs: 60 * 1000,

@@ -14,6 +14,7 @@
  */
 
 import { createApiTransport } from './apiTransport';
+import { getTokenFromHash } from './hashToken';
 import { QueryBuilder } from './query';
 import type { LightdashClientConfig, LightdashUser, Transport } from './types';
 
@@ -78,20 +79,67 @@ function configFromEnv(): LightdashClientConfig | null {
 }
 
 /**
+ * Build config from hash fragment params.
+ *
+ * When a PAT is passed via hash (e.g. #token=PAT&projectUuid=UUID&baseUrl=URL),
+ * use apiTransport with direct API calls. This is for E2B sandboxes and local dev.
+ */
+function configFromHash(): LightdashClientConfig | null {
+    if (typeof window === 'undefined') return null;
+
+    const token = getTokenFromHash();
+    if (!token) return null;
+
+    const hash = window.location.hash.replace(/^#/, '');
+    const params = new URLSearchParams(hash);
+
+    const baseUrl = params.get('baseUrl') ?? null;
+
+    const projectUuid =
+        params.get('projectUuid') ??
+        import.meta.env?.VITE_LIGHTDASH_PROJECT_UUID ??
+        null;
+
+    if (!baseUrl || !projectUuid) return null;
+
+    return { apiKey: token, baseUrl, projectUuid };
+}
+
+/**
  * Create a Lightdash client.
  *
- * With no args, reads from env vars:
- *   const lightdash = createClient()
- *
- * With explicit config (used when token comes from parent frame):
- *   const lightdash = createClient({ apiKey, baseUrl, projectUuid })
+ * Resolution order (first match wins):
+ * 1. Explicit config/transport passed as arguments
+ * 2. Hash fragment params (#token=PAT&...) → apiTransport
+ * 3. Env vars (VITE_LIGHTDASH_*) → apiTransport (standalone dev)
  */
-export function createClient(config?: LightdashClientConfig): LightdashClient {
+export function createClient(
+    config?: LightdashClientConfig,
+    transport?: Transport,
+): LightdashClient {
+    // 1. Explicit transport
+    if (transport) {
+        const resolved = config ?? configFromEnv();
+        if (!resolved) {
+            throw new Error('Missing Lightdash client config.');
+        }
+        return new LightdashClient(resolved, transport);
+    }
+
+    if (!config) {
+        // 2. Hash token → direct API calls
+        const hashConfig = configFromHash();
+        if (hashConfig) {
+            return new LightdashClient(hashConfig);
+        }
+    }
+
+    // 4. Env vars / explicit config
     const resolved = config ?? configFromEnv();
     if (!resolved) {
         throw new Error(
             'Missing Lightdash client config. Either pass { apiKey, baseUrl, projectUuid } ' +
-                'or set env vars: VITE_LIGHTDASH_API_KEY, VITE_LIGHTDASH_URL, VITE_LIGHTDASH_PROJECT_UUID',
+                'or set env vars.',
         );
     }
     return new LightdashClient(resolved);
