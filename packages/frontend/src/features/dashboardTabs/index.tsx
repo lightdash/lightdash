@@ -1,5 +1,6 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    FeatureFlags,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -22,6 +23,7 @@ import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
@@ -215,6 +217,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { showToastError } = useToaster();
     const { health } = useApp();
 
+    const keepTabsInMemory = useClientFeatureFlag(
+        FeatureFlags.DashboardTabsInMemory,
+    );
+
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
 
@@ -316,12 +322,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
     // Track which tabs have been visited so we can lazy-mount tab content.
-    // Tabs are mounted on first visit and kept mounted for instant re-switching.
-    // We use a ref to accumulate visited UUIDs without triggering extra renders,
-    // then read it synchronously during render.
+    // When keepTabsInMemory is enabled, tabs are mounted on first visit and
+    // kept mounted (hidden) for instant re-switching.
+    // When disabled, only the active tab is mounted to avoid memory bloat
+    // on large dashboards (visited tabs with many charts can spike to 3 GB+).
     const visitedTabsRef = useRef(new Set<string>());
     if (activeTab) {
-        visitedTabsRef.current.add(activeTab.uuid);
+        if (keepTabsInMemory) {
+            visitedTabsRef.current.add(activeTab.uuid);
+        } else {
+            visitedTabsRef.current = new Set([activeTab.uuid]);
+        }
     }
     const visitedTabs = visitedTabsRef.current;
 
@@ -527,39 +538,42 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const handleChangeTab = (tab: DashboardTab) => {
-        // Instantly toggle tab visibility via DOM, bypassing React re-render.
-        // React will reconcile the inline styles on its next render cycle,
-        // but the user sees the switch immediately.
-        const container = gridWrapperRef.current;
-        if (container) {
-            for (const child of container.children) {
-                const panel = child as HTMLElement;
-                if (panel.dataset.tabUuid === tab.uuid) {
-                    panel.style.visibility = '';
-                    panel.style.position = 'relative';
-                    panel.style.width = '';
-                    panel.style.pointerEvents = '';
-                } else {
-                    panel.style.visibility = 'hidden';
-                    panel.style.position = 'absolute';
-                    panel.style.width = '100%';
-                    panel.style.pointerEvents = 'none';
-                }
-            }
-
-            // Toggle the active tab indicator via DOM.
-            // Scope to our dashboard tabs root to avoid affecting other Tabs on the page.
-            // Mantine embeds the tab value in the id: "mantine-...-tab-{uuid}"
-            const tabsRoot = document.querySelector(`.${styles.tabsRoot}`);
-            if (tabsRoot) {
-                const tabButtons = tabsRoot.querySelectorAll('[role="tab"]');
-                for (const tabEl of tabButtons) {
-                    if (tabEl.id?.includes(tab.uuid)) {
-                        tabEl.setAttribute('data-active', 'true');
-                        tabEl.setAttribute('aria-selected', 'true');
+        // When tabs are kept in memory, instantly toggle visibility via DOM
+        // manipulation for a snappier UX. When disabled, React handles
+        // the mount/unmount so DOM tweaks are unnecessary.
+        if (keepTabsInMemory) {
+            const container = gridWrapperRef.current;
+            if (container) {
+                for (const child of container.children) {
+                    const panel = child as HTMLElement;
+                    if (panel.dataset.tabUuid === tab.uuid) {
+                        panel.style.visibility = '';
+                        panel.style.position = 'relative';
+                        panel.style.width = '';
+                        panel.style.pointerEvents = '';
                     } else {
-                        tabEl.removeAttribute('data-active');
-                        tabEl.setAttribute('aria-selected', 'false');
+                        panel.style.visibility = 'hidden';
+                        panel.style.position = 'absolute';
+                        panel.style.width = '100%';
+                        panel.style.pointerEvents = 'none';
+                    }
+                }
+
+                // Toggle the active tab indicator via DOM.
+                // Scope to our dashboard tabs root to avoid affecting other Tabs on the page.
+                // Mantine embeds the tab value in the id: "mantine-...-tab-{uuid}"
+                const tabsRoot = document.querySelector(`.${styles.tabsRoot}`);
+                if (tabsRoot) {
+                    const tabButtons =
+                        tabsRoot.querySelectorAll('[role="tab"]');
+                    for (const tabEl of tabButtons) {
+                        if (tabEl.id?.includes(tab.uuid)) {
+                            tabEl.setAttribute('data-active', 'true');
+                            tabEl.setAttribute('aria-selected', 'true');
+                        } else {
+                            tabEl.removeAttribute('data-active');
+                            tabEl.setAttribute('aria-selected', 'false');
+                        }
                     }
                 }
             }

@@ -110,6 +110,13 @@ export enum FeatureFlags {
      * Enable content verification (verified seal for charts and dashboards)
      */
     ContentVerification = 'content-verification',
+
+    /**
+     * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
+     * re-switching. Disabled by default because large dashboards can spike
+     * browser memory to 3 GB+ when all tab data stays in memory.
+     */
+    DashboardTabsInMemory = 'dashboard-tabs-in-memory',
 }
 
 export type FeatureFlag = {
