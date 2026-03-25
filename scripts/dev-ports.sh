@@ -194,7 +194,11 @@ cmd_claim() {
         # Check for stale lock (older than 30 seconds)
         if [ -d "$lockdir" ]; then
             local lock_age
-            lock_age=$(( $(date +%s) - $(stat -f %m "$lockdir" 2>/dev/null || echo "0") ))
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                lock_age=$(( $(date +%s) - $(stat -f %m "$lockdir" 2>/dev/null || echo "0") ))
+            else
+                lock_age=$(( $(date +%s) - $(stat -c %Y "$lockdir" 2>/dev/null || echo "0") ))
+            fi
             if [ "$lock_age" -gt 30 ]; then
                 rmdir "$lockdir" 2>/dev/null || true
                 continue

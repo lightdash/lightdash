@@ -78,7 +78,7 @@ Run these checks to determine what needs to be done. **Run checks 1-5 and 10 in 
 ```bash
 # Check 1a: Shared Docker services running (minio, headless-browser, mailpit, nats)
 SHARED_COUNT=$(docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
-[ "$SHARED_COUNT" -ge 3 ] && echo "OK: Shared Docker services running ($SHARED_COUNT)" || echo "NEED: Start shared Docker services (only $SHARED_COUNT/3 running)"
+[ "$SHARED_COUNT" -ge 4 ] && echo "OK: Shared Docker services running ($SHARED_COUNT)" || echo "NEED: Start shared Docker services (only $SHARED_COUNT/4 running)"
 
 # Check 1b: Per-instance PostgreSQL running
 INSTANCE_COUNT=$(docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
