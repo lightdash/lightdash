@@ -266,7 +266,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 <Flex gap="xs" w="100%">
                     <NumberInput
                         size="xs"
-                        sx={{ flexShrink: 1, flexGrow: 1 }}
+                        sx={{
+                            flexShrink: 1,
+                            flexGrow: 1,
+                            minWidth: 50,
+                        }}
                         placeholder={placeholder}
                         disabled={disabled}
                         data-autofocus
@@ -282,7 +286,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
                     <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
-                        sx={{ flexShrink: 0, flexGrow: 3 }}
+                        sx={{ flexShrink: 1, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval
