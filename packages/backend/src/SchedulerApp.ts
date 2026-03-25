@@ -6,7 +6,7 @@ import http from 'http';
 import knex, { Knex } from 'knex';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
-import { RedisCacheClient } from './clients/CacheClient';
+import { createCacheClient } from './clients/CacheClient';
 import {
     ClientProviderMap,
     ClientRepository,
@@ -133,9 +133,9 @@ export default class SchedulerApp {
             utilProviders: args.utilProviders,
             lightdashConfig: this.lightdashConfig,
         });
-        const keyValueCacheClient = this.lightdashConfig.redis
-            ? new RedisCacheClient(this.lightdashConfig.redis)
-            : undefined;
+        const keyValueCacheClient = createCacheClient(
+            this.lightdashConfig.redis,
+        );
         this.models = new ModelRepository({
             modelProviders: args.modelProviders,
             lightdashConfig: this.lightdashConfig,
