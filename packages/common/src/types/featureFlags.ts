@@ -110,6 +110,11 @@ export enum FeatureFlags {
      * Enable content verification (verified seal for charts and dashboards)
      */
     ContentVerification = 'content-verification',
+
+    /**
+     * Enable show/hide N rows from start/end of chart data
+     */
+    ShowHideRows = 'show-hide-rows',
 }
 
 export type FeatureFlag = {
