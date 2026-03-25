@@ -1,3 +1,10 @@
+## [0.2662.3](https://github.com/lightdash/lightdash/compare/0.2662.2...0.2662.3) (2026-03-25)
+
+
+### Bug Fixes
+
+* upgrade liquidjs 10.0.0→10.25.0 (directory traversal) ([#20985](https://github.com/lightdash/lightdash/issues/20985)) ([d0205ad](https://github.com/lightdash/lightdash/commit/d0205ad812768571c26efec065999e940dedc8a8))
+
 ## [0.2662.2](https://github.com/lightdash/lightdash/compare/0.2662.1...0.2662.2) (2026-03-25)
 
 
