@@ -375,6 +375,10 @@ export type TableChart = {
     conditionalFormattings?: ConditionalFormattingConfig[];
     /** Display metrics as rows instead of columns */
     metricsAsRows?: boolean;
+    /** 1-indexed first row to display (default: 1, i.e. from the start) */
+    showFromRow?: number;
+    /** 1-indexed last row to display (default: total row count, i.e. to the end) */
+    showToRow?: number;
 };
 
 export enum CartesianSeriesType {
