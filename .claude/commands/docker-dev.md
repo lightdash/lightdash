@@ -264,8 +264,6 @@ pm2 restart ${LD_INSTANCE_ID}-frontend  # Restart only the frontend
 
 Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Spotlight traces, and browser automation.
 
-**Chrome DevTools:** Always use \`isolatedContext: "${LD_INSTANCE_ID}"\` when opening browser pages via \`mcp__chrome-devtools__new_page\`. This keeps each instance's browser session isolated from other instances and manual browsing.
-
 Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 
 ## Database Snapshots
