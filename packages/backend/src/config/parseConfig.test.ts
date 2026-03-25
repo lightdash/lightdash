@@ -119,6 +119,45 @@ test('Should use explicit pre-aggregate S3 credentials when set', () => {
     });
 });
 
+test('Should default apps S3 config to base S3 config', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    const config = parseConfig();
+    expect(config.appRuntime.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'mock_bucket',
+        region: 'mock_region',
+        accessKey: 'mock_access_key',
+        secretKey: 'mock_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should use explicit apps S3 config when set', () => {
+    process.env.APPS_S3_BUCKET = 'apps_bucket';
+    process.env.APPS_S3_REGION = 'apps_region';
+    process.env.APPS_S3_ACCESS_KEY = 'apps_access_key';
+    process.env.APPS_S3_SECRET_KEY = 'apps_secret_key';
+    const config = parseConfig();
+    expect(config.appRuntime.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'apps_bucket',
+        region: 'apps_region',
+        accessKey: 'apps_access_key',
+        secretKey: 'apps_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should return null apps S3 config when base S3 is not configured', () => {
+    delete process.env.S3_ENDPOINT;
+    delete process.env.S3_BUCKET;
+    delete process.env.S3_REGION;
+    process.env.APPS_S3_BUCKET = 'apps_bucket';
+    const config = parseConfig();
+    expect(config.appRuntime.s3).toBeNull();
+});
+
 test('Should parse rudder config from env', () => {
     const expected = {
         dataPlaneUrl: 'customurl',

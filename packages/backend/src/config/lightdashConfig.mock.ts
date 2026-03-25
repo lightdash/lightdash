@@ -362,4 +362,10 @@ export const lightdashConfigMock: LightdashConfig = {
     changeChartExplore: {
         enabled: undefined,
     },
+    appRuntime: {
+        enabled: false,
+        lightdashOrigin: 'https://test.lightdash.cloud',
+        cdnOrigin: null,
+        s3: null,
+    },
 };
