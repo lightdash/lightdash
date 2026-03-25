@@ -2,8 +2,7 @@
  * Chainable query builder.
  *
  * Usage:
- *   lightdash
- *     .model('orders')
+ *   query('orders')
  *     .dimensions(['customer_segment', 'order_date'])
  *     .metrics(['total_revenue', 'order_count'])
  *     .filters([{ field: 'order_date', operator: 'inThePast', value: 90, unit: 'days' }])
@@ -19,6 +18,19 @@ import type {
     QueryDefinition,
     Sort,
 } from './types';
+
+/**
+ * Create a query builder for a model.
+ *
+ * Usage:
+ *   query('orders')
+ *     .dimensions(['customer_segment'])
+ *     .metrics(['total_revenue'])
+ *     .limit(100)
+ */
+export function query(modelName: string): QueryBuilder {
+    return new QueryBuilder(modelName);
+}
 
 export class QueryBuilder {
     private readonly _explore: string;

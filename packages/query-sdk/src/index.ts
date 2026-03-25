@@ -1,3 +1,6 @@
+// Query builder
+export { query } from './query';
+
 // Client
 export { createClient, LightdashClient } from './client';
 
@@ -5,13 +8,15 @@ export { createClient, LightdashClient } from './client';
 export { useLightdash } from './useLightdash';
 
 // Provider
-export { LightdashProvider } from './LightdashProvider';
+export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 
 // Types
 export type {
+    Column,
     Filter,
     FilterOperator,
     FilterValue,
+    FormatFunction,
     LightdashClientConfig,
     LightdashUser,
     Row,

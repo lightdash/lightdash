@@ -1,5 +1,4 @@
-import { useLightdash } from '@lightdash/query-sdk';
-import { lightdash } from '../lightdash';
+import { query, useLightdash } from '@lightdash/query-sdk';
 
 const TEAM_COLORS: Record<string, string> = {
     McLaren: '#FF8700',
@@ -15,8 +14,7 @@ const TEAM_COLORS: Record<string, string> = {
     Cadillac: '#FFD700',
 };
 
-const chartQuery = lightdash
-    .model('fct_race_results')
+const chartQuery = query('fct_race_results')
     .dimensions(['constructor_name'])
     .metrics(['total_points'])
     .filters([{ field: 'season', operator: 'equals', value: 2025 }])
@@ -24,7 +22,7 @@ const chartQuery = lightdash
     .limit(10);
 
 export function ConstructorChart() {
-    const { data, loading, error } = useLightdash(chartQuery);
+    const { data, format, loading, error } = useLightdash(chartQuery);
 
     if (loading) return <div className="card loading">Loading...</div>;
     if (error) return <div className="card error">{error.message}</div>;
@@ -54,7 +52,7 @@ export function ConstructorChart() {
                                         background: color,
                                     }}
                                 >
-                                    {value}
+                                    {format(row, 'total_points')}
                                 </div>
                             </div>
                         </div>

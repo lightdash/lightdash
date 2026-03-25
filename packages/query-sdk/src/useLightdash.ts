@@ -16,11 +16,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTransport } from './LightdashProvider';
 import type { QueryBuilder } from './query';
-import type { Row } from './types';
+import type { Column, FormatFunction, Row } from './types';
+
+const noopFormat: FormatFunction = (_row, _fieldId) => '';
 
 type UseLightdashResult = {
     /** Result rows as flat objects. Numbers are numbers, strings are strings. */
     data: Row[];
+    /** Column metadata (name, label, type) */
+    columns: Column[];
+    /** Format a field value for display: format(row, 'total_revenue') → "$1,234" */
+    format: FormatFunction;
     /** True while the query is executing */
     loading: boolean;
     /** Error if the query failed, null otherwise */
@@ -32,6 +38,8 @@ type UseLightdashResult = {
 export function useLightdash(query: QueryBuilder): UseLightdashResult {
     const transport = useTransport();
     const [data, setData] = useState<Row[]>([]);
+    const [columns, setColumns] = useState<Column[]>([]);
+    const [format, setFormat] = useState<FormatFunction>(() => noopFormat);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
     const [fetchCount, setFetchCount] = useState(0);
@@ -54,6 +62,8 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
             .then((res) => {
                 if (!cancelled) {
                     setData(res.rows);
+                    setColumns(res.columns);
+                    setFormat(() => res.format);
                     setLoading(false);
                 }
             })
@@ -72,5 +82,5 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         // queryKey tracks query identity. query is intentionally omitted.
     }, [queryKey, transport, fetchCount]); // eslint-disable-line
 
-    return { data, loading, error, refetch };
+    return { data, columns, format, loading, error, refetch };
 }
