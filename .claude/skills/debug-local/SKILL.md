@@ -221,14 +221,12 @@ Returns application log entries.
 
 ### Browser Debugging (Chrome DevTools MCP)
 
-Use the Chrome DevTools MCP tools for browser automation.
-
-**Always use `isolatedContext`** to avoid polluting other browser sessions (e.g., other Claude instances or manual browsing). Use your instance ID or worktree name as the context name:
+Use the Chrome DevTools MCP tools for browser automation:
 
 #### Opening pages
 
 ```
-mcp__chrome-devtools__new_page with url: "http://localhost:3000/login", isolatedContext: "debug-session"
+mcp__chrome-devtools__new_page with url: "http://localhost:3000/login"
 mcp__chrome-devtools__navigate_page with url: "http://localhost:3000", type: "url"
 ```
 
