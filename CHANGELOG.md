@@ -1,3 +1,10 @@
+# [0.2662.0](https://github.com/lightdash/lightdash/compare/0.2661.2...0.2662.0) (2026-03-25)
+
+
+### Features
+
+* add OAuth authentication support for API endpoints ([#21091](https://github.com/lightdash/lightdash/issues/21091)) ([ba8b2e9](https://github.com/lightdash/lightdash/commit/ba8b2e929272ac77cfb4a309518ce8bb9e5842de))
+
 ## [0.2661.2](https://github.com/lightdash/lightdash/compare/0.2661.1...0.2661.2) (2026-03-24)
 
 
