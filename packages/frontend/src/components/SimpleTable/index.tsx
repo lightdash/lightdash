@@ -60,7 +60,17 @@ const SimpleTable: FC<SimpleTableProps> = ({
     );
     const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
+    const rowLimit = isTableVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig.rowLimit
+        : undefined;
+
+    const needsAllRowsForLastN =
+        isShowHideRowsEnabled &&
+        rowLimit?.direction === 'last' &&
+        rowLimit.count > 0;
+
     const shouldPaginateResults = useMemo(() => {
+        if (needsAllRowsForLastN) return false;
         return Boolean(
             !resultsData ||
             !isTableVisualizationConfig(visualizationConfig) ||
@@ -68,7 +78,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             (!visualizationConfig.chartConfig.showSubtotals &&
                 !visualizationConfig.chartConfig.pivotTableData?.data),
         );
-    }, [resultsData, visualizationConfig]);
+    }, [needsAllRowsForLastN, resultsData, visualizationConfig]);
 
     const loadResultsStatus = useMemo(() => {
         if (!resultsData) {
@@ -196,10 +206,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
             ? visualizationConfig.chartConfig.columns
             : [];
     }, [visualizationConfig]);
-
-    const rowLimit = isTableVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig.rowLimit
-        : undefined;
 
     const slicedRows = useMemo(
         () =>

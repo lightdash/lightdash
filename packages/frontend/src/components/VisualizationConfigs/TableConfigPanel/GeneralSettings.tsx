@@ -265,7 +265,7 @@ const GeneralSettings: FC = () => {
                 />
             </Config.Section>
 
-            {isShowHideRowsEnabled && (
+            {isShowHideRowsEnabled && !isPivotTableEnabled && (
                 <Config.Section>
                     <Config.Heading>Data</Config.Heading>
                     <Switch
