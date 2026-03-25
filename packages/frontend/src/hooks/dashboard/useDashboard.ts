@@ -9,6 +9,7 @@ import {
     type DashboardFilters,
     type DashboardHistory,
     type DashboardTile,
+    type DashboardVersion,
     type DateGranularity,
     type SavedChartsInfoForDashboardAvailableFilters,
     type UpdateDashboard,
@@ -680,6 +681,28 @@ export const useDashboardHistory = (dashboardUuid: string | undefined) =>
         retry: false,
     });
 
+const getDashboardVersion = async (
+    dashboardUuid: string,
+    versionUuid: string,
+): Promise<DashboardVersion> => {
+    return lightdashApi<DashboardVersion>({
+        url: `/dashboards/${dashboardUuid}/version/${versionUuid}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useDashboardVersion = (
+    dashboardUuid: string | undefined,
+    versionUuid: string | undefined,
+) =>
+    useQuery<DashboardVersion, ApiError>({
+        queryKey: ['dashboard_version', dashboardUuid, versionUuid],
+        queryFn: () => getDashboardVersion(dashboardUuid!, versionUuid!),
+        enabled: dashboardUuid !== undefined && versionUuid !== undefined,
+        retry: false,
+    });
+
 const rollbackDashboard = async (
     dashboardUuid: string,
     versionUuid: string,
@@ -703,14 +726,43 @@ export const useDashboardVersionRollbackMutation = (
         {
             mutationKey: ['dashboard_version_rollback'],
             onSuccess: async () => {
+                // Invalidate dashboard query to refresh dashboard data
                 await queryClient.invalidateQueries([
                     'saved_dashboard_query',
                     dashboardUuid,
                 ]);
+
+                // Invalidate dashboard history to reflect new version
                 await queryClient.invalidateQueries([
                     'dashboard_history',
                     dashboardUuid,
                 ]);
+
+                // Invalidate dashboard version queries
+                await queryClient.invalidateQueries([
+                    'dashboard_version',
+                    dashboardUuid,
+                ]);
+
+                // Invalidate all saved chart queries to refresh chart data
+                // This will force reload of any charts that were rolled back
+                await queryClient.invalidateQueries(['saved_query']);
+
+                // Invalidate chart history queries for any affected charts
+                await queryClient.invalidateQueries(['chart_history']);
+
+                // Invalidate chart version queries
+                await queryClient.invalidateQueries(['chart_version']);
+
+                // Invalidate the project charts list in case chart metadata changed
+                await queryClient.invalidateQueries(['project']);
+
+                // Invalidate SQL charts that might be in dashboard tiles
+                await queryClient.invalidateQueries([
+                    'sqlRunner',
+                    'savedSqlChart',
+                ]);
+
                 showToastSuccess({
                     title: `Success! Dashboard was reverted.`,
                 });

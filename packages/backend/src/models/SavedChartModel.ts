@@ -472,6 +472,12 @@ export class SavedChartModel {
 
     private contentVerificationModel: ContentVerificationModel | undefined;
 
+    async transaction<T>(
+        callback: (tx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(callback);
+    }
+
     constructor(args: SavedChartModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
@@ -604,6 +610,32 @@ export class SavedChartModel {
         return SavedChartModel.convertVersionSummary(chartVersion);
     }
 
+    async getLatestVersionSummary(
+        chartUuid: string,
+    ): Promise<ChartVersionSummary | undefined> {
+        const row = await this.getVersionSummaryQuery()
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .first();
+        return row ? SavedChartModel.convertVersionSummary(row) : undefined;
+    }
+
+    async getVersionSummaryAtTimestamp(
+        chartUuid: string,
+        targetTimestamp: Date,
+    ): Promise<ChartVersionSummary | undefined> {
+        const row = await this.getVersionSummaryQuery()
+            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
+            .where(
+                `${SavedChartVersionsTableName}.created_at`,
+                '<=',
+                targetTimestamp,
+            )
+            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc')
+            .first();
+        return row ? SavedChartModel.convertVersionSummary(row) : undefined;
+    }
+
     async getLatestVersionSummaries(
         chartUuid: string,
     ): Promise<ChartVersionSummary[]> {
@@ -664,8 +696,9 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: CreateSavedChartVersion,
         user: SessionUser | undefined,
+        tx?: Knex,
     ): Promise<SavedChartDAO> {
-        await this.database.transaction(async (trx) => {
+        const doWork = async (trx: Knex) => {
             const [savedChart] = await trx(SavedChartsTableName)
                 .select(['saved_query_id'])
                 .where('saved_query_uuid', savedChartUuid)
@@ -691,7 +724,13 @@ export class SavedChartModel {
                 })
                 .where('saved_query_uuid', savedChartUuid)
                 .whereNull('deleted_at');
-        });
+        };
+
+        if (tx) {
+            await doWork(tx);
+        } else {
+            await this.database.transaction(async (trx) => doWork(trx));
+        }
 
         return this.get(savedChartUuid);
     }
@@ -2129,5 +2168,29 @@ export class SavedChartModel {
         if (updateCount !== 1) {
             throw new NotFoundError('Deleted chart not found');
         }
+    }
+
+    /**
+     * Rollback a chart to the version that was active at the given timestamp.
+     * Returns undefined if no version existed at that time.
+     */
+    async rollbackToVersionAtTimestamp(
+        savedChartUuid: string,
+        targetTimestamp: Date,
+        user: SessionUser,
+        tx?: Knex,
+    ): Promise<SavedChartDAO | undefined> {
+        const version = await this.getVersionSummaryAtTimestamp(
+            savedChartUuid,
+            targetTimestamp,
+        );
+        if (!version) {
+            return undefined;
+        }
+        const chartVersion = await this.get(
+            savedChartUuid,
+            version.versionUuid,
+        );
+        return this.createVersion(savedChartUuid, chartVersion, user, tx);
     }
 }
