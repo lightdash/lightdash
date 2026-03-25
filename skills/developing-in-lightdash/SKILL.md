@@ -23,6 +23,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Explore data warehouse | `lightdash sql` to execute raw sql, read .csv results | [CLI Reference](./resources/cli-reference.md) |
 | Define metrics & dimensions | Edit dbt YAML or Lightdash YAML | [Metrics](./resources/metrics-reference.md), [Dimensions](./resources/dimensions-reference.md) |
 | Create charts | `lightdash download`, edit YAML, `lightdash upload` | [Chart Types](#chart-types) |
+| Add period comparisons | Add PoP additional metrics to chart YAML | [Period over Period](./resources/period-over-period-reference.md) |
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
@@ -314,6 +315,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Treemap Chart Reference](./resources/treemap-chart-reference.md)
 - [Map Chart Reference](./resources/map-chart-reference.md)
 - [Custom Viz Reference](./resources/custom-viz-reference.md)
+- [Period over Period Reference](./resources/period-over-period-reference.md) - PoP comparisons (YoY, MoM, etc.)
 
 ### Dashboards & Workflows
 - [Dashboard Reference](./resources/dashboard-reference.md)
