@@ -1,0 +1,15 @@
+volumes:
+    postgres_data:
+        name: ${LD_VOLUME_PREFIX:-docker}_postgres_data
+
+services:
+    db-dev:
+        image: pgvector/pgvector:pg16
+        container_name: ${LD_CONTAINER_PREFIX:-docker}-db-dev-1
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: password
+        ports:
+            - '${LD_PG_PORT:-5432}:5432'
+        volumes:
+            - postgres_data:/var/lib/postgresql/data

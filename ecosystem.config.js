@@ -4,17 +4,22 @@
  * This file configures PM2 to manage all development processes.
  * Use `pnpm pm2:start` to start all processes.
  *
+ * Multi-instance support:
+ *   Set LD_INSTANCE_ID to namespace PM2 process names (default: 'lightdash').
+ *   Port env vars (PORT, FE_PORT, SCHEDULER_PORT, etc.) override defaults.
+ *   Use scripts/dev-ports.sh to manage port allocation across worktrees.
+ *
  * Prerequisites:
- *   - Docker services running: `./scripts/docker-dev.sh` or `/docker-dev`
+ *   - Docker services running: `/docker-dev`
  *   - Dependencies installed: `pnpm install`
  *
  * Process overview:
- *   - lightdash-api: Backend API server (port 8080)
- *   - lightdash-scheduler: Background job processor (port 8081)
- *   - lightdash-frontend: Vite dev server (port 3000)
- *   - lightdash-common-watch: TypeScript watcher for common package
- *   - lightdash-warehouses-watch: TypeScript watcher for warehouses package
- *   - lightdash-spotlight: Sentry Spotlight debugging UI (port 8969)
+ *   - <instanceId>-api: Backend API server (default port 8080)
+ *   - <instanceId>-scheduler: Background job processor (default port 8081)
+ *   - <instanceId>-frontend: Vite dev server (default port 3000)
+ *   - <instanceId>-common-watch: TypeScript watcher for common package
+ *   - <instanceId>-warehouses-watch: TypeScript watcher for warehouses package
+ *   - <instanceId>-spotlight: Sentry Spotlight debugging UI (default port 8969)
  *
  * Logs are stored in ~/.pm2/logs/ (PM2 default location)
  */
@@ -39,26 +44,39 @@ const envWithPath = {
     PATH: `${venvBinPath}:${process.env.PATH}`,
 };
 
+// Instance ID for namespacing PM2 process names (supports multiple worktrees)
+const instanceId = env.LD_INSTANCE_ID || 'lightdash';
+
+// Configurable ports (defaults match single-instance behavior)
+const apiPort = env.PORT || '8080';
+const schedulerPort = env.SCHEDULER_PORT || '8081';
+const debugPort = env.DEBUG_PORT || '9229';
+const fePort = env.FE_PORT || undefined; // Vite auto-detects if not set
+const sdkTestPort = env.SDK_TEST_PORT || '3030';
+const spotlightPort = env.SPOTLIGHT_PORT || '8969';
+
 // Log the root directory so it's obvious which worktree PM2 is running from
-console.log(`\n  Lightdash PM2 root: ${__dirname}\n`);
+console.log(`\n  Lightdash PM2 root: ${__dirname}`);
+console.log(`  Instance ID: ${instanceId}\n`);
+
+const frontendArgs = fePort ? `--port ${fePort}` : undefined;
 
 module.exports = {
     apps: [
-        // ─────────────────────────────────────────────────────────────────
         // Backend API Server
-        // ─────────────────────────────────────────────────────────────────
         {
-            name: 'lightdash-api',
+            name: `${instanceId}-api`,
             script: 'src/index.ts',
             interpreter: 'node',
-            node_args: '--import tsx --inspect=0.0.0.0:9229',
+            node_args: `--import tsx --inspect=0.0.0.0:${debugPort}`,
             cwd: path.join(__dirname, 'packages/backend'),
             env: {
                 ...envWithPath,
                 LIGHTDASH_MODE: 'development',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
-                SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
+                SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                PORT: apiPort,
             },
             watch: false,
             autorestart: true,
@@ -67,11 +85,9 @@ module.exports = {
             time: true,
         },
 
-        // ─────────────────────────────────────────────────────────────────
         // Background Job Scheduler
-        // ─────────────────────────────────────────────────────────────────
         {
-            name: 'lightdash-scheduler',
+            name: `${instanceId}-scheduler`,
             script: 'src/scheduler.ts',
             interpreter: 'node',
             node_args: '--import tsx',
@@ -79,9 +95,9 @@ module.exports = {
             env: {
                 ...envWithPath,
                 NODE_ENV: 'development',
-                SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
-                // Override PORT to avoid conflict with API (which uses 8080)
-                PORT: '8081',
+                SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                PORT: schedulerPort,
+                LIGHTDASH_PROMETHEUS_ENABLED: 'false',
             },
             watch: false,
             autorestart: true,
@@ -90,17 +106,17 @@ module.exports = {
             time: true,
         },
 
-        // ─────────────────────────────────────────────────────────────────
         // Frontend Vite Dev Server
-        // ─────────────────────────────────────────────────────────────────
         {
-            name: 'lightdash-frontend',
+            name: `${instanceId}-frontend`,
             script: 'node_modules/.bin/vite',
+            ...(frontendArgs ? { args: frontendArgs } : {}),
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/frontend'),
             env: {
                 NODE_ENV: 'development',
-                VITE_SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
+                VITE_SENTRY_SPOTLIGHT: `http://localhost:${spotlightPort}/stream`,
+                PORT: apiPort,
             },
             watch: false,
             autorestart: false,
@@ -109,11 +125,9 @@ module.exports = {
             time: true,
         },
 
-        // ─────────────────────────────────────────────────────────────────
         // Common Package TypeScript Watcher
-        // ─────────────────────────────────────────────────────────────────
         {
-            name: 'lightdash-common-watch',
+            name: `${instanceId}-common-watch`,
             script: '../../node_modules/.bin/tsc',
             args: '--build --watch --preserveWatchOutput --incremental tsconfig.build.json',
             interpreter: 'none',
@@ -125,11 +139,9 @@ module.exports = {
             time: true,
         },
 
-        // ─────────────────────────────────────────────────────────────────
         // Warehouses Package TypeScript Watcher
-        // ─────────────────────────────────────────────────────────────────
         {
-            name: 'lightdash-warehouses-watch',
+            name: `${instanceId}-warehouses-watch`,
             script: '../../node_modules/.bin/tsc',
             args: '--build --watch --preserveWatchOutput tsconfig.json',
             interpreter: 'none',
@@ -141,13 +153,11 @@ module.exports = {
             time: true,
         },
 
-        // ─────────────────────────────────────────────────────────────────
-        // SDK Test App (port 3030)
-        // ─────────────────────────────────────────────────────────────────
+        // SDK Test App
         {
-            name: 'lightdash-sdk-test',
+            name: `${instanceId}-sdk-test`,
             script: 'node_modules/.bin/vite',
-            args: '--port 3030',
+            args: `--port ${sdkTestPort}`,
             interpreter: 'none',
             cwd: path.join(__dirname, 'packages/sdk-test-app'),
             env: {
@@ -160,12 +170,11 @@ module.exports = {
             time: true,
         },
 
-        // ─────────────────────────────────────────────────────────────────
         // Spotlight.js Sidecar (Sentry Dev Debugging UI)
-        // ─────────────────────────────────────────────────────────────────
         {
-            name: 'lightdash-spotlight',
+            name: `${instanceId}-spotlight`,
             script: 'node_modules/.bin/spotlight',
+            args: `--port ${spotlightPort}`,
             interpreter: 'none',
             cwd: __dirname,
             env: {
