@@ -5243,4 +5243,236 @@ describe('Nested aggregate metrics', () => {
             1,
         );
     });
+
+    test('should use valid inner dep aliases in nested_agg_results group by', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_WITH_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).not.toContain('[object Object]');
+        expect(result.query).toContain(
+            'GROUP BY nested_agg."my_table_category", nested_agg."my_table_max_value"',
+        );
+    });
+
+    test('should handle max_by with mixed raw and aggregate refs without leaking helper metrics into na_base', () => {
+        const explore = JSON.parse(
+            JSON.stringify(EXPLORE_WITH_NESTED_AGG_AND_FANOUT),
+        ) as Explore;
+
+        explore.tables.my_table.metrics.raw_value_metric = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'raw_value_metric',
+            label: 'raw_value_metric',
+            sql: '${TABLE}.value',
+            compiledSql: '"my_table".value',
+            tablesReferences: ['my_table'],
+            hidden: true,
+        };
+        explore.tables.my_table.metrics.max_date_metric = {
+            type: MetricType.MAX,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'max_date_metric',
+            label: 'max_date_metric',
+            sql: '${TABLE}.id',
+            compiledSql: 'MAX("my_table".id)',
+            tablesReferences: ['my_table'],
+            hidden: true,
+        };
+        explore.tables.my_table.metrics.max_by_raw_metric = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'max_by_raw_metric',
+            label: 'max_by_raw_metric',
+            sql: 'MAX_BY(${raw_value_metric}, ${max_date_metric})',
+            compiledSql: 'MAX_BY("my_table".value, MAX("my_table".id))',
+            tablesReferences: ['my_table'],
+            hidden: false,
+        };
+
+        const result = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_NESTED_AGG_WITH_FANOUT,
+                metrics: ['my_table_max_by_raw_metric'],
+                sorts: [
+                    { fieldId: 'my_table_max_by_raw_metric', descending: true },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain('nested_agg AS (');
+        expect(
+            result.query.match(/AS "my_table_raw_value_metric"/g),
+        ).toHaveLength(1);
+        expect(result.query).toContain('GROUP BY 1, 2');
+        expect(result.query).toContain(
+            'GROUP BY nested_agg."fanout_users_title"',
+        );
+    });
+
+    test('should still group by non-wrapped aggregate helper deps when mixed with raw-helper max_by metric', () => {
+        const explore = JSON.parse(
+            JSON.stringify(EXPLORE_WITH_NESTED_AGG_AND_FANOUT),
+        ) as Explore;
+
+        explore.tables.my_table.metrics.raw_value_metric = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'raw_value_metric',
+            label: 'raw_value_metric',
+            sql: '${TABLE}.value',
+            compiledSql: '"my_table".value',
+            tablesReferences: ['my_table'],
+            hidden: true,
+        };
+        explore.tables.my_table.metrics.max_date_metric = {
+            type: MetricType.MAX,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'max_date_metric',
+            label: 'max_date_metric',
+            sql: '${TABLE}.id',
+            compiledSql: 'MAX("my_table".id)',
+            tablesReferences: ['my_table'],
+            hidden: true,
+        };
+        explore.tables.my_table.metrics.max_by_raw_metric = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'max_by_raw_metric',
+            label: 'max_by_raw_metric',
+            sql: 'MAX_BY(${raw_value_metric}, ${max_date_metric})',
+            compiledSql: 'MAX_BY("my_table".value, MAX("my_table".id))',
+            tablesReferences: ['my_table'],
+            hidden: false,
+        };
+
+        const result = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_NESTED_AGG_WITH_FANOUT,
+                metrics: [
+                    'my_table_max_by_raw_metric',
+                    'my_table_product_of_aggregates',
+                ],
+                sorts: [
+                    {
+                        fieldId: 'my_table_product_of_aggregates',
+                        descending: true,
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain(
+            'nested_agg."my_table_max_value" * nested_agg."my_table_count_records" AS "my_table_product_of_aggregates"',
+        );
+        expect(result.query).toContain(
+            'GROUP BY nested_agg."fanout_users_title", nested_agg."my_table_max_value", nested_agg."my_table_count_records"',
+        );
+    });
+
+    test('should compute mixed raw-helper max_by metric when used only in a metric filter', () => {
+        const explore = JSON.parse(
+            JSON.stringify(EXPLORE_WITH_NESTED_AGG_AND_FANOUT),
+        ) as Explore;
+
+        explore.tables.my_table.metrics.raw_value_metric = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'raw_value_metric',
+            label: 'raw_value_metric',
+            sql: '${TABLE}.value',
+            compiledSql: '"my_table".value',
+            tablesReferences: ['my_table'],
+            hidden: true,
+        };
+        explore.tables.my_table.metrics.max_date_metric = {
+            type: MetricType.MAX,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'max_date_metric',
+            label: 'max_date_metric',
+            sql: '${TABLE}.id',
+            compiledSql: 'MAX("my_table".id)',
+            tablesReferences: ['my_table'],
+            hidden: true,
+        };
+        explore.tables.my_table.metrics.max_by_raw_metric = {
+            type: MetricType.NUMBER,
+            fieldType: FieldType.METRIC,
+            table: 'my_table',
+            tableLabel: 'my_table',
+            name: 'max_by_raw_metric',
+            label: 'max_by_raw_metric',
+            sql: 'MAX_BY(${raw_value_metric}, ${max_date_metric})',
+            compiledSql: 'MAX_BY("my_table".value, MAX("my_table".id))',
+            tablesReferences: ['my_table'],
+            hidden: false,
+        };
+
+        const result = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...METRIC_QUERY_NESTED_AGG_WITH_FANOUT,
+                metrics: ['my_table_count_records'],
+                filters: {
+                    metrics: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: '1',
+                                target: {
+                                    fieldId: 'my_table_max_by_raw_metric',
+                                },
+                                operator: FilterOperator.GREATER_THAN,
+                                values: [10],
+                            },
+                        ],
+                    },
+                },
+                sorts: [
+                    { fieldId: 'my_table_count_records', descending: true },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_max_by_raw_metric"',
+        );
+        expect(result.query).toContain('("my_table_max_by_raw_metric") > (10)');
+
+        expect(result.query).toContain(
+            'SELECT\n  "fanout_users_title",\n  "my_table_count_records"\nFROM metrics',
+        );
+    });
 });

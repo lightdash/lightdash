@@ -883,6 +883,37 @@ export class MetricQueryBuilder {
         });
     }
 
+    private getMetricIdsRequiredInBaseSelects(): string[] {
+        const metricIds = new Set(this.getSelectedAndReferencedMetricIds());
+        const requiredMetricIds = new Set(
+            this.args.compiledMetricQuery.metrics.filter(
+                (metricId) => !this.isPopMetricId(metricId),
+            ),
+        );
+
+        getFilterRulesFromGroup(
+            this.args.compiledMetricQuery.filters.metrics,
+        ).forEach((filter) => {
+            requiredMetricIds.add(filter.target.fieldId);
+        });
+
+        this.getPostCalculationMetricReferences(
+            Array.from(requiredMetricIds),
+        ).forEach((metricId) => {
+            requiredMetricIds.add(metricId);
+        });
+
+        this.getMetricsWithNestedAggregates().forEach(({ innerDeps }) => {
+            innerDeps.forEach(({ fieldId }) => {
+                if (!requiredMetricIds.has(fieldId)) {
+                    metricIds.delete(fieldId);
+                }
+            });
+        });
+
+        return Array.from(metricIds);
+    }
+
     private getMetricsSQL(): {
         tables: string[];
         selects: string[];
@@ -894,7 +925,7 @@ export class MetricQueryBuilder {
             userAttributes = {},
         } = this.args;
         const { filters, additionalMetrics } = compiledMetricQuery;
-        const metrics = this.getSelectedAndReferencedMetricIds();
+        const metrics = this.getMetricIdsRequiredInBaseSelects();
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -2748,20 +2779,38 @@ export class MetricQueryBuilder {
             (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
         );
 
-        const innerDepAliases = Array.from(allInnerDeps.keys()).map(
-            (depId) => `${fieldQuoteChar}${depId}${fieldQuoteChar}`,
+        const innerDepEntries = Array.from(allInnerDeps.entries());
+        const innerDepAliases = innerDepEntries.map(
+            ([depId]) => `${fieldQuoteChar}${depId}${fieldQuoteChar}`,
         );
+        const innerDepGroupByPositions = innerDepEntries.reduce<number[]>(
+            (acc, [, depMetric], index) => {
+                if (
+                    isNonAggregateMetric(depMetric) &&
+                    !sqlContainsAggregation(depMetric.sql)
+                ) {
+                    acc.push(dimensionAlias.length + index + 1);
+                }
+                return acc;
+            },
+            [],
+        );
+        const hasRawInnerDeps = innerDepGroupByPositions.length > 0;
 
         // --- CTE 1: nested_agg — pre-compute inner deps from base table ---
         const naCteName = 'nested_agg';
-        const innerMetricSelects = Array.from(allInnerDeps.entries()).map(
+        const innerMetricSelects = innerDepEntries.map(
             ([depId, depMetric]) =>
                 `  ${depMetric.compiledSql} AS ${fieldQuoteChar}${depId}${fieldQuoteChar}`,
         );
 
+        const naGroupByPositions = [
+            ...dimensionAlias.map((_, i) => i + 1),
+            ...innerDepGroupByPositions,
+        ];
         const naGroupBy =
-            dimensionAlias.length > 0
-                ? `GROUP BY ${dimensionAlias.map((_, i) => i + 1).join(',')}`
+            naGroupByPositions.length > 0
+                ? `GROUP BY ${naGroupByPositions.join(', ')}`
                 : undefined;
 
         const cte1Sql = MetricQueryBuilder.wrapAsCte(naCteName, [
@@ -2873,12 +2922,76 @@ export class MetricQueryBuilder {
             );
         }
 
-        // GROUP BY dims + inner deps so aggregate functions are valid
-        // Since CTE 1 has one row per dim group, this is effectively identity
-        const allGroupByCols = [
-            ...dimensionAlias.map((a) => `${naCteName}.${a}`),
-            ...innerDepAliases.map((a) => `${naCteName}.${a}`),
-        ];
+        const outerMetricsById = new Map(
+            nestedAggMetrics.map((metric) => [metric.outerMetricId, metric]),
+        );
+        const cachedResultsGroupByDeps = new Map<string, string[]>();
+        const getResultsGroupByDepIds = (metricId: string): string[] => {
+            const cachedDepIds = cachedResultsGroupByDeps.get(metricId);
+            if (cachedDepIds) {
+                return cachedDepIds;
+            }
+
+            const metricInfo = outerMetricsById.get(metricId);
+            if (!metricInfo || metricInfo.wrapsAggregation) {
+                cachedResultsGroupByDeps.set(metricId, []);
+                return [];
+            }
+
+            const depIds: string[] = [];
+            const addDepId = (depId: string) => {
+                if (!depIds.includes(depId)) {
+                    depIds.push(depId);
+                }
+            };
+
+            parseAllReferences(
+                metricInfo.outerMetric.sql,
+                metricInfo.outerMetric.table,
+            ).forEach((ref) => {
+                if (ref.refName === 'TABLE') {
+                    return;
+                }
+
+                const refId = getItemId({
+                    table: ref.refTable,
+                    name: ref.refName,
+                });
+
+                if (allInnerDeps.has(refId)) {
+                    addDepId(refId);
+                } else if (outerMetricsById.has(refId)) {
+                    getResultsGroupByDepIds(refId).forEach(addDepId);
+                }
+            });
+
+            cachedResultsGroupByDeps.set(metricId, depIds);
+            return depIds;
+        };
+
+        // GROUP BY dims + inner deps so aggregate functions are valid.
+        // When raw helper metrics are present, only preserve the helper deps
+        // needed by non-wrapping outer metrics; wrapped metrics collapse back
+        // to the dimension grain in CTE 2.
+        const allGroupByCols = hasRawInnerDeps
+            ? sortedOuterMetrics.reduce<string[]>(
+                  (acc, { outerMetricId }) => {
+                      getResultsGroupByDepIds(outerMetricId).forEach(
+                          (depId) => {
+                              const depRef = `${naCteName}.${fieldQuoteChar}${depId}${fieldQuoteChar}`;
+                              if (!acc.includes(depRef)) {
+                                  acc.push(depRef);
+                              }
+                          },
+                      );
+                      return acc;
+                  },
+                  dimensionAlias.map((a) => `${naCteName}.${a}`),
+              )
+            : [
+                  ...dimensionAlias.map((a) => `${naCteName}.${a}`),
+                  ...innerDepAliases.map((a) => `${naCteName}.${a}`),
+              ];
         const resultsGroupBy =
             allGroupByCols.length > 0
                 ? `GROUP BY ${allGroupByCols.join(', ')}`
