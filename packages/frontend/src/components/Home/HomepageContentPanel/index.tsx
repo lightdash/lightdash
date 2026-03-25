@@ -23,10 +23,7 @@ interface Props {
     projectUuid: string;
 }
 
-export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
-    data,
-    projectUuid,
-}) => {
+export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
     const { health } = useApp();
@@ -114,6 +111,11 @@ export const MostPopularAndRecentlyUpdatedPanel: FC<Props> = ({
                                   'category' in item &&
                                   item.category ===
                                       ResourceItemCategory.VERIFIED,
+                              emptyStateProps: {
+                                  title: 'No verified content yet',
+                                  description: undefined,
+                                  action: undefined,
+                              },
                           },
                       ]
                     : []),
