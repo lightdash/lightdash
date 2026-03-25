@@ -72,7 +72,8 @@ const ChartSelectItem = React.forwardRef<HTMLDivElement, ChartSelectItemProps>(
 const LabelInput: FC<{
     value: string;
     onChange: (value: string) => void;
-}> = ({ value, onChange }) => {
+    disabled?: boolean;
+}> = ({ value, onChange, disabled }) => {
     const [localValue, setLocalValue] = useState(value);
 
     useEffect(() => {
@@ -84,6 +85,7 @@ const LabelInput: FC<{
             label="Label"
             placeholder="e.g., By Region"
             size="xs"
+            disabled={disabled}
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={() => {
@@ -267,28 +269,25 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
         [allPaths, updatePaths],
     );
 
-    if (drillState) {
-        return (
-            <Config>
-                <Config.Section>
-                    <Text size="xs" color="dimmed">
-                        Drill path configuration is disabled while a drill-down
-                        view is active. Exit the drill view to edit drill paths.
-                    </Text>
-                </Config.Section>
-            </Config>
-        );
-    }
+    const isReadOnly = !!drillState;
 
     return (
         <Config>
             <Config.Section>
                 <Config.Group>
                     <Config.Heading>Drill Paths</Config.Heading>
-                    <AddButton onClick={handleAdd} />
+                    {!isReadOnly && <AddButton onClick={handleAdd} />}
                 </Config.Group>
 
-                <DragDropContext onDragEnd={handleDragEnd}>
+                {isReadOnly && (
+                    <Text size="xs" color="dimmed" mb="xs">
+                        Exit the drill-down view to edit drill paths.
+                    </Text>
+                )}
+
+                <DragDropContext
+                    onDragEnd={isReadOnly ? () => {} : handleDragEnd}
+                >
                     <Droppable droppableId="drill-paths">
                         {(droppableProvided) => (
                             <Accordion
@@ -335,31 +334,33 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                 `Drill path ${index + 1}`
                                                             }
                                                             extraControlElements={
-                                                                <div
-                                                                    {...draggableProvided.dragHandleProps}
-                                                                    style={{
-                                                                        cursor: 'grab',
-                                                                        display:
-                                                                            'flex',
-                                                                        alignItems:
-                                                                            'center',
-                                                                        padding:
-                                                                            '8px 4px',
-                                                                        margin: '-8px -4px',
-                                                                    }}
-                                                                >
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconGripVertical
-                                                                        }
-                                                                        size={
-                                                                            14
-                                                                        }
+                                                                isReadOnly ? undefined : (
+                                                                    <div
+                                                                        {...draggableProvided.dragHandleProps}
                                                                         style={{
-                                                                            opacity: 0.4,
+                                                                            cursor: 'grab',
+                                                                            display:
+                                                                                'flex',
+                                                                            alignItems:
+                                                                                'center',
+                                                                            padding:
+                                                                                '8px 4px',
+                                                                            margin: '-8px -4px',
                                                                         }}
-                                                                    />
-                                                                </div>
+                                                                    >
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconGripVertical
+                                                                            }
+                                                                            size={
+                                                                                14
+                                                                            }
+                                                                            style={{
+                                                                                opacity: 0.4,
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                )
                                                             }
                                                             onControlClick={() =>
                                                                 handleAccordionChange(
@@ -379,10 +380,13 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                           ],
                                                                 )
                                                             }
-                                                            onRemove={() =>
-                                                                handleRemove(
-                                                                    index,
-                                                                )
+                                                            onRemove={
+                                                                isReadOnly
+                                                                    ? undefined
+                                                                    : () =>
+                                                                          handleRemove(
+                                                                              index,
+                                                                          )
                                                             }
                                                         />
                                                         <Accordion.Panel>
@@ -404,6 +408,9 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                             },
                                                                         )
                                                                     }
+                                                                    disabled={
+                                                                        isReadOnly
+                                                                    }
                                                                 />
 
                                                                 {allowedTypes.length >
@@ -411,6 +418,9 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                     <SegmentedControl
                                                                         size="xs"
                                                                         fullWidth
+                                                                        disabled={
+                                                                            isReadOnly
+                                                                        }
                                                                         value={
                                                                             isDrillThroughPath(
                                                                                 path,
@@ -481,6 +491,9 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                             label="Dimension"
                                                                             placeholder="Select dimension"
                                                                             size="xs"
+                                                                            disabled={
+                                                                                isReadOnly
+                                                                            }
                                                                             data={
                                                                                 dimensionOptions
                                                                             }
@@ -512,6 +525,9 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                             label="Metric override"
                                                                             placeholder="Keep original"
                                                                             size="xs"
+                                                                            disabled={
+                                                                                isReadOnly
+                                                                            }
                                                                             data={
                                                                                 metricOptions
                                                                             }
@@ -549,6 +565,9 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                             label="Target chart"
                                                                             placeholder="Select a chart"
                                                                             size="xs"
+                                                                            disabled={
+                                                                                isReadOnly
+                                                                            }
                                                                             data={
                                                                                 chartOptions
                                                                             }
@@ -579,6 +598,9 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                         <Select
                                                                             label="Opens in"
                                                                             size="xs"
+                                                                            disabled={
+                                                                                isReadOnly
+                                                                            }
                                                                             data={[
                                                                                 {
                                                                                     value: 'modal',
