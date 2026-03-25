@@ -79,7 +79,10 @@ export class ValidationService extends BaseService {
 
         compiledExplores.forEach((explore: Explore | ExploreError) => {
             if (!isExploreError(explore)) {
-                // For validation, index by both baseTable and explore name
+                // For validation, index by both baseTable and explore name.
+                // The base table key should always resolve to the canonical
+                // explore, not a derived explore (for example pre-aggregates)
+                // that only contains a subset of fields.
                 const dimensions = Object.values(explore.tables).flatMap(
                     (table) => Object.values(table.dimensions || {}),
                 );
@@ -90,8 +93,19 @@ export class ValidationService extends BaseService {
                     dimensionIds: dimensions.map(getItemId),
                     metricIds: metrics.map(getItemId),
                 };
-                // Index by baseTable
-                exploreFields[explore.baseTable] = fieldData;
+                const isCanonicalExploreForBaseTable =
+                    explore.name === explore.baseTable;
+
+                // Index by baseTable, but only for the canonical explore for
+                // that base table. Additional explores and pre-aggregates can
+                // share the same baseTable, but charts saved against the
+                // baseTable should validate against the canonical base explore.
+                if (
+                    isCanonicalExploreForBaseTable ||
+                    exploreFields[explore.baseTable] === undefined
+                ) {
+                    exploreFields[explore.baseTable] = fieldData;
+                }
                 // Also index by explore name if different
                 if (explore.name !== explore.baseTable) {
                     exploreFields[explore.name] = fieldData;
