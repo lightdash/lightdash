@@ -1,6 +1,6 @@
 import {
     ECHARTS_DEFAULT_COLORS,
-    type LinkedChartDrillState,
+    type DrillThroughState,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -18,7 +18,7 @@ import { IconArrowLeft, IconExternalLink, IconFilter } from '@tabler/icons-react
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useLinkedChartDrillResults } from '../hooks/useLinkedChartDrillResults';
+import { useDrillThroughResults } from '../hooks/useDrillThroughResults';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import Page from './common/Page/Page';
@@ -27,7 +27,7 @@ import LightdashVisualization from './LightdashVisualization';
 import VisualizationProvider from './LightdashVisualization/VisualizationProvider';
 
 type Props = {
-    drillContext: LinkedChartDrillState;
+    drillContext: DrillThroughState;
 };
 
 const DrillThroughPage: FC<Props> = ({ drillContext }) => {
@@ -45,7 +45,7 @@ const DrillThroughPage: FC<Props> = ({ drillContext }) => {
         data: drillResults,
         isLoading: isQueryLoading,
         error: queryError,
-    } = useLinkedChartDrillResults(
+    } = useDrillThroughResults(
         drillContext.sourceChartUuid,
         drillContext.drillSteps,
         true,

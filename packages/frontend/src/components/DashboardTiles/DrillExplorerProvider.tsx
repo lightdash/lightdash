@@ -1,7 +1,7 @@
 import {
     CartesianSeriesType,
     ECHARTS_DEFAULT_COLORS,
-    buildLinkedChartDrillConfig,
+    buildDrillThroughState,
     getDimensions,
     type ApiExploreResults,
     type DrillPath,
@@ -42,7 +42,7 @@ import {
 import { ExplorerSection } from '../../providers/Explorer/types';
 import DrillDownBreadcrumb from '../common/DrillDownBreadcrumb';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
-import LinkedChartDrillModal from '../MetricQueryData/LinkedChartDrillModal';
+import DrillThroughModal from '../MetricQueryData/DrillThroughModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
@@ -258,7 +258,7 @@ const DrillExplorerContent: FC<{
                                 dimensionIds: clickedDims,
                             }) => {
                                 handleDrillThrough(
-                                    buildLinkedChartDrillConfig({
+                                    buildDrillThroughState({
                                         sourceChartUuid: chart.uuid,
                                         drillPathId,
                                         linkedChartUuid,
@@ -291,7 +291,7 @@ const DrillExplorerContent: FC<{
                 )}
 
                 {linkedChartDrillConfig && (
-                    <LinkedChartDrillModal
+                    <DrillThroughModal
                         opened={!!linkedChartDrillConfig}
                         onClose={closeDrillThroughModal}
                         sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}

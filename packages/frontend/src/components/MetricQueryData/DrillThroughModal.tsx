@@ -15,7 +15,7 @@ type Props = {
  * Thin wrapper around ChartDrillModal for linked chart drill-through.
  * Used by Explorer's SeriesContextMenu for backward compatibility.
  */
-const LinkedChartDrillModal: FC<Props> = (props) => (
+const DrillThroughModal: FC<Props> = (props) => (
     <ChartDrillModal
         {...props}
         mode="linkedChart"
@@ -23,4 +23,4 @@ const LinkedChartDrillModal: FC<Props> = (props) => (
     />
 );
 
-export default LinkedChartDrillModal;
+export default DrillThroughModal;

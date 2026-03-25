@@ -128,8 +128,8 @@ export const drillStackToSteps = (
         return step;
     });
 
-/** State for the linked chart drill-through */
-export type LinkedChartDrillState = {
+/** State for a drill-through action (navigating to a linked chart) */
+export type DrillThroughState = {
     sourceChartUuid: string;
     linkedChartUuid: string;
     drillSteps: DrillStep[];
@@ -143,7 +143,7 @@ export type LinkedChartDrillState = {
  * Extracts raw values from the clicked row, builds a filter summary with
  * dimension labels, and assembles the drill steps array.
  */
-export const buildLinkedChartDrillConfig = ({
+export const buildDrillThroughState = ({
     sourceChartUuid,
     drillPathId,
     linkedChartUuid,
@@ -162,7 +162,7 @@ export const buildLinkedChartDrillConfig = ({
     dimensionIds: string[];
     dimensions: Dimension[];
     existingDrillSteps?: DrillStep[];
-}): LinkedChartDrillState => {
+}): DrillThroughState => {
     const linkedPath = drillConfig?.paths.find(
         (p) => p.id === drillPathId,
     );

@@ -13,7 +13,7 @@ import {
     type EChartsSeries,
     type FieldId,
     type ResultValue,
-    buildLinkedChartDrillConfig,
+    buildDrillThroughState,
     drillStackToSteps,
 } from '@lightdash/common';
 import { Button, useMantineColorScheme } from '@mantine/core';
@@ -59,7 +59,7 @@ import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { useDrillThroughAction } from '../../../hooks/useDrillThroughAction';
-import LinkedChartDrillModal from '../../MetricQueryData/LinkedChartDrillModal';
+import DrillThroughModal from '../../MetricQueryData/DrillThroughModal';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
@@ -166,6 +166,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const handleDrillThrough = useCallback(
         ({
+            drillPathId,
             linkedChartUuid,
             fieldValues,
             dimensionIds,
@@ -182,7 +183,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             );
 
             dispatchDrillThrough(
-                buildLinkedChartDrillConfig({
+                buildDrillThroughState({
                     sourceChartUuid: savedChart.uuid,
                     drillPathId,
                     linkedChartUuid,
@@ -460,7 +461,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             </VisualizationProvider>
 
             {linkedChartDrillConfig && (
-                <LinkedChartDrillModal
+                <DrillThroughModal
                     opened={!!linkedChartDrillConfig}
                     onClose={closeDrillThroughModal}
                     sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}

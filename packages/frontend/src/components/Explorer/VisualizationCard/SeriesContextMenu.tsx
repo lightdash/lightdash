@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    buildLinkedChartDrillConfig,
+    buildDrillThroughState,
     drillStackToSteps,
     getDimensions,
     getItemMap,
@@ -38,7 +38,7 @@ import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import DrillIntoSubmenu from '../../MetricQueryData/DrillIntoSubmenu';
-import LinkedChartDrillModal from '../../MetricQueryData/LinkedChartDrillModal';
+import DrillThroughModal from '../../MetricQueryData/DrillThroughModal';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
@@ -246,7 +246,7 @@ export const SeriesContextMenu: FC<{
                         );
 
                         handleDrillThrough(
-                            buildLinkedChartDrillConfig({
+                            buildDrillThroughState({
                                 sourceChartUuid: savedChart.uuid,
                                 drillPathId,
                                 linkedChartUuid,
@@ -266,7 +266,7 @@ export const SeriesContextMenu: FC<{
         </Menu>
 
         {linkedChartDrillConfig && (
-            <LinkedChartDrillModal
+            <DrillThroughModal
                 opened={!!linkedChartDrillConfig}
                 onClose={closeDrillThroughModal}
                 sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}

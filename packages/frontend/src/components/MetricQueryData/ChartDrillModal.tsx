@@ -8,7 +8,7 @@ import { Badge, Center, Group, Loader, Stack, Text } from '@mantine-8/core';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { useLinkedChartDrillResults } from '../../hooks/useLinkedChartDrillResults';
+import { useDrillThroughResults } from '../../hooks/useDrillThroughResults';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import MantineModal from '../common/MantineModal';
@@ -72,7 +72,7 @@ const ChartDrillModal: FC<Props> = (props) => {
         data: drillResults,
         isLoading: isQueryLoading,
         error: queryError,
-    } = useLinkedChartDrillResults(sourceChartUuid, drillSteps, opened);
+    } = useDrillThroughResults(sourceChartUuid, drillSteps, opened);
 
     const isLoading =
         (props.mode === 'linkedChart' ? isChartLoading : false) ||

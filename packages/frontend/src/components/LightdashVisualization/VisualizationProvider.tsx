@@ -97,6 +97,7 @@ export type VisualizationProviderProps = {
         dimensionIds: string[];
     }) => void;
     onDrillThrough?: (params: {
+        drillPathId: string;
         linkedChartUuid: string;
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];

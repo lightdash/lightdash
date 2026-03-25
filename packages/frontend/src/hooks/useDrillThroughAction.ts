@@ -1,4 +1,4 @@
-import { type LinkedChartDrillState } from '@lightdash/common';
+import { type DrillThroughState } from '@lightdash/common';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useProjectUuid } from './useProjectUuid';
@@ -15,10 +15,10 @@ export const DRILL_THROUGH_PARAM = 'drillContext';
 export const useDrillThroughAction = () => {
     const projectUuid = useProjectUuid();
     const nav = useNavigate();
-    const [modalState, setModalState] = useState<LinkedChartDrillState>();
+    const [modalState, setModalState] = useState<DrillThroughState>();
 
     const handleDrillThrough = useCallback(
-        (config: LinkedChartDrillState) => {
+        (config: DrillThroughState) => {
             if (!config.linkedChartUuid) return;
 
             const encoded = encodeURIComponent(JSON.stringify(config));

@@ -17,9 +17,9 @@ import { pollForResults } from '../features/queryRunner/executeQuery';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardFiltersForTile from './dashboard/useDashboardFiltersForTile';
 import {
-    useLinkedChartDrillResults,
+    useDrillThroughResults,
     type DashboardDrillContext,
-} from './useLinkedChartDrillResults';
+} from './useDrillThroughResults';
 import { useProjectUuid } from './useProjectUuid';
 
 /**
@@ -84,7 +84,7 @@ export const useDrillQuery = (
     const {
         data: drillResults,
         isLoading,
-    } = useLinkedChartDrillResults(
+    } = useDrillThroughResults(
         chart.uuid,
         drillSteps,
         drillSteps.length > 0,

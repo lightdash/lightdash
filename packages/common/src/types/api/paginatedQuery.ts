@@ -153,6 +153,7 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
+    | ExecuteAsyncSavedChartDrillRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams;

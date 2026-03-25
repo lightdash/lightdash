@@ -1,4 +1,4 @@
-import { type LinkedChartDrillState } from '@lightdash/common';
+import { type DrillThroughState } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { DRILL_THROUGH_PARAM } from './useDrillThroughAction';
@@ -13,7 +13,7 @@ import { DRILL_THROUGH_PARAM } from './useDrillThroughAction';
  * useSearchParams ensures the raw value updates on back/forward.
  */
 export const useDrillThroughContext =
-    (): LinkedChartDrillState | null => {
+    (): DrillThroughState | null => {
         const [searchParams] = useSearchParams();
         const raw = searchParams.get(DRILL_THROUGH_PARAM);
 
@@ -22,7 +22,7 @@ export const useDrillThroughContext =
             try {
                 return JSON.parse(
                     decodeURIComponent(raw),
-                ) as LinkedChartDrillState;
+                ) as DrillThroughState;
             } catch {
                 return null;
             }

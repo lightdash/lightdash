@@ -33,7 +33,7 @@ import {
     type ResultValue,
     type SavedChart,
     type Series,
-    buildLinkedChartDrillConfig,
+    buildDrillThroughState,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
 import {
@@ -132,7 +132,7 @@ import VisualizationProvider from '../LightdashVisualization/VisualizationProvid
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
-import LinkedChartDrillModal from '../MetricQueryData/LinkedChartDrillModal';
+import DrillThroughModal from '../MetricQueryData/DrillThroughModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
@@ -907,7 +907,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             dimensionIds: string[];
         }) => {
             handleDrillThrough(
-                buildLinkedChartDrillConfig({
+                buildDrillThroughState({
                     sourceChartUuid: chart.uuid,
                     drillPathId,
                     linkedChartUuid,
@@ -1722,7 +1722,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 onClose={() => setIsImageExportModalOpen(false)}
             />
             {linkedChartDrillConfig && (
-                <LinkedChartDrillModal
+                <DrillThroughModal
                     opened={!!linkedChartDrillConfig}
                     onClose={closeDrillThroughModal}
                     sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}

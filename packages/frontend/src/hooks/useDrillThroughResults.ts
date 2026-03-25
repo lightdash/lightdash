@@ -15,7 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { useProjectUuid } from './useProjectUuid';
 
-type LinkedChartDrillResults = ApiQueryResults & {
+type DrillThroughResults = ApiQueryResults & {
     queryUuid: string;
 };
 
@@ -30,12 +30,12 @@ export type DashboardDrillContext = {
  * The backend loads the source chart, resolves drill paths,
  * applies accumulated filters, and executes — all with view-level permissions.
  */
-const getLinkedChartDrillResults = async (
+const getDrillThroughResults = async (
     projectUuid: string,
     sourceChartUuid: string,
     drillSteps: DrillStep[],
     dashboardContext?: DashboardDrillContext,
-): Promise<LinkedChartDrillResults> => {
+): Promise<DrillThroughResults> => {
     const executeResponse =
         await lightdashApi<ApiExecuteAsyncMetricQueryResults>({
             url: `/projects/${projectUuid}/query/chart-drill`,
@@ -128,7 +128,7 @@ const getLinkedChartDrillResults = async (
  * Hook to execute a linked chart drill-through.
  * Uses the chart-drill endpoint which handles view-level permissions.
  */
-export const useLinkedChartDrillResults = (
+export const useDrillThroughResults = (
     sourceChartUuid: string | undefined,
     drillSteps: DrillStep[],
     enabled: boolean,
@@ -136,7 +136,7 @@ export const useLinkedChartDrillResults = (
 ) => {
     const projectUuid = useProjectUuid();
 
-    return useQuery<LinkedChartDrillResults, ApiError>({
+    return useQuery<DrillThroughResults, ApiError>({
         queryKey: [
             'linkedChartDrillResults',
             projectUuid,
@@ -146,7 +146,7 @@ export const useLinkedChartDrillResults = (
         ],
         enabled: enabled && !!projectUuid && !!sourceChartUuid && drillSteps.length > 0,
         queryFn: () =>
-            getLinkedChartDrillResults(
+            getDrillThroughResults(
                 projectUuid!,
                 sourceChartUuid!,
                 drillSteps,
