@@ -158,7 +158,7 @@ export class UserModel {
     }
 
     /**
-     * Reconstruct a SessionUser from Redis-cached data.
+     * Reconstruct a SessionUser from key-value-cached data.
      * JSON serialization loses Date instances and CASL Ability methods,
      * so we rebuild them from the raw cached object.
      */
