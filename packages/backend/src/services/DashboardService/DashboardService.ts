@@ -385,12 +385,14 @@ export class DashboardService
             },
         );
 
-        // Update catalog field usage for the new chart
-        const cachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            duplicatedChart.tableName,
-        );
+        // Best effort: the chart has already been duplicated at this point, so
+        // missing explore metadata should not fail the parent dashboard copy.
+        let cachedExplore: Explore | ExploreError | undefined;
         try {
+            cachedExplore = await this.projectModel.getExploreFromCache(
+                projectUuid,
+                duplicatedChart.tableName,
+            );
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
                     metrics: [],
@@ -402,9 +404,13 @@ export class DashboardService
                 },
             });
         } catch (error) {
-            this.logger.error(
-                `Error updating chart field usage for duplicated chart ${duplicatedChart.uuid}`,
-                error,
+            this.logger.warn(
+                `Skipping duplicated chart enrichment for chart ${duplicatedChart.uuid}`,
+                {
+                    error,
+                    projectUuid,
+                    tableName: duplicatedChart.tableName,
+                },
             );
         }
 
