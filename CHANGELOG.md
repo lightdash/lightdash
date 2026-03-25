@@ -1,3 +1,10 @@
+## [0.2662.2](https://github.com/lightdash/lightdash/compare/0.2662.1...0.2662.2) (2026-03-25)
+
+
+### Bug Fixes
+
+* pass contentVerificationModel to EE ProjectService ([#21364](https://github.com/lightdash/lightdash/issues/21364)) ([140a61e](https://github.com/lightdash/lightdash/commit/140a61e932a9612fa48aaf6ae044ec780ecda524)), closes [#21353](https://github.com/lightdash/lightdash/issues/21353)
+
 ## [0.2662.1](https://github.com/lightdash/lightdash/compare/0.2662.0...0.2662.1) (2026-03-25)
 
 
