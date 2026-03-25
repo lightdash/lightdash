@@ -220,6 +220,13 @@ const useCartesianChartConfig = ({
 
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
 
+    const [showFromRow, setShowFromRow] = useState<number | undefined>(
+        initialChartConfig?.showFromRow,
+    );
+    const [showToRow, setShowToRow] = useState<number | undefined>(
+        initialChartConfig?.showToRow,
+    );
+
     const setLegend = useCallback((legend: EchartsLegend) => {
         const removePropertiesWithAuto = Object.entries(
             legend,
@@ -1141,8 +1148,18 @@ const useCartesianChartConfig = ({
                   }
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
             metadata: dirtyMetadata,
+            showFromRow,
+            showToRow,
         };
-    }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata, tooltip, tooltipSort]);
+    }, [
+        dirtyLayout,
+        dirtyEchartsConfig,
+        dirtyMetadata,
+        tooltip,
+        tooltipSort,
+        showFromRow,
+        showToRow,
+    ]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
@@ -1215,6 +1232,10 @@ const useCartesianChartConfig = ({
         tooltipSort,
         setTooltipSort,
         updateMetadata,
+        showFromRow,
+        setShowFromRow,
+        showToRow,
+        setShowToRow,
     };
 };
 
