@@ -329,7 +329,7 @@ describe('DuckdbWarehouseClient', () => {
         expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should serialize S3 secret creation across concurrent sessions without skipping', async () => {
+    it('should create S3 secret once and skip on subsequent connections', async () => {
         let releaseSecretCreation: (() => void) | undefined;
         const secretCreationBlocked = new Promise<void>((resolve) => {
             releaseSecretCreation = resolve;
@@ -338,7 +338,7 @@ describe('DuckdbWarehouseClient', () => {
         const runMock = jest.fn(async (sql: string) => {
             if (sql.includes('CREATE OR REPLACE SECRET __lightdash_s3')) {
                 secretCreateCount += 1;
-                // Only block the first CREATE SECRET call
+                // Block the first CREATE SECRET call
                 if (secretCreateCount === 1) {
                     await secretCreationBlocked;
                 }
@@ -370,22 +370,21 @@ describe('DuckdbWarehouseClient', () => {
             setImmediate(resolve);
         });
 
-        // First CREATE SECRET is blocked; second should not have started yet
-        // (serialized via the shared bootstrap lock)
+        // First CREATE SECRET is blocked; second waits behind the bootstrap lock
         expect(secretCreateCount).toBe(1);
 
         releaseSecretCreation?.();
 
         await Promise.all([firstQuery, secondQuery]);
 
-        // Both connections should create the secret (one each, serialized)
+        // Secret is instance-level — created once, skipped on second connection
         expect(
             runMock.mock.calls.filter(([sql]) =>
                 (sql as string).includes(
                     'CREATE OR REPLACE SECRET __lightdash_s3',
                 ),
             ),
-        ).toHaveLength(2);
+        ).toHaveLength(1);
         expect(streamMock).toHaveBeenCalledTimes(2);
     });
 
