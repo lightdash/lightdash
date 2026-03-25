@@ -10,12 +10,12 @@ import {
     DBFieldTypes,
     DimensionOverrides,
     DimensionType,
-    type DrillConfig,
     MetricFilterRule,
     MetricOverrides,
     MetricType,
     TableCalculationTemplate,
     TableCalculationType,
+    type DrillConfig,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 

@@ -1,4 +1,8 @@
-import { FeatureFlags, drillStackToSteps, type FieldId } from '@lightdash/common';
+import {
+    drillStackToSteps,
+    FeatureFlags,
+    type FieldId,
+} from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';

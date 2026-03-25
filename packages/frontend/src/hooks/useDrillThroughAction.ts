@@ -27,7 +27,7 @@ export const useDrillThroughAction = () => {
 
             switch (config.target) {
                 case 'navigate':
-                    nav(drillUrl);
+                    void nav(drillUrl);
                     break;
                 case 'newTab':
                     window.open(drillUrl, '_blank');

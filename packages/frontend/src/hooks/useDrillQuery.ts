@@ -1,7 +1,7 @@
 import {
+    drillStackToSteps,
     QueryExecutionContext,
     QueryHistoryStatus,
-    drillStackToSteps,
     type ApiExecuteAsyncMetricQueryResults,
     type DrillStep,
     type SavedChart,
@@ -47,9 +47,7 @@ export const useDrillQuery = (
     );
 
     // Report drill steps to dashboard context for dashboard-wide CSV export
-    const setTileDrillSteps = useDashboardContext(
-        (c) => c.setTileDrillSteps,
-    );
+    const setTileDrillSteps = useDashboardContext((c) => c.setTileDrillSteps);
     const clearTileDrillSteps = useDashboardContext(
         (c) => c.clearTileDrillSteps,
     );
@@ -60,7 +58,13 @@ export const useDrillQuery = (
         return () => {
             clearTileDrillSteps(tileUuid);
         };
-    }, [tileUuid, chart.uuid, drillSteps, setTileDrillSteps, clearTileDrillSteps]);
+    }, [
+        tileUuid,
+        chart.uuid,
+        drillSteps,
+        setTileDrillSteps,
+        clearTileDrillSteps,
+    ]);
 
     // Read dashboard context for the drill query
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
@@ -81,10 +85,7 @@ export const useDrillQuery = (
     );
 
     // Execute the drill query
-    const {
-        data: drillResults,
-        isLoading,
-    } = useDrillThroughResults(
+    const { data: drillResults, isLoading } = useDrillThroughResults(
         chart.uuid,
         drillSteps,
         drillSteps.length > 0,
@@ -129,7 +130,13 @@ export const useDrillQuery = (
             }
             return executeResponse.queryUuid;
         },
-        [projectUuid, chart.uuid, drillSteps, dashboardContext, drillResults?.queryUuid],
+        [
+            projectUuid,
+            chart.uuid,
+            drillSteps,
+            dashboardContext,
+            drillResults?.queryUuid,
+        ],
     );
 
     // Notify parent of export capabilities
