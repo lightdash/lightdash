@@ -62,6 +62,8 @@ version: 1
 - **`flipAxes`**: Swap X and Y axes for horizontal bar charts (default: `false`)
 - **`showGridX`** / **`showGridY`**: Show grid lines
 - **`stack`**: Stack series together (`true` or stack group name)
+- **`colorByCategory`**: Color each bar by its x-axis category value instead of using a single series color (default: `false`). Use this instead of adding a pivot/group-by dimension just for coloring.
+- **`categoryColorOverrides`**: Map of category value to hex color (e.g., `{"McLaren": "#FF8700"}`). Only applies when `colorByCategory` is `true`.
 
 ### `eChartsConfig`
 
@@ -120,6 +122,50 @@ metricQuery:
       descending: true
 name: "Sales by Partner"
 slug: "sales-by-partner"
+spaceSlug: "sales"
+tableName: "orders"
+version: 1
+```
+
+### Bar Chart Colored by Category
+
+Use `colorByCategory` to give each bar a distinct color based on its category value. This is preferable to adding a group-by/pivot dimension solely for coloring purposes.
+
+```yaml
+contentType: chart
+chartConfig:
+  type: "cartesian"
+  config:
+    eChartsConfig:
+      series:
+        - type: "bar"
+          encode:
+            xRef:
+              field: "orders_product_category"
+            yRef:
+              field: "orders_total_sales"
+    layout:
+      xField: "orders_product_category"
+      yField:
+        - "orders_total_sales"
+      colorByCategory: true
+      categoryColorOverrides:
+        "Electronics": "#4C6EF5"
+        "Clothing": "#37B24D"
+        "Home & Garden": "#F59F00"
+metricQuery:
+  exploreName: "orders"
+  dimensions:
+    - "orders_product_category"
+  filters: {}
+  limit: 10
+  metrics:
+    - "orders_total_sales"
+  sorts:
+    - fieldId: "orders_total_sales"
+      descending: true
+name: "Sales by Category"
+slug: "sales-by-category"
 spaceSlug: "sales"
 tableName: "orders"
 version: 1
