@@ -9,6 +9,7 @@ import {
 import { Menu } from '@mantine-8/core';
 import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useDrillFeatureFlag } from '../../hooks/useDrillFeatureFlag';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -51,6 +52,7 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
     onDrillThrough,
 }) => {
     const drillEnabled = useDrillFeatureFlag();
+    const { canViewUnderlyingData } = useContextMenuPermissions();
     const metricQueryData = useMetricQueryDataContext(true);
     const metricQuery = metricQueryData?.metricQuery;
     const explore = metricQueryData?.explore;
@@ -144,6 +146,7 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
 
     if (
         !drillEnabled ||
+        !canViewUnderlyingData ||
         accessiblePaths.length === 0 ||
         !fieldValues ||
         !metricQuery

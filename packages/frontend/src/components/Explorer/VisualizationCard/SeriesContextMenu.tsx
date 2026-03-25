@@ -229,50 +229,42 @@ export const SeriesContextMenu: FC<{
                         />
                     </Can>
 
-                    <Can
-                        I="view"
-                        this={subject('UnderlyingData', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid: projectUuid,
-                        })}
-                    >
-                        <DrillIntoSubmenu
-                            drillConfig={unsavedChartVersion.drillConfig}
-                            fieldValues={drillFieldValues}
-                            drillStack={drillState?.stack}
-                            onDrillDown={(params) =>
-                                dispatch(explorerActions.applyDrill(params))
-                            }
-                            onDrillThrough={({
-                                drillPathId,
-                                linkedChartUuid,
-                                fieldValues: clickedValues,
-                                dimensionIds: clickedDims,
-                            }) => {
-                                if (!savedChart?.uuid) return;
+                    <DrillIntoSubmenu
+                        drillConfig={unsavedChartVersion.drillConfig}
+                        fieldValues={drillFieldValues}
+                        drillStack={drillState?.stack}
+                        onDrillDown={(params) =>
+                            dispatch(explorerActions.applyDrill(params))
+                        }
+                        onDrillThrough={({
+                            drillPathId,
+                            linkedChartUuid,
+                            fieldValues: clickedValues,
+                            dimensionIds: clickedDims,
+                        }) => {
+                            if (!savedChart?.uuid) return;
 
-                                const existingSteps = drillStackToSteps(
-                                    drillState?.stack ?? [],
-                                );
+                            const existingSteps = drillStackToSteps(
+                                drillState?.stack ?? [],
+                            );
 
-                                handleDrillThrough(
-                                    buildDrillThroughState({
-                                        sourceChartUuid: savedChart.uuid,
-                                        drillPathId,
-                                        linkedChartUuid,
-                                        drillConfig:
-                                            unsavedChartVersion.drillConfig,
-                                        fieldValues: clickedValues,
-                                        dimensionIds: clickedDims,
-                                        dimensions: explore
-                                            ? getDimensions(explore)
-                                            : [],
-                                        existingDrillSteps: existingSteps,
-                                    }),
-                                );
-                            }}
-                        />
-                    </Can>
+                            handleDrillThrough(
+                                buildDrillThroughState({
+                                    sourceChartUuid: savedChart.uuid,
+                                    drillPathId,
+                                    linkedChartUuid,
+                                    drillConfig:
+                                        unsavedChartVersion.drillConfig,
+                                    fieldValues: clickedValues,
+                                    dimensionIds: clickedDims,
+                                    dimensions: explore
+                                        ? getDimensions(explore)
+                                        : [],
+                                    existingDrillSteps: existingSteps,
+                                }),
+                            );
+                        }}
+                    />
                 </Menu.Dropdown>
             </Menu>
 
