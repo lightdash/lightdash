@@ -1,3 +1,10 @@
+# [0.2665.0](https://github.com/lightdash/lightdash/compare/0.2664.1...0.2665.0) (2026-03-25)
+
+
+### Features
+
+* multi-instance docker dev with port registry and shared services ([#21411](https://github.com/lightdash/lightdash/issues/21411)) ([3924e20](https://github.com/lightdash/lightdash/commit/3924e20bf563263d6a4974f6aaddd9fc93287a1b))
+
 ## [0.2664.1](https://github.com/lightdash/lightdash/compare/0.2664.0...0.2664.1) (2026-03-25)
 
 
