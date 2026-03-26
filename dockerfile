@@ -179,7 +179,6 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
-COPY packages/query-sdk/package.json ./packages/query-sdk/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --prefer-offline
@@ -247,18 +246,9 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     turbo build --filter=backend; \
     fi
 
-# Build query-sdk package
-FROM prod-builder AS build-query-sdk
-COPY packages/query-sdk/tsconfig*.json ./packages/query-sdk/
-COPY packages/query-sdk/src/ ./packages/query-sdk/src/
-RUN --mount=type=secret,id=TURBO_TOKEN \
-    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
-    turbo build --filter=@lightdash/query-sdk
-
-# Build frontend package
+# Build frontend package  
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
-COPY --from=build-query-sdk /usr/app/packages/query-sdk/ ./packages/query-sdk/
 COPY packages/frontend ./packages/frontend
 
 ARG SENTRY_AUTH_TOKEN=""
