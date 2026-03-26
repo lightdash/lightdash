@@ -536,32 +536,32 @@ export class UnfurlService extends BaseService {
         });
 
         if (result === undefined) {
-            return { imageUrl: undefined, pdfFile: undefined };
+            return {};
         }
 
-        const isBufferResult = Buffer.isBuffer(result);
-        const imageBuffer = isBufferResult ? result : result.imageBuffer;
-        const pdfBuffer = isBufferResult ? undefined : result.pdfBuffer;
+        const { imageBuffer, pdfBuffer } = result;
 
         let imageUrl;
-        if (this.fileStorageClient.isEnabled()) {
-            imageUrl = await this.fileStorageClient.uploadImage(
-                imageBuffer,
-                imageId,
-            );
-        } else {
-            const filePath = `/tmp/${imageId}.png`;
-            const downloadFileId = useNanoid();
-            await this.downloadFileModel.createDownloadFile(
-                downloadFileId,
-                filePath,
-                DownloadFileType.IMAGE,
-            );
+        if (imageBuffer) {
+            if (this.fileStorageClient.isEnabled()) {
+                imageUrl = await this.fileStorageClient.uploadImage(
+                    imageBuffer,
+                    imageId,
+                );
+            } else {
+                const filePath = `/tmp/${imageId}.png`;
+                const downloadFileId = useNanoid();
+                await this.downloadFileModel.createDownloadFile(
+                    downloadFileId,
+                    filePath,
+                    DownloadFileType.IMAGE,
+                );
 
-            imageUrl = new URL(
-                `/api/v1/slack/image/${downloadFileId}`,
-                this.lightdashConfig.siteUrl,
-            ).href;
+                imageUrl = new URL(
+                    `/api/v1/slack/image/${downloadFileId}`,
+                    this.lightdashConfig.siteUrl,
+                ).href;
+            }
         }
 
         let pdfFile;
@@ -769,7 +769,11 @@ export class UnfurlService extends BaseService {
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
     }): Promise<
-        Buffer | { imageBuffer: Buffer; pdfBuffer: Buffer } | undefined
+        | {
+              imageBuffer?: Buffer;
+              pdfBuffer?: Buffer;
+          }
+        | undefined
     > {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -1298,7 +1302,8 @@ export class UnfurlService extends BaseService {
 
                     // PDF-only output
                     if (outputFormat === 'pdf') {
-                        return await generatePdf();
+                        const pdfBuffer = await generatePdf();
+                        return { pdfBuffer };
                     }
 
                     // Take screenshot
@@ -1324,12 +1329,9 @@ export class UnfurlService extends BaseService {
                     }
 
                     // Also generate PDF in the same browser session
-                    if (withPdf) {
-                        const pdfBuffer = await generatePdf();
-                        return { imageBuffer, pdfBuffer };
-                    }
+                    const pdfBuffer = withPdf ? await generatePdf() : undefined;
 
-                    return imageBuffer;
+                    return { imageBuffer, pdfBuffer };
                 } catch (e) {
                     const errorMessage = getErrorMessage(e);
                     const isQueueFullError = isBrowserQueueFullError(e);
