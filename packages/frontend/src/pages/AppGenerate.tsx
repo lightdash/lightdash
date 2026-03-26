@@ -32,6 +32,10 @@ const AppPreview: FC<{
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
     const baseUrl = window.location.origin;
+    // TODO: ?token is used for app file-serving auth. #token is only used
+    // so the SDK initializes — it's not actually used for auth since the
+    // iframe has allow-same-origin. That should be removed and replaced
+    // with proper JWT auth for the SDK.
     const previewUrl = token
         ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
         : undefined;
