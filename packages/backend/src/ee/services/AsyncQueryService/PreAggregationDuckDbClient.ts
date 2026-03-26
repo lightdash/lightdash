@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     getErrorMessage,
-    getPreAggregateExploreName,
     isExploreError,
     ItemsMap,
     MetricQuery,
@@ -30,6 +29,7 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { wrapSentryTransaction } from '../../../utils';
 import { PivotQueryBuilder } from '../../../utils/QueryBuilder/PivotQueryBuilder';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
+import { getPreAggregateExploreName } from '../../preAggregates/naming';
 import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,

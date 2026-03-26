@@ -31,7 +31,6 @@ export function buildQueryArgs(options: {
         | { chartUuid: string; chartVersionUuid: string };
     dateZoomGranularity?: DateGranularity | string;
     minimal: boolean;
-    usePreAggregateCache?: boolean;
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
 }): QueryResultsProps | null {
     const {
@@ -77,7 +76,6 @@ export function buildQueryArgs(options: {
         ...(isEditMode ? {} : viewModeQueryArgs),
         dateZoomGranularity,
         invalidateCache: minimal,
-        usePreAggregateCache: options.usePreAggregateCache,
         parameters: parameters || {},
         pivotConfiguration,
     };

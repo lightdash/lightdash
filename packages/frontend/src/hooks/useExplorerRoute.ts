@@ -328,7 +328,6 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     fromDashboard: fromDashboard ?? undefined,
                     isExploreFromHere: isExploreFromHere,
                     queryExecution: defaultQueryExecution,
-                    preAggregate: defaultState.preAggregate,
                 };
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';

@@ -21,7 +21,6 @@ import {
     type MetricType,
     type ParameterDefinitions,
     type PieChartConfig,
-    type PreAggregateMatchResult,
     type ReplaceCustomFields,
     type SankeyChartConfig,
     type SavedChart,
@@ -300,12 +299,4 @@ export interface ExplorerReduceState {
     fromDashboard?: string;
     isExploreFromHere?: boolean;
     savedChart?: SavedChart;
-
-    // Pre-aggregate match state — computed once in useExplorerQueryEffects, read via selectors
-    preAggregate: {
-        matchResult: PreAggregateMatchResult | null;
-        preAggExploreName: string | null;
-        isEnabled: boolean;
-        cacheEnabled: boolean;
-    };
 }

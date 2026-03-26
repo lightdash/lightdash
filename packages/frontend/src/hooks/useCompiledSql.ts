@@ -19,7 +19,6 @@ import {
     selectMetrics,
     selectParameters,
     selectPivotConfig,
-    selectPreAggCacheEnabled,
     selectQueryLimit,
     selectSorts,
     selectTableCalculations,
@@ -39,14 +38,12 @@ const getCompiledQuery = async (
     query: MetricQuery,
     queryParameters?: ParametersValuesMap,
     pivotConfiguration?: PivotConfiguration,
-    usePreAggregateCache?: boolean,
 ) => {
     const timezoneFixQuery = {
         ...query,
         filters: convertDateFilters(query.filters),
         parameters: queryParameters,
         ...(pivotConfiguration && { pivotConfiguration }),
-        ...(usePreAggregateCache !== undefined && { usePreAggregateCache }),
     };
 
     return lightdashApi<ApiCompiledQueryResults>({
@@ -74,8 +71,6 @@ export const useCompiledSql = (
     const queryParameters = useExplorerSelector(selectParameters);
     const chartConfig = useExplorerSelector(selectChartConfig);
     const pivotConfig = useExplorerSelector(selectPivotConfig);
-
-    const preAggCacheEnabled = useExplorerSelector(selectPreAggCacheEnabled);
 
     const { data: explore } = useExplore(tableId);
     const { data: useSqlPivotResults } = useServerFeatureFlag(
@@ -115,7 +110,6 @@ export const useCompiledSql = (
         timezone,
         queryParameters,
         pivotConfiguration,
-        preAggCacheEnabled,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         queryKey,
@@ -126,7 +120,6 @@ export const useCompiledSql = (
                 metricQuery,
                 queryParameters,
                 pivotConfiguration,
-                preAggCacheEnabled,
             ),
         onError: (result) => setErrorResponse(result),
         keepPreviousData: true,

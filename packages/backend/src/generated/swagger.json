@@ -4963,33 +4963,8 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "RowLimit": {
-                "properties": {
-                    "count": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of rows to show or hide"
-                    },
-                    "direction": {
-                        "type": "string",
-                        "enum": ["first", "last"],
-                        "description": "Whether to target the first or last N rows"
-                    },
-                    "mode": {
-                        "type": "string",
-                        "enum": ["show", "hide"],
-                        "description": "Whether to show or hide the selected rows"
-                    }
-                },
-                "required": ["count", "direction", "mode"],
-                "type": "object"
-            },
             "CartesianChart": {
                 "properties": {
-                    "rowLimit": {
-                        "$ref": "#/components/schemas/RowLimit",
-                        "description": "Limit displayed rows to first/last N"
-                    },
                     "metadata": {
                         "$ref": "#/components/schemas/Record_string.SeriesMetadata_",
                         "description": "Metadata for series (colors, etc.)"
@@ -5292,10 +5267,6 @@
             },
             "TableChart": {
                 "properties": {
-                    "rowLimit": {
-                        "$ref": "#/components/schemas/RowLimit",
-                        "description": "Limit displayed rows to first/last N"
-                    },
                     "metricsAsRows": {
                         "type": "boolean",
                         "description": "Display metrics as rows instead of columns"
@@ -7169,10 +7140,6 @@
                 "enum": ["table_calculation_present"],
                 "type": "string"
             },
-            "PreAggregateMissReason.USER_BYPASS": {
-                "enum": ["user_bypass"],
-                "type": "string"
-            },
             "PreAggregateMatchMiss": {
                 "anyOf": [
                     {
@@ -7296,18 +7263,6 @@
                             }
                         },
                         "required": ["reason"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "preAggregateName": {
-                                "type": "string"
-                            },
-                            "reason": {
-                                "$ref": "#/components/schemas/PreAggregateMissReason.USER_BYPASS"
-                            }
-                        },
-                        "required": ["preAggregateName", "reason"],
                         "type": "object"
                     }
                 ]
@@ -7892,26 +7847,6 @@
                     }
                 },
                 "required": ["prompt"],
-                "type": "object"
-            },
-            "ApiPreviewTokenResponse": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "token": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["token"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
                 "type": "object"
             },
             "DashboardSummaryTone": {
@@ -9401,19 +9336,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -27020,9 +26942,6 @@
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
                     },
-                    "usePreAggregateCache": {
-                        "type": "boolean"
-                    },
                     "invalidateCache": {
                         "type": "boolean"
                     },
@@ -29067,7 +28986,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2673.0",
+        "version": "0.2663.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43304,9 +43223,6 @@
                                     },
                                     {
                                         "properties": {
-                                            "usePreAggregateCache": {
-                                                "type": "boolean"
-                                            },
                                             "pivotConfiguration": {
                                                 "$ref": "#/components/schemas/PivotConfiguration"
                                             },

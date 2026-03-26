@@ -2,9 +2,6 @@ import {
     assertUnreachable,
     ExploreType,
     getItemId,
-    getPreAggregateExploreName,
-    getPreAggregateMetricColumnName,
-    getPreAggregateMetricComponentColumnName,
     getSqlForTruncatedDate,
     MetricType,
     PreAggregateMetricRepresentationKind,
@@ -20,6 +17,11 @@ import {
     type PreAggregateDef,
     type TimeFrames,
 } from '@lightdash/common';
+import {
+    getMetricColumnName,
+    getMetricComponentColumnName,
+    getPreAggregateExploreName,
+} from './naming';
 
 const isFinerGranularity = (
     candidateGranularity: TimeFrames,
@@ -74,11 +76,11 @@ const getAverageMetricAggregateSql = (
     tableName: string,
     fieldId: FieldId,
 ): string => {
-    const sumColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
+    const sumColumnReference = `${tableName}.${getMetricComponentColumnName(
         fieldId,
         'sum',
     )}`;
-    const countColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
+    const countColumnReference = `${tableName}.${getMetricComponentColumnName(
         fieldId,
         'count',
     )}`;
@@ -111,7 +113,7 @@ const getMetricSqlForPreAggregateExplore = ({
             };
         }
         case PreAggregateMetricRepresentationKind.DIRECT: {
-            const metricColumnReference = `${tableName}.${getPreAggregateMetricColumnName(
+            const metricColumnReference = `${tableName}.${getMetricColumnName(
                 fieldId,
             )}`;
             return {

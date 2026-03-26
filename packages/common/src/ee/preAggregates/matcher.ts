@@ -337,18 +337,3 @@ export const findMatch = (
         miss: null,
     };
 };
-
-export const applyUserBypass = (
-    matchResult: PreAggregateMatchResult,
-    cacheEnabled: boolean,
-): PreAggregateMatchResult => {
-    if (cacheEnabled || !matchResult.hit) return matchResult;
-    return {
-        hit: false,
-        preAggregateName: null,
-        miss: {
-            reason: PreAggregateMissReason.USER_BYPASS,
-            preAggregateName: matchResult.preAggregateName,
-        },
-    };
-};

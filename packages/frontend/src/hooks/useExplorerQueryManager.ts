@@ -23,7 +23,6 @@ import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
-import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
@@ -91,8 +90,6 @@ export const useExplorerQueryManager = () => {
     const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
-
-    const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
     // Compute active fields and query validity
     const activeFields = useMemo<Set<FieldId>>(() => {
@@ -167,7 +164,6 @@ export const useExplorerQueryManager = () => {
             viewModeQueryArgs,
             dateZoomGranularity,
             minimal,
-            usePreAggregateCache: preAggCacheEnabled,
             savedChart: chartConfigForQuery,
         });
 
@@ -186,7 +182,6 @@ export const useExplorerQueryManager = () => {
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
-        preAggCacheEnabled,
         chartConfigForQuery,
         dispatch,
     ]);

@@ -9,7 +9,6 @@ import type { DateGranularity } from '../timeFrames';
 type CommonExecuteQueryRequestParams = {
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
-    usePreAggregateCache?: boolean;
     parameters?: ParametersValuesMap;
 };
 
