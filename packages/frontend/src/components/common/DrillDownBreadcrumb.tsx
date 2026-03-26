@@ -1,5 +1,5 @@
 import { friendlyName, type DrillPath } from '@lightdash/common';
-import { Anchor, CloseButton, Group, Text } from '@mantine-8/core';
+import { Anchor, CloseButton, Text } from '@mantine-8/core';
 import { IconArrowNarrowRight } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -48,18 +48,16 @@ const DrillDownBreadcrumb: FC<Props> = ({
     );
 
     return (
-        <Group
-            gap={6}
-            p={compact ? 4 : 'xs'}
-            className={compact ? undefined : styles.root}
-            wrap="nowrap"
+        <div
+            className={`${styles.breadcrumb} ${compact ? styles.compact : styles.root}`}
         >
             <CloseButton
                 size="xs"
                 aria-label="Exit drill-down view"
                 onClick={handleReset}
+                className={styles.closeButton}
             />
-            {stack.map((level, index) => {
+            {stack.flatMap((level, index) => {
                 const isLast = index === stack.length - 1;
                 const filterEntries = Object.entries(level.filterLabels);
 
@@ -78,61 +76,74 @@ const DrillDownBreadcrumb: FC<Props> = ({
                           })
                         : [{ dim: level.drillPath.label, value: '' }];
 
-                return (
-                    <Group gap={6} key={level.drillPath.id} wrap="nowrap">
-                        {index > 0 && (
-                            <MantineIcon
-                                icon={IconArrowNarrowRight}
-                                size={14}
-                                color="dimmed"
-                            />
-                        )}
-                        <Text
-                            fz="xs"
-                            c="dimmed"
-                            style={{ whiteSpace: 'nowrap' }}
-                        >
-                            {isLast ? (
-                                pairs.map((pair, pairIndex) => (
-                                    <Text
-                                        key={pairIndex}
-                                        component="span"
-                                        fz="xs"
-                                        c="dimmed"
-                                    >
-                                        {pairIndex > 0 && ', '}
-                                        <Text
-                                            fz="xs"
-                                            fw={600}
-                                            c="foreground"
-                                            component="span"
-                                        >
-                                            {pair.dim}
-                                        </Text>
-                                        {pair.value ? `: ${pair.value}` : ''}
-                                    </Text>
-                                ))
-                            ) : (
-                                <Anchor
+                const elements = [];
+
+                if (index > 0) {
+                    elements.push(
+                        <MantineIcon
+                            key={`arrow-${level.drillPath.id}`}
+                            icon={IconArrowNarrowRight}
+                            size={14}
+                            color="dimmed"
+                            display="inline"
+                            className={styles.arrowIcon}
+                        />,
+                    );
+                }
+
+                if (isLast) {
+                    pairs.forEach((pair, pairIndex) => {
+                        elements.push(
+                            <Text
+                                key={`${level.drillPath.id}-${pairIndex}`}
+                                component="span"
+                                fz="xs"
+                                c="dimmed"
+                            >
+                                {pairIndex > 0 && ', '}
+                                <Text
                                     fz="xs"
                                     fw={600}
-                                    component="button"
-                                    type="button"
-                                    onClick={() => handlePopTo(index)}
+                                    c="foreground"
+                                    component="span"
                                 >
-                                    {pairs
-                                        .map(
-                                            (pair) =>
-                                                `${pair.dim}${pair.value ? `: ${pair.value}` : ''}`,
-                                        )
-                                        .join(', ')}
-                                </Anchor>
-                            )}
-                        </Text>
-                    </Group>
-                );
+                                    {pair.dim}
+                                </Text>
+                                {pair.value ? `: ${pair.value}` : ''}
+                            </Text>,
+                        );
+                    });
+                } else {
+                    elements.push(
+                        <Anchor
+                            key={`link-${level.drillPath.id}`}
+                            fz="xs"
+                            fw={600}
+                            component="span"
+                            role="button"
+                            tabIndex={0}
+                            className={styles.inlineAnchor}
+                            onClick={() => handlePopTo(index)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handlePopTo(index);
+                                }
+                            }}
+                        >
+                            {pairs
+                                .map(
+                                    (pair) =>
+                                        `${pair.dim}${pair.value ? `: ${pair.value}` : ''}`,
+                                )
+                                .join(', ')}
+                        </Anchor>,
+                    );
+                }
+
+                return elements;
             })}
-        </Group>
+        </div>
     );
 };
 
