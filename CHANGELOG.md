@@ -1,3 +1,10 @@
+# [0.2668.0](https://github.com/lightdash/lightdash/compare/0.2667.0...0.2668.0) (2026-03-26)
+
+
+### Features
+
+* **experimental:** move api for apps serving + add domain check ([#21422](https://github.com/lightdash/lightdash/issues/21422)) ([e804175](https://github.com/lightdash/lightdash/commit/e8041751483861bc552a8a66843f0ac2aee2260f))
+
 # [0.2667.0](https://github.com/lightdash/lightdash/compare/0.2666.1...0.2667.0) (2026-03-26)
 
 
