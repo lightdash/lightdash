@@ -1,9 +1,9 @@
-import {
-    getItemId,
-    type CompiledDimension,
-    type CompiledMetric,
-    type FieldId,
-} from '@lightdash/common';
+import type {
+    CompiledDimension,
+    CompiledMetric,
+    FieldId,
+} from '../../types/field';
+import { getItemId } from '../../utils/item';
 
 export const getDimensionBaseName = (
     dimension: Pick<
@@ -48,7 +48,7 @@ export const getMetricReferences = ({
     return references;
 };
 
-export type MetricReferenceLookup = {
+export type PreAggregateMetricReferenceLookup = {
     fieldId: FieldId;
     metric: CompiledMetric;
 };
@@ -59,22 +59,21 @@ export const getMetricsByReference = ({
 }: {
     tables: Record<string, { metrics: Record<string, CompiledMetric> }>;
     baseTable: string;
-}): Map<string, MetricReferenceLookup> =>
-    Object.values(tables).reduce<Map<string, MetricReferenceLookup>>(
-        (acc, table) => {
-            Object.values(table.metrics).forEach((metric) => {
-                const fieldId = getItemId(metric);
-                new Set([
-                    fieldId,
-                    ...getMetricReferences({
-                        metric,
-                        baseTable,
-                    }),
-                ]).forEach((reference) => {
-                    acc.set(reference, { fieldId, metric });
-                });
+}): Map<string, PreAggregateMetricReferenceLookup> =>
+    Object.values(tables).reduce<
+        Map<string, PreAggregateMetricReferenceLookup>
+    >((acc, table) => {
+        Object.values(table.metrics).forEach((metric) => {
+            const fieldId = getItemId(metric);
+            new Set([
+                fieldId,
+                ...getMetricReferences({
+                    metric,
+                    baseTable,
+                }),
+            ]).forEach((reference) => {
+                acc.set(reference, { fieldId, metric });
             });
-            return acc;
-        },
-        new Map<string, MetricReferenceLookup>(),
-    );
+        });
+        return acc;
+    }, new Map<string, PreAggregateMetricReferenceLookup>());

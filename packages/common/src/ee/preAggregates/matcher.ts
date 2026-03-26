@@ -1,21 +1,20 @@
+import type { Explore } from '../../types/explore';
+import { MetricType, type FieldId } from '../../types/field';
+import { flattenFilterGroup } from '../../types/filter';
+import type { MetricQuery } from '../../types/metricQuery';
 import {
-    flattenFilterGroup,
-    getItemId,
-    getMetricsMapFromTables,
-    MetricType,
     PreAggregateMissReason,
-    timeFrameOrder,
-    type Explore,
-    type FieldId,
-    type MetricQuery,
     type PreAggregateDef,
     type PreAggregateMatchMiss,
-    type TimeFrames,
-} from '@lightdash/common';
-import { isPreAggregateCompatible } from './additivity';
+} from '../../types/preAggregate';
+import type { TimeFrames } from '../../types/timeFrames';
+import { getMetricsMapFromTables } from '../../utils/fields';
+import { getItemId } from '../../utils/item';
+import { timeFrameOrder } from '../../utils/timeFrames';
+import { isCompatible } from './additivity';
 import { getDimensionReferences, getMetricReferences } from './references';
 
-export type MatchResult =
+export type PreAggregateMatchResult =
     | { hit: true; preAggregateName: string; miss: null }
     | { hit: false; preAggregateName: null; miss: PreAggregateMatchMiss };
 
@@ -176,7 +175,7 @@ const getMissForDef = ({
                 fieldId: metricFieldId,
             };
         }
-        if (!isPreAggregateCompatible(metric.type)) {
+        if (!isCompatible(metric.type)) {
             return {
                 reason: PreAggregateMissReason.NON_ADDITIVE_METRIC,
                 fieldId: metricFieldId,
@@ -242,7 +241,7 @@ const getMissForDef = ({
 export const findMatch = (
     metricQuery: MetricQuery,
     explore: Explore,
-): MatchResult => {
+): PreAggregateMatchResult => {
     if (!explore.preAggregates || explore.preAggregates.length === 0) {
         return {
             hit: false,
@@ -336,5 +335,20 @@ export const findMatch = (
         hit: true,
         preAggregateName: smallestMatchingDef.name,
         miss: null,
+    };
+};
+
+export const applyUserBypass = (
+    matchResult: PreAggregateMatchResult,
+    cacheEnabled: boolean,
+): PreAggregateMatchResult => {
+    if (cacheEnabled || !matchResult.hit) return matchResult;
+    return {
+        hit: false,
+        preAggregateName: null,
+        miss: {
+            reason: PreAggregateMissReason.USER_BYPASS,
+            preAggregateName: matchResult.preAggregateName,
+        },
     };
 };

@@ -1,6 +1,7 @@
 import {
     ApiPreAggregateStatsResults,
     ExploreType,
+    preAggregateUtils,
     QueryExecutionContext as QEC,
     UnexpectedServerError,
     type Explore,
@@ -21,7 +22,6 @@ import type {
 } from '../../../services/AsyncQueryService/PreAggregateStrategy';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { type PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';
-import { findMatch } from '../../preAggregates/matcher';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
@@ -87,7 +87,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             return { target: 'warehouse' };
         }
 
-        const matchResult = findMatch(metricQuery, explore);
+        const matchResult = preAggregateUtils.findMatch(metricQuery, explore);
         const preAggregateMetadata = {
             hit: matchResult.hit,
             name: matchResult.preAggregateName || undefined,

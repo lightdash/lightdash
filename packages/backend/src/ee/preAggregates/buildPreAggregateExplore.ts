@@ -2,8 +2,13 @@ import {
     assertUnreachable,
     ExploreType,
     getItemId,
+    getPreAggregateExploreName,
+    getPreAggregateMetricColumnName,
+    getPreAggregateMetricComponentColumnName,
     getSqlForTruncatedDate,
     MetricType,
+    PreAggregateMetricRepresentationKind,
+    preAggregateUtils,
     SupportedDbtAdapter,
     timeFrameOrder,
     type CompiledDimension,
@@ -15,22 +20,6 @@ import {
     type PreAggregateDef,
     type TimeFrames,
 } from '@lightdash/common';
-import {
-    getPreAggregateMetricRepresentation,
-    isSupportedPreAggregateMetricType,
-    PreAggregateMetricRepresentationKind,
-    supportedPreAggregateMetricTypes,
-} from './metricRepresentation';
-import {
-    getMetricColumnName,
-    getMetricComponentColumnName,
-    getPreAggregateExploreName,
-} from './naming';
-import {
-    getDimensionBaseName,
-    getDimensionReferences,
-    getMetricsByReference,
-} from './references';
 
 const isFinerGranularity = (
     candidateGranularity: TimeFrames,
@@ -49,13 +38,15 @@ const getDimensionsByReference = (sourceExplore: Explore) =>
         Map<string, CompiledDimension[]>
     >((acc, table) => {
         Object.values(table.dimensions).forEach((dimension) => {
-            getDimensionReferences({
-                dimension,
-                baseTable: sourceExplore.baseTable,
-            }).forEach((reference) => {
-                const existingDimensions = acc.get(reference) || [];
-                acc.set(reference, [...existingDimensions, dimension]);
-            });
+            preAggregateUtils
+                .getDimensionReferences({
+                    dimension,
+                    baseTable: sourceExplore.baseTable,
+                })
+                .forEach((reference) => {
+                    const existingDimensions = acc.get(reference) || [];
+                    acc.set(reference, [...existingDimensions, dimension]);
+                });
         });
         return acc;
     }, new Map<string, CompiledDimension[]>());
@@ -83,11 +74,11 @@ const getAverageMetricAggregateSql = (
     tableName: string,
     fieldId: FieldId,
 ): string => {
-    const sumColumnReference = `${tableName}.${getMetricComponentColumnName(
+    const sumColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
         fieldId,
         'sum',
     )}`;
-    const countColumnReference = `${tableName}.${getMetricComponentColumnName(
+    const countColumnReference = `${tableName}.${getPreAggregateMetricComponentColumnName(
         fieldId,
         'count',
     )}`;
@@ -105,7 +96,8 @@ const getMetricSqlForPreAggregateExplore = ({
     tableName: string;
     fieldId: FieldId;
 }): { sql: string; compiledSql: string } => {
-    const representation = getPreAggregateMetricRepresentation(metricType);
+    const representation =
+        preAggregateUtils.getMetricRepresentation(metricType);
 
     switch (representation.kind) {
         case PreAggregateMetricRepresentationKind.DECOMPOSED: {
@@ -119,7 +111,7 @@ const getMetricSqlForPreAggregateExplore = ({
             };
         }
         case PreAggregateMetricRepresentationKind.DIRECT: {
-            const metricColumnReference = `${tableName}.${getMetricColumnName(
+            const metricColumnReference = `${tableName}.${getPreAggregateMetricColumnName(
                 fieldId,
             )}`;
             return {
@@ -149,7 +141,7 @@ const getMaterializedDimensionColumnName = ({
     dimension: CompiledDimension;
     preAggregateDef: PreAggregateDef;
 }): string => {
-    const dimensionBaseName = getDimensionBaseName(dimension);
+    const dimensionBaseName = preAggregateUtils.getDimensionBaseName(dimension);
 
     if (
         preAggregateDef.timeDimension &&
@@ -160,7 +152,7 @@ const getMaterializedDimensionColumnName = ({
             sourceExplore.tables[dimension.table]?.dimensions || {},
         ).find(
             (candidateDimension) =>
-                getDimensionBaseName(candidateDimension) ===
+                preAggregateUtils.getDimensionBaseName(candidateDimension) ===
                     preAggregateDef.timeDimension &&
                 candidateDimension.timeInterval === preAggregateDef.granularity,
         );
@@ -177,7 +169,7 @@ const getBaseDimensionType = (
     sourceExplore: Explore,
     dimension: CompiledDimension,
 ): DimensionType => {
-    const dimensionBaseName = getDimensionBaseName(dimension);
+    const dimensionBaseName = preAggregateUtils.getDimensionBaseName(dimension);
     const baseDimension =
         sourceExplore.tables[dimension.table]?.dimensions[dimensionBaseName];
     return baseDimension?.type || dimension.type;
@@ -192,7 +184,7 @@ const buildDimensionSql = ({
     dimension: CompiledDimension;
     preAggregateDef: PreAggregateDef;
 }): string => {
-    const dimensionBaseName = getDimensionBaseName(dimension);
+    const dimensionBaseName = preAggregateUtils.getDimensionBaseName(dimension);
     const materializedBaseColumnName = getMaterializedDimensionColumnName({
         sourceExplore,
         dimension,
@@ -258,10 +250,12 @@ const getIncludedDimensions = (
     const includedDimensions = Object.values(sourceExplore.tables).flatMap(
         (table) =>
             Object.values(table.dimensions).filter((dimension) =>
-                getDimensionReferences({
-                    dimension,
-                    baseTable: sourceExplore.baseTable,
-                }).some((reference) => defDimensions.has(reference)),
+                preAggregateUtils
+                    .getDimensionReferences({
+                        dimension,
+                        baseTable: sourceExplore.baseTable,
+                    })
+                    .some((reference) => defDimensions.has(reference)),
             ),
     );
 
@@ -275,7 +269,8 @@ const getIncludedDimensions = (
     );
 
     return uniqueDimensions.filter((dimension) => {
-        const dimensionBaseName = getDimensionBaseName(dimension);
+        const dimensionBaseName =
+            preAggregateUtils.getDimensionBaseName(dimension);
         if (
             !preAggregateDef.timeDimension ||
             !preAggregateDef.granularity ||
@@ -296,7 +291,7 @@ const getIncludedMetrics = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
 ): Array<{ fieldId: FieldId; metric: CompiledMetric }> => {
-    const metricsByReference = getMetricsByReference({
+    const metricsByReference = preAggregateUtils.getMetricsByReference({
         tables: sourceExplore.tables,
         baseTable: sourceExplore.baseTable,
     });
@@ -317,7 +312,7 @@ const getIncludedMetrics = (
 
         const { fieldId, metric } = metricLookup;
 
-        if (!isSupportedPreAggregateMetricType(metric.type)) {
+        if (!preAggregateUtils.isSupportedMetricType(metric.type)) {
             unsupportedMetrics.push({
                 reference: metricReference,
                 metricType: metric.type,
@@ -339,7 +334,7 @@ const getIncludedMetrics = (
                 )
                 .join(
                     ', ',
-                )}. Supported metric types: ${supportedPreAggregateMetricTypes.join(
+                )}. Supported metric types: ${preAggregateUtils.supportedMetricTypes.join(
                 ', ',
             )}`,
         );

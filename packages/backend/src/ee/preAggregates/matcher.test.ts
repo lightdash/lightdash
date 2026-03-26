@@ -5,6 +5,7 @@ import {
     FilterOperator,
     MetricType,
     PreAggregateMissReason,
+    preAggregateUtils,
     SupportedDbtAdapter,
     TimeFrames,
     type CompiledDimension,
@@ -12,7 +13,6 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
-import { findMatch } from './matcher';
 
 const makeDimension = ({
     name,
@@ -159,7 +159,7 @@ const makeMetricQuery = (
 
 describe('findMatch', () => {
     it('returns no_pre_aggregates_defined when explore has no pre-aggregates', () => {
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -190,7 +190,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status', 'orders_order_date_month'],
                 metrics: ['orders_order_count'],
@@ -219,7 +219,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status', 'orders_order_date_month'],
                 metrics: ['orders_order_count'],
@@ -246,7 +246,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -272,7 +272,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_total_order_amount'],
@@ -298,7 +298,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_unique_customers'],
@@ -324,7 +324,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_custom_metric'],
@@ -350,7 +350,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_avg_order_amount'],
@@ -377,7 +377,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -418,7 +418,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_order_date_day'],
                 metrics: ['orders_order_count'],
@@ -449,7 +449,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_order_date_month'],
                 metrics: ['orders_order_count'],
@@ -472,7 +472,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -507,7 +507,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -539,7 +539,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -577,7 +577,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -609,7 +609,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -636,7 +636,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['customers_first_name'],
                 metrics: ['orders_order_count'],
@@ -659,7 +659,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: ['orders_order_count'],
@@ -708,7 +708,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: ['orders_status'],
                 metrics: [],
@@ -731,7 +731,7 @@ describe('findMatch', () => {
             ],
         };
 
-        const result = findMatch(
+        const result = preAggregateUtils.findMatch(
             makeMetricQuery({
                 dimensions: [],
                 metrics: ['orders_order_count'],

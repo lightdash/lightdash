@@ -41,6 +41,7 @@ export type QueryResultsProps = {
     dateZoomGranularity?: DateGranularity | string;
     context?: QueryExecutionContext;
     invalidateCache?: boolean;
+    usePreAggregateCache?: boolean;
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
     pivotResults?: boolean;
@@ -164,6 +165,7 @@ const executeAsyncQuery = (
                         : undefined,
                 },
                 invalidateCache: true, // Note: do not cache explore queries
+                usePreAggregateCache: data.usePreAggregateCache,
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,
             },

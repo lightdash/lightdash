@@ -57,6 +57,7 @@ export enum PreAggregateMissReason {
     CUSTOM_DIMENSION_PRESENT = 'custom_dimension_present',
     CUSTOM_METRIC_PRESENT = 'custom_metric_present',
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
+    USER_BYPASS = 'user_bypass',
 }
 
 export type PreAggregateMatchMiss =
@@ -98,6 +99,10 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT;
+      }
+    | {
+          reason: PreAggregateMissReason.USER_BYPASS;
+          preAggregateName: string;
       };
 
 export type PreAggregateDefinition = {
@@ -153,6 +158,7 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric present',
     [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]:
         'Table calculation present',
+    [PreAggregateMissReason.USER_BYPASS]: 'Bypassed by user',
 };
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;

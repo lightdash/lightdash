@@ -163,6 +163,7 @@ export class QueryController extends BaseController {
                 account: req.account!,
                 projectUuid,
                 invalidateCache: body.invalidateCache,
+                usePreAggregateCache: body.usePreAggregateCache,
                 metricQuery,
                 context: context ?? QueryExecutionContext.API,
                 dateZoom: body.dateZoom,

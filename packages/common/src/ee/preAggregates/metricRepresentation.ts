@@ -1,6 +1,7 @@
-import { assertUnreachable, MetricType } from '@lightdash/common';
+import { MetricType } from '../../types/field';
+import assertUnreachable from '../../utils/assertUnreachable';
 
-export type SupportedPreAggregateMetricType =
+export type PreAggregateSupportedMetricType =
     | MetricType.SUM
     | MetricType.COUNT
     | MetricType.MIN
@@ -27,16 +28,15 @@ export type PreAggregateMetricRepresentation =
           kind: PreAggregateMetricRepresentationKind.UNSUPPORTED;
       };
 
-export const supportedPreAggregateMetricTypes: SupportedPreAggregateMetricType[] =
-    [
-        MetricType.SUM,
-        MetricType.COUNT,
-        MetricType.MIN,
-        MetricType.MAX,
-        MetricType.AVERAGE,
-    ];
+export const supportedMetricTypes: PreAggregateSupportedMetricType[] = [
+    MetricType.SUM,
+    MetricType.COUNT,
+    MetricType.MIN,
+    MetricType.MAX,
+    MetricType.AVERAGE,
+];
 
-export const getPreAggregateMetricRepresentation = (
+export const getMetricRepresentation = (
     metricType: MetricType,
 ): PreAggregateMetricRepresentation => {
     switch (metricType) {
@@ -83,8 +83,8 @@ export const getPreAggregateMetricRepresentation = (
     }
 };
 
-export const isSupportedPreAggregateMetricType = (
+export const isSupportedMetricType = (
     metricType: MetricType,
-): metricType is SupportedPreAggregateMetricType =>
-    getPreAggregateMetricRepresentation(metricType).kind !==
+): metricType is PreAggregateSupportedMetricType =>
+    getMetricRepresentation(metricType).kind !==
     PreAggregateMetricRepresentationKind.UNSUPPORTED;

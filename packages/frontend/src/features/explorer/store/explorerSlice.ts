@@ -20,6 +20,7 @@ import {
     type MetricQuery,
     type MetricType,
     type ParameterValue,
+    type PreAggregateMatchResult,
     type ReplaceCustomFields,
     type SavedChart,
     type SortField,
@@ -908,6 +909,23 @@ const explorerSlice = createSlice({
         },
         clearPendingFetch: (state) => {
             state.queryExecution.pendingFetch = false;
+        },
+
+        setPreAggregateState: (
+            state,
+            action: PayloadAction<{
+                matchResult: PreAggregateMatchResult | null;
+                preAggExploreName: string | null;
+                isEnabled: boolean;
+            }>,
+        ) => {
+            state.preAggregate = {
+                ...state.preAggregate,
+                ...action.payload,
+            };
+        },
+        setPreAggCacheEnabled: (state, action: PayloadAction<boolean>) => {
+            state.preAggregate.cacheEnabled = action.payload;
         },
 
         replaceFields: (

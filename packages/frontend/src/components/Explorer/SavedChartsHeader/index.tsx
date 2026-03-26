@@ -413,6 +413,7 @@ const SavedChartsHeader: FC = () => {
                 },
                 modals: defaultState.modals,
                 queryExecution: defaultQueryExecution,
+                preAggregate: defaultState.preAggregate,
             };
             dispatch(explorerActions.reset(resetState));
         }

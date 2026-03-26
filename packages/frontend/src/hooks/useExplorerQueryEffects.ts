@@ -2,6 +2,8 @@ import {
     derivePivotConfigurationFromChart,
     FeatureFlags,
     getFieldsFromMetricQuery,
+    getPreAggregateExploreName,
+    preAggregateUtils,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useEffect, useMemo } from 'react';
@@ -15,13 +17,17 @@ import {
     selectIsEditMode,
     selectIsExploreFromHere,
     selectIsResultsExpanded,
+    selectMetricQuery,
     selectPendingFetch,
     selectSavedChart,
+    selectTableName,
     selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import useHealth from './health/useHealth';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
+import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
@@ -33,6 +39,7 @@ import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
  *   2. Reactive fetch: Runs when state changes (dimensions, metrics, filters, params)
  *      if auto-fetch is enabled
  * - Unpivoted query setup for pivot tables
+ * - Pre-aggregate match computation (dispatched to Redux for consumers)
  *
  * Should be called ONCE at the Explorer root component.
  * Child components should use useExplorerQuery() instead.
@@ -69,6 +76,47 @@ export const useExplorerQueryEffects = ({
 
     const savedChart = useExplorerSelector(selectSavedChart);
     const isSavedChart = !!savedChart;
+
+    // Pre-aggregate match: computed here (once), dispatched to Redux for all consumers
+    const { data: health } = useHealth();
+    const isPreAggEnabled = !!health?.preAggregates?.enabled;
+    const tableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
+
+    const matchResult = useMemo(() => {
+        if (!isPreAggEnabled || !explore || !metricQuery) return null;
+        if (
+            metricQuery.dimensions.length === 0 &&
+            metricQuery.metrics.length === 0
+        )
+            return null;
+        const rawResult = preAggregateUtils.findMatch(metricQuery, explore);
+        return preAggregateUtils.applyUserBypass(rawResult, preAggCacheEnabled);
+    }, [isPreAggEnabled, explore, metricQuery, preAggCacheEnabled]);
+
+    const preAggExploreName = useMemo(() => {
+        if (!matchResult?.hit || !tableName) return null;
+        return getPreAggregateExploreName(
+            tableName,
+            matchResult.preAggregateName,
+        );
+    }, [matchResult, tableName]);
+
+    const hasPreAggregates =
+        isPreAggEnabled &&
+        !!explore?.preAggregates &&
+        explore.preAggregates.length > 0;
+
+    useEffect(() => {
+        dispatch(
+            explorerActions.setPreAggregateState({
+                matchResult,
+                preAggExploreName,
+                isEnabled: hasPreAggregates,
+            }),
+        );
+    }, [matchResult, preAggExploreName, hasPreAggregates, dispatch]);
 
     // Check if we need unpivoted data for results table
     const needsUnpivotedData = useMemo(() => {
