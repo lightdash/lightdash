@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
-    DEFAULT_COLUMN_LIMIT,
     FeatureFlags,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -200,7 +199,7 @@ const useCartesianChartConfig = ({
     );
 
     const effectiveColumnLimit = isShowHideColumnsEnabled
-        ? (columnLimit ?? DEFAULT_COLUMN_LIMIT)
+        ? columnLimit
         : undefined;
 
     const [dirtyLayout, setDirtyLayout] = useState<
