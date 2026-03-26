@@ -213,6 +213,8 @@ export const Layout: FC<Props> = ({ items }) => {
     const handleColumnLimitChange = (value: string | number) => {
         if (typeof value === 'number') {
             setColumnLimit(value);
+        } else {
+            setColumnLimit(undefined);
         }
     };
 
