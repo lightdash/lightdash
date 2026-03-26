@@ -452,25 +452,11 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    private async createBrowserPdf(
+    private async uploadPdf(
         id: string,
-        screenshotParams: Omit<
-            Parameters<UnfurlService['saveScreenshot']>[0],
-            'outputFormat'
-        >,
+        pdfBuffer: Buffer,
         title?: string,
     ): Promise<{ source: string; fileName: string }> {
-        // Renders the page as a native PDF via Playwright's page.pdf()
-        const pdfBuffer = await this.saveScreenshot({
-            ...screenshotParams,
-            imageId: `${id}-pdf`,
-            outputFormat: 'pdf',
-        });
-
-        if (pdfBuffer === undefined) {
-            throw new Error('Failed to generate PDF');
-        }
-
         let source: string;
         let fileName: string;
         if (this.fileStorageClient.isEnabled()) {
@@ -544,40 +530,43 @@ export class UnfurlService extends BaseService {
             sendNowSchedulerParameters,
         };
 
-        const buffer = await this.saveScreenshot(screenshotParams);
+        const result = await this.saveScreenshot({
+            ...screenshotParams,
+            withPdf,
+        });
+
+        if (result === undefined) {
+            return { imageUrl: undefined, pdfFile: undefined };
+        }
+
+        const isBufferResult = Buffer.isBuffer(result);
+        const imageBuffer = isBufferResult ? result : result.imageBuffer;
+        const pdfBuffer = isBufferResult ? undefined : result.pdfBuffer;
 
         let imageUrl;
+        if (this.fileStorageClient.isEnabled()) {
+            imageUrl = await this.fileStorageClient.uploadImage(
+                imageBuffer,
+                imageId,
+            );
+        } else {
+            const filePath = `/tmp/${imageId}.png`;
+            const downloadFileId = useNanoid();
+            await this.downloadFileModel.createDownloadFile(
+                downloadFileId,
+                filePath,
+                DownloadFileType.IMAGE,
+            );
+
+            imageUrl = new URL(
+                `/api/v1/slack/image/${downloadFileId}`,
+                this.lightdashConfig.siteUrl,
+            ).href;
+        }
+
         let pdfFile;
-
-        if (buffer !== undefined) {
-            if (withPdf) {
-                pdfFile = await this.createBrowserPdf(
-                    imageId,
-                    screenshotParams,
-                    details?.title,
-                );
-            }
-
-            if (this.fileStorageClient.isEnabled()) {
-                imageUrl = await this.fileStorageClient.uploadImage(
-                    buffer,
-                    imageId,
-                );
-            } else {
-                // We will share the image saved by puppetteer on our lightdash enpdoint
-                const filePath = `/tmp/${imageId}.png`;
-                const downloadFileId = useNanoid();
-                await this.downloadFileModel.createDownloadFile(
-                    downloadFileId,
-                    filePath,
-                    DownloadFileType.IMAGE,
-                );
-
-                imageUrl = new URL(
-                    `/api/v1/slack/image/${downloadFileId}`,
-                    this.lightdashConfig.siteUrl,
-                ).href;
-            }
+        if (pdfBuffer) {
+            pdfFile = await this.uploadPdf(imageId, pdfBuffer, details?.title);
         }
 
         return {
@@ -755,6 +744,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
         outputFormat = 'image',
+        withPdf = false,
     }: {
         imageId: string;
         cookie: string;
@@ -777,7 +767,10 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
-    }): Promise<Buffer | undefined> {
+        withPdf?: boolean;
+    }): Promise<
+        Buffer | { imageBuffer: Buffer; pdfBuffer: Buffer } | undefined
+    > {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
                 sqlChartTileUuids,
@@ -1249,13 +1242,10 @@ export class UnfurlService extends BaseService {
                         await page.waitForTimeout(100);
                     }
 
-                    // PDF output: use page.pdf() for native PDF rendering
-                    if (outputFormat === 'pdf') {
+                    // Helper: generate PDF from the current page state
+                    const generatePdf = async () => {
                         const pdfWidth = gridWidth ?? viewport.width;
-
-                        // Measure actual content bottom from child elements
-                        // (grid container's CSS height is larger than content)
-                        const contentBottom = await page.evaluate(
+                        const contentBottom = await page!.evaluate(
                             (sel: string) => {
                                 const container = document.querySelector(sel);
                                 if (!container) return 800;
@@ -1274,17 +1264,13 @@ export class UnfurlService extends BaseService {
                             },
                             finalSelector,
                         );
-
                         const clip = {
                             x: 0,
                             y: 0,
                             width: pdfWidth,
                             height: contentBottom + 10,
                         };
-
-                        // Set page size large enough to contain clip area
-                        // in a single page, then crop via incremental update
-                        const pdfBuffer = await page.pdf({
+                        const pdfBytes = await page!.pdf({
                             width: `${clip.width}px`,
                             height: `${clip.height}px`,
                             printBackground: true,
@@ -1296,31 +1282,41 @@ export class UnfurlService extends BaseService {
                                 left: 0,
                             },
                         });
+                        return cropPdfToClip(Buffer.from(pdfBytes), clip);
+                    };
 
-                        return cropPdfToClip(Buffer.from(pdfBuffer), clip);
+                    // PDF-only output
+                    if (outputFormat === 'pdf') {
+                        return await generatePdf();
                     }
 
+                    // Take screenshot
+                    let imageBuffer: Buffer;
                     if (
                         lightdashPage === LightdashPage.DASHBOARD ||
                         lightdashPage === LightdashPage.EXPLORE
                     ) {
-                        const imageBuffer = await page
+                        imageBuffer = await page
                             .locator(finalSelector)
                             .screenshot({
                                 path,
                                 animations: 'disabled',
                                 timeout: RESPONSE_TIMEOUT_MS,
                             });
-
-                        return imageBuffer;
+                    } else {
+                        // Full page screenshot for charts
+                        imageBuffer = await page.screenshot({
+                            path,
+                            fullPage: true,
+                            animations: 'disabled',
+                        });
                     }
 
-                    // Full page screenshot for charts
-                    const imageBuffer = await page.screenshot({
-                        path,
-                        fullPage: true,
-                        animations: 'disabled',
-                    });
+                    // Also generate PDF in the same browser session
+                    if (withPdf) {
+                        const pdfBuffer = await generatePdf();
+                        return { imageBuffer, pdfBuffer };
+                    }
 
                     return imageBuffer;
                 } catch (e) {
@@ -1390,6 +1386,7 @@ export class UnfurlService extends BaseService {
                             sendNowSchedulerFilters,
                             sendNowSchedulerParameters,
                             outputFormat,
+                            withPdf,
                         });
                     }
 
