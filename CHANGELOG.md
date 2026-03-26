@@ -1,3 +1,10 @@
+# [0.2673.0](https://github.com/lightdash/lightdash/compare/0.2672.0...0.2673.0) (2026-03-26)
+
+
+### Features
+
+* improve PDF quality in scheduled deliveries using native browser rendering ([#21438](https://github.com/lightdash/lightdash/issues/21438)) ([2e956d7](https://github.com/lightdash/lightdash/commit/2e956d7193f292d297407ca8c8b385ee29aefec4)), closes [#39695](https://github.com/lightdash/lightdash/issues/39695) [#21143](https://github.com/lightdash/lightdash/issues/21143) [#21143](https://github.com/lightdash/lightdash/issues/21143)
+
 # [0.2672.0](https://github.com/lightdash/lightdash/compare/0.2671.1...0.2672.0) (2026-03-26)
 
 
