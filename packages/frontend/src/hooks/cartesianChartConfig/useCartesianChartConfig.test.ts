@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    DEFAULT_COLUMN_LIMIT,
     getItemMap,
     type Series,
 } from '@lightdash/common';
@@ -179,6 +180,37 @@ describe('getExpectedSeriesMap', () => {
                 columnLimit: 1,
             });
             expect(result).toStrictEqual(expectedSimpleSeriesMap);
+        });
+
+        test('should treat columnLimit of 0 as no limit', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 0,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should treat negative columnLimit as no limit', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: -5,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should return exactly 1 series when columnLimit is 1', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const allKeys = Object.keys(allResult);
+
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 1,
+            });
+            const keys = Object.keys(result);
+            expect(keys).toHaveLength(1);
+            expect(keys[0]).toBe(allKeys[0]);
         });
     });
 });
@@ -367,5 +399,29 @@ describe('useCartesianChartConfig', () => {
 
         expect(series[0].yAxisIndex).toBe(1);
         expect(series[1].yAxisIndex).toBe(0);
+    });
+
+    test('should default columnLimit to DEFAULT_COLUMN_LIMIT when not in config', () => {
+        const { result } = renderHook(
+            // @ts-expect-error partially mock params for hook
+            () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
+        );
+
+        expect(result.current.columnLimit).toBe(DEFAULT_COLUMN_LIMIT);
+    });
+
+    test('should preserve explicit columnLimit from config', () => {
+        const { result } = renderHook(() =>
+            // @ts-expect-error partially mock params for hook
+            useCartesianChartConfig({
+                ...useCartesianChartConfigParamsMock,
+                initialChartConfig: {
+                    ...useCartesianChartConfigParamsMock.initialChartConfig,
+                    columnLimit: 10,
+                },
+            }),
+        );
+
+        expect(result.current.columnLimit).toBe(10);
     });
 });
