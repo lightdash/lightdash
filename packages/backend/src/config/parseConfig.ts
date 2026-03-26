@@ -1161,6 +1161,7 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     lightdashOrigin: string;
     cdnOrigin: string | null;
+    previewOrigin: string | null;
     s3: S3Config | null;
     e2bApiKey: string | null;
 };
@@ -1365,6 +1366,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         enabled,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
+        previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
     };

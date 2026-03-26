@@ -512,7 +512,7 @@ export default class App {
         // never touch the DB for session lookups.
         if (this.lightdashConfig.appRuntime.enabled) {
             expressApp.use(
-                '/api/v1/preview',
+                '/api/apps',
                 createAppPreviewRouter(this.lightdashConfig.appRuntime),
             );
         }
