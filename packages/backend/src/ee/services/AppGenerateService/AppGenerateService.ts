@@ -16,24 +16,29 @@ import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
+import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
+    catalogModel: CatalogModel;
 };
 
 type GenerateAppResult = {
     appUuid: string;
-    versionUuid: string;
+    version: number;
 };
 
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
-    constructor({ lightdashConfig }: AppGenerateServiceDeps) {
+    private readonly catalogModel: CatalogModel;
+
+    constructor({ lightdashConfig, catalogModel }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
+        this.catalogModel = catalogModel;
     }
 
     private getAnthropicApiKey(): string {
@@ -110,13 +115,13 @@ export class AppGenerateService extends BaseService {
         }
 
         const appUuid = uuidv4();
-        const versionUuid = uuidv4();
+        const version = 1;
         const anthropicApiKey = this.getAnthropicApiKey();
         const e2bApiKey = this.getE2bApiKey();
         const { client: s3Client, bucket } = this.getS3Client();
 
         this.logger.info(
-            `Generating app ${appUuid} version ${versionUuid} from prompt`,
+            `Generating app ${appUuid} version ${version} from prompt`,
         );
 
         const sandbox = await Sandbox.create('lightdash-data-app', {
@@ -128,6 +133,17 @@ export class AppGenerateService extends BaseService {
         });
 
         try {
+            // Write the project's catalog to the sandbox so Claude knows
+            // which models, dimensions, and metrics are available.
+            this.logger.info(`App ${appUuid}: writing model context`);
+            const catalogItems =
+                await this.catalogModel.getCatalogItemsSummary(projectUuid);
+            const modelYaml = AppGenerateService.catalogToYaml(catalogItems);
+            await sandbox.files.write(
+                '/tmp/dbt-repo/models/schema.yml',
+                modelYaml,
+            );
+
             // Write the prompt to a file to avoid shell injection
             await sandbox.files.write('/tmp/prompt.txt', prompt);
 
@@ -181,14 +197,14 @@ export class AppGenerateService extends BaseService {
                 tarBuffer,
                 s3Client,
                 bucket,
-                `apps/${appUuid}/versions/${versionUuid}`,
+                `apps/${appUuid}/versions/${version}`,
             );
 
             this.logger.info(
-                `App ${appUuid} version ${versionUuid} generated successfully`,
+                `App ${appUuid} version ${version} generated successfully`,
             );
 
-            return { appUuid, versionUuid };
+            return { appUuid, version };
         } finally {
             await sandbox.kill();
             this.logger.info(`App ${appUuid}: sandbox terminated`);
@@ -264,7 +280,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-        versionUuid: string,
+        version: number,
     ): string {
         this.assertDataAppsEnabled();
         if (
@@ -281,15 +297,78 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
+        if (!isValidUuid(appUuid)) {
             throw new ParameterError('Invalid UUID format');
+        }
+
+        if (!Number.isInteger(version) || version < 1) {
+            throw new ParameterError('Version must be a positive integer');
         }
 
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecret,
             appUuid,
-            versionUuid,
+            version,
+            user.userUuid,
+            user.organizationUuid!,
+            projectUuid,
         );
+    }
+
+    /**
+     * Convert catalog items into a dbt-style YAML that skill.md expects.
+     * Groups fields by table and separates dimensions from metrics.
+     */
+    private static catalogToYaml(
+        items: {
+            name: string;
+            type: string;
+            tableName: string;
+            fieldType: string | undefined;
+        }[],
+    ): string {
+        // Group fields by table
+        const tables = new Map<
+            string,
+            { dimensions: string[]; metrics: string[] }
+        >();
+
+        for (const item of items) {
+            if (item.type === 'field') {
+                if (!tables.has(item.tableName)) {
+                    tables.set(item.tableName, { dimensions: [], metrics: [] });
+                }
+                const table = tables.get(item.tableName)!;
+
+                if (item.fieldType === 'metric') {
+                    table.metrics.push(item.name);
+                } else {
+                    table.dimensions.push(item.name);
+                }
+            }
+        }
+
+        // Build YAML
+        const lines: string[] = ['models:'];
+        for (const [tableName, fields] of tables) {
+            lines.push(`  - name: ${tableName}`);
+            if (fields.metrics.length > 0) {
+                lines.push(`    meta:`);
+                lines.push(`      metrics:`);
+                for (const m of fields.metrics) {
+                    lines.push(`        ${m}:`);
+                    lines.push(`          type: metric`);
+                }
+            }
+            if (fields.dimensions.length > 0) {
+                lines.push(`    columns:`);
+                for (const d of fields.dimensions) {
+                    lines.push(`      - name: ${d}`);
+                }
+            }
+        }
+
+        return lines.join('\n');
     }
 
     private static getContentType(filePath: string): string {
