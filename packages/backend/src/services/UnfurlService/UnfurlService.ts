@@ -1389,6 +1389,7 @@ export class UnfurlService extends BaseService {
                             selectedTabs,
                             sendNowSchedulerFilters,
                             sendNowSchedulerParameters,
+                            outputFormat,
                         });
                     }
 
