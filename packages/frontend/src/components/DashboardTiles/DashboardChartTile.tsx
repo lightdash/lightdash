@@ -188,6 +188,7 @@ const computeDashboardChartSeries = (
     validPivotDimensions: string[] | undefined,
     resultData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap,
+    isShowHideColumnsEnabled: boolean,
 ) => {
     if (!chart.chartConfig || !resultData || resultData.rows.length === 0) {
         return [];
@@ -212,7 +213,9 @@ const computeDashboardChartSeries = (
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
             itemsMap,
-            columnLimit: chart.chartConfig.config.columnLimit,
+            columnLimit: isShowHideColumnsEnabled
+                ? chart.chartConfig.config.columnLimit
+                : undefined,
         });
         const sortedByPivot =
             !!validPivotDimensions?.length &&
@@ -293,14 +296,26 @@ const ValidDashboardChartTile: FC<{
         metricQuery,
     );
 
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
+
     const computedSeries: Series[] = useMemo(() => {
         return computeDashboardChartSeries(
             chart,
             validPivotDimensions,
             resultsData,
             fields,
+            isShowHideColumnsEnabled,
         );
-    }, [resultsData, chart, validPivotDimensions, fields]);
+    }, [
+        resultsData,
+        chart,
+        validPivotDimensions,
+        fields,
+        isShowHideColumnsEnabled,
+    ]);
 
     const resultsDataWithQueryData = useMemo(
         () => ({
@@ -415,18 +430,25 @@ const ValidDashboardChartTileMinimal: FC<{
         dashboardChartReadyQuery.executeQueryResponse.metricQuery,
     );
 
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
+
     const computedSeries: Series[] = useMemo(() => {
         return computeDashboardChartSeries(
             chart,
             validPivotDimensions,
             resultsData,
             dashboardChartReadyQuery.executeQueryResponse?.fields,
+            isShowHideColumnsEnabled,
         );
     }, [
         resultsData,
         chart,
         validPivotDimensions,
         dashboardChartReadyQuery.executeQueryResponse?.fields,
+        isShowHideColumnsEnabled,
     ]);
 
     const resultsDataWithQueryData = useMemo(
