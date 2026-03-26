@@ -39,6 +39,7 @@ const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
         !dashboard.dashboardFiltersInteractivity.hidden;
     return (
         <Group
+            data-hide-print="true"
             justify="flex-start"
             align="center"
             wrap="wrap"

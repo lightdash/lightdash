@@ -13,6 +13,29 @@ type Props = {
     projectUuid: string;
 };
 
+/**
+ * Collect every ancestor element between `el` and `<body>` (exclusive).
+ * Used to temporarily expand fixed-height parents so the full dashboard
+ * content is visible during printing.
+ */
+function getAncestors(el: HTMLElement): HTMLElement[] {
+    const ancestors: HTMLElement[] = [];
+    let current = el.parentElement;
+    while (current && current !== document.body) {
+        ancestors.push(current);
+        current = current.parentElement;
+    }
+    return ancestors;
+}
+
+type SavedStyle = {
+    el: HTMLElement;
+    height: string;
+    overflow: string;
+    maxHeight: string;
+    position: string;
+};
+
 const EmbedDashboardExportPdf: FC<Props> = ({
     projectUuid,
     dashboard,
@@ -26,6 +49,7 @@ const EmbedDashboardExportPdf: FC<Props> = ({
     return (
         <Tooltip label="Print this page" withinPortal position="bottom">
             <ActionIcon
+                data-hide-print="true"
                 variant="default"
                 onClick={() => {
                     const event = {
@@ -52,6 +76,21 @@ const EmbedDashboardExportPdf: FC<Props> = ({
                     // page to match rather than scaling the content down.
                     let pageStyle: HTMLStyleElement | null = null;
 
+                    // Save and clear theme inline background colors so the
+                    // @media print rules in print.css can force a white
+                    // background (inline styles have higher specificity than
+                    // !important in stylesheets in some browser print paths).
+                    const savedHtmlBg =
+                        document.documentElement.style.backgroundColor;
+                    const savedBodyBg = document.body.style.backgroundColor;
+                    document.documentElement.style.backgroundColor = '';
+                    document.body.style.backgroundColor = '';
+
+                    // In SDK mode the embed container sits inside the host
+                    // page's DOM which may constrain height/overflow.  Expand
+                    // every ancestor so the full dashboard content is visible.
+                    const savedAncestorStyles: SavedStyle[] = [];
+
                     if (printContainer) {
                         originalStyles.height = printContainer.style.height;
                         originalStyles.overflowY =
@@ -63,6 +102,20 @@ const EmbedDashboardExportPdf: FC<Props> = ({
                         printContainer.style.overflowY = 'visible';
                         printContainer.style.overflow = 'visible';
 
+                        // Expand ancestors
+                        for (const ancestor of getAncestors(printContainer)) {
+                            savedAncestorStyles.push({
+                                el: ancestor,
+                                height: ancestor.style.height,
+                                overflow: ancestor.style.overflow,
+                                maxHeight: ancestor.style.maxHeight,
+                                position: ancestor.style.position,
+                            });
+                            ancestor.style.height = 'auto';
+                            ancestor.style.overflow = 'visible';
+                            ancestor.style.maxHeight = 'none';
+                        }
+
                         const contentWidth = printContainer.scrollWidth;
                         // 10mm margin on each side ≈ 76px at 96 dpi
                         const PAGE_MARGIN_PX = 76;
@@ -72,6 +125,18 @@ const EmbedDashboardExportPdf: FC<Props> = ({
                     }
 
                     window.print();
+
+                    // Restore theme inline background colors
+                    document.documentElement.style.backgroundColor =
+                        savedHtmlBg;
+                    document.body.style.backgroundColor = savedBodyBg;
+
+                    // Restore ancestor styles
+                    for (const saved of savedAncestorStyles) {
+                        saved.el.style.height = saved.height;
+                        saved.el.style.overflow = saved.overflow;
+                        saved.el.style.maxHeight = saved.maxHeight;
+                    }
 
                     if (printContainer) {
                         printContainer.style.height = originalStyles.height;

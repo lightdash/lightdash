@@ -1,10 +1,48 @@
 @media print {
+    html,
     body {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+        /* Override theme/embed background colors so PDFs always print on white */
+        background-color: white !important;
+        color-scheme: light !important;
     }
+
+    /*
+     * In SDK mode the embed container is a descendant of the host page, so
+     * window.print() would include everything on the host page.
+     * Hide all direct children of body, then re-show the branch that contains
+     * the embed container.
+     */
+    body > *:not(:has(#embed-scroll-container)) {
+        display: none !important;
+    }
+
     #embed-scroll-container {
         height: auto !important;
         overflow: visible !important;
+        background-color: white !important;
+        /* In SDK mode the container inherits height:100% from its parent.
+           Make sure the container can grow beyond the viewport. */
+        position: static !important;
+        min-height: 0 !important;
+        max-height: none !important;
+    }
+
+    /*
+     * Expand every ancestor of the scroll container so that no parent clips
+     * the dashboard content to a single viewport/page.  This is critical in
+     * SDK mode where the host page may constrain dimensions.
+     */
+    #embed-scroll-container,
+    #embed-scroll-container * {
+        /* Preserve chart colours */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Hide interactive controls that should not appear in the PDF */
+    [data-hide-print='true'] {
+        display: none !important;
     }
 }
