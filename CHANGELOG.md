@@ -1,3 +1,10 @@
+# [0.2672.0](https://github.com/lightdash/lightdash/compare/0.2671.1...0.2672.0) (2026-03-26)
+
+
+### Features
+
+* add --source flag to install-skills CLI command ([#21437](https://github.com/lightdash/lightdash/issues/21437)) ([fcb71a5](https://github.com/lightdash/lightdash/commit/fcb71a5a07992df7f3c10d10770a1e33671c8120)), closes [#21415](https://github.com/lightdash/lightdash/issues/21415)
+
 ## [0.2671.1](https://github.com/lightdash/lightdash/compare/0.2671.0...0.2671.1) (2026-03-26)
 
 
