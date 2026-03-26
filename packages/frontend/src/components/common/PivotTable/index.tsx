@@ -1097,6 +1097,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                         : undefined;
                                 })();
 
+                                // For metricsAsRows, resolve the metric field ID from the row label
+                                const cellMetricId = data.pivotConfig
+                                    .metricsAsRows
+                                    ? data.indexValues[rowIndex]?.find(
+                                          (iv) => iv.type === 'label',
+                                      )?.fieldId
+                                    : undefined;
+
                                 const suppressContextMenu =
                                     (value === undefined ||
                                         cell.getIsPlaceholder()) &&
@@ -1156,6 +1164,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 onDrillDown={onDrillDown}
                                                 onDrillThrough={onDrillThrough}
                                                 drillStack={drillStack}
+                                                clickedMetricId={cellMetricId}
                                             >
                                                 {render()}
                                             </ValueCellMenu>

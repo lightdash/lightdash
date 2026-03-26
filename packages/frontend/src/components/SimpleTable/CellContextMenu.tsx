@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
+    getItemId,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
     isField,
+    isMetric,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
@@ -141,6 +143,9 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     drillConfig={drillConfig}
                     fieldValues={fieldValues}
                     drillStack={drillStack}
+                    clickedMetricId={
+                        item && isMetric(item) ? getItemId(item) : undefined
+                    }
                     onDrillDown={onDrillDown}
                     onDrillThrough={onDrillThrough}
                 />

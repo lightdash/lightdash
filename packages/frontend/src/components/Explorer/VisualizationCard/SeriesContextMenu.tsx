@@ -3,8 +3,10 @@ import {
     buildDrillThroughState,
     drillStackToSteps,
     getDimensions,
+    getItemId,
     getItemMap,
     hasCustomBinDimension,
+    isMetric,
     normalizePivotFieldValues,
     type ApiExploreResults,
     type EChartsSeries,
@@ -233,6 +235,12 @@ export const SeriesContextMenu: FC<{
                         drillConfig={unsavedChartVersion.drillConfig}
                         fieldValues={drillFieldValues}
                         drillStack={drillState?.stack}
+                        clickedMetricId={
+                            underlyingData?.item &&
+                            isMetric(underlyingData.item)
+                                ? getItemId(underlyingData.item)
+                                : undefined
+                        }
                         onDrillDown={(params) =>
                             dispatch(explorerActions.applyDrill(params))
                         }

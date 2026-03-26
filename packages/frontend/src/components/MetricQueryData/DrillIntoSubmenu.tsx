@@ -28,6 +28,9 @@ type DrillIntoSubmenuProps = {
     drillStack?: DrillStack;
     /** Restrict which drill path types are shown. Defaults to both. */
     allowedTypes?: DrillPathType[];
+    /** The metric field ID of the cell the user clicked.
+     *  Used to filter drill-through paths that have a sourceMetricId set. */
+    clickedMetricId?: string;
     /** Called for drill-down paths (modifies Redux state) */
     onDrillDown: (params: {
         drillPath: DrillPath;
@@ -48,6 +51,7 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
     fieldValues,
     drillStack,
     allowedTypes,
+    clickedMetricId,
     onDrillDown,
     onDrillThrough,
 }) => {
@@ -90,7 +94,18 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
             if (allowedTypes && !allowedTypes.includes(path.type)) return false;
 
             // Drill-through paths: show only if a target chart is configured
-            if (isDrillThroughPath(path)) return path.linkedChartUuid !== '';
+            // and the sourceMetricId matches (when set)
+            if (isDrillThroughPath(path)) {
+                if (!path.linkedChartUuid) return false;
+                if (
+                    path.sourceMetricId &&
+                    clickedMetricId &&
+                    path.sourceMetricId !== clickedMetricId
+                )
+                    return false;
+                if (path.sourceMetricId && !clickedMetricId) return false;
+                return true;
+            }
 
             // Drill-down paths: check field accessibility
             if (!isDrillDownPath(path)) return true;
@@ -111,6 +126,7 @@ const DrillIntoSubmenu: FC<DrillIntoSubmenuProps> = ({
         metricQuery?.dimensions,
         drillStack,
         allowedTypes,
+        clickedMetricId,
     ]);
 
     const handleDrill = useCallback(

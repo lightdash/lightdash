@@ -1,11 +1,13 @@
 import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
+    getItemId,
     hasCustomBinDimension,
     isDimension,
     isDimensionValueInvalidDate,
     isField,
     isFilterableField,
+    isMetric,
     type FilterDashboardToRule,
     type ItemsMap,
     type ResultValue,
@@ -196,6 +198,9 @@ const DashboardCellContextMenu: FC<
                     drillConfig={drillConfig}
                     fieldValues={fieldValues}
                     drillStack={drillStack}
+                    clickedMetricId={
+                        item && isMetric(item) ? getItemId(item) : undefined
+                    }
                     onDrillDown={onDrillDown}
                     onDrillThrough={onDrillThrough}
                 />

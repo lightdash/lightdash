@@ -19,6 +19,7 @@ import {
     isCompleteLayout,
     isDashboardChartTileType,
     isFilterableField,
+    isMetric,
     isTableChartConfig,
     normalizePivotFieldValues,
     type ApiChartAndResults,
@@ -1620,6 +1621,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             viewUnderlyingDataOptions?.fieldValues,
                                             viewUnderlyingDataOptions?.pivotReference,
                                         )}
+                                        clickedMetricId={
+                                            viewUnderlyingDataOptions?.item &&
+                                            isMetric(
+                                                viewUnderlyingDataOptions.item,
+                                            )
+                                                ? getItemId(
+                                                      viewUnderlyingDataOptions.item,
+                                                  )
+                                                : undefined
+                                        }
                                         onDrillDown={handleDrillDown}
                                         onDrillThrough={
                                             handleDrillThroughFromTile

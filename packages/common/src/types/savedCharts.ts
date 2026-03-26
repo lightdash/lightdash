@@ -835,6 +835,9 @@ export type DrillThroughPath = DrillPathBase & {
     /** Maps source field IDs to target field IDs for cross-explore drill-through.
      *  When absent, only same-ID fields are matched. */
     fieldMappings?: Record<FieldId, FieldId>;
+    /** When set, this drill path only appears when the user clicks on this specific metric.
+     *  When absent, the path appears for all metrics. */
+    sourceMetricId?: FieldId;
 };
 
 /** A single preconfigured drill path that appears in the chart's context menu */

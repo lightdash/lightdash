@@ -1,7 +1,9 @@
 import {
     createDashboardFilterRuleFromField,
+    getItemId,
     isDimension,
     isDimensionValueInvalidDate,
+    isMetric,
     type DrillConfig,
     type DrillPath,
     type ItemsMap,
@@ -50,6 +52,8 @@ type ValueCellMenuProps = {
         dimensionIds: string[];
     }) => void;
     drillStack?: DrillStack;
+    /** Override metric ID for pivot tables with metricsAsRows (where column item is a dimension) */
+    clickedMetricId?: string;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
@@ -68,6 +72,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     onDrillDown,
     onDrillThrough,
     drillStack,
+    clickedMetricId: clickedMetricIdProp,
 }) => {
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
@@ -234,6 +239,12 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                                 : undefined
                         }
                         drillStack={drillStack}
+                        clickedMetricId={
+                            clickedMetricIdProp ??
+                            (item && isMetric(item)
+                                ? getItemId(item)
+                                : undefined)
+                        }
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}
                     />

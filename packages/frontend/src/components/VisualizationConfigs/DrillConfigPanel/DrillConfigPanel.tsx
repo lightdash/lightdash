@@ -26,6 +26,7 @@ import {
     Stack,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine/core';
 import {
     IconArrowRight,
@@ -521,6 +522,16 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
             }));
     }, [explore]);
 
+    const chartMetricIds = useMemo(
+        () => new Set(unsavedChartVersion?.metricQuery?.metrics ?? []),
+        [unsavedChartVersion?.metricQuery?.metrics],
+    );
+
+    const chartMetricOptions = useMemo(
+        () => metricOptions.filter((m) => chartMetricIds.has(m.value)),
+        [metricOptions, chartMetricIds],
+    );
+
     // Map chart UUID → tableName for looking up target chart explores
     const chartTableNameMap = useMemo(() => {
         if (!charts) return new Map<string, string>();
@@ -818,40 +829,6 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                     />
                                                                 )}
 
-                                                                {allowedTypes.length >
-                                                                    1 && (
-                                                                    <div
-                                                                        style={{
-                                                                            display:
-                                                                                'flex',
-                                                                            alignItems:
-                                                                                'flex-start',
-                                                                            gap: 4,
-                                                                        }}
-                                                                    >
-                                                                        <IconInfoCircle
-                                                                            size={
-                                                                                14
-                                                                            }
-                                                                            style={{
-                                                                                opacity: 0.4,
-                                                                                flexShrink: 0,
-                                                                                marginTop: 1,
-                                                                            }}
-                                                                        />
-                                                                        <Text
-                                                                            size="xs"
-                                                                            color="dimmed"
-                                                                        >
-                                                                            {isDrillDownPath(
-                                                                                path,
-                                                                            )
-                                                                                ? 'Explores deeper into this chart by a different dimension'
-                                                                                : 'Opens another chart filtered to the selected value'}
-                                                                        </Text>
-                                                                    </div>
-                                                                )}
-
                                                                 {isDrillDownPath(
                                                                     path,
                                                                 ) && (
@@ -999,6 +976,72 @@ const DrillConfigPanel: FC<DrillConfigPanelProps> = ({
                                                                                     },
                                                                                 )
                                                                             }
+                                                                        />
+
+                                                                        <Select
+                                                                            label={
+                                                                                <Group
+                                                                                    spacing={
+                                                                                        4
+                                                                                    }
+                                                                                >
+                                                                                    <Text
+                                                                                        size="xs"
+                                                                                        fw={
+                                                                                            500
+                                                                                        }
+                                                                                    >
+                                                                                        Show
+                                                                                        only
+                                                                                        for
+                                                                                        metric
+                                                                                    </Text>
+                                                                                    <Tooltip
+                                                                                        label="Restrict this path to a specific metric. When set, the path only appears in the context menu when clicking on that metric."
+                                                                                        multiline
+                                                                                        w={
+                                                                                            200
+                                                                                        }
+                                                                                        withArrow
+                                                                                    >
+                                                                                        <IconInfoCircle
+                                                                                            size={
+                                                                                                14
+                                                                                            }
+                                                                                            style={{
+                                                                                                opacity: 0.4,
+                                                                                                cursor: 'help',
+                                                                                            }}
+                                                                                        />
+                                                                                    </Tooltip>
+                                                                                </Group>
+                                                                            }
+                                                                            placeholder="All metrics"
+                                                                            size="xs"
+                                                                            disabled={
+                                                                                isReadOnly
+                                                                            }
+                                                                            data={
+                                                                                chartMetricOptions
+                                                                            }
+                                                                            value={
+                                                                                path.sourceMetricId ??
+                                                                                null
+                                                                            }
+                                                                            onChange={(
+                                                                                value,
+                                                                            ) =>
+                                                                                handleUpdatePath(
+                                                                                    path.id,
+                                                                                    {
+                                                                                        sourceMetricId:
+                                                                                            value ??
+                                                                                            undefined,
+                                                                                    },
+                                                                                )
+                                                                            }
+                                                                            searchable
+                                                                            clearable
                                                                         />
 
                                                                         {path.linkedChartUuid && (

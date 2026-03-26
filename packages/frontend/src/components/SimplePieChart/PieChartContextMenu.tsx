@@ -157,10 +157,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                         onViewUnderlyingData={handleOpenUnderlyingDataModal}
                     />
                 )}
-                {isDashboardPage && (
-                    <FilterDashboardTo filters={filters ?? []} />
-                )}
-
                 {onDrillDown && drillConfig && (
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
@@ -169,6 +165,10 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}
                     />
+                )}
+
+                {isDashboardPage && (
+                    <FilterDashboardTo filters={filters ?? []} />
                 )}
             </Menu.Dropdown>
         </Menu>
