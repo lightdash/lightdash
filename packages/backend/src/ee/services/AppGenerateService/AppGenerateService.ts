@@ -27,7 +27,7 @@ type AppGenerateServiceDeps = {
 
 type GenerateAppResult = {
     appUuid: string;
-    versionUuid: string;
+    version: number;
 };
 
 export class AppGenerateService extends BaseService {
@@ -115,13 +115,13 @@ export class AppGenerateService extends BaseService {
         }
 
         const appUuid = uuidv4();
-        const versionUuid = uuidv4();
+        const version = 1;
         const anthropicApiKey = this.getAnthropicApiKey();
         const e2bApiKey = this.getE2bApiKey();
         const { client: s3Client, bucket } = this.getS3Client();
 
         this.logger.info(
-            `Generating app ${appUuid} version ${versionUuid} from prompt`,
+            `Generating app ${appUuid} version ${version} from prompt`,
         );
 
         const sandbox = await Sandbox.create('lightdash-data-app', {
@@ -197,14 +197,14 @@ export class AppGenerateService extends BaseService {
                 tarBuffer,
                 s3Client,
                 bucket,
-                `apps/${appUuid}/versions/${versionUuid}`,
+                `apps/${appUuid}/versions/${version}`,
             );
 
             this.logger.info(
-                `App ${appUuid} version ${versionUuid} generated successfully`,
+                `App ${appUuid} version ${version} generated successfully`,
             );
 
-            return { appUuid, versionUuid };
+            return { appUuid, version };
         } finally {
             await sandbox.kill();
             this.logger.info(`App ${appUuid}: sandbox terminated`);
@@ -280,7 +280,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
-        versionUuid: string,
+        version: number,
     ): string {
         this.assertDataAppsEnabled();
         if (
@@ -297,14 +297,21 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
+        if (!isValidUuid(appUuid)) {
             throw new ParameterError('Invalid UUID format');
+        }
+
+        if (!Number.isInteger(version) || version < 1) {
+            throw new ParameterError('Version must be a positive integer');
         }
 
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecret,
             appUuid,
-            versionUuid,
+            version,
+            user.userUuid,
+            user.organizationUuid!,
+            projectUuid,
         );
     }
 

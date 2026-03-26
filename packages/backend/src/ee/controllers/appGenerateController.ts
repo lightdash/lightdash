@@ -59,19 +59,19 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/{appUuid}/versions/{versionUuid}/preview-token')
+    @Get('/{appUuid}/versions/{version}/preview-token')
     @OperationId('getAppPreviewToken')
     async getPreviewToken(
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
-        @Path() versionUuid: string,
+        @Path() version: number,
     ): Promise<ApiPreviewTokenResponse> {
         const token = this.getAppGenerateService().getPreviewToken(
             req.user!,
             projectUuid,
             appUuid,
-            versionUuid,
+            version,
         );
         return {
             status: 'ok',

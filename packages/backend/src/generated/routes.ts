@@ -6526,7 +6526,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--versionUuid-string__': {
+    'ApiSuccess__appUuid-string--version-number__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6534,7 +6534,7 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        versionUuid: { dataType: 'string', required: true },
+                        version: { dataType: 'double', required: true },
                         appUuid: { dataType: 'string', required: true },
                     },
                     required: true,
@@ -6548,7 +6548,7 @@ const models: TsoaRoute.Models = {
     ApiGenerateAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--versionUuid-string__',
+            ref: 'ApiSuccess__appUuid-string--version-number__',
             validators: {},
         },
     },
@@ -8535,11 +8535,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -30820,15 +30820,15 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        versionUuid: {
+        version: {
             in: 'path',
-            name: 'versionUuid',
+            name: 'version',
             required: true,
-            dataType: 'string',
+            dataType: 'double',
         },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/versions/:versionUuid/preview-token',
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/versions/:version/preview-token',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getPreviewToken,

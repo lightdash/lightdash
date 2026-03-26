@@ -17,25 +17,31 @@ import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 
 export default function AppPreviewTest() {
-    const { projectUuid, appUuid, versionUuid } = useParams<{
+    const {
+        projectUuid,
+        appUuid,
+        version: versionParam,
+    } = useParams<{
         projectUuid: string;
         appUuid: string;
-        versionUuid: string;
+        version: string;
     }>();
+
+    const version = versionParam ? Number(versionParam) : undefined;
 
     const {
         data: token,
         isLoading,
         error,
-    } = useAppPreviewToken(projectUuid, appUuid, versionUuid);
+    } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    if (!projectUuid || !appUuid || !versionUuid) {
+    if (!projectUuid || !appUuid || !version) {
         return <div>Missing route params</div>;
     }
 
     const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${versionUuid}/?token=${token}#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
+        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
         : undefined;
 
     return (
@@ -88,7 +94,7 @@ export default function AppPreviewTest() {
                     <Text size="xs" c="dimmed">
                         Version
                     </Text>
-                    <Code>{versionUuid}</Code>
+                    <Code>{version}</Code>
                 </Group>
                 <Group gap={4}>
                     <Text size="xs" c="dimmed">

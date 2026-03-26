@@ -7862,18 +7862,19 @@
                 "required": ["refreshedAt", "cached", "results", "search"],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--versionUuid-string__": {
+            "ApiSuccess__appUuid-string--version-number__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "versionUuid": {
-                                "type": "string"
+                            "version": {
+                                "type": "number",
+                                "format": "double"
                             },
                             "appUuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["versionUuid", "appUuid"],
+                        "required": ["version", "appUuid"],
                         "type": "object"
                     },
                     "status": {
@@ -7886,7 +7887,7 @@
                 "type": "object"
             },
             "ApiGenerateAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--versionUuid-string__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
             "GenerateAppRequestBody": {
                 "properties": {
@@ -9608,6 +9609,19 @@
                                                         "enum": [
                                                             "success",
                                                             "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
