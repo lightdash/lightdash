@@ -431,6 +431,14 @@ export class ProjectModel {
         return projects.map((project) => project.project_uuid);
     }
 
+    async getDefaultProjectUuidsByName(name: string): Promise<string[]> {
+        const projects = await this.database('projects')
+            .where('project_type', ProjectType.DEFAULT)
+            .where('name', name)
+            .select('project_uuid');
+        return projects.map((project) => project.project_uuid);
+    }
+
     async hasProjects(organizationUuid: string): Promise<boolean> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
