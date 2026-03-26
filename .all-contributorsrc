@@ -1726,6 +1726,15 @@
         "doc",
         "code"
       ]
+    },
+    {
+      "login": "ota2000",
+      "name": "arakaki",
+      "avatar_url": "https://avatars.githubusercontent.com/u/16278388?v=4",
+      "profile": "http://ota2000.com",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
