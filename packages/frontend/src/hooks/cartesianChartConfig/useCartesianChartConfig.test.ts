@@ -199,6 +199,17 @@ describe('getExpectedSeriesMap', () => {
             expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
         });
 
+        test('should return identical result when columnLimit is undefined (flag-off path)', () => {
+            const withoutLimit = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const withUndefinedLimit = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: undefined,
+            });
+            expect(Object.keys(withUndefinedLimit)).toStrictEqual(
+                Object.keys(withoutLimit),
+            );
+        });
+
         test('should return exactly 1 series when columnLimit is 1', () => {
             const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
             const allKeys = Object.keys(allResult);
@@ -284,6 +295,19 @@ describe('mergeExistingAndExpectedSeries', () => {
         );
         expect(bSeries).toHaveLength(2);
         bSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
+    });
+
+    test('should not mark any series as isFilteredOut when expectedSeriesMap is full (flag-off path)', () => {
+        const allSeries = Object.values(expectedPivotedSeriesMap);
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: expectedPivotedSeriesMap,
+            existingSeries: allSeries,
+            sortedByPivot: false,
+        });
+
+        expect(result).toHaveLength(allSeries.length);
+        result.forEach((s) => expect(s.isFilteredOut).toBeFalsy());
     });
 
     test('should insert new pivot category in sorted position, not at end', () => {
