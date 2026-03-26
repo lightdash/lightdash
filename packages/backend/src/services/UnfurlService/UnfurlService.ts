@@ -1245,6 +1245,10 @@ export class UnfurlService extends BaseService {
                     // Helper: generate PDF from the current page state
                     const generatePdf = async () => {
                         const pdfWidth = gridWidth ?? viewport.width;
+                        // Measure the actual content area: use the element's
+                        // bounding box bottom (accounts for position on page)
+                        // but also check children in case the container has
+                        // extra CSS height beyond its content
                         const contentBottom = await page!.evaluate(
                             (sel: string) => {
                                 const container = document.querySelector(sel);
@@ -1260,7 +1264,14 @@ export class UnfurlService extends BaseService {
                                     )
                                         maxBottom = rect.bottom;
                                 }
-                                return Math.ceil(maxBottom || 800);
+                                // Fall back to container's own bottom if no
+                                // children found
+                                if (maxBottom === 0) {
+                                    maxBottom =
+                                        container.getBoundingClientRect()
+                                            .bottom;
+                                }
+                                return Math.ceil(maxBottom);
                             },
                             finalSelector,
                         );
@@ -1268,7 +1279,7 @@ export class UnfurlService extends BaseService {
                             x: 0,
                             y: 0,
                             width: pdfWidth,
-                            height: contentBottom + 10,
+                            height: contentBottom,
                         };
                         const pdfBytes = await page!.pdf({
                             width: `${clip.width}px`,
