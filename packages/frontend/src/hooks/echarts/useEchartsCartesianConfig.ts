@@ -2362,7 +2362,7 @@ const useEchartsCartesianConfig = (
         [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
     );
 
-    const series = useMemo(() => {
+    const unfilteredSeries = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {
             return [];
         }
@@ -2411,6 +2411,28 @@ const useEchartsCartesianConfig = (
         () => getResultValueArray(rows, true, true),
         [rows],
     );
+
+    const series = useMemo(() => {
+        if (!isShowHideRowsEnabled || !validCartesianConfig?.rowLimit) {
+            return unfilteredSeries;
+        }
+        const results = resultsAndMinsAndMaxes.results;
+        if (results.length === 0) return unfilteredSeries;
+
+        return unfilteredSeries.filter((s) => {
+            const dataFieldKey = s.encode?.tooltip?.[0];
+            if (!dataFieldKey) return true;
+            return results.some((row) => {
+                const val = row[dataFieldKey];
+                return val !== null && val !== undefined;
+            });
+        });
+    }, [
+        unfilteredSeries,
+        resultsAndMinsAndMaxes.results,
+        isShowHideRowsEnabled,
+        validCartesianConfig?.rowLimit,
+    ]);
 
     const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {
