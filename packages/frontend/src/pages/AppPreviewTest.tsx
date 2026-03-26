@@ -35,7 +35,7 @@ export default function AppPreviewTest() {
 
     const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${versionUuid}/#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
+        ? `${baseUrl}/api/apps/${appUuid}/versions/${versionUuid}/?token=${token}#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
         : undefined;
 
     return (
