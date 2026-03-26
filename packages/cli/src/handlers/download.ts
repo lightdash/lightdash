@@ -597,7 +597,7 @@ export const downloadContent = async (
     languageMap: boolean = false,
     nested: boolean = false,
     skipSpaces: boolean = false,
-): Promise<[number, string[], MetadataEntry[]]> => {
+): Promise<[number, string[], MetadataEntry[], SpaceAsCode[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
@@ -718,7 +718,7 @@ export const downloadContent = async (
         await writeSpaceFiles(allSpaces, projectName, customPath, folderScheme);
     }
 
-    return [total, [...new Set(chartSlugs)], allMetadataEntries];
+    return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
 };
 
 export const downloadHandler = async (
@@ -781,6 +781,7 @@ export const downloadHandler = async (
         const skipSpaces = options.skipSpaces || hasFilters;
 
         let allMetadataEntries: MetadataEntry[] = [];
+        let allSpaces: SpaceAsCode[] = [];
 
         // Download regular charts
         if (hasFilters && options.charts.length === 0) {
@@ -788,7 +789,7 @@ export const downloadHandler = async (
                 styles.warning(`No charts filters provided, skipping`),
             );
         } else {
-            const [regularChartTotal, , regularChartMeta] =
+            const [regularChartTotal, , regularChartMeta, regularChartSpaces] =
                 await downloadContent(
                     options.charts,
                     'charts',
@@ -801,21 +802,24 @@ export const downloadHandler = async (
                 );
             spinner.succeed(`Downloaded ${regularChartTotal} charts`);
             allMetadataEntries = [...allMetadataEntries, ...regularChartMeta];
+            allSpaces = [...allSpaces, ...regularChartSpaces];
 
             // Download SQL charts
             spinner.start(`Downloading SQL charts`);
-            const [sqlChartTotal, , sqlChartMeta] = await downloadContent(
-                options.charts,
-                'sqlCharts',
-                projectId,
-                projectName,
-                options.path,
-                options.languageMap,
-                options.nested,
-                skipSpaces,
-            );
+            const [sqlChartTotal, , sqlChartMeta, sqlChartSpaces] =
+                await downloadContent(
+                    options.charts,
+                    'sqlCharts',
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.languageMap,
+                    options.nested,
+                    skipSpaces,
+                );
             spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
             allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
+            allSpaces = [...allSpaces, ...sqlChartSpaces];
 
             chartTotal = regularChartTotal + sqlChartTotal;
         }
@@ -829,17 +833,20 @@ export const downloadHandler = async (
             let chartSlugs: string[] = [];
 
             let dashMeta: MetadataEntry[];
-            [dashboardTotal, chartSlugs, dashMeta] = await downloadContent(
-                options.dashboards,
-                'dashboards',
-                projectId,
-                projectName,
-                options.path,
-                options.languageMap,
-                options.nested,
-                skipSpaces,
-            );
+            let dashSpaces: SpaceAsCode[];
+            [dashboardTotal, chartSlugs, dashMeta, dashSpaces] =
+                await downloadContent(
+                    options.dashboards,
+                    'dashboards',
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.languageMap,
+                    options.nested,
+                    skipSpaces,
+                );
             allMetadataEntries = [...allMetadataEntries, ...dashMeta];
+            allSpaces = [...allSpaces, ...dashSpaces];
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
@@ -848,7 +855,7 @@ export const downloadHandler = async (
                     `Downloading ${chartSlugs.length} charts linked to dashboards`,
                 );
 
-                const [regularCharts, , linkedChartMeta] =
+                const [regularCharts, , linkedChartMeta, linkedChartSpaces] =
                     await downloadContent(
                         chartSlugs,
                         'charts',
@@ -863,18 +870,21 @@ export const downloadHandler = async (
                     ...allMetadataEntries,
                     ...linkedChartMeta,
                 ];
+                allSpaces = [...allSpaces, ...linkedChartSpaces];
 
-                const [sqlCharts, , linkedSqlMeta] = await downloadContent(
-                    chartSlugs,
-                    'sqlCharts',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                    skipSpaces,
-                );
+                const [sqlCharts, , linkedSqlMeta, linkedSqlSpaces] =
+                    await downloadContent(
+                        chartSlugs,
+                        'sqlCharts',
+                        projectId,
+                        projectName,
+                        options.path,
+                        options.languageMap,
+                        options.nested,
+                        skipSpaces,
+                    );
                 allMetadataEntries = [...allMetadataEntries, ...linkedSqlMeta];
+                allSpaces = [...allSpaces, ...linkedSqlSpaces];
 
                 spinner.succeed(
                     `Downloaded ${
@@ -882,6 +892,12 @@ export const downloadHandler = async (
                     } charts linked to dashboards`,
                 );
             }
+        }
+
+        // Report space definitions count
+        if (!skipSpaces) {
+            const uniqueSpaceCount = new Set(allSpaces.map((s) => s.slug)).size;
+            spinner.succeed(`Downloaded ${uniqueSpaceCount} space definitions`);
         }
 
         // Write metadata file with all downloadedAt timestamps
