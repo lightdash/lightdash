@@ -246,8 +246,6 @@ export type MetricQueryResponse = {
     };
 };
 
-export const DEFAULT_COLUMN_LIMIT = 50;
-
 export const countCustomDimensionsInMetricQuery = (
     metricQuery: MetricQuery,
 ) => ({
