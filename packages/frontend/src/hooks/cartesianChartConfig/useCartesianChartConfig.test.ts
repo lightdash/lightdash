@@ -249,6 +249,43 @@ describe('mergeExistingAndExpectedSeries', () => {
             }),
         ).toStrictEqual(Object.values(mergedMixedSeries));
     });
+    test('should mark series beyond column limit as isFilteredOut', () => {
+        // Simulate columnLimit=1: expectedSeriesMap only has dimension_x.a series
+        const limitedExpectedMap: Record<string, Series> = {
+            'my_dimension|my_metric.dimension_x.a':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_metric.dimension_x.a'
+                ],
+            'my_dimension|my_second_metric.dimension_x.a':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_second_metric.dimension_x.a'
+                ],
+        };
+
+        // existingSeries has all 4 series (both a and b pivot values)
+        const allSeries = Object.values(expectedPivotedSeriesMap);
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: limitedExpectedMap,
+            existingSeries: allSeries,
+            sortedByPivot: false,
+        });
+
+        // dimension_x.a series should NOT be filtered out
+        const aSeries = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'a',
+        );
+        expect(aSeries).toHaveLength(2);
+        aSeries.forEach((s) => expect(s.isFilteredOut).toBeFalsy());
+
+        // dimension_x.b series should be marked as filtered out
+        const bSeries = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'b',
+        );
+        expect(bSeries).toHaveLength(2);
+        bSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
+    });
+
     test('should insert new pivot category in sorted position, not at end', () => {
         const defaultProps = {
             label: undefined,
