@@ -11,7 +11,6 @@ import UserCompletionModal from './components/UserCompletionModal';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import AppGenerate from './pages/AppGenerate';
-import AppPreviewTest from './pages/AppPreviewTest';
 import AuthPopupResult from './pages/AuthPopupResult';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
@@ -342,10 +341,6 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     {
         path: 'apps/generate',
         element: <AppGenerate />,
-    },
-    {
-        path: 'apps/:appUuid/versions/:version/preview',
-        element: <AppPreviewTest />,
     },
     {
         path: 'user-activity',
