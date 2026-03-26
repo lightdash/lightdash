@@ -23,6 +23,7 @@ export enum ContentAsCodeType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
+    SPACE = 'space',
 }
 
 /**
@@ -110,6 +111,7 @@ export type ApiChartAsCodeListResponse = {
               >
             | undefined;
         missingIds: string[];
+        spaces: SpaceAsCode[];
         total: number;
         offset: number;
     };
@@ -130,6 +132,7 @@ export type ApiSqlChartAsCodeListResponse = {
     results: {
         sqlCharts: SqlChartAsCode[];
         missingIds: string[];
+        spaces: SpaceAsCode[];
         total: number;
         offset: number;
     };
@@ -172,6 +175,14 @@ export type DashboardAsCode = Pick<
     verification?: ContentVerificationInfo | null;
 };
 
+export type SpaceAsCode = {
+    contentType: ContentAsCodeType.SPACE;
+    /** The original human-readable space name (preserves emoji, casing, etc.) */
+    spaceName: string;
+    /** The space slug used for file naming and cross-referencing */
+    slug: string;
+};
+
 export type ApiDashboardAsCodeListResponse = {
     status: 'ok';
     results: {
@@ -186,6 +197,7 @@ export type ApiDashboardAsCodeListResponse = {
               >
             | undefined;
         missingIds: string[];
+        spaces: SpaceAsCode[];
         total: number;
         offset: number;
     };

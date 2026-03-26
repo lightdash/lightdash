@@ -27,6 +27,7 @@ import {
     SavedChartDAO,
     SessionUser,
     Space,
+    SpaceAsCode,
     SpaceMemberRole,
     SqlChartAsCode,
     UpdatedByUser,
@@ -160,9 +161,19 @@ export class CoderService extends BaseService {
         this.contentVerificationModel = contentVerificationModel;
     }
 
+    private static transformSpaces(
+        spaces: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
+    ): SpaceAsCode[] {
+        return spaces.map((space) => ({
+            contentType: ContentAsCodeType.SPACE,
+            spaceName: space.name,
+            slug: getContentAsCodePathFromLtreePath(space.path),
+        }));
+    }
+
     private static transformChart(
         chart: SavedChartDAO,
-        spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'path'>[],
+        spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         dashboardSlugs: Record<string, string>,
         verificationMap: Map<string, ContentVerificationInfo>,
     ): ChartAsCode {
@@ -345,7 +356,7 @@ export class CoderService extends BaseService {
 
     private static transformDashboard(
         dashboard: DashboardDAO,
-        spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'path'>[],
+        spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
@@ -620,6 +631,7 @@ export class CoderService extends BaseService {
                 dashboards: [],
                 languageMap: undefined,
                 missingIds: dashboardIds || [],
+                spaces: [],
                 total: 0,
                 offset: 0,
             };
@@ -707,6 +719,7 @@ export class CoderService extends BaseService {
                   })
                 : undefined,
             missingIds,
+            spaces: CoderService.transformSpaces(spaces),
             total: dashboardSummariesWithAccess.length,
             offset: newOffset,
         };
@@ -748,6 +761,7 @@ export class CoderService extends BaseService {
                 charts: [],
                 languageMap: undefined,
                 missingIds: chartIds || [],
+                spaces: [],
                 total: 0,
                 offset: 0,
             };
@@ -832,6 +846,7 @@ export class CoderService extends BaseService {
                   })
                 : undefined,
             missingIds,
+            spaces: CoderService.transformSpaces(spaces),
             total: chartsSummariesWithAccess.length,
             offset: newOffset,
         };
@@ -845,6 +860,7 @@ export class CoderService extends BaseService {
     ): Promise<{
         sqlCharts: SqlChartAsCode[];
         missingIds: string[];
+        spaces: SpaceAsCode[];
         total: number;
         offset: number;
     }> {
@@ -875,6 +891,7 @@ export class CoderService extends BaseService {
             return {
                 sqlCharts: [],
                 missingIds: chartIds || [],
+                spaces: [],
                 total: 0,
                 offset: 0,
             };
@@ -948,6 +965,7 @@ export class CoderService extends BaseService {
         return {
             sqlCharts: transformedSqlCharts,
             missingIds,
+            spaces: CoderService.transformSpaces(sqlChartSpaces),
             total: accessibleSqlChartRows.length,
             offset: newOffset,
         };
