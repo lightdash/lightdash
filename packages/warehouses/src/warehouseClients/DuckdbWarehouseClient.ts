@@ -451,17 +451,27 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     /** Bootstrap for the shared query instance — deduplicates via shared locks. */
     private async bootstrapSession(db: DuckdbConnection): Promise<void> {
-        const installMs = await withSharedBootstrapLock(async () => {
-            let nextInstallMs = 0;
+        await withSharedBootstrapLock(async () => {
+            const s3Done = s3SecretConfigured || !this.s3Config;
+            if (httpfsInstalled && cachesConfigured && s3Done) {
+                return;
+            }
+
+            const t0 = performance.now();
+            let installMs = 0;
+            let loadMs = 0;
+            let s3ConfigMs = 0;
 
             if (!httpfsInstalled) {
-                const t0 = performance.now();
+                const installStart = performance.now();
                 await db.run('INSTALL httpfs;');
-                nextInstallMs = performance.now() - t0;
+                installMs = performance.now() - installStart;
+
+                const loadStart = performance.now();
+                await db.run('LOAD httpfs;');
+                loadMs = performance.now() - loadStart;
+
                 httpfsInstalled = true;
-                this.logger?.info(
-                    `DuckDB httpfs installed (first use): ${Math.round(nextInstallMs)}ms`,
-                );
             }
 
             if (!cachesConfigured) {
@@ -471,49 +481,27 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
                 await DuckdbWarehouseClient.hardenInstance(db);
 
-                cachesConfigured = true;
-
                 if (this.bufferPoolSize) {
                     await db.run(
                         `SET buffer_pool_size = '${this.bufferPoolSize}';`,
                     );
                 }
 
-                this.logger?.info(
-                    `DuckDB caches enabled: http_metadata=true external_file=true parquet_metadata=true buffer_pool_size=${this.bufferPoolSize ?? 'default'}`,
-                );
+                cachesConfigured = true;
             }
 
-            return nextInstallMs;
-        });
+            if (this.s3Config && !s3SecretConfigured) {
+                const s3Start = performance.now();
+                await db.run(this.buildS3SecretSql(this.s3Config));
+                s3ConfigMs = performance.now() - s3Start;
+                s3SecretConfigured = true;
+            }
 
-        const t1 = performance.now();
-        await db.run('LOAD httpfs;');
-        const loadMs = performance.now() - t1;
-
-        if (!this.s3Config) {
+            const totalMs = performance.now() - t0;
             this.logger?.info(
-                `DuckDB bootstrap timing: install_httpfs=${Math.round(installMs)}ms load_httpfs=${Math.round(loadMs)}ms`,
+                `DuckDB bootstrap completed: install_httpfs=${Math.round(installMs)}ms load_httpfs=${Math.round(loadMs)}ms s3_config=${Math.round(s3ConfigMs)}ms total=${Math.round(totalMs)}ms buffer_pool_size=${this.bufferPoolSize ?? 'default'}`,
             );
-            return;
-        }
-
-        const s3ConfigMs = await withSharedBootstrapLock(async () => {
-            if (s3SecretConfigured) return 0;
-
-            const t2 = performance.now();
-            await db.run(this.buildS3SecretSql(this.s3Config!));
-            s3SecretConfigured = true;
-            this.logger?.info(
-                `DuckDB S3 secret configured (first use): ${Math.round(performance.now() - t2)}ms`,
-            );
-
-            return performance.now() - t2;
         });
-
-        this.logger?.info(
-            `DuckDB bootstrap timing: install_httpfs=${Math.round(installMs)}ms load_httpfs=${Math.round(loadMs)}ms s3_config=${Math.round(s3ConfigMs)}ms`,
-        );
     }
 
     /** Bootstrap for isolated instances — no shared locks needed. */
