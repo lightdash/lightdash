@@ -9,9 +9,13 @@ import {
     Textarea,
     Title,
 } from '@mantine-8/core';
-import { IconPlayerPlay, IconSparkles } from '@tabler/icons-react';
+import {
+    IconExternalLink,
+    IconPlayerPlay,
+    IconSparkles,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
@@ -129,6 +133,16 @@ const AppGenerate: FC = () => {
                             App generated
                         </Text>
                         <Code>{data.appUuid}</Code>
+                        <Button
+                            component={Link}
+                            to={`/projects/${projectUuid}/apps/${data.appUuid}/versions/${data.version}/preview`}
+                            target="_blank"
+                            variant="subtle"
+                            size="compact-xs"
+                            rightSection={<IconExternalLink size={14} />}
+                        >
+                            Open preview page
+                        </Button>
                     </Group>
                     <Paper shadow="sm" radius="md" withBorder h="80vh">
                         <AppPreview
