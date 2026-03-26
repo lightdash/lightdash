@@ -777,6 +777,9 @@ export const downloadHandler = async (
         const hasFilters =
             options.charts.length > 0 || options.dashboards.length > 0;
 
+        // When downloading specific charts or dashboards, skip space metadata
+        const skipSpaces = options.skipSpaces || hasFilters;
+
         let allMetadataEntries: MetadataEntry[] = [];
 
         // Download regular charts
@@ -794,7 +797,7 @@ export const downloadHandler = async (
                     options.path,
                     options.languageMap,
                     options.nested,
-                    options.skipSpaces,
+                    skipSpaces,
                 );
             spinner.succeed(`Downloaded ${regularChartTotal} charts`);
             allMetadataEntries = [...allMetadataEntries, ...regularChartMeta];
@@ -809,7 +812,7 @@ export const downloadHandler = async (
                 options.path,
                 options.languageMap,
                 options.nested,
-                options.skipSpaces,
+                skipSpaces,
             );
             spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
             allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
@@ -834,7 +837,7 @@ export const downloadHandler = async (
                 options.path,
                 options.languageMap,
                 options.nested,
-                options.skipSpaces,
+                skipSpaces,
             );
             allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
@@ -854,7 +857,7 @@ export const downloadHandler = async (
                         options.path,
                         options.languageMap,
                         options.nested,
-                        options.skipSpaces,
+                        skipSpaces,
                     );
                 allMetadataEntries = [
                     ...allMetadataEntries,
@@ -869,7 +872,7 @@ export const downloadHandler = async (
                     options.path,
                     options.languageMap,
                     options.nested,
-                    options.skipSpaces,
+                    skipSpaces,
                 );
                 allMetadataEntries = [...allMetadataEntries, ...linkedSqlMeta];
 
