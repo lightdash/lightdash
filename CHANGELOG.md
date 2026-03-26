@@ -1,3 +1,11 @@
+## [0.2674.1](https://github.com/lightdash/lightdash/compare/0.2674.0...0.2674.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* clear colorByCategory when grouping dimension added ([#21454](https://github.com/lightdash/lightdash/issues/21454)) ([b8dedd6](https://github.com/lightdash/lightdash/commit/b8dedd689f3874f2b6078053d919ee8f24a9e90c))
+* preserve colorByCategory setting when pivot dimensions are active ([#21455](https://github.com/lightdash/lightdash/issues/21455)) ([9944b08](https://github.com/lightdash/lightdash/commit/9944b08a8649d0aabef4d9ae075224cf0c6a5150))
+
 # [0.2674.0](https://github.com/lightdash/lightdash/compare/0.2673.0...0.2674.0) (2026-03-26)
 
 
