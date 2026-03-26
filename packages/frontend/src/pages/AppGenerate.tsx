@@ -90,16 +90,7 @@ const AppGenerate: FC = () => {
                     disabled={isLoading}
                 />
 
-                <Button
-                    onClick={handleSubmit}
-                    loading={isLoading}
-                    disabled={!prompt.trim() || isLoading}
-                    leftSection={<IconSparkles size={16} />}
-                >
-                    Generate
-                </Button>
-
-                {isLoading && (
+                {isLoading ? (
                     <Paper p="md" withBorder>
                         <Group gap="sm">
                             <Loader size="sm" />
@@ -109,6 +100,14 @@ const AppGenerate: FC = () => {
                             </Text>
                         </Group>
                     </Paper>
+                ) : (
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={!prompt.trim()}
+                        leftSection={<IconSparkles size={16} />}
+                    >
+                        Generate
+                    </Button>
                 )}
 
                 {error && (
