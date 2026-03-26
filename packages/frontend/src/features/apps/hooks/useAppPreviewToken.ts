@@ -1,4 +1,4 @@
-import { type ApiError } from '@lightdash/common';
+import { type ApiError, type ApiPreviewTokenResponse } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
@@ -7,7 +7,7 @@ const fetchPreviewToken = async (
     appUuid: string,
     versionUuid: string,
 ): Promise<string> => {
-    const data = await lightdashApi<{ token: string }>({
+    const data = await lightdashApi<ApiPreviewTokenResponse['results']>({
         method: 'GET',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions/${versionUuid}/preview-token`,
     });

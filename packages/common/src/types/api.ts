@@ -797,6 +797,21 @@ export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
 
+export type ApiGenerateAppResponse = {
+    status: 'ok';
+    results: {
+        appUuid: string;
+        versionUuid: string;
+    };
+};
+
+export type ApiPreviewTokenResponse = {
+    status: 'ok';
+    results: {
+        token: string;
+    };
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -975,7 +990,9 @@ type ApiResults =
     | ApiVerifiedContentListResponse['results']
     | OAuthClientSummary[]
     | OAuthClientSummary
-    | CreateOAuthClientResponse;
+    | CreateOAuthClientResponse
+    | ApiGenerateAppResponse['results']
+    | ApiPreviewTokenResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

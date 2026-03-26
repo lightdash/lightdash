@@ -1,4 +1,8 @@
-import { ApiErrorPayload } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    type ApiGenerateAppResponse,
+    type ApiPreviewTokenResponse,
+} from '@lightdash/common';
 import {
     Body,
     Get,
@@ -22,21 +26,6 @@ import { AppGenerateService } from '../services/AppGenerateService/AppGenerateSe
 
 type GenerateAppRequestBody = {
     prompt: string;
-};
-
-export type ApiGenerateAppResponse = {
-    status: 'ok';
-    results: {
-        appUuid: string;
-        versionUuid: string;
-    };
-};
-
-export type ApiPreviewTokenResponse = {
-    status: 'ok';
-    results: {
-        token: string;
-    };
 };
 
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
