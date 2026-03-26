@@ -828,6 +828,9 @@ export const downloadHandler = async (
             metadataToWrite[entry.type][entry.slug] = entry.downloadedAt;
         }
         const baseDir = getDownloadFolder(options.path);
+        const downloadRoot = options.nested
+            ? path.join(baseDir, projectName)
+            : baseDir;
         await writeMetadataFile(baseDir, metadataToWrite);
         if (!config.answers?.metadataFileGitignoreNoticeShown) {
             GlobalState.log(
@@ -837,6 +840,9 @@ export const downloadHandler = async (
             );
             await setAnswer({ metadataFileGitignoreNoticeShown: true });
         }
+        GlobalState.log(
+            styles.success(`Downloaded content saved to ${downloadRoot}`),
+        );
 
         const end = Date.now();
 
