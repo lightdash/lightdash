@@ -41,6 +41,7 @@ import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
+import styles from './SingleSeriesConfiguration.module.css';
 
 type Props = {
     isCollapsable?: boolean;
@@ -432,103 +433,115 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                             />
                             {highlight && (
-                                <Stack spacing="xs">
-                                    <Group spacing="md">
-                                        <Group
-                                            h={36}
-                                            align="center"
-                                            spacing="xs"
-                                        >
-                                            <ColorSelector
-                                                color={highlight.color}
-                                                swatches={colorPalette}
-                                                onColorChange={(color) =>
-                                                    setHighlight({
-                                                        ...highlight,
-                                                        color,
-                                                    })
-                                                }
-                                            />
-                                            <Text fz="xs" c="dimmed">
-                                                Matching
-                                            </Text>
-                                        </Group>
-                                        <Group
-                                            h={36}
-                                            align="center"
-                                            spacing="xs"
-                                        >
-                                            <ColorSelector
-                                                color={highlight.othersColor}
-                                                swatches={colorPalette}
-                                                onColorChange={(othersColor) =>
-                                                    setHighlight({
-                                                        ...highlight,
-                                                        othersColor,
-                                                    })
-                                                }
-                                            />
-                                            <Text fz="xs" c="dimmed">
-                                                Others
-                                            </Text>
-                                        </Group>
-                                    </Group>
-                                    {chartConfig?.dirtyChartType ===
-                                        CartesianSeriesType.BAR && (
-                                        <Group grow align="flex-start">
-                                            <Box>
-                                                <Config.Label>
-                                                    Condition
-                                                </Config.Label>
-                                                <Select
-                                                    value={highlightCondition}
-                                                    data={
-                                                        HIGHLIGHT_CONDITION_OPTIONS
+                                <Box
+                                    className={`${styles.highlightPanel} ${styles.highlightPanelActive}`}
+                                >
+                                    <Stack spacing="xs">
+                                        <Group spacing="md">
+                                            <Group
+                                                h={36}
+                                                align="center"
+                                                spacing="xs"
+                                            >
+                                                <ColorSelector
+                                                    color={highlight.color}
+                                                    swatches={colorPalette}
+                                                    onColorChange={(color) =>
+                                                        setHighlight({
+                                                            ...highlight,
+                                                            color,
+                                                        })
                                                     }
-                                                    clearable
-                                                    placeholder="No condition"
-                                                    onChange={(value) => {
-                                                        if (!value) {
+                                                />
+                                                <Text fz="xs" c="dimmed">
+                                                    Matching
+                                                </Text>
+                                            </Group>
+                                            <Group
+                                                h={36}
+                                                align="center"
+                                                spacing="xs"
+                                            >
+                                                <ColorSelector
+                                                    color={
+                                                        highlight.othersColor
+                                                    }
+                                                    swatches={colorPalette}
+                                                    onColorChange={(
+                                                        othersColor,
+                                                    ) =>
+                                                        setHighlight({
+                                                            ...highlight,
+                                                            othersColor,
+                                                        })
+                                                    }
+                                                />
+                                                <Text fz="xs" c="dimmed">
+                                                    Others
+                                                </Text>
+                                            </Group>
+                                        </Group>
+                                        {chartConfig?.dirtyChartType ===
+                                            CartesianSeriesType.BAR && (
+                                            <Group grow align="flex-start">
+                                                <Box>
+                                                    <Config.Label>
+                                                        Condition
+                                                    </Config.Label>
+                                                    <Select
+                                                        value={
+                                                            highlightCondition
+                                                        }
+                                                        data={
+                                                            HIGHLIGHT_CONDITION_OPTIONS
+                                                        }
+                                                        clearable
+                                                        placeholder="No condition"
+                                                        onChange={(value) => {
+                                                            if (!value) {
+                                                                setHighlight({
+                                                                    ...highlight,
+                                                                    operator:
+                                                                        undefined,
+                                                                    value: undefined,
+                                                                });
+                                                                return;
+                                                            }
+
                                                             setHighlight({
                                                                 ...highlight,
                                                                 operator:
-                                                                    undefined,
-                                                                value: undefined,
+                                                                    value as CartesianSeriesHighlightOperator,
                                                             });
-                                                            return;
-                                                        }
-
-                                                        setHighlight({
-                                                            ...highlight,
-                                                            operator:
-                                                                value as CartesianSeriesHighlightOperator,
-                                                        });
-                                                    }}
-                                                />
-                                            </Box>
-                                            {highlightCondition && (
-                                                <Box>
-                                                    <Config.Label>
-                                                        Value
-                                                    </Config.Label>
-                                                    <NumberInput
-                                                        value={highlight.value}
-                                                        onChange={(value) =>
-                                                            setHighlight({
-                                                                ...highlight,
-                                                                value:
-                                                                    typeof value ===
-                                                                    'number'
-                                                                        ? value
-                                                                        : undefined,
-                                                            })
-                                                        }
+                                                        }}
                                                     />
                                                 </Box>
-                                            )}
-                                        </Group>
-                                    )}
-                                </Stack>
+                                                {highlightCondition && (
+                                                    <Box>
+                                                        <Config.Label>
+                                                            Value
+                                                        </Config.Label>
+                                                        <NumberInput
+                                                            value={
+                                                                highlight.value
+                                                            }
+                                                            onChange={(value) =>
+                                                                setHighlight({
+                                                                    ...highlight,
+                                                                    value:
+                                                                        typeof value ===
+                                                                        'number'
+                                                                            ? value
+                                                                            : undefined,
+                                                                })
+                                                            }
+                                                        />
+                                                    </Box>
+                                                )}
+                                            </Group>
+                                        )}
+                                    </Stack>
+                                </Box>
                             )}
                         </Stack>
                     )}
