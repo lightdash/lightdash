@@ -7,14 +7,16 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     MissingConfigError,
+    ParameterError,
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
 import { PassThrough } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
+import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 
 type AppGenerateServiceDeps = {
@@ -256,6 +258,38 @@ export class AppGenerateService extends BaseService {
             passThrough.pipe(extractor);
             passThrough.end(tarBuffer);
         });
+    }
+
+    getPreviewToken(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        versionUuid: string,
+    ): string {
+        this.assertDataAppsEnabled();
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DataApp', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access data apps',
+            );
+        }
+
+        if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
+            throw new ParameterError('Invalid UUID format');
+        }
+
+        return mintPreviewToken(
+            this.lightdashConfig.lightdashSecret,
+            appUuid,
+            versionUuid,
+        );
     }
 
     private static getContentType(filePath: string): string {

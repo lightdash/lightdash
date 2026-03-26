@@ -513,7 +513,10 @@ export default class App {
         if (this.lightdashConfig.appRuntime.enabled) {
             expressApp.use(
                 '/api/apps',
-                createAppPreviewRouter(this.lightdashConfig.appRuntime),
+                createAppPreviewRouter(
+                    this.lightdashConfig.appRuntime,
+                    this.lightdashConfig.lightdashSecret,
+                ),
             );
         }
 

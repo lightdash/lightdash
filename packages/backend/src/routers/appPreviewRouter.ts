@@ -4,6 +4,11 @@ import path from 'path';
 import { validate as isValidUuid } from 'uuid';
 import { type AppRuntimeConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import {
+    PREVIEW_COOKIE_NAME,
+    PREVIEW_TOKEN_MAX_AGE_SECONDS,
+    verifyPreviewToken,
+} from './appPreviewToken';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.js': 'application/javascript',
@@ -50,7 +55,22 @@ const buildCspHeader = (config: AppRuntimeConfig): string => {
 const isSafeFilename = (filename: string): boolean =>
     /^[a-zA-Z0-9._-]+$/.test(filename) && !filename.includes('..');
 
-export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
+/**
+ * Extracts a named cookie value from the Cookie header.
+ */
+const getCookieValue = (
+    cookieHeader: string | undefined,
+    name: string,
+): string | undefined => {
+    if (!cookieHeader) return undefined;
+    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+    return match ? match[1] : undefined;
+};
+
+export const createAppPreviewRouter = (
+    config: AppRuntimeConfig,
+    lightdashSecret: string,
+): Router => {
     const router = express.Router({ strict: true });
 
     // Host header validation — defense-in-depth for domain isolation.
@@ -148,18 +168,21 @@ export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
         }
     };
 
-    // Serve index.html for an app version.
-    // Redirect to trailing slash so relative asset paths resolve correctly.
-    // e.g. "assets/foo.css" from "/api/apps/X/versions/Y" resolves to
-    //       "/api/apps/X/versions/assets/foo.css" (wrong, missing Y)
-    // but from "/api/apps/X/versions/Y/" resolves to
-    //       "/api/apps/X/versions/Y/assets/foo.css" (correct)
-    // No trailing slash → redirect to add one
-    router.get('/:appUuid/versions/:versionUuid', (req, res) => {
-        res.redirect(302, `${req.originalUrl}/`);
-    });
+    // -- Auth middleware ------------------------------------------------
+    // Two flavours: one accepts a JWT query param and promotes it to a
+    // cookie (used on index.html), the other only accepts the cookie
+    // (used on assets loaded by the page).
 
-    router.get('/:appUuid/versions/:versionUuid/', async (req, res) => {
+    /**
+     * Verifies a token and translates the result into an HTTP response.
+     * Shared by both middleware variants.
+     */
+    const handleTokenVerification = (
+        token: string | undefined,
+        req: express.Request,
+        res: express.Response,
+        next: express.NextFunction,
+    ): void => {
         const { appUuid, versionUuid } = req.params;
 
         if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
@@ -170,8 +193,12 @@ export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
             return;
         }
 
-        const s3Key = `apps/${appUuid}/versions/${versionUuid}/index.html`;
-        const result = await fetchFromS3(s3Key);
+        const result = verifyPreviewToken(
+            token,
+            lightdashSecret,
+            appUuid,
+            versionUuid,
+        );
 
         if (!result.ok) {
             res.status(result.status).json({
@@ -181,25 +208,85 @@ export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
             return;
         }
 
-        setSecurityHeaders(res);
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.setHeader('Cache-Control', 'no-store');
-        result.body.pipe(res);
+        next();
+    };
+
+    /**
+     * Accepts a JWT from the `?token` query param, verifies it, and
+     * promotes it to a path-scoped HttpOnly cookie so subsequent asset
+     * requests are authenticated automatically by the browser.
+     */
+    const requireTokenAndSetCookie: express.RequestHandler = (
+        req,
+        res,
+        next,
+    ) => {
+        const token =
+            typeof req.query.token === 'string' ? req.query.token : undefined;
+
+        handleTokenVerification(token, req, res, () => {
+            const { appUuid, versionUuid } = req.params;
+            const cookiePath = `/api/apps/${appUuid}/versions/${versionUuid}/`;
+            res.cookie(PREVIEW_COOKIE_NAME, token!, {
+                path: cookiePath,
+                httpOnly: true,
+                secure: true,
+                sameSite: 'strict',
+                maxAge: PREVIEW_TOKEN_MAX_AGE_SECONDS * 1000,
+            });
+            next();
+        });
+    };
+
+    /** Accepts a JWT only from the path-scoped cookie. */
+    const requireCookie: express.RequestHandler = (req, res, next) => {
+        const token = getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
+        handleTokenVerification(token, req, res, next);
+    };
+
+    // -- Routes ---------------------------------------------------------
+
+    // Redirect to trailing slash so relative asset paths resolve correctly.
+    // e.g. "assets/foo.css" from "/api/apps/X/versions/Y" would resolve to
+    //       "/api/apps/X/versions/assets/foo.css" (wrong)
+    // but from "/api/apps/X/versions/Y/" resolves correctly.
+    router.get('/:appUuid/versions/:versionUuid', (req, res) => {
+        const queryString = req.originalUrl.includes('?')
+            ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
+            : '';
+        res.redirect(302, `${req.baseUrl}${req.path}/${queryString}`);
     });
 
-    // Serve static assets (JS, CSS, fonts) for local dev without CDN
+    // Serve index.html for an app version.
     router.get(
-        '/:appUuid/versions/:versionUuid/assets/:filename',
+        '/:appUuid/versions/:versionUuid/',
+        requireTokenAndSetCookie,
         async (req, res) => {
-            const { appUuid, versionUuid, filename } = req.params;
+            const { appUuid, versionUuid } = req.params;
+            const s3Key = `apps/${appUuid}/versions/${versionUuid}/index.html`;
+            const result = await fetchFromS3(s3Key);
 
-            if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
-                res.status(400).json({
+            if (!result.ok) {
+                res.status(result.status).json({
                     status: 'error',
-                    error: { message: 'Invalid UUID format' },
+                    error: { message: result.message },
                 });
                 return;
             }
+
+            setSecurityHeaders(res);
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.setHeader('Cache-Control', 'no-store');
+            result.body.pipe(res);
+        },
+    );
+
+    // Serve static assets (JS, CSS, fonts) for local dev without CDN.
+    router.get(
+        '/:appUuid/versions/:versionUuid/assets/:filename',
+        requireCookie,
+        async (req, res) => {
+            const { filename } = req.params;
 
             if (!isSafeFilename(filename)) {
                 res.status(400).json({
@@ -209,6 +296,7 @@ export const createAppPreviewRouter = (config: AppRuntimeConfig): Router => {
                 return;
             }
 
+            const { appUuid, versionUuid } = req.params;
             const s3Key = `apps/${appUuid}/versions/${versionUuid}/assets/${filename}`;
             const result = await fetchFromS3(s3Key);
 
