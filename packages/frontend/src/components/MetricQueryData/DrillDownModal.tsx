@@ -54,7 +54,9 @@ export const combineFilters = ({
     }
     if (dashboardFilters) {
         combinedDimensionFilters.push(...dashboardFilters.dimensions);
-        combinedMetricFilters.push(...dashboardFilters.metrics);
+        if (dashboardFilters.metrics?.length) {
+            combinedMetricFilters.push(...dashboardFilters.metrics);
+        }
     }
     if (pivotReference?.pivotValues) {
         const pivotFilter: FilterRule[] = pivotReference.pivotValues.map(
