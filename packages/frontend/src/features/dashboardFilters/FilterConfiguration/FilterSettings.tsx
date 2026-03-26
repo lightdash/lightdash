@@ -6,6 +6,7 @@ import {
     type DashboardFilterRule,
     type FilterableDimension,
     type FilterRule,
+    type Metric,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -33,7 +34,7 @@ interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
     filterType: FilterType;
-    field?: FilterableDimension;
+    field?: FilterableDimension | Metric;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;

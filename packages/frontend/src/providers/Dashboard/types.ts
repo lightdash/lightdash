@@ -7,6 +7,7 @@ import {
     type DashboardParameters,
     type DateGranularity,
     type FilterableDimension,
+    type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
@@ -78,6 +79,12 @@ export type DashboardContextType = {
         filter: DashboardFilterRule,
         isTemporary: boolean,
     ) => void;
+    updateMetricDashboardFilter: (
+        filter: DashboardFilterRule,
+        index: number,
+        isTemporary: boolean,
+    ) => void;
+    removeMetricDashboardFilter: (index: number, isTemporary: boolean) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
@@ -88,6 +95,7 @@ export type DashboardContextType = {
     clearCacheAndFetch: () => void;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
     allFilterableFields: FilterableDimension[] | undefined;
+    allFilterableMetrics: Metric[] | undefined;
     filterableFieldsByTileUuid:
         | Record<string, FilterableDimension[]>
         | undefined;

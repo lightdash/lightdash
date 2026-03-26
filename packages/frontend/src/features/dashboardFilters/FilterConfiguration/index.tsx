@@ -17,8 +17,11 @@ import {
     type DashboardTab,
     type DashboardTile,
     type FilterableDimension,
+    type Metric,
     type ResultColumn,
 } from '@lightdash/common';
+
+type FilterableField = FilterableDimension | Metric;
 import {
     Box,
     Button,
@@ -54,9 +57,9 @@ interface Props {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid?: string;
-    field?: FilterableDimension;
-    fields?: FilterableDimension[];
-    availableTileFilters: Record<string, FilterableDimension[]>;
+    field?: FilterableField;
+    fields?: FilterableField[];
+    availableTileFilters: Record<string, FilterableField[]>;
     originalFilterRule?: DashboardFilterRule;
     defaultFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
@@ -67,8 +70,8 @@ interface Props {
 }
 
 const getDefaultField = (
-    fields: FilterableDimension[],
-    selectedField: FilterableDimension,
+    fields: FilterableField[],
+    selectedField: FilterableField,
 ) => {
     return (
         fields.find(matchFieldExact(selectedField)) ??
@@ -94,7 +97,7 @@ const FilterConfiguration: FC<Props> = ({
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
-        FilterableDimension | undefined
+        FilterableField | undefined
     >(field);
 
     const [draftFilterRule, setDraftFilterRule] = useState<
@@ -107,7 +110,7 @@ const FilterConfiguration: FC<Props> = ({
         return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (newField: FilterableDimension) => {
+    const handleChangeField = (newField: FilterableField) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {

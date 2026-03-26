@@ -1,4 +1,5 @@
 import {
+    getItemId,
     type DashboardFieldTarget,
     type DashboardFilterRule,
     type FilterOperator,
@@ -35,6 +36,12 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
+    const addMetricDashboardFilter = useDashboardContext(
+        (c) => c.addMetricDashboardFilter,
+    );
+    const allFilterableMetrics = useDashboardContext(
+        (c) => c.allFilterableMetrics,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -55,9 +62,23 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
                     mode: isEditMode ? 'edit' : 'viewer',
                 },
             });
-            addDimensionDashboardFilter(value, !isEditMode);
+
+            const isMetricFilter = allFilterableMetrics?.some(
+                (m) => getItemId(m) === value.target.fieldId,
+            );
+            if (isMetricFilter) {
+                addMetricDashboardFilter(value, !isEditMode);
+            } else {
+                addDimensionDashboardFilter(value, !isEditMode);
+            }
         },
-        [addDimensionDashboardFilter, isEditMode, track],
+        [
+            addDimensionDashboardFilter,
+            addMetricDashboardFilter,
+            allFilterableMetrics,
+            isEditMode,
+            track,
+        ],
     );
 
     const handlePopoverOpen = useCallback((id: string) => {

@@ -5,7 +5,10 @@ import {
     type DashboardTab,
     type DashboardTile,
     type FilterableDimension,
+    type Metric,
 } from '@lightdash/common';
+
+type FilterableField = FilterableDimension | Metric;
 import {
     Box,
     Combobox,
@@ -25,13 +28,13 @@ import styles from './FilterFieldSelect.module.css';
 import { useFilterFieldSections } from './useFilterFieldSections';
 
 interface FilterFieldSelectProps {
-    fields: FilterableDimension[];
-    availableTileFilters: Record<string, FilterableDimension[]>;
+    fields: FilterableField[];
+    availableTileFilters: Record<string, FilterableField[]>;
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid: string | undefined;
-    selectedField: FilterableDimension | undefined;
-    onChange: (field: FilterableDimension) => void;
+    selectedField: FilterableField | undefined;
+    onChange: (field: FilterableField) => void;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -42,7 +45,7 @@ interface FilterFieldSelectProps {
 type VirtualItem =
     | { type: 'section-header'; label: string; dimmed: boolean }
     | { type: 'group-header'; label: string; dimmed: boolean }
-    | { type: 'field'; field: FilterableDimension; dimmed: boolean };
+    | { type: 'field'; field: FilterableField; dimmed: boolean };
 
 const FIELD_HEIGHT = 32;
 const GROUP_HEADER_HEIGHT = 28;

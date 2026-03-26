@@ -1295,6 +1295,43 @@ const DashboardProvider: React.FC<
         [],
     );
 
+    const updateMetricDashboardFilter = useCallback(
+        (item: DashboardFilterRule, index: number, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => ({
+                dimensions: previousFilters.dimensions,
+                metrics: [
+                    ...previousFilters.metrics.slice(0, index),
+                    item,
+                    ...previousFilters.metrics.slice(index + 1),
+                ],
+                tableCalculations: previousFilters.tableCalculations,
+            }));
+            setHaveFiltersChanged(true);
+        },
+        [],
+    );
+
+    const removeMetricDashboardFilter = useCallback(
+        (index: number, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => ({
+                dimensions: previousFilters.dimensions,
+                metrics: [
+                    ...previousFilters.metrics.slice(0, index),
+                    ...previousFilters.metrics.slice(index + 1),
+                ],
+                tableCalculations: previousFilters.tableCalculations,
+            }));
+            setHaveFiltersChanged(true);
+        },
+        [],
+    );
+
     const removeDimensionDashboardFilter = useCallback(
         (index: number, isTemporary: boolean) => {
             const setFunction = isTemporary
@@ -1493,6 +1530,8 @@ const DashboardProvider: React.FC<
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
+        updateMetricDashboardFilter,
+        removeMetricDashboardFilter,
         resetDashboardFilters,
         setDashboardFilters,
         haveFiltersChanged,
@@ -1505,6 +1544,8 @@ const DashboardProvider: React.FC<
         setIsAutoRefresh,
         allFilterableFieldsMap,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
+        allFilterableMetrics:
+            dashboardAvailableFiltersData?.allFilterableMetrics,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,

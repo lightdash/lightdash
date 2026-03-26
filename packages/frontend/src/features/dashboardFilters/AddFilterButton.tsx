@@ -1,4 +1,4 @@
-import { type DashboardFilterRule } from '@lightdash/common';
+import { FeatureFlags, type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     Divider,
@@ -11,6 +11,7 @@ import { useDisclosure, useId } from '@mantine-8/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from './FilterConfiguration';
 
@@ -44,6 +45,12 @@ const AddFilterButton: FC<Props> = ({
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
+    );
+    const allFilterableMetrics = useDashboardContext(
+        (c) => c.allFilterableMetrics,
+    );
+    const isMetricFiltersEnabled = useClientFeatureFlag(
+        FeatureFlags.MetricDashboardFilters,
     );
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
@@ -196,7 +203,12 @@ const AddFilterButton: FC<Props> = ({
                             isCreatingNew={true}
                             isEditMode={isEditMode}
                             activeTabUuid={activeTabUuid}
-                            fields={allFilterableFields || []}
+                            fields={[
+                                ...(allFilterableFields || []),
+                                ...(isMetricFiltersEnabled
+                                    ? (allFilterableMetrics ?? [])
+                                    : []),
+                            ]}
                             tiles={dashboardTiles}
                             tabs={dashboardTabs}
                             availableTileFilters={

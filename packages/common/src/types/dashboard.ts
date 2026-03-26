@@ -1,5 +1,5 @@
 import { type ContentVerificationInfo } from './contentVerification';
-import { type FilterableDimension } from './field';
+import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type DashboardParameters } from './parameters';
@@ -282,6 +282,8 @@ export type UpdateMultipleDashboards = Pick<
 export type DashboardAvailableFilters = {
     savedQueryFilters: Record<string, number[]>;
     allFilterableFields: FilterableDimension[];
+    allFilterableMetrics: Metric[];
+    savedQueryMetricFilters: Record<string, number[]>;
 };
 
 export type SavedChartsInfoForDashboardAvailableFilters = {

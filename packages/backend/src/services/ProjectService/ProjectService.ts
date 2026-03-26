@@ -169,6 +169,7 @@ import {
     type ApiCreateProjectResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
+    type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type RunQueryTags,
@@ -5780,10 +5781,13 @@ export class ProjectService extends BaseService {
         account: Account,
         savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     ): Promise<DashboardAvailableFilters> {
-        let allFilters: {
+        type ChartFilters = {
             uuid: string;
             filters: CompiledDimension[];
-        }[] = [];
+            metricFilters: Metric[];
+        };
+
+        let allFilters: ChartFilters[] = [];
 
         allFilters = await Sentry.startSpan(
             {
@@ -5835,20 +5839,32 @@ export class ProjectService extends BaseService {
                             }),
                         )
                     ) {
-                        return { uuid: savedChart.uuid, filters: [] };
+                        return {
+                            uuid: savedChart.uuid,
+                            filters: [],
+                            metricFilters: [],
+                        };
                     }
 
                     const explore = exploresMap[savedChart.tableName];
 
                     let filters: CompiledDimension[] = [];
+                    let metricFilters: Metric[] = [];
                     if (explore && !isExploreError(explore)) {
                         filters = getDimensions(explore).filter(
                             (field) =>
                                 isFilterableDimension(field) && !field.hidden,
                         );
+                        metricFilters = getMetrics(explore).filter(
+                            (field) => !field.hidden,
+                        );
                     }
 
-                    return { uuid: savedChart.uuid, filters };
+                    return {
+                        uuid: savedChart.uuid,
+                        filters,
+                        metricFilters,
+                    };
                 });
             },
         );
@@ -5862,6 +5878,19 @@ export class ProjectService extends BaseService {
                 if (!(fieldId in filterIndexMap)) {
                     filterIndexMap[fieldId] = allFilterableFields.length;
                     allFilterableFields.push(filter);
+                }
+            });
+        });
+
+        const allFilterableMetrics: Metric[] = [];
+        const metricIndexMap: Record<string, number> = {};
+
+        allFilters.forEach((filterSet) => {
+            filterSet.metricFilters.forEach((metric) => {
+                const fieldId = getItemId(metric);
+                if (!(fieldId in metricIndexMap)) {
+                    metricIndexMap[fieldId] = allFilterableMetrics.length;
+                    allFilterableMetrics.push(metric);
                 }
             });
         });
@@ -5884,9 +5913,29 @@ export class ProjectService extends BaseService {
             };
         }, {});
 
+        const savedQueryMetricFilters = savedChartUuidsAndTileUuids.reduce<
+            DashboardAvailableFilters['savedQueryMetricFilters']
+        >((acc, savedChartUuidAndTileUuid) => {
+            const filterResult = allFilters.find(
+                (result) =>
+                    result.uuid === savedChartUuidAndTileUuid.savedChartUuid,
+            );
+            if (!filterResult || !filterResult.metricFilters.length) return acc;
+
+            const metricIndexes = filterResult.metricFilters.map(
+                (metric) => metricIndexMap[getItemId(metric)],
+            );
+            return {
+                ...acc,
+                [savedChartUuidAndTileUuid.tileUuid]: metricIndexes,
+            };
+        }, {});
+
         return {
             savedQueryFilters,
             allFilterableFields,
+            allFilterableMetrics,
+            savedQueryMetricFilters,
         };
     }
 
