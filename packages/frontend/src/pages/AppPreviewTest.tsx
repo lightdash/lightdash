@@ -35,7 +35,7 @@ export default function AppPreviewTest() {
 
     const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${versionUuid}?token=${token}#projectUuid=${projectUuid}&baseUrl=${baseUrl}`
+        ? `${baseUrl}/api/apps/${appUuid}/versions/${versionUuid}/#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
         : undefined;
 
     return (
@@ -45,7 +45,7 @@ export default function AppPreviewTest() {
                     <IconPlayerPlay size={20} />
                     <Title order={4}>App Preview</Title>
                     <Badge variant="light" color="blue" size="sm">
-                        hash token
+                        JWT via hash
                     </Badge>
                 </Group>
                 {previewUrl && (
@@ -95,7 +95,7 @@ export default function AppPreviewTest() {
                         Transport
                     </Text>
                     <Badge variant="dot" color="green" size="xs">
-                        apiTransport (hash token)
+                        apiTransport (JWT)
                     </Badge>
                 </Group>
             </Group>
