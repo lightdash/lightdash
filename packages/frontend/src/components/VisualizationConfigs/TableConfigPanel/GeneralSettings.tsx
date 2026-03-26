@@ -1,22 +1,13 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { FeatureFlags } from '@lightdash/common';
-import {
-    Box,
-    Checkbox,
-    Group,
-    NumberInput,
-    SegmentedControl,
-    Stack,
-    Switch,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine-8/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { RowLimitControls } from '../common/RowLimitControls';
 import ColumnConfiguration from './ColumnConfiguration';
 import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
@@ -268,75 +259,10 @@ const GeneralSettings: FC = () => {
             {isShowHideRowsEnabled && !isPivotTableEnabled && (
                 <Config.Section>
                     <Config.Heading>Data</Config.Heading>
-                    <Switch
-                        label="Limit displayed rows"
-                        checked={rowLimit !== undefined}
-                        onChange={(e) =>
-                            setRowLimit(
-                                e.currentTarget.checked
-                                    ? {
-                                          mode: 'show',
-                                          direction: 'first',
-                                          count: 50,
-                                      }
-                                    : undefined,
-                            )
-                        }
+                    <RowLimitControls
+                        rowLimit={rowLimit}
+                        onRowLimitChange={setRowLimit}
                     />
-                    {rowLimit !== undefined && (
-                        <Group gap="xs" wrap="nowrap">
-                            <SegmentedControl
-                                size="xs"
-                                data={[
-                                    { label: 'Show', value: 'show' },
-                                    { label: 'Hide', value: 'hide' },
-                                ]}
-                                value={rowLimit.mode}
-                                onChange={(value) =>
-                                    setRowLimit({
-                                        ...rowLimit,
-                                        mode: value as 'show' | 'hide',
-                                    })
-                                }
-                            />
-                            <Text fz="xs" c="ldGray.6">
-                                the
-                            </Text>
-                            <SegmentedControl
-                                size="xs"
-                                data={[
-                                    { label: 'First', value: 'first' },
-                                    { label: 'Last', value: 'last' },
-                                ]}
-                                value={rowLimit.direction}
-                                onChange={(value) =>
-                                    setRowLimit({
-                                        ...rowLimit,
-                                        direction: value as 'first' | 'last',
-                                    })
-                                }
-                            />
-                            <NumberInput
-                                size="xs"
-                                w={60}
-                                min={1}
-                                allowDecimal={false}
-                                value={rowLimit.count}
-                                onChange={(value) =>
-                                    setRowLimit({
-                                        ...rowLimit,
-                                        count:
-                                            typeof value === 'number'
-                                                ? value
-                                                : 50,
-                                    })
-                                }
-                            />
-                            <Text fz="xs" c="ldGray.6">
-                                rows
-                            </Text>
-                        </Group>
-                    )}
                 </Config.Section>
             )}
 
