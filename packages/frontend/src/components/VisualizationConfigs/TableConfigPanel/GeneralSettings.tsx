@@ -274,15 +274,33 @@ const GeneralSettings: FC = () => {
                         onChange={(e) =>
                             setRowLimit(
                                 e.currentTarget.checked
-                                    ? { direction: 'first', count: 50 }
+                                    ? {
+                                          mode: 'show',
+                                          direction: 'first',
+                                          count: 50,
+                                      }
                                     : undefined,
                             )
                         }
                     />
                     {rowLimit !== undefined && (
                         <Group gap="xs" wrap="nowrap">
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    { label: 'Show', value: 'show' },
+                                    { label: 'Hide', value: 'hide' },
+                                ]}
+                                value={rowLimit.mode}
+                                onChange={(value) =>
+                                    setRowLimit({
+                                        ...rowLimit,
+                                        mode: value as 'show' | 'hide',
+                                    })
+                                }
+                            />
                             <Text fz="xs" c="ldGray.6">
-                                Show the
+                                the
                             </Text>
                             <SegmentedControl
                                 size="xs"

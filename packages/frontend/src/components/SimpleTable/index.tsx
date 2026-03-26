@@ -64,13 +64,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
         ? visualizationConfig.chartConfig.rowLimit
         : undefined;
 
-    const needsAllRowsForLastN =
+    const needsAllRows =
         isShowHideRowsEnabled &&
-        rowLimit?.direction === 'last' &&
-        rowLimit.count > 0;
+        rowLimit != null &&
+        rowLimit.count > 0 &&
+        (rowLimit.direction === 'last' || rowLimit.mode === 'hide');
 
     const shouldPaginateResults = useMemo(() => {
-        if (needsAllRowsForLastN) return false;
+        if (needsAllRows) return false;
         return Boolean(
             !resultsData ||
             !isTableVisualizationConfig(visualizationConfig) ||
@@ -78,7 +79,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             (!visualizationConfig.chartConfig.showSubtotals &&
                 !visualizationConfig.chartConfig.pivotTableData?.data),
         );
-    }, [needsAllRowsForLastN, resultsData, visualizationConfig]);
+    }, [needsAllRows, resultsData, visualizationConfig]);
 
     const loadResultsStatus = useMemo(() => {
         if (!resultsData) {

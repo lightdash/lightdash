@@ -357,9 +357,11 @@ export type ColumnProperties = {
 };
 
 export type RowLimit = {
-    /** Whether to show the first or last N rows */
+    /** Whether to show or hide the selected rows */
+    mode: 'show' | 'hide';
+    /** Whether to target the first or last N rows */
     direction: 'first' | 'last';
-    /** Number of rows to display */
+    /** Number of rows to show or hide */
     count: number;
 };
 

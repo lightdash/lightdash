@@ -492,6 +492,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                 setRowLimit(
                                     e.currentTarget.checked
                                         ? {
+                                              mode: 'show',
                                               direction: 'first',
                                               count: 50,
                                           }
@@ -501,8 +502,28 @@ export const Layout: FC<Props> = ({ items }) => {
                         />
                         {rowLimit !== undefined && (
                             <Group8 gap="xs" wrap="nowrap">
+                                <SegmentedControl8
+                                    size="xs"
+                                    data={[
+                                        {
+                                            label: 'Show',
+                                            value: 'show',
+                                        },
+                                        {
+                                            label: 'Hide',
+                                            value: 'hide',
+                                        },
+                                    ]}
+                                    value={rowLimit.mode}
+                                    onChange={(value) =>
+                                        setRowLimit({
+                                            ...rowLimit,
+                                            mode: value as 'show' | 'hide',
+                                        })
+                                    }
+                                />
                                 <Text8 fz="xs" c="ldGray.6">
-                                    Show the
+                                    the
                                 </Text8>
                                 <SegmentedControl8
                                     size="xs"
