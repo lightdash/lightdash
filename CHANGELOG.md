@@ -1,3 +1,10 @@
+# [0.2675.0](https://github.com/lightdash/lightdash/compare/0.2674.1...0.2675.0) (2026-03-26)
+
+
+### Features
+
+* add configurable DuckDB memory limit for pre-aggregates ([#21453](https://github.com/lightdash/lightdash/issues/21453)) ([5f1f738](https://github.com/lightdash/lightdash/commit/5f1f7385eba1a8c61fc9b0260688329f3d62c166))
+
 ## [0.2674.1](https://github.com/lightdash/lightdash/compare/0.2674.0...0.2674.1) (2026-03-26)
 
 
