@@ -124,6 +124,11 @@ export enum FeatureFlags {
      * Existing metric filters are always displayed regardless of this flag.
      */
     MetricDashboardFilters = 'metric-dashboard-filters',
+
+    /**
+     * Enable user-configurable column limit for pivoted queries
+     */
+    ShowHideColumns = 'show-hide-columns',
 }
 
 export type FeatureFlag = {

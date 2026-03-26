@@ -189,6 +189,10 @@ const useCartesianChartConfig = ({
     cartesianType,
     tableCalculationsMetadata,
 }: Args) => {
+    const [columnLimit, setColumnLimit] = useState<number | undefined>(
+        initialChartConfig?.columnLimit,
+    );
+
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
@@ -1086,6 +1090,7 @@ const useCartesianChartConfig = ({
                     yFields: dirtyLayout.yField,
                     defaultLabel,
                     itemsMap,
+                    columnLimit,
                 });
                 // Check if any sort field matches a pivot dimension
                 const sortedByPivot =
@@ -1127,6 +1132,7 @@ const useCartesianChartConfig = ({
         referenceLines,
         itemsMap,
         seriesHiddenStatesKey, // Re-run when series hidden states change
+        columnLimit,
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {
@@ -1147,6 +1153,7 @@ const useCartesianChartConfig = ({
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
             metadata: dirtyMetadata,
             rowLimit,
+            columnLimit,
         };
     }, [
         dirtyLayout,
@@ -1155,6 +1162,7 @@ const useCartesianChartConfig = ({
         tooltip,
         tooltipSort,
         rowLimit,
+        columnLimit,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
@@ -1230,6 +1238,8 @@ const useCartesianChartConfig = ({
         updateMetadata,
         rowLimit,
         setRowLimit,
+        columnLimit,
+        setColumnLimit,
     };
 };
 

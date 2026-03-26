@@ -148,6 +148,39 @@ describe('getExpectedSeriesMap', () => {
             expectedMultiPivotedSeriesMap,
         );
     });
+
+    describe('with columnLimit', () => {
+        test('should return only the first N series when columnLimit is set', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const allKeys = Object.keys(allResult);
+
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 2,
+            });
+            const keys = Object.keys(result);
+            expect(keys).toHaveLength(2);
+            expect(keys).toStrictEqual(allKeys.slice(0, 2));
+        });
+
+        test('should return all series when columnLimit exceeds available', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 100,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should not affect series without pivot', () => {
+            const result = getExpectedSeriesMap({
+                ...simpleSeriesMapArgs,
+                columnLimit: 1,
+            });
+            expect(result).toStrictEqual(expectedSimpleSeriesMap);
+        });
+    });
 });
 
 describe('mergeExistingAndExpectedSeries', () => {

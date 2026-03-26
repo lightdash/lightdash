@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    DEFAULT_COLUMN_LIMIT,
     FeatureFlags,
     getItemId,
     isCustomDimension,
@@ -11,6 +12,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
+import { NumberInput } from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
@@ -201,6 +203,8 @@ export const Layout: FC<Props> = ({ items }) => {
         addSingleSeries,
         rowLimit,
         setRowLimit,
+        columnLimit,
+        setColumnLimit,
     } = visualizationConfig.chartConfig;
 
     return (
@@ -482,6 +486,27 @@ export const Layout: FC<Props> = ({ items }) => {
                         <RowLimitControls
                             rowLimit={rowLimit}
                             onRowLimitChange={setRowLimit}
+                        />
+                    </Config.Section>
+                </Config>
+            )}
+            {pivotDimensions && pivotDimensions.length > 0 && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Column limit</Config.Heading>
+                        <NumberInput
+                            size="xs"
+                            min={1}
+                            max={200}
+                            step={10}
+                            allowDecimal={false}
+                            clampBehavior="strict"
+                            value={columnLimit ?? DEFAULT_COLUMN_LIMIT}
+                            onChange={(value) => {
+                                if (typeof value === 'number') {
+                                    setColumnLimit(value);
+                                }
+                            }}
                         />
                     </Config.Section>
                 </Config>

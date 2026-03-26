@@ -27,6 +27,7 @@ export type GetExpectedSeriesMapArgs = {
     availableDimensions: string[];
     defaultLabel?: Series['label'];
     itemsMap: ItemsMap | undefined;
+    columnLimit?: number;
 };
 
 export const getExpectedSeriesMap = ({
@@ -42,6 +43,7 @@ export const getExpectedSeriesMap = ({
     availableDimensions,
     defaultLabel,
     itemsMap,
+    columnLimit,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
@@ -68,35 +70,41 @@ export const getExpectedSeriesMap = ({
                   ),
               );
 
-        expectedSeriesMap = Object.values(rowKeyMap).reduce<
-            Record<string, Series>
-        >((acc, rowKey) => {
-            let series: Series;
-            if (typeof rowKey === 'string') {
-                series = {
-                    ...defaultProperties,
-                    encode: {
-                        xRef: { field: xField },
-                        yRef: {
-                            field: rowKey,
+        let rowKeyValues = Object.values(rowKeyMap);
+        if (columnLimit !== undefined && columnLimit > 0) {
+            rowKeyValues = rowKeyValues.slice(0, columnLimit);
+        }
+
+        expectedSeriesMap = rowKeyValues.reduce<Record<string, Series>>(
+            (acc, rowKey) => {
+                let series: Series;
+                if (typeof rowKey === 'string') {
+                    series = {
+                        ...defaultProperties,
+                        encode: {
+                            xRef: { field: xField },
+                            yRef: {
+                                field: rowKey,
+                            },
                         },
-                    },
-                };
-            } else {
-                series = {
-                    ...defaultProperties,
-                    encode: {
-                        xRef: { field: xField },
-                        yRef: rowKey,
-                    },
-                    stack:
-                        defaultAreaStyle || isStacked
-                            ? rowKey.field
-                            : undefined,
-                };
-            }
-            return { ...acc, [getSeriesId(series)]: series };
-        }, {});
+                    };
+                } else {
+                    series = {
+                        ...defaultProperties,
+                        encode: {
+                            xRef: { field: xField },
+                            yRef: rowKey,
+                        },
+                        stack:
+                            defaultAreaStyle || isStacked
+                                ? rowKey.field
+                                : undefined,
+                    };
+                }
+                return { ...acc, [getSeriesId(series)]: series };
+            },
+            {},
+        );
     } else {
         expectedSeriesMap = (yFields || []).reduce<Record<string, Series>>(
             (sum, yField) => {
