@@ -228,7 +228,9 @@ const computeDashboardChartSeries = (
             existingSeries: chart.chartConfig.config.eChartsConfig.series || [],
             sortedByPivot,
         });
-        return newSeries.filter((s) => !s.isFilteredOut);
+        return isShowHideColumnsEnabled
+            ? newSeries.filter((s) => !s.isFilteredOut)
+            : newSeries;
     }
     return [];
 };
