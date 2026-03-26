@@ -691,6 +691,15 @@ const scopes: Scope[] = [
         ],
     },
 
+    // Data Apps
+    {
+        name: 'manage:DataApp',
+        description: 'Create and manage data apps',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+
     // Spotlight Scopes
     {
         name: 'manage:SpotlightTableConfig',
