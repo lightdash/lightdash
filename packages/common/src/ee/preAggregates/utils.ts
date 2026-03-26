@@ -1,5 +1,5 @@
 export { getAdditivityType, isCompatible } from './additivity';
-export { findMatch } from './matcher';
+export { applyUserBypass, findMatch } from './matcher';
 export {
     getMetricRepresentation,
     isSupportedMetricType,
