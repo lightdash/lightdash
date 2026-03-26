@@ -498,7 +498,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             size="xs"
                             min={1}
                             max={200}
-                            step={10}
+                            step={1}
                             allowDecimal={false}
                             clampBehavior="strict"
                             value={columnLimit ?? DEFAULT_COLUMN_LIMIT}
