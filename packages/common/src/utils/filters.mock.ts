@@ -146,6 +146,77 @@ export const dashboardFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
+export const dashboardFiltersWithMetrics: DashboardFilters = {
+    dimensions: [
+        {
+            id: '4',
+            label: undefined,
+            target: {
+                fieldId: 'a_dim1',
+                tableName: 'test',
+            },
+            operator: FilterOperator.EQUALS,
+            values: ['1', '2', '3'],
+        },
+    ],
+    metrics: [
+        {
+            id: 'm1',
+            label: undefined,
+            target: {
+                fieldId: 'a_metric1',
+                tableName: 'test',
+            },
+            operator: FilterOperator.GREATER_THAN,
+            values: [100],
+        },
+    ],
+    tableCalculations: [],
+};
+
+export const metricQueryWithExistingMetricFilters: MetricQuery = {
+    exploreName: 'test',
+    limit: 501,
+    dimensions: ['a_dim1'],
+    metrics: ['a_metric1'],
+    sorts: [],
+    tableCalculations: [],
+    filters: {
+        dimensions: {
+            id: 'root',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'a_dim1',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [0],
+                },
+            ],
+        },
+        metrics: {
+            id: 'metric-root',
+            and: [
+                {
+                    id: 'existing-metric-filter',
+                    target: {
+                        fieldId: 'a_metric1',
+                    },
+                    operator: FilterOperator.LESS_THAN,
+                    values: [1000],
+                },
+            ],
+        },
+    },
+};
+
+export const emptyDashboardFilters: DashboardFilters = {
+    dimensions: [],
+    metrics: [],
+    tableCalculations: [],
+};
+
 export const expectedChartWithOverrideDashboardFilters: MetricQuery = {
     exploreName: 'test',
     dimensions: ['a_dim1'],
