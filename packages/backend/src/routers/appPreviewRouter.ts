@@ -4,11 +4,6 @@ import path from 'path';
 import { validate as isValidUuid } from 'uuid';
 import { type AppRuntimeConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import {
-    PREVIEW_COOKIE_NAME,
-    PREVIEW_TOKEN_MAX_AGE_SECONDS,
-    verifyPreviewToken,
-} from './appPreviewToken';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.js': 'application/javascript',
@@ -55,21 +50,9 @@ const buildCspHeader = (config: AppRuntimeConfig): string => {
 const isSafeFilename = (filename: string): boolean =>
     /^[a-zA-Z0-9._-]+$/.test(filename) && !filename.includes('..');
 
-/**
- * Extracts a named cookie value from the Cookie header.
- */
-const getCookieValue = (
-    cookieHeader: string | undefined,
-    name: string,
-): string | undefined => {
-    if (!cookieHeader) return undefined;
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-    return match ? match[1] : undefined;
-};
-
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
-    lightdashSecret: string,
+    _lightdashSecret: string,
 ): Router => {
     const router = express.Router({ strict: true });
 
@@ -168,21 +151,10 @@ export const createAppPreviewRouter = (
         }
     };
 
-    // -- Auth middleware ------------------------------------------------
-    // Two flavours: one accepts a JWT query param and promotes it to a
-    // cookie (used on index.html), the other only accepts the cookie
-    // (used on assets loaded by the page).
+    // -- Validation middleware ---------------------------------------------
 
-    /**
-     * Verifies a token and translates the result into an HTTP response.
-     * Shared by both middleware variants.
-     */
-    const handleTokenVerification = (
-        token: string | undefined,
-        req: express.Request,
-        res: express.Response,
-        next: express.NextFunction,
-    ): void => {
+    /** Validates that appUuid and versionUuid are valid UUIDs. */
+    const requireValidUuids: express.RequestHandler = (req, res, next) => {
         const { appUuid, versionUuid } = req.params;
 
         if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
@@ -193,55 +165,7 @@ export const createAppPreviewRouter = (
             return;
         }
 
-        const result = verifyPreviewToken(
-            token,
-            lightdashSecret,
-            appUuid,
-            versionUuid,
-        );
-
-        if (!result.ok) {
-            res.status(result.status).json({
-                status: 'error',
-                error: { message: result.message },
-            });
-            return;
-        }
-
         next();
-    };
-
-    /**
-     * Accepts a JWT from the `?token` query param, verifies it, and
-     * promotes it to a path-scoped HttpOnly cookie so subsequent asset
-     * requests are authenticated automatically by the browser.
-     */
-    const requireTokenAndSetCookie: express.RequestHandler = (
-        req,
-        res,
-        next,
-    ) => {
-        const token =
-            typeof req.query.token === 'string' ? req.query.token : undefined;
-
-        handleTokenVerification(token, req, res, () => {
-            const { appUuid, versionUuid } = req.params;
-            const cookiePath = `/api/apps/${appUuid}/versions/${versionUuid}/`;
-            res.cookie(PREVIEW_COOKIE_NAME, token!, {
-                path: cookiePath,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: PREVIEW_TOKEN_MAX_AGE_SECONDS * 1000,
-            });
-            next();
-        });
-    };
-
-    /** Accepts a JWT only from the path-scoped cookie. */
-    const requireCookie: express.RequestHandler = (req, res, next) => {
-        const token = getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
-        handleTokenVerification(token, req, res, next);
     };
 
     // -- Routes ---------------------------------------------------------
@@ -258,9 +182,12 @@ export const createAppPreviewRouter = (
     });
 
     // Serve index.html for an app version.
+    // No token auth required — the app bundle is static code, not sensitive data.
+    // Actual data access is protected by JWT auth on API endpoints.
+    // UUIDs are unguessable (128-bit random) and CSP frame-ancestors restricts embedding.
     router.get(
         '/:appUuid/versions/:versionUuid/',
-        requireTokenAndSetCookie,
+        requireValidUuids,
         async (req, res) => {
             const { appUuid, versionUuid } = req.params;
             const s3Key = `apps/${appUuid}/versions/${versionUuid}/index.html`;
@@ -284,7 +211,7 @@ export const createAppPreviewRouter = (
     // Serve static assets (JS, CSS, fonts) for local dev without CDN.
     router.get(
         '/:appUuid/versions/:versionUuid/assets/:filename',
-        requireCookie,
+        requireValidUuids,
         async (req, res) => {
             const { filename } = req.params;
 

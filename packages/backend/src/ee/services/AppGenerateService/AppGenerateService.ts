@@ -289,6 +289,9 @@ export class AppGenerateService extends BaseService {
             this.lightdashConfig.lightdashSecret,
             appUuid,
             versionUuid,
+            user.userUuid,
+            user.organizationUuid!,
+            projectUuid,
         );
     }
 
