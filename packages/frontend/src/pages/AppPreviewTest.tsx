@@ -1,10 +1,10 @@
-import { SEED_PAT } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
     Code,
     CopyButton,
     Group,
+    Loader,
     Paper,
     Stack,
     Text,
@@ -14,6 +14,7 @@ import {
 import { IconCheck, IconCopy, IconPlayerPlay } from '@tabler/icons-react';
 import { useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 
 export default function AppPreviewTest() {
     const { projectUuid, appUuid, versionUuid } = useParams<{
@@ -22,12 +23,20 @@ export default function AppPreviewTest() {
         versionUuid: string;
     }>();
 
+    const {
+        data: token,
+        isLoading,
+        error,
+    } = useAppPreviewToken(projectUuid, appUuid, versionUuid);
+
     if (!projectUuid || !appUuid || !versionUuid) {
         return <div>Missing route params</div>;
     }
 
     const baseUrl = window.location.origin;
-    const previewUrl = `http://localhost:8080/api/apps/${appUuid}/versions/${versionUuid}#token=${SEED_PAT.token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`;
+    const previewUrl = token
+        ? `${baseUrl}/api/apps/${appUuid}/versions/${versionUuid}?token=${token}#projectUuid=${projectUuid}&baseUrl=${baseUrl}`
+        : undefined;
 
     return (
         <Stack p="lg" gap="md">
@@ -39,31 +48,33 @@ export default function AppPreviewTest() {
                         hash token
                     </Badge>
                 </Group>
-                <Group gap="xs">
-                    <Text size="xs" c="dimmed">
-                        {previewUrl}
-                    </Text>
-                    <CopyButton value={previewUrl}>
-                        {({ copied, copy }) => (
-                            <Tooltip
-                                label={copied ? 'Copied' : 'Copy URL'}
-                                withArrow
-                            >
-                                <ActionIcon
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={copy}
+                {previewUrl && (
+                    <Group gap="xs">
+                        <Text size="xs" c="dimmed">
+                            {previewUrl}
+                        </Text>
+                        <CopyButton value={previewUrl}>
+                            {({ copied, copy }) => (
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy URL'}
+                                    withArrow
                                 >
-                                    {copied ? (
-                                        <IconCheck size={14} />
-                                    ) : (
-                                        <IconCopy size={14} />
-                                    )}
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-                    </CopyButton>
-                </Group>
+                                    <ActionIcon
+                                        size="xs"
+                                        variant="subtle"
+                                        onClick={copy}
+                                    >
+                                        {copied ? (
+                                            <IconCheck size={14} />
+                                        ) : (
+                                            <IconCopy size={14} />
+                                        )}
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </CopyButton>
+                    </Group>
+                )}
             </Group>
 
             <Group gap="lg">
@@ -90,7 +101,16 @@ export default function AppPreviewTest() {
             </Group>
 
             <Paper shadow="sm" radius="md" withBorder h="80vh">
-                <AppIframePreview src={previewUrl} />
+                {isLoading && <Loader m="auto" />}
+                {error && (
+                    <Text c="red" p="md">
+                        Failed to fetch preview token:{' '}
+                        {error instanceof Error
+                            ? error.message
+                            : 'Unknown error'}
+                    </Text>
+                )}
+                {previewUrl && <AppIframePreview src={previewUrl} />}
             </Paper>
         </Stack>
     );
