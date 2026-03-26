@@ -2,13 +2,10 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     isField,
+    type DashboardFilterableField,
     type DashboardTab,
     type DashboardTile,
-    type FilterableDimension,
-    type Metric,
 } from '@lightdash/common';
-
-type FilterableField = FilterableDimension | Metric;
 import {
     Box,
     Combobox,
@@ -28,13 +25,13 @@ import styles from './FilterFieldSelect.module.css';
 import { useFilterFieldSections } from './useFilterFieldSections';
 
 interface FilterFieldSelectProps {
-    fields: FilterableField[];
-    availableTileFilters: Record<string, FilterableField[]>;
+    fields: DashboardFilterableField[];
+    availableTileFilters: Record<string, DashboardFilterableField[]>;
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid: string | undefined;
-    selectedField: FilterableField | undefined;
-    onChange: (field: FilterableField) => void;
+    selectedField: DashboardFilterableField | undefined;
+    onChange: (field: DashboardFilterableField) => void;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -45,7 +42,7 @@ interface FilterFieldSelectProps {
 type VirtualItem =
     | { type: 'section-header'; label: string; dimmed: boolean }
     | { type: 'group-header'; label: string; dimmed: boolean }
-    | { type: 'field'; field: FilterableField; dimmed: boolean };
+    | { type: 'field'; field: DashboardFilterableField; dimmed: boolean };
 
 const FIELD_HEIGHT = 32;
 const GROUP_HEADER_HEIGHT = 28;

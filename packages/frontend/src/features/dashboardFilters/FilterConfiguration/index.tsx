@@ -13,15 +13,12 @@ import {
     matchFieldByTypeAndName,
     matchFieldExact,
     type DashboardFieldTarget,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
-    type FilterableDimension,
-    type Metric,
     type ResultColumn,
 } from '@lightdash/common';
-
-type FilterableField = FilterableDimension | Metric;
 import {
     Box,
     Button,
@@ -57,9 +54,9 @@ interface Props {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid?: string;
-    field?: FilterableField;
-    fields?: FilterableField[];
-    availableTileFilters: Record<string, FilterableField[]>;
+    field?: DashboardFilterableField;
+    fields?: DashboardFilterableField[];
+    availableTileFilters: Record<string, DashboardFilterableField[]>;
     originalFilterRule?: DashboardFilterRule;
     defaultFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
@@ -70,8 +67,8 @@ interface Props {
 }
 
 const getDefaultField = (
-    fields: FilterableField[],
-    selectedField: FilterableField,
+    fields: DashboardFilterableField[],
+    selectedField: DashboardFilterableField,
 ) => {
     return (
         fields.find(matchFieldExact(selectedField)) ??
@@ -97,7 +94,7 @@ const FilterConfiguration: FC<Props> = ({
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
-        FilterableField | undefined
+        DashboardFilterableField | undefined
     >(field);
 
     const [draftFilterRule, setDraftFilterRule] = useState<
@@ -110,7 +107,7 @@ const FilterConfiguration: FC<Props> = ({
         return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
 
-    const handleChangeField = (newField: FilterableField) => {
+    const handleChangeField = (newField: DashboardFilterableField) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {

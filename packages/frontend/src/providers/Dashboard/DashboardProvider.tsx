@@ -13,6 +13,7 @@ import {
     isSubDayGranularity,
     type CacheMetadata,
     type Dashboard,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardParameters,
@@ -779,7 +780,7 @@ const DashboardProvider: React.FC<
             return;
 
         return savedChartUuidsAndTileUuids.reduce<
-            Record<string, (FilterableDimension | Metric)[]>
+            Record<string, DashboardFilterableField[]>
         >((acc, { tileUuid }) => {
             const dimensionFields =
                 dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(

@@ -2,9 +2,8 @@ import {
     applyDefaultTileTargets,
     DimensionType,
     getFilterTypeFromItemType,
+    type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterableDimension,
-    type Metric,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -38,7 +37,7 @@ type Props = {
     isOrphaned: boolean;
     orphanedTooltip?: string;
     isTemporary?: boolean;
-    field: FilterableDimension | Metric | undefined;
+    field: DashboardFilterableField | undefined;
     filterRule: DashboardFilterRule;
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;

@@ -3,10 +3,9 @@ import {
     FilterType,
     getFilterRuleWithDefaultValue,
     supportsSingleValue,
+    type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterableDimension,
     type FilterRule,
-    type Metric,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -34,7 +33,7 @@ interface FilterSettingsProps {
     isEditMode: boolean;
     isCreatingNew: boolean;
     filterType: FilterType;
-    field?: FilterableDimension | Metric;
+    field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;

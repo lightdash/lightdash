@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CacheMetadata,
     type Dashboard,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardParameters,
@@ -99,7 +100,7 @@ export type DashboardContextType = {
     allFilterableFields: FilterableDimension[] | undefined;
     allFilterableMetrics: Metric[] | undefined;
     filterableFieldsByTileUuid:
-        | Record<string, (FilterableDimension | Metric)[]>
+        | Record<string, DashboardFilterableField[]>
         | undefined;
     hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;
