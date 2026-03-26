@@ -247,6 +247,62 @@ const writeSpaceFiles = async (
     }
 };
 
+/**
+ * Reads all .space.yml files from the download directory and returns
+ * a map of space slug → original space name. Used during upload to
+ * preserve human-readable space names instead of deriving them from slugs.
+ */
+const readSpaceNames = async (
+    customPath?: string,
+): Promise<Record<string, string>> => {
+    const baseDir = getDownloadFolder(customPath);
+    const spaceNames: Record<string, string> = {};
+
+    try {
+        const allEntries = await fs.readdir(baseDir, {
+            recursive: true,
+            withFileTypes: true,
+        });
+
+        await Promise.all(
+            allEntries
+                .filter(
+                    (entry) =>
+                        entry.isFile() && entry.name.endsWith('.space.yml'),
+                )
+                .map(async (file) => {
+                    try {
+                        const filePath = path.join(file.parentPath, file.name);
+                        const fileContent = await fs.readFile(
+                            filePath,
+                            'utf-8',
+                        );
+                        const parsed = yaml.load(fileContent) as Record<
+                            string,
+                            unknown
+                        >;
+                        if (
+                            parsed?.contentType ===
+                                ContentAsCodeTypeEnum.SPACE &&
+                            typeof parsed.slug === 'string' &&
+                            typeof parsed.spaceName === 'string'
+                        ) {
+                            spaceNames[parsed.slug] = parsed.spaceName;
+                        }
+                    } catch (e) {
+                        GlobalState.debug(
+                            `Skipping space file ${file.name}: ${getErrorMessage(e)}`,
+                        );
+                    }
+                }),
+        );
+    } catch {
+        // Directory doesn't exist or can't be read — return empty map
+    }
+
+    return spaceNames;
+};
+
 const hasUnsortedKeys = (obj: unknown): boolean => {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
         if (Array.isArray(obj)) {
@@ -1041,6 +1097,7 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     skipSpaceCreate?: boolean,
     publicSpaceCreate?: boolean,
     validate?: boolean,
+    spaceNames?: Record<string, string>,
 ): Promise<void> => {
     try {
         if (!force && !item.needsUpdating) {
@@ -1068,6 +1125,8 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
                 skipSpaceCreate,
                 publicSpaceCreate,
                 force,
+                ...(spaceNames &&
+                    Object.keys(spaceNames).length > 0 && { spaceNames }),
             }),
         });
 
@@ -1203,6 +1262,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     validate?: boolean,
     concurrency: number = 1,
     extraItems: (T & { needsUpdating: boolean })[] = [],
+    spaceNames?: Record<string, string>,
 ): Promise<{ changes: Record<string, number>; total: number }> => {
     const config = await getConfig();
 
@@ -1243,6 +1303,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 skipSpaceCreate,
                 publicSpaceCreate,
                 validate,
+                spaceNames,
             );
         }
     } else {
@@ -1324,6 +1385,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 skipSpaceCreate,
                 publicSpaceCreate,
                 validate,
+                spaceNames,
             );
         }
 
@@ -1342,6 +1404,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                         skipSpaceCreate,
                         publicSpaceCreate,
                         validate,
+                        spaceNames,
                     );
                 }),
             ),
@@ -1459,6 +1522,14 @@ export const uploadHandler = async (
             );
         }
 
+        // Read space definition files to preserve original space names during upload
+        const spaceNames = await readSpaceNames(options.path);
+        if (Object.keys(spaceNames).length > 0) {
+            GlobalState.log(
+                `Found ${Object.keys(spaceNames).length} space definition(s)`,
+            );
+        }
+
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
         const looseFiles = await readLooseCodeFiles(options.path);
         if (looseFiles.charts.length > 0) {
@@ -1490,6 +1561,7 @@ export const uploadHandler = async (
                     options.validate,
                     concurrency,
                     looseFiles.charts,
+                    spaceNames,
                 );
             changes = chartChanges;
             chartTotal = total;
@@ -1513,6 +1585,7 @@ export const uploadHandler = async (
                     options.validate,
                     concurrency,
                     looseFiles.dashboards,
+                    spaceNames,
                 );
             changes = dashboardChanges;
             dashboardTotal = total;

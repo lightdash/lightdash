@@ -979,6 +979,7 @@ export class CoderService extends BaseService {
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
         force?: boolean,
+        spaceNames?: Record<string, string>,
     ) {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1022,6 +1023,7 @@ export class CoderService extends BaseService {
                     user,
                     skipSpaceCreate,
                     publicSpaceCreate,
+                    spaceNames,
                 );
 
             console.info(
@@ -1122,6 +1124,8 @@ export class CoderService extends BaseService {
             chartWithDefaults.spaceSlug,
             user,
             skipSpaceCreate,
+            undefined,
+            spaceNames,
         );
 
         const { promotedChart, upstreamChart } =
@@ -1178,6 +1182,7 @@ export class CoderService extends BaseService {
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
         force?: boolean,
+        spaceNames?: Record<string, string>,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1211,6 +1216,7 @@ export class CoderService extends BaseService {
             user,
             skipSpaceCreate,
             publicSpaceCreate,
+            spaceNames,
         );
 
         if (existingSqlChart === undefined) {
@@ -1311,6 +1317,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
+        spaceNames?: Record<string, string>,
     ): Promise<{ space: SpaceSummaryBase; created: boolean }> {
         const [existingSpace] = await this.spaceModel.find({
             path: getLtreePathFromContentAsCodePath(spaceSlug),
@@ -1375,10 +1382,16 @@ export class CoderService extends BaseService {
                 parentPath = `${parentPath}.${currentPath}`;
             }
 
+            // Use the original space name from space definition files if available,
+            // otherwise fall back to deriving a name from the slug path segment
+            const spaceName =
+                spaceNames?.[getContentAsCodePathFromLtreePath(parentPath)] ??
+                friendlyName(currentPath);
+
             const newSpace = await this.spaceModel.createSpace(
                 {
                     inheritParentPermissions,
-                    name: friendlyName(currentPath),
+                    name: spaceName,
                     parentSpaceUuid,
                 },
                 {
@@ -1455,6 +1468,7 @@ export class CoderService extends BaseService {
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
         force?: boolean,
+        spaceNames?: Record<string, string>,
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
@@ -1505,6 +1519,7 @@ export class CoderService extends BaseService {
                     user,
                     skipSpaceCreate,
                     publicSpaceCreate,
+                    spaceNames,
                 );
 
             const newDashboard = await this.dashboardModel.create(
@@ -1578,6 +1593,8 @@ export class CoderService extends BaseService {
             dashboardWithDefaults.spaceSlug,
             user,
             skipSpaceCreate,
+            undefined,
+            spaceNames,
         );
 
         //  we force the new space on the upstreamDashboard
