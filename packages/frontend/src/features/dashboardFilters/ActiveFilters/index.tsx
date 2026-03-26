@@ -12,17 +12,8 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { type DashboardFilterRule } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Button,
-    Group,
-    Skeleton,
-    useMantineTheme,
-} from '@mantine-8/core';
-import { IconX } from '@tabler/icons-react';
+import { Group, Skeleton, useMantineTheme } from '@mantine-8/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     doesFilterApplyToAnyTile,
@@ -238,6 +229,27 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         setHaveFiltersChanged(true);
     };
 
+    const handleMetricDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!active || !over || active.id === over.id) return;
+        const oldIndex = dashboardFilters.metrics.findIndex(
+            (item) => item.id === active.id,
+        );
+        const newIndex = dashboardFilters.metrics.findIndex(
+            (item) => item.id === over.id,
+        );
+        const newMetrics = arrayMove(
+            dashboardFilters.metrics,
+            oldIndex,
+            newIndex,
+        );
+        setDashboardFilters({
+            ...dashboardFilters,
+            metrics: newMetrics,
+        });
+        setHaveFiltersChanged(true);
+    };
+
     return (
         <>
             <DndContext
@@ -314,63 +326,60 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 <DragOverlay />
             </DndContext>
 
-            {dashboardFilters.metrics.map((item, index) => {
-                const metricField =
-                    allFilterableMetricsMap[item.target.fieldId];
-                const appliesToTabs = getTabsUsingFilter(item);
+            <DndContext
+                sensors={dragSensors}
+                onDragStart={handleDragStart}
+                onDragEnd={handleMetricDragEnd}
+            >
+                {dashboardFilters.metrics.map((item, index) => {
+                    const metricField =
+                        allFilterableMetricsMap[item.target.fieldId];
+                    const appliesToTabs = getTabsUsingFilter(item);
 
-                return metricField ? (
-                    <Filter
-                        key={item.id}
-                        isEditMode={isEditMode}
-                        {...getOrphanedState(item, appliesToTabs)}
-                        field={metricField}
-                        filterRule={item}
-                        openPopoverId={openPopoverId}
-                        onPopoverOpen={onPopoverOpen}
-                        onPopoverClose={onPopoverClose}
-                        onRemove={() =>
-                            removeMetricDashboardFilter(index, false)
-                        }
-                        onUpdate={(value) =>
-                            updateMetricDashboardFilter(value, index, false)
-                        }
-                    />
-                ) : (
-                    <Button
-                        key={item.id}
-                        size="xs"
-                        variant="default"
-                        style={{ borderRadius: '100px' }}
-                        leftSection={
-                            <Badge size="xs" variant="light" color="violet">
-                                Metric
-                            </Badge>
-                        }
-                        rightSection={
-                            isEditMode && (
-                                <ActionIcon
-                                    onClick={(e) => {
-                                        e.stopPropagation();
+                    return metricField ? (
+                        <DroppableArea key={item.id} id={item.id}>
+                            <DraggableItem
+                                id={item.id}
+                                disabled={!isEditMode || !!openPopoverId}
+                            >
+                                <Filter
+                                    isEditMode={isEditMode}
+                                    {...getOrphanedState(item, appliesToTabs)}
+                                    field={metricField}
+                                    filterRule={item}
+                                    openPopoverId={openPopoverId}
+                                    onPopoverOpen={onPopoverOpen}
+                                    onPopoverClose={onPopoverClose}
+                                    onRemove={() =>
                                         removeMetricDashboardFilter(
                                             index,
                                             false,
-                                        );
-                                    }}
-                                    size="xs"
-                                    color="dark"
-                                    radius="xl"
-                                    variant="subtle"
-                                >
-                                    <MantineIcon size="sm" icon={IconX} />
-                                </ActionIcon>
-                            )
-                        }
-                    >
-                        {item.label || item.target.fieldId}
-                    </Button>
-                );
-            })}
+                                        )
+                                    }
+                                    onUpdate={(value) =>
+                                        updateMetricDashboardFilter(
+                                            value,
+                                            index,
+                                            false,
+                                            isEditMode,
+                                        )
+                                    }
+                                />
+                            </DraggableItem>
+                        </DroppableArea>
+                    ) : (
+                        <InvalidFilter
+                            key={item.id}
+                            isEditMode={isEditMode}
+                            filterRule={item}
+                            onRemove={() =>
+                                removeMetricDashboardFilter(index, false)
+                            }
+                        />
+                    );
+                })}
+                <DragOverlay />
+            </DndContext>
 
             {dashboardTemporaryFilters.metrics.map((item, index) => {
                 const metricField =
@@ -392,37 +401,23 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                             removeMetricDashboardFilter(index, true)
                         }
                         onUpdate={(value) =>
-                            updateMetricDashboardFilter(value, index, true)
+                            updateMetricDashboardFilter(
+                                value,
+                                index,
+                                true,
+                                isEditMode,
+                            )
                         }
                     />
                 ) : (
-                    <Button
+                    <InvalidFilter
                         key={item.id}
-                        size="xs"
-                        variant="default"
-                        style={{ borderRadius: '100px' }}
-                        leftSection={
-                            <Badge size="xs" variant="light" color="violet">
-                                Metric
-                            </Badge>
+                        isEditMode={isEditMode}
+                        filterRule={item}
+                        onRemove={() =>
+                            removeMetricDashboardFilter(index, true)
                         }
-                        rightSection={
-                            <ActionIcon
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeMetricDashboardFilter(index, true);
-                                }}
-                                size="xs"
-                                color="dark"
-                                radius="xl"
-                                variant="subtle"
-                            >
-                                <MantineIcon size="sm" icon={IconX} />
-                            </ActionIcon>
-                        }
-                    >
-                        {item.label || item.target.fieldId}
-                    </Button>
+                    />
                 );
             })}
 

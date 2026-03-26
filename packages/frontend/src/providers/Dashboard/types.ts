@@ -83,6 +83,7 @@ export type DashboardContextType = {
         filter: DashboardFilterRule,
         index: number,
         isTemporary: boolean,
+        isInEditMode: boolean,
     ) => void;
     removeMetricDashboardFilter: (index: number, isTemporary: boolean) => void;
     haveFiltersChanged: boolean;
@@ -98,7 +99,7 @@ export type DashboardContextType = {
     allFilterableFields: FilterableDimension[] | undefined;
     allFilterableMetrics: Metric[] | undefined;
     filterableFieldsByTileUuid:
-        | Record<string, FilterableDimension[]>
+        | Record<string, (FilterableDimension | Metric)[]>
         | undefined;
     hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;

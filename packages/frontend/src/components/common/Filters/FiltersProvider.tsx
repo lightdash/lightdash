@@ -6,6 +6,7 @@ import {
     type FilterableDimension,
     type FilterableItem,
     type FilterRule,
+    type Metric,
     type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
@@ -22,7 +23,10 @@ type Props<T extends DefaultFieldsMap> = {
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
     dashboardTiles?: DashboardTile[];
-    filterableFieldsByTileUuid?: Record<string, FilterableDimension[]>;
+    filterableFieldsByTileUuid?: Record<
+        string,
+        (FilterableDimension | Metric)[]
+    >;
     popoverProps?: Omit<PopoverProps, 'children'>;
     parameterValues?: ParametersValuesMap;
     children?: ReactNode;

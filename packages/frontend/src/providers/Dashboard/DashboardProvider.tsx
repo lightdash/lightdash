@@ -779,18 +779,29 @@ const DashboardProvider: React.FC<
             return;
 
         return savedChartUuidsAndTileUuids.reduce<
-            Record<string, FilterableDimension[]>
+            Record<string, (FilterableDimension | Metric)[]>
         >((acc, { tileUuid }) => {
-            const filterFields =
+            const dimensionFields =
                 dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(
                     (index) =>
                         dashboardAvailableFiltersData.allFilterableFields[
                             index
                         ],
-                );
+                ) ?? [];
 
-            if (filterFields) {
-                acc[tileUuid] = filterFields;
+            const metricFields =
+                dashboardAvailableFiltersData.savedQueryMetricFilters[
+                    tileUuid
+                ]?.map(
+                    (index) =>
+                        dashboardAvailableFiltersData.allFilterableMetrics[
+                            index
+                        ],
+                ) ?? [];
+
+            const combined = [...dimensionFields, ...metricFields];
+            if (combined.length > 0) {
+                acc[tileUuid] = combined;
             }
 
             return acc;
@@ -1313,22 +1324,63 @@ const DashboardProvider: React.FC<
     );
 
     const updateMetricDashboardFilter = useCallback(
-        (item: DashboardFilterRule, index: number, isTemporary: boolean) => {
+        (
+            item: DashboardFilterRule,
+            index: number,
+            isTemporary: boolean,
+            isInEditMode: boolean = false,
+        ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
-            setFunction((previousFilters) => ({
-                dimensions: previousFilters.dimensions,
-                metrics: [
-                    ...previousFilters.metrics.slice(0, index),
-                    item,
-                    ...previousFilters.metrics.slice(index + 1),
-                ],
-                tableCalculations: previousFilters.tableCalculations,
-            }));
+            setFunction((previousFilters) => {
+                const isFilterSaved =
+                    dashboard?.filters.metrics[index] !== undefined ||
+                    embedDashboard?.filters.metrics[index] !== undefined;
+
+                if (!isInEditMode) {
+                    if (item.disabled) {
+                        removeSavedFilterOverride(item);
+                    } else {
+                        const isReverted =
+                            originalDashboardFilters.metrics[index] &&
+                            !hasSavedFilterValueChanged(
+                                originalDashboardFilters.metrics[index],
+                                item,
+                            );
+                        if (isReverted) {
+                            removeSavedFilterOverride(item);
+                            setHaveFiltersChanged(false);
+                        } else {
+                            const hasChanged = hasSavedFilterValueChanged(
+                                previousFilters.metrics[index],
+                                item,
+                            );
+                            if (hasChanged && isFilterSaved) {
+                                addSavedFilterOverride(item);
+                            }
+                        }
+                    }
+                }
+                return {
+                    dimensions: previousFilters.dimensions,
+                    metrics: [
+                        ...previousFilters.metrics.slice(0, index),
+                        item,
+                        ...previousFilters.metrics.slice(index + 1),
+                    ],
+                    tableCalculations: previousFilters.tableCalculations,
+                };
+            });
             setHaveFiltersChanged(true);
         },
-        [],
+        [
+            addSavedFilterOverride,
+            dashboard?.filters.metrics,
+            embedDashboard?.filters.metrics,
+            originalDashboardFilters.metrics,
+            removeSavedFilterOverride,
+        ],
     );
 
     const removeMetricDashboardFilter = useCallback(
@@ -1336,17 +1388,22 @@ const DashboardProvider: React.FC<
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
-            setFunction((previousFilters) => ({
-                dimensions: previousFilters.dimensions,
-                metrics: [
-                    ...previousFilters.metrics.slice(0, index),
-                    ...previousFilters.metrics.slice(index + 1),
-                ],
-                tableCalculations: previousFilters.tableCalculations,
-            }));
+            setFunction((previousFilters) => {
+                if (!isTemporary) {
+                    removeSavedFilterOverride(previousFilters.metrics[index]);
+                }
+                return {
+                    dimensions: previousFilters.dimensions,
+                    metrics: [
+                        ...previousFilters.metrics.slice(0, index),
+                        ...previousFilters.metrics.slice(index + 1),
+                    ],
+                    tableCalculations: previousFilters.tableCalculations,
+                };
+            });
             setHaveFiltersChanged(true);
         },
-        [],
+        [removeSavedFilterOverride],
     );
 
     const removeDimensionDashboardFilter = useCallback(
