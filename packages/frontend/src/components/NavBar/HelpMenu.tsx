@@ -2,10 +2,10 @@ import { LightdashMode } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import {
+    IconBook,
     IconHelp,
     IconMessages,
     IconSos,
-    IconSparkles,
     IconUsers,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -64,7 +64,7 @@ const HelpMenu: FC = () => {
                     target="_blank"
                     title="Ask the docs"
                     description="Chat with the Lightdash docs AI assistant"
-                    icon={IconSparkles}
+                    icon={IconBook}
                 />
 
                 {isCloudCustomer && (
@@ -73,7 +73,7 @@ const HelpMenu: FC = () => {
                             // @ts-ignore
                             if (window.Pylon) {
                                 // @ts-ignore
-                                window.Pylon(‘show’);
+                                window.Pylon('show');
                             } else {
                                 showIntercom();
                             }
@@ -98,9 +98,9 @@ const HelpMenu: FC = () => {
                         component="a"
                         onClick={() => {
                             modals.open({
-                                id: ‘support-drawer’,
-                                title: ‘Share with Lightdash Support’,
-                                size: ‘lg’,
+                                id: 'support-drawer',
+                                title: 'Share with Lightdash Support',
+                                size: 'lg',
                                 children: <SupportDrawerContent />,
                                 yOffset: 100,
                                 zIndex: 1000,
