@@ -44,13 +44,11 @@ const buildSdkFilterTileTargets = (
         const matchingField = availableFilters.find(matchesByTypeAndName);
         if (!matchingField) return acc;
 
-        return {
-            ...acc,
-            [tileUuid]: {
-                fieldId: getItemId(matchingField),
-                tableName: matchingField.table,
-            },
+        acc[tileUuid] = {
+            fieldId: getItemId(matchingField),
+            tableName: matchingField.table,
         };
+        return acc;
     }, {});
 };
 
