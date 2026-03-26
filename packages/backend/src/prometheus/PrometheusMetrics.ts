@@ -938,12 +938,12 @@ export default class PrometheusMetrics {
         );
     }
 
-    public observeDuckdbQueryProfile(profile: {
+    public observeDuckdbQueryProfile = (profile: {
         latencyMs: number;
         readParquetMs: number | null;
         bytesRead: number | null;
         scanAmplification: number | null;
-    }) {
+    }) => {
         this.duckdbQueryLatencyHistogram?.observe(profile.latencyMs / 1000);
         if (profile.readParquetMs != null) {
             this.duckdbParquetReadDurationHistogram?.observe(
@@ -958,7 +958,7 @@ export default class PrometheusMetrics {
                 profile.scanAmplification,
             );
         }
-    }
+    };
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {
         if (!this.config.enabled || !this.config.eventMetricsEnabled) {

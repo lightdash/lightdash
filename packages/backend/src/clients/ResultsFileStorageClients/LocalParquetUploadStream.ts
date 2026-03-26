@@ -9,12 +9,14 @@ import * as os from 'os';
 import * as path from 'path';
 import { getJsonlSqlTable } from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import type Logger from '../../logging/logger';
+import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { writeWithBackpressure } from '../../utils/streamUtils';
 
 type LocalParquetUploadStreamArgs = {
     parquetS3Uri: string;
     s3Config: DuckdbS3SessionConfig;
     logger: typeof Logger;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 const cleanupDir = (dir: string) => {
@@ -39,6 +41,7 @@ export const createLocalParquetUploadStream = ({
     parquetS3Uri,
     s3Config,
     logger,
+    prometheusMetrics,
 }: LocalParquetUploadStreamArgs) => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lightdash-parquet-'));
     const localJsonlPath = path.join(tmpDir, 'data.jsonl');
@@ -143,6 +146,8 @@ export const createLocalParquetUploadStream = ({
                                     threads: 1,
                                 },
                                 logger,
+                                onQueryProfile:
+                                    prometheusMetrics?.observeDuckdbQueryProfile,
                             }),
                     );
 
