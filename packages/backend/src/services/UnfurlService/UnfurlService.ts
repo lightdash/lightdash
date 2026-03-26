@@ -40,7 +40,6 @@ import * as fsPromise from 'fs/promises';
 import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
-import { PDFDocument } from 'pdf-lib';
 import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -70,6 +69,124 @@ const nanoidRegex = new RegExp(nanoid);
 const createQueryEndpointRegex = /\/query/;
 // Matches /query/{uuid} but NOT /query/{uuid}/results (SQL chart endpoint)
 const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
+
+/**
+ * Crop a PDF to a clip area using a PDF incremental update (PDF spec §7.5.6).
+ * Appends a modified Page object with an updated MediaBox, leaving original
+ * bytes untouched. This is the standard mechanism PDF editors use for
+ * modifications without rewriting the entire file.
+ */
+function cropPdfToClipInternal(
+    buffer: Buffer,
+    clip: { x: number; y: number; width: number; height: number },
+): Buffer {
+    const PX_TO_PT = 72 / 96;
+    const pdfStr = buffer.toString('binary');
+
+    // Find startxref to get the previous xref offset
+    const startxrefIdx = pdfStr.lastIndexOf('startxref');
+    if (startxrefIdx === -1) return buffer;
+    const newlineAfter = pdfStr.indexOf('\n', startxrefIdx + 10);
+    const prevXrefOffset = parseInt(
+        pdfStr.substring(startxrefIdx + 10, newlineAfter),
+        10,
+    );
+
+    // Find the Page object ("/Type /Page" but not "/Type /Pages")
+    let pageObjNum = -1;
+    let pageObjContent = '';
+    let searchPos = 0;
+    while (searchPos < pdfStr.length) {
+        const objIdx = pdfStr.indexOf(' 0 obj\n', searchPos);
+        if (objIdx === -1) break;
+        const lineStart = pdfStr.lastIndexOf('\n', objIdx - 1) + 1;
+        const endObjIdx = pdfStr.indexOf('endobj', objIdx);
+        if (endObjIdx === -1) {
+            searchPos = objIdx + 7;
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+        const content = pdfStr.substring(lineStart, endObjIdx + 6);
+        const typeIdx = content.indexOf('/Type /Page');
+        if (typeIdx !== -1) {
+            const charAfter = content[typeIdx + 11];
+            if (!charAfter || /[\n\r/>]/.test(charAfter)) {
+                pageObjNum = parseInt(pdfStr.substring(lineStart, objIdx), 10);
+                pageObjContent = content;
+                break;
+            }
+        }
+        searchPos = endObjIdx + 6;
+    }
+    if (pageObjNum === -1) return buffer;
+
+    // Get page height from existing MediaBox
+    const mediaBoxMatch = pageObjContent.match(
+        /\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/,
+    );
+    if (!mediaBoxMatch) return buffer;
+    const pageHeightPt = parseFloat(mediaBoxMatch[4]);
+
+    // New MediaBox (PDF coords: origin at bottom-left, Y up)
+    const llx = clip.x * PX_TO_PT;
+    const lly = pageHeightPt - (clip.y + clip.height) * PX_TO_PT;
+    const urx = (clip.x + clip.width) * PX_TO_PT;
+    const ury = pageHeightPt - clip.y * PX_TO_PT;
+    const newMediaBox = `[${llx.toFixed(2)} ${lly.toFixed(2)} ${urx.toFixed(2)} ${ury.toFixed(2)}]`;
+
+    // Replace MediaBox in Page object
+    const bracketStart = pageObjContent.indexOf(
+        '[',
+        pageObjContent.indexOf('/MediaBox'),
+    );
+    const bracketEnd = pageObjContent.indexOf(']', bracketStart);
+    if (bracketStart === -1 || bracketEnd === -1) return buffer;
+    const newPageObj =
+        pageObjContent.substring(0, bracketStart) +
+        newMediaBox +
+        pageObjContent.substring(bracketEnd + 1);
+
+    // Parse trailer
+    const trailerIdx = pdfStr.lastIndexOf('trailer');
+    if (trailerIdx === -1) return buffer;
+    const tStart = pdfStr.indexOf('<<', trailerIdx);
+    const tEnd = pdfStr.indexOf('>>', tStart);
+    if (tStart === -1 || tEnd === -1) return buffer;
+    const tDict = pdfStr.substring(tStart + 2, tEnd);
+
+    const sizeMatch = tDict.match(/\/Size\s+(\d+)/);
+    const rootMatch = tDict.match(/\/Root\s+\d+\s+0\s+R/);
+    const infoMatch = tDict.match(/\/Info\s+\d+\s+0\s+R/);
+    if (!sizeMatch || !rootMatch) return buffer;
+
+    // Build incremental update
+    const newObjOffset = buffer.length + 1;
+    let appendix = '\n';
+    appendix += `${newPageObj}\n`;
+    const newXrefOffset = buffer.length + appendix.length;
+    appendix += `xref\n${pageObjNum} 1\n`;
+    appendix += `${String(newObjOffset).padStart(10, '0')} 00000 n \n`;
+    appendix += `trailer\n<</Size ${sizeMatch[1]} ${rootMatch[0]}`;
+    if (infoMatch) appendix += ` ${infoMatch[0]}`;
+    appendix += ` /Prev ${prevXrefOffset}>>\n`;
+    appendix += `startxref\n${newXrefOffset}\n%%EOF\n`;
+
+    return Buffer.from(pdfStr + appendix, 'binary');
+}
+
+function cropPdfToClip(
+    buffer: Buffer,
+    clip: { x: number; y: number; width: number; height: number },
+): Buffer {
+    try {
+        return cropPdfToClipInternal(buffer, clip);
+    } catch (e) {
+        Logger.warn(
+            `Failed to crop PDF, returning uncropped: ${e instanceof Error ? e.message : String(e)}`,
+        );
+        return buffer;
+    }
+}
 
 const viewport = {
     width: 1400,
@@ -335,31 +452,24 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    private async createImagePdf(
+    private async uploadPdf(
         id: string,
-        buffer: Buffer,
+        pdfBuffer: Buffer,
+        title?: string,
     ): Promise<{ source: string; fileName: string }> {
-        // Converts an image to PDF format,
-        // The PDF has the size of the image, not DIN A4
-        const pdfDoc = await PDFDocument.create();
-        const pngImage = await pdfDoc.embedPng(buffer);
-        const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
-        page.drawImage(pngImage);
-        const pdfBytes = await pdfDoc.save();
-
         let source: string;
         let fileName: string;
         if (this.fileStorageClient.isEnabled()) {
             const uploadPdfReturn = await this.fileStorageClient.uploadPdf(
-                Buffer.from(pdfBytes),
+                pdfBuffer,
                 id,
             );
             source = uploadPdfReturn.url;
-            fileName = uploadPdfReturn.fileName;
+            fileName = uploadPdfReturn.fileName ?? `${title ?? 'report'}.pdf`;
         } else {
             fileName = `${id}.pdf`;
             source = `/tmp/${fileName}`;
-            await fsPromise.writeFile(source, pdfBytes);
+            await fsPromise.writeFile(source, pdfBuffer);
         }
 
         return { source, fileName };
@@ -398,7 +508,7 @@ export class UnfurlService extends BaseService {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url, selectedTabs);
 
-        const buffer = await this.saveScreenshot({
+        const screenshotParams = {
             authUserUuid,
             imageId,
             cookie,
@@ -418,23 +528,27 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             sendNowSchedulerFilters,
             sendNowSchedulerParameters,
+        };
+
+        const result = await this.saveScreenshot({
+            ...screenshotParams,
+            withPdf,
         });
 
+        if (result === undefined) {
+            return {};
+        }
+
+        const { imageBuffer, pdfBuffer } = result;
+
         let imageUrl;
-        let pdfFile;
-
-        if (buffer !== undefined) {
-            if (withPdf) {
-                pdfFile = await this.createImagePdf(imageId, buffer);
-            }
-
+        if (imageBuffer) {
             if (this.fileStorageClient.isEnabled()) {
                 imageUrl = await this.fileStorageClient.uploadImage(
-                    buffer,
+                    imageBuffer,
                     imageId,
                 );
             } else {
-                // We will share the image saved by puppetteer on our lightdash enpdoint
                 const filePath = `/tmp/${imageId}.png`;
                 const downloadFileId = useNanoid();
                 await this.downloadFileModel.createDownloadFile(
@@ -448,6 +562,11 @@ export class UnfurlService extends BaseService {
                     this.lightdashConfig.siteUrl,
                 ).href;
             }
+        }
+
+        let pdfFile;
+        if (pdfBuffer) {
+            pdfFile = await this.uploadPdf(imageId, pdfBuffer, details?.title);
         }
 
         return {
@@ -624,6 +743,8 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
+        outputFormat = 'image',
+        withPdf = false,
     }: {
         imageId: string;
         cookie: string;
@@ -645,7 +766,9 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
-    }): Promise<Buffer | undefined> {
+        outputFormat?: 'image' | 'pdf';
+        withPdf?: boolean;
+    }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
                 sqlChartTileUuids,
@@ -1117,29 +1240,92 @@ export class UnfurlService extends BaseService {
                         await page.waitForTimeout(100);
                     }
 
+                    // Helper: generate PDF from the current page state
+                    const generatePdf = async () => {
+                        const pdfWidth = gridWidth ?? viewport.width;
+                        // Measure the actual content area: use the element's
+                        // bounding box bottom (accounts for position on page)
+                        // but also check children in case the container has
+                        // extra CSS height beyond its content
+                        const contentBottom = await page!.evaluate(
+                            (sel: string) => {
+                                const container = document.querySelector(sel);
+                                if (!container) return 800;
+                                let maxBottom = 0;
+                                for (const child of Array.from(
+                                    container.children,
+                                )) {
+                                    const rect = child.getBoundingClientRect();
+                                    if (
+                                        rect.height > 0 &&
+                                        rect.bottom > maxBottom
+                                    )
+                                        maxBottom = rect.bottom;
+                                }
+                                // Fall back to container's own bottom if no
+                                // children found
+                                if (maxBottom === 0) {
+                                    maxBottom =
+                                        container.getBoundingClientRect()
+                                            .bottom;
+                                }
+                                return Math.ceil(maxBottom);
+                            },
+                            finalSelector,
+                        );
+                        const clip = {
+                            x: 0,
+                            y: 0,
+                            width: pdfWidth,
+                            height: contentBottom,
+                        };
+                        const pdfBytes = await page!.pdf({
+                            width: `${clip.width}px`,
+                            height: `${clip.height}px`,
+                            printBackground: true,
+                            pageRanges: '1',
+                            margin: {
+                                top: 0,
+                                right: 0,
+                                bottom: 0,
+                                left: 0,
+                            },
+                        });
+                        return cropPdfToClip(Buffer.from(pdfBytes), clip);
+                    };
+
+                    // PDF-only output
+                    if (outputFormat === 'pdf') {
+                        const pdfBuffer = await generatePdf();
+                        return { pdfBuffer };
+                    }
+
+                    // Take screenshot
+                    let imageBuffer: Buffer;
                     if (
                         lightdashPage === LightdashPage.DASHBOARD ||
                         lightdashPage === LightdashPage.EXPLORE
                     ) {
-                        const imageBuffer = await page
+                        imageBuffer = await page
                             .locator(finalSelector)
                             .screenshot({
                                 path,
                                 animations: 'disabled',
                                 timeout: RESPONSE_TIMEOUT_MS,
                             });
-
-                        return imageBuffer;
+                    } else {
+                        // Full page screenshot for charts
+                        imageBuffer = await page.screenshot({
+                            path,
+                            fullPage: true,
+                            animations: 'disabled',
+                        });
                     }
 
-                    // Full page screenshot for charts
-                    const imageBuffer = await page.screenshot({
-                        path,
-                        fullPage: true,
-                        animations: 'disabled',
-                    });
+                    // Also generate PDF in the same browser session
+                    const pdfBuffer = withPdf ? await generatePdf() : undefined;
 
-                    return imageBuffer;
+                    return { imageBuffer, pdfBuffer };
                 } catch (e) {
                     const errorMessage = getErrorMessage(e);
                     const isQueueFullError = isBrowserQueueFullError(e);
@@ -1206,6 +1392,8 @@ export class UnfurlService extends BaseService {
                             selectedTabs,
                             sendNowSchedulerFilters,
                             sendNowSchedulerParameters,
+                            outputFormat,
+                            withPdf,
                         });
                     }
 
