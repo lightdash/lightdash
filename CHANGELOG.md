@@ -1,3 +1,11 @@
+## [0.2671.1](https://github.com/lightdash/lightdash/compare/0.2671.0...0.2671.1) (2026-03-26)
+
+
+### Bug Fixes
+
+* prevent string-derived time filters from satisfying required date filters ([#21392](https://github.com/lightdash/lightdash/issues/21392)) ([1515d12](https://github.com/lightdash/lightdash/commit/1515d1269ce9eb7cdae1fde64dd09e144a68267e))
+* report download output directory ([#21435](https://github.com/lightdash/lightdash/issues/21435)) ([3bee6f6](https://github.com/lightdash/lightdash/commit/3bee6f60faabbe86d3643c92cf0edfb56857ac47))
+
 # [0.2671.0](https://github.com/lightdash/lightdash/compare/0.2670.0...0.2671.0) (2026-03-26)
 
 
