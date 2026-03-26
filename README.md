@@ -418,6 +418,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="http://spiss.dev"><img src="https://avatars.githubusercontent.com/u/35728419?v=4?s=100" width="100px;" alt="Lukas Spiss"/><br /><sub><b>Lukas Spiss</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Spissable" title="Documentation">📖</a> <a href="https://github.com/lightdash/lightdash/commits?author=Spissable" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="http://ota2000.com"><img src="https://avatars.githubusercontent.com/u/16278388?v=4?s=100" width="100px;" alt="arakaki"/><br /><sub><b>arakaki</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ota2000" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
