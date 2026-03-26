@@ -1327,6 +1327,11 @@ ${styles.bold('Examples:')}
   )} --path ./my-project ${styles.secondary(
       '-- installs skills to a specific path',
   )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'install-skills',
+  )} --source my-org/lightdash-fork ${styles.secondary(
+      '-- installs skills from a custom GitHub repo',
+  )}
 
 ${styles.bold('Installation paths:')}
   ${styles.secondary('Project-level (default):')}
@@ -1354,6 +1359,11 @@ ${styles.bold('Installation paths:')}
     .option(
         '--path <path>',
         'Override the install path (skills directory will be created inside)',
+        undefined,
+    )
+    .option(
+        '--source <org/repo>',
+        'Override the GitHub repository to download skills from (default: lightdash/lightdash)',
         undefined,
     )
     .action(installSkillsHandler);
