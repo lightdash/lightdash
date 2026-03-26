@@ -11,7 +11,7 @@ import OAuth2Server from '@node-oauth/oauth2-server';
 import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 import passport from 'passport';
 import { URL } from 'url';
-import { fromApiKey, fromOauth } from '../../auth/account/account';
+import { fromApiKey, fromOauth, fromSession } from '../../auth/account/account';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
@@ -227,6 +227,7 @@ export const allowAppPreviewAuthentication: RequestHandler = (
         })
         .then((user) => {
             req.user = user;
+            req.account = fromSession(user, token);
             next();
         })
         .catch(() => {
