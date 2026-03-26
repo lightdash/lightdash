@@ -41,7 +41,6 @@ import express from 'express';
 import { UserModel } from '../models/UserModel';
 import {
     allowApiKeyAuthentication,
-    allowAppPreviewAuthentication,
     allowOauthAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -57,11 +56,7 @@ export class UserController extends BaseController {
      * @summary Get authenticated user
      * @param req express request
      */
-    @Middlewares([
-        allowAppPreviewAuthentication,
-        allowApiKeyAuthentication,
-        isAuthenticated,
-    ])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/')
     @OperationId('GetAuthenticatedUser')
     async getAuthenticatedUser(
