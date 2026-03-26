@@ -330,6 +330,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                     models.getPreAggregateModel(),
                                 projectModel: models.getProjectModel(),
                                 prometheusMetrics,
+                                memoryLimit:
+                                    context.lightdashConfig.preAggregates
+                                        .duckdbQueryMemoryLimit ?? undefined,
                             }),
                         preAggregateDailyStatsModel:
                             models.getPreAggregateDailyStatsModel(),

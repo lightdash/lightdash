@@ -42,6 +42,7 @@ type PreAggregationDuckDbClientArgs = {
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
     projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
     prometheusMetrics?: PrometheusMetrics;
+    memoryLimit?: string;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
     }) => WarehouseClient;
@@ -104,6 +105,7 @@ export class PreAggregationDuckDbClient {
             ((warehouseArgs) =>
                 new DuckdbWarehouseClient({
                     ...warehouseArgs,
+                    memoryLimit: args.memoryLimit,
                     logger: Logger,
                 }));
     }

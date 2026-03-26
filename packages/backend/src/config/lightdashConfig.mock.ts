@@ -350,6 +350,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         parquetEnabled: false,
         materializationMaxRows: null,
+        duckdbQueryMemoryLimit: null,
         s3: {
             endpoint: 'mock_endpoint',
             bucket: 'mock_preagg_bucket',
