@@ -1,3 +1,11 @@
+# [0.2671.0](https://github.com/lightdash/lightdash/compare/0.2670.0...0.2671.0) (2026-03-26)
+
+
+### Features
+
+* **embed:** add cross-explore filter targeting for SDK dashboard filters ([#21412](https://github.com/lightdash/lightdash/issues/21412)) ([4e57b06](https://github.com/lightdash/lightdash/commit/4e57b06644acc973ff9bfe8718704a724fccdd5e))
+* **experimental:** jwt auth for app router ([#21423](https://github.com/lightdash/lightdash/issues/21423)) ([3460fe3](https://github.com/lightdash/lightdash/commit/3460fe3c35a20f61b94c81d89dc0c3b839e47f9d))
+
 # [0.2670.0](https://github.com/lightdash/lightdash/compare/0.2669.0...0.2670.0) (2026-03-26)
 
 
