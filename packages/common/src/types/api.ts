@@ -23,7 +23,9 @@ import type {
     ApiAiOrganizationSettingsResponse,
     ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
+    ApiGenerateAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -796,21 +798,6 @@ export type ApiCreateProjectResults = {
 export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
-
-export type ApiGenerateAppResponse = {
-    status: 'ok';
-    results: {
-        appUuid: string;
-        versionUuid: string;
-    };
-};
-
-export type ApiPreviewTokenResponse = {
-    status: 'ok';
-    results: {
-        token: string;
-    };
-};
 
 type ApiResults =
     | ApiQueryResults
