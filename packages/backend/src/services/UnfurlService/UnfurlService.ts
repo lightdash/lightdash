@@ -768,13 +768,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
-    }): Promise<
-        | {
-              imageBuffer?: Buffer;
-              pdfBuffer?: Buffer;
-          }
-        | undefined
-    > {
+    }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
                 sqlChartTileUuids,
