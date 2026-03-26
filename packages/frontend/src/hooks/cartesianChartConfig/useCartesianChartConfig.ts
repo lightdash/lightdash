@@ -604,21 +604,6 @@ const useCartesianChartConfig = ({
         }
     }, [cartesianType, setType]);
 
-    // Color by category only works for single-series ungrouped charts;
-    // clear when a grouping dimension is added
-    useEffect(() => {
-        if (pivotKeys && pivotKeys.length > 0) {
-            setDirtyLayout((prev) => {
-                if (!prev?.colorByCategory) return prev;
-                return {
-                    ...prev,
-                    colorByCategory: undefined,
-                    categoryColorOverrides: undefined,
-                };
-            });
-        }
-    }, [pivotKeys]);
-
     const setFlipAxis = useCallback((flipAxes: boolean) => {
         setDirtyLayout((prev) => ({
             ...prev,
