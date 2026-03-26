@@ -296,6 +296,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                 return 'Image';
                             case SchedulerFormat.GSHEETS:
                                 return 'Google Sheets';
+                            case SchedulerFormat.PDF:
+                                return 'PDF';
                             default:
                                 return assertUnreachable(
                                     item.format,
