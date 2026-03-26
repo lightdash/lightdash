@@ -1,6 +1,5 @@
 import {
     CartesianSeriesType,
-    DEFAULT_COLUMN_LIMIT,
     getItemMap,
     type Series,
 } from '@lightdash/common';
@@ -401,27 +400,12 @@ describe('useCartesianChartConfig', () => {
         expect(series[1].yAxisIndex).toBe(0);
     });
 
-    test('should default columnLimit to DEFAULT_COLUMN_LIMIT when not in config', () => {
+    test('should return undefined columnLimit when feature flag is off', () => {
         const { result } = renderHook(
             // @ts-expect-error partially mock params for hook
             () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
         );
 
-        expect(result.current.columnLimit).toBe(DEFAULT_COLUMN_LIMIT);
-    });
-
-    test('should preserve explicit columnLimit from config', () => {
-        const { result } = renderHook(() =>
-            // @ts-expect-error partially mock params for hook
-            useCartesianChartConfig({
-                ...useCartesianChartConfigParamsMock,
-                initialChartConfig: {
-                    ...useCartesianChartConfigParamsMock.initialChartConfig,
-                    columnLimit: 10,
-                },
-            }),
-        );
-
-        expect(result.current.columnLimit).toBe(10);
+        expect(result.current.columnLimit).toBeUndefined();
     });
 });
