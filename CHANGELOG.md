@@ -1,3 +1,10 @@
+# [0.2667.0](https://github.com/lightdash/lightdash/compare/0.2666.1...0.2667.0) (2026-03-26)
+
+
+### Features
+
+* api for sandbox creation ([#21420](https://github.com/lightdash/lightdash/issues/21420)) ([d29cfc2](https://github.com/lightdash/lightdash/commit/d29cfc29a2adef6af92ddfa85d85b232626b212f))
+
 ## [0.2666.1](https://github.com/lightdash/lightdash/compare/0.2666.0...0.2666.1) (2026-03-25)
 
 
