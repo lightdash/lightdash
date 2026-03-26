@@ -40,7 +40,6 @@ import * as fsPromise from 'fs/promises';
 import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
-import { PDFDocument } from 'pdf-lib';
 import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -453,31 +452,38 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    private async createImagePdf(
+    private async createBrowserPdf(
         id: string,
-        buffer: Buffer,
+        screenshotParams: Omit<
+            Parameters<UnfurlService['saveScreenshot']>[0],
+            'outputFormat'
+        >,
+        title?: string,
     ): Promise<{ source: string; fileName: string }> {
-        // Converts an image to PDF format,
-        // The PDF has the size of the image, not DIN A4
-        const pdfDoc = await PDFDocument.create();
-        const pngImage = await pdfDoc.embedPng(buffer);
-        const page = pdfDoc.addPage([pngImage.width, pngImage.height]);
-        page.drawImage(pngImage);
-        const pdfBytes = await pdfDoc.save();
+        // Renders the page as a native PDF via Playwright's page.pdf()
+        const pdfBuffer = await this.saveScreenshot({
+            ...screenshotParams,
+            imageId: `${id}-pdf`,
+            outputFormat: 'pdf',
+        });
+
+        if (pdfBuffer === undefined) {
+            throw new Error('Failed to generate PDF');
+        }
 
         let source: string;
         let fileName: string;
         if (this.fileStorageClient.isEnabled()) {
             const uploadPdfReturn = await this.fileStorageClient.uploadPdf(
-                Buffer.from(pdfBytes),
+                pdfBuffer,
                 id,
             );
             source = uploadPdfReturn.url;
-            fileName = uploadPdfReturn.fileName;
+            fileName = uploadPdfReturn.fileName ?? `${title ?? 'report'}.pdf`;
         } else {
             fileName = `${id}.pdf`;
             source = `/tmp/${fileName}`;
-            await fsPromise.writeFile(source, pdfBytes);
+            await fsPromise.writeFile(source, pdfBuffer);
         }
 
         return { source, fileName };
@@ -490,7 +496,6 @@ export class UnfurlService extends BaseService {
         authUserUuid,
         gridWidth,
         withPdf = false,
-        pdfOnly = false,
         selector = undefined,
         context,
         contextId,
@@ -504,7 +509,6 @@ export class UnfurlService extends BaseService {
         authUserUuid: string;
         gridWidth?: number | undefined;
         withPdf?: boolean;
-        pdfOnly?: boolean;
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
@@ -518,113 +522,7 @@ export class UnfurlService extends BaseService {
         const cookie = await this.getUserCookie(authUserUuid);
         const details = await this.unfurlDetails(url, selectedTabs);
 
-        // PDF-only mode: render the page directly as PDF via page.pdf()
-        if (pdfOnly) {
-            const pdfBuffer = await this.saveScreenshot({
-                authUserUuid,
-                imageId,
-                cookie,
-                url,
-                lightdashPage,
-                chartType: details?.chartType,
-                organizationUuid: details?.organizationUuid,
-                gridWidth,
-                resourceUuid: details?.resourceUuid,
-                resourceName: details?.title,
-                selector,
-                chartTileUuids: details?.chartTileUuids,
-                sqlChartTileUuids: details?.sqlChartTileUuids,
-                loomTileUuids: details?.loomTileUuids,
-                context,
-                contextId,
-                selectedTabs,
-                sendNowSchedulerFilters,
-                sendNowSchedulerParameters,
-                outputFormat: 'pdf',
-            });
-
-            let pdfFile;
-            if (pdfBuffer !== undefined) {
-                if (this.fileStorageClient.isEnabled()) {
-                    const uploadResult = await this.fileStorageClient.uploadPdf(
-                        pdfBuffer,
-                        imageId,
-                    );
-                    pdfFile = {
-                        source: uploadResult.url,
-                        fileName:
-                            uploadResult.fileName ??
-                            `${details?.title ?? 'report'}.pdf`,
-                    };
-                } else {
-                    const filePath = `/tmp/${imageId}.pdf`;
-                    await fsPromise.writeFile(filePath, pdfBuffer);
-                    const downloadFileId = useNanoid();
-                    await this.downloadFileModel.createDownloadFile(
-                        downloadFileId,
-                        filePath,
-                        DownloadFileType.IMAGE,
-                    );
-                    pdfFile = {
-                        source: new URL(
-                            `/api/v1/slack/image/${downloadFileId}`,
-                            this.lightdashConfig.siteUrl,
-                        ).href,
-                        fileName: `${details?.title ?? 'report'}.pdf`,
-                    };
-                }
-            }
-
-            // Also generate a preview image for email/Slack
-            const imageBuffer = await this.saveScreenshot({
-                authUserUuid,
-                imageId: `${imageId}-preview`,
-                cookie,
-                url,
-                lightdashPage,
-                chartType: details?.chartType,
-                organizationUuid: details?.organizationUuid,
-                gridWidth,
-                resourceUuid: details?.resourceUuid,
-                resourceName: details?.title,
-                selector,
-                chartTileUuids: details?.chartTileUuids,
-                sqlChartTileUuids: details?.sqlChartTileUuids,
-                loomTileUuids: details?.loomTileUuids,
-                context,
-                contextId,
-                selectedTabs,
-                sendNowSchedulerFilters,
-                sendNowSchedulerParameters,
-            });
-
-            let imageUrl;
-            if (imageBuffer !== undefined) {
-                if (this.fileStorageClient.isEnabled()) {
-                    imageUrl = await this.fileStorageClient.uploadImage(
-                        imageBuffer,
-                        imageId,
-                    );
-                } else {
-                    const filePath = `/tmp/${imageId}.png`;
-                    await fsPromise.writeFile(filePath, imageBuffer);
-                    const downloadFileId = useNanoid();
-                    await this.downloadFileModel.createDownloadFile(
-                        downloadFileId,
-                        filePath,
-                        DownloadFileType.IMAGE,
-                    );
-                    imageUrl = new URL(
-                        `/api/v1/slack/image/${downloadFileId}`,
-                        this.lightdashConfig.siteUrl,
-                    ).href;
-                }
-            }
-
-            return { imageUrl, pdfFile };
-        }
-
-        const buffer = await this.saveScreenshot({
+        const screenshotParams = {
             authUserUuid,
             imageId,
             cookie,
@@ -644,14 +542,20 @@ export class UnfurlService extends BaseService {
             selectedTabs,
             sendNowSchedulerFilters,
             sendNowSchedulerParameters,
-        });
+        };
+
+        const buffer = await this.saveScreenshot(screenshotParams);
 
         let imageUrl;
         let pdfFile;
 
         if (buffer !== undefined) {
             if (withPdf) {
-                pdfFile = await this.createImagePdf(imageId, buffer);
+                pdfFile = await this.createBrowserPdf(
+                    imageId,
+                    screenshotParams,
+                    details?.title,
+                );
             }
 
             if (this.fileStorageClient.isEnabled()) {

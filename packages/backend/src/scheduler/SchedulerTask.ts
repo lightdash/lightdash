@@ -466,45 +466,6 @@ export default class SchedulerTask {
                     throw error;
                 }
                 break;
-            case SchedulerFormat.PDF:
-                try {
-                    const pdfImageId = `pdf-notification-${nanoid()}`;
-                    const unfurlPdf = await this.unfurlService.unfurlImage({
-                        url: minimalUrl,
-                        lightdashPage: pageType,
-                        imageId: pdfImageId,
-                        authUserUuid: userUuid,
-                        pdfOnly: true,
-                        gridWidth:
-                            isDashboardScheduler(scheduler) &&
-                            scheduler.customViewportWidth
-                                ? scheduler.customViewportWidth
-                                : undefined,
-                        context: ScreenshotContext.SCHEDULED_DELIVERY,
-                        contextId: jobId,
-                        selectedTabs,
-                        sendNowSchedulerFilters,
-                        sendNowSchedulerParameters,
-                    });
-                    pdfFile = unfurlPdf.pdfFile;
-                    imageUrl = unfurlPdf.imageUrl;
-                } catch (error) {
-                    if (this.slackClient.isEnabled) {
-                        await this.slackClient.postMessageToNotificationChannel(
-                            {
-                                organizationUuid,
-                                text: `Error sending Scheduled Delivery: ${scheduler.name}`,
-                                blocks: getNotificationChannelErrorBlocks(
-                                    scheduler.name,
-                                    error,
-                                    deliveryUrl,
-                                ),
-                            },
-                        );
-                    }
-                    throw error;
-                }
-                break;
             case SchedulerFormat.GSHEETS:
                 // We don't generate CSV files for Google sheets on handleNotification task,
                 // instead we directly upload the data from the row results in the uploadGsheets task
@@ -1027,9 +988,7 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
-            const showExpirationWarning =
-                format !== SchedulerFormat.IMAGE &&
-                format !== SchedulerFormat.PDF;
+            const showExpirationWarning = format !== SchedulerFormat.IMAGE;
             const slackExpirationDays = Math.ceil(slackExpiration / 86400);
             const schedulerFooter = includeLinks
                 ? `<${url}?${setUuidParam(
@@ -1091,10 +1050,7 @@ export default class SchedulerTask {
                 } else {
                     throw new Error('Not implemented');
                 }
-            } else if (
-                format === SchedulerFormat.IMAGE ||
-                format === SchedulerFormat.PDF
-            ) {
+            } else if (format === SchedulerFormat.IMAGE) {
                 const slackImageUrl =
                     await this.slackClient.tryUploadingImageToSlack(
                         organizationUuid,
@@ -1403,10 +1359,7 @@ export default class SchedulerTask {
                 } else {
                     throw new Error('No chart found');
                 }
-            } else if (
-                format === SchedulerFormat.IMAGE ||
-                format === SchedulerFormat.PDF
-            ) {
+            } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
                     await this.msTeamsClient.postImageWithWebhook({
                         webhookUrl: webhook,
@@ -2431,10 +2384,7 @@ export default class SchedulerTask {
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
                 );
-            } else if (
-                format === SchedulerFormat.IMAGE ||
-                format === SchedulerFormat.PDF
-            ) {
+            } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl === undefined) {
                     throw new Error('Missing image URL');
                 }
@@ -4974,10 +4924,7 @@ export default class SchedulerTask {
                 } else {
                     throw new Error('No chart found');
                 }
-            } else if (
-                format === SchedulerFormat.IMAGE ||
-                format === SchedulerFormat.PDF
-            ) {
+            } else if (format === SchedulerFormat.IMAGE) {
                 if (imageUrl)
                     await this.googleChatClient.postImageWithWebhook({
                         webhookUrl: googleChatWebhook,

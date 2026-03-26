@@ -592,8 +592,6 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                 return 'Image';
             case SchedulerFormat.GSHEETS:
                 return 'Google Sheets';
-            case SchedulerFormat.PDF:
-                return 'PDF';
             default:
                 return format;
         }

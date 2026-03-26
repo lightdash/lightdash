@@ -313,10 +313,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
-                                {
-                                    label: '.pdf',
-                                    value: SchedulerFormat.PDF,
-                                },
                             ]}
                             w="50%"
                             {...form.getInputProps('format')}
@@ -339,20 +335,15 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                     </Group>
                     <Space h="xxs" />
                     {form.getInputProps('format').value ===
-                        SchedulerFormat.IMAGE ||
-                    form.getInputProps('format').value ===
-                        SchedulerFormat.PDF ? (
-                        form.getInputProps('format').value ===
-                        SchedulerFormat.IMAGE ? (
-                            <Checkbox
-                                h={26}
-                                label="Also include image as PDF attachment"
-                                labelPosition="left"
-                                {...form.getInputProps('options.withPdf', {
-                                    type: 'checkbox',
-                                })}
-                            />
-                        ) : null
+                    SchedulerFormat.IMAGE ? (
+                        <Checkbox
+                            h={26}
+                            label="Also include image as PDF attachment"
+                            labelPosition="left"
+                            {...form.getInputProps('options.withPdf', {
+                                type: 'checkbox',
+                            })}
+                        />
                     ) : (
                         <Stack gap="xs">
                             {form.values.format === SchedulerFormat.CSV && (

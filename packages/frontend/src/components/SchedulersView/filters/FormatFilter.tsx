@@ -23,7 +23,6 @@ const FORMAT_LABELS: Record<SchedulerFormat, string> = {
     [SchedulerFormat.XLSX]: '.xlsx',
     [SchedulerFormat.IMAGE]: 'Image',
     [SchedulerFormat.GSHEETS]: 'Google Sheets',
-    [SchedulerFormat.PDF]: '.pdf',
 };
 
 const FormatFilter: FC<FormatFilterProps> = ({

@@ -29,12 +29,10 @@ export type SchedulerGsheetsOptions = {
     url: string;
     tabName?: string;
 };
-export type SchedulerPdfOptions = Record<string, never>;
 export type SchedulerOptions =
     | SchedulerCsvOptions
     | SchedulerImageOptions
-    | SchedulerGsheetsOptions
-    | SchedulerPdfOptions;
+    | SchedulerGsheetsOptions;
 
 export enum SchedulerJobStatus {
     SCHEDULED = 'scheduled',
@@ -48,7 +46,6 @@ export enum SchedulerFormat {
     XLSX = 'xlsx',
     IMAGE = 'image',
     GSHEETS = 'gsheets',
-    PDF = 'pdf',
 }
 
 export enum JobPriority {
