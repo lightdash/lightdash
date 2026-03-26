@@ -1,6 +1,5 @@
 import {
     CartesianSeriesType,
-    DEFAULT_COLUMN_LIMIT,
     FeatureFlags,
     getItemId,
     isCustomDimension,
@@ -46,6 +45,10 @@ export const Layout: FC<Props> = ({ items }) => {
         FeatureFlags.ShowHideRows,
     );
     const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -206,6 +209,12 @@ export const Layout: FC<Props> = ({ items }) => {
         columnLimit,
         setColumnLimit,
     } = visualizationConfig.chartConfig;
+
+    const handleColumnLimitChange = (value: string | number) => {
+        if (typeof value === 'number') {
+            setColumnLimit(value);
+        }
+    };
 
     return (
         <Stack>
@@ -490,27 +499,25 @@ export const Layout: FC<Props> = ({ items }) => {
                     </Config.Section>
                 </Config>
             )}
-            {pivotDimensions && pivotDimensions.length > 0 && (
-                <Config>
-                    <Config.Section>
-                        <Config.Heading>Column limit</Config.Heading>
-                        <NumberInput
-                            size="xs"
-                            min={1}
-                            max={200}
-                            step={1}
-                            allowDecimal={false}
-                            clampBehavior="strict"
-                            value={columnLimit ?? DEFAULT_COLUMN_LIMIT}
-                            onChange={(value) => {
-                                if (typeof value === 'number') {
-                                    setColumnLimit(value);
-                                }
-                            }}
-                        />
-                    </Config.Section>
-                </Config>
-            )}
+            {isShowHideColumnsEnabled &&
+                pivotDimensions &&
+                pivotDimensions.length > 0 && (
+                    <Config>
+                        <Config.Section>
+                            <Config.Heading>Column limit</Config.Heading>
+                            <NumberInput
+                                size="xs"
+                                min={1}
+                                max={200}
+                                step={1}
+                                allowDecimal={false}
+                                clampBehavior="strict"
+                                value={columnLimit}
+                                onChange={handleColumnLimitChange}
+                            />
+                        </Config.Section>
+                    </Config>
+                )}
         </Stack>
     );
 };

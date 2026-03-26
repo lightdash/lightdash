@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
+    DEFAULT_COLUMN_LIMIT,
     FeatureFlags,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -189,8 +190,8 @@ const useCartesianChartConfig = ({
     cartesianType,
     tableCalculationsMetadata,
 }: Args) => {
-    const [columnLimit, setColumnLimit] = useState<number | undefined>(
-        initialChartConfig?.columnLimit,
+    const [columnLimit, setColumnLimit] = useState<number>(
+        initialChartConfig?.columnLimit ?? DEFAULT_COLUMN_LIMIT,
     );
 
     const [dirtyLayout, setDirtyLayout] = useState<
