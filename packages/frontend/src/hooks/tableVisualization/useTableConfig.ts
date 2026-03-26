@@ -18,6 +18,7 @@ import {
     type ParametersValuesMap,
     type PivotConfig,
     type PivotData,
+    type RowLimit,
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
@@ -82,6 +83,10 @@ const useTableConfig = (
 
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
+    );
+
+    const [rowLimit, setRowLimit] = useState<RowLimit | undefined>(
+        tableChartConfig?.rowLimit,
     );
 
     useEffect(() => {
@@ -620,6 +625,7 @@ const useTableConfig = (
             hideRowNumbers,
             conditionalFormattings,
             metricsAsRows,
+            rowLimit,
         }),
         [
             showColumnCalculation,
@@ -631,6 +637,7 @@ const useTableConfig = (
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
+            rowLimit,
         ],
     );
 
@@ -671,6 +678,8 @@ const useTableConfig = (
             isPivotTableEnabled,
             canUseSubtotals,
             groupedSubtotals,
+            rowLimit,
+            setRowLimit,
         }),
         [
             selectedItemIds,
@@ -708,6 +717,8 @@ const useTableConfig = (
             isPivotTableEnabled,
             canUseSubtotals,
             groupedSubtotals,
+            rowLimit,
+            setRowLimit,
         ],
     );
 };

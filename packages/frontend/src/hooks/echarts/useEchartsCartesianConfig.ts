@@ -8,6 +8,7 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
+    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -90,6 +91,7 @@ import {
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
+import { sliceRows } from '../../utils/sliceRows';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
     getPivotedDataFromPivotDetails,
@@ -97,6 +99,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -2282,6 +2285,10 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2331,7 +2338,7 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData?.pivotDetails]);
 
-    const { rows, rowKeyMap } = useMemo(() => {
+    const { rows: allRows, rowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
             return getPivotedDataFromPivotDetails(resultsData, undefined);
         }
@@ -2344,6 +2351,16 @@ const useEchartsCartesianConfig = (
             nonPivotedKeys,
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+
+    const rows = useMemo(
+        () =>
+            sliceRows(
+                allRows,
+                isShowHideRowsEnabled,
+                validCartesianConfig?.rowLimit,
+            ),
+        [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
+    );
 
     const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {

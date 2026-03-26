@@ -6081,11 +6081,36 @@
                 "required": ["interval", "field"],
                 "type": "object"
             },
+            "InlineErrorType": {
+                "enum": [
+                    "METADATA_PARSE_ERROR",
+                    "NO_DIMENSIONS_FOUND",
+                    "SKIPPED_JOIN",
+                    "MISSING_TABLE",
+                    "FIELD_ERROR",
+                    "SET_VALIDATION_ERROR",
+                    "INVALID_PARAMETER",
+                    "DUPLICATE_FIELD_NAME"
+                ],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
             "TableBase": {
                 "properties": {
                     "warnings": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/InlineError"
                         },
                         "type": "array"
                     },
@@ -6793,6 +6818,10 @@
                         },
                         "type": "object"
                     },
+                    "maxRows": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "granularity": {
                         "$ref": "#/components/schemas/TimeFrames"
                     },
@@ -6828,30 +6857,6 @@
                     }
                 },
                 "required": ["preAggregateName", "sourceExploreName"],
-                "type": "object"
-            },
-            "InlineErrorType": {
-                "enum": [
-                    "METADATA_PARSE_ERROR",
-                    "NO_DIMENSIONS_FOUND",
-                    "SKIPPED_JOIN",
-                    "MISSING_TABLE",
-                    "FIELD_ERROR",
-                    "SET_VALIDATION_ERROR",
-                    "INVALID_PARAMETER"
-                ],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
                 "type": "object"
             },
             "Explore": {
@@ -7810,6 +7815,38 @@
                     }
                 },
                 "required": ["refreshedAt", "cached", "results", "search"],
+                "type": "object"
+            },
+            "ApiGenerateAppResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "versionUuid": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["versionUuid", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "GenerateAppRequestBody": {
+                "properties": {
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
                 "type": "object"
             },
             "DashboardSummaryTone": {
@@ -9299,19 +9336,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -10890,26 +10914,53 @@
                 "type": "object"
             },
             "PreAggregateMaterializationWarning": {
-                "properties": {
-                    "threshold": {
-                        "type": "number",
-                        "format": "double"
+                "anyOf": [
+                    {
+                        "properties": {
+                            "threshold": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "rowCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["row_count_exceeded"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "threshold",
+                            "rowCount",
+                            "message",
+                            "type"
+                        ],
+                        "type": "object"
                     },
-                    "rowCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "type": "string",
-                        "enum": ["row_count_exceeded"],
-                        "nullable": false
+                    {
+                        "properties": {
+                            "maxRows": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["max_rows_applied"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["maxRows", "message", "type"],
+                        "type": "object"
                     }
-                },
-                "required": ["threshold", "rowCount", "message", "type"],
-                "type": "object"
+                ]
             },
             "PreAggregateMaterializationStatus": {
                 "type": "string",
@@ -11008,6 +11059,11 @@
                         },
                         "type": "array"
                     },
+                    "resolvedMaxRows": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
                     "definitionError": {
                         "type": "string",
                         "nullable": true
@@ -11056,6 +11112,7 @@
                 "required": [
                     "materialization",
                     "warnings",
+                    "resolvedMaxRows",
                     "definitionError",
                     "refreshCron",
                     "granularity",
@@ -24842,6 +24899,74 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ChartVersionDifference": {
+                "properties": {
+                    "selectedVersion": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartVersionSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "currentVersion": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ChartVersionSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "chartName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartUuid": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["chartName", "chartUuid", "tileUuid"],
+                "type": "object"
+            },
+            "DashboardVersion": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardVersionSummary"
+                    },
+                    {
+                        "properties": {
+                            "chartVersionDifferences": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ChartVersionDifference"
+                                },
+                                "type": "array"
+                            },
+                            "dashboard": {
+                                "$ref": "#/components/schemas/Dashboard"
+                            }
+                        },
+                        "required": ["dashboard"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiGetDashboardVersionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardVersion"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiDashboardSchedulersResponse": {
                 "properties": {
                     "results": {
@@ -28861,7 +28986,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2654.1",
+        "version": "0.2663.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43359,6 +43484,57 @@
                         "description": "dashboardUuid for the dashboard",
                         "in": "path",
                         "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuid}/version/{versionUuid}": {
+            "get": {
+                "operationId": "getDashboardVersion",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetDashboardVersionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get specific dashboard version",
+                "summary": "Get dashboard version",
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "dashboardUuid for the dashboard",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "versionUuid for the dashboard version",
+                        "in": "path",
+                        "name": "versionUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    FeatureFlags,
     getItemId,
     isCustomDimension,
     isDimension,
@@ -10,6 +11,13 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
+import {
+    Group as Group8,
+    NumberInput,
+    SegmentedControl as SegmentedControl8,
+    Switch,
+    Text as Text8,
+} from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
@@ -22,6 +30,7 @@ import {
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -37,6 +46,10 @@ type Props = {
 export const Layout: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -192,6 +205,8 @@ export const Layout: FC<Props> = ({ items }) => {
         updateYField,
         removeSingleSeries,
         addSingleSeries,
+        rowLimit,
+        setRowLimit,
     } = visualizationConfig.chartConfig;
 
     return (
@@ -465,6 +480,76 @@ export const Layout: FC<Props> = ({ items }) => {
                     )}
                 </Config.Section>
             </Config>
+
+            {isShowHideRowsEnabled && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Data</Config.Heading>
+                        <Switch
+                            label="Limit displayed rows"
+                            checked={rowLimit !== undefined}
+                            onChange={(e) =>
+                                setRowLimit(
+                                    e.currentTarget.checked
+                                        ? {
+                                              direction: 'first',
+                                              count: 50,
+                                          }
+                                        : undefined,
+                                )
+                            }
+                        />
+                        {rowLimit !== undefined && (
+                            <Group8 gap="xs" wrap="nowrap">
+                                <Text8 fz="xs" c="ldGray.6">
+                                    Show the
+                                </Text8>
+                                <SegmentedControl8
+                                    size="xs"
+                                    data={[
+                                        {
+                                            label: 'First',
+                                            value: 'first',
+                                        },
+                                        {
+                                            label: 'Last',
+                                            value: 'last',
+                                        },
+                                    ]}
+                                    value={rowLimit.direction}
+                                    onChange={(value) =>
+                                        setRowLimit({
+                                            ...rowLimit,
+                                            direction: value as
+                                                | 'first'
+                                                | 'last',
+                                        })
+                                    }
+                                />
+                                <NumberInput
+                                    size="xs"
+                                    w={60}
+                                    min={1}
+                                    allowDecimal={false}
+                                    value={rowLimit.count}
+                                    onChange={(value) =>
+                                        setRowLimit({
+                                            ...rowLimit,
+                                            count:
+                                                typeof value === 'number'
+                                                    ? value
+                                                    : 50,
+                                        })
+                                    }
+                                />
+                                <Text8 fz="xs" c="ldGray.6">
+                                    rows
+                                </Text8>
+                            </Group8>
+                        )}
+                    </Config.Section>
+                </Config>
+            )}
         </Stack>
     );
 };

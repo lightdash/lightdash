@@ -5,6 +5,7 @@ import { type KnexPaginatedData } from './knex-paginate';
 import { type DashboardParameters } from './parameters';
 import {
     type ChartKind,
+    type ChartVersionSummary,
     type CreateSavedChart,
     type SavedChartType,
 } from './savedCharts';
@@ -400,9 +401,27 @@ export type DashboardHistory = {
     history: DashboardVersionSummary[];
 };
 
+export type ChartVersionDifference = {
+    tileUuid: string;
+    chartUuid: string;
+    chartName: string | null;
+    currentVersion?: ChartVersionSummary | null;
+    selectedVersion?: ChartVersionSummary | null;
+};
+
+export type DashboardVersion = DashboardVersionSummary & {
+    dashboard: Dashboard;
+    chartVersionDifferences?: ChartVersionDifference[];
+};
+
 export type ApiGetDashboardHistoryResponse = {
     status: 'ok';
     results: DashboardHistory;
+};
+
+export type ApiGetDashboardVersionResponse = {
+    status: 'ok';
+    results: DashboardVersion;
 };
 
 export type ApiDashboardRollbackResponse = {

@@ -68,6 +68,7 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
+import { createAppPreviewRouter } from './routers/appPreviewRouter';
 import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
@@ -505,6 +506,16 @@ export default class App {
             res.setHeader(LightdashVersionHeader, VERSION);
             next();
         });
+
+        // App runtime preview routes — stateless, no session/auth.
+        // Registered before session middleware so preview requests
+        // never touch the DB for session lookups.
+        if (this.lightdashConfig.appRuntime.enabled) {
+            expressApp.use(
+                '/api/apps',
+                createAppPreviewRouter(this.lightdashConfig.appRuntime),
+            );
+        }
 
         expressApp.use(express.json());
         expressApp.use(express.urlencoded({ extended: false }));

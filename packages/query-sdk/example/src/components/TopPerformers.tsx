@@ -1,9 +1,6 @@
-import { useLightdash } from '@lightdash/query-sdk';
-import { fmt } from '../format';
-import { lightdash } from '../lightdash';
+import { query, useLightdash } from '@lightdash/query-sdk';
 
-const winnerQuery = lightdash
-    .model('fct_race_results')
+const winnerQuery = query('fct_race_results')
     .dimensions(['driver_name'])
     .metrics(['total_wins', 'total_podiums', 'average_finish_position'])
     .filters([{ field: 'season', operator: 'equals', value: 2025 }])
@@ -11,7 +8,7 @@ const winnerQuery = lightdash
     .limit(8);
 
 export function TopPerformers() {
-    const { data, loading, error } = useLightdash(winnerQuery);
+    const { data, format, loading, error } = useLightdash(winnerQuery);
 
     if (loading) return <div className="card loading">Loading...</div>;
     if (error) return <div className="card error">{error.message}</div>;
@@ -34,10 +31,10 @@ export function TopPerformers() {
                             <td className="driver-name">
                                 {String(row.driver_name)}
                             </td>
-                            <td className="num">{fmt(row.total_wins)}</td>
-                            <td className="num">{fmt(row.total_podiums)}</td>
+                            <td className="num">{format(row, 'total_wins')}</td>
+                            <td className="num">{format(row, 'total_podiums')}</td>
                             <td className="num">
-                                {fmt(row.average_finish_position, 1)}
+                                {format(row, 'average_finish_position')}
                             </td>
                         </tr>
                     ))}

@@ -1,3 +1,82 @@
+# [0.2668.0](https://github.com/lightdash/lightdash/compare/0.2667.0...0.2668.0) (2026-03-26)
+
+
+### Features
+
+* **experimental:** move api for apps serving + add domain check ([#21422](https://github.com/lightdash/lightdash/issues/21422)) ([e804175](https://github.com/lightdash/lightdash/commit/e8041751483861bc552a8a66843f0ac2aee2260f))
+
+# [0.2667.0](https://github.com/lightdash/lightdash/compare/0.2666.1...0.2667.0) (2026-03-26)
+
+
+### Features
+
+* api for sandbox creation ([#21420](https://github.com/lightdash/lightdash/issues/21420)) ([d29cfc2](https://github.com/lightdash/lightdash/commit/d29cfc29a2adef6af92ddfa85d85b232626b212f))
+
+## [0.2666.1](https://github.com/lightdash/lightdash/compare/0.2666.0...0.2666.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* add min-width to number input in date filter and allow unit selector to shrink ([#21421](https://github.com/lightdash/lightdash/issues/21421)) ([01ce423](https://github.com/lightdash/lightdash/commit/01ce423cdfcde9b225b0b9ba06bb77097fbf309d))
+
+# [0.2666.0](https://github.com/lightdash/lightdash/compare/0.2665.0...0.2666.0) (2026-03-25)
+
+
+### Features
+
+* client-side row show/hide for table and cartesian charts ([#21407](https://github.com/lightdash/lightdash/issues/21407)) ([ea34828](https://github.com/lightdash/lightdash/commit/ea34828ea2ad2c690c915b029ebe3e561669a7d4))
+
+# [0.2665.0](https://github.com/lightdash/lightdash/compare/0.2664.1...0.2665.0) (2026-03-25)
+
+
+### Features
+
+* multi-instance docker dev with port registry and shared services ([#21411](https://github.com/lightdash/lightdash/issues/21411)) ([3924e20](https://github.com/lightdash/lightdash/commit/3924e20bf563263d6a4974f6aaddd9fc93287a1b))
+
+## [0.2664.1](https://github.com/lightdash/lightdash/compare/0.2664.0...0.2664.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* pass saved metrics tree flag to docker compose ([#21403](https://github.com/lightdash/lightdash/issues/21403)) ([e0a8ab5](https://github.com/lightdash/lightdash/commit/e0a8ab5c0e6530910fbefdd6ea236cdc201f63cc))
+
+# [0.2664.0](https://github.com/lightdash/lightdash/compare/0.2663.2...0.2664.0) (2026-03-25)
+
+
+### Features
+
+* preview lightdash vibe apps ([#21370](https://github.com/lightdash/lightdash/issues/21370)) ([0694b20](https://github.com/lightdash/lightdash/commit/0694b20baa93d3b077a65c9ae9bf501c6119a805))
+
+## [0.2663.2](https://github.com/lightdash/lightdash/compare/0.2663.1...0.2663.2) (2026-03-25)
+
+
+### Bug Fixes
+
+* improve error handling for chart field usage during dashboard duplication ([#21395](https://github.com/lightdash/lightdash/issues/21395)) ([fbf2b4e](https://github.com/lightdash/lightdash/commit/fbf2b4ee2b6ad7016a8434712dadb59b1229f2d5))
+* move savedChart property inside explorerState object ([#21399](https://github.com/lightdash/lightdash/issues/21399)) ([7b75cf3](https://github.com/lightdash/lightdash/commit/7b75cf3e2c2245dbbcc26e1ff8fa7aad68b47b58))
+
+## [0.2663.1](https://github.com/lightdash/lightdash/compare/0.2663.0...0.2663.1) (2026-03-25)
+
+
+### Bug Fixes
+
+* improve batch writing for materialization streaming to file ([#21388](https://github.com/lightdash/lightdash/issues/21388)) ([70afd3e](https://github.com/lightdash/lightdash/commit/70afd3e3134052fd42bd388fd016313be721cc27))
+* optimize DuckDB S3 secret creation to run once per instance ([#21373](https://github.com/lightdash/lightdash/issues/21373)) ([d9dc954](https://github.com/lightdash/lightdash/commit/d9dc95467d41033d212e808bea3b3312c092501c))
+
+# [0.2663.0](https://github.com/lightdash/lightdash/compare/0.2662.3...0.2663.0) (2026-03-25)
+
+
+### Features
+
+* add chart rollback support for dashboard version rollback ([#21216](https://github.com/lightdash/lightdash/issues/21216)) ([55e2fac](https://github.com/lightdash/lightdash/commit/55e2facb187c34bc7392e5854f8db6bd1e4ad23d))
+
+## [0.2662.3](https://github.com/lightdash/lightdash/compare/0.2662.2...0.2662.3) (2026-03-25)
+
+
+### Bug Fixes
+
+* upgrade liquidjs 10.0.0→10.25.0 (directory traversal) ([#20985](https://github.com/lightdash/lightdash/issues/20985)) ([d0205ad](https://github.com/lightdash/lightdash/commit/d0205ad812768571c26efec065999e940dedc8a8))
+
 ## [0.2662.2](https://github.com/lightdash/lightdash/compare/0.2662.1...0.2662.2) (2026-03-25)
 
 

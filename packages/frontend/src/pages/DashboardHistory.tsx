@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -32,6 +33,7 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import { Can } from '../providers/Ability';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
+import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
     const navigate = useNavigate();
@@ -186,11 +188,19 @@ const DashboardHistory = () => {
                 </Stack>
             }
         >
-            <EmptyState
-                maw={500}
-                icon={<NoTableIcon />}
-                title="Preview not available"
-            />
+            {selectedVersionUuid ? (
+                <DashboardVersionComparison
+                    dashboardUuid={dashboardUuid}
+                    projectUuid={projectUuid}
+                    versionUuid={selectedVersionUuid}
+                />
+            ) : (
+                <EmptyState
+                    maw={500}
+                    icon={<NoTableIcon />}
+                    title="Select a version to compare"
+                />
+            )}
 
             <MantineModal
                 opened={isRollbackModalOpen}
@@ -219,11 +229,20 @@ const DashboardHistory = () => {
                     </Button>
                 }
             >
-                <Text>
-                    By restoring to this dashboard version, a new version will
-                    be generated and saved. All previous versions are still
-                    safely stored and can be restored at any time.
-                </Text>
+                <Stack gap="md">
+                    <Text>
+                        By restoring to this dashboard version, a new version
+                        will be generated and saved. All previous versions are
+                        still safely stored and can be restored at any time.
+                    </Text>
+                    <Callout variant="info">
+                        <Text size="sm">
+                            Charts created within this dashboard will also be
+                            restored to their version at the time this dashboard
+                            version was created.
+                        </Text>
+                    </Callout>
+                </Stack>
             </MantineModal>
         </Page>
     );

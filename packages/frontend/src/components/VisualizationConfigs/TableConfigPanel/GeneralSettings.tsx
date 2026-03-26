@@ -1,7 +1,19 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
+import { FeatureFlags } from '@lightdash/common';
+import {
+    Box,
+    Checkbox,
+    Group,
+    NumberInput,
+    SegmentedControl,
+    Stack,
+    Switch,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
@@ -24,6 +36,10 @@ const GeneralSettings: FC = () => {
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
     const { dimensions } = resultsData?.metricQuery || {
         dimensions: [] as string[],
     };
@@ -159,6 +175,8 @@ const GeneralSettings: FC = () => {
         showRowCalculation,
         showSubtotals,
         showTableNames,
+        rowLimit,
+        setRowLimit,
     } = chartConfig;
 
     return (
@@ -246,6 +264,63 @@ const GeneralSettings: FC = () => {
                     }}
                 />
             </Config.Section>
+
+            {isShowHideRowsEnabled && !isPivotTableEnabled && (
+                <Config.Section>
+                    <Config.Heading>Data</Config.Heading>
+                    <Switch
+                        label="Limit displayed rows"
+                        checked={rowLimit !== undefined}
+                        onChange={(e) =>
+                            setRowLimit(
+                                e.currentTarget.checked
+                                    ? { direction: 'first', count: 50 }
+                                    : undefined,
+                            )
+                        }
+                    />
+                    {rowLimit !== undefined && (
+                        <Group gap="xs" wrap="nowrap">
+                            <Text fz="xs" c="ldGray.6">
+                                Show the
+                            </Text>
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    { label: 'First', value: 'first' },
+                                    { label: 'Last', value: 'last' },
+                                ]}
+                                value={rowLimit.direction}
+                                onChange={(value) =>
+                                    setRowLimit({
+                                        ...rowLimit,
+                                        direction: value as 'first' | 'last',
+                                    })
+                                }
+                            />
+                            <NumberInput
+                                size="xs"
+                                w={60}
+                                min={1}
+                                allowDecimal={false}
+                                value={rowLimit.count}
+                                onChange={(value) =>
+                                    setRowLimit({
+                                        ...rowLimit,
+                                        count:
+                                            typeof value === 'number'
+                                                ? value
+                                                : 50,
+                                    })
+                                }
+                            />
+                            <Text fz="xs" c="ldGray.6">
+                                rows
+                            </Text>
+                        </Group>
+                    )}
+                </Config.Section>
+            )}
 
             <Config.Section>
                 <Config.Heading>Results</Config.Heading>

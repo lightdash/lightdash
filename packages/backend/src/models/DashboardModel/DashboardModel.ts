@@ -1376,8 +1376,10 @@ export class DashboardModel {
         version: DashboardVersionedFields,
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
+        tx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
-        const [dashboard] = await this.database(DashboardsTableName)
+        const db = tx || this.database;
+        const [dashboard] = await db(DashboardsTableName)
             .select(['dashboard_id'])
             .where('dashboard_uuid', dashboardUuid)
             .whereNull('deleted_at')
@@ -1385,13 +1387,21 @@ export class DashboardModel {
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
         }
-        await this.database.transaction(async (trx) => {
+
+        const doWork = async (trx: Knex.Transaction) => {
             await DashboardModel.createVersion(trx, dashboard.dashboard_id, {
                 ...version,
                 tabs: version.tabs || [],
                 updatedByUser: user,
             });
-        });
+        };
+
+        if (tx) {
+            await doWork(tx);
+        } else {
+            await this.database.transaction(async (trx) => doWork(trx));
+        }
+
         return this.getByIdOrSlug(dashboardUuid);
     }
 
@@ -1582,6 +1592,63 @@ export class DashboardModel {
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
+    }
+
+    async getVersionSummaryByUuid(
+        dashboardUuid: string,
+        versionUuid: string,
+    ): Promise<DashboardVersionSummary> {
+        type VersionSummaryRow = {
+            dashboard_uuid: string;
+            dashboard_version_uuid: string;
+            created_at: Date;
+            user_uuid: string | null;
+            first_name: string | null;
+            last_name: string | null;
+        };
+
+        const row = await this.database(DashboardVersionsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${DashboardVersionsTableName}.updated_by_user_uuid`,
+            )
+            .select<VersionSummaryRow[]>(
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                `${DashboardVersionsTableName}.created_at`,
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where(
+                `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                versionUuid,
+            )
+            .first();
+
+        if (!row) {
+            throw new NotFoundError('Dashboard version not found');
+        }
+
+        return {
+            dashboardUuid: row.dashboard_uuid,
+            versionUuid: row.dashboard_version_uuid,
+            createdAt: row.created_at,
+            createdBy: row.user_uuid
+                ? {
+                      userUuid: row.user_uuid,
+                      firstName: row.first_name ?? '',
+                      lastName: row.last_name ?? '',
+                  }
+                : null,
+        };
     }
 
     async getLatestVersionSummaries(

@@ -3,6 +3,7 @@ import {
     DuckdbWarehouseClient,
     type DuckdbS3SessionConfig,
 } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -52,6 +53,7 @@ export const createLocalParquetUploadStream = ({
     let closed = false;
     let columns: ResultColumns | null = null;
     let lastProgressLog = 0;
+    let totalWriteMs = 0;
     const PROGRESS_LOG_INTERVAL_MS = 30_000;
 
     const setColumns = (cols: ResultColumns) => {
@@ -62,21 +64,24 @@ export const createLocalParquetUploadStream = ({
         if (firstWriteTime === null) firstWriteTime = Date.now();
         writeCalls += 1;
 
-        for (const row of rows) {
-            const data = `${JSON.stringify(row)}\n`;
-            totalBytesWritten += data.length;
-            totalRowsWritten += 1;
-            // eslint-disable-next-line no-await-in-loop
-            await writeWithBackpressure(fileWriteStream, data);
-        }
+        const writeStart = Date.now();
+
+        const chunk = `${rows.map((row) => JSON.stringify(row)).join('\n')}\n`;
+        totalBytesWritten += Buffer.byteLength(chunk, 'utf8');
+        totalRowsWritten += rows.length;
+        await writeWithBackpressure(fileWriteStream, chunk);
+
+        totalWriteMs += Date.now() - writeStart;
 
         const now = Date.now();
         if (now - lastProgressLog >= PROGRESS_LOG_INTERVAL_MS) {
             lastProgressLog = now;
             const elapsedSec = Math.round((now - firstWriteTime!) / 1000);
             const bytesWrittenMB = Math.round(totalBytesWritten / 1024 / 1024);
+            const avgWriteMs =
+                writeCalls > 0 ? Math.round(totalWriteMs / writeCalls) : 0;
             logger.info(
-                `Streaming progress: rows=${totalRowsWritten} bytes=${bytesWrittenMB}MB elapsed=${elapsedSec}s target=${parquetS3Uri}`,
+                `Streaming progress: rows=${totalRowsWritten} bytes=${bytesWrittenMB}MB elapsed=${elapsedSec}s avgWriteMs=${avgWriteMs} target=${parquetS3Uri}`,
             );
         }
     };
@@ -87,53 +92,116 @@ export const createLocalParquetUploadStream = ({
         if (closed) return {};
         closed = true;
 
-        await new Promise<void>((resolve, reject) => {
-            fileWriteStream.end(() => resolve());
-            fileWriteStream.on('error', reject);
-        });
+        return Sentry.startSpan(
+            {
+                op: 'parquet.stream.close',
+                name: 'LocalParquetUploadStream.close',
+                attributes: {
+                    'parquet.target': parquetS3Uri,
+                    'parquet.total_rows': totalRowsWritten,
+                    'parquet.total_bytes': totalBytesWritten,
+                    'parquet.write_calls': writeCalls,
+                    'parquet.total_write_ms': totalWriteMs,
+                },
+            },
+            async (closeSpan) => {
+                await Sentry.startSpan(
+                    {
+                        op: 'file.flush',
+                        name: 'LocalParquetUploadStream.flushJsonl',
+                    },
+                    () =>
+                        new Promise<void>((resolve, reject) => {
+                            fileWriteStream.on('error', reject);
+                            fileWriteStream.end(() => resolve());
+                        }),
+                );
 
-        if (totalRowsWritten === 0) {
-            cleanupDir(tmpDir);
-            return {};
-        }
+                const totalElapsedMs = firstWriteTime
+                    ? Date.now() - firstWriteTime
+                    : 0;
+                logger.info(
+                    `Stream closed: rows=${totalRowsWritten} bytes=${Math.round(totalBytesWritten / 1024 / 1024)}MB writeCalls=${writeCalls} totalWriteMs=${totalWriteMs} totalElapsedMs=${totalElapsedMs} target=${parquetS3Uri}`,
+                );
 
-        try {
-            const duckdb = new DuckdbWarehouseClient({
-                s3Config,
-                resourceLimits: { memoryLimit: '256MB', threads: 1 },
-                logger,
-            });
+                if (totalRowsWritten === 0) {
+                    cleanupDir(tmpDir);
+                    return {};
+                }
 
-            const localJsonlSqlTable = getJsonlSqlTable(
-                localJsonlPath,
-                columns,
-            );
-            const copySql = `COPY (SELECT * FROM ${localJsonlSqlTable}) TO '${parquetS3Uri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
+                try {
+                    const duckdb = Sentry.startSpan(
+                        {
+                            op: 'parquet.duckdb.init',
+                            name: 'LocalParquetUploadStream.duckdbInit',
+                        },
+                        () =>
+                            new DuckdbWarehouseClient({
+                                s3Config,
+                                resourceLimits: {
+                                    memoryLimit: '256MB',
+                                    threads: 1,
+                                },
+                                logger,
+                            }),
+                    );
 
-            const conversionStart = Date.now();
-            const metrics = await duckdb.runSqlWithMetrics(copySql);
-            const parquetConversionMs = Date.now() - conversionStart;
-            const localFileSize = fs.statSync(localJsonlPath).size;
+                    const localJsonlSqlTable = getJsonlSqlTable(
+                        localJsonlPath,
+                        columns,
+                    );
+                    const copySql = `COPY (SELECT * FROM ${localJsonlSqlTable}) TO '${parquetS3Uri}' (FORMAT PARQUET, COMPRESSION zstd, ROW_GROUP_SIZE 100000)`;
 
-            logger.info(
-                `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${metrics.totalMs} target=${parquetS3Uri}`,
-            );
+                    const conversionStart = Date.now();
+                    const metrics = await Sentry.startSpan(
+                        {
+                            op: 'parquet.duckdb.convert',
+                            name: 'LocalParquetUploadStream.parquetConvert',
+                            attributes: {
+                                'parquet.rows': totalRowsWritten,
+                                'parquet.jsonl_bytes': totalBytesWritten,
+                            },
+                        },
+                        () => duckdb.runSqlWithMetrics(copySql),
+                    );
+                    const parquetConversionMs = Date.now() - conversionStart;
+                    const localFileSize = fs.statSync(localJsonlPath).size;
 
-            return { parquetConversionMs };
-        } catch (error) {
-            logger.error(
-                `Failed to convert local JSONL to Parquet: ${getErrorMessage(error)}`,
-            );
-            throw error;
-        } finally {
-            cleanupDir(tmpDir);
-        }
+                    closeSpan.setAttribute(
+                        'parquet.conversion_ms',
+                        parquetConversionMs,
+                    );
+                    closeSpan.setAttribute(
+                        'parquet.jsonl_file_bytes',
+                        localFileSize,
+                    );
+                    closeSpan.setAttribute(
+                        'parquet.duckdb_ms',
+                        metrics.totalMs,
+                    );
+
+                    logger.info(
+                        `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${metrics.totalMs} target=${parquetS3Uri}`,
+                    );
+
+                    return { parquetConversionMs };
+                } catch (error) {
+                    logger.error(
+                        `Failed to convert local JSONL to Parquet: ${getErrorMessage(error)}`,
+                    );
+                    throw error;
+                } finally {
+                    cleanupDir(tmpDir);
+                }
+            },
+        );
     };
 
     const getStreamMetrics = () => ({
         totalBytesWritten,
         totalRowsWritten,
         writeCalls,
+        totalWriteMs,
         elapsedMs: firstWriteTime ? Date.now() - firstWriteTime : 0,
     });
 

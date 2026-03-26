@@ -112,6 +112,11 @@ export enum FeatureFlags {
     ContentVerification = 'content-verification',
 
     /**
+     * Enable show/hide N rows from start/end of chart data
+     */
+    ShowHideRows = 'show-hide-rows',
+
+    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Disabled by default because large dashboards can spike
      * browser memory to 3 GB+ when all tab data stays in memory.

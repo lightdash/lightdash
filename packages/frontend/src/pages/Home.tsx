@@ -6,8 +6,8 @@ import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { HomepageContentPanel } from '../components/Home/HomepageContentPanel';
 import LandingPanel from '../components/Home/LandingPanel';
-import { MostPopularAndRecentlyUpdatedPanel } from '../components/Home/MostPopularAndRecentlyUpdatedPanel';
 import OnboardingPanel from '../components/Home/OnboardingPanel/index';
 import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
@@ -105,7 +105,7 @@ const Home: FC = () => {
                                 )}
                             />
                         </PinnedItemsProvider>
-                        <MostPopularAndRecentlyUpdatedPanel
+                        <HomepageContentPanel
                             data={mostPopularAndRecentlyUpdated}
                             projectUuid={project.data.projectUuid}
                         />

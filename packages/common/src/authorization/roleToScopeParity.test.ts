@@ -127,6 +127,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'AiAgent',
     'AiAgentThread',
     'ContentAsCode',
+    'DataApp',
     'PreAggregation',
 ]);
 

@@ -9,6 +9,7 @@ import {
     type ApiCreateDashboardSchedulerResponse,
     type ApiDashboardSchedulersResponse,
     type ApiGetDashboardHistoryResponse,
+    type ApiGetDashboardVersionResponse,
 } from '@lightdash/common';
 import {
     Delete,
@@ -106,6 +107,31 @@ export class DashboardController extends BaseController {
             results: await this.services
                 .getDashboardService()
                 .getHistory(req.user!, dashboardUuid),
+        };
+    }
+
+    /**
+     * Get specific dashboard version
+     * @summary Get dashboard version
+     * @param dashboardUuid dashboardUuid for the dashboard
+     * @param versionUuid versionUuid for the dashboard version
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/version/{versionUuid}')
+    @OperationId('getDashboardVersion')
+    async getDashboardVersion(
+        @Path() dashboardUuid: string,
+        @Path() versionUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetDashboardVersionResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getVersion(req.user!, dashboardUuid, versionUuid),
         };
     }
 
