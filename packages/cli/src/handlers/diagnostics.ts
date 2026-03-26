@@ -11,7 +11,7 @@ import {
 } from '../env';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
-import { checkLightdashVersion } from './dbt/apiClient';
+import { checkLightdashVersion, getUserContext } from './dbt/apiClient';
 import { getDbtVersion } from './dbt/getDbtVersion';
 
 type DiagnosticsOptions = {
@@ -23,25 +23,61 @@ type DiagnosticsOptions = {
     state?: string;
 };
 
+const getEnvSourceSuffix = (
+    names: Array<keyof NodeJS.ProcessEnv>,
+    env: NodeJS.ProcessEnv = process.env,
+) => {
+    const activeNames = names.filter((name) => !!env[name]);
+
+    return activeNames.length > 0
+        ? ` ${styles.secondary(`(Using ${activeNames.join(', ')})`)}`
+        : '';
+};
+
+const formatConfiguredProject = (projectName: string, projectUuid: string) =>
+    projectUuid === 'Not set' ? projectName : `${projectName} (${projectUuid})`;
+
 const getAuthStatus = async () => {
     try {
         const config = await getConfig();
-        const hasAuth = !!config.context?.apiKey;
         const serverUrl = config.context?.serverUrl || 'Not set';
         const organizationUuid = config.user?.organizationUuid || 'Not set';
         const projectName = config.context?.projectName || 'Not set';
         const projectUuid = config.context?.project || 'Not set';
 
-        return {
-            hasAuth,
-            serverUrl,
-            organizationUuid,
-            projectName,
-            projectUuid,
-        };
+        if (!(config.context?.apiKey && config.context?.serverUrl)) {
+            return {
+                status: 'missing_credentials' as const,
+                serverUrl,
+                organizationUuid,
+                projectName,
+                projectUuid,
+            };
+        }
+
+        try {
+            const user = await getUserContext();
+
+            return {
+                status: 'authenticated' as const,
+                serverUrl,
+                organizationUuid: user.organizationUuid || organizationUuid,
+                projectName,
+                projectUuid,
+            };
+        } catch (error) {
+            return {
+                status: 'auth_failed' as const,
+                serverUrl,
+                organizationUuid,
+                projectName,
+                projectUuid,
+                error: getErrorMessage(error),
+            };
+        }
     } catch (error) {
         return {
-            hasAuth: false,
+            status: 'missing_credentials' as const,
             serverUrl: 'Error reading config',
             organizationUuid: 'Error reading config',
             projectName: 'Error reading config',
@@ -119,29 +155,55 @@ export const diagnosticsHandler = async (options: DiagnosticsOptions) => {
         // Auth Status
         console.log(styles.bold('Authentication Status:'));
         const authStatus = await getAuthStatus();
+        const authSourceSuffix = getEnvSourceSuffix([
+            'LIGHTDASH_API_KEY',
+            'LIGHTDASH_PROXY_AUTHORIZATION',
+        ]);
+        const instanceSourceSuffix = getEnvSourceSuffix(['LIGHTDASH_URL']);
+        const projectSourceSuffix = getEnvSourceSuffix(['LIGHTDASH_PROJECT']);
 
-        // Check for LIGHTDASH_API_KEY environment variable
-        const hasEnvApiKey = !!process.env.LIGHTDASH_API_KEY;
-        if (hasEnvApiKey) {
+        if (authStatus.status === 'authenticated') {
             console.log(
-                `  ⚠️ ${styles.warning(
-                    'LIGHTDASH_API_KEY environment variable is set and will override config file credentials',
-                )}`,
+                `  ✅ Authenticated (verified with server)${authSourceSuffix}`,
             );
-        }
-
-        if (authStatus.hasAuth) {
-            console.log(`  ✅ Authenticated`);
-            console.log(`  Instance: ${authStatus.serverUrl}`);
+            console.log(
+                `  Instance: ${authStatus.serverUrl}${instanceSourceSuffix}`,
+            );
             console.log(`  Organization: ${authStatus.organizationUuid}`);
             console.log(
-                `  Project: ${authStatus.projectName} (${authStatus.projectUuid})`,
+                `  Configured project: ${formatConfiguredProject(
+                    authStatus.projectName,
+                    authStatus.projectUuid,
+                )}${projectSourceSuffix}`,
             );
+        } else if (authStatus.status === 'auth_failed') {
+            console.log(`  ❌ Authentication check failed${authSourceSuffix}`);
+            console.log(
+                `  Instance: ${authStatus.serverUrl}${instanceSourceSuffix}`,
+            );
+            if (authStatus.organizationUuid !== 'Not set') {
+                console.log(
+                    `  Stored organization: ${authStatus.organizationUuid}`,
+                );
+            }
+            console.log(
+                `  Configured project: ${formatConfiguredProject(
+                    authStatus.projectName,
+                    authStatus.projectUuid,
+                )}${projectSourceSuffix}`,
+            );
+            console.log(`  Error: ${authStatus.error}`);
         } else {
-            console.log(`  ❌ Not authenticated`);
-            console.log(`  Instance: ${authStatus.serverUrl}`);
-            console.log(`  Organization: ${authStatus.organizationUuid}`);
-            console.log(`  Project: ${authStatus.projectName}`);
+            console.log(`  ❌ Not authenticated${authSourceSuffix}`);
+            console.log(
+                `  Instance: ${authStatus.serverUrl}${instanceSourceSuffix}`,
+            );
+            console.log(
+                `  Configured project: ${formatConfiguredProject(
+                    authStatus.projectName,
+                    authStatus.projectUuid,
+                )}${projectSourceSuffix}`,
+            );
         }
         console.log('');
 
