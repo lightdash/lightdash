@@ -86,7 +86,7 @@ export type DuckdbWarehouseClientArgs = {
     databasePath?: string;
     s3Config?: DuckdbS3SessionConfig;
     resourceLimits?: DuckdbResourceLimits;
-    bufferPoolSize?: string; // e.g. '256MB' — controls DuckDB's buffer_pool_size for parquet/HTTP caching
+    memoryLimit?: string; // e.g. '256MB', '1GB' — sets DuckDB's memory_limit for the shared instance
     logger?: DuckdbLogger;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
 };
@@ -245,10 +245,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
             await DuckdbWarehouseClient.hardenInstance(db);
 
-            if (client.bufferPoolSize) {
-                await db.run(
-                    `SET buffer_pool_size = '${client.bufferPoolSize}';`,
-                );
+            if (client.memoryLimit) {
+                await db.run(`SET memory_limit = '${client.memoryLimit}';`);
             }
 
             if (client.s3Config) {
@@ -258,7 +256,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             }
 
             client.logger?.info(
-                `DuckDB shared instance bootstrapped: httpfs=${Math.round(httpfsMs)}ms buffer_pool_size=${client.bufferPoolSize ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'}`,
+                `DuckDB shared instance bootstrapped: httpfs=${Math.round(httpfsMs)}ms memory_limit=${client.memoryLimit ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'}`,
             );
         } finally {
             db.closeSync?.();
@@ -322,7 +320,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private readonly resourceLimits?: DuckdbResourceLimits;
 
-    private readonly bufferPoolSize?: string;
+    private readonly memoryLimit?: string;
 
     private readonly logger?: DuckdbLogger;
 
@@ -335,7 +333,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         this.databasePath = args.databasePath ?? ':memory:';
         this.s3Config = args.s3Config;
         this.resourceLimits = args.resourceLimits;
-        this.bufferPoolSize = args.bufferPoolSize;
+        this.memoryLimit = args.memoryLimit;
         this.logger = args.logger;
         this.onQueryProfile = args.onQueryProfile;
     }
