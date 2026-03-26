@@ -14,6 +14,7 @@ import {
     NODE_VERSION,
     OPTIMIZED_NODE_VERSION,
 } from './env';
+import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
@@ -1394,6 +1395,10 @@ const errorHandler = (err: Error) => {
                 `\n You must have dbt installed to use this command. See https://docs.getdbt.com/docs/core/installation for installation instructions`,
             ),
         );
+    }
+    const diagnosticsHint = getDiagnosticsHint();
+    if (diagnosticsHint) {
+        console.error(diagnosticsHint);
     }
     if (NODE_VERSION.major !== OPTIMIZED_NODE_VERSION) {
         console.warn(
