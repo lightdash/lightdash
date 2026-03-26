@@ -30,8 +30,13 @@ const TreemapContextMenu: FC<TreemapContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig, drillConfig, onDrillDown, onDrillThrough } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        drillConfig,
+        onDrillDown,
+        onDrillThrough,
+        drillStack,
+    } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
@@ -112,6 +117,7 @@ const TreemapContextMenu: FC<TreemapContextMenuProps> = ({
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
+                        drillStack={drillStack}
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}
                     />

@@ -17,6 +17,7 @@ import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useC
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { type EChartsReact } from '../EChartsReactWrapper';
+import { type DrillStack } from '../MetricQueryData/DrillIntoSubmenu';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { type VisualizationConfig } from './types';
 
@@ -69,6 +70,7 @@ type VisualizationContext = {
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
+    drillStack?: DrillStack;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
 };

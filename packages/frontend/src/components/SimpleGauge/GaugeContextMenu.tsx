@@ -33,6 +33,7 @@ const GaugeContextMenu: FC<GaugeContextMenuProps> = ({
         drillConfig,
         onDrillDown,
         onDrillThrough,
+        drillStack,
     } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
@@ -129,6 +130,7 @@ const GaugeContextMenu: FC<GaugeContextMenuProps> = ({
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={{}}
+                        drillStack={drillStack}
                         allowedTypes={[DrillPathType.DRILL_THROUGH]}
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}

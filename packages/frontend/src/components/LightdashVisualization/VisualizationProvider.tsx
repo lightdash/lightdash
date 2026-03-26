@@ -44,6 +44,7 @@ import {
     useServerFeatureFlag,
 } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
+import { type DrillStack } from '../MetricQueryData/DrillIntoSubmenu';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import Context from './context';
 import { type useVisualizationContext } from './useVisualizationContext';
@@ -102,6 +103,7 @@ export type VisualizationProviderProps = {
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
+    drillStack?: DrillStack;
     dateZoom?: DateZoom;
 };
 
@@ -137,6 +139,7 @@ const VisualizationProvider: FC<
     drillConfig,
     onDrillDown,
     onDrillThrough,
+    drillStack,
     dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
@@ -384,6 +387,7 @@ const VisualizationProvider: FC<
         drillConfig,
         onDrillDown,
         onDrillThrough,
+        drillStack,
         isTouchDevice,
     };
 

@@ -55,6 +55,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         drillConfig,
         onDrillDown,
         onDrillThrough,
+        drillStack,
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
@@ -315,6 +316,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             drillConfig={drillConfig}
                             onDrillDown={onDrillDown}
                             onDrillThrough={onDrillThrough}
+                            drillStack={drillStack}
                             {...rest}
                         />
                         {showResultsTotal && (

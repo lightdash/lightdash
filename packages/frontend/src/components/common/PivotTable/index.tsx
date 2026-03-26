@@ -54,6 +54,7 @@ import {
     getColorFromRange,
     transformColorsForDarkMode,
 } from '../../../utils/colorUtils';
+import { type DrillStack } from '../../MetricQueryData/DrillIntoSubmenu';
 import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
@@ -140,6 +141,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
             fieldValues: Record<string, ResultValue>;
             dimensionIds: string[];
         }) => void;
+        drillStack?: DrillStack;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -158,6 +160,7 @@ const PivotTable: FC<PivotTableProps> = ({
     drillConfig,
     onDrillDown,
     onDrillThrough,
+    drillStack,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -1152,6 +1155,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 drillConfig={drillConfig}
                                                 onDrillDown={onDrillDown}
                                                 onDrillThrough={onDrillThrough}
+                                                drillStack={drillStack}
                                             >
                                                 {render()}
                                             </ValueCellMenu>

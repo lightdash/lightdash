@@ -257,6 +257,7 @@ const DrillExplorerContent: FC<{
                             setEchartsRef={setEchartsRef}
                             isDashboard
                             drillConfig={unsavedChartVersion.drillConfig}
+                            drillStack={drillState?.stack}
                             onDrillDown={(params) =>
                                 dispatch(explorerActions.applyDrill(params))
                             }

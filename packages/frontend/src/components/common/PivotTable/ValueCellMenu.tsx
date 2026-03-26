@@ -19,7 +19,9 @@ import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { UnderlyingDataMenuItem } from '../../DashboardTiles/UnderlyingDataMenuItem';
-import DrillIntoSubmenu from '../../MetricQueryData/DrillIntoSubmenu';
+import DrillIntoSubmenu, {
+    type DrillStack,
+} from '../../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
@@ -47,6 +49,7 @@ type ValueCellMenuProps = {
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
+    drillStack?: DrillStack;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
@@ -64,6 +67,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     drillConfig,
     onDrillDown,
     onDrillThrough,
+    drillStack,
 }) => {
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
@@ -229,6 +233,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                                 ? getUnderlyingFieldValues(rowIndex, colIndex)
                                 : undefined
                         }
+                        drillStack={drillStack}
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}
                     />

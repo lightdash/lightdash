@@ -35,6 +35,7 @@ const BigNumberContextMenu: FC<
         drillConfig,
         onDrillDown,
         onDrillThrough,
+        drillStack,
     } = useVisualizationContext();
     // Always fail silently - parent component controls when this menu is rendered
     const metricQueryData = useMetricQueryDataContext(true);
@@ -157,6 +158,7 @@ const BigNumberContextMenu: FC<
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={{}}
+                        drillStack={drillStack}
                         allowedTypes={[DrillPathType.DRILL_THROUGH]}
                         onDrillDown={onDrillDown}
                         onDrillThrough={onDrillThrough}

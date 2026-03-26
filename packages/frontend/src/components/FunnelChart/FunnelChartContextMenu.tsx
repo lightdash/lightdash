@@ -35,8 +35,13 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig, drillConfig, onDrillDown, onDrillThrough } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        drillConfig,
+        onDrillDown,
+        onDrillThrough,
+        drillStack,
+    } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
@@ -127,6 +132,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={fieldValues}
+                        drillStack={drillStack}
                         allowedTypes={
                             chartConfig.dataInput === FunnelChartDataInput.ROW
                                 ? [DrillPathType.DRILL_THROUGH]

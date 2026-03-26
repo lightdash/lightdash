@@ -16,7 +16,7 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
-type DrillStack = Array<{
+export type DrillStack = Array<{
     drillPath: DrillPath;
     drillDimensionValues: Record<string, unknown>;
 }>;
