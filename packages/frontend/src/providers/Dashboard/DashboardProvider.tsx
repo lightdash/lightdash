@@ -1384,7 +1384,7 @@ const DashboardProvider: React.FC<
     // Filters that are required to have a value set
     const requiredDashboardFilters = useMemo(
         () =>
-            dashboardFilters.dimensions
+            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
                 // Get filters that are required to have a value set (required) and that have no default value set (disabled)
                 .filter((f) => f.required && f.disabled)
                 .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
@@ -1412,7 +1412,11 @@ const DashboardProvider: React.FC<
                     },
                     [],
                 ),
-        [dashboardFilters.dimensions, allFilterableFieldsMap],
+        [
+            dashboardFilters.dimensions,
+            dashboardFilters.metrics,
+            allFilterableFieldsMap,
+        ],
     );
 
     // Memoized mapping of tile UUIDs to their display names

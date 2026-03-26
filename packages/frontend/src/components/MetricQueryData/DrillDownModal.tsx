@@ -35,7 +35,8 @@ type CombineFiltersArgs = {
     extraFilters?: Filters;
 };
 
-const combineFilters = ({
+// eslint-disable-next-line react-refresh/only-export-components
+export const combineFilters = ({
     fieldValues,
     metricQuery,
     pivotReference,
@@ -43,12 +44,17 @@ const combineFilters = ({
     extraFilters,
 }: CombineFiltersArgs): Filters => {
     const combinedDimensionFilters: Array<FilterGroupItem> = [];
+    const combinedMetricFilters: Array<FilterGroupItem> = [];
 
     if (metricQuery.filters.dimensions) {
         combinedDimensionFilters.push(metricQuery.filters.dimensions);
     }
+    if (metricQuery.filters.metrics) {
+        combinedMetricFilters.push(metricQuery.filters.metrics);
+    }
     if (dashboardFilters) {
         combinedDimensionFilters.push(...dashboardFilters.dimensions);
+        combinedMetricFilters.push(...dashboardFilters.metrics);
     }
     if (pivotReference?.pivotValues) {
         const pivotFilter: FilterRule[] = pivotReference.pivotValues.map(
@@ -65,6 +71,9 @@ const combineFilters = ({
     }
     if (extraFilters?.dimensions) {
         combinedDimensionFilters.push(extraFilters.dimensions);
+    }
+    if (extraFilters?.metrics) {
+        combinedMetricFilters.push(extraFilters.metrics);
     }
 
     const dimensionFilters: FilterRule[] = metricQuery.dimensions.reduce<
@@ -94,6 +103,12 @@ const combineFilters = ({
             id: uuidv4(),
             and: combinedDimensionFilters,
         },
+        ...(combinedMetricFilters.length > 0 && {
+            metrics: {
+                id: uuidv4(),
+                and: combinedMetricFilters,
+            },
+        }),
     };
 };
 
