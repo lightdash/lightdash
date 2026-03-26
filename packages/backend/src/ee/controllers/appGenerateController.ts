@@ -1,6 +1,7 @@
 import { ApiErrorPayload } from '@lightdash/common';
 import {
     Body,
+    Get,
     Hidden,
     Middlewares,
     OperationId,
@@ -31,6 +32,13 @@ export type ApiGenerateAppResponse = {
     };
 };
 
+export type ApiPreviewTokenResponse = {
+    status: 'ok';
+    results: {
+        token: string;
+    };
+};
+
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
@@ -53,6 +61,32 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Mints a short-lived JWT for accessing an app version preview in an iframe.
+     * @summary Get preview token
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/versions/{versionUuid}/preview-token')
+    @OperationId('getAppPreviewToken')
+    async getPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() versionUuid: string,
+    ): Promise<ApiPreviewTokenResponse> {
+        const token = this.getAppGenerateService().getPreviewToken(
+            req.user!,
+            projectUuid,
+            appUuid,
+            versionUuid,
+        );
+        return {
+            status: 'ok',
+            results: { token },
         };
     }
 
