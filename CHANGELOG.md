@@ -1,3 +1,11 @@
+# [0.2674.0](https://github.com/lightdash/lightdash/compare/0.2673.0...0.2674.0) (2026-03-26)
+
+
+### Features
+
+* add pre-aggregate cache toggle and sql viewer in explorer ([#21339](https://github.com/lightdash/lightdash/issues/21339)) ([480e558](https://github.com/lightdash/lightdash/commit/480e558c917381d384ecc5ae329cf0b58fdd68f6))
+* add space metadata to downloads ([#21374](https://github.com/lightdash/lightdash/issues/21374)) ([93bbaec](https://github.com/lightdash/lightdash/commit/93bbaecd6ef726628ccc27e19c707c3582b15be3))
+
 # [0.2673.0](https://github.com/lightdash/lightdash/compare/0.2672.0...0.2673.0) (2026-03-26)
 
 
