@@ -4697,8 +4697,81 @@
                 "required": ["data"],
                 "type": "object"
             },
+            "FilterOperator.EQUALS": {
+                "enum": ["equals"],
+                "type": "string"
+            },
+            "FilterOperator.NOT_EQUALS": {
+                "enum": ["notEquals"],
+                "type": "string"
+            },
+            "FilterOperator.LESS_THAN": {
+                "enum": ["lessThan"],
+                "type": "string"
+            },
+            "FilterOperator.LESS_THAN_OR_EQUAL": {
+                "enum": ["lessThanOrEqual"],
+                "type": "string"
+            },
+            "FilterOperator.GREATER_THAN": {
+                "enum": ["greaterThan"],
+                "type": "string"
+            },
+            "FilterOperator.GREATER_THAN_OR_EQUAL": {
+                "enum": ["greaterThanOrEqual"],
+                "type": "string"
+            },
+            "CartesianSeriesHighlightOperator": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.EQUALS"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.NOT_EQUALS"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.LESS_THAN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.LESS_THAN_OR_EQUAL"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.GREATER_THAN"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FilterOperator.GREATER_THAN_OR_EQUAL"
+                    }
+                ]
+            },
+            "CartesianSeriesHighlight": {
+                "properties": {
+                    "value": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Numeric comparison value used with operator"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/CartesianSeriesHighlightOperator",
+                        "description": "Optional numeric comparison for bar values in the highlighted series"
+                    },
+                    "othersColor": {
+                        "type": "string",
+                        "description": "Color applied to all non-highlighted values or series"
+                    },
+                    "color": {
+                        "type": "string",
+                        "description": "Color applied to matching values in the highlighted series"
+                    }
+                },
+                "required": ["othersColor", "color"],
+                "type": "object"
+            },
             "Series": {
                 "properties": {
+                    "highlight": {
+                        "$ref": "#/components/schemas/CartesianSeriesHighlight",
+                        "description": "Highlight configuration for this series"
+                    },
                     "isFilteredOut": {
                         "type": "boolean",
                         "description": "Whether this series is currently filtered out"
@@ -4963,8 +5036,33 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "RowLimit": {
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Number of rows to show or hide"
+                    },
+                    "direction": {
+                        "type": "string",
+                        "enum": ["first", "last"],
+                        "description": "Whether to target the first or last N rows"
+                    },
+                    "mode": {
+                        "type": "string",
+                        "enum": ["show", "hide"],
+                        "description": "Whether to show or hide the selected rows"
+                    }
+                },
+                "required": ["count", "direction", "mode"],
+                "type": "object"
+            },
             "CartesianChart": {
                 "properties": {
+                    "rowLimit": {
+                        "$ref": "#/components/schemas/RowLimit",
+                        "description": "Limit displayed rows to first/last N"
+                    },
                     "metadata": {
                         "$ref": "#/components/schemas/Record_string.SeriesMetadata_",
                         "description": "Metadata for series (colors, etc.)"
@@ -5267,6 +5365,10 @@
             },
             "TableChart": {
                 "properties": {
+                    "rowLimit": {
+                        "$ref": "#/components/schemas/RowLimit",
+                        "description": "Limit displayed rows to first/last N"
+                    },
                     "metricsAsRows": {
                         "type": "boolean",
                         "description": "Display metrics as rows instead of columns"
@@ -7849,6 +7951,26 @@
                 "required": ["prompt"],
                 "type": "object"
             },
+            "ApiPreviewTokenResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["token"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "DashboardSummaryTone": {
                 "enum": ["friendly", "formal", "direct", "enthusiastic"],
                 "type": "string"
@@ -9336,6 +9458,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -28986,7 +29121,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2663.2",
+        "version": "0.2671.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

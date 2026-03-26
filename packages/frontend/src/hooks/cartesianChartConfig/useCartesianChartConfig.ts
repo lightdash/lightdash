@@ -10,6 +10,7 @@ import {
     XAxisSort,
     XAxisSortType,
     type CartesianChart,
+    type CartesianSeriesHighlight,
     type CompleteCartesianChartLayout,
     type EchartsGrid,
     type EchartsLegend,
@@ -441,9 +442,17 @@ const useCartesianChartConfig = ({
         setDirtyLayout((prev) => ({
             ...prev,
             colorByCategory: enabled,
-            // Clear overrides when disabling
             ...(!enabled && { categoryColorOverrides: undefined }),
         }));
+        if (enabled) {
+            setDirtyEchartsConfig((prev) => ({
+                ...prev,
+                series: prev?.series?.map((series) => ({
+                    ...series,
+                    highlight: undefined,
+                })),
+            }));
+        }
     }, []);
 
     const setCategoryColorOverride = useCallback(
@@ -465,6 +474,40 @@ const useCartesianChartConfig = ({
                 ...prev,
                 categoryColorOverrides: overrides,
             }));
+        },
+        [],
+    );
+
+    const setSeriesHighlight = useCallback(
+        (seriesId: string, highlight: CartesianSeriesHighlight | undefined) => {
+            setDirtyEchartsConfig((prev) => ({
+                ...prev,
+                series: prev?.series?.map((series) => {
+                    const isTargetSeries = getSeriesId(series) === seriesId;
+
+                    if (isTargetSeries) {
+                        return {
+                            ...series,
+                            highlight,
+                        };
+                    }
+
+                    return highlight
+                        ? {
+                              ...series,
+                              highlight: undefined,
+                          }
+                        : series;
+                }),
+            }));
+
+            if (highlight) {
+                setDirtyLayout((prev) => ({
+                    ...prev,
+                    colorByCategory: undefined,
+                    categoryColorOverrides: undefined,
+                }));
+            }
         },
         [],
     );
@@ -1215,6 +1258,7 @@ const useCartesianChartConfig = ({
         setColorByCategory,
         setCategoryColorOverride,
         setAllCategoryColorOverrides,
+        setSeriesHighlight,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,

@@ -341,6 +341,51 @@
         "CartesianChartLayout": {
             "$ref": "#/$defs/Partial_CompleteCartesianChartLayout_"
         },
+        "CartesianSeriesHighlight": {
+            "properties": {
+                "color": {
+                    "description": "Color applied to matching values in the highlighted series",
+                    "type": "string"
+                },
+                "operator": {
+                    "$ref": "#/$defs/CartesianSeriesHighlightOperator",
+                    "description": "Optional numeric comparison for bar values in the highlighted series"
+                },
+                "othersColor": {
+                    "description": "Color applied to all non-highlighted values or series",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "Numeric comparison value used with operator",
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": ["othersColor", "color"],
+            "type": "object"
+        },
+        "CartesianSeriesHighlightOperator": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/FilterOperator.EQUALS"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.NOT_EQUALS"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.LESS_THAN"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.LESS_THAN_OR_EQUAL"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.GREATER_THAN"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.GREATER_THAN_OR_EQUAL"
+                }
+            ]
+        },
         "CartesianSeriesType": {
             "enum": ["line", "bar", "scatter", "area"],
             "type": "string"
@@ -1154,6 +1199,30 @@
                 "inBetween",
                 "notInBetween"
             ],
+            "type": "string"
+        },
+        "FilterOperator.EQUALS": {
+            "enum": ["equals"],
+            "type": "string"
+        },
+        "FilterOperator.GREATER_THAN": {
+            "enum": ["greaterThan"],
+            "type": "string"
+        },
+        "FilterOperator.GREATER_THAN_OR_EQUAL": {
+            "enum": ["greaterThanOrEqual"],
+            "type": "string"
+        },
+        "FilterOperator.LESS_THAN": {
+            "enum": ["lessThan"],
+            "type": "string"
+        },
+        "FilterOperator.LESS_THAN_OR_EQUAL": {
+            "enum": ["lessThanOrEqual"],
+            "type": "string"
+        },
+        "FilterOperator.NOT_EQUALS": {
+            "enum": ["notEquals"],
             "type": "string"
         },
         "FilterRuleInput": {
@@ -2461,6 +2530,10 @@
                 "hidden": {
                     "description": "Hide this series from the chart",
                     "type": "boolean"
+                },
+                "highlight": {
+                    "$ref": "#/$defs/CartesianSeriesHighlight",
+                    "description": "Highlight configuration for this series"
                 },
                 "isFilteredOut": {
                     "description": "Whether this series is currently filtered out",

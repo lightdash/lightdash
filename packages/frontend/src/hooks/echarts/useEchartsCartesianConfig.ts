@@ -100,6 +100,11 @@ import {
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
+import {
+    getActiveCartesianSeriesHighlight,
+    getBarSeriesHighlightColor,
+    getLineSeriesHighlightColor,
+} from './cartesianSeriesHighlight';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -118,6 +123,23 @@ type TooltipOption = Omit<TooltipComponentOption, 'formatter'> & {
               TooltipFormatterParams | TooltipFormatterParams[]
           >;
 };
+
+const getHighlightedBarColor = ({
+    activeHighlight,
+    computedColor,
+    rowValues,
+    series,
+}: {
+    activeHighlight: ReturnType<typeof getActiveCartesianSeriesHighlight>;
+    computedColor: string;
+    rowValues: Record<string, unknown>;
+    series: EChartsSeries;
+}) =>
+    getBarSeriesHighlightColor({
+        activeHighlight,
+        rowValues,
+        series,
+    }) ?? computedColor;
 
 const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     const item = key ? fields[key] : undefined;
@@ -2465,14 +2487,42 @@ const useEchartsCartesianConfig = (
         );
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
+        const hasMixedChartTypes =
+            new Set(
+                series.map(
+                    (serie) => `${serie.type}${serie.areaStyle ? '_area' : ''}`,
+                ),
+            ).size > 1;
+        const isPureBarChart =
+            !hasMixedChartTypes &&
+            series.every((serie) => serie.type === CartesianSeriesType.BAR);
+        const isPureLineChart =
+            !hasMixedChartTypes &&
+            series.every(
+                (serie) =>
+                    serie.type === CartesianSeriesType.LINE && !serie.areaStyle,
+            );
+        const activeHighlight = getActiveCartesianSeriesHighlight(
+            validCartesianConfig?.eChartsConfig?.series,
+        );
+        const shouldApplyLineHighlight =
+            Boolean(activeHighlight) && isPureLineChart;
+        const shouldApplyBarHighlight =
+            Boolean(activeHighlight) && isPureBarChart;
 
         const seriesWithValidStack = series.map<EChartsSeries>(
             (serie, index) => {
                 const computedColor = seriesColors[index];
+                const resolvedSeriesColor = shouldApplyLineHighlight
+                    ? (getLineSeriesHighlightColor({
+                          activeHighlight,
+                          series: serie,
+                      }) ?? computedColor)
+                    : computedColor;
 
                 const baseConfig = {
                     ...serie,
-                    color: computedColor,
+                    color: resolvedSeriesColor,
                     stack: getValidStack(serie),
                     // Ensure label styles are applied after color is known
                     ...(serie.label?.show && {
@@ -2481,7 +2531,7 @@ const useEchartsCartesianConfig = (
                             ...getValueLabelStyle(
                                 serie.label.position,
                                 serie.type,
-                                computedColor,
+                                resolvedSeriesColor,
                             ),
                         },
                         labelLayout: { hideOverlap: true },
@@ -2490,9 +2540,20 @@ const useEchartsCartesianConfig = (
                     ...(serie.markLine && {
                         markLine: applyReadableColorsToMarkLine(
                             serie.markLine as MarkLine,
-                            computedColor,
+                            resolvedSeriesColor,
                             theme.colors.background[0],
                         ),
+                    }),
+                    ...((serie.type === CartesianSeriesType.LINE ||
+                        serie.type === CartesianSeriesType.AREA) && {
+                        lineStyle: {
+                            ...serie.lineStyle,
+                            color: resolvedSeriesColor,
+                        },
+                        itemStyle: {
+                            ...serie.itemStyle,
+                            color: resolvedSeriesColor,
+                        },
                     }),
                 };
 
@@ -2513,6 +2574,27 @@ const useEchartsCartesianConfig = (
                             },
                         }),
                     };
+
+                    if (shouldApplyBarHighlight) {
+                        return {
+                            ...barConfig,
+                            colorBy: 'data' as const,
+                            itemStyle: {
+                                ...barConfig.itemStyle,
+                                color: (params: {
+                                    dataIndex: number;
+                                    name: string;
+                                    data: Record<string, unknown>;
+                                }) =>
+                                    getHighlightedBarColor({
+                                        activeHighlight,
+                                        computedColor,
+                                        rowValues: params.data,
+                                        series: serie,
+                                    }),
+                            },
+                        };
+                    }
 
                     // Color by category: each bar gets a unique color
                     if (isColorByCategory) {
@@ -2598,6 +2680,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.colorByCategory,
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig?.series,
         series,
         rows,
         validCartesianConfigLegend,

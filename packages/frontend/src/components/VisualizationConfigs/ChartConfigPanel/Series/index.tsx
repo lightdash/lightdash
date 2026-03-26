@@ -241,7 +241,9 @@ export const Series: FC<Props> = ({ items }) => {
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
     const categoryColorOverrides = dirtyLayout?.categoryColorOverrides ?? {};
-
+    const hasHighlightedSeries = allSeries.some((series) => series.highlight);
+    const showColorByCategoryOption =
+        isSingleSeriesBar && !hasHighlightedSeries;
     return (
         <Stack spacing="md">
             <DragDropContext onDragEnd={onDragEnd}>
@@ -361,7 +363,7 @@ export const Series: FC<Props> = ({ items }) => {
                                                             }
                                                         />
                                                     )}
-                                                    {isSingleSeriesBar && (
+                                                    {showColorByCategoryOption && (
                                                         <Stack
                                                             spacing="xs"
                                                             mt="xs"

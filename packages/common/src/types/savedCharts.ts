@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
+import { type CartesianSeriesHighlight } from './cartesianSeriesHighlight';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type ContentVerificationInfo } from './contentVerification';
@@ -516,6 +517,8 @@ export type Series = {
     markLine?: MarkLine;
     /** Whether this series is currently filtered out */
     isFilteredOut?: boolean;
+    /** Highlight configuration for this series */
+    highlight?: CartesianSeriesHighlight;
 };
 
 export type EchartsLegend = {

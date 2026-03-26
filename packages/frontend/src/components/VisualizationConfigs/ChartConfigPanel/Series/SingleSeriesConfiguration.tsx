@@ -1,8 +1,13 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
+    CARTESIAN_SERIES_HIGHLIGHT_OPERATORS,
     CartesianSeriesType,
     ChartType,
+    getSeriesId,
+    isSeriesWithMixedChartTypes,
+    StackType,
     type CartesianChartLayout,
+    type CartesianSeriesHighlightOperator,
     type Series,
 } from '@lightdash/common';
 import {
@@ -11,9 +16,11 @@ import {
     Checkbox,
     Collapse,
     Group,
+    NumberInput,
     Popover,
     Select,
     Stack,
+    Text,
 } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
@@ -26,9 +33,11 @@ import {
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig/utils';
+import { getFilterOptions } from '../../../common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../common/MantineIcon';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
+import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
@@ -49,6 +58,10 @@ type Props = {
     'updateSingleSeries' | 'getSingleSeries'
 >;
 
+const HIGHLIGHT_CONDITION_OPTIONS = getFilterOptions([
+    ...CARTESIAN_SERIES_HIGHLIGHT_OPERATORS,
+]);
+
 const SingleSeriesConfiguration: FC<Props> = ({
     layout,
     isCollapsable,
@@ -66,15 +79,55 @@ const SingleSeriesConfiguration: FC<Props> = ({
     const { visualizationConfig, colorPalette, getSeriesColor } =
         useVisualizationContext();
     const { hovered, ref } = useHover();
+    const chartConfig =
+        visualizationConfig.chartType === ChartType.CARTESIAN
+            ? visualizationConfig.chartConfig
+            : undefined;
+    const allSeries = chartConfig?.dirtyEchartsConfig?.series ?? [];
+    const renderedSeriesCount = allSeries.filter(
+        (entry) => !entry.hidden && !entry.isFilteredOut,
+    ).length;
+    const hasMixedChartTypes = isSeriesWithMixedChartTypes(allSeries);
+    const hasStackedBars =
+        chartConfig?.dirtyChartType === CartesianSeriesType.BAR &&
+        (layout?.stack !== undefined
+            ? layout.stack !== StackType.NONE && layout.stack !== false
+            : allSeries.some(
+                  (entry) =>
+                      entry.type === CartesianSeriesType.BAR &&
+                      entry.stack !== undefined,
+              ));
+    const canShowHighlight =
+        !hasMixedChartTypes &&
+        !hasStackedBars &&
+        (chartConfig?.dirtyChartType === CartesianSeriesType.BAR ||
+            (chartConfig?.dirtyChartType === CartesianSeriesType.LINE &&
+                renderedSeriesCount > 1));
 
     const type =
         series.type === CartesianSeriesType.LINE && !!series.areaStyle
             ? CartesianSeriesType.AREA
             : series.type;
+    const currentSeries = getSingleSeries(series) || series;
+    const highlight = currentSeries.highlight;
     const [seriesValue, setSeriesValue] = useDebouncedState(
-        getSingleSeries(series)?.name || seriesLabel,
+        currentSeries.name || seriesLabel,
         200,
     );
+    const highlightCondition = highlight?.operator ?? null;
+
+    const setHighlight = (nextHighlight: Series['highlight'] | undefined) => {
+        if (!chartConfig) return;
+        chartConfig.setSeriesHighlight(
+            getSeriesId(currentSeries),
+            nextHighlight,
+        );
+    };
+
+    const getDefaultHighlight = (): NonNullable<Series['highlight']> => ({
+        color: getSeriesColor(currentSeries),
+        othersColor: '#d3d3d3',
+    });
 
     return (
         <Box>
@@ -364,6 +417,120 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                             />
                         </Group>
+                    )}
+                    {canShowHighlight && (
+                        <Stack spacing="xs">
+                            <Checkbox
+                                checked={Boolean(highlight)}
+                                label="Highlight"
+                                onChange={(event) => {
+                                    if (event.currentTarget.checked) {
+                                        setHighlight(getDefaultHighlight());
+                                    } else {
+                                        setHighlight(undefined);
+                                    }
+                                }}
+                            />
+                            {highlight && (
+                                <Stack spacing="xs">
+                                    <Group spacing="md">
+                                        <Group
+                                            h={36}
+                                            align="center"
+                                            spacing="xs"
+                                        >
+                                            <ColorSelector
+                                                color={highlight.color}
+                                                swatches={colorPalette}
+                                                onColorChange={(color) =>
+                                                    setHighlight({
+                                                        ...highlight,
+                                                        color,
+                                                    })
+                                                }
+                                            />
+                                            <Text fz="xs" c="dimmed">
+                                                Matching
+                                            </Text>
+                                        </Group>
+                                        <Group
+                                            h={36}
+                                            align="center"
+                                            spacing="xs"
+                                        >
+                                            <ColorSelector
+                                                color={highlight.othersColor}
+                                                swatches={colorPalette}
+                                                onColorChange={(othersColor) =>
+                                                    setHighlight({
+                                                        ...highlight,
+                                                        othersColor,
+                                                    })
+                                                }
+                                            />
+                                            <Text fz="xs" c="dimmed">
+                                                Others
+                                            </Text>
+                                        </Group>
+                                    </Group>
+                                    {chartConfig?.dirtyChartType ===
+                                        CartesianSeriesType.BAR && (
+                                        <Group grow align="flex-start">
+                                            <Box>
+                                                <Config.Label>
+                                                    Condition
+                                                </Config.Label>
+                                                <Select
+                                                    value={highlightCondition}
+                                                    data={
+                                                        HIGHLIGHT_CONDITION_OPTIONS
+                                                    }
+                                                    clearable
+                                                    placeholder="No condition"
+                                                    onChange={(value) => {
+                                                        if (!value) {
+                                                            setHighlight({
+                                                                ...highlight,
+                                                                operator:
+                                                                    undefined,
+                                                                value: undefined,
+                                                            });
+                                                            return;
+                                                        }
+
+                                                        setHighlight({
+                                                            ...highlight,
+                                                            operator:
+                                                                value as CartesianSeriesHighlightOperator,
+                                                        });
+                                                    }}
+                                                />
+                                            </Box>
+                                            {highlightCondition && (
+                                                <Box>
+                                                    <Config.Label>
+                                                        Value
+                                                    </Config.Label>
+                                                    <NumberInput
+                                                        value={highlight.value}
+                                                        onChange={(value) =>
+                                                            setHighlight({
+                                                                ...highlight,
+                                                                value:
+                                                                    typeof value ===
+                                                                    'number'
+                                                                        ? value
+                                                                        : undefined,
+                                                            })
+                                                        }
+                                                    />
+                                                </Box>
+                                            )}
+                                        </Group>
+                                    )}
+                                </Stack>
+                            )}
+                        </Stack>
                     )}
                 </Stack>
             </Collapse>
