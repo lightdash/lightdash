@@ -27,7 +27,7 @@ export default function AppPreviewTest() {
     }
 
     const baseUrl = window.location.origin;
-    const previewUrl = `http://localhost:8080/api/v1/preview/apps/${appUuid}/versions/${versionUuid}#token=${SEED_PAT.token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`;
+    const previewUrl = `http://localhost:8080/api/apps/${appUuid}/versions/${versionUuid}#token=${SEED_PAT.token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`;
 
     return (
         <Stack p="lg" gap="md">
