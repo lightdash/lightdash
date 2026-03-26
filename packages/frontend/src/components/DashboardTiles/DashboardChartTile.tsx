@@ -212,6 +212,7 @@ const computeDashboardChartSeries = (
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
             itemsMap,
+            columnLimit: chart.chartConfig.config.columnLimit,
         });
         const sortedByPivot =
             !!validPivotDimensions?.length &&

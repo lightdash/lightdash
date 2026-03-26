@@ -880,6 +880,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    columnLimit,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -894,6 +895,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
+    columnLimit?: number;
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
@@ -918,9 +920,26 @@ export const convertSqlPivotedRowsToPivotData = ({
         indexColumns = [];
     }
 
-    const filteredValuesColumns = pivotDetails.valuesColumns.filter(
+    let filteredValuesColumns = pivotDetails.valuesColumns.filter(
         ({ referenceField }) => !hiddenMetricFieldIds.includes(referenceField),
     );
+
+    // Apply column limit: keep only the first N unique pivot column groups
+    if (columnLimit !== undefined && columnLimit > 0) {
+        const seenGroups = new Set<string>();
+        filteredValuesColumns = filteredValuesColumns.filter((col) => {
+            const groupKey = col.pivotValues
+                .map(
+                    ({ referenceField, value }) => `${referenceField}:${value}`,
+                )
+                .join('|');
+            if (!seenGroups.has(groupKey)) {
+                if (seenGroups.size >= columnLimit) return false;
+                seenGroups.add(groupKey);
+            }
+            return true;
+        });
+    }
 
     // Get unique base metrics from valuesColumns, preserving order
     const baseMetricsArray = filteredValuesColumns

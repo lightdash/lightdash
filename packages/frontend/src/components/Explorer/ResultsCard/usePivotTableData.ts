@@ -18,6 +18,7 @@ type UsePivotTableDataArgs = {
     columnOrder: string[];
     getField: (fieldId: string) => ItemsMap[string] | undefined;
     getFieldLabel: (fieldId: string | null | undefined) => string | undefined;
+    columnLimit?: number;
 };
 
 type PivotTableDataState = {
@@ -42,6 +43,7 @@ export function usePivotTableData({
     columnOrder,
     getField,
     getFieldLabel,
+    columnLimit,
 }: UsePivotTableDataArgs): PivotTableDataState {
     const worker = useWorker(createWorker);
     const [state, setState] = useState<PivotTableDataState>({
@@ -71,8 +73,17 @@ export function usePivotTableData({
             getField,
             getFieldLabel,
             groupedSubtotals: undefined,
+            columnLimit,
         };
-    }, [enabled, rows, pivotDetails, columnOrder, getField, getFieldLabel]);
+    }, [
+        enabled,
+        rows,
+        pivotDetails,
+        columnOrder,
+        getField,
+        getFieldLabel,
+        columnLimit,
+    ]);
 
     useEffect(() => {
         // Reset state when inputs become invalid

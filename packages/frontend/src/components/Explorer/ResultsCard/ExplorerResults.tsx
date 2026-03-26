@@ -93,6 +93,10 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     const dimensions = query.data?.metricQuery?.dimensions ?? [];
     const metrics = query.data?.metricQuery?.metrics ?? [];
     const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
+    const columnLimit =
+        chartConfig.type === 'cartesian' && chartConfig.config
+            ? chartConfig.config.columnLimit
+            : undefined;
 
     // Check if grouped view is available
     const {
@@ -265,6 +269,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         columnOrder: explorerColumnOrder,
         getField,
         getFieldLabel,
+        columnLimit,
     });
 
     const cellContextMenu = useCallback(
