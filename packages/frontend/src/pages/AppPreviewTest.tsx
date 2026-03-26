@@ -116,7 +116,12 @@ export default function AppPreviewTest() {
                             : 'Unknown error'}
                     </Text>
                 )}
-                {previewUrl && <AppIframePreview src={previewUrl} />}
+                {previewUrl && (
+                    <AppIframePreview
+                        src={previewUrl}
+                        projectUuid={projectUuid}
+                    />
+                )}
             </Paper>
         </Stack>
     );
