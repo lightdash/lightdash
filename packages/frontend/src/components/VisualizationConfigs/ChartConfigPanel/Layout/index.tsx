@@ -514,7 +514,8 @@ export const Layout: FC<Props> = ({ items }) => {
                                 step={1}
                                 allowDecimal={false}
                                 clampBehavior="strict"
-                                value={columnLimit}
+                                placeholder="No limit"
+                                value={columnLimit ?? ''}
                                 onChange={handleColumnLimitChange}
                             />
                         </Config.Section>
