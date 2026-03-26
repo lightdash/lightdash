@@ -2438,9 +2438,12 @@ const useEchartsCartesianConfig = (
         if (!itemsMap) return;
 
         const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
-        const isColorByCategory = Boolean(
-            validCartesianConfig?.layout?.colorByCategory,
-        );
+        // Color by category only applies to ungrouped single-series charts;
+        // ignore the setting when pivot dimensions are active so that the
+        // saved overrides survive and restore when the grouping is removed.
+        const isColorByCategory =
+            Boolean(validCartesianConfig?.layout?.colorByCategory) &&
+            !pivotDimensions?.length;
         const categoryColorOverrides =
             validCartesianConfig?.layout?.categoryColorOverrides;
         // xField is always the dimension (category) field regardless of flipAxes.
@@ -2598,6 +2601,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.colorByCategory,
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
+        pivotDimensions,
         series,
         rows,
         validCartesianConfigLegend,
