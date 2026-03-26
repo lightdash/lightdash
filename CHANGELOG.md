@@ -1,3 +1,16 @@
+# [0.2669.0](https://github.com/lightdash/lightdash/compare/0.2668.0...0.2669.0) (2026-03-26)
+
+
+### Bug Fixes
+
+* add diagnostics hint to CLI failures ([#21425](https://github.com/lightdash/lightdash/issues/21425)) ([e76438c](https://github.com/lightdash/lightdash/commit/e76438c1a74321298c35e869272ec19b8b6a1c8a))
+
+
+### Features
+
+* add dashboard tabs memory management feature flag ([#21397](https://github.com/lightdash/lightdash/issues/21397)) ([5f5f963](https://github.com/lightdash/lightdash/commit/5f5f963066bc6f707c7277dc1c6351f3f4b71555)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add show/hide toggle to row limiting ([#21432](https://github.com/lightdash/lightdash/issues/21432)) ([65608f4](https://github.com/lightdash/lightdash/commit/65608f4555eb555f0a7d176e56902f60973d5008))
+
 # [0.2668.0](https://github.com/lightdash/lightdash/compare/0.2667.0...0.2668.0) (2026-03-26)
 
 
