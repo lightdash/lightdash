@@ -16,6 +16,7 @@ import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists'
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
+import { verifyPreviewApiToken } from '../../routers/appPreviewToken';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.account?.isAuthenticated() || req.user?.userUuid) {
@@ -180,6 +181,58 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         .catch(() => {
             // Not an OAuth token — try service account and PAT
             authenticateWithServiceAccountOrPat();
+        });
+};
+
+/**
+ * Middleware that authenticates requests bearing an app-preview JWT.
+ * The SDK sends these via the same `Authorization: ApiKey <token>` header.
+ *
+ * Place this **before** allowApiKeyAuthentication on endpoints that the
+ * query-sdk needs to reach. If the token is not a valid preview JWT the
+ * middleware simply calls next() so the regular auth chain can try.
+ */
+export const allowAppPreviewAuthentication: RequestHandler = (
+    req,
+    res,
+    next,
+) => {
+    if (req.isAuthenticated()) {
+        next();
+        return;
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('ApiKey ')) {
+        next();
+        return;
+    }
+
+    const token = authHeader.slice('ApiKey '.length);
+    const jwtResult = verifyPreviewApiToken(
+        token,
+        lightdashConfig.lightdashSecret,
+    );
+
+    if (!jwtResult.ok) {
+        next(); // not a preview JWT — let the normal auth chain handle it
+        return;
+    }
+
+    req.services
+        .getUserService()
+        .findSessionUser({
+            id: jwtResult.payload.userUuid,
+            organization: jwtResult.payload.organizationUuid,
+        })
+        .then((user) => {
+            req.user = user;
+            req.appPreview = jwtResult.payload;
+            next();
+        })
+        .catch(() => {
+            // JWT valid but user not found — fall through to next auth method
+            next();
         });
 };
 

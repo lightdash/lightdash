@@ -44,7 +44,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
-import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
+import {
+    allowApiKeyAuthentication,
+    allowAppPreviewAuthentication,
+    isAuthenticated,
+} from '../authentication';
 import { BaseController } from '../baseController';
 
 export type ApiGetAsyncQueryResultsResponse = {
@@ -60,7 +64,11 @@ export class QueryController extends BaseController {
      * Retrieves paginated results from a previously executed async query using its UUID
      * @summary Get results
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowAppPreviewAuthentication,
+        allowApiKeyAuthentication,
+        isAuthenticated,
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{queryUuid}')
     @OperationId('getAsyncQueryResults')
@@ -128,7 +136,11 @@ export class QueryController extends BaseController {
      * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      * @summary Execute metric query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowAppPreviewAuthentication,
+        allowApiKeyAuthentication,
+        isAuthenticated,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/metric-query')
     @OperationId('executeAsyncMetricQuery')
