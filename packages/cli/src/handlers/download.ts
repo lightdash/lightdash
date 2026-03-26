@@ -55,6 +55,7 @@ export type DownloadHandlerOptions = {
     public: boolean;
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
+    skipSpaces: boolean; // Skip writing space metadata files during download
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
     gzip?: boolean;
@@ -595,6 +596,7 @@ export const downloadContent = async (
     customPath?: string,
     languageMap: boolean = false,
     nested: boolean = false,
+    skipSpaces: boolean = false,
 ): Promise<[number, string[], MetadataEntry[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
@@ -712,7 +714,9 @@ export const downloadContent = async (
     } while (offset < total);
 
     // Write space YAML files
-    await writeSpaceFiles(allSpaces, projectName, customPath, folderScheme);
+    if (!skipSpaces) {
+        await writeSpaceFiles(allSpaces, projectName, customPath, folderScheme);
+    }
 
     return [total, [...new Set(chartSlugs)], allMetadataEntries];
 };
@@ -790,6 +794,7 @@ export const downloadHandler = async (
                     options.path,
                     options.languageMap,
                     options.nested,
+                    options.skipSpaces,
                 );
             spinner.succeed(`Downloaded ${regularChartTotal} charts`);
             allMetadataEntries = [...allMetadataEntries, ...regularChartMeta];
@@ -804,6 +809,7 @@ export const downloadHandler = async (
                 options.path,
                 options.languageMap,
                 options.nested,
+                options.skipSpaces,
             );
             spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
             allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
@@ -828,6 +834,7 @@ export const downloadHandler = async (
                 options.path,
                 options.languageMap,
                 options.nested,
+                options.skipSpaces,
             );
             allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
@@ -847,6 +854,7 @@ export const downloadHandler = async (
                         options.path,
                         options.languageMap,
                         options.nested,
+                        options.skipSpaces,
                     );
                 allMetadataEntries = [
                     ...allMetadataEntries,
@@ -861,6 +869,7 @@ export const downloadHandler = async (
                     options.path,
                     options.languageMap,
                     options.nested,
+                    options.skipSpaces,
                 );
                 allMetadataEntries = [...allMetadataEntries, ...linkedSqlMeta];
 
