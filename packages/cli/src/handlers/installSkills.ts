@@ -9,10 +9,15 @@ import * as styles from '../styles';
 
 const SKILL_MANIFEST_FILENAME = '.lightdash-skill-manifest.json';
 
-const GITHUB_API_BASE =
-    'https://api.github.com/repos/lightdash/lightdash/contents';
+const DEFAULT_SOURCE_REPO = 'lightdash/lightdash';
 
-const GITHUB_RAW_BASE = `https://raw.githubusercontent.com/lightdash/lightdash/${CLI_VERSION}`;
+function getGitHubApiBase(repo: string): string {
+    return `https://api.github.com/repos/${repo}/contents`;
+}
+
+function getGitHubRawBase(repo: string): string {
+    return `https://raw.githubusercontent.com/${repo}/${CLI_VERSION}`;
+}
 
 type AgentType = 'claude' | 'cursor' | 'codex';
 
@@ -21,6 +26,7 @@ type InstallSkillsOptions = {
     agent: AgentType;
     global: boolean;
     path?: string;
+    source?: string;
 };
 
 type SkillManifest = {
@@ -95,8 +101,9 @@ function getInstallPath(options: InstallSkillsOptions): string {
 
 async function fetchGitHubDirectory(
     repoPath: string,
+    repo: string,
 ): Promise<GitHubContentItem[]> {
-    const url = `${GITHUB_API_BASE}/${repoPath}?ref=${CLI_VERSION}`;
+    const url = `${getGitHubApiBase(repo)}/${repoPath}?ref=${CLI_VERSION}`;
     GlobalState.debug(`> Fetching GitHub directory: ${url}`);
 
     const response = await fetch(url, {
@@ -147,6 +154,7 @@ function interpolateVersionPlaceholders(content: string): string {
 async function downloadSkillFiles(
     repoPath: string,
     localDir: string,
+    repo: string,
     visited = new Set<string>(),
 ): Promise<void> {
     // Prevent infinite loops with symlinks
@@ -156,14 +164,14 @@ async function downloadSkillFiles(
     }
     visited.add(repoPath);
 
-    const items = await fetchGitHubDirectory(repoPath);
+    const items = await fetchGitHubDirectory(repoPath, repo);
 
     for (const item of items) {
         const localPath = path.join(localDir, item.name);
 
         if (item.type === 'dir') {
             fs.mkdirSync(localPath, { recursive: true });
-            await downloadSkillFiles(item.path, localPath, visited);
+            await downloadSkillFiles(item.path, localPath, repo, visited);
         } else if (item.type === 'symlink' && item.target) {
             // Resolve the symlink and fetch the actual content
             const resolvedPath = resolveSymlinkTarget(item.path, item.target);
@@ -173,7 +181,10 @@ async function downloadSkillFiles(
 
             // Check if the target is a directory or file by fetching it
             try {
-                const targetItems = await fetchGitHubDirectory(resolvedPath);
+                const targetItems = await fetchGitHubDirectory(
+                    resolvedPath,
+                    repo,
+                );
                 // It's a directory, create it and download contents
                 fs.mkdirSync(localPath, { recursive: true });
                 for (const targetItem of targetItems) {
@@ -186,6 +197,7 @@ async function downloadSkillFiles(
                         await downloadSkillFiles(
                             targetItem.path,
                             targetLocalPath,
+                            repo,
                             visited,
                         );
                     } else if (targetItem.download_url) {
@@ -200,7 +212,7 @@ async function downloadSkillFiles(
                 }
             } catch {
                 // It's a file, fetch its content directly
-                const downloadUrl = `${GITHUB_RAW_BASE}/${resolvedPath}`;
+                const downloadUrl = `${getGitHubRawBase(repo)}/${resolvedPath}`;
                 const content = await fetchFileContent(downloadUrl);
                 // Ensure parent directory exists
                 fs.mkdirSync(path.dirname(localPath), { recursive: true });
@@ -219,7 +231,7 @@ async function downloadSkillFiles(
                     `> Resolving symlink: ${item.path} -> ${resolvedPath}`,
                 );
                 content = await fetchFileContent(
-                    `${GITHUB_RAW_BASE}/${resolvedPath}`,
+                    `${getGitHubRawBase(repo)}/${resolvedPath}`,
                 );
             }
 
@@ -233,8 +245,8 @@ async function downloadSkillFiles(
 }
 /* eslint-enable no-await-in-loop */
 
-async function listAvailableSkills(): Promise<string[]> {
-    const items = await fetchGitHubDirectory('skills');
+async function listAvailableSkills(repo: string): Promise<string[]> {
+    const items = await fetchGitHubDirectory('skills', repo);
     return items.filter((item) => item.type === 'dir').map((item) => item.name);
 }
 
@@ -363,6 +375,7 @@ export const installSkillsHandler = async (
     GlobalState.setVerbose(options.verbose);
 
     const installPath = getInstallPath(options);
+    const sourceRepo = options.source ?? DEFAULT_SOURCE_REPO;
 
     console.error(styles.title('\n⚡ Lightdash Skills Installer\n'));
     console.error(`Agent: ${styles.bold(options.agent)}`);
@@ -370,12 +383,15 @@ export const installSkillsHandler = async (
         `Scope: ${styles.bold(options.global ? 'global' : 'project')}`,
     );
     console.error(`Version: ${styles.bold(CLI_VERSION)}`);
+    if (sourceRepo !== DEFAULT_SOURCE_REPO) {
+        console.error(`Source: ${styles.bold(sourceRepo)}`);
+    }
     console.error(`Install path: ${styles.bold(installPath)}\n`);
 
     const spinner = GlobalState.startSpinner('Fetching available skills...');
 
     try {
-        const skills = await listAvailableSkills();
+        const skills = await listAvailableSkills(sourceRepo);
 
         if (skills.length === 0) {
             spinner.fail('No skills found in the repository');
@@ -403,7 +419,11 @@ export const installSkillsHandler = async (
                 }
 
                 fs.mkdirSync(skillLocalPath, { recursive: true });
-                await downloadSkillFiles(`skills/${skill}`, skillLocalPath);
+                await downloadSkillFiles(
+                    `skills/${skill}`,
+                    skillLocalPath,
+                    sourceRepo,
+                );
                 writeSkillManifest(skillLocalPath);
                 skillSpinner.succeed(
                     `Installed skill: ${skill} (v${CLI_VERSION})`,
