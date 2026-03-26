@@ -367,6 +367,9 @@ export const createAppPreviewRouter = (
             const contentType =
                 CONTENT_TYPE_BY_EXT[ext] || 'application/octet-stream';
 
+            // Allow cross-origin loading from sandboxed iframes (opaque origin).
+            // Safe because assets are static build artifacts, not user data.
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Content-Type', contentType);
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader(
