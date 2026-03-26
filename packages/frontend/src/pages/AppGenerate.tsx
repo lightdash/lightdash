@@ -33,7 +33,7 @@ const AppPreview: FC<{
 
     const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
+        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#token=${token}&projectUuid=${projectUuid}&baseUrl=${baseUrl}`
         : undefined;
 
     if (isLoading) {
