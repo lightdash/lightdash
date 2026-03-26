@@ -1,3 +1,10 @@
+# [0.2670.0](https://github.com/lightdash/lightdash/compare/0.2669.0...0.2670.0) (2026-03-26)
+
+
+### Features
+
+* add multi-project setup configuration via LD_SETUP_PROJECTS ([#21298](https://github.com/lightdash/lightdash/issues/21298)) ([113a08b](https://github.com/lightdash/lightdash/commit/113a08b0aec19dd96b648003eab375a4ab5e28f6))
+
 # [0.2669.0](https://github.com/lightdash/lightdash/compare/0.2668.0...0.2669.0) (2026-03-26)
 
 
