@@ -16,6 +16,7 @@ import {
     type RunQueryTags,
 } from '@lightdash/common';
 import {
+    DuckdbQueryProfileMetrics,
     DuckdbS3SessionConfig,
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
@@ -86,6 +87,7 @@ export class PreAggregationDuckDbClient {
 
     private readonly createDuckdbWarehouseClient: (args: {
         s3Config: DuckdbS3SessionConfig;
+        onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
     }) => WarehouseClient;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -103,11 +105,6 @@ export class PreAggregationDuckDbClient {
                 new DuckdbWarehouseClient({
                     ...warehouseArgs,
                     logger: Logger,
-                    onQueryProfile: (profile) => {
-                        this.prometheusMetrics?.observeDuckdbQueryProfile(
-                            profile,
-                        );
-                    },
                 }));
     }
 
@@ -123,6 +120,8 @@ export class PreAggregationDuckDbClient {
 
             this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
                 s3Config: duckdbRuntimeConfig,
+                onQueryProfile:
+                    this.prometheusMetrics?.observeDuckdbQueryProfile,
             });
 
             Logger.info('DuckDB warehouse client created and cached for reuse');

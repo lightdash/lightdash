@@ -1916,6 +1916,7 @@ export class AsyncQueryService extends ProjectService {
                     parquetS3Uri,
                     s3Config,
                     logger: this.logger,
+                    prometheusMetrics: this.prometheusMetrics,
                 });
             } else if (resultsStorageClient.isEnabled) {
                 // Default: stream JSONL to S3

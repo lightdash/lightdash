@@ -3,7 +3,6 @@ import fs from 'fs/promises';
 import {
     DuckdbWarehouseClient,
     mapFieldTypeFromTypeId,
-    resetSharedDuckdbStateForTesting,
 } from './DuckdbWarehouseClient';
 
 const createInstanceMock = jest.fn();
@@ -185,7 +184,7 @@ describe('mapFieldTypeFromTypeId', () => {
 describe('DuckdbWarehouseClient', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        resetSharedDuckdbStateForTesting();
+        DuckdbWarehouseClient.resetSharedDuckdbStateForTesting();
     });
 
     it('should return query rows and mapped fields', async () => {
