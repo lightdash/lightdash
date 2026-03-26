@@ -252,6 +252,12 @@ const ValidDashboardChartTile: FC<{
         fieldValues: Record<string, ResultValue>;
         dimensionIds: string[];
     }) => void;
+    onDrillThrough?: (params: {
+        drillPathId: string;
+        linkedChartUuid: string;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 }> = ({
     tileUuid,
@@ -260,6 +266,7 @@ const ValidDashboardChartTile: FC<{
     resultsData,
     onSeriesContextMenu,
     onDrillDown,
+    onDrillThrough,
     setEchartsRef,
 }) => {
     const addResultsCacheTime = useDashboardContext(
@@ -373,6 +380,7 @@ const ValidDashboardChartTile: FC<{
             isDashboard
             drillConfig={chart.drillConfig}
             onDrillDown={onDrillDown}
+            onDrillThrough={onDrillThrough}
             dateZoom={{ granularity: dateZoomGranularity }}
         >
             <LightdashVisualization
@@ -1636,6 +1644,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                             isTitleHidden={hideTitle}
                             onSeriesContextMenu={onSeriesContextMenu}
                             onDrillDown={handleDrillDown}
+                            onDrillThrough={handleDrillThroughFromTile}
                             setEchartsRef={setEchartRef}
                         />
                     </>
