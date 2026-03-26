@@ -101,8 +101,6 @@ declare global {
              */
             clients: ClientRepository;
             account?: Account;
-            /** Set by allowAppPreviewAuthentication middleware when the request uses a valid app preview JWT */
-            appPreview?: import('./routers/appPreviewToken').PreviewTokenPayload;
         }
 
         interface User extends SessionUser {}

@@ -227,7 +227,6 @@ export const allowAppPreviewAuthentication: RequestHandler = (
         })
         .then((user) => {
             req.user = user;
-            req.appPreview = jwtResult.payload;
             next();
         })
         .catch(() => {
