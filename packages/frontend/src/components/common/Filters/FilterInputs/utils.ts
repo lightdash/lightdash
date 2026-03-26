@@ -22,6 +22,7 @@ import {
     type Field,
     type FilterableDimension,
     type FilterableItem,
+    type Metric,
     type TableCalculation,
 } from '@lightdash/common';
 import isEmpty from 'lodash/isEmpty';
@@ -249,8 +250,8 @@ export const getConditionalRuleLabelFromItem = (
 
 export const getFilterRuleTables = (
     filterRule: BaseFilterRule,
-    field: FilterableDimension,
-    filterableFields: FilterableDimension[],
+    field: FilterableDimension | Metric,
+    filterableFields: (FilterableDimension | Metric)[],
 ): string[] => {
     if (
         isDashboardFilterRule(filterRule) &&

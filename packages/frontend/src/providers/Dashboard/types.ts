@@ -94,6 +94,7 @@ export type DashboardContextType = {
     setIsAutoRefresh: (autoRefresh: boolean) => void;
     clearCacheAndFetch: () => void;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
+    allFilterableMetricsMap: Record<string, Metric>;
     allFilterableFields: FilterableDimension[] | undefined;
     allFilterableMetrics: Metric[] | undefined;
     filterableFieldsByTileUuid:

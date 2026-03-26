@@ -11,7 +11,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
+import { type DashboardFilterRule } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -129,6 +129,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     );
     const removeMetricDashboardFilter = useDashboardContext(
         (c) => c.removeMetricDashboardFilter,
+    );
+    const updateMetricDashboardFilter = useDashboardContext(
+        (c) => c.updateMetricDashboardFilter,
+    );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
     );
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
@@ -308,23 +314,103 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 <DragOverlay />
             </DndContext>
 
-            {dashboardFilters.metrics.map((item, index) => (
-                <Button
-                    key={item.id}
-                    size="xs"
-                    variant="default"
-                    style={{ borderRadius: '100px' }}
-                    leftSection={
-                        <Badge size="xs" variant="light" color="violet">
-                            Metric
-                        </Badge>
-                    }
-                    rightSection={
-                        isEditMode && (
+            {dashboardFilters.metrics.map((item, index) => {
+                const metricField =
+                    allFilterableMetricsMap[item.target.fieldId];
+                const appliesToTabs = getTabsUsingFilter(item);
+
+                return metricField ? (
+                    <Filter
+                        key={item.id}
+                        isEditMode={isEditMode}
+                        {...getOrphanedState(item, appliesToTabs)}
+                        field={metricField}
+                        filterRule={item}
+                        openPopoverId={openPopoverId}
+                        onPopoverOpen={onPopoverOpen}
+                        onPopoverClose={onPopoverClose}
+                        onRemove={() =>
+                            removeMetricDashboardFilter(index, false)
+                        }
+                        onUpdate={(value) =>
+                            updateMetricDashboardFilter(value, index, false)
+                        }
+                    />
+                ) : (
+                    <Button
+                        key={item.id}
+                        size="xs"
+                        variant="default"
+                        style={{ borderRadius: '100px' }}
+                        leftSection={
+                            <Badge size="xs" variant="light" color="violet">
+                                Metric
+                            </Badge>
+                        }
+                        rightSection={
+                            isEditMode && (
+                                <ActionIcon
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        removeMetricDashboardFilter(
+                                            index,
+                                            false,
+                                        );
+                                    }}
+                                    size="xs"
+                                    color="dark"
+                                    radius="xl"
+                                    variant="subtle"
+                                >
+                                    <MantineIcon size="sm" icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                    >
+                        {item.label || item.target.fieldId}
+                    </Button>
+                );
+            })}
+
+            {dashboardTemporaryFilters.metrics.map((item, index) => {
+                const metricField =
+                    allFilterableMetricsMap[item.target.fieldId];
+                const appliesToTabs = getTabsUsingFilter(item);
+
+                return metricField ? (
+                    <Filter
+                        key={item.id}
+                        isTemporary
+                        isEditMode={isEditMode}
+                        {...getOrphanedState(item, appliesToTabs)}
+                        field={metricField}
+                        filterRule={item}
+                        openPopoverId={openPopoverId}
+                        onPopoverOpen={onPopoverOpen}
+                        onPopoverClose={onPopoverClose}
+                        onRemove={() =>
+                            removeMetricDashboardFilter(index, true)
+                        }
+                        onUpdate={(value) =>
+                            updateMetricDashboardFilter(value, index, true)
+                        }
+                    />
+                ) : (
+                    <Button
+                        key={item.id}
+                        size="xs"
+                        variant="default"
+                        style={{ borderRadius: '100px' }}
+                        leftSection={
+                            <Badge size="xs" variant="light" color="violet">
+                                Metric
+                            </Badge>
+                        }
+                        rightSection={
                             <ActionIcon
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    removeMetricDashboardFilter(index, false);
+                                    removeMetricDashboardFilter(index, true);
                                 }}
                                 size="xs"
                                 color="dark"
@@ -333,60 +419,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                             >
                                 <MantineIcon size="sm" icon={IconX} />
                             </ActionIcon>
-                        )
-                    }
-                >
-                    {item.label || item.target.fieldId}
-                    {item.disabled
-                        ? ''
-                        : `: ${
-                              item.operator === FilterOperator.NULL
-                                  ? 'is null'
-                                  : item.operator === FilterOperator.NOT_NULL
-                                    ? 'is not null'
-                                    : (item.values ?? []).join(', ')
-                          }`}
-                </Button>
-            ))}
-
-            {dashboardTemporaryFilters.metrics.map((item, index) => (
-                <Button
-                    key={item.id}
-                    size="xs"
-                    variant="default"
-                    style={{ borderRadius: '100px' }}
-                    leftSection={
-                        <Badge size="xs" variant="light" color="violet">
-                            Metric
-                        </Badge>
-                    }
-                    rightSection={
-                        <ActionIcon
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                removeMetricDashboardFilter(index, true);
-                            }}
-                            size="xs"
-                            color="dark"
-                            radius="xl"
-                            variant="subtle"
-                        >
-                            <MantineIcon size="sm" icon={IconX} />
-                        </ActionIcon>
-                    }
-                >
-                    {item.label || item.target.fieldId}
-                    {item.disabled
-                        ? ''
-                        : `: ${
-                              item.operator === FilterOperator.NULL
-                                  ? 'is null'
-                                  : item.operator === FilterOperator.NOT_NULL
-                                    ? 'is not null'
-                                    : (item.values ?? []).join(', ')
-                          }`}
-                </Button>
-            ))}
+                        }
+                    >
+                        {item.label || item.target.fieldId}
+                    </Button>
+                );
+            })}
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];

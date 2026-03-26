@@ -18,6 +18,7 @@ import {
     type DashboardParameters,
     type FilterableDimension,
     type InteractivityOptions,
+    type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
@@ -1121,6 +1122,22 @@ const DashboardProvider: React.FC<
               )
             : {};
     }, [dashboardAvailableFiltersData]);
+
+    const allFilterableMetricsMap = useMemo(() => {
+        return dashboardAvailableFiltersData?.allFilterableMetrics &&
+            dashboardAvailableFiltersData.allFilterableMetrics.length > 0
+            ? dashboardAvailableFiltersData.allFilterableMetrics.reduce<
+                  Record<string, Metric>
+              >(
+                  (sum, field) => ({
+                      ...sum,
+                      [getItemId(field)]: field,
+                  }),
+                  {},
+              )
+            : {};
+    }, [dashboardAvailableFiltersData]);
+
     const allFilters = useMemo(() => {
         return {
             dimensions: [
@@ -1543,6 +1560,7 @@ const DashboardProvider: React.FC<
         isAutoRefresh,
         setIsAutoRefresh,
         allFilterableFieldsMap,
+        allFilterableMetricsMap,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
         allFilterableMetrics:
             dashboardAvailableFiltersData?.allFilterableMetrics,
