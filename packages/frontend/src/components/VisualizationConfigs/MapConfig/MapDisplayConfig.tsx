@@ -153,6 +153,18 @@ export const Display: FC = memo(() => {
         };
     }, [mapChartConfig, itemsMap, resultsData?.rows]);
 
+    const tileBackgroundOptions = useMemo(
+        () => [
+            { value: MapTileBackground.NONE, label: 'None' },
+            { value: MapTileBackground.OPENSTREETMAP, label: 'OpenStreetMap' },
+            { value: MapTileBackground.LIGHT, label: 'Light' },
+            { value: MapTileBackground.DARK, label: 'Dark' },
+            { value: MapTileBackground.VOYAGER, label: 'Voyager (clean)' },
+            { value: MapTileBackground.SATELLITE, label: 'Satellite' },
+        ],
+        [],
+    );
+
     if (!mapChartConfig) {
         return null;
     }
@@ -170,6 +182,7 @@ export const Display: FC = memo(() => {
         setValueFieldId,
         setHeatmapConfig,
         setTileBackground,
+        setDarkModeTileBackground,
         setBackgroundColor,
         setNoDataColor,
         setDataLayerOpacity,
@@ -556,40 +569,36 @@ export const Display: FC = memo(() => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Background map</Config.Heading>
-                    <Select
-                        data={[
-                            { value: MapTileBackground.NONE, label: 'None' },
-                            {
-                                value: MapTileBackground.OPENSTREETMAP,
-                                label: 'OpenStreetMap',
-                            },
-                            {
-                                value: MapTileBackground.LIGHT,
-                                label: 'Light',
-                            },
-                            {
-                                value: MapTileBackground.DARK,
-                                label: 'Dark',
-                            },
-                            {
-                                value: MapTileBackground.VOYAGER,
-                                label: 'Voyager (clean)',
-                            },
-                            {
-                                value: MapTileBackground.SATELLITE,
-                                label: 'Satellite',
-                            },
-                        ]}
-                        value={
-                            validConfig.tileBackground ??
-                            MapTileBackground.OPENSTREETMAP
-                        }
-                        onChange={(value) =>
-                            setTileBackground(
-                                (value as MapTileBackground) || undefined,
-                            )
-                        }
-                    />
+                    <Config.Group>
+                        <Config.Label>Light mode</Config.Label>
+                        <Select
+                            data={tileBackgroundOptions}
+                            value={
+                                validConfig.tileBackground ??
+                                MapTileBackground.OPENSTREETMAP
+                            }
+                            onChange={(value) =>
+                                setTileBackground(
+                                    (value as MapTileBackground) || undefined,
+                                )
+                            }
+                        />
+                    </Config.Group>
+                    <Config.Group>
+                        <Config.Label>Dark mode</Config.Label>
+                        <Select
+                            data={tileBackgroundOptions}
+                            value={
+                                validConfig.darkModeTileBackground ??
+                                MapTileBackground.DARK
+                            }
+                            onChange={(value) =>
+                                setDarkModeTileBackground(
+                                    (value as MapTileBackground) || undefined,
+                                )
+                            }
+                        />
+                    </Config.Group>
                 </Config.Section>
             </Config>
         </Stack>

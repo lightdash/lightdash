@@ -1537,6 +1537,10 @@
                     "description": "URL to custom GeoJSON file",
                     "type": "string"
                 },
+                "darkModeTileBackground": {
+                    "$ref": "#/$defs/MapTileBackground",
+                    "description": "Map tile background style for dark mode (uses dark default when undefined)"
+                },
                 "dataLayerOpacity": {
                     "description": "Data layer opacity (0.1 to 1)",
                     "format": "double",

@@ -290,6 +290,8 @@ export type MapChart = {
     dataLayerOpacity?: number;
     /** Map tile background style */
     tileBackground?: MapTileBackground;
+    /** Map tile background style for dark mode (uses dark default when undefined) */
+    darkModeTileBackground?: MapTileBackground;
     /** Background color for the map (hex code) */
     backgroundColor?: string;
     /** Color for regions with no data (hex code) */

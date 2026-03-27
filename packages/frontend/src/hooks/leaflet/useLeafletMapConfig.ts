@@ -6,7 +6,7 @@ import {
     MapTileBackground,
     type MapFieldConfig,
 } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineColorScheme, useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 import { isMapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -209,6 +209,7 @@ const useLeafletMapConfig = ({
     const { visualizationConfig, resultsData, itemsMap } =
         useVisualizationContext();
     const theme = useMantineTheme();
+    const { colorScheme } = useMantineColorScheme();
 
     const chartConfig = useMemo(() => {
         if (!isMapVisualizationConfig(visualizationConfig)) return null;
@@ -236,6 +237,7 @@ const useLeafletMapConfig = ({
             sizeFieldId,
             heatmapConfig,
             tileBackground,
+            darkModeTileBackground,
             backgroundColor,
             noDataColor,
             dataLayerOpacity,
@@ -583,8 +585,15 @@ const useLeafletMapConfig = ({
                 blur: heatmapConfig?.blur ?? 15,
                 opacity: heatmapConfig?.opacity ?? 0.6,
             },
-            tile: getTileConfig(tileBackground),
-            tileBackground: tileBackground ?? MapTileBackground.OPENSTREETMAP,
+            tile: getTileConfig(
+                colorScheme === 'dark'
+                    ? (darkModeTileBackground ?? MapTileBackground.DARK)
+                    : tileBackground,
+            ),
+            tileBackground:
+                colorScheme === 'dark'
+                    ? (darkModeTileBackground ?? MapTileBackground.DARK)
+                    : (tileBackground ?? MapTileBackground.OPENSTREETMAP),
             backgroundColor: backgroundColor ?? null,
             noDataColor: noDataColor ?? '#f3f3f3',
             dataLayerOpacity: dataLayerOpacity ?? 0.7,
@@ -597,7 +606,7 @@ const useLeafletMapConfig = ({
             uniqueStringValues,
             colorOverrides,
         };
-    }, [chartConfig, resultsData, theme, itemsMap]);
+    }, [chartConfig, resultsData, theme, itemsMap, colorScheme]);
 };
 
 export default useLeafletMapConfig;
