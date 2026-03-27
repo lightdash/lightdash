@@ -1,3 +1,10 @@
+## [0.2682.2](https://github.com/lightdash/lightdash/compare/0.2682.1...0.2682.2) (2026-03-27)
+
+
+### Bug Fixes
+
+* chart legend and rendering issues with row limiting ([#21480](https://github.com/lightdash/lightdash/issues/21480)) ([4058489](https://github.com/lightdash/lightdash/commit/405848953ed98a9d0924e4ce58a9ff69ad34f660))
+
 ## [0.2682.1](https://github.com/lightdash/lightdash/compare/0.2682.0...0.2682.1) (2026-03-27)
 
 
