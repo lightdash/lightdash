@@ -118,6 +118,8 @@ export enum EventName {
     USAGE_ANALYTICS_CLICKED = 'usage_analytics_clicked',
     VIEW_UNDERLYING_DATA_CLICKED = 'view_underlying_data.clicked',
     DRILL_BY_CLICKED = 'drill_by.clicked',
+    DRILL_INTO_CLICKED = 'drill_into.clicked',
+    DRILL_INTO_BACK_CLICKED = 'drill_into.back_clicked',
     SCHEDULER_SEND_NOW_BUTTON = 'send_now_button.clicked',
     ADD_CUSTOM_DIMENSION_CLICKED = 'add_custom_dimension.clicked',
     DATE_ZOOM_CLICKED = 'date_zoom.clicked',

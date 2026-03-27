@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    buildDrillThroughState,
     CartesianSeriesType,
     ChartType,
     createDashboardFilterRuleFromField,
@@ -18,11 +19,14 @@ import {
     isCompleteLayout,
     isDashboardChartTileType,
     isFilterableField,
+    isMetric,
     isTableChartConfig,
+    normalizePivotFieldValues,
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
     type DashboardFilterRule,
+    type DrillPath,
     type EChartsSeries,
     type Field,
     type FilterDashboardToRule,
@@ -100,6 +104,7 @@ import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
+import { useDrillThroughAction } from '../../hooks/useDrillThroughAction';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
@@ -123,16 +128,20 @@ import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { type Limit } from '../ExportResults/types';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
+import DrillThroughModal from '../MetricQueryData/DrillThroughModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { DashboardExportImage } from './DashboardExportImage';
+import DrillExplorerProvider from './DrillExplorerProvider';
 import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
@@ -239,6 +248,17 @@ const ValidDashboardChartTile: FC<{
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
+    onDrillDown?: (params: {
+        drillPath: DrillPath;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
+    onDrillThrough?: (params: {
+        drillPathId: string;
+        linkedChartUuid: string;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }) => void;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
 }> = ({
     tileUuid,
@@ -246,6 +266,8 @@ const ValidDashboardChartTile: FC<{
     dashboardChartReadyQuery,
     resultsData,
     onSeriesContextMenu,
+    onDrillDown,
+    onDrillThrough,
     setEchartsRef,
 }) => {
     const addResultsCacheTime = useDashboardContext(
@@ -357,6 +379,9 @@ const ValidDashboardChartTile: FC<{
             containerWidth={containerWidth}
             containerHeight={containerHeight}
             isDashboard
+            drillConfig={chart.drillConfig}
+            onDrillDown={onDrillDown}
+            onDrillThrough={onDrillThrough}
             dateZoom={{ granularity: dateZoomGranularity }}
         >
             <LightdashVisualization
@@ -484,6 +509,7 @@ const ValidDashboardChartTileMinimal: FC<{
             containerWidth={containerWidth}
             containerHeight={containerHeight}
             isDashboard
+            drillConfig={chart.drillConfig}
             dateZoom={{ granularity: dateZoomGranularity }}
         >
             <LightdashVisualization
@@ -683,6 +709,61 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         dimensions: string[];
         pivotReference?: PivotReference;
     }>();
+
+    // Drill state: when set, mounts DrillExplorerProvider instead of the normal tile
+    const [activeDrill, setActiveDrill] = useState<{
+        drillPath: DrillPath;
+        fieldValues: Record<string, ResultValue>;
+        dimensionIds: string[];
+    }>();
+
+    // Drill export state: overrides for export modals when drill is active
+    const [drillExport, setDrillExport] = useState<{
+        getDownloadQueryUuid: (
+            limit: number | null,
+            limitType: Limit,
+        ) => Promise<string>;
+        totalResults: number | undefined;
+    }>();
+    const handleDrillExportReady = useCallback(
+        (
+            getDownloadQueryUuidFn: (
+                limit: number | null,
+                limitType: Limit,
+            ) => Promise<string>,
+            total: number | undefined,
+        ) => {
+            setDrillExport({
+                getDownloadQueryUuid: getDownloadQueryUuidFn,
+                totalResults: total,
+            });
+        },
+        [],
+    );
+
+    // Reset drill when dashboard context changes (filters, date zoom).
+    // The drill's filter values may no longer be relevant in the new context.
+    // Use JSON keys for stable comparison — object references change on
+    // unrelated re-renders (e.g., entering edit mode).
+    const dashboardFiltersKey = useDashboardContext((c) =>
+        JSON.stringify(c.dashboardFilters),
+    );
+    const dashboardTempFiltersKey = useDashboardContext((c) =>
+        JSON.stringify(c.dashboardTemporaryFilters),
+    );
+    const drillResetKey = `${dashboardFiltersKey}|${dashboardTempFiltersKey}|${dateZoomGranularity ?? ''}`;
+    const drillResetKeyRef = useRef(drillResetKey);
+    useEffect(() => {
+        if (drillResetKeyRef.current !== drillResetKey) {
+            drillResetKeyRef.current = drillResetKey;
+            if (activeDrill) {
+                setActiveDrill(undefined);
+                setDrillExport(undefined);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [drillResetKey]);
+
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
 
     const handleViewUnderlyingData = useCallback(() => {
@@ -805,11 +886,57 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         [createShareUrl, dashboardUuid],
     );
 
+    // Curated drill handler — sets activeDrill which mounts DrillExplorerProvider
+    const handleDrillDown = useCallback(
+        (params: {
+            drillPath: DrillPath;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => {
+            setActiveDrill(params);
+        },
+        [],
+    );
+
     const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
         useState<FilterDashboardToRule[]>([]);
 
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
     const [isImageExportModalOpen, setIsImageExportModalOpen] = useState(false);
+
+    // Linked chart drill-through modal state (for non-drilled tile context menu)
+    const {
+        modalState: linkedChartDrillConfig,
+        handleDrillThrough,
+        closeModal: closeDrillThroughModal,
+    } = useDrillThroughAction();
+
+    const handleDrillThroughFromTile = useCallback(
+        ({
+            drillPathId,
+            linkedChartUuid,
+            fieldValues: clickedValues,
+            dimensionIds: clickedDims,
+        }: {
+            drillPathId: string;
+            linkedChartUuid: string;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => {
+            handleDrillThrough(
+                buildDrillThroughState({
+                    sourceChartUuid: chart.uuid,
+                    drillPathId,
+                    linkedChartUuid,
+                    drillConfig: chart.drillConfig,
+                    fieldValues: clickedValues,
+                    dimensionIds: clickedDims,
+                    dimensions: explore ? getDimensions(explore) : [],
+                }),
+            );
+        },
+        [chart.uuid, chart.drillConfig, explore, handleDrillThrough],
+    );
 
     const onSeriesContextMenu = useCallback(
         (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
@@ -1415,83 +1542,124 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 }
                 {...props}
             >
-                <>
-                    <Menu
-                        opened={contextMenuIsOpen}
-                        onClose={() => setContextMenuIsOpen(false)}
-                        withinPortal
-                        closeOnItemClick
-                        closeOnEscape
-                        shadow="md"
-                        radius={0}
-                        position="bottom-start"
-                        offset={{
-                            crossAxis: 0,
-                            mainAxis: 0,
-                        }}
-                    >
-                        <Portal>
-                            <Menu.Target>
-                                <div
-                                    onContextMenu={handleCancelContextMenu}
-                                    style={{
-                                        position: 'absolute',
-                                        ...contextMenuTargetOffset,
-                                    }}
-                                />
-                            </Menu.Target>
-                        </Portal>
-
-                        <Menu.Dropdown>
-                            {viewUnderlyingDataOptions?.value && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconCopy} />
-                                    }
-                                    onClick={handleCopyToClipboard}
-                                >
-                                    Copy value
-                                </Menu.Item>
-                            )}
-                            {metricQuery && canViewUnderlyingData && (
-                                <UnderlyingDataMenuItem
-                                    metricQuery={metricQuery}
-                                    onViewUnderlyingData={
-                                        handleViewUnderlyingData
-                                    }
-                                />
-                            )}
-
-                            {canDrillInto && (
-                                <DrillDownMenuItem
-                                    {...viewUnderlyingDataOptions}
-                                    trackingData={{
-                                        organizationId: organizationUuid,
-                                        userId: account?.user?.id,
-                                        projectId: projectUuid,
-                                    }}
-                                />
-                            )}
-
-                            {dashboardTileFilterOptions.length > 0 && (
-                                <FilterDashboardTo
-                                    filters={dashboardTileFilterOptions}
-                                    onAddFilter={handleAddFilter}
-                                />
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
-
-                    <ValidDashboardChartTile
+                {activeDrill && explore ? (
+                    <DrillExplorerProvider
+                        chart={chart}
+                        explore={explore}
                         tileUuid={tileUuid}
-                        dashboardChartReadyQuery={dashboardChartReadyQuery}
-                        resultsData={resultsData}
-                        project={chart.projectUuid}
-                        isTitleHidden={hideTitle}
-                        onSeriesContextMenu={onSeriesContextMenu}
+                        initialDrill={activeDrill}
+                        onDrillEnd={() => {
+                            setActiveDrill(undefined);
+                            setDrillExport(undefined);
+                        }}
                         setEchartsRef={setEchartRef}
+                        onDrillExportReady={handleDrillExportReady}
                     />
-                </>
+                ) : (
+                    <>
+                        <Menu
+                            opened={contextMenuIsOpen}
+                            onClose={() => setContextMenuIsOpen(false)}
+                            withinPortal
+                            closeOnItemClick
+                            closeOnEscape
+                            shadow="md"
+                            radius={0}
+                            position="bottom-start"
+                            offset={{
+                                crossAxis: 0,
+                                mainAxis: 0,
+                            }}
+                        >
+                            <Portal>
+                                <Menu.Target>
+                                    <div
+                                        onContextMenu={handleCancelContextMenu}
+                                        style={{
+                                            position: 'absolute',
+                                            ...contextMenuTargetOffset,
+                                        }}
+                                    />
+                                </Menu.Target>
+                            </Portal>
+
+                            <Menu.Dropdown>
+                                {viewUnderlyingDataOptions?.value && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconCopy} />
+                                        }
+                                        onClick={handleCopyToClipboard}
+                                    >
+                                        Copy value
+                                    </Menu.Item>
+                                )}
+                                {metricQuery && canViewUnderlyingData && (
+                                    <UnderlyingDataMenuItem
+                                        metricQuery={metricQuery}
+                                        onViewUnderlyingData={
+                                            handleViewUnderlyingData
+                                        }
+                                    />
+                                )}
+
+                                {canDrillInto && (
+                                    <DrillDownMenuItem
+                                        {...viewUnderlyingDataOptions}
+                                        trackingData={{
+                                            organizationId: organizationUuid,
+                                            userId: account?.user?.id,
+                                            projectId: projectUuid,
+                                        }}
+                                    />
+                                )}
+
+                                {canViewUnderlyingData && chart.drillConfig && (
+                                    <DrillIntoSubmenu
+                                        drillConfig={chart.drillConfig}
+                                        fieldValues={normalizePivotFieldValues(
+                                            viewUnderlyingDataOptions?.fieldValues,
+                                            viewUnderlyingDataOptions?.pivotReference,
+                                        )}
+                                        clickedMetricId={
+                                            viewUnderlyingDataOptions?.item &&
+                                            isMetric(
+                                                viewUnderlyingDataOptions.item,
+                                            )
+                                                ? getItemId(
+                                                      viewUnderlyingDataOptions.item,
+                                                  )
+                                                : undefined
+                                        }
+                                        onDrillDown={handleDrillDown}
+                                        onDrillThrough={
+                                            handleDrillThroughFromTile
+                                        }
+                                    />
+                                )}
+
+                                {dashboardTileFilterOptions.length > 0 && (
+                                    <FilterDashboardTo
+                                        filters={dashboardTileFilterOptions}
+                                        onAddFilter={handleAddFilter}
+                                    />
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+
+                        <ValidDashboardChartTile
+                            tileUuid={tileUuid}
+                            dashboardChartReadyQuery={dashboardChartReadyQuery}
+                            resultsData={resultsData}
+                            project={chart.projectUuid}
+                            isTitleHidden={hideTitle}
+                            onSeriesContextMenu={onSeriesContextMenu}
+                            onDrillDown={handleDrillDown}
+                            onDrillThrough={handleDrillThroughFromTile}
+                            setEchartsRef={setEchartRef}
+                        />
+                    </>
+                )}
             </TileBase>
 
             {chart.spaceUuid && (
@@ -1527,20 +1695,36 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 isOpen={isDataExportModalOpen}
                 onClose={closeDataExportModal}
                 projectUuid={projectUuid!}
-                totalResults={totalResults}
-                getDownloadQueryUuid={getDownloadQueryUuid}
+                totalResults={
+                    activeDrill && drillExport
+                        ? drillExport.totalResults
+                        : totalResults
+                }
+                getDownloadQueryUuid={
+                    activeDrill && drillExport
+                        ? drillExport.getDownloadQueryUuid
+                        : getDownloadQueryUuid
+                }
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
                         ? (chart.chartConfig.config.showTableNames ?? false)
                         : true
                 }
                 chartName={title || chart.name}
-                columnOrder={chart.tableConfig.columnOrder}
-                customLabels={getCustomLabelsFromTableConfig(
-                    chart.chartConfig.config,
-                )}
-                hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                pivotConfig={getPivotConfig(chart)}
+                columnOrder={activeDrill ? [] : chart.tableConfig.columnOrder}
+                customLabels={
+                    activeDrill
+                        ? undefined
+                        : getCustomLabelsFromTableConfig(
+                              chart.chartConfig.config,
+                          )
+                }
+                hiddenFields={
+                    activeDrill
+                        ? undefined
+                        : getHiddenTableFields(chart.chartConfig)
+                }
+                pivotConfig={activeDrill ? undefined : getPivotConfig(chart)}
             />
             <ExportImageModal
                 echartRef={echartRef}
@@ -1548,6 +1732,17 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 isOpen={isImageExportModalOpen}
                 onClose={() => setIsImageExportModalOpen(false)}
             />
+            {linkedChartDrillConfig && (
+                <DrillThroughModal
+                    opened={!!linkedChartDrillConfig}
+                    onClose={closeDrillThroughModal}
+                    sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}
+                    linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
+                    drillSteps={linkedChartDrillConfig.drillSteps}
+                    filterSummary={linkedChartDrillConfig.filterSummary}
+                    filterDetails={linkedChartDrillConfig.filterDetails}
+                />
+            )}
         </>
     );
 };

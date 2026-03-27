@@ -409,11 +409,13 @@ const SavedChartsHeader: FC = () => {
                     metricQuery: savedChart.metricQuery,
                     tableConfig: savedChart.tableConfig,
                     pivotConfig: savedChart.pivotConfig,
+                    drillConfig: savedChart.drillConfig,
                     parameters: savedChart.parameters,
                 },
                 modals: defaultState.modals,
                 queryExecution: defaultQueryExecution,
                 preAggregate: defaultState.preAggregate,
+                drillState: null,
             };
             dispatch(explorerActions.reset(resetState));
         }

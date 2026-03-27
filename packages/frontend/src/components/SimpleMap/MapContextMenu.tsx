@@ -28,6 +28,7 @@ import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 
 const getFormattedValue = (
     rowData: Record<string, any>,
@@ -70,7 +71,8 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const { itemsMap } = useVisualizationContext();
+    const { itemsMap, drillConfig, onDrillDown, onDrillThrough, drillStack } =
+        useVisualizationContext();
     const { user } = useApp();
     const projectUuid = useProjectUuid();
 
@@ -217,6 +219,16 @@ const MapContextMenu: FC<MapContextMenuProps> = ({
                                     }}
                                 />
                             </Can>
+                        )}
+
+                        {onDrillDown && drillConfig && fieldValues && (
+                            <DrillIntoSubmenu
+                                drillConfig={drillConfig}
+                                fieldValues={fieldValues}
+                                drillStack={drillStack}
+                                onDrillDown={onDrillDown}
+                                onDrillThrough={onDrillThrough}
+                            />
                         )}
                     </>
                 )}

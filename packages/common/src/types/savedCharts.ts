@@ -6,7 +6,11 @@ import { type ChartSourceType } from './content';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+import {
+    type MetricQuery,
+    type MetricQueryRequest,
+    type SortField,
+} from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
@@ -793,6 +797,70 @@ export type ChartConfig =
 
 export type SavedChartType = ChartType;
 
+// --- Drill-into configuration ---
+
+export enum DrillPathType {
+    DRILL_DOWN = 'drillDown',
+    DRILL_THROUGH = 'drillThrough',
+}
+
+type DrillPathBase = {
+    /** Unique identifier for this drill path */
+    id: string;
+    /** Display label in the context menu (e.g., "By Region") */
+    label: string;
+};
+
+/** Drill-down path — explores deeper into the same chart by swapping dimensions/metrics */
+export type DrillDownPath = DrillPathBase & {
+    type: DrillPathType.DRILL_DOWN;
+    /** Dimensions to show in the drilled view */
+    dimensions: FieldId[];
+    /** Optional metric override — defaults to the original chart's metrics */
+    metrics?: FieldId[];
+    /** Optional sort override for the drilled view */
+    sorts?: SortField[];
+};
+
+/** How a drill-through target chart should be opened */
+export type DrillThroughTarget = 'modal' | 'navigate' | 'newTab';
+
+/** Drill-through path — navigates to another saved chart, passing clicked values as filters */
+export type DrillThroughPath = DrillPathBase & {
+    type: DrillPathType.DRILL_THROUGH;
+    /** UUID of the saved chart to display when drilling */
+    linkedChartUuid: string;
+    /** How to open the target chart. Defaults to 'modal'. */
+    target: DrillThroughTarget;
+    /** Maps source field IDs to target field IDs for cross-explore drill-through.
+     *  When absent, only same-ID fields are matched. */
+    fieldMappings?: Record<FieldId, FieldId>;
+    /** When set, this drill path only appears when the user clicks on this specific metric.
+     *  When absent, the path appears for all metrics. */
+    sourceMetricId?: FieldId;
+};
+
+/** A single preconfigured drill path that appears in the chart's context menu */
+export type DrillPath = DrillDownPath | DrillThroughPath;
+
+export const isDrillDownPath = (path: DrillPath): path is DrillDownPath =>
+    path.type === DrillPathType.DRILL_DOWN;
+
+export const isDrillThroughPath = (path: DrillPath): path is DrillThroughPath =>
+    path.type === DrillPathType.DRILL_THROUGH;
+
+/** Configuration for developer-defined drill paths on a saved chart */
+export type DrillConfig = {
+    /** Ordered list of drill paths available in the context menu */
+    paths: DrillPath[];
+};
+
+/** A stack of drill steps representing the current drill navigation state */
+export type DrillStack = Array<{
+    drillPath: DrillPath;
+    drillDimensionValues: Record<string, unknown>;
+}>;
+
 export type SavedChartDAO = Omit<
     SavedChart,
     'inheritsFromOrgOrProject' | 'access'
@@ -821,6 +889,8 @@ export type SavedChart = {
         /** Order of columns in table view */
         columnOrder: string[];
     };
+    /** Preconfigured drill paths for in-place chart drill-into */
+    drillConfig?: DrillConfig;
     /** Parameter values for the chart query */
     parameters?: ParametersValuesMap;
     /** Timestamp when the chart was last updated */
@@ -856,6 +926,7 @@ type CreateChartBase = Pick<
     | 'pivotConfig'
     | 'chartConfig'
     | 'tableConfig'
+    | 'drillConfig'
     | 'parameters'
 >;
 
@@ -1109,6 +1180,8 @@ export type ChartSummary = Pick<
     | 'dashboardName'
     | 'slug'
 > & {
+    /** Explore name — available on metric-query charts, undefined on SQL charts */
+    tableName?: string;
     chartType?: ChartType | undefined;
     chartKind?: ChartKind | undefined;
     source?: ChartSourceType;

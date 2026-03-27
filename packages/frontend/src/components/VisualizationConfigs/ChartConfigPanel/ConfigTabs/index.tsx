@@ -1,6 +1,8 @@
 import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { useDrillFeatureFlag } from '../../../../hooks/useDrillFeatureFlag';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import DrillConfigPanel from '../../DrillConfigPanel/DrillConfigPanel';
 import { getVizConfigThemeOverride } from '../../mantineTheme';
 import { Axes } from '../Axes';
 import { Grid } from '../Grid';
@@ -15,6 +17,7 @@ export const ConfigTabs: FC = memo(() => {
         [colorScheme],
     );
 
+    const drillEnabled = useDrillFeatureFlag();
     const { itemsMap } = useVisualizationContext();
 
     const items = useMemo(() => Object.values(itemsMap || {}), [itemsMap]);
@@ -38,6 +41,11 @@ export const ConfigTabs: FC = memo(() => {
                     <Tabs.Tab px="sm" value="grid">
                         Margins
                     </Tabs.Tab>
+                    {drillEnabled && (
+                        <Tabs.Tab px="sm" value="drill">
+                            Drill
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
                 <Tabs.Panel value="layout">
                     <Layout items={items} />
@@ -54,6 +62,11 @@ export const ConfigTabs: FC = memo(() => {
                 <Tabs.Panel value="grid">
                     <Grid />
                 </Tabs.Panel>
+                {drillEnabled && (
+                    <Tabs.Panel value="drill">
+                        <DrillConfigPanel />
+                    </Tabs.Panel>
+                )}
             </Tabs>
         </MantineProvider>
     );

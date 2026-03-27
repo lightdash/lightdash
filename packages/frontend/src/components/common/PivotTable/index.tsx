@@ -14,6 +14,9 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
+    type DrillConfig,
+    type DrillPath,
+    type DrillStack,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -126,6 +129,19 @@ type PivotTableProps = BoxProps & // TODO: remove this
         isMinimal: boolean;
         isDashboard?: boolean;
         onColumnWidthChange?: (fieldId: string, width: number) => void;
+        drillConfig?: DrillConfig;
+        onDrillDown?: (params: {
+            drillPath: DrillPath;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => void;
+        onDrillThrough?: (params: {
+            drillPathId: string;
+            linkedChartUuid: string;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => void;
+        drillStack?: DrillStack;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -141,6 +157,10 @@ const PivotTable: FC<PivotTableProps> = ({
     isMinimal = false,
     isDashboard = false,
     onColumnWidthChange,
+    drillConfig,
+    onDrillDown,
+    onDrillThrough,
+    drillStack,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -1077,6 +1097,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                         : undefined;
                                 })();
 
+                                // For metricsAsRows, resolve the metric field ID from the row label
+                                const cellMetricId = data.pivotConfig
+                                    .metricsAsRows
+                                    ? data.indexValues[rowIndex]?.find(
+                                          (iv) => iv.type === 'label',
+                                      )?.fieldId
+                                    : undefined;
+
                                 const suppressContextMenu =
                                     (value === undefined ||
                                         cell.getIsPlaceholder()) &&
@@ -1132,6 +1160,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 onClose={onClose}
                                                 onCopy={onCopy}
                                                 isMinimal={isMinimal}
+                                                drillConfig={drillConfig}
+                                                onDrillDown={onDrillDown}
+                                                onDrillThrough={onDrillThrough}
+                                                drillStack={drillStack}
+                                                clickedMetricId={cellMetricId}
                                             >
                                                 {render()}
                                             </ValueCellMenu>

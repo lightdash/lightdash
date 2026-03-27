@@ -71,6 +71,7 @@ export const buildInitialExplorerState = ({
                 metricQuery: savedChart.metricQuery,
                 tableConfig: savedChart.tableConfig,
                 pivotConfig: savedChart.pivotConfig,
+                drillConfig: savedChart.drillConfig,
                 parameters: savedChart.parameters,
             },
             modals: defaultState.modals,

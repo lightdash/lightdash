@@ -160,6 +160,21 @@ export type DrillByClickedEvent = {
     };
 };
 
+export type DrillIntoClickedEvent = {
+    name: EventName.DRILL_INTO_CLICKED;
+    properties: {
+        drillType: 'inline' | 'linkedChart';
+    };
+};
+
+export type DrillIntoBackClickedEvent = {
+    name: EventName.DRILL_INTO_BACK_CLICKED;
+    properties: {
+        action: 'reset' | 'popTo';
+        level?: number;
+    };
+};
+
 export type DashboardAutoRefreshUpdateEvent = {
     name: EventName.DASHBOARD_AUTO_REFRESH_UPDATED;
     properties: {
@@ -470,6 +485,8 @@ export type EventData =
     | CrossFilterDashboardAppliedEvent
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent
+    | DrillIntoClickedEvent
+    | DrillIntoBackClickedEvent
     | DashboardAutoRefreshUpdateEvent
     | MetricsCatalogClickedEvent
     | MetricsCatalogChartUsageClickedEvent

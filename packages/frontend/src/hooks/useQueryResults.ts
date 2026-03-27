@@ -45,6 +45,17 @@ export type QueryResultsProps = {
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
     pivotResults?: boolean;
+    /** When set, uses the chart-drill endpoint instead of the regular chart endpoint */
+    drillParams?: {
+        drillSteps: Array<{
+            drillPathId: string;
+            drillDimensionValues: Record<string, unknown>;
+            linkedChartUuid?: string;
+            inlineDimensions?: string[];
+            inlineMetrics?: string[];
+            inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+        }>;
+    };
 };
 
 /**
@@ -84,6 +95,34 @@ const executeAsyncSavedChartQuery = async (
     });
 };
 
+const executeAsyncSavedChartDrillQuery = async (
+    projectUuid: string,
+    data: {
+        chartUuid: string;
+        drillSteps: Array<{
+            drillPathId: string;
+            drillDimensionValues: Record<string, unknown>;
+            linkedChartUuid?: string;
+            inlineDimensions?: string[];
+            inlineMetrics?: string[];
+            inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+        }>;
+        context?: QueryExecutionContext;
+        invalidateCache?: boolean;
+        parameters?: ParametersValuesMap;
+        pivotResults?: boolean;
+    },
+    options: { signal?: AbortSignal },
+): Promise<ApiExecuteAsyncMetricQueryResults> => {
+    return lightdashApi<ApiExecuteAsyncMetricQueryResults>({
+        url: `/projects/${projectUuid}/query/chart-drill`,
+        version: 'v2',
+        method: 'POST',
+        body: JSON.stringify(data),
+        signal: options.signal,
+    });
+};
+
 export const scheduleDownloadQuery = async (
     projectUuid: string,
     queryUuid: string,
@@ -110,6 +149,22 @@ const executeAsyncQuery = (
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
 ) => {
+    // Drill-into: use chart-drill endpoint (view-level permissions)
+    if (data?.chartUuid && data?.drillParams) {
+        return executeAsyncSavedChartDrillQuery(
+            data.projectUuid,
+            {
+                chartUuid: data.chartUuid,
+                drillSteps: data.drillParams.drillSteps,
+                context: data.context ?? QueryExecutionContext.CHART,
+                invalidateCache: data.invalidateCache,
+                parameters: data.parameters,
+                pivotResults: data.pivotResults,
+            },
+            { signal },
+        );
+    }
+
     if (data?.chartUuid && data?.chartVersionUuid) {
         return executeAsyncSavedChartQuery(
             data.projectUuid,

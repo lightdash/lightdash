@@ -6,6 +6,7 @@ import {
     type DashboardFilters,
     type DashboardParameters,
     type DateGranularity,
+    type DrillStep,
     type FilterableDimension,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -168,4 +169,15 @@ export type DashboardContextType = {
     screenshotReadyTilesCount: number;
     screenshotErroredTilesCount: number;
     expectedScreenshotTilesCount: number;
+    /** Per-tile drill steps for dashboard CSV export */
+    tileDrillSteps: Record<
+        string,
+        { chartUuid: string; drillSteps: DrillStep[] }
+    >;
+    setTileDrillSteps: (
+        tileUuid: string,
+        chartUuid: string,
+        drillSteps: DrillStep[],
+    ) => void;
+    clearTileDrillSteps: (tileUuid: string) => void;
 };

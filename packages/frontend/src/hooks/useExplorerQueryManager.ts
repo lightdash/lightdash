@@ -1,9 +1,14 @@
-import { FeatureFlags, type FieldId } from '@lightdash/common';
+import {
+    drillStackToSteps,
+    FeatureFlags,
+    type FieldId,
+} from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     explorerActions,
+    selectDrillState,
     selectIsEditMode,
     selectIsMinimal,
     selectMetricQuery,
@@ -46,6 +51,7 @@ export const useExplorerQueryManager = () => {
     const parameters = useExplorerSelector(selectParameters);
     const tableName = useExplorerSelector(selectTableName);
     const isEditMode = useExplorerSelector(selectIsEditMode);
+    const drillState = useExplorerSelector(selectDrillState);
     const minimal = useExplorerSelector(selectIsMinimal);
     const parameterDefinitions = useExplorerSelector(
         selectParameterDefinitions,
@@ -169,6 +175,9 @@ export const useExplorerQueryManager = () => {
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
             savedChart: chartConfigForQuery,
+            drillParams: drillState
+                ? { drillSteps: drillStackToSteps(drillState.stack) }
+                : undefined,
         });
 
         if (mainQueryArgs) {
@@ -183,6 +192,7 @@ export const useExplorerQueryManager = () => {
         metricQuery,
         parameters,
         isEditMode,
+        drillState,
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,

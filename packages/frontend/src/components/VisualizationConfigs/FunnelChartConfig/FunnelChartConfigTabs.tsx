@@ -1,4 +1,5 @@
 import {
+    DrillPathType,
     FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
@@ -22,10 +23,12 @@ import {
     useMantineColorScheme,
 } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { useDrillFeatureFlag } from '../../../hooks/useDrillFeatureFlag';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import DrillConfigPanel from '../DrillConfigPanel/DrillConfigPanel';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { StepConfig } from './StepConfig';
 
@@ -36,6 +39,7 @@ export const ConfigTabs: FC = memo(() => {
         [colorScheme],
     );
 
+    const drillEnabled = useDrillFeatureFlag();
     const { visualizationConfig } = useVisualizationContext();
 
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
@@ -76,6 +80,11 @@ export const ConfigTabs: FC = memo(() => {
                     <Tabs.Tab px="sm" value="display">
                         Display
                     </Tabs.Tab>
+                    {drillEnabled && (
+                        <Tabs.Tab px="sm" value="drill">
+                            Drill
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
 
                 <Tabs.Panel value="general">
@@ -294,6 +303,17 @@ export const ConfigTabs: FC = memo(() => {
                         </Collapse>
                     </Stack>
                 </Tabs.Panel>
+                {drillEnabled && (
+                    <Tabs.Panel value="drill">
+                        <DrillConfigPanel
+                            allowedTypes={
+                                dataInput === FunnelChartDataInput.ROW
+                                    ? [DrillPathType.DRILL_THROUGH]
+                                    : undefined
+                            }
+                        />
+                    </Tabs.Panel>
+                )}
             </Tabs>
         </MantineProvider>
     );

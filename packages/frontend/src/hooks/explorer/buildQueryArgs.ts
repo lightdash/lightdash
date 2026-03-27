@@ -33,6 +33,16 @@ export function buildQueryArgs(options: {
     minimal: boolean;
     usePreAggregateCache?: boolean;
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+    drillParams?: {
+        drillSteps: Array<{
+            drillPathId: string;
+            drillDimensionValues: Record<string, unknown>;
+            linkedChartUuid?: string;
+            inlineDimensions?: string[];
+            inlineMetrics?: string[];
+            inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+        }>;
+    };
 }): QueryResultsProps | null {
     const {
         activeFields,
@@ -74,11 +84,12 @@ export function buildQueryArgs(options: {
             ...computedMetricQuery,
             pivotDimensions,
         },
-        ...(isEditMode ? {} : viewModeQueryArgs),
+        ...(isEditMode && !options.drillParams ? {} : viewModeQueryArgs),
         dateZoomGranularity,
         invalidateCache: minimal,
         usePreAggregateCache: options.usePreAggregateCache,
         parameters: parameters || {},
         pivotConfiguration,
+        drillParams: options.drillParams,
     };
 }

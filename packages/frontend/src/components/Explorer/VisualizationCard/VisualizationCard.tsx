@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    buildDrillThroughState,
     derivePivotConfigurationFromChart,
+    drillStackToSteps,
     ECHARTS_DEFAULT_COLORS,
+    getDimensions,
     getFieldsFromMetricQuery,
     getHiddenTableFields,
     getPivotConfig,
@@ -11,6 +14,7 @@ import {
     type ChartType,
     type EChartsSeries,
     type FieldId,
+    type ResultValue,
 } from '@lightdash/common';
 import { Button, useMantineColorScheme } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
@@ -30,6 +34,7 @@ import { createPortal } from 'react-dom';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
+    selectDrillState,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
@@ -41,6 +46,7 @@ import {
 } from '../../../features/explorer/store';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useDrillThroughAction } from '../../../hooks/useDrillThroughAction';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { Can } from '../../../providers/Ability';
@@ -49,9 +55,11 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
+import DrillDownBreadcrumb from '../../common/DrillDownBreadcrumb';
 import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
+import DrillThroughModal from '../../MetricQueryData/DrillThroughModal';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
@@ -136,6 +144,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    const drillState = useExplorerSelector(selectDrillState);
 
     const tableCalculationsMetadata = useExplorerSelector(
         selectTableCalculationsMetadata,
@@ -152,6 +161,48 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
+
+    const {
+        modalState: linkedChartDrillConfig,
+        handleDrillThrough: dispatchDrillThrough,
+        closeModal: closeDrillThroughModal,
+    } = useDrillThroughAction();
+
+    const handleDrillThrough = useCallback(
+        ({
+            drillPathId,
+            linkedChartUuid,
+            fieldValues,
+            dimensionIds,
+        }: {
+            drillPathId: string;
+            linkedChartUuid: string;
+            fieldValues: Record<string, ResultValue>;
+            dimensionIds: string[];
+        }) => {
+            const existingSteps = drillStackToSteps(drillState?.stack ?? []);
+
+            dispatchDrillThrough(
+                buildDrillThroughState({
+                    sourceChartUuid: savedChart?.uuid,
+                    drillPathId,
+                    linkedChartUuid,
+                    drillConfig: unsavedChartVersion.drillConfig,
+                    fieldValues,
+                    dimensionIds,
+                    dimensions: explore ? getDimensions(explore) : [],
+                    existingDrillSteps: existingSteps,
+                }),
+            );
+        },
+        [
+            savedChart?.uuid,
+            drillState?.stack,
+            unsavedChartVersion.drillConfig,
+            explore,
+            dispatchDrillThrough,
+        ],
+    );
 
     const openVisualizationConfig = useCallback(
         () => dispatch(explorerActions.openVisualizationConfig()),
@@ -292,6 +343,11 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 containerHeight={containerHeight}
                 isDashboard={false}
                 isEditMode={isEditMode}
+                drillConfig={unsavedChartVersion.drillConfig}
+                onDrillDown={(params) =>
+                    dispatch(explorerActions.applyDrill(params))
+                }
+                onDrillThrough={handleDrillThrough}
             >
                 <CollapsableCard
                     title="Chart"
@@ -382,6 +438,17 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                         )
                     }
                 >
+                    {drillState && explore && (
+                        <DrillDownBreadcrumb
+                            stack={drillState.stack}
+                            onReset={() =>
+                                dispatch(explorerActions.clearDrill())
+                            }
+                            onPopTo={(index) =>
+                                dispatch(explorerActions.popDrillTo(index))
+                            }
+                        />
+                    )}
                     <LightdashVisualization
                         ref={measureRef}
                         className="sentry-block ph-no-capture"
@@ -395,6 +462,18 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     />
                 </CollapsableCard>
             </VisualizationProvider>
+
+            {linkedChartDrillConfig && (
+                <DrillThroughModal
+                    opened={!!linkedChartDrillConfig}
+                    onClose={closeDrillThroughModal}
+                    sourceChartUuid={linkedChartDrillConfig.sourceChartUuid}
+                    linkedChartUuid={linkedChartDrillConfig.linkedChartUuid}
+                    drillSteps={linkedChartDrillConfig.drillSteps}
+                    filterSummary={linkedChartDrillConfig.filterSummary}
+                    filterDetails={linkedChartDrillConfig.filterDetails}
+                />
+            )}
         </ErrorBoundary>
     );
 });

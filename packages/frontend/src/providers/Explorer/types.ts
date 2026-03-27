@@ -10,6 +10,7 @@ import {
     type CustomFormat,
     type CustomVisConfig,
     type Dimension,
+    type DrillPath,
     type FieldId,
     type FunnelChartConfig,
     type GaugeChartConfig,
@@ -308,4 +309,16 @@ export interface ExplorerReduceState {
         isEnabled: boolean;
         cacheEnabled: boolean;
     };
+
+    /** State for in-place drill-into: tracks the drill stack and original query for back navigation */
+    drillState: {
+        stack: Array<{
+            drillPath: DrillPath;
+            filterLabels: Record<string, string>;
+            drillDimensionValues: Record<string, unknown>;
+        }>;
+        originalMetricQuery: MetricQuery;
+        originalChartConfig: ChartConfig;
+        originalColumnOrder: string[];
+    } | null;
 }

@@ -4,6 +4,7 @@ import { useParams } from 'react-router';
 import ErrorState from '../components/common/ErrorState';
 import Page from '../components/common/Page/Page';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import DrillThroughPage from '../components/DrillThroughPage';
 import Explorer from '../components/Explorer';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
@@ -13,6 +14,7 @@ import {
     explorerActions,
 } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
+import { useDrillThroughContext } from '../hooks/useDrillThroughContext';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
@@ -48,6 +50,7 @@ const SavedExplorerContent = memo(() => {
 });
 
 const SavedExplorer = () => {
+    const drillThroughContext = useDrillThroughContext();
     const { health } = useApp();
 
     const { savedQueryUuid, projectUuid, mode } = useParams<{
@@ -79,9 +82,11 @@ const SavedExplorer = () => {
     // Create store once with useState
     const [store] = useState(() => createExplorerStore());
 
-    // Reset store state when data/mode changes
+    // Reset store state when data/mode changes.
+    // Skip when DrillThroughPage is rendering — it manages its own data
+    // and we don't want to pollute the store with the target chart's config.
     useEffect(() => {
-        if (!data) return;
+        if (!data || drillThroughContext) return;
 
         const currentSavedChart = store.getState().explorer.savedChart;
         const isNewChart = currentSavedChart?.uuid !== data.uuid;
@@ -99,11 +104,16 @@ const SavedExplorer = () => {
         } else {
             store.dispatch(explorerActions.setSavedChart(data));
         }
-    }, [data, store, isEditMode, health.data?.query.defaultLimit]);
+    }, [data, store, isEditMode, health.data?.query.defaultLimit, drillThroughContext]);
 
     useEffect(() => {
         store.dispatch(explorerActions.setIsEditMode(isEditMode));
     }, [isEditMode, store]);
+
+    // If navigated here via drill-through, render the drill-through page
+    if (drillThroughContext) {
+        return <DrillThroughPage drillContext={drillThroughContext} />;
+    }
 
     // Check for error first
     if (error) {

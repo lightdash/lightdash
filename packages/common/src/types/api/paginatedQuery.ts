@@ -33,6 +33,35 @@ export type ExecuteAsyncSavedChartRequestParams =
         pivotResults?: boolean;
     };
 
+export type DrillStep = {
+    /** ID of the drill path from the chart's drillConfig */
+    drillPathId: string;
+    /** Raw dimension values from the clicked row, keyed by field ID */
+    drillDimensionValues: Record<string, unknown>;
+    /** For linked chart drill-through: UUID of the target chart */
+    linkedChartUuid?: string;
+    /** Inline drill path data (used when drillConfig isn't saved yet) */
+    inlineDimensions?: string[];
+    inlineMetrics?: string[];
+    inlineSorts?: Array<{ fieldId: string; descending: boolean }>;
+    /** Field mappings for cross-explore drill-through (source field ID → target field ID) */
+    inlineFieldMappings?: Record<string, string>;
+};
+
+export type ExecuteAsyncSavedChartDrillRequestParams =
+    CommonExecuteQueryRequestParams & {
+        /** Source chart UUID. Optional for drill-through (unsaved charts can drill to linked charts). */
+        chartUuid?: string;
+        /** Ordered list of drill steps to apply (supports multi-level drill) */
+        drillSteps: DrillStep[];
+        /** Optional dashboard context for drills initiated from dashboard tiles */
+        dashboardFilters?: DashboardFilters;
+        dashboardSorts?: SortField[];
+        dateZoom?: DateZoom;
+        limit?: number | null | undefined;
+        pivotResults?: boolean;
+    };
+
 export type ExecuteAsyncDashboardChartRequestParams =
     CommonExecuteQueryRequestParams & {
         chartUuid: string;
@@ -127,6 +156,7 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
+    | ExecuteAsyncSavedChartDrillRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
     | ExecuteAsyncDashboardSqlChartRequestParams;

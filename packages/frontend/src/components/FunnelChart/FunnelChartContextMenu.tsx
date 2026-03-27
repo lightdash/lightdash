@@ -1,4 +1,9 @@
-import { type ResultRow, type ResultValue } from '@lightdash/common';
+import {
+    DrillPathType,
+    FunnelChartDataInput,
+    type ResultRow,
+    type ResultValue,
+} from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
@@ -8,6 +13,7 @@ import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isFunnelVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 export type FunnelChartContextMenuProps = {
@@ -29,7 +35,13 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     onClose,
     canViewUnderlyingData,
 }) => {
-    const { visualizationConfig } = useVisualizationContext();
+    const {
+        visualizationConfig,
+        drillConfig,
+        onDrillDown,
+        onDrillThrough,
+        drillStack,
+    } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
@@ -54,14 +66,18 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
         }
     };
 
-    const handleOpenUnderlyingDataModal = () => {
-        if (!chartConfig.selectedField || !rows) return;
+    const fieldValues =
+        rows && rows.length > 0
+            ? Object.keys(rows[0]).reduce<Record<string, ResultValue>>(
+                  (acc, key) => {
+                      return { ...acc, [key]: rows[0][key].value };
+                  },
+                  {},
+              )
+            : undefined;
 
-        const fieldValues = Object.keys(rows[0]).reduce<
-            Record<string, ResultValue>
-        >((acc, key) => {
-            return { ...acc, [key]: rows[0][key].value };
-        }, {});
+    const handleOpenUnderlyingDataModal = () => {
+        if (!chartConfig.selectedField || !fieldValues) return;
 
         openUnderlyingDataModal({
             item: chartConfig.selectedField,
@@ -109,6 +125,21 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     <UnderlyingDataMenuItem
                         metricQuery={metricQuery}
                         onViewUnderlyingData={handleOpenUnderlyingDataModal}
+                    />
+                )}
+
+                {onDrillDown && drillConfig && (
+                    <DrillIntoSubmenu
+                        drillConfig={drillConfig}
+                        fieldValues={fieldValues}
+                        drillStack={drillStack}
+                        allowedTypes={
+                            chartConfig.dataInput === FunnelChartDataInput.ROW
+                                ? [DrillPathType.DRILL_THROUGH]
+                                : undefined
+                        }
+                        onDrillDown={onDrillDown}
+                        onDrillThrough={onDrillThrough}
                     />
                 )}
             </Menu.Dropdown>

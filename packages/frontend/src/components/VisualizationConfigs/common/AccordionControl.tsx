@@ -16,7 +16,7 @@ import MantineIcon from '../../common/MantineIcon';
 type Props = {
     label: string;
     onControlClick: () => void;
-    onRemove: () => void;
+    onRemove?: () => void;
     extraControlElements?: React.ReactNode;
 } & MantineAccordionControlProps;
 
@@ -60,31 +60,33 @@ export const AccordionControl: FC<Props> = ({
                 {label}
             </Text>
             <Group noWrap ml="sm" spacing="lg">
-                <Tooltip
-                    variant="xs"
-                    label={`Remove ${label}`}
-                    position="right"
-                    withinPortal
-                >
-                    <Menu withArrow offset={-2}>
-                        <Menu.Target>
-                            <ActionIcon variant="transparent">
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={onRemove}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Delete
-                                </Text>
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                </Tooltip>
+                {onRemove && (
+                    <Tooltip
+                        variant="xs"
+                        label={`Remove ${label}`}
+                        position="right"
+                        withinPortal
+                    >
+                        <Menu withArrow offset={-2}>
+                            <Menu.Target>
+                                <ActionIcon variant="transparent">
+                                    <MantineIcon icon={IconDots} />
+                                </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Item
+                                    icon={<MantineIcon icon={IconTrash} />}
+                                    color="red"
+                                    onClick={onRemove}
+                                >
+                                    <Text fz="xs" fw={500}>
+                                        Delete
+                                    </Text>
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                    </Tooltip>
+                )}
                 <Accordion.Control
                     w="sm"
                     sx={{ flex: 0 }}

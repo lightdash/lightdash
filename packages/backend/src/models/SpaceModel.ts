@@ -714,6 +714,7 @@ export class SpaceModel {
                     first_viewed_at: Date | null;
                     chart_kind: ChartKind;
                     chart_type: ChartType;
+                    explore_name: string;
                     pinned_list_uuid: string;
                     order: number;
                     validation_errors: DbValidationTable[];
@@ -738,6 +739,9 @@ export class SpaceModel {
                 `${SavedChartsTableName}.last_version_chart_kind as chart_kind`,
                 this.database.raw(
                     `(SELECT ${SavedChartVersionsTableName}.chart_type FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as chart_type`,
+                ),
+                this.database.raw(
+                    `(SELECT ${SavedChartVersionsTableName}.explore_name FROM ${SavedChartVersionsTableName} WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id ORDER BY ${SavedChartVersionsTableName}.created_at DESC LIMIT 1) as explore_name`,
                 ),
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedChartTableName}.order`,
@@ -819,6 +823,7 @@ export class SpaceModel {
                 }),
             ),
             slug: savedQuery.slug,
+            tableName: savedQuery.explore_name,
             source: ChartSourceType.DBT_EXPLORE,
             verification: null,
         }));

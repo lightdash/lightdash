@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
+    getItemId,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
     isField,
+    isMetric,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
@@ -20,12 +22,16 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
+import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
+import DrillIntoSubmenu from '../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
+    const { drillConfig, onDrillDown, onDrillThrough, drillStack } =
+        useVisualizationContext();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -131,6 +137,19 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
                     }}
                 />
             </Can>
+
+            {onDrillDown && drillConfig && (
+                <DrillIntoSubmenu
+                    drillConfig={drillConfig}
+                    fieldValues={fieldValues}
+                    drillStack={drillStack}
+                    clickedMetricId={
+                        item && isMetric(item) ? getItemId(item) : undefined
+                    }
+                    onDrillDown={onDrillDown}
+                    onDrillThrough={onDrillThrough}
+                />
+            )}
         </>
     );
 };

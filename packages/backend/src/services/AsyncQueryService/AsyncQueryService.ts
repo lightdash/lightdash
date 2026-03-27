@@ -8,6 +8,8 @@ import {
     ApiPreAggregateStatsResults,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildDrilledMetricQuery,
+    buildDrillFilters,
     CompiledDimension,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
@@ -20,6 +22,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DrillPathType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -42,6 +45,8 @@ import {
     isCustomDimension,
     isCustomSqlDimension,
     isDateItem,
+    isDrillDownPath,
+    isDrillThroughPath,
     isExploreError,
     isField,
     isJwtUser,
@@ -50,9 +55,11 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    mergeDrillFilters,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    ParameterError,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -75,6 +82,8 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DateZoom,
+    type DrillStack,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
@@ -89,6 +98,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     type RunQueryTags,
+    type SavedChartDAO,
     type SpaceSummaryBase,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -162,6 +172,7 @@ import {
     type ExecuteAsyncDashboardSqlChartArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
+    type ExecuteAsyncSavedChartDrillQueryArgs,
     type ExecuteAsyncSavedChartQueryArgs,
     type ExecuteAsyncSqlChartArgs,
     type ExecuteAsyncUnderlyingDataQueryArgs,
@@ -3425,13 +3436,67 @@ export class AsyncQueryService extends ProjectService {
             account.isRegisteredUser() ? account.user.id : null,
         );
 
-        const requestParameters: ExecuteAsyncSavedChartRequestParams = {
-            context,
-            chartUuid,
-            versionUuid,
-            limit,
-        };
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            savedChartTableName,
+            savedChartOrganizationUuid,
+        );
 
+        return this.executeChartQueryPipeline({
+            account,
+            projectUuid,
+            context,
+            invalidateCache,
+            limit,
+            parameters,
+            pivotResults,
+            savedChart,
+            metricQuery,
+            explore,
+            chartParameters: savedChartParameters,
+            requestParameters: { context, chartUuid, versionUuid, limit },
+            enablePreAggregation: true,
+        });
+    }
+
+    /**
+     * Shared execution pipeline for saved chart queries and drill queries.
+     * Handles: limit enforcement, warehouse SQL generation, parameter combination,
+     * field resolution, pivot configuration, SQL preparation, optional pre-aggregation
+     * routing, and async query dispatch.
+     */
+    private async executeChartQueryPipeline({
+        account,
+        projectUuid,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+        dateZoom,
+        savedChart,
+        metricQuery,
+        explore,
+        chartParameters,
+        requestParameters,
+        enablePreAggregation,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        invalidateCache?: boolean;
+        limit?: number | null;
+        parameters?: ParametersValuesMap;
+        pivotResults?: boolean;
+        dateZoom?: DateZoom;
+        savedChart: SavedChartDAO;
+        metricQuery: MetricQuery;
+        explore: Explore;
+        chartParameters?: ParametersValuesMap;
+        requestParameters: ExecuteAsyncQueryRequestParams;
+        enablePreAggregation: boolean;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
         const metricQueryWithLimit = applyMetricQueryLimit(
             metricQuery,
             limit,
@@ -3441,19 +3506,12 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
-            organization_uuid: savedChartOrganizationUuid,
+            organization_uuid: savedChart.organizationUuid,
             project_uuid: projectUuid,
-            chart_uuid: chartUuid,
-            explore_name: savedChartTableName,
+            chart_uuid: savedChart.uuid,
+            explore_name: savedChart.tableName,
             query_context: context,
         };
-
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            savedChartTableName,
-            savedChartOrganizationUuid,
-        );
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -3467,12 +3525,11 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        // Combine default parameter values, saved chart parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             explore,
             parameters,
-            savedChartParameters,
+            chartParameters,
         );
 
         const { fields } = await this.getMetricQueryFields({
@@ -3480,6 +3537,7 @@ export class AsyncQueryService extends ProjectService {
             explore,
             warehouseSqlBuilder,
             projectUuid,
+            dateZoom,
         });
 
         const pivotConfiguration = pivotResults
@@ -3504,35 +3562,52 @@ export class AsyncQueryService extends ProjectService {
             account,
             metricQuery: metricQueryWithLimit,
             explore,
+            dateZoom,
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery: metricQueryWithLimit,
-            explore,
-            context,
-            // TODO: allow per-chart preference to bypass pre-aggregate cache
-            forceWarehouse: false,
-        });
+        let preAggregateMetadata: CacheMetadata['preAggregate'] | undefined;
+        let preAggregateSpread: Record<string, unknown> = {};
 
-        if (routingDecision.preAggregateMetadata) {
-            this.prometheusMetrics?.incrementPreAggregateMatch(
-                routingDecision.preAggregateMetadata.hit,
-                routingDecision.preAggregateMetadata.reason?.reason,
-            );
+        if (enablePreAggregation) {
+            const routingDecision = this.getPreAggregationRoutingDecision({
+                metricQuery: metricQueryWithLimit,
+                explore,
+                context,
+                // TODO: allow per-chart preference to bypass pre-aggregate cache
+                forceWarehouse: false,
+            });
+
+            preAggregateMetadata = routingDecision.preAggregateMetadata;
+
+            if (preAggregateMetadata) {
+                this.prometheusMetrics?.incrementPreAggregateMatch(
+                    preAggregateMetadata.hit,
+                    preAggregateMetadata.reason?.reason,
+                );
+            }
+
+            this.recordPreAggregateStats({
+                projectUuid,
+                exploreName: explore.name,
+                routingDecision,
+                chartUuid: savedChart.uuid,
+                dashboardUuid: null,
+                queryContext: context,
+            });
+
+            preAggregateSpread = {
+                routingTarget: routingDecision.target,
+                ...(routingDecision.target === 'pre_aggregate' && {
+                    preAggregationRoute: routingDecision.route,
+                    userAccessControls,
+                    availableParameterDefinitions,
+                }),
+            };
         }
-
-        this.recordPreAggregateStats({
-            projectUuid,
-            exploreName: explore.name,
-            routingDecision,
-            chartUuid: savedChart.uuid,
-            dashboardUuid: null,
-            queryContext: context,
-        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -3549,12 +3624,7 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 missingParameterReferences,
                 pivotConfiguration,
-                routingTarget: routingDecision.target,
-                ...(routingDecision.target === 'pre_aggregate' && {
-                    preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
-                }),
+                ...preAggregateSpread,
             },
             requestParameters,
         );
@@ -3563,7 +3633,9 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata: {
                 ...cacheMetadata,
-                preAggregate: routingDecision.preAggregateMetadata,
+                ...(preAggregateMetadata && {
+                    preAggregate: preAggregateMetadata,
+                }),
             },
             metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
@@ -3571,6 +3643,386 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
         };
+    }
+
+    async executeAsyncSavedChartDrillQuery({
+        account,
+        projectUuid,
+        chartUuid,
+        drillSteps,
+        dashboardFilters,
+        dashboardSorts,
+        dateZoom,
+        context,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotResults,
+    }: ExecuteAsyncSavedChartDrillQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        if (!drillSteps.length) {
+            throw new ParameterError('At least one drill step is required');
+        }
+
+        if (drillSteps.length > 20) {
+            throw new ParameterError('Maximum drill depth is 20 levels');
+        }
+
+        // When chartUuid is absent (unsaved chart), all steps must carry inline data
+        const lastStepRaw = drillSteps[drillSteps.length - 1];
+        if (!chartUuid) {
+            const allStepsHaveInlineData = drillSteps.every(
+                (s) => s.linkedChartUuid || s.inlineDimensions?.length,
+            );
+            if (!allStepsHaveInlineData) {
+                throw new ParameterError(
+                    'chartUuid is required when drill steps do not include inline data',
+                );
+            }
+        }
+
+        // Load source chart only when a UUID is provided
+        const savedChart = chartUuid
+            ? await this.savedChartModel.get(chartUuid, undefined, {
+                  projectUuid,
+              })
+            : undefined;
+
+        if (savedChart && savedChart.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Chart does not belong to project');
+        }
+
+        // Resolve drill steps from chart's drillConfig, inline data, or direct linkedChartUuid
+        const resolvedSteps = drillSteps.map((step): DrillStack[number] => {
+            // Direct linked chart reference
+            if (step.linkedChartUuid) {
+                return {
+                    drillPath: {
+                        type: DrillPathType.DRILL_THROUGH,
+                        id: step.drillPathId,
+                        label: '',
+                        linkedChartUuid: step.linkedChartUuid,
+                        target: 'modal' as const,
+                        fieldMappings: step.inlineFieldMappings,
+                    },
+                    drillDimensionValues: step.drillDimensionValues,
+                };
+            }
+
+            // Prefer inline data when present (supports unsaved drill config edits)
+            if (step.inlineDimensions?.length) {
+                return {
+                    drillPath: {
+                        type: DrillPathType.DRILL_DOWN,
+                        id: step.drillPathId,
+                        label: '',
+                        dimensions: step.inlineDimensions,
+                        metrics: step.inlineMetrics,
+                        sorts: step.inlineSorts,
+                    },
+                    drillDimensionValues: step.drillDimensionValues,
+                };
+            }
+
+            // Fall back to saved drillConfig (requires source chart)
+            const drillPath = savedChart?.drillConfig?.paths.find(
+                (p) => p.id === step.drillPathId,
+            );
+            if (drillPath) {
+                return {
+                    drillPath,
+                    drillDimensionValues: step.drillDimensionValues,
+                };
+            }
+
+            throw new NotFoundError(
+                `Drill path ${step.drillPathId} not found on chart ${chartUuid ?? '(unsaved)'}`,
+            );
+        });
+
+        // Source chart permission checks (skipped for unsaved charts)
+        if (savedChart) {
+            const ctx = await this.spacePermissionService.getSpaceAccessContext(
+                account.user.id,
+                savedChart.spaceUuid,
+            );
+            if (
+                account.user.ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: savedChart.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                        access: ctx.access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
+        // Require Interactive Viewer role (same as "View underlying data")
+        const orgUuidForPermCheck =
+            savedChart?.organizationUuid ??
+            account.organization.organizationUuid;
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('UnderlyingData', {
+                    organizationUuid: orgUuidForPermCheck,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You need Interactive Viewer access to use drill-down',
+            );
+        }
+
+        // Validate inline drill path fields using source chart's explore (only when source chart exists)
+        let sourceExplore;
+        if (savedChart) {
+            sourceExplore = await this.getExplore(
+                account,
+                projectUuid,
+                savedChart.tableName,
+                savedChart.organizationUuid,
+            );
+            const availableFieldIds = new Set(
+                Object.values(sourceExplore.tables).flatMap((table) => [
+                    ...Object.keys(table.dimensions).map(
+                        (name) => `${table.name}_${name}`,
+                    ),
+                    ...Object.keys(table.metrics).map(
+                        (name) => `${table.name}_${name}`,
+                    ),
+                ]),
+            );
+
+            for (const { drillPath } of resolvedSteps) {
+                if (isDrillDownPath(drillPath)) {
+                    const drillFields = [
+                        ...drillPath.dimensions,
+                        ...(drillPath.metrics ?? []),
+                    ];
+                    const inaccessibleFields = drillFields.filter(
+                        (fieldId) => !availableFieldIds.has(fieldId),
+                    );
+                    if (inaccessibleFields.length > 0) {
+                        throw new ForbiddenError(
+                            `This drill path includes fields you don't have access to: ${inaccessibleFields.join(', ')}`,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Apply dashboard context (filters, sorts) to the base metricQuery
+        // before drill steps are applied. This mirrors what executeDashboardChartQuery does.
+        let baseMetricQuery = savedChart?.metricQuery;
+        if (baseMetricQuery && dashboardFilters && sourceExplore) {
+            baseMetricQuery = {
+                ...addDashboardFiltersToMetricQuery(
+                    baseMetricQuery,
+                    dashboardFilters,
+                    sourceExplore,
+                ),
+                sorts:
+                    dashboardSorts && dashboardSorts.length > 0
+                        ? dashboardSorts
+                        : baseMetricQuery.sorts,
+            };
+        }
+
+        // Determine final query: either chain inline steps or load linked chart
+        const lastStep = resolvedSteps[resolvedSteps.length - 1];
+        let targetChart = savedChart;
+        let currentMetricQuery = baseMetricQuery;
+        let linkedExplore;
+        const skippedDrillDimensions: string[] = [];
+
+        if (isDrillThroughPath(lastStep.drillPath)) {
+            // Linked chart drill: load the target chart and apply all filters
+            const linkedChart = await this.savedChartModel.get(
+                lastStep.drillPath.linkedChartUuid,
+                undefined,
+                { projectUuid },
+            );
+
+            if (linkedChart.projectUuid !== projectUuid) {
+                throw new ForbiddenError(
+                    'Linked chart does not belong to project',
+                );
+            }
+
+            // Check view permissions on the linked chart
+            const linkedCtx =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    account.user.id,
+                    linkedChart.spaceUuid,
+                );
+            if (
+                account.user.ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        organizationUuid: linkedChart.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject:
+                            linkedCtx.inheritsFromOrgOrProject,
+                        access: linkedCtx.access,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'You do not have access to the linked chart',
+                );
+            }
+
+            targetChart = linkedChart;
+            currentMetricQuery = linkedChart.metricQuery;
+
+            // Build set of fields available in the linked chart's explore
+            // so we only apply filters for dimensions the target chart knows about
+            linkedExplore = await this.getExplore(
+                account,
+                projectUuid,
+                linkedChart.tableName,
+                linkedChart.organizationUuid,
+            );
+            const linkedFieldIds = new Set(
+                Object.values(linkedExplore.tables).flatMap((table) => [
+                    ...Object.keys(table.dimensions).map(
+                        (name) => `${table.name}_${name}`,
+                    ),
+                    ...Object.keys(table.metrics).map(
+                        (name) => `${table.name}_${name}`,
+                    ),
+                ]),
+            );
+
+            // Apply drill filters from ALL steps to the linked chart's query,
+            // remapping source field IDs via fieldMappings and skipping unresolvable dimensions
+            for (const { drillPath, drillDimensionValues } of resolvedSteps) {
+                const mappings = isDrillThroughPath(drillPath)
+                    ? drillPath.fieldMappings
+                    : undefined;
+
+                // Remap source field IDs to target field IDs
+                const remappedDimValues: Record<string, unknown> = {};
+                for (const [key, value] of Object.entries(
+                    drillDimensionValues,
+                )) {
+                    const targetKey = mappings?.[key] ?? key;
+                    remappedDimValues[targetKey] = value;
+                }
+
+                for (const key of Object.keys(remappedDimValues)) {
+                    if (!linkedFieldIds.has(key)) {
+                        skippedDrillDimensions.push(key);
+                    }
+                }
+                const compatibleDimValues = Object.fromEntries(
+                    Object.entries(remappedDimValues).filter(([key]) =>
+                        linkedFieldIds.has(key),
+                    ),
+                );
+                if (Object.keys(compatibleDimValues).length > 0) {
+                    const drillFilters = buildDrillFilters(
+                        Object.fromEntries(
+                            Object.entries(compatibleDimValues).map(
+                                ([key, raw]) => [
+                                    key,
+                                    { raw, formatted: String(raw ?? '') },
+                                ],
+                            ),
+                        ),
+                        Object.keys(compatibleDimValues),
+                    );
+                    currentMetricQuery = {
+                        ...currentMetricQuery,
+                        filters: mergeDrillFilters(
+                            currentMetricQuery.filters,
+                            drillFilters,
+                        ),
+                    };
+                }
+            }
+        }
+
+        // Chain inline drill steps (skipped if last step was a linked chart)
+        if (!isDrillThroughPath(lastStep.drillPath) && currentMetricQuery) {
+            for (const { drillPath, drillDimensionValues } of resolvedSteps) {
+                if (isDrillDownPath(drillPath)) {
+                    const fieldValues: Record<
+                        string,
+                        { raw: unknown; formatted: string }
+                    > = Object.fromEntries(
+                        Object.entries(drillDimensionValues).map(
+                            ([key, raw]) => [
+                                key,
+                                { raw, formatted: String(raw ?? '') },
+                            ],
+                        ),
+                    );
+
+                    currentMetricQuery = buildDrilledMetricQuery(
+                        currentMetricQuery,
+                        drillPath,
+                        fieldValues,
+                        currentMetricQuery.dimensions,
+                    );
+                }
+            }
+        }
+
+        if (!targetChart || !currentMetricQuery) {
+            throw new ParameterError(
+                'Unable to resolve drill target. Ensure drill steps include a linked chart or source chart UUID is provided.',
+            );
+        }
+
+        // Get the explore for the target chart (may differ from source if linked)
+        const explore =
+            targetChart === savedChart && sourceExplore
+                ? sourceExplore
+                : (linkedExplore ??
+                  (await this.getExplore(
+                      account,
+                      projectUuid,
+                      targetChart.tableName,
+                      targetChart.organizationUuid,
+                  )));
+
+        const result = await this.executeChartQueryPipeline({
+            account,
+            projectUuid,
+            context,
+            invalidateCache,
+            limit,
+            parameters,
+            pivotResults,
+            dateZoom,
+            savedChart: targetChart,
+            metricQuery: currentMetricQuery,
+            explore,
+            chartParameters: targetChart.parameters,
+            requestParameters: { context, chartUuid, drillSteps },
+            enablePreAggregation: false,
+        });
+
+        if (skippedDrillDimensions.length > 0) {
+            const uniqueSkipped = [...new Set(skippedDrillDimensions)];
+            result.warnings = [
+                ...result.warnings,
+                {
+                    message: `Some drill filters could not be applied because the target chart does not have these fields: ${uniqueSkipped.join(', ')}. Consider adding field mappings in the drill path configuration.`,
+                    fields: uniqueSkipped,
+                },
+            ];
+        }
+
+        return result;
     }
 
     private async checkDashboardChartQueryPermissions(

@@ -11,6 +11,7 @@ import {
     type DashboardTile,
     type DashboardVersion,
     type DateGranularity,
+    type DrillStep,
     type SavedChartsInfoForDashboardAvailableFilters,
     type UpdateDashboard,
 } from '@lightdash/common';
@@ -276,11 +277,20 @@ const exportCsvDashboard = async (
     filters: DashboardFilters,
     dateZoomGranularity: DateGranularity | string | undefined,
     selectedTabs: string[] | null,
+    tileDrillSteps?: Record<
+        string,
+        { chartUuid: string; drillSteps: DrillStep[] }
+    >,
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/dashboards/${id}/exportCsv`,
         method: 'POST',
-        body: JSON.stringify({ filters, dateZoomGranularity, selectedTabs }),
+        body: JSON.stringify({
+            filters,
+            dateZoomGranularity,
+            selectedTabs,
+            tileDrillSteps,
+        }),
     });
 
 export const useExportCsvDashboard = () => {
@@ -300,6 +310,10 @@ export const useExportCsvDashboard = () => {
             filters: DashboardFilters;
             dateZoomGranularity: DateGranularity | string | undefined;
             selectedTabs: string[] | null;
+            tileDrillSteps?: Record<
+                string,
+                { chartUuid: string; drillSteps: DrillStep[] }
+            >;
         }
     >(
         (data) =>
@@ -308,6 +322,7 @@ export const useExportCsvDashboard = () => {
                 data.filters,
                 data.dateZoomGranularity,
                 data.selectedTabs,
+                data.tileDrillSteps,
             ),
         {
             mutationKey: ['export_csv_dashboard'],

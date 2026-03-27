@@ -194,6 +194,7 @@ export class CoderService extends BaseService {
             metricQuery: chart.metricQuery,
             chartConfig: chart.chartConfig,
             pivotConfig: chart.pivotConfig,
+            drillConfig: chart.drillConfig,
             dashboardSlug: chart.dashboardUuid
                 ? dashboardSlugs[chart.dashboardUuid]
                 : undefined,

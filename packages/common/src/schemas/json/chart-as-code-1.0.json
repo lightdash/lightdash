@@ -319,6 +319,10 @@
                 "metadata": {
                     "$ref": "#/$defs/Record_string.SeriesMetadata_",
                     "description": "Metadata for series (colors, etc.)"
+                },
+                "rowLimit": {
+                    "$ref": "#/$defs/RowLimit",
+                    "description": "Limit displayed rows to first/last N"
                 }
             },
             "required": ["eChartsConfig", "layout"],
@@ -999,6 +1003,129 @@
         },
         "DimensionType": {
             "enum": ["string", "number", "timestamp", "date", "boolean"],
+            "type": "string"
+        },
+        "DrillConfig": {
+            "description": "Configuration for developer-defined drill paths on a saved chart",
+            "properties": {
+                "paths": {
+                    "description": "Ordered list of drill paths available in the context menu",
+                    "items": {
+                        "$ref": "#/$defs/DrillPath"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["paths"],
+            "type": "object"
+        },
+        "DrillDownPath": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DrillPathBase"
+                },
+                {
+                    "properties": {
+                        "dimensions": {
+                            "description": "Dimensions to show in the drilled view",
+                            "items": {
+                                "$ref": "#/$defs/FieldId"
+                            },
+                            "type": "array"
+                        },
+                        "metrics": {
+                            "description": "Optional metric override — defaults to the original chart's metrics",
+                            "items": {
+                                "$ref": "#/$defs/FieldId"
+                            },
+                            "type": "array"
+                        },
+                        "sorts": {
+                            "description": "Optional sort override for the drilled view",
+                            "items": {
+                                "$ref": "#/$defs/SortField"
+                            },
+                            "type": "array"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/DrillPathType.DRILL_DOWN"
+                        }
+                    },
+                    "required": ["dimensions", "type"],
+                    "type": "object"
+                }
+            ],
+            "description": "Drill-down path — explores deeper into the same chart by swapping dimensions/metrics"
+        },
+        "DrillPath": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/DrillDownPath"
+                },
+                {
+                    "$ref": "#/$defs/DrillThroughPath"
+                }
+            ],
+            "description": "A single preconfigured drill path that appears in the chart's context menu"
+        },
+        "DrillPathBase": {
+            "properties": {
+                "id": {
+                    "description": "Unique identifier for this drill path",
+                    "type": "string"
+                },
+                "label": {
+                    "description": "Display label in the context menu (e.g., \"By Region\")",
+                    "type": "string"
+                }
+            },
+            "required": ["label", "id"],
+            "type": "object"
+        },
+        "DrillPathType.DRILL_DOWN": {
+            "enum": ["drillDown"],
+            "type": "string"
+        },
+        "DrillPathType.DRILL_THROUGH": {
+            "enum": ["drillThrough"],
+            "type": "string"
+        },
+        "DrillThroughPath": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DrillPathBase"
+                },
+                {
+                    "properties": {
+                        "fieldMappings": {
+                            "$ref": "#/$defs/Record_FieldId.FieldId_",
+                            "description": "Maps source field IDs to target field IDs for cross-explore drill-through.\nWhen absent, only same-ID fields are matched."
+                        },
+                        "linkedChartUuid": {
+                            "description": "UUID of the saved chart to display when drilling",
+                            "type": "string"
+                        },
+                        "sourceMetricId": {
+                            "$ref": "#/$defs/FieldId",
+                            "description": "When set, this drill path only appears when the user clicks on this specific metric.\nWhen absent, the path appears for all metrics."
+                        },
+                        "target": {
+                            "$ref": "#/$defs/DrillThroughTarget",
+                            "description": "How to open the target chart. Defaults to 'modal'."
+                        },
+                        "type": {
+                            "$ref": "#/$defs/DrillPathType.DRILL_THROUGH"
+                        }
+                    },
+                    "required": ["target", "linkedChartUuid", "type"],
+                    "type": "object"
+                }
+            ],
+            "description": "Drill-through path — navigates to another saved chart, passing clicked values as filters"
+        },
+        "DrillThroughTarget": {
+            "description": "How a drill-through target chart should be opened",
+            "enum": ["modal", "navigate", "newTab"],
             "type": "string"
         },
         "EChartsConfig": {
@@ -2330,6 +2457,14 @@
             "required": ["value", "field"],
             "type": "object"
         },
+        "Record_FieldId.FieldId_": {
+            "additionalProperties": {
+                "type": "string"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
+            "type": "object"
+        },
         "Record_string.ColumnProperties_": {
             "additionalProperties": {
                 "$ref": "#/$defs/ColumnProperties"
@@ -2382,6 +2517,27 @@
             "additionalProperties": {},
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
+            "type": "object"
+        },
+        "RowLimit": {
+            "properties": {
+                "count": {
+                    "description": "Number of rows to show or hide",
+                    "format": "double",
+                    "type": "number"
+                },
+                "direction": {
+                    "description": "Whether to target the first or last N rows",
+                    "enum": ["first", "last"],
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "Whether to show or hide the selected rows",
+                    "enum": ["show", "hide"],
+                    "type": "string"
+                }
+            },
+            "required": ["count", "direction", "mode"],
             "type": "object"
         },
         "SankeyChart": {
@@ -2857,6 +3013,10 @@
                     "description": "Display metrics as rows instead of columns",
                     "type": "boolean"
                 },
+                "rowLimit": {
+                    "$ref": "#/$defs/RowLimit",
+                    "description": "Limit displayed rows to first/last N"
+                },
                 "showColumnCalculation": {
                     "description": "Show column totals/calculations",
                     "type": "boolean"
@@ -3213,6 +3373,10 @@
             "description": "Timestamp when this chart was downloaded from Lightdash",
             "format": "date-time",
             "type": "string"
+        },
+        "drillConfig": {
+            "$ref": "#/$defs/DrillConfig",
+            "description": "Preconfigured drill paths for in-place chart drill-into"
         },
         "metricQuery": {
             "allOf": [

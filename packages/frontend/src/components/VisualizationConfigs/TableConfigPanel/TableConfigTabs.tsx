@@ -1,5 +1,7 @@
 import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
+import { useDrillFeatureFlag } from '../../../hooks/useDrillFeatureFlag';
+import DrillConfigPanel from '../DrillConfigPanel/DrillConfigPanel';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { ColumnCellDisplay } from './ColumnCellDisplay';
 import ConditionalFormattingList from './ConditionalFormattingList';
@@ -11,6 +13,8 @@ export const ConfigTabs: FC = memo(() => {
         () => getVizConfigThemeOverride(colorScheme),
         [colorScheme],
     );
+
+    const drillEnabled = useDrillFeatureFlag();
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -25,6 +29,11 @@ export const ConfigTabs: FC = memo(() => {
                     <Tabs.Tab px="sm" value="cell-display">
                         Cell display
                     </Tabs.Tab>
+                    {drillEnabled && (
+                        <Tabs.Tab px="sm" value="drill">
+                            Drill
+                        </Tabs.Tab>
+                    )}
                 </Tabs.List>
 
                 <Tabs.Panel value="general">
@@ -36,6 +45,11 @@ export const ConfigTabs: FC = memo(() => {
                 <Tabs.Panel value="cell-display">
                     <ColumnCellDisplay />
                 </Tabs.Panel>
+                {drillEnabled && (
+                    <Tabs.Panel value="drill">
+                        <DrillConfigPanel />
+                    </Tabs.Panel>
+                )}
             </Tabs>
         </MantineProvider>
     );

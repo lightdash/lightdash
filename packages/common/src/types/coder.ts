@@ -60,6 +60,7 @@ export type ChartAsCode = Omit<
         | 'metricQuery'
         | 'chartConfig'
         | 'pivotConfig'
+        | 'drillConfig'
         | 'slug'
         | 'parameters'
     >,

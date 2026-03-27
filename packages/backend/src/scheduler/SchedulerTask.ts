@@ -13,6 +13,7 @@ import {
     derivePivotConfigurationFromPivotConfig,
     DownloadCsvPayload,
     DownloadFileType,
+    DrillStep,
     EmailNotificationPayload,
     ExportCsvDashboardPayload,
     FeatureFlags,
@@ -3751,6 +3752,7 @@ export default class SchedulerTask {
                     dashboardFilters,
                     dateZoomGranularity,
                     selectedTabs,
+                    tileDrillSteps,
                     userUuid,
                     organizationUuid,
                     projectUuid,
@@ -3802,8 +3804,23 @@ export default class SchedulerTask {
                     .filter(isDashboardChartTileType)
                     .filter((tile) => tile.properties.savedChartUuid)
                     .filter(isInSelectedTab)
-                    .map((tile) =>
-                        limit(() =>
+                    .map((tile) => {
+                        const drillInfo = tileDrillSteps?.[tile.uuid];
+                        if (drillInfo && drillInfo.drillSteps.length > 0) {
+                            // Tile has active drill — use chart-drill endpoint
+                            return limit(() =>
+                                this.exportCsvForDrilledChartTile({
+                                    account,
+                                    projectUuid,
+                                    chartUuid:
+                                        tile.properties.savedChartUuid!,
+                                    drillSteps: drillInfo.drillSteps,
+                                    dashboardFilters,
+                                    dateZoom,
+                                }),
+                            );
+                        }
+                        return limit(() =>
                             this.exportCsvForChartTile({
                                 account,
                                 projectUuid,
@@ -3814,8 +3831,8 @@ export default class SchedulerTask {
                                 chartUuid: tile.properties.savedChartUuid!,
                                 tileUuid: tile.uuid,
                             }),
-                        ),
-                    );
+                        );
+                    });
 
                 const sqlChartTilePromises = dashboard.tiles
                     .filter(isDashboardSqlChartTile)
@@ -4040,6 +4057,56 @@ export default class SchedulerTask {
         return {
             chartName: chart.name,
             filename: chart.name,
+            fileUrl: downloadResult.fileUrl,
+        };
+    }
+
+    private async exportCsvForDrilledChartTile({
+        account,
+        projectUuid,
+        chartUuid,
+        drillSteps,
+        dashboardFilters,
+        dateZoom,
+    }: {
+        account: AccountType;
+        projectUuid: string;
+        chartUuid: string;
+        drillSteps: DrillStep[];
+        dashboardFilters: DashboardFilters;
+        dateZoom: DateZoom | undefined;
+    }): Promise<{ chartName: string; filename: string; fileUrl: string }> {
+        const query =
+            await this.asyncQueryService.executeAsyncSavedChartDrillQuery({
+                account,
+                projectUuid,
+                chartUuid,
+                drillSteps,
+                dashboardFilters,
+                dashboardSorts: [],
+                dateZoom,
+                context: QueryExecutionContext.CSV,
+                invalidateCache: true,
+                limit: null,
+            });
+        const chart =
+            await this.schedulerService.savedChartModel.get(chartUuid);
+        const downloadResult =
+            await this.asyncQueryService.downloadSyncQueryResults(
+                {
+                    account,
+                    projectUuid,
+                    queryUuid: query.queryUuid,
+                    type: DownloadFileType.CSV,
+                    onlyRaw: false,
+                    // Drilled data has different columns — skip chart-specific formatters
+                    columnOrder: [],
+                },
+                SCHEDULER_POLLING_OPTIONS,
+            );
+        return {
+            chartName: `${chart.name} (drilled)`,
+            filename: `${chart.name} (drilled)`,
             fileUrl: downloadResult.fileUrl,
         };
     }

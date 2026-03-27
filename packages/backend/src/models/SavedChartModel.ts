@@ -17,6 +17,7 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     DimensionOverrides,
+    DrillConfig,
     ECHARTS_DEFAULT_COLORS,
     Filters,
     getChartKind,
@@ -102,6 +103,7 @@ type DbSavedChartDetails = {
     chart_type: ChartConfig['type'];
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
+    drill_config: DrillConfig | null;
     parameters: AnyType | null;
     created_at: Date;
     organization_uuid: string;
@@ -206,6 +208,7 @@ const createSavedChartVersion = async (
         chartConfig,
         tableConfig,
         pivotConfig,
+        drillConfig,
         parameters,
         updatedByUser,
     }: CreateSavedChartVersion,
@@ -234,6 +237,7 @@ const createSavedChartVersion = async (
                 pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
                 chart_type: chartConfig.type,
                 chart_config: chartConfig.config,
+                drill_config: drillConfig ?? null,
                 parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
                 timezone: timezone || null,
@@ -390,6 +394,7 @@ export const createSavedChart = async (
         chartConfig,
         tableConfig,
         pivotConfig,
+        drillConfig,
         parameters,
         updatedByUser,
         spaceUuid,
@@ -444,6 +449,7 @@ export const createSavedChart = async (
             chartConfig,
             tableConfig,
             pivotConfig,
+            drillConfig,
             parameters,
             updatedByUser,
         });
@@ -995,6 +1001,7 @@ export class SavedChartModel {
                         'saved_queries_versions.created_at',
                         'saved_queries_versions.chart_config',
                         'saved_queries_versions.pivot_dimensions',
+                        'saved_queries_versions.drill_config',
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
                         `${OrganizationTableName}.organization_uuid`,
@@ -1318,6 +1325,9 @@ export class SavedChartModel {
                                   columns: savedQuery.pivot_dimensions,
                               },
                           }
+                        : {}),
+                    ...(savedQuery.drill_config
+                        ? { drillConfig: savedQuery.drill_config }
                         : {}),
                     spaceUuid: savedQuery.space_uuid,
                     spaceName: savedQuery.spaceName,
