@@ -1414,6 +1414,44 @@ export const filterSeriesWithNoData = (
 };
 
 /**
+ * Pad a dataset with empty rows for dates in a continuous range that have no
+ * data. This ensures ECharts positional mapping (row index → category index)
+ * stays correct when the axis has a continuous date range but the dataset has
+ * gaps (e.g., row-limited data with non-consecutive months).
+ *
+ * Existing rows keep all their columns; gap rows contain only the x-field key.
+ */
+export const padDatasetForContinuousAxis = (
+    data: Record<string, unknown>[],
+    continuousRange: string[],
+    xFieldId: string,
+): Record<string, unknown>[] => {
+    if (!continuousRange.length || !data.length) return data;
+
+    // Normalize dates to YYYY-MM-DD for matching, because the continuous range
+    // uses UTC (e.g., 2023-05-01T00:00:00Z) while dataset values may have a
+    // timezone offset (e.g., 2023-05-01T01:00:00Z from BST).
+    const normalizeDate = (d: string): string => d.slice(0, 10);
+
+    const dataByDate = new Map<string, Record<string, unknown>>();
+    for (const row of data) {
+        const dateVal = normalizeDate(String(row[xFieldId] ?? ''));
+        dataByDate.set(dateVal, row);
+    }
+
+    return continuousRange.map((date) => {
+        const existing = dataByDate.get(normalizeDate(date));
+        if (existing) {
+            // Overwrite the x-field value with the canonical continuous-range
+            // date so it matches xAxis.data exactly. ECharts uses strict string
+            // equality between axis categories and dataset values.
+            return { ...existing, [xFieldId]: date };
+        }
+        return { [xFieldId]: date };
+    });
+};
+
+/**
  * Generate continuous date range config for category axes with date intervals.
  * This ensures bar charts only show data points that exist in the dataset,
  * preventing ECharts from auto-extending the axis range.
@@ -1688,48 +1726,39 @@ const getEchartAxes = ({
         resultsData?.pivotDetails,
     );
     const eChartsSeries = validCartesianConfig.eChartsConfig.series;
-    // When row limiting is active, skip the continuous date range generation.
-    // ECharts category axes use positional mapping (row 0 → category 0), so
-    // when the dataset has gaps (fewer rows than generated categories), bars
-    // render at wrong positions. Letting ECharts derive categories from the
-    // dataset values ensures correct positioning at the cost of losing
-    // temporal gap awareness between non-consecutive dates.
-    const bottomAxisExtraConfig = displayedRows
-        ? {}
-        : getCategoryDateAxisConfig(
-              bottomAxisXId,
-              bottomAxisXField,
-              resultsData?.rows,
-              bottomAxisType,
-              eChartsSeries,
-          );
-    const topAxisExtraConfig = displayedRows
-        ? {}
-        : getCategoryDateAxisConfig(
-              topAxisXId,
-              topAxisXField,
-              resultsData?.rows,
-              topAxisType,
-              eChartsSeries,
-          );
-    const rightAxisExtraConfig = displayedRows
-        ? {}
-        : getCategoryDateAxisConfig(
-              rightAxisYId,
-              rightAxisYField,
-              resultsData?.rows,
-              rightAxisType,
-              eChartsSeries,
-          );
-    const leftAxisExtraConfig = displayedRows
-        ? {}
-        : getCategoryDateAxisConfig(
-              leftAxisYId,
-              leftAxisYField,
-              resultsData?.rows,
-              leftAxisType,
-              eChartsSeries,
-          );
+    // When row limiting is active, derive the continuous date range from
+    // displayedRows instead of the full result set. The dataset is padded
+    // with empty rows for gap dates (see padDatasetForContinuousAxis) so
+    // ECharts positional mapping stays correct.
+    const axisRows = displayedRows ?? resultsData?.rows;
+    const bottomAxisExtraConfig = getCategoryDateAxisConfig(
+        bottomAxisXId,
+        bottomAxisXField,
+        axisRows,
+        bottomAxisType,
+        eChartsSeries,
+    );
+    const topAxisExtraConfig = getCategoryDateAxisConfig(
+        topAxisXId,
+        topAxisXField,
+        axisRows,
+        topAxisType,
+        eChartsSeries,
+    );
+    const rightAxisExtraConfig = getCategoryDateAxisConfig(
+        rightAxisYId,
+        rightAxisYField,
+        axisRows,
+        rightAxisType,
+        eChartsSeries,
+    );
+    const leftAxisExtraConfig = getCategoryDateAxisConfig(
+        leftAxisYId,
+        leftAxisYField,
+        axisRows,
+        leftAxisType,
+        eChartsSeries,
+    );
 
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
@@ -2181,6 +2210,12 @@ const getEchartAxes = ({
                 ...rightAxisExtraConfig,
             },
         ],
+        continuousDateRange:
+            (bottomAxisExtraConfig as any)?.data ??
+            (topAxisExtraConfig as any)?.data ??
+            (leftAxisExtraConfig as any)?.data ??
+            (rightAxisExtraConfig as any)?.data ??
+            undefined,
     };
 };
 
@@ -2475,7 +2510,11 @@ const useEchartsCartesianConfig = (
 
     const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {
-            return { xAxis: [], yAxis: [] };
+            return {
+                xAxis: [] as Record<string, unknown>[],
+                yAxis: [] as Record<string, unknown>[],
+                continuousDateRange: undefined as string[] | undefined,
+            };
         }
 
         return getEchartAxes({
@@ -2952,6 +2991,30 @@ const useEchartsCartesianConfig = (
         xAxisSortedResults,
     ]);
 
+    // When the axis has a continuous date range and row limiting is active,
+    // pad the dataset with empty rows for gap dates so ECharts positional
+    // mapping (row index → category index) stays correct.
+    const paddedDataToRender = useMemo(() => {
+        const continuousRange = axes.continuousDateRange;
+        if (!continuousRange || !isShowHideRowsEnabled) return dataToRender;
+        const xFieldId = validCartesianConfig?.layout?.flipAxes
+            ? validCartesianConfig?.layout?.yField?.[0]
+            : validCartesianConfig?.layout?.xField;
+        if (!xFieldId) return dataToRender;
+        return padDatasetForContinuousAxis(
+            dataToRender,
+            continuousRange,
+            xFieldId,
+        );
+    }, [
+        dataToRender,
+        axes.continuousDateRange,
+        isShowHideRowsEnabled,
+        validCartesianConfig?.layout?.flipAxes,
+        validCartesianConfig?.layout?.yField,
+        validCartesianConfig?.layout?.xField,
+    ]);
+
     const tooltip = useMemo<TooltipOption>(() => {
         // Check if any series is line/area/scatter (use line pointer) vs bar (use shadow pointer)
         const hasLineAreaScatterSeries = series.some(
@@ -3278,7 +3341,7 @@ const useEchartsCartesianConfig = (
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
-                source: dataToRender,
+                source: paddedDataToRender,
             },
             tooltip,
             grid: currentGrid,
@@ -3318,7 +3381,7 @@ const useEchartsCartesianConfig = (
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,
-        dataToRender,
+        paddedDataToRender,
         tooltip,
         currentGrid,
         theme?.other.chartFont,

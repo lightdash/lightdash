@@ -12,6 +12,7 @@ import {
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
+    padDatasetForContinuousAxis,
 } from './useEchartsCartesianConfig';
 
 vi.mock('./../../providers/TrackingProvider');
@@ -565,6 +566,10 @@ describe('filterSeriesWithNoData', () => {
     });
 
     test('treats formatted null placeholder strings as having data', () => {
+        // getResultValueArray uses `raw ?? formatted`, so null raw values
+        // with a formatted string like '∅' appear as non-null in results.
+        // The filter correctly keeps these series because the result value
+        // is the formatted string, not null. This documents current behavior.
         const series = [makeSeries('metric_a'), makeSeries('metric_b')];
         const results = [
             { metric_a: 10, metric_b: '∅' },
@@ -577,6 +582,68 @@ describe('filterSeriesWithNoData', () => {
             true,
             rowLimit,
         );
+        // '∅' is a truthy string — series is kept. This is a known limitation:
+        // getResultValueArray falls back from null raw to formatted string.
         expect(filtered).toHaveLength(2);
+    });
+});
+
+describe('padDatasetForContinuousAxis', () => {
+    const xField = 'date_month';
+
+    test('inserts empty rows for gap dates', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-05-01', value: 20 },
+        ];
+        const range = ['2023-03-01', '2023-04-01', '2023-05-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ [xField]: '2023-03-01', value: 10 });
+        expect(result[1]).toEqual({ [xField]: '2023-04-01' });
+        expect(result[2]).toEqual({ [xField]: '2023-05-01', value: 20 });
+    });
+
+    test('matches dates despite timezone offset differences', () => {
+        const data = [
+            { [xField]: '2023-03-01T00:00:00Z', value: 10 },
+            { [xField]: '2023-05-01T01:00:00Z', value: 20 },
+        ];
+        const range = [
+            '2023-03-01T00:00:00Z',
+            '2023-04-01T00:00:00Z',
+            '2023-05-01T00:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0].value).toBe(10);
+        expect(result[1]).toEqual({ [xField]: '2023-04-01T00:00:00Z' });
+        expect(result[2].value).toBe(20);
+    });
+
+    test('returns data unchanged when no gaps', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-04-01', value: 20 },
+        ];
+        const range = ['2023-03-01', '2023-04-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(2);
+        expect(result).toEqual(data);
+    });
+
+    test('returns data unchanged when range is empty', () => {
+        const data = [{ [xField]: '2023-03-01', value: 10 }];
+        const result = padDatasetForContinuousAxis(data, [], xField);
+        expect(result).toBe(data);
+    });
+
+    test('returns data unchanged when data is empty', () => {
+        const range = ['2023-03-01', '2023-04-01'];
+        const result = padDatasetForContinuousAxis([], range, xField);
+        expect(result).toEqual([]);
     });
 });
