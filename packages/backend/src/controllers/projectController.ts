@@ -1099,6 +1099,7 @@ export class ProjectController extends BaseController {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
             force?: boolean;
+            spaceNames?: Record<string, string>;
             chartConfig: AnyType;
             description?: string | null; // Allow both undefined and null
         },
@@ -1118,6 +1119,7 @@ export class ProjectController extends BaseController {
                 chart.skipSpaceCreate,
                 chart.publicSpaceCreate,
                 chart.force,
+                chart.spaceNames,
             ),
         };
     }
@@ -1161,6 +1163,7 @@ export class ProjectController extends BaseController {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
             force?: boolean;
+            spaceNames?: Record<string, string>;
             config: AnyType;
             description?: string | null;
         },
@@ -1180,6 +1183,7 @@ export class ProjectController extends BaseController {
                 sqlChart.skipSpaceCreate,
                 sqlChart.publicSpaceCreate,
                 sqlChart.force,
+                sqlChart.spaceNames,
             ),
         };
     }
@@ -1200,6 +1204,7 @@ export class ProjectController extends BaseController {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
             force?: boolean;
+            spaceNames?: Record<string, string>;
             tiles: AnyType;
             description?: string | null; // Allow both undefined and null
         }, // Simplify filter type for tsoa
@@ -1219,6 +1224,7 @@ export class ProjectController extends BaseController {
                 dashboard.skipSpaceCreate,
                 dashboard.publicSpaceCreate,
                 dashboard.force,
+                dashboard.spaceNames,
             ),
         };
     }
