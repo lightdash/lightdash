@@ -1,3 +1,10 @@
+## [0.2675.2](https://github.com/lightdash/lightdash/compare/0.2675.1...0.2675.2) (2026-03-27)
+
+
+### Bug Fixes
+
+* upgrade liquidjs 10.25.0→10.25.1 (security) ([#21439](https://github.com/lightdash/lightdash/issues/21439)) ([d0f9d80](https://github.com/lightdash/lightdash/commit/d0f9d80e954b5bdf8193d6159fef9da59db70f64))
+
 ## [0.2675.1](https://github.com/lightdash/lightdash/compare/0.2675.0...0.2675.1) (2026-03-27)
 
 
