@@ -1660,10 +1660,11 @@ const getEchartAxes = ({
     );
     const eChartsSeries = validCartesianConfig.eChartsConfig.series;
     // When row limiting is active, skip the continuous date range generation.
-    // The continuous range creates categories for every month between min and max,
-    // but with sliced data, the dataset rows don't map to those categories correctly
-    // (ECharts falls back to positional mapping when date formats don't match).
-    // Instead, let ECharts derive categories directly from the dataset values.
+    // ECharts category axes use positional mapping (row 0 → category 0), so
+    // when the dataset has gaps (fewer rows than generated categories), bars
+    // render at wrong positions. Letting ECharts derive categories from the
+    // dataset values ensures correct positioning at the cost of losing
+    // temporal gap awareness between non-consecutive dates.
     const bottomAxisExtraConfig = displayedRows
         ? {}
         : getCategoryDateAxisConfig(
