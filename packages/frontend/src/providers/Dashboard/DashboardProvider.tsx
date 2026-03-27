@@ -1329,18 +1329,21 @@ const DashboardProvider: React.FC<
             item: DashboardFilterRule,
             index: number,
             isTemporary: boolean,
-            isInEditMode: boolean = false,
+            isInEditMode: boolean,
         ) => {
             const setFunction = isTemporary
                 ? setDashboardTemporaryFilters
                 : setDashboardFilters;
-            setFunction((previousFilters) => {
-                const isFilterSaved =
-                    dashboard?.filters.metrics[index] !== undefined ||
-                    embedDashboard?.filters.metrics[index] !== undefined;
 
-                if (!isInEditMode) {
-                    if (item.disabled) {
+            const filters =
+                dashboard?.filters?.metrics ||
+                embedDashboard?.filters?.metrics ||
+                [];
+            const isFilterSaved = filters.some(({ id }) => id === item.id);
+
+            setFunction((previousFilters) => {
+                if (!isTemporary) {
+                    if (isInEditMode) {
                         removeSavedFilterOverride(item);
                     } else {
                         const isReverted =
@@ -1357,6 +1360,7 @@ const DashboardProvider: React.FC<
                                 previousFilters.metrics[index],
                                 item,
                             );
+
                             if (hasChanged && isFilterSaved) {
                                 addSavedFilterOverride(item);
                             }
