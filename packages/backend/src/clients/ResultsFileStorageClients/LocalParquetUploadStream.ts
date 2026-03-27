@@ -1,4 +1,8 @@
-import { getErrorMessage, type ResultColumns } from '@lightdash/common';
+import {
+    formatMilliseconds,
+    getErrorMessage,
+    type ResultColumns,
+} from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
     type DuckdbS3SessionConfig,
@@ -188,7 +192,7 @@ export const createLocalParquetUploadStream = ({
                     );
 
                     logger.info(
-                        `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${metrics.totalMs} target=${parquetS3Uri}`,
+                        `Parquet conversion complete: rows=${totalRowsWritten} jsonlBytes=${localFileSize} duckdbMs=${formatMilliseconds(metrics.totalMs)} target=${parquetS3Uri}`,
                     );
 
                     return { parquetConversionMs };

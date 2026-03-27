@@ -3,6 +3,8 @@ import {
     AnyType,
     CreatePostgresCredentials,
     DimensionType,
+    formatMilliseconds,
+    getErrorMessage,
     Metric,
     MetricType,
     NotImplementedError,
@@ -51,6 +53,24 @@ type DuckdbConnection = {
 type DuckdbInstance = {
     connect: () => Promise<DuckdbConnection>;
     closeSync?: () => void;
+};
+
+type DuckdbBootstrapTiming = {
+    bootstrapMs: number;
+    httpfsMs: number;
+};
+
+type SharedInstanceAcquisition = {
+    instance: DuckdbInstance;
+    cacheHit: boolean;
+    semaphoreWaitMs: number;
+    instanceCreateMs: number;
+    bootstrapMs: number;
+};
+
+type SharedConnectionAcquisition = SharedInstanceAcquisition & {
+    connection: DuckdbConnection;
+    connectMs: number;
 };
 
 export type DuckdbS3SessionConfig = {
@@ -309,11 +329,12 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     private static async bootstrapQuerySession(
         db: DuckdbConnection,
         client: DuckdbWarehouseClient,
-    ): Promise<void> {
-        const t0 = performance.now();
+    ): Promise<DuckdbBootstrapTiming> {
+        const bootstrapStart = performance.now();
+        const httpfsStart = performance.now();
         await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
-        const httpfsMs = performance.now() - t0;
+        const httpfsMs = performance.now() - httpfsStart;
 
         await db.run('SET enable_http_metadata_cache = true;');
         await db.run('SET enable_external_file_cache = true;');
@@ -339,18 +360,37 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             );
         }
 
+        const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
-            `DuckDB query bootstrap: httpfs=${Math.round(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'}`,
+            `DuckDB query bootstrap complete: cacheKey=${client.instanceCacheKey ?? 'none'} bootstrap=${formatMilliseconds(bootstrapMs)}ms httpfs=${formatMilliseconds(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'} shared=${client.instanceCacheKey ? 'true' : 'false'}`,
+            {
+                shared: !!client.instanceCacheKey,
+                instanceCacheKey: client.instanceCacheKey,
+                bootstrapMs,
+                httpfsMs,
+                memoryLimit:
+                    client.sharedResourceLimits?.memoryLimit ?? 'default',
+                threads: client.sharedResourceLimits?.threads ?? 'default',
+                s3Configured: !!client.s3Config,
+            },
         );
+
+        return {
+            bootstrapMs,
+            httpfsMs,
+        };
     }
 
     private static async bootstrapSharedInstance(
         instance: DuckdbInstance,
         client: DuckdbWarehouseClient,
-    ): Promise<void> {
+    ): Promise<DuckdbBootstrapTiming> {
         const db = await instance.connect();
         try {
-            await DuckdbWarehouseClient.bootstrapQuerySession(db, client);
+            return await DuckdbWarehouseClient.bootstrapQuerySession(
+                db,
+                client,
+            );
         } finally {
             db.closeSync?.();
             db.disconnectSync?.();
@@ -359,37 +399,51 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private static async getOrCreateSharedInstance(
         client: DuckdbWarehouseClient,
-    ): Promise<DuckdbInstance> {
+    ): Promise<SharedInstanceAcquisition> {
         const instanceCacheKey = client.getRequiredInstanceCacheKey();
 
         const existingInstance =
             DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
         if (existingInstance) {
-            return existingInstance;
+            return {
+                instance: existingInstance,
+                cacheHit: true,
+                semaphoreWaitMs: 0,
+                instanceCreateMs: 0,
+                bootstrapMs: 0,
+            };
         }
 
         const semaphore =
             DuckdbWarehouseClient.getSharedInstanceSemaphore(instanceCacheKey);
+        const semaphoreWaitStart = performance.now();
         await semaphore.acquire();
+        const semaphoreWaitMs = performance.now() - semaphoreWaitStart;
         try {
             const cachedInstance =
                 DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
             if (cachedInstance) {
-                return cachedInstance;
+                return {
+                    instance: cachedInstance,
+                    cacheHit: true,
+                    semaphoreWaitMs,
+                    instanceCreateMs: 0,
+                    bootstrapMs: 0,
+                };
             }
 
-            const t0 = performance.now();
+            const createStart = performance.now();
             const instance = await DuckDBInstance.create(':memory:');
-            const createMs = performance.now() - t0;
-            client.logger?.info(
-                `DuckDB shared instance created: cacheKey=${instanceCacheKey} createMs=${Math.round(createMs)}ms`,
-            );
+            const instanceCreateMs = performance.now() - createStart;
 
+            let bootstrapMs = 0;
             try {
-                await DuckdbWarehouseClient.bootstrapSharedInstance(
-                    instance,
-                    client,
-                );
+                const bootstrapTiming =
+                    await DuckdbWarehouseClient.bootstrapSharedInstance(
+                        instance,
+                        client,
+                    );
+                bootstrapMs = bootstrapTiming.bootstrapMs;
             } catch (error) {
                 instance.closeSync?.();
                 throw error;
@@ -399,7 +453,22 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 instanceCacheKey,
                 instance,
             );
-            return instance;
+            client.logger?.info(
+                `DuckDB shared instance initialized: cacheKey=${instanceCacheKey} semaphore_wait=${formatMilliseconds(semaphoreWaitMs)}ms instance_create=${formatMilliseconds(instanceCreateMs)}ms bootstrap=${formatMilliseconds(bootstrapMs)}ms`,
+                {
+                    instanceCacheKey,
+                    semaphoreWaitMs,
+                    instanceCreateMs,
+                    bootstrapMs,
+                },
+            );
+            return {
+                instance,
+                cacheHit: false,
+                semaphoreWaitMs,
+                instanceCreateMs,
+                bootstrapMs,
+            };
         } finally {
             semaphore.release();
         }
@@ -466,10 +535,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     private static readonly CONNECT_RETRIES_BEFORE_RECREATE = 2;
 
-    private async connectWithRetry(): Promise<DuckdbConnection> {
+    private async connectWithRetry(): Promise<SharedConnectionAcquisition> {
         const instanceCacheKey = this.getRequiredInstanceCacheKey();
-        const instance =
+        let semaphoreWaitMs = 0;
+        let instanceCreateMs = 0;
+        let bootstrapMs = 0;
+
+        let sharedInstanceAcquisition =
             await DuckdbWarehouseClient.getOrCreateSharedInstance(this);
+
+        semaphoreWaitMs += sharedInstanceAcquisition.semaphoreWaitMs;
+        instanceCreateMs += sharedInstanceAcquisition.instanceCreateMs;
+        bootstrapMs += sharedInstanceAcquisition.bootstrapMs;
 
         for (
             let attempt = 1;
@@ -477,25 +554,64 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             attempt += 1
         ) {
             try {
-                // eslint-disable-next-line no-await-in-loop
-                return await instance.connect();
+                const connectStart = performance.now();
+                const connection =
+                    // eslint-disable-next-line no-await-in-loop
+                    await sharedInstanceAcquisition.instance.connect();
+
+                const connectMs = performance.now() - connectStart;
+
+                return {
+                    connection,
+                    cacheHit: sharedInstanceAcquisition.cacheHit,
+                    semaphoreWaitMs,
+                    instanceCreateMs,
+                    bootstrapMs,
+                    connectMs,
+                    instance: sharedInstanceAcquisition.instance,
+                };
             } catch (error) {
                 this.logger?.info(
-                    `DuckDB connect attempt ${attempt} failed: ${error}`,
+                    `DuckDB shared connection attempt failed: cacheKey=${instanceCacheKey} attempt=${attempt} error=${getErrorMessage(error)}`,
+                    {
+                        instanceCacheKey,
+                        attempt,
+                        error: getErrorMessage(error),
+                    },
                 );
             }
         }
 
         this.logger?.info(
             'DuckDB connect retries exhausted, recreating shared instance',
+            {
+                instanceCacheKey,
+            },
         );
         DuckdbWarehouseClient.clearSharedInstance(
             instanceCacheKey,
             this.logger,
         );
-        const freshInstance =
+        sharedInstanceAcquisition =
             await DuckdbWarehouseClient.getOrCreateSharedInstance(this);
-        return freshInstance.connect();
+
+        semaphoreWaitMs += sharedInstanceAcquisition.semaphoreWaitMs;
+        instanceCreateMs += sharedInstanceAcquisition.instanceCreateMs;
+        bootstrapMs += sharedInstanceAcquisition.bootstrapMs;
+
+        const connectStart = performance.now();
+        const connection = await sharedInstanceAcquisition.instance.connect();
+        const connectMs = performance.now() - connectStart;
+
+        return {
+            connection,
+            cacheHit: false,
+            semaphoreWaitMs,
+            instanceCreateMs,
+            bootstrapMs,
+            connectMs,
+            instance: sharedInstanceAcquisition.instance,
+        };
     }
 
     /** Bootstrap for isolated instances — no shared locks needed. */
@@ -535,9 +651,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     ): Promise<T> {
         const sessionStart = performance.now();
 
+        const instanceCreateStart = performance.now();
         const instance = await DuckDBInstance.create(':memory:');
+        const instanceCreateMs = performance.now() - instanceCreateStart;
+
+        const connectStart = performance.now();
         const connection = await instance.connect();
-        const connectMs = performance.now() - sessionStart;
+        const connectMs = performance.now() - connectStart;
 
         const tempDir = await fs.mkdtemp(
             path.join(os.tmpdir(), 'duckdb-temp-'),
@@ -554,7 +674,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
             const totalMs = performance.now() - sessionStart;
             this.logger?.info(
-                `DuckDB isolated session: connect=${Math.round(connectMs)}ms bootstrap=${Math.round(bootstrapMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+                `DuckDB isolated session complete: instance_create=${formatMilliseconds(instanceCreateMs)}ms connect=${formatMilliseconds(connectMs)}ms bootstrap=${formatMilliseconds(bootstrapMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                {
+                    instanceCreateMs,
+                    connectMs,
+                    bootstrapMs,
+                    queryMs,
+                    totalMs,
+                    tempDir,
+                },
             );
 
             return result;
@@ -573,14 +701,20 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     ): Promise<T> {
         const sessionStart = performance.now();
 
+        const instanceCreateStart = performance.now();
         const instance = await DuckDBInstance.create(':memory:');
+        const instanceCreateMs = performance.now() - instanceCreateStart;
+
+        const connectStart = performance.now();
         const connection = await instance.connect();
-        const connectMs = performance.now() - sessionStart;
+        const connectMs = performance.now() - connectStart;
 
         try {
-            const bootstrapStart = performance.now();
-            await DuckdbWarehouseClient.bootstrapQuerySession(connection, this);
-            const bootstrapMs = performance.now() - bootstrapStart;
+            const bootstrapTiming =
+                await DuckdbWarehouseClient.bootstrapQuerySession(
+                    connection,
+                    this,
+                );
 
             const queryStart = performance.now();
             const result = await callback(connection);
@@ -588,7 +722,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
             const totalMs = performance.now() - sessionStart;
             this.logger?.info(
-                `DuckDB ephemeral query session: connect=${Math.round(connectMs)}ms bootstrap=${Math.round(bootstrapMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+                `DuckDB ephemeral query session complete: instance_create=${formatMilliseconds(instanceCreateMs)}ms connect=${formatMilliseconds(connectMs)}ms bootstrap=${formatMilliseconds(bootstrapTiming.bootstrapMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                {
+                    instanceCreateMs,
+                    connectMs,
+                    bootstrapMs: bootstrapTiming.bootstrapMs,
+                    queryMs,
+                    totalMs,
+                },
             );
 
             return result;
@@ -604,23 +745,32 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     ): Promise<T> {
         const sessionStart = performance.now();
 
-        const connection = await this.connectWithRetry();
-        const connectMs = performance.now() - sessionStart;
+        const sharedConnection = await this.connectWithRetry();
 
         try {
             const queryStart = performance.now();
-            const result = await callback(connection);
+            const result = await callback(sharedConnection.connection);
             const queryMs = performance.now() - queryStart;
 
             const totalMs = performance.now() - sessionStart;
             this.logger?.info(
-                `DuckDB shared session (reusing instance): connect=${Math.round(connectMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+                `DuckDB shared session complete: cacheKey=${this.instanceCacheKey ?? 'none'} cache_hit=${sharedConnection.cacheHit ? 'true' : 'false'} semaphore_wait=${formatMilliseconds(sharedConnection.semaphoreWaitMs)}ms instance_create=${formatMilliseconds(sharedConnection.instanceCreateMs)}ms bootstrap=${formatMilliseconds(sharedConnection.bootstrapMs)}ms connect=${formatMilliseconds(sharedConnection.connectMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                {
+                    instanceCacheKey: this.instanceCacheKey,
+                    cacheHit: sharedConnection.cacheHit,
+                    semaphoreWaitMs: sharedConnection.semaphoreWaitMs,
+                    instanceCreateMs: sharedConnection.instanceCreateMs,
+                    bootstrapMs: sharedConnection.bootstrapMs,
+                    connectMs: sharedConnection.connectMs,
+                    queryMs,
+                    totalMs,
+                },
             );
 
             return result;
         } finally {
-            connection.closeSync?.();
-            connection.disconnectSync?.();
+            sharedConnection.connection.closeSync?.();
+            sharedConnection.connection.disconnectSync?.();
         }
     }
 
@@ -688,9 +838,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                 if (node.operator_name) {
                     operators.push({
                         name: String(node.operator_name).trim(),
-                        timingMs: Math.round(
-                            (node.operator_timing ?? 0) * 1000,
-                        ),
+                        timingMs: (node.operator_timing ?? 0) * 1000,
                         rows: node.operator_cardinality ?? 0,
                     });
                 }
@@ -702,11 +850,14 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             walk(profile);
 
             const operatorStr = operators
-                .map((op) => `${op.name}=${op.timingMs}ms(${op.rows}rows)`)
+                .map(
+                    (op) =>
+                        `${op.name}=${formatMilliseconds(op.timingMs)}ms(${op.rows}rows)`,
+                )
                 .join(' ');
-            const latencyMs = Math.round((profile.latency ?? 0) * 1000);
-            const cpuMs = Math.round((profile.cpu_time ?? 0) * 1000);
-            const waitMs = Math.max(latencyMs - cpuMs, 0);
+            const latencyMs = (profile.latency ?? 0) * 1000;
+            const cpuMs = (profile.cpu_time ?? 0) * 1000;
+            const waitMs = latencyMs - cpuMs;
             const readParquetOperators = operators.filter(
                 (op) => op.name === 'READ_PARQUET',
             );
@@ -734,7 +885,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
                     ? rowsScanned / Math.max(rowsReturned, 1)
                     : null;
             logger.info(
-                `DuckDB query profile: latency=${latencyMs}ms cpu=${cpuMs}ms rows=${profile.rows_returned} bytes_read=${profile.total_bytes_read} operators=[${operatorStr}]`,
+                `DuckDB query profile: latency=${formatMilliseconds(latencyMs)}ms cpu=${formatMilliseconds(cpuMs)}ms wait=${formatMilliseconds(waitMs)}ms rows=${rowsReturned ?? 'unknown'} bytes_read=${bytesRead ?? 'unknown'} operators=[${operatorStr}]`,
                 {
                     ...tags,
                     latencyMs,
@@ -964,9 +1115,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         });
 
         return {
-            bootstrapMs: Math.round(bootstrapMs),
-            queryMs: Math.round(queryMs),
-            totalMs: Math.round(performance.now() - totalStart),
+            bootstrapMs,
+            queryMs,
+            totalMs: performance.now() - totalStart,
         };
     }
 
