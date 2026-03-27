@@ -150,17 +150,14 @@ describe('getExpectedSeriesMap', () => {
     });
 
     describe('with columnLimit', () => {
-        test('should return only the first N series when columnLimit is set', () => {
+        test('should return all series when columnLimit covers all pivot groups', () => {
             const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
-            const allKeys = Object.keys(allResult);
 
             const result = getExpectedSeriesMap({
                 ...pivotSeriesMapArgs,
                 columnLimit: 2,
             });
-            const keys = Object.keys(result);
-            expect(keys).toHaveLength(2);
-            expect(keys).toStrictEqual(allKeys.slice(0, 2));
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
         });
 
         test('should return all series when columnLimit exceeds available', () => {
@@ -210,17 +207,17 @@ describe('getExpectedSeriesMap', () => {
             );
         });
 
-        test('should return exactly 1 series when columnLimit is 1', () => {
-            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
-            const allKeys = Object.keys(allResult);
-
+        test('should keep all metrics for the first pivot group when columnLimit is 1', () => {
             const result = getExpectedSeriesMap({
                 ...pivotSeriesMapArgs,
                 columnLimit: 1,
             });
             const keys = Object.keys(result);
-            expect(keys).toHaveLength(1);
-            expect(keys[0]).toBe(allKeys[0]);
+            expect(keys).toHaveLength(2);
+            expect(keys).toStrictEqual([
+                'my_dimension|my_metric.dimension_x.a',
+                'my_dimension|my_second_metric.dimension_x.a',
+            ]);
         });
     });
 });

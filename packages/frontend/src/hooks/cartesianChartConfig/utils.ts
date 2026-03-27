@@ -72,7 +72,18 @@ export const getExpectedSeriesMap = ({
 
         let rowKeyValues = Object.values(rowKeyMap);
         if (columnLimit !== undefined && columnLimit > 0) {
-            rowKeyValues = rowKeyValues.slice(0, columnLimit);
+            const seenGroups = new Set<string>();
+            rowKeyValues = rowKeyValues.filter((rowKey) => {
+                if (typeof rowKey === 'string') return true;
+                const groupKey = rowKey.pivotValues
+                    ?.map((pv) => `${pv.field}:${pv.value}`)
+                    .join('|');
+                if (groupKey && !seenGroups.has(groupKey)) {
+                    if (seenGroups.size >= columnLimit) return false;
+                    seenGroups.add(groupKey);
+                }
+                return true;
+            });
         }
 
         expectedSeriesMap = rowKeyValues.reduce<Record<string, Series>>(
