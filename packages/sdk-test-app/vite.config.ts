@@ -9,13 +9,20 @@ const sdkPackageJson = JSON.parse(
 
 export default defineConfig({
     plugins: [react()],
+    optimizeDeps: {
+        exclude: ['@lightdash/common'],
+    },
     server: {
         port: 3002,
         host: true,
     },
     resolve: {
         alias: {
-            '@lightdash/sdk/sdk.css': resolve(__dirname, '../frontend/sdk/dist/sdk.css'),
+            '@lightdash/common': resolve(__dirname, '../common/src/index.ts'),
+            '@lightdash/sdk/sdk.css': resolve(
+                __dirname,
+                '../frontend/sdk/dist/sdk.css',
+            ),
             '@lightdash/sdk': resolve(__dirname, '../frontend/sdk/index.tsx'),
         },
     },
@@ -24,5 +31,5 @@ export default defineConfig({
         __SDK_VERSION__: JSON.stringify(sdkPackageJson.version),
         REACT_QUERY_DEVTOOLS_ENABLED:
             process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? false,
-    }
+    },
 });

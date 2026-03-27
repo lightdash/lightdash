@@ -1,5 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import React from 'react';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock react-router hooks
@@ -281,6 +282,24 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         // Any navigation within the SDK should not affect window.location
         expect(window.location.pathname).toBe('/test');
         expect(window.location.search).toBe('');
+    });
+
+    it('should reuse an existing router context without nesting routers', async () => {
+        const { container } = render(
+            <MemoryRouter>
+                <Dashboard
+                    token={mockToken}
+                    instanceUrl={mockInstanceUrl}
+                    filters={[]}
+                />
+            </MemoryRouter>,
+        );
+
+        await waitFor(() => {
+            expect(container).toBeTruthy();
+        });
+
+        expect(mockNavigate).not.toHaveBeenCalled();
     });
 
     it('should accept async token provider', async () => {
