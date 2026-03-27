@@ -1483,6 +1483,7 @@ const getEchartAxes = ({
     validCartesianConfig,
     series,
     resultsData,
+    displayedRows,
     minsAndMaxes,
     parameters,
 }: {
@@ -1490,6 +1491,7 @@ const getEchartAxes = ({
     itemsMap: ItemsMap;
     series: EChartsSeries[];
     resultsData: InfiniteQueryResults | undefined;
+    displayedRows?: ResultRow[];
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
 }) => {
@@ -1657,31 +1659,32 @@ const getEchartAxes = ({
         resultsData?.pivotDetails,
     );
     const eChartsSeries = validCartesianConfig.eChartsConfig.series;
+    const axisRows = displayedRows ?? resultsData?.rows;
     const bottomAxisExtraConfig = getCategoryDateAxisConfig(
         bottomAxisXId,
         bottomAxisXField,
-        resultsData?.rows,
+        axisRows,
         bottomAxisType,
         eChartsSeries,
     );
     const topAxisExtraConfig = getCategoryDateAxisConfig(
         topAxisXId,
         topAxisXField,
-        resultsData?.rows,
+        axisRows,
         topAxisType,
         eChartsSeries,
     );
     const rightAxisExtraConfig = getCategoryDateAxisConfig(
         rightAxisYId,
         rightAxisYField,
-        resultsData?.rows,
+        axisRows,
         rightAxisType,
         eChartsSeries,
     );
     const leftAxisExtraConfig = getCategoryDateAxisConfig(
         leftAxisYId,
         leftAxisYField,
-        resultsData?.rows,
+        axisRows,
         leftAxisType,
         eChartsSeries,
     );
@@ -2444,6 +2447,10 @@ const useEchartsCartesianConfig = (
             series,
             validCartesianConfig,
             resultsData,
+            displayedRows:
+                isShowHideRowsEnabled && validCartesianConfig?.rowLimit
+                    ? rows
+                    : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
         });
@@ -2452,6 +2459,8 @@ const useEchartsCartesianConfig = (
         validCartesianConfig,
         series,
         resultsData,
+        rows,
+        isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
     ]);
