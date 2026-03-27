@@ -1,11 +1,11 @@
 {
     "name": "@lightdash/sdk-test-app",
-    "private": true,
     "version": "0.0.0",
+    "private": true,
     "type": "module",
     "scripts": {
-        "start": "vite serve",
-        "dev": "vite",
+        "start": "vite preview --host --port 3002",
+        "dev": "vite --host --port 3002",
         "build": "vite build",
         "generate-embed-token": "node --import tsx generate-embed-token.ts"
     },
