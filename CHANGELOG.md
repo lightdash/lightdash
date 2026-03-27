@@ -1,3 +1,10 @@
+## [0.2675.3](https://github.com/lightdash/lightdash/compare/0.2675.2...0.2675.3) (2026-03-27)
+
+
+### Bug Fixes
+
+* upgrade google-auth-library 8.9.0→9.0.0 (security) ([#21468](https://github.com/lightdash/lightdash/issues/21468)) ([f484eca](https://github.com/lightdash/lightdash/commit/f484ecabc93af3fce36bfb600921d692dd122981))
+
 ## [0.2675.2](https://github.com/lightdash/lightdash/compare/0.2675.1...0.2675.2) (2026-03-27)
 
 
