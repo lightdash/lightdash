@@ -4,6 +4,7 @@ import {
     MapTileBackground,
 } from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
+import { captureException } from '@sentry/react';
 import { IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
@@ -441,6 +442,24 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         const { activeTile, tileLayerEventHandlers } = useTileFallback(
             mapConfig?.tile ?? { url: null, attribution: '' },
             mapConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP,
+            useCallback((event) => {
+                captureException(
+                    new Error(
+                        `Map tile provider fallback: ${event.from} → ${event.to}`,
+                    ),
+                    {
+                        tags: {
+                            component: 'SimpleMap',
+                            tileProviderFrom: event.from,
+                            tileProviderTo: event.to,
+                        },
+                        extra: {
+                            errorCount: event.errorCount,
+                            successCount: event.successCount,
+                        },
+                    },
+                );
+            }, []),
         );
         const { shouldShowMenu } = useContextMenuPermissions({ minimal });
 
