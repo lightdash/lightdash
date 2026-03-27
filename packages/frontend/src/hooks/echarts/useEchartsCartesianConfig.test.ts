@@ -1,10 +1,18 @@
-import { TimeFrames, type Field, type ResultRow } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    TimeFrames,
+    type EChartsSeries,
+    type Field,
+    type ResultRow,
+} from '@lightdash/common';
 import { describe, expect, test, vi } from 'vitest';
 import {
+    filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
+    padDatasetForContinuousAxis,
 } from './useEchartsCartesianConfig';
 
 vi.mock('./../../providers/TrackingProvider');
@@ -400,5 +408,298 @@ describe('getCategoryDateAxisConfig', () => {
             // 21 days = 3 weeks, so 4 data points: Jan 1, 8, 15, 22
             expect(result.data).toHaveLength(4);
         });
+    });
+});
+
+describe('filterSeriesWithNoData', () => {
+    const makeSeries = (tooltipKey: string | undefined): EChartsSeries =>
+        ({
+            type: CartesianSeriesType.BAR,
+            encode: tooltipKey
+                ? {
+                      x: 'date',
+                      y: tooltipKey,
+                      tooltip: [tooltipKey],
+                      seriesName: tooltipKey,
+                  }
+                : undefined,
+        }) as EChartsSeries;
+
+    const rowLimit = {
+        mode: 'show' as const,
+        direction: 'first' as const,
+        count: 5,
+    };
+
+    test('removes series whose data column is all null in visible results', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: null },
+            { metric_a: 20, metric_b: null },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
+    });
+
+    test('removes series whose data column is all undefined in visible results', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: undefined },
+            { metric_a: 20 },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
+    });
+
+    test('keeps series with zero values (falsy but valid data)', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: 0 },
+            { metric_a: 20, metric_b: 0 },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series with empty string values (falsy but not null/undefined)', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: '' },
+            { metric_a: 20, metric_b: '' },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series with no encode/tooltip (fallback: keep everything)', () => {
+        const series = [makeSeries('metric_a'), makeSeries(undefined)];
+        const results = [{ metric_a: 10 }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('returns unfilteredSeries when results array is empty', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results: Record<string, unknown>[] = [];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('returns unfilteredSeries when isShowHideRowsEnabled is false', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [{ metric_a: 10, metric_b: null }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            false,
+            rowLimit,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('returns unfilteredSeries when rowLimit is undefined', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [{ metric_a: 10, metric_b: null }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            undefined,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('keeps series when at least one row has non-null data', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: null },
+            { metric_a: 20, metric_b: 5 },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('treats formatted null placeholder strings as having data', () => {
+        // getResultValueArray uses `raw ?? formatted`, so null raw values
+        // with a formatted string like '∅' appear as non-null in results.
+        // The filter correctly keeps these series because the result value
+        // is the formatted string, not null. This documents current behavior.
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: '∅' },
+            { metric_a: 20, metric_b: '∅' },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        // '∅' is a truthy string — series is kept. This is a known limitation:
+        // getResultValueArray falls back from null raw to formatted string.
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series when any tooltip key has data (multiple tooltip keys)', () => {
+        const seriesWithMultipleKeys = {
+            type: CartesianSeriesType.BAR,
+            encode: {
+                x: 'date',
+                y: 'metric_b',
+                tooltip: ['label_col', 'metric_b'],
+                seriesName: 'metric_b',
+            },
+        } as EChartsSeries;
+        const series = [makeSeries('metric_a'), seriesWithMultipleKeys];
+        const results = [
+            { metric_a: 10, label_col: null, metric_b: 5 },
+            { metric_a: 20, label_col: null, metric_b: null },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+});
+
+describe('padDatasetForContinuousAxis', () => {
+    const xField = 'date_month';
+
+    test('inserts empty rows for gap dates', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-05-01', value: 20 },
+        ];
+        const range = ['2023-03-01', '2023-04-01', '2023-05-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ [xField]: '2023-03-01', value: 10 });
+        expect(result[1]).toEqual({ [xField]: '2023-04-01' });
+        expect(result[2]).toEqual({ [xField]: '2023-05-01', value: 20 });
+    });
+
+    test('matches dates despite timezone offset differences', () => {
+        const data = [
+            { [xField]: '2023-03-01T00:00:00Z', value: 10 },
+            { [xField]: '2023-05-01T01:00:00Z', value: 20 },
+        ];
+        const range = [
+            '2023-03-01T00:00:00Z',
+            '2023-04-01T00:00:00Z',
+            '2023-05-01T00:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0].value).toBe(10);
+        expect(result[1]).toEqual({ [xField]: '2023-04-01T00:00:00Z' });
+        expect(result[2].value).toBe(20);
+    });
+
+    test('returns data unchanged when no gaps', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-04-01', value: 20 },
+        ];
+        const range = ['2023-03-01', '2023-04-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(2);
+        expect(result).toEqual(data);
+    });
+
+    test('returns data unchanged when range is empty', () => {
+        const data = [{ [xField]: '2023-03-01', value: 10 }];
+        const result = padDatasetForContinuousAxis(data, [], xField);
+        expect(result).toBe(data);
+    });
+
+    test('returns data unchanged when data is empty', () => {
+        const range = ['2023-03-01', '2023-04-01'];
+        const result = padDatasetForContinuousAxis([], range, xField);
+        expect(result).toEqual([]);
+    });
+
+    test('drops rows whose dates are not in the continuous range', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-06-01', value: 30 },
+        ];
+        const range = ['2023-03-01', '2023-04-01', '2023-05-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ [xField]: '2023-03-01', value: 10 });
+        expect(result[1]).toEqual({ [xField]: '2023-04-01' });
+        expect(result[2]).toEqual({ [xField]: '2023-05-01' });
+    });
+
+    test('rewrites x-field to canonical range value while preserving other columns', () => {
+        const data = [
+            { [xField]: '2023-03-01T01:00:00Z', value: 10, extra: 'a' },
+            { [xField]: '2023-04-01T01:00:00Z', value: 20, extra: 'b' },
+        ];
+        const range = ['2023-03-01T00:00:00Z', '2023-04-01T00:00:00Z'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(2);
+        expect(result[0][xField]).toBe('2023-03-01T00:00:00Z');
+        expect(result[0].value).toBe(10);
+        expect(result[0].extra).toBe('a');
+        expect(result[1][xField]).toBe('2023-04-01T00:00:00Z');
+        expect(result[1].value).toBe(20);
+        expect(result[1].extra).toBe('b');
     });
 });
