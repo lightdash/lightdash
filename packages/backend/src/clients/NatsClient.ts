@@ -19,9 +19,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
-    STREAM_CONFIGS,
+    NATS_STREAMS,
     type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
+    type NatsSubject,
     type StreamConfig,
 } from '../nats/natsConfig';
 
@@ -205,14 +206,14 @@ export class NatsClient implements INatsClient {
     async enqueueWarehouseQuery(
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
-        return this.enqueue(STREAM_CONFIGS.warehouse.subjects.query, payload);
+        return this.enqueue(NATS_STREAMS.warehouse.subjects.query, payload);
     }
 
     async enqueuePreAggregateQuery(
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         return this.enqueue(
-            STREAM_CONFIGS['pre-aggregate'].subjects.query,
+            NATS_STREAMS['pre-aggregate'].subjects.query,
             payload,
         );
     }
@@ -221,7 +222,7 @@ export class NatsClient implements INatsClient {
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         return this.enqueue(
-            STREAM_CONFIGS['pre-aggregate'].subjects.materialization,
+            NATS_STREAMS['pre-aggregate'].subjects.materialization,
             payload,
         );
     }
@@ -313,7 +314,7 @@ export class NatsClient implements INatsClient {
     }
 
     private async enqueue(
-        subject: string,
+        subject: NatsSubject,
         payload: AsyncQueryJobPayload,
     ): Promise<{ jobId: string }> {
         const jobId = uuidv4();
