@@ -3,20 +3,19 @@ import { useAppSdkBridge } from './hooks/useAppSdkBridge';
 
 type Props = {
     src: string;
-    projectUuid: string;
 };
 
 /**
- * Renders a sandboxed app preview iframe with a postMessage bridge.
+ * Renders a sandboxed app preview iframe with a postMessage fetch proxy.
  *
  * The iframe has `sandbox="allow-scripts"` (no `allow-same-origin`),
- * so it cannot access the parent's cookies. All data queries from the
- * SDK inside the iframe go through the postMessage bridge, where the
- * parent executes them using its own authenticated session.
+ * so it cannot access the parent's cookies. The SDK inside the iframe
+ * routes all API calls through postMessage, and this component's bridge
+ * executes them using the current user's session.
  */
-const AppIframePreview: FC<Props> = ({ src, projectUuid }) => {
+const AppIframePreview: FC<Props> = ({ src }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const { handleIframeLoad } = useAppSdkBridge(projectUuid, iframeRef);
+    const { handleIframeLoad } = useAppSdkBridge(iframeRef);
 
     return (
         <iframe

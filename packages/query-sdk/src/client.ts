@@ -80,7 +80,7 @@ export function createClient(): LightdashClient {
             const projectUuid = params.get('projectUuid') ?? '';
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
-                createPostMessageTransport({ targetWindow: window.parent }),
+                createPostMessageTransport({ targetWindow: window.parent, projectUuid }),
             );
         }
     }

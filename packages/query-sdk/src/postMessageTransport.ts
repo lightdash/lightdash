@@ -1,37 +1,33 @@
 /**
- * postMessage transport — executes queries by delegating to a parent window
- * via the structured clone postMessage API.
+ * postMessage transport — routes HTTP requests through the parent window
+ * via postMessage instead of calling the API directly.
  *
  * Used when the SDK runs inside a sandboxed iframe (sandbox="allow-scripts")
- * and cannot make direct API calls. The parent window receives the request,
- * executes the query using its own session, and sends the result back.
+ * that cannot make direct API calls. The parent receives fetch requests,
+ * executes them with its own session cookies, and sends the raw API
+ * response back. All query logic (field qualification, polling, result
+ * mapping) stays in the SDK's apiTransport.
  */
 
-import type {
-    Column,
-    FormatFunction,
-    LightdashUser,
-    QueryDefinition,
-    QueryResult,
-    Row,
-    Transport,
-} from './types';
+import { createApiTransport, type FetchAdapter } from './apiTransport';
+import type { Transport } from './types';
 
 // ---------------------------------------------------------------------------
 // Protocol types — shared with the parent-side bridge (useAppSdkBridge)
 // ---------------------------------------------------------------------------
 
-export type SdkRequestMessage = {
-    type: 'lightdash:sdk:request';
+export type SdkFetchRequest = {
+    type: 'lightdash:sdk:fetch';
     id: string;
-    method: 'executeQuery' | 'getUser';
-    payload?: QueryDefinition;
+    method: string;
+    path: string;
+    body?: unknown;
 };
 
-export type SdkResponseMessage = {
-    type: 'lightdash:sdk:response';
+export type SdkFetchResponse = {
+    type: 'lightdash:sdk:fetch-response';
     id: string;
-    result?: SerializedQueryResult | LightdashUser;
+    result?: unknown;
     error?: string;
 };
 
@@ -39,15 +35,8 @@ export type SdkReadyMessage = {
     type: 'lightdash:sdk:ready';
 };
 
-export type SerializedQueryResult = {
-    rows: Row[];
-    columns: Column[];
-    /** Parallel to `rows` — formatted display strings for each field. */
-    formattedRows: Array<Record<string, string>>;
-};
-
 // ---------------------------------------------------------------------------
-// Transport implementation
+// postMessage FetchAdapter
 // ---------------------------------------------------------------------------
 
 type PendingRequest = {
@@ -56,22 +45,17 @@ type PendingRequest = {
     timer: ReturnType<typeof setTimeout>;
 };
 
-type PostMessageTransportConfig = {
-    /** The window to post requests to (typically `window.parent`). */
-    targetWindow: Window;
-    /** Timeout per request in ms. Defaults to 120_000 (2 minutes). */
-    timeoutMs?: number;
-};
-
 const DEFAULT_TIMEOUT_MS = 120_000;
 const READY_TIMEOUT_MS = 10_000;
 
 /**
- * Creates a Transport that communicates with a parent window via postMessage.
+ * Creates a FetchAdapter that sends HTTP requests to the parent window
+ * via postMessage and waits for responses.
  */
-export function createPostMessageTransport(
-    config: PostMessageTransportConfig,
-): Transport & { dispose: () => void } {
+function createPostMessageFetchAdapter(config: {
+    targetWindow: Window;
+    timeoutMs?: number;
+}): FetchAdapter {
     const { targetWindow, timeoutMs = DEFAULT_TIMEOUT_MS } = config;
     const pending = new Map<string, PendingRequest>();
 
@@ -83,7 +67,7 @@ export function createPostMessageTransport(
         readyResolve?.();
     }, READY_TIMEOUT_MS);
 
-    const handleMessage = (event: MessageEvent): void => {
+    window.addEventListener('message', (event: MessageEvent) => {
         const { data } = event;
         if (!data || typeof data !== 'object' || typeof data.type !== 'string') {
             return;
@@ -96,8 +80,8 @@ export function createPostMessageTransport(
             return;
         }
 
-        if (data.type === 'lightdash:sdk:response') {
-            const msg = data as SdkResponseMessage;
+        if (data.type === 'lightdash:sdk:fetch-response') {
+            const msg = data as SdkFetchResponse;
             const req = pending.get(msg.id);
             if (!req) return;
 
@@ -110,89 +94,63 @@ export function createPostMessageTransport(
                 req.resolve(msg.result);
             }
         }
-    };
+    });
 
-    window.addEventListener('message', handleMessage);
+    return async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+        await readyPromise;
 
-    function sendRequest(
-        method: SdkRequestMessage['method'],
-        payload?: QueryDefinition,
-    ): Promise<unknown> {
         const id = crypto.randomUUID();
-        const message: SdkRequestMessage = {
-            type: 'lightdash:sdk:request',
-            id,
-            method,
-            payload,
-        };
 
-        return new Promise((resolve, reject) => {
+        return new Promise<T>((resolve, reject) => {
             const timer = setTimeout(() => {
                 pending.delete(id);
-                reject(new Error(`SDK request '${method}' timed out after ${timeoutMs}ms`));
+                reject(new Error(`SDK fetch timed out after ${timeoutMs}ms: ${method} ${path}`));
             }, timeoutMs);
 
-            pending.set(id, { resolve, reject, timer });
-
-            readyPromise.then(() => {
-                targetWindow.postMessage(message, '*');
+            pending.set(id, {
+                resolve: resolve as (value: unknown) => void,
+                reject,
+                timer,
             });
-        });
-    }
 
-    /**
-     * Reconstruct a FormatFunction from serialized formattedRows.
-     * Builds a cache keyed by (fieldId, rawValue) → formattedString.
-     */
-    function buildFormatFunction(
-        rows: Row[],
-        formattedRows: Array<Record<string, string>>,
-    ): FormatFunction {
-        const cache = new Map<string, Map<unknown, string>>();
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const formatted = formattedRows[i];
-            if (!formatted) continue;
-            for (const fieldId of Object.keys(formatted)) {
-                if (!cache.has(fieldId)) {
-                    cache.set(fieldId, new Map());
-                }
-                cache.get(fieldId)!.set(row[fieldId], formatted[fieldId]);
-            }
-        }
-        return (row: Row, fieldId: string): string => {
-            const rawVal = row[fieldId];
-            const fieldCache = cache.get(fieldId);
-            if (fieldCache) {
-                const result = fieldCache.get(rawVal);
-                if (result !== undefined) return result;
-            }
-            return String(rawVal ?? '');
-        };
-    }
-
-    return {
-        async executeQuery(query: QueryDefinition): Promise<QueryResult> {
-            const raw = (await sendRequest('executeQuery', query)) as SerializedQueryResult;
-            return {
-                rows: raw.rows,
-                columns: raw.columns,
-                format: buildFormatFunction(raw.rows, raw.formattedRows),
+            const message: SdkFetchRequest = {
+                type: 'lightdash:sdk:fetch',
+                id,
+                method,
+                path,
+                body,
             };
-        },
-
-        async getUser(): Promise<LightdashUser> {
-            return (await sendRequest('getUser')) as LightdashUser;
-        },
-
-        dispose(): void {
-            window.removeEventListener('message', handleMessage);
-            clearTimeout(readyTimer);
-            for (const [id, req] of pending) {
-                clearTimeout(req.timer);
-                req.reject(new Error('Transport disposed'));
-                pending.delete(id);
-            }
-        },
+            targetWindow.postMessage(message, '*');
+        });
     };
+}
+
+// ---------------------------------------------------------------------------
+// Transport factory
+// ---------------------------------------------------------------------------
+
+type PostMessageTransportConfig = {
+    targetWindow: Window;
+    projectUuid: string;
+    timeoutMs?: number;
+};
+
+/**
+ * Creates a Transport that routes all API calls through the parent window
+ * via postMessage. The parent acts as a fetch proxy using session cookies.
+ *
+ * All query logic (field qualification, polling, result mapping) is handled
+ * by the SDK's apiTransport — the postMessage layer is just the HTTP adapter.
+ */
+export function createPostMessageTransport(
+    config: PostMessageTransportConfig,
+): Transport {
+    const adapter = createPostMessageFetchAdapter({
+        targetWindow: config.targetWindow,
+        timeoutMs: config.timeoutMs,
+    });
+    return createApiTransport(
+        { apiKey: '', baseUrl: '', projectUuid: config.projectUuid },
+        adapter,
+    );
 }

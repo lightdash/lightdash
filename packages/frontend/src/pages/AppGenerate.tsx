@@ -58,7 +58,7 @@ const AppPreview: FC<{
 
     if (!previewUrl) return null;
 
-    return <AppIframePreview src={previewUrl} projectUuid={projectUuid} />;
+    return <AppIframePreview src={previewUrl} />;
 };
 
 const AppGenerate: FC = () => {

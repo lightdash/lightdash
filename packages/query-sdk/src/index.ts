@@ -32,8 +32,7 @@ export type {
 } from './types';
 
 export type {
-    SdkRequestMessage,
-    SdkResponseMessage,
+    SdkFetchRequest,
+    SdkFetchResponse,
     SdkReadyMessage,
-    SerializedQueryResult,
 } from './postMessageTransport';
