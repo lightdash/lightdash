@@ -14,30 +14,16 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { ScrollArea } from '@mantine-8/core';
-import {
-    Box,
-    Checkbox,
-    Divider,
-    Group,
-    Stack,
-    Switch,
-    Text,
-} from '@mantine/core';
+import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import { produce } from 'immer';
-import React, {
-    Fragment,
-    useCallback,
-    useMemo,
-    useState,
-    type FC,
-} from 'react';
+import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
-import ColorSelector from '../../ColorSelector';
+import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
+import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
 
@@ -55,8 +41,6 @@ const DraggablePortalHandler: FC<
 type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
-
-const MAX_COLOR_VALUES = 50;
 
 export const Series: FC<Props> = ({ items }) => {
     const {
@@ -124,75 +108,6 @@ export const Series: FC<Props> = ({ items }) => {
         [seriesGroupedByField, chartConfig, getSeriesColor],
     );
 
-    // Collect unique category values using raw values as keys (matching echarts dataset)
-    // and formatted values for display labels
-    const { uniqueCategories, allRawKeys, remainingCount } = useMemo(() => {
-        if (!isCartesianChart)
-            return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
-
-        const {
-            dirtyLayout: layout,
-            dirtyChartType: chartType,
-            dirtyEchartsConfig: echartsConfig,
-        } = visualizationConfig.chartConfig;
-        const series = echartsConfig?.series ?? [];
-
-        const isSingle =
-            chartType === CartesianSeriesType.BAR &&
-            !pivotDimensions?.length &&
-            series.length <= 1;
-
-        if (!isSingle || !layout?.colorByCategory || !resultsData?.rows)
-            return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
-
-        const xField = layout.xField;
-        if (!xField)
-            return { uniqueCategories: [], allRawKeys: [], remainingCount: 0 };
-
-        const seen = new Map<string, string>(); // raw -> formatted
-        for (const row of resultsData.rows) {
-            const cell = row[xField];
-            if (cell?.value != null) {
-                const rawKey = String(cell.value.raw ?? cell.value.formatted);
-                if (!seen.has(rawKey)) {
-                    seen.set(
-                        rawKey,
-                        String(cell.value.formatted ?? cell.value.raw),
-                    );
-                }
-            }
-        }
-        const entries = Array.from(seen.entries());
-        return {
-            uniqueCategories: entries.slice(0, MAX_COLOR_VALUES),
-            allRawKeys: Array.from(seen.keys()),
-            remainingCount: Math.max(0, entries.length - MAX_COLOR_VALUES),
-        };
-    }, [
-        isCartesianChart,
-        visualizationConfig,
-        pivotDimensions,
-        resultsData?.rows,
-    ]);
-
-    const [setAllColor, setSetAllColor] = useState<string | undefined>();
-
-    // When colorByCategory is on, the top-level series color picker sets all categories
-    const handleSetAllCategoryColors = useCallback(
-        (color: string) => {
-            if (!isCartesianChart) return;
-            setSetAllColor(color);
-            const overrides: Record<string, string> = {};
-            for (const rawKey of allRawKeys) {
-                overrides[rawKey] = color;
-            }
-            visualizationConfig.chartConfig.setAllCategoryColorOverrides(
-                overrides,
-            );
-        },
-        [isCartesianChart, allRawKeys, visualizationConfig],
-    );
-
     if (!isCartesianChart) return null;
 
     const {
@@ -205,6 +120,9 @@ export const Series: FC<Props> = ({ items }) => {
         updateAllGroupedSeries,
         setColorByCategory,
         setCategoryColorOverride,
+        setAllCategoryColorOverrides,
+        conditionalFormattings,
+        onSetConditionalFormattings,
     } = visualizationConfig.chartConfig;
 
     const allSeries = dirtyEchartsConfig?.series ?? [];
@@ -240,7 +158,8 @@ export const Series: FC<Props> = ({ items }) => {
         allSeries.length <= 1;
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
-    const categoryColorOverrides = dirtyLayout?.categoryColorOverrides ?? {};
+    const customColorsEnabled =
+        colorByCategory || conditionalFormattings.length > 0;
 
     return (
         <Stack spacing="md">
@@ -361,146 +280,6 @@ export const Series: FC<Props> = ({ items }) => {
                                                             }
                                                         />
                                                     )}
-                                                    {isSingleSeriesBar && (
-                                                        <Stack
-                                                            spacing="xs"
-                                                            mt="xs"
-                                                            ml="lg"
-                                                        >
-                                                            <Switch
-                                                                label="Color by category"
-                                                                checked={
-                                                                    colorByCategory
-                                                                }
-                                                                onChange={(e) =>
-                                                                    setColorByCategory(
-                                                                        e
-                                                                            .currentTarget
-                                                                            .checked,
-                                                                    )
-                                                                }
-                                                            />
-                                                            {colorByCategory &&
-                                                                uniqueCategories.length >
-                                                                    0 && (
-                                                                    <>
-                                                                        <Divider />
-                                                                        <Group
-                                                                            spacing="xs"
-                                                                            noWrap
-                                                                        >
-                                                                            <ColorSelector
-                                                                                color={
-                                                                                    setAllColor ??
-                                                                                    colorPalette[0]
-                                                                                }
-                                                                                swatches={
-                                                                                    colorPalette
-                                                                                }
-                                                                                onColorChange={
-                                                                                    handleSetAllCategoryColors
-                                                                                }
-                                                                            />
-                                                                            <Text
-                                                                                fz="xs"
-                                                                                fw={
-                                                                                    600
-                                                                                }
-                                                                                c="dimmed"
-                                                                            >
-                                                                                Set
-                                                                                all
-                                                                            </Text>
-                                                                        </Group>
-                                                                        <Box
-                                                                            bg="ldGray.1"
-                                                                            p="xxs"
-                                                                            py="xs"
-                                                                            sx={(
-                                                                                theme,
-                                                                            ) => ({
-                                                                                borderRadius:
-                                                                                    theme
-                                                                                        .radius
-                                                                                        .sm,
-                                                                            })}
-                                                                        >
-                                                                            <ScrollArea.Autosize
-                                                                                mah={
-                                                                                    300
-                                                                                }
-                                                                            >
-                                                                                <Stack spacing="xs">
-                                                                                    {uniqueCategories.map(
-                                                                                        (
-                                                                                            [
-                                                                                                rawKey,
-                                                                                                label,
-                                                                                            ],
-                                                                                            idx,
-                                                                                        ) => (
-                                                                                            <Group
-                                                                                                key={
-                                                                                                    rawKey
-                                                                                                }
-                                                                                                spacing="xs"
-                                                                                                noWrap
-                                                                                            >
-                                                                                                <ColorSelector
-                                                                                                    color={
-                                                                                                        categoryColorOverrides[
-                                                                                                            rawKey
-                                                                                                        ] ??
-                                                                                                        colorPalette[
-                                                                                                            idx %
-                                                                                                                colorPalette.length
-                                                                                                        ]
-                                                                                                    }
-                                                                                                    swatches={
-                                                                                                        colorPalette
-                                                                                                    }
-                                                                                                    onColorChange={(
-                                                                                                        c,
-                                                                                                    ) =>
-                                                                                                        setCategoryColorOverride(
-                                                                                                            rawKey,
-                                                                                                            c,
-                                                                                                        )
-                                                                                                    }
-                                                                                                />
-                                                                                                <Text
-                                                                                                    fz="xs"
-                                                                                                    truncate
-                                                                                                >
-                                                                                                    {
-                                                                                                        label
-                                                                                                    }
-                                                                                                </Text>
-                                                                                            </Group>
-                                                                                        ),
-                                                                                    )}
-                                                                                    {remainingCount >
-                                                                                        0 && (
-                                                                                        <Text
-                                                                                            fz="xs"
-                                                                                            c="dimmed"
-                                                                                            fs="italic"
-                                                                                        >
-                                                                                            {
-                                                                                                remainingCount
-                                                                                            }{' '}
-                                                                                            more
-                                                                                            colored
-                                                                                            automatically
-                                                                                        </Text>
-                                                                                    )}
-                                                                                </Stack>
-                                                                            </ScrollArea.Autosize>
-                                                                        </Box>
-                                                                    </>
-                                                                )}
-                                                        </Stack>
-                                                    )}
                                                     {hasDivider && (
                                                         <Divider my="md" />
                                                     )}
@@ -515,6 +294,57 @@ export const Series: FC<Props> = ({ items }) => {
                     )}
                 </Droppable>
             </DragDropContext>
+            {isSingleSeriesBar && (
+                <Config>
+                    <Config.Section>
+                        <Stack spacing="xs">
+                            <Switch
+                                label="Apply custom colors"
+                                checked={customColorsEnabled}
+                                onChange={(e) => {
+                                    if (e.currentTarget.checked) {
+                                        if (conditionalFormattings.length > 0) {
+                                            return;
+                                        }
+                                        setColorByCategory(true);
+                                        return;
+                                    }
+
+                                    setColorByCategory(false);
+                                    onSetConditionalFormattings([]);
+                                }}
+                            />
+                            {customColorsEnabled && (
+                                <CustomColors
+                                    items={items}
+                                    rows={resultsData?.rows}
+                                    xField={dirtyLayout?.xField}
+                                    yField={dirtyLayout?.yField?.[0]}
+                                    colorPalette={colorPalette}
+                                    colorByCategory={colorByCategory}
+                                    categoryColorOverrides={
+                                        dirtyLayout?.categoryColorOverrides ??
+                                        {}
+                                    }
+                                    conditionalFormattings={
+                                        conditionalFormattings
+                                    }
+                                    setColorByCategory={setColorByCategory}
+                                    setCategoryColorOverride={
+                                        setCategoryColorOverride
+                                    }
+                                    setAllCategoryColorOverrides={
+                                        setAllCategoryColorOverrides
+                                    }
+                                    onSetConditionalFormattings={
+                                        onSetConditionalFormattings
+                                    }
+                                />
+                            )}
+                        </Stack>
+                    </Config.Section>
+                </Config>
+            )}
             {hasStackedBars && (
                 <Checkbox
                     checked={showOverlappingLabelsEnabled}

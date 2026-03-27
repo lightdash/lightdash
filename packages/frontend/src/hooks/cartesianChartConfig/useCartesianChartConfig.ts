@@ -11,6 +11,7 @@ import {
     XAxisSortType,
     type CartesianChart,
     type CompleteCartesianChartLayout,
+    type ConditionalFormattingConfig,
     type EchartsGrid,
     type EchartsLegend,
     type ItemsMap,
@@ -208,6 +209,9 @@ const useCartesianChartConfig = ({
     const [dirtyMetadata, setDirtyMetadata] = useState<
         CartesianChart['metadata'] | undefined
     >(initialChartConfig?.metadata);
+    const [conditionalFormattings, setConditionalFormattings] = useState<
+        ConditionalFormattingConfig[]
+    >(initialChartConfig?.conditionalFormattings ?? []);
 
     const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
         Partial<CartesianChart['eChartsConfig']> | undefined
@@ -457,6 +461,9 @@ const useCartesianChartConfig = ({
             // Clear overrides when disabling
             ...(!enabled && { categoryColorOverrides: undefined }),
         }));
+        if (enabled) {
+            setConditionalFormattings([]);
+        }
     }, []);
 
     const setCategoryColorOverride = useCallback(
@@ -478,6 +485,21 @@ const useCartesianChartConfig = ({
                 ...prev,
                 categoryColorOverrides: overrides,
             }));
+        },
+        [],
+    );
+
+    const onSetConditionalFormattings = useCallback(
+        (configs: ConditionalFormattingConfig[]) => {
+            setConditionalFormattings(configs);
+
+            if (configs.length > 0) {
+                setDirtyLayout((prev) => ({
+                    ...prev,
+                    colorByCategory: undefined,
+                    categoryColorOverrides: undefined,
+                }));
+            }
         },
         [],
     );
@@ -534,6 +556,7 @@ const useCartesianChartConfig = ({
                 categoryColorOverrides: undefined,
             }),
         }));
+        setConditionalFormattings((prev) => (prev.length > 0 ? [] : prev));
     }, []);
 
     const removeSingleSeries = useCallback((index: number) => {
@@ -1144,6 +1167,75 @@ const useCartesianChartConfig = ({
         effectiveColumnLimit,
     ]);
 
+    const { dirtyChartType } = useMemo(() => {
+        const firstSeriesType =
+            dirtyEchartsConfig?.series?.[0]?.type || CartesianSeriesType.BAR;
+        const firstSeriesAreaStyle = dirtyEchartsConfig?.series?.[0]?.areaStyle;
+        return {
+            dirtyChartType:
+                firstSeriesType === CartesianSeriesType.LINE &&
+                firstSeriesAreaStyle
+                    ? CartesianSeriesType.AREA
+                    : firstSeriesType,
+        };
+    }, [dirtyEchartsConfig]);
+
+    const isCustomColorsEligible = useMemo(
+        () =>
+            dirtyChartType === CartesianSeriesType.BAR &&
+            !pivotKeys?.length &&
+            (dirtyLayout?.yField?.length ?? 0) <= 1,
+        [dirtyChartType, pivotKeys, dirtyLayout?.yField],
+    );
+
+    useEffect(() => {
+        if (isCustomColorsEligible) return;
+
+        if (
+            !dirtyLayout?.colorByCategory &&
+            !dirtyLayout?.categoryColorOverrides &&
+            conditionalFormattings.length === 0
+        ) {
+            return;
+        }
+
+        setDirtyLayout((prev) => ({
+            ...prev,
+            colorByCategory: undefined,
+            categoryColorOverrides: undefined,
+        }));
+        setConditionalFormattings([]);
+    }, [
+        isCustomColorsEligible,
+        dirtyLayout?.colorByCategory,
+        dirtyLayout?.categoryColorOverrides,
+        conditionalFormattings,
+    ]);
+
+    useEffect(() => {
+        const targetFieldId = dirtyLayout?.yField?.[0];
+        if (
+            !isCustomColorsEligible ||
+            !targetFieldId ||
+            conditionalFormattings.length === 0
+        ) {
+            return;
+        }
+
+        const hasOutdatedTargets = conditionalFormattings.some(
+            (config) => config.target?.fieldId !== targetFieldId,
+        );
+
+        if (!hasOutdatedTargets) return;
+
+        setConditionalFormattings((prev) =>
+            prev.map((config) => ({
+                ...config,
+                target: { fieldId: targetFieldId },
+            })),
+        );
+    }, [isCustomColorsEligible, dirtyLayout?.yField, conditionalFormattings]);
+
     const validConfig: CartesianChart = useMemo(() => {
         // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.
         return {
@@ -1160,6 +1252,7 @@ const useCartesianChartConfig = ({
                       tooltipSort,
                   }
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
+            conditionalFormattings,
             metadata: dirtyMetadata,
             rowLimit,
             columnLimit: isShowHideColumnsEnabled
@@ -1169,6 +1262,7 @@ const useCartesianChartConfig = ({
     }, [
         dirtyLayout,
         dirtyEchartsConfig,
+        conditionalFormattings,
         dirtyMetadata,
         tooltip,
         tooltipSort,
@@ -1177,19 +1271,6 @@ const useCartesianChartConfig = ({
         columnLimit,
         initialChartConfig?.columnLimit,
     ]);
-
-    const { dirtyChartType } = useMemo(() => {
-        const firstSeriesType =
-            dirtyEchartsConfig?.series?.[0]?.type || CartesianSeriesType.BAR;
-        const firstSeriesAreaStyle = dirtyEchartsConfig?.series?.[0]?.areaStyle;
-        return {
-            dirtyChartType:
-                firstSeriesType === CartesianSeriesType.LINE &&
-                firstSeriesAreaStyle
-                    ? CartesianSeriesType.AREA
-                    : firstSeriesType,
-        };
-    }, [dirtyEchartsConfig]);
 
     const updateMetadata = useCallback(
         (metadata: Record<string, SeriesMetadata>) => {
@@ -1236,6 +1317,8 @@ const useCartesianChartConfig = ({
         setColorByCategory,
         setCategoryColorOverride,
         setAllCategoryColorOverrides,
+        conditionalFormattings,
+        onSetConditionalFormattings,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,

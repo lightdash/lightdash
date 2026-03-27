@@ -1,9 +1,10 @@
 import {
     CartesianSeriesType,
+    createConditionalFormattingConfigWithSingleColor,
     getItemMap,
     type Series,
 } from '@lightdash/common';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('../useServerOrClientFeatureFlag', () => ({
@@ -581,6 +582,47 @@ describe('getSeriesGroupedByField', () => {
 });
 
 describe('useCartesianChartConfig', () => {
+    const getSingleSeriesParams = (): Parameters<
+        typeof useCartesianChartConfig
+    >[0] => ({
+        ...useCartesianChartConfigParamsMock,
+        itemsMap: undefined,
+        stacking: undefined,
+        cartesianType: undefined,
+        colorPalette: [],
+        initialChartConfig: {
+            layout: {
+                xField: 'orders_customer_id',
+                yField: ['orders_total_order_amount'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        encode: {
+                            xRef: {
+                                field: 'orders_customer_id',
+                            },
+                            yRef: {
+                                field: 'orders_total_order_amount',
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        resultsData: {
+            ...useCartesianChartConfigParamsMock.resultsData,
+            metricQuery: {
+                ...useCartesianChartConfigParamsMock.resultsData.metricQuery,
+                exploreName: 'orders',
+                metrics: ['orders_total_order_amount'],
+            },
+        } as any,
+        columnOrder: ['orders_customer_id', 'orders_total_order_amount'],
+    });
+
     test('should default series yAxisIndex to 0', () => {
         const { result } = renderHook(
             // @ts-expect-error partially mock params for hook
@@ -662,5 +704,130 @@ describe('useCartesianChartConfig', () => {
         );
 
         expect(result.current.validConfig?.columnLimit).toBe(5);
+    });
+
+    test('should include conditional formattings in valid config', () => {
+        const conditionalFormattings = [
+            createConditionalFormattingConfigWithSingleColor('#ff0000', {
+                fieldId: 'orders_total_order_amount',
+            }),
+        ];
+        const params = getSingleSeriesParams();
+
+        const { result } = renderHook(() =>
+            useCartesianChartConfig({
+                ...params,
+                initialChartConfig: {
+                    ...params.initialChartConfig!,
+                    conditionalFormattings,
+                },
+            }),
+        );
+
+        expect(result.current.validConfig.conditionalFormattings).toEqual(
+            conditionalFormattings,
+        );
+    });
+
+    test('should clear color by category when conditional formattings are set', () => {
+        const params = getSingleSeriesParams();
+        const { result } = renderHook(() =>
+            useCartesianChartConfig({
+                ...params,
+                initialChartConfig: {
+                    ...params.initialChartConfig!,
+                    layout: {
+                        ...params.initialChartConfig!.layout,
+                        colorByCategory: true,
+                    },
+                },
+            }),
+        );
+
+        act(() => {
+            result.current.onSetConditionalFormattings([
+                createConditionalFormattingConfigWithSingleColor('#ff0000', {
+                    fieldId: 'orders_total_order_amount',
+                }),
+            ]);
+        });
+
+        expect(result.current.dirtyLayout?.colorByCategory).toBeUndefined();
+        expect(result.current.validConfig.conditionalFormattings).toHaveLength(
+            1,
+        );
+    });
+
+    test('should clear conditional formattings when adding a second series', () => {
+        const params = getSingleSeriesParams();
+        const { result } = renderHook(() =>
+            useCartesianChartConfig({
+                ...params,
+                initialChartConfig: {
+                    ...params.initialChartConfig!,
+                    conditionalFormattings: [
+                        createConditionalFormattingConfigWithSingleColor(
+                            '#ff0000',
+                            {
+                                fieldId: 'orders_total_order_amount',
+                            },
+                        ),
+                    ],
+                },
+            }),
+        );
+
+        act(() => {
+            result.current.addSingleSeries('orders_fulfillment_rate');
+        });
+
+        expect(result.current.validConfig.conditionalFormattings).toEqual([]);
+    });
+
+    test('should clear conditional formattings when chart becomes ineligible', () => {
+        const initialParams = getSingleSeriesParams();
+        const { result, rerender } = renderHook(
+            ({ params }) =>
+                // @ts-expect-error partially mock params for hook
+                useCartesianChartConfig(params),
+            {
+                initialProps: {
+                    params: {
+                        ...initialParams,
+                        initialChartConfig: {
+                            ...initialParams.initialChartConfig,
+                            conditionalFormattings: [
+                                createConditionalFormattingConfigWithSingleColor(
+                                    '#ff0000',
+                                    {
+                                        fieldId: 'orders_total_order_amount',
+                                    },
+                                ),
+                            ],
+                        },
+                    },
+                },
+            },
+        );
+
+        rerender({
+            params: {
+                ...initialParams,
+                pivotKeys: ['orders_status'] as string[] | undefined,
+                initialChartConfig: {
+                    ...initialParams.initialChartConfig,
+                    conditionalFormattings: [
+                        createConditionalFormattingConfigWithSingleColor(
+                            '#ff0000',
+                            {
+                                fieldId: 'orders_total_order_amount',
+                            },
+                        ),
+                    ],
+                },
+            },
+        });
+
+        expect(result.current.validConfig.conditionalFormattings).toEqual([]);
     });
 });

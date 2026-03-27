@@ -313,6 +313,13 @@
                     "format": "double",
                     "type": "number"
                 },
+                "conditionalFormattings": {
+                    "description": "Conditional formatting rules",
+                    "items": {
+                        "$ref": "#/$defs/ConditionalFormattingConfig"
+                    },
+                    "type": "array"
+                },
                 "eChartsConfig": {
                     "$ref": "#/$defs/EChartsConfig",
                     "description": "ECharts-specific configuration"
