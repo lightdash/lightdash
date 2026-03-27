@@ -28,3 +28,8 @@ export const getMomentDateWithCustomStartOfWeek = (
     }
     return moment(inp);
 };
+
+export const formatMilliseconds = (
+    ms: number,
+    fractionDigits: number = 2,
+): string => ms.toFixed(fractionDigits).replace(/\.?0+$/, '');

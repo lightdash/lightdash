@@ -628,6 +628,46 @@ describe('DuckdbWarehouseClient', () => {
         );
     });
 
+    it('should log raw profile timings when DuckDB reports cpu above latency', async () => {
+        const runMock = jest.fn(async (sql: string) => {
+            const match = sql.match(/^PRAGMA profiling_output='(.+)';$/);
+            if (match) {
+                await fs.writeFile(
+                    match[1],
+                    JSON.stringify({
+                        latency: 0.002,
+                        cpu_time: 0.004,
+                        rows_returned: 123,
+                        total_bytes_read: 0,
+                        children: [],
+                    }),
+                );
+            }
+        });
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+        const logger = { info: jest.fn() };
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient(undefined, { logger });
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'DuckDB query profile: latency=2ms cpu=4ms wait=-2ms',
+            ),
+            expect.objectContaining({
+                latencyMs: 2,
+                cpuMs: 4,
+                waitMs: -2,
+            }),
+        );
+    });
+
     describe('SQL security validation', () => {
         it('should reject SET statements', async () => {
             const streamMock = jest.fn(async () =>
