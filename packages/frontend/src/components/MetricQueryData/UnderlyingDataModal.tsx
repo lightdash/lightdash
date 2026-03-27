@@ -217,14 +217,8 @@ const UnderlyingDataModalContent: FC = () => {
                 ? [metricQuery.filters.dimensions]
                 : [];
 
-        const exploreMetricFilters =
-            metricQuery?.filters?.metrics !== undefined
-                ? [metricQuery.filters.metrics]
-                : [];
-
         const combinedFilters = [
             ...exploreFilters,
-            ...exploreMetricFilters,
             ...dimensionFilters,
             ...pivotFilter,
             ...metricFilters,
