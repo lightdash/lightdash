@@ -2,18 +2,11 @@
  * Lightdash client.
  *
  * Usage:
- *   // Auto-configure from env vars (Vite reads .env automatically)
- *   const lightdash = createClient()
- *
- *   // Or explicit config
- *   const lightdash = createClient({
- *     apiKey: 'pat_xxx',
- *     baseUrl: 'https://app.lightdash.cloud',
- *     projectUuid: 'uuid',
- *   })
+ *   const lightdash = createClient()  // auto-detects from environment
  */
 
 import { createApiTransport } from './apiTransport';
+import { createPostMessageTransport } from './postMessageTransport';
 import { QueryBuilder } from './query';
 import type { LightdashClientConfig, LightdashUser, Transport } from './types';
 
@@ -22,9 +15,9 @@ export class LightdashClient {
     readonly transport: Transport;
     readonly auth: { getUser: () => Promise<LightdashUser> };
 
-    constructor(config: LightdashClientConfig, transport?: Transport) {
+    constructor(config: LightdashClientConfig, transport: Transport) {
         this.config = config;
-        this.transport = transport ?? createApiTransport(config);
+        this.transport = transport;
         this.auth = {
             getUser: () => this.transport.getUser(),
         };
@@ -40,14 +33,10 @@ export class LightdashClient {
  * Resolve config from env vars.
  *
  * Vite (.env file, statically replaced at build time):
- *   VITE_LIGHTDASH_API_KEY=pat_xxx
- *   VITE_LIGHTDASH_URL=https://app.lightdash.cloud
- *   VITE_LIGHTDASH_PROJECT_UUID=uuid
+ *   VITE_LIGHTDASH_API_KEY, VITE_LIGHTDASH_URL, VITE_LIGHTDASH_PROJECT_UUID
  *
  * Node/E2B (runtime):
- *   LIGHTDASH_API_KEY=pat_xxx
- *   LIGHTDASH_URL=https://app.lightdash.cloud
- *   LIGHTDASH_PROJECT_UUID=uuid
+ *   LIGHTDASH_API_KEY, LIGHTDASH_URL, LIGHTDASH_PROJECT_UUID
  */
 function configFromEnv(): LightdashClientConfig | null {
     // Vite statically replaces import.meta.env.VITE_X at build time.
@@ -78,21 +67,31 @@ function configFromEnv(): LightdashClientConfig | null {
 }
 
 /**
- * Create a Lightdash client.
+ * Create a Lightdash client. Auto-detects the transport from the environment:
  *
- * With no args, reads from env vars:
- *   const lightdash = createClient()
- *
- * With explicit config (used when token comes from parent frame):
- *   const lightdash = createClient({ apiKey, baseUrl, projectUuid })
+ * 1. Hash fragment #transport=postMessage → postMessage bridge (Lightdash iframe)
+ * 2. Env vars (VITE_LIGHTDASH_* or LIGHTDASH_*) → direct API calls (local dev)
  */
-export function createClient(config?: LightdashClientConfig): LightdashClient {
-    const resolved = config ?? configFromEnv();
-    if (!resolved) {
+export function createClient(): LightdashClient {
+    // 1. postMessage transport (iframe hosted by Lightdash parent)
+    if (typeof window !== 'undefined' && window.location.hash) {
+        const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        if (params.get('transport') === 'postMessage') {
+            const projectUuid = params.get('projectUuid') ?? '';
+            return new LightdashClient(
+                { apiKey: '', baseUrl: '', projectUuid },
+                createPostMessageTransport({ targetWindow: window.parent, projectUuid }),
+            );
+        }
+    }
+
+    // 2. Env vars → API transport
+    const config = configFromEnv();
+    if (!config) {
         throw new Error(
-            'Missing Lightdash client config. Either pass { apiKey, baseUrl, projectUuid } ' +
-                'or set env vars: VITE_LIGHTDASH_API_KEY, VITE_LIGHTDASH_URL, VITE_LIGHTDASH_PROJECT_UUID',
+            'Missing Lightdash client config. ' +
+                'Set env vars: VITE_LIGHTDASH_API_KEY, VITE_LIGHTDASH_URL, VITE_LIGHTDASH_PROJECT_UUID',
         );
     }
-    return new LightdashClient(resolved);
+    return new LightdashClient(config, createApiTransport(config));
 }

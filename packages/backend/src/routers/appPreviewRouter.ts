@@ -67,6 +67,24 @@ const getCookieValue = (
     return match ? match[1] : undefined;
 };
 
+/**
+ * Rewrites Vite-generated asset references in HTML to include a token
+ * query parameter so they authenticate without cookies.
+ *
+ * This is needed when the iframe sandbox omits `allow-same-origin` —
+ * the browser won't store cookies for an opaque origin, so asset
+ * requests must carry the token themselves.
+ *
+ * Matches patterns like:
+ *   src="./assets/index-BxK29f.js"
+ *   href="./assets/style-DhJ93k.css"
+ */
+const injectTokenIntoAssetUrls = (html: string, token: string): string =>
+    html.replace(
+        /((?:src|href)="\.\/assets\/[^"]+)"/g,
+        `$1?token=${encodeURIComponent(token)}"`,
+    );
+
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
     lightdashSecret: string,
@@ -168,10 +186,20 @@ export const createAppPreviewRouter = (
         }
     };
 
+    /**
+     * Buffers an S3 readable stream into a UTF-8 string.
+     */
+    const bufferS3Body = (body: NodeJS.ReadableStream): Promise<string> =>
+        new Promise((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            body.on('data', (chunk: Buffer) => chunks.push(chunk));
+            body.on('end', () =>
+                resolve(Buffer.concat(chunks).toString('utf-8')),
+            );
+            body.on('error', reject);
+        });
+
     // -- Auth middleware ------------------------------------------------
-    // Two flavours: one accepts a JWT query param and promotes it to a
-    // cookie (used on index.html), the other only accepts the cookie
-    // (used on assets loaded by the page).
 
     /**
      * Verifies a token and translates the result into an HTTP response.
@@ -183,12 +211,21 @@ export const createAppPreviewRouter = (
         res: express.Response,
         next: express.NextFunction,
     ): void => {
-        const { appUuid, versionUuid } = req.params;
+        const { appUuid, version } = req.params;
 
-        if (!isValidUuid(appUuid) || !isValidUuid(versionUuid)) {
+        if (!isValidUuid(appUuid)) {
             res.status(400).json({
                 status: 'error',
                 error: { message: 'Invalid UUID format' },
+            });
+            return;
+        }
+
+        const versionNum = Number(version);
+        if (!Number.isInteger(versionNum) || versionNum < 1) {
+            res.status(400).json({
+                status: 'error',
+                error: { message: 'Version must be a positive integer' },
             });
             return;
         }
@@ -197,7 +234,7 @@ export const createAppPreviewRouter = (
             token,
             lightdashSecret,
             appUuid,
-            versionUuid,
+            versionNum,
         );
 
         if (!result.ok) {
@@ -225,8 +262,8 @@ export const createAppPreviewRouter = (
             typeof req.query.token === 'string' ? req.query.token : undefined;
 
         handleTokenVerification(token, req, res, () => {
-            const { appUuid, versionUuid } = req.params;
-            const cookiePath = `/api/apps/${appUuid}/versions/${versionUuid}/`;
+            const { appUuid, version } = req.params;
+            const cookiePath = `/api/apps/${appUuid}/versions/${version}/`;
             res.cookie(PREVIEW_COOKIE_NAME, token!, {
                 path: cookiePath,
                 httpOnly: true,
@@ -238,9 +275,12 @@ export const createAppPreviewRouter = (
         });
     };
 
-    /** Accepts a JWT only from the path-scoped cookie. */
-    const requireCookie: express.RequestHandler = (req, res, next) => {
-        const token = getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
+    /** Accepts a JWT from a `?token` query param or the path-scoped cookie. */
+    const requireTokenOrCookie: express.RequestHandler = (req, res, next) => {
+        const token =
+            typeof req.query.token === 'string'
+                ? req.query.token
+                : getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
         handleTokenVerification(token, req, res, next);
     };
 
@@ -250,7 +290,7 @@ export const createAppPreviewRouter = (
     // e.g. "assets/foo.css" from "/api/apps/X/versions/Y" would resolve to
     //       "/api/apps/X/versions/assets/foo.css" (wrong)
     // but from "/api/apps/X/versions/Y/" resolves correctly.
-    router.get('/:appUuid/versions/:versionUuid', (req, res) => {
+    router.get('/:appUuid/versions/:version', (req, res) => {
         const queryString = req.originalUrl.includes('?')
             ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
             : '';
@@ -258,12 +298,14 @@ export const createAppPreviewRouter = (
     });
 
     // Serve index.html for an app version.
+    // Rewrites asset URLs to include the token so they work without cookies
+    // (needed when the iframe sandbox omits allow-same-origin).
     router.get(
-        '/:appUuid/versions/:versionUuid/',
+        '/:appUuid/versions/:version/',
         requireTokenAndSetCookie,
         async (req, res) => {
-            const { appUuid, versionUuid } = req.params;
-            const s3Key = `apps/${appUuid}/versions/${versionUuid}/index.html`;
+            const { appUuid, version } = req.params;
+            const s3Key = `apps/${appUuid}/versions/${version}/index.html`;
             const result = await fetchFromS3(s3Key);
 
             if (!result.ok) {
@@ -274,17 +316,30 @@ export const createAppPreviewRouter = (
                 return;
             }
 
+            const token =
+                typeof req.query.token === 'string'
+                    ? req.query.token
+                    : undefined;
+
             setSecurityHeaders(res);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
-            result.body.pipe(res);
+
+            if (token) {
+                const html = await bufferS3Body(result.body);
+                res.send(injectTokenIntoAssetUrls(html, token));
+            } else {
+                result.body.pipe(res);
+            }
         },
     );
 
-    // Serve static assets (JS, CSS, fonts) for local dev without CDN.
+    // Serve static assets (JS, CSS, fonts).
+    // Accepts either a ?token query param (for sandboxed iframes without
+    // allow-same-origin) or the path-scoped cookie (for normal browsers).
     router.get(
-        '/:appUuid/versions/:versionUuid/assets/:filename',
-        requireCookie,
+        '/:appUuid/versions/:version/assets/:filename',
+        requireTokenOrCookie,
         async (req, res) => {
             const { filename } = req.params;
 
@@ -296,8 +351,8 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            const { appUuid, versionUuid } = req.params;
-            const s3Key = `apps/${appUuid}/versions/${versionUuid}/assets/${filename}`;
+            const { appUuid, version } = req.params;
+            const s3Key = `apps/${appUuid}/versions/${version}/assets/${filename}`;
             const result = await fetchFromS3(s3Key);
 
             if (!result.ok) {
@@ -312,6 +367,9 @@ export const createAppPreviewRouter = (
             const contentType =
                 CONTENT_TYPE_BY_EXT[ext] || 'application/octet-stream';
 
+            // Allow cross-origin loading from sandboxed iframes (opaque origin).
+            // Safe because assets are static build artifacts, not user data.
+            res.setHeader('Access-Control-Allow-Origin', '*');
             res.setHeader('Content-Type', contentType);
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader(

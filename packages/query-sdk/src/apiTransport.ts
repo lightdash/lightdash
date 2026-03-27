@@ -69,6 +69,17 @@ type PollResponse =
       };
 
 /**
+ * A function that performs HTTP requests and returns parsed JSON results.
+ * The default implementation uses `Authorization: ApiKey` header.
+ * Supply a custom adapter to use session cookies or other auth mechanisms.
+ */
+export type FetchAdapter = <T>(
+    method: string,
+    path: string,
+    body?: unknown,
+) => Promise<T>;
+
+/**
  * Convert SDK filter definitions into the Lightdash API filter format.
  * The API expects { dimensions: { id, and: [...rules] } }
  */
@@ -97,43 +108,40 @@ function buildApiFilters(
     };
 }
 
-async function apiFetch<T>(
-    config: LightdashClientConfig,
-    method: string,
-    path: string,
-    body?: unknown,
-): Promise<T> {
-    // Use relative paths when a proxy is available (dev server),
-    // or the full base URL when calling the API directly (production).
-    const useProxy = config.useProxy ?? false;
-    const baseUrl = useProxy ? '' : config.baseUrl.replace(/\/$/, '');
-    const url = `${baseUrl}${path}`;
-    const res = await fetch(url, {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `ApiKey ${config.apiKey}`,
-        },
-        ...(body ? { body: JSON.stringify(body) } : {}),
-    });
+function createDefaultFetchAdapter(config: LightdashClientConfig): FetchAdapter {
+    return async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+        const useProxy = config.useProxy ?? false;
+        const baseUrl = useProxy ? '' : config.baseUrl.replace(/\/$/, '');
+        const url = `${baseUrl}${path}`;
+        const res = await fetch(url, {
+            method,
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `ApiKey ${config.apiKey}`,
+            },
+            ...(body ? { body: JSON.stringify(body) } : {}),
+        });
 
-    if (!res.ok) {
-        const text = await res.text();
-        let message: string;
-        try {
-            const parsed = JSON.parse(text);
-            message = parsed.error?.message ?? parsed.message ?? text;
-        } catch {
-            message = text;
+        if (!res.ok) {
+            const text = await res.text();
+            let message: string;
+            try {
+                const parsed = JSON.parse(text);
+                message = parsed.error?.message ?? parsed.message ?? text;
+            } catch {
+                message = text;
+            }
+            throw new Error(
+                `Lightdash API error (${res.status}): ${message}`,
+            );
         }
-        throw new Error(`Lightdash API error (${res.status}): ${message}`);
-    }
 
-    const json = (await res.json()) as ApiResponse<T>;
-    return json.results;
+        const json = (await res.json()) as ApiResponse<T>;
+        return json.results;
+    };
 }
 
-function mapColumnType(type: string): Column['type'] {
+export function mapColumnType(type: string): Column['type'] {
     if (/timestamp/i.test(type)) return 'timestamp';
     if (/date/i.test(type)) return 'date';
     if (
@@ -146,7 +154,20 @@ function mapColumnType(type: string): Column['type'] {
     return 'string';
 }
 
-export function createApiTransport(config: LightdashClientConfig): Transport {
+/**
+ * Creates a transport that executes queries via the Lightdash REST API.
+ *
+ * @param config - Client configuration (projectUuid is required; apiKey/baseUrl
+ *   are used by the default fetch adapter but ignored when a custom adapter is provided)
+ * @param adapter - Optional custom fetch adapter. When omitted, uses the default
+ *   adapter that authenticates via `Authorization: ApiKey` header.
+ */
+export function createApiTransport(
+    config: LightdashClientConfig,
+    adapter?: FetchAdapter,
+): Transport {
+    const fetchFn = adapter ?? createDefaultFetchAdapter(config);
+
     return {
         async executeQuery(query: QueryDefinition): Promise<QueryResult> {
             const table = query.exploreName;
@@ -183,8 +204,7 @@ export function createApiTransport(config: LightdashClientConfig): Transport {
                 },
             };
 
-            const execResult = await apiFetch<AsyncQueryResponse>(
-                config,
+            const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/query/metric-query`,
                 body,
@@ -195,8 +215,7 @@ export function createApiTransport(config: LightdashClientConfig): Transport {
             // Step 2: Poll for results
             let attempts = 0;
             while (attempts < MAX_POLL_ATTEMPTS) {
-                const pollResult = await apiFetch<PollResponse>(
-                    config,
+                const pollResult = await fetchFn<PollResponse>(
                     'GET',
                     `/api/v2/projects/${config.projectUuid}/query/${queryUuid}`,
                 );
@@ -305,7 +324,7 @@ export function createApiTransport(config: LightdashClientConfig): Transport {
         },
 
         async getUser(): Promise<LightdashUser> {
-            const user = await apiFetch<{
+            const user = await fetchFn<{
                 userUuid: string;
                 firstName: string;
                 lastName: string;
@@ -313,7 +332,7 @@ export function createApiTransport(config: LightdashClientConfig): Transport {
                 role: string;
                 organizationUuid: string;
                 userAttributes?: Record<string, string>;
-            }>(config, 'GET', '/api/v1/user');
+            }>('GET', '/api/v1/user');
 
             return {
                 name: `${user.firstName} ${user.lastName}`.trim(),

@@ -74,9 +74,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            appGenerateService: ({ context }) =>
+            appGenerateService: ({ context, models }) =>
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
+                    catalogModel: models.getCatalogModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

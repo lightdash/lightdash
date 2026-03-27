@@ -10,10 +10,13 @@ const PREVIEW_TOKEN_AUDIENCE = 'app-preview';
 export const PREVIEW_COOKIE_NAME = '__preview_token';
 export { PREVIEW_TOKEN_MAX_AGE_SECONDS };
 
-type PreviewTokenPayload = {
+export type PreviewTokenPayload = {
     type: typeof PREVIEW_TOKEN_TYPE;
     appUuid: string;
-    versionUuid: string;
+    version: number;
+    userUuid: string;
+    organizationUuid: string;
+    projectUuid: string;
 };
 
 /**
@@ -21,7 +24,7 @@ type PreviewTokenPayload = {
  * This ensures preview tokens cannot be confused with session cookies or
  * other HMAC uses of the same root secret.
  */
-const deriveSigningKey = (lightdashSecret: string): Buffer =>
+export const deriveSigningKey = (lightdashSecret: string): Buffer =>
     createHmac('sha256', lightdashSecret).update('app-preview-token').digest();
 
 /**
@@ -30,13 +33,19 @@ const deriveSigningKey = (lightdashSecret: string): Buffer =>
 export const mintPreviewToken = (
     lightdashSecret: string,
     appUuid: string,
-    versionUuid: string,
+    version: number,
+    userUuid: string,
+    organizationUuid: string,
+    projectUuid: string,
 ): string =>
     jwt.sign(
         {
             type: PREVIEW_TOKEN_TYPE,
             appUuid,
-            versionUuid,
+            version,
+            userUuid,
+            organizationUuid,
+            projectUuid,
         } satisfies PreviewTokenPayload,
         deriveSigningKey(lightdashSecret),
         {
@@ -52,7 +61,7 @@ type VerifyFailure = { ok: false; status: 401 | 403; message: string };
 export type VerifyPreviewTokenResult = VerifySuccess | VerifyFailure;
 
 /**
- * Verifies a preview JWT and checks that the appUuid and versionUuid match
+ * Verifies a preview JWT and checks that the appUuid and version match
  * the expected values. Returns a discriminated union so callers can decide
  * how to handle errors without coupling to HTTP.
  */
@@ -60,7 +69,7 @@ export const verifyPreviewToken = (
     token: string | undefined,
     lightdashSecret: string,
     appUuid: string,
-    versionUuid: string,
+    version: number,
 ): VerifyPreviewTokenResult => {
     if (!token) {
         return { ok: false, status: 401, message: 'Missing preview token' };
@@ -77,7 +86,7 @@ export const verifyPreviewToken = (
             typeof decoded === 'string' ||
             decoded.type !== PREVIEW_TOKEN_TYPE ||
             decoded.appUuid !== appUuid ||
-            decoded.versionUuid !== versionUuid
+            decoded.version !== version
         ) {
             return {
                 ok: false,

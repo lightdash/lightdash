@@ -23,7 +23,9 @@ import type {
     ApiAiOrganizationSettingsResponse,
     ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
+    ApiGenerateAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -485,6 +487,9 @@ export type HealthState = {
         retentionDays: number;
     };
     preAggregates: {
+        enabled: boolean;
+    };
+    dataApps: {
         enabled: boolean;
     };
 };
@@ -975,7 +980,9 @@ type ApiResults =
     | ApiVerifiedContentListResponse['results']
     | OAuthClientSummary[]
     | OAuthClientSummary
-    | CreateOAuthClientResponse;
+    | CreateOAuthClientResponse
+    | ApiGenerateAppResponse['results']
+    | ApiPreviewTokenResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

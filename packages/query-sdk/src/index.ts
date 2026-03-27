@@ -10,6 +10,10 @@ export { useLightdash } from './useLightdash';
 // Provider
 export { LightdashProvider, useLightdashClient } from './LightdashProvider';
 
+// Transports
+export { createApiTransport, type FetchAdapter } from './apiTransport';
+export { createPostMessageTransport } from './postMessageTransport';
+
 // Types
 export type {
     Column,
@@ -19,7 +23,16 @@ export type {
     FormatFunction,
     LightdashClientConfig,
     LightdashUser,
+    QueryDefinition,
+    QueryResult,
     Row,
     Sort,
+    Transport,
     UnitOfTime,
 } from './types';
+
+export type {
+    SdkFetchRequest,
+    SdkFetchResponse,
+    SdkReadyMessage,
+} from './postMessageTransport';
