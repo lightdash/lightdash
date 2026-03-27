@@ -12,7 +12,13 @@
 
     /* Override Leaflet's default background with custom property */
     :global(.leaflet-container) {
-        background: var(--map-background-color, #ddd) !important;
+        @mixin light {
+            background: var(--map-background-color, #ddd) !important;
+        }
+
+        @mixin dark {
+            background: var(--map-background-color, #1a1b1e) !important;
+        }
     }
 
     /* Custom focus styles for Leaflet interactive elements */

@@ -51,6 +51,9 @@ type MapChartConfig = {
             | undefined,
     ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
+    setDarkModeTileBackground: (
+        background: MapTileBackground | undefined,
+    ) => void;
     setBackgroundColor: (color: string | undefined) => void;
     setNoDataColor: (color: string | undefined) => void;
     setDataLayerOpacity: (opacity: number | undefined) => void;
@@ -128,6 +131,9 @@ const useMapChartConfig = (
     const [tileBackground, setTileBackgroundState] = useState<
         MapTileBackground | undefined
     >(initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP);
+    const [darkModeTileBackground, setDarkModeTileBackgroundState] = useState<
+        MapTileBackground | undefined
+    >(initialConfig?.darkModeTileBackground);
     const [backgroundColor, setBackgroundColorState] = useState<
         string | undefined
     >(initialConfig?.backgroundColor);
@@ -219,6 +225,7 @@ const useMapChartConfig = (
             sizeFieldId,
             heatmapConfig,
             tileBackground,
+            darkModeTileBackground,
             backgroundColor,
             noDataColor,
             dataLayerOpacity,
@@ -245,6 +252,7 @@ const useMapChartConfig = (
         sizeFieldId,
         heatmapConfig,
         tileBackground,
+        darkModeTileBackground,
         backgroundColor,
         noDataColor,
         dataLayerOpacity,
@@ -401,6 +409,13 @@ const useMapChartConfig = (
         [],
     );
 
+    const setDarkModeTileBackground = useCallback(
+        (background: MapTileBackground | undefined) => {
+            setDarkModeTileBackgroundState(background);
+        },
+        [],
+    );
+
     const setBackgroundColor = useCallback((color: string | undefined) => {
         setBackgroundColorState(color);
     }, []);
@@ -477,6 +492,7 @@ const useMapChartConfig = (
         setSizeFieldId,
         setHeatmapConfig,
         setTileBackground,
+        setDarkModeTileBackground,
         setBackgroundColor,
         setNoDataColor,
         setDataLayerOpacity,

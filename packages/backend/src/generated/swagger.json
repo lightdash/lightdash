@@ -5576,6 +5576,10 @@
                         "type": "string",
                         "description": "Background color for the map (hex code)"
                     },
+                    "darkModeTileBackground": {
+                        "$ref": "#/components/schemas/MapTileBackground",
+                        "description": "Map tile background style for dark mode (uses dark default when undefined)"
+                    },
                     "tileBackground": {
                         "$ref": "#/components/schemas/MapTileBackground",
                         "description": "Map tile background style"

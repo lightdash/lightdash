@@ -4772,6 +4772,7 @@ const models: TsoaRoute.Models = {
                 fieldConfig: { ref: 'Record_string.MapFieldConfig_' },
                 noDataColor: { dataType: 'string' },
                 backgroundColor: { dataType: 'string' },
+                darkModeTileBackground: { ref: 'MapTileBackground' },
                 tileBackground: { ref: 'MapTileBackground' },
                 dataLayerOpacity: { dataType: 'double' },
                 heatmapConfig: {
