@@ -1,3 +1,11 @@
+# [0.2677.0](https://github.com/lightdash/lightdash/compare/0.2676.0...0.2677.0) (2026-03-27)
+
+
+### Features
+
+* improve DuckDB timing precision and add detailed performance logging ([#21481](https://github.com/lightdash/lightdash/issues/21481)) ([59c9808](https://github.com/lightdash/lightdash/commit/59c980807dcf411fd964c7812ca33639d55dca07))
+* restructure DuckDB client constructor and add shared instance caching ([#21467](https://github.com/lightdash/lightdash/issues/21467)) ([93d9638](https://github.com/lightdash/lightdash/commit/93d9638ba73a08d91223a027ea45333b159abffd))
+
 # [0.2676.0](https://github.com/lightdash/lightdash/compare/0.2675.3...0.2676.0) (2026-03-27)
 
 
