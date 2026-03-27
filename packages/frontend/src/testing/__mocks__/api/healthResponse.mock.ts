@@ -132,6 +132,9 @@ export default function mockHealthResponse(
         preAggregates: {
             enabled: false,
         },
+        dataApps: {
+            enabled: false,
+        },
         ...overrides,
     };
 }

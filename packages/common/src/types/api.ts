@@ -489,6 +489,9 @@ export type HealthState = {
     preAggregates: {
         enabled: boolean;
     };
+    dataApps: {
+        enabled: boolean;
+    };
 };
 
 // Deploy Session Types

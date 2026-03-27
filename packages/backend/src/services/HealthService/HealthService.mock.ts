@@ -132,6 +132,9 @@ export const BaseResponse: HealthState = {
     preAggregates: {
         enabled: false,
     },
+    dataApps: {
+        enabled: false,
+    },
 };
 
 export const userMock = {

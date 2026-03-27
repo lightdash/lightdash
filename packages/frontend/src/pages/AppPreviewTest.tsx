@@ -12,9 +12,10 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { IconCheck, IconCopy, IconPlayerPlay } from '@tabler/icons-react';
-import { useParams } from 'react-router';
+import { Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import useHealth from '../hooks/health/useHealth';
 
 export default function AppPreviewTest() {
     const {
@@ -28,12 +29,17 @@ export default function AppPreviewTest() {
     }>();
 
     const version = versionParam ? Number(versionParam) : undefined;
+    const health = useHealth();
 
     const {
         data: token,
         isLoading,
         error,
     } = useAppPreviewToken(projectUuid, appUuid, version);
+
+    if (health.data && !health.data.dataApps.enabled) {
+        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+    }
 
     if (!projectUuid || !appUuid || !version) {
         return <div>Missing route params</div>;

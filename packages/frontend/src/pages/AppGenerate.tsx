@@ -15,10 +15,11 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
+import useHealth from '../hooks/health/useHealth';
 
 const AppPreview: FC<{
     projectUuid: string;
@@ -65,6 +66,11 @@ const AppGenerate: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [prompt, setPrompt] = useState('');
     const { mutate, data, isLoading, error, reset } = useGenerateApp();
+    const health = useHealth();
+
+    if (health.data && !health.data.dataApps.enabled) {
+        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+    }
 
     if (!projectUuid) {
         return <div>Missing project UUID</div>;
