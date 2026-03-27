@@ -217,6 +217,7 @@ const getMockedAsyncQueryService = (
             get: jest.fn(async () => undefined),
             getByQueryUuid: jest.fn(async () => undefined),
             update: jest.fn(),
+            updateStatusToError: jest.fn(async () => 1),
             updateStatusToQueued: jest.fn(async () => 1),
             updateStatusToExecuting: jest.fn(async () => 1),
             updateStatusToExpired: jest.fn(async () => 1),
@@ -743,14 +744,11 @@ describe('AsyncQueryService', () => {
 
             // THEN: Query history updated with ERROR status and missing parameters message
             expect(
-                serviceWithCache.queryHistoryModel.update,
+                serviceWithCache.queryHistoryModel.updateStatusToError,
             ).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'Missing parameters: missing_param, another_missing_param',
-                },
+                'Missing parameters: missing_param, another_missing_param',
                 sessionAccount,
             );
 
@@ -888,13 +886,12 @@ describe('AsyncQueryService', () => {
             expect(mockStrategy.resolveExecution).toHaveBeenCalledTimes(1);
             expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
             expect(runAsyncPreAggSpy).not.toHaveBeenCalled();
-            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'No active materialization found for pre-aggregate explore "__preagg__valid_explore__rollup"',
-                },
+                'No active materialization found for pre-aggregate explore "__preagg__valid_explore__rollup"',
                 sessionAccount,
             );
         });

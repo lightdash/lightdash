@@ -233,6 +233,26 @@ export class QueryHistoryModel {
             });
     }
 
+    async updateStatusToError(
+        queryUuid: string,
+        projectUuid: string,
+        error: string,
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
+    ) {
+        return this.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.ERROR,
+                error,
+                results_updated_at: new Date(),
+            },
+            account,
+        );
+    }
+
     async get(queryUuid: string, projectUuid: string, account: Account) {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
