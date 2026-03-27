@@ -1456,13 +1456,19 @@ export const padDatasetForContinuousAxis = (
  * This ensures bar charts only show data points that exist in the dataset,
  * preventing ECharts from auto-extending the axis range.
  */
+type CategoryDateAxisConfig = {
+    data?: string[];
+    axisTick?: { alignWithLabel: boolean; interval: number };
+    boundaryGap?: boolean;
+};
+
 export const getCategoryDateAxisConfig = (
     axisId?: string,
     axisField?: Field | TableCalculation | CustomDimension,
     rows?: ResultRow[],
     axisType?: string,
     series?: Series[],
-) => {
+): CategoryDateAxisConfig => {
     if (!axisId || !rows || !axisField || axisType !== 'category') return {};
     if (!('timeInterval' in axisField)) return {};
 
@@ -2211,10 +2217,10 @@ const getEchartAxes = ({
             },
         ],
         continuousDateRange:
-            (bottomAxisExtraConfig as any)?.data ??
-            (topAxisExtraConfig as any)?.data ??
-            (leftAxisExtraConfig as any)?.data ??
-            (rightAxisExtraConfig as any)?.data ??
+            bottomAxisExtraConfig.data ??
+            topAxisExtraConfig.data ??
+            leftAxisExtraConfig.data ??
+            rightAxisExtraConfig.data ??
             undefined,
     };
 };
