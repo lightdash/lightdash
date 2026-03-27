@@ -965,9 +965,7 @@ const DashboardProvider: React.FC<
             );
         }
 
-        if (overridesForSavedDashboardFilters?.dimensions?.length === 0) {
-            newParams.delete('filters');
-        } else if (overridesForSavedDashboardFilters?.dimensions?.length > 0) {
+        if (hasSavedFiltersOverrides(overridesForSavedDashboardFilters)) {
             newParams.set(
                 'filters',
                 JSON.stringify(
@@ -976,6 +974,8 @@ const DashboardProvider: React.FC<
                     ),
                 ),
             );
+        } else {
+            newParams.delete('filters');
         }
 
         // Only navigate if search params actually changed
@@ -1005,13 +1005,29 @@ const DashboardProvider: React.FC<
             dashboard?.filters &&
             hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
-            setDashboardFilters((prevFilters) => ({
-                ...prevFilters,
-                dimensions: applyDimensionOverrides(
-                    prevFilters,
-                    overridesForSavedDashboardFilters,
-                ),
-            }));
+            setDashboardFilters((prevFilters) => {
+                const updated: DashboardFilters = {
+                    ...prevFilters,
+                    dimensions: applyDimensionOverrides(
+                        prevFilters,
+                        overridesForSavedDashboardFilters,
+                    ),
+                };
+
+                if (overridesForSavedDashboardFilters.metrics?.length > 0) {
+                    updated.metrics = prevFilters.metrics.map((metric) => {
+                        const override =
+                            overridesForSavedDashboardFilters.metrics.find(
+                                (m) => m.id === metric.id,
+                            );
+                        return override
+                            ? { ...override, tileTargets: metric.tileTargets }
+                            : metric;
+                    });
+                }
+
+                return updated;
+            });
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
@@ -1344,7 +1360,7 @@ const DashboardProvider: React.FC<
             setFunction((previousFilters) => {
                 if (!isTemporary) {
                     if (isInEditMode) {
-                        removeSavedFilterOverride(item);
+                        removeSavedFilterOverride(item, 'metrics');
                     } else {
                         const isReverted =
                             originalDashboardFilters.metrics[index] &&
@@ -1353,7 +1369,7 @@ const DashboardProvider: React.FC<
                                 item,
                             );
                         if (isReverted) {
-                            removeSavedFilterOverride(item);
+                            removeSavedFilterOverride(item, 'metrics');
                             setHaveFiltersChanged(false);
                         } else {
                             const hasChanged = hasSavedFilterValueChanged(
@@ -1362,7 +1378,7 @@ const DashboardProvider: React.FC<
                             );
 
                             if (hasChanged && isFilterSaved) {
-                                addSavedFilterOverride(item);
+                                addSavedFilterOverride(item, 'metrics');
                             }
                         }
                     }
@@ -1395,7 +1411,10 @@ const DashboardProvider: React.FC<
                 : setDashboardFilters;
             setFunction((previousFilters) => {
                 if (!isTemporary) {
-                    removeSavedFilterOverride(previousFilters.metrics[index]);
+                    removeSavedFilterOverride(
+                        previousFilters.metrics[index],
+                        'metrics',
+                    );
                 }
                 return {
                     dimensions: previousFilters.dimensions,
