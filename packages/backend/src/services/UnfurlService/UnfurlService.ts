@@ -482,6 +482,7 @@ export class UnfurlService extends BaseService {
         authUserUuid,
         gridWidth,
         withPdf = false,
+        outputFormat = 'image',
         selector = undefined,
         context,
         contextId,
@@ -495,6 +496,7 @@ export class UnfurlService extends BaseService {
         authUserUuid: string;
         gridWidth?: number | undefined;
         withPdf?: boolean;
+        outputFormat?: 'image' | 'pdf';
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
@@ -532,7 +534,8 @@ export class UnfurlService extends BaseService {
 
         const result = await this.saveScreenshot({
             ...screenshotParams,
-            withPdf,
+            outputFormat,
+            withPdf: outputFormat === 'pdf' ? false : withPdf,
         });
 
         if (result === undefined) {

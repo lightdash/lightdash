@@ -313,6 +313,16 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
+                                {
+                                    label: 'PDF',
+                                    value: SchedulerFormat.PDF,
+                                    disabled:
+                                        isImageDisabled ||
+                                        (form.values.msTeamsTargets?.length ??
+                                            0) > 0 ||
+                                        (form.values.googleChatTargets
+                                            ?.length ?? 0) > 0,
+                                },
                             ]}
                             w="50%"
                             {...form.getInputProps('format')}
@@ -344,7 +354,8 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                 type: 'checkbox',
                             })}
                         />
-                    ) : (
+                    ) : form.getInputProps('format').value ===
+                      SchedulerFormat.PDF ? null : (
                         <Stack gap="xs">
                             {form.values.format === SchedulerFormat.CSV && (
                                 <Tooltip
