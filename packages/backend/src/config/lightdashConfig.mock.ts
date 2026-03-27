@@ -326,9 +326,6 @@ export const lightdashConfigMock: LightdashConfig = {
     funnelBuilder: {
         enabled: false,
     },
-    maps: {
-        enabled: false,
-    },
     savedMetricsTree: {
         enabled: undefined,
     },

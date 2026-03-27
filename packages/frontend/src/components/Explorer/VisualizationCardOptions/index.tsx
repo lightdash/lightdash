@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     ChartType,
-    FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
 import { Button, Group, Menu } from '@mantine-8/core';
@@ -24,7 +23,6 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import {
@@ -51,7 +49,6 @@ const VisualizationCardOptions: FC = memo(() => {
         resultsData,
         pivotDimensions,
     } = useVisualizationContext();
-    const { data: mapsFeatureFlag } = useServerFeatureFlag(FeatureFlags.Maps);
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
 
     const cartesianConfig = useMemo(() => {
@@ -445,27 +442,25 @@ const VisualizationCardOptions: FC = memo(() => {
                     </Group>
                 </Menu.Item>
 
-                {mapsFeatureFlag?.enabled && (
-                    <Menu.Item
-                        disabled={disabled}
-                        color={
-                            isMapVisualizationConfig(visualizationConfig)
-                                ? 'blue'
-                                : undefined
-                        }
-                        leftSection={<MantineIcon icon={IconMap} />}
-                        onClick={() => {
-                            setStacking(undefined);
-                            setCartesianType(undefined);
-                            setChartType(ChartType.MAP);
-                        }}
-                    >
-                        <Group gap="xs">
-                            Map
-                            <BetaBadge />
-                        </Group>
-                    </Menu.Item>
-                )}
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isMapVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    leftSection={<MantineIcon icon={IconMap} />}
+                    onClick={() => {
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.MAP);
+                    }}
+                >
+                    <Group gap="xs">
+                        Map
+                        <BetaBadge />
+                    </Group>
+                </Menu.Item>
 
                 <Menu.Item
                     disabled={disabled}
