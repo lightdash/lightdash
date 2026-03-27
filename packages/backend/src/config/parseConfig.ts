@@ -1231,9 +1231,6 @@ export type LightdashConfig = {
     funnelBuilder: {
         enabled: boolean;
     };
-    maps: {
-        enabled: boolean | undefined;
-    };
     savedMetricsTree: {
         enabled: boolean | undefined;
     };
@@ -2208,12 +2205,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
-        },
-        maps: {
-            enabled:
-                process.env.LIGHTDASH_MAPS_ENABLED === 'true'
-                    ? true
-                    : undefined,
         },
         savedMetricsTree: {
             enabled:
