@@ -1,3 +1,10 @@
+## [0.2675.1](https://github.com/lightdash/lightdash/compare/0.2675.0...0.2675.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* show actual value instead of n/a for non-numeric big number comparisons ([#21458](https://github.com/lightdash/lightdash/issues/21458)) ([3629bd9](https://github.com/lightdash/lightdash/commit/3629bd98ff49d9a7b692def46d8b6010bdd0c97d))
+
 # [0.2675.0](https://github.com/lightdash/lightdash/compare/0.2674.1...0.2675.0) (2026-03-26)
 
 
