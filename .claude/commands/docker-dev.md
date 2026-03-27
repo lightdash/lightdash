@@ -160,7 +160,7 @@ esac
 - The project specifies its required Node version in `.nvmrc` (or `.node-version`)
 - PM2 inherits the Node binary from the current shell — if the wrong version is active, native modules (like `lz4`) will fail with `ERR_DLOPEN_FAILED` / "Module did not self-register"
 - This check uses a prefix match (e.g., required `20.19` matches `20.19.6`)
-- The "Ensure Correct Node Version" step (under `start`) handles switching automatically
+- The "Ensure Correct Node Version" step runs before `pnpm install` so native modules compile against the correct ABI
 
 ---
 
@@ -316,6 +316,44 @@ Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 EOF
 ````
 
+### Ensure Correct Node Version
+
+**CRITICAL: Always run this before `pnpm install` or starting PM2.** Native modules are compiled against the active Node ABI during `pnpm install`. If the wrong version is active, modules like `lz4` will crash with `ERR_DLOPEN_FAILED` at runtime.
+
+Read the required version from `.nvmrc` or `.node-version`, then switch if needed:
+
+```bash
+REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo "")
+CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
+
+if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
+  echo "Node version mismatch: running $CURRENT_NODE, project requires $REQUIRED_NODE"
+
+  # Try fnm first
+  if command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env)"
+    fnm use "$REQUIRED_NODE" --install-if-missing
+    echo "Switched to Node $(node -v) via fnm"
+
+  # Try nvm
+  elif [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+    nvm use "$REQUIRED_NODE" || nvm install "$REQUIRED_NODE"
+    echo "Switched to Node $(node -v) via nvm"
+
+  # Try mise/rtx
+  elif command -v mise >/dev/null 2>&1; then
+    mise use "node@$REQUIRED_NODE"
+    echo "Switched to Node $(node -v) via mise"
+
+  else
+    echo "ERROR: Cannot switch Node version. Install fnm, nvm, or mise, then retry."
+    echo "Current: $CURRENT_NODE, Required: $REQUIRED_NODE"
+    return 1
+  fi
+fi
+```
+
 ### Install Dependencies
 
 ```bash
@@ -389,50 +427,6 @@ if ! docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/nu
     alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
   docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
 fi
-```
-
-### Ensure Correct Node Version
-
-**CRITICAL: Always run this before starting PM2.** PM2 inherits the Node binary from the current shell. If the wrong version is active, native modules (like `lz4` used by the Databricks driver) will crash with `ERR_DLOPEN_FAILED`.
-
-Read the required version from `.nvmrc` or `.node-version`, then switch if needed:
-
-```bash
-REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo "")
-CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
-
-if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
-  echo "Node version mismatch: running $CURRENT_NODE, project requires $REQUIRED_NODE"
-
-  # Try fnm first
-  if command -v fnm >/dev/null 2>&1; then
-    eval "$(fnm env)"
-    fnm use "$REQUIRED_NODE" --install-if-missing
-    echo "Switched to Node $(node -v) via fnm"
-
-  # Try nvm
-  elif [ -s "$NVM_DIR/nvm.sh" ]; then
-    . "$NVM_DIR/nvm.sh"
-    nvm use "$REQUIRED_NODE" || nvm install "$REQUIRED_NODE"
-    echo "Switched to Node $(node -v) via nvm"
-
-  # Try mise/rtx
-  elif command -v mise >/dev/null 2>&1; then
-    mise use "node@$REQUIRED_NODE"
-    echo "Switched to Node $(node -v) via mise"
-
-  else
-    echo "ERROR: Cannot switch Node version. Install fnm, nvm, or mise, then retry."
-    echo "Current: $CURRENT_NODE, Required: $REQUIRED_NODE"
-    return 1
-  fi
-fi
-```
-
-After switching, verify with `node -v` and also rebuild native modules if `pnpm install` was run under the wrong version:
-
-```bash
-pnpm rebuild 2>/dev/null || true
 ```
 
 ### Start PM2
