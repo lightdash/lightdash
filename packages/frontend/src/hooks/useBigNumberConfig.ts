@@ -292,6 +292,15 @@ const useBigNumberConfig = (
         return resultsData.rows?.[1]?.[selectedField]?.value.raw;
     }, [selectedField, comparisonField, resultsData]);
 
+    const secondRowValueFormatted = useMemo(() => {
+        if (!resultsData) return;
+        if (comparisonField) {
+            return resultsData.rows?.[0]?.[comparisonField]?.value.formatted;
+        }
+        if (!selectedField) return;
+        return resultsData.rows?.[1]?.[selectedField]?.value.formatted;
+    }, [selectedField, comparisonField, resultsData]);
+
     const bigNumber = useMemo(() => {
         if (!isNumber(item, firstRowValueRaw)) {
             return (
@@ -385,7 +394,7 @@ const useBigNumberConfig = (
 
     const comparisonValue = useMemo(() => {
         return unformattedValue === NOT_APPLICABLE
-            ? NOT_APPLICABLE
+            ? (secondRowValueFormatted ?? NOT_APPLICABLE)
             : formatComparisonValue(
                   comparisonFormat,
                   comparisonDiff,
@@ -399,6 +408,7 @@ const useBigNumberConfig = (
         comparisonDiff,
         comparisonItem,
         unformattedValue,
+        secondRowValueFormatted,
         bigNumberComparisonStyle,
         parameters,
     ]);
@@ -412,9 +422,7 @@ const useBigNumberConfig = (
             case ComparisonDiffTypes.NONE:
                 return `No change compared to ${source}`;
             case ComparisonDiffTypes.NAN:
-                return comparisonField
-                    ? `The comparison field's value is not a number`
-                    : `The previous row's value is not a number`;
+                return `${comparisonValue} from ${source}`;
             case ComparisonDiffTypes.UNDEFINED:
                 return comparisonField
                     ? `Comparison field has no value`
