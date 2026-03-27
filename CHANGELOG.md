@@ -1,3 +1,10 @@
+# [0.2682.0](https://github.com/lightdash/lightdash/compare/0.2681.0...0.2682.0) (2026-03-27)
+
+
+### Features
+
+* support metric dashboard filters ([#21460](https://github.com/lightdash/lightdash/issues/21460)) ([1a36669](https://github.com/lightdash/lightdash/commit/1a36669d5b9143908cca090106e9ef484920a497))
+
 # [0.2681.0](https://github.com/lightdash/lightdash/compare/0.2680.0...0.2681.0) (2026-03-27)
 
 
