@@ -1,3 +1,10 @@
+## [0.2677.1](https://github.com/lightdash/lightdash/compare/0.2677.0...0.2677.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* add Node version check to docker-dev skill ([#21482](https://github.com/lightdash/lightdash/issues/21482)) ([6379596](https://github.com/lightdash/lightdash/commit/6379596e7ae7f66ef5f8537a80df6357a4dd22d5))
+
 # [0.2677.0](https://github.com/lightdash/lightdash/compare/0.2676.0...0.2677.0) (2026-03-27)
 
 
