@@ -147,15 +147,13 @@ export const useSavedSqlChartResults = (
                     originalColumns,
                 };
             } catch (e) {
+                if (isApiError(e)) {
+                    throw e;
+                }
                 captureException(e, {
                     tags: { errorType: 'chartResultsProcessing' },
                     extra: { chartData: chartQuery.data },
                 });
-                // Re-throw API errors as-is; wrap client-side errors
-                // so the UI can display the message via .error.message
-                if (isApiError(e)) {
-                    throw e;
-                }
                 const message = e instanceof Error ? e.message : String(e);
                 const wrapped: ApiError = {
                     status: 'error',
