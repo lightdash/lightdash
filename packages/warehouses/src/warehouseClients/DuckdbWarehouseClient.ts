@@ -63,8 +63,8 @@ export type DuckdbS3SessionConfig = {
 };
 
 export type DuckdbResourceLimits = {
-    memoryLimit: string; // e.g. '256MB'
-    threads: number; // e.g. 1
+    memoryLimit?: string; // e.g. '256MB'
+    threads?: number; // e.g. 1
 };
 
 export type DuckdbLogger = {
@@ -82,11 +82,28 @@ export type DuckdbQueryProfileMetrics = {
     scanAmplification: number | null;
 };
 
-export type DuckdbWarehouseClientArgs = {
-    databasePath?: string;
-    s3Config?: DuckdbS3SessionConfig;
+export type DuckdbS3Credentials = {
+    type: 'duckdb_s3';
+    s3Config: DuckdbS3SessionConfig;
+};
+
+export type DuckdbConnectionCredentials = DuckdbS3Credentials;
+
+// Backwards-compatible alias while this API settles.
+export type DuckdbS3ConnectionConfig = DuckdbS3Credentials;
+
+export type DuckdbWarehouseClientOptions = {
+    /** Resource-constrained isolated sessions, used for materialization/parquet conversion. */
     resourceLimits?: DuckdbResourceLimits;
-    memoryLimit?: string; // e.g. '256MB', '1GB' — sets DuckDB's memory_limit for the shared instance
+    /** Resource limits for query sessions. When combined with instanceCacheKey, they apply to the shared warm instance. */
+    sharedResourceLimits?: DuckdbResourceLimits;
+    /**
+     * Optional process-wide cache key for a shared DuckDB instance.
+     * The cache key is the instance identity: callers must use a different key for
+     * different connection settings / resource limits. Leave undefined for non-shared
+     * usage such as materialization and future MotherDuck querying.
+     */
+    instanceCacheKey?: string;
     logger?: DuckdbLogger;
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
 };
@@ -205,122 +222,22 @@ const BLOCKED_FUNCTION_PATTERN =
     /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
 
 export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCredentials> {
-    /**
-     * Shared DuckDB instance — one per worker process.
-     * All DuckdbWarehouseClient instances share the same underlying DuckDB instance
-     * to maximize cache hits (parquet metadata, HTTP metadata, buffer pool).
-     */
-    private static sharedInstance: DuckdbInstance | null = null;
+    private static readonly sharedInstances = new Map<string, DuckdbInstance>();
 
-    private static readonly instanceSemaphore = new AsyncSemaphore();
+    private static readonly sharedInstanceSemaphores = new Map<
+        string,
+        AsyncSemaphore
+    >();
 
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
-
-    private static async hardenInstance(db: DuckdbConnection): Promise<void> {
-        await db.run('SET allow_community_extensions = false;');
-        await db.run('SET autoinstall_known_extensions = false;');
-        await db.run('SET autoload_known_extensions = false;');
-        await db.run('SET allow_unredacted_secrets = false;');
-    }
-
-    /**
-     * Bootstrap a freshly-created shared instance: install/load extensions,
-     * enable caches, harden settings, and configure S3 credentials.
-     * Called exactly once per instance creation, inside the semaphore.
-     */
-    private static async bootstrapSharedInstance(
-        instance: DuckdbInstance,
-        client: DuckdbWarehouseClient,
-    ): Promise<void> {
-        const db = await instance.connect();
-        try {
-            const t0 = performance.now();
-            await db.run('INSTALL httpfs;');
-            await db.run('LOAD httpfs;');
-            const httpfsMs = performance.now() - t0;
-
-            await db.run('SET enable_http_metadata_cache = true;');
-            await db.run('SET enable_external_file_cache = true;');
-            await db.run('SET parquet_metadata_cache = true;');
-
-            await DuckdbWarehouseClient.hardenInstance(db);
-
-            if (client.memoryLimit) {
-                await db.run(`SET memory_limit = '${client.memoryLimit}';`);
-            }
-
-            if (client.s3Config) {
-                await db.run(
-                    DuckdbWarehouseClient.buildS3SecretSql(client.s3Config),
-                );
-            }
-
-            client.logger?.info(
-                `DuckDB shared instance bootstrapped: httpfs=${Math.round(httpfsMs)}ms memory_limit=${client.memoryLimit ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'}`,
-            );
-        } finally {
-            db.closeSync?.();
-            db.disconnectSync?.();
-        }
-    }
-
-    private static async getOrCreateSharedInstance(
-        client: DuckdbWarehouseClient,
-    ): Promise<DuckdbInstance> {
-        if (DuckdbWarehouseClient.sharedInstance)
-            return DuckdbWarehouseClient.sharedInstance;
-        await DuckdbWarehouseClient.instanceSemaphore.acquire();
-        try {
-            if (DuckdbWarehouseClient.sharedInstance)
-                return DuckdbWarehouseClient.sharedInstance;
-
-            const t0 = performance.now();
-            const instance = await DuckDBInstance.create(client.databasePath);
-            const createMs = performance.now() - t0;
-            client.logger?.info(
-                `DuckDB shared instance created: path=${client.databasePath} createMs=${Math.round(createMs)}ms`,
-            );
-
-            try {
-                await DuckdbWarehouseClient.bootstrapSharedInstance(
-                    instance,
-                    client,
-                );
-            } catch (err) {
-                instance.closeSync?.();
-                throw err;
-            }
-            DuckdbWarehouseClient.sharedInstance = instance;
-            return DuckdbWarehouseClient.sharedInstance;
-        } finally {
-            DuckdbWarehouseClient.instanceSemaphore.release();
-        }
-    }
-
-    private static clearSharedInstance(logger?: DuckdbLogger): void {
-        if (DuckdbWarehouseClient.sharedInstance) {
-            try {
-                DuckdbWarehouseClient.sharedInstance.closeSync?.();
-            } catch {
-                // best-effort cleanup
-            }
-            DuckdbWarehouseClient.sharedInstance = null;
-            logger?.info('DuckDB shared instance cleared');
-        }
-    }
-
-    /** Reset shared state without closing — for use in tests with mocked instances. */
-    static resetSharedDuckdbStateForTesting(): void {
-        DuckdbWarehouseClient.sharedInstance = null;
-    }
-
-    private readonly databasePath: string;
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
     private readonly resourceLimits?: DuckdbResourceLimits;
 
-    private readonly memoryLimit?: string;
+    private readonly sharedResourceLimits?: DuckdbResourceLimits;
+
+    private readonly instanceCacheKey?: string;
 
     private readonly logger?: DuckdbLogger;
 
@@ -328,20 +245,50 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         profile: DuckdbQueryProfileMetrics,
     ) => void;
 
-    constructor(args: DuckdbWarehouseClientArgs = {}) {
+    constructor(
+        credentials?: DuckdbConnectionCredentials,
+        options?: DuckdbWarehouseClientOptions,
+    ) {
         super(DUCKDB_INTERNAL_CREDENTIALS, new DuckdbSqlBuilder());
-        this.databasePath = args.databasePath ?? ':memory:';
-        this.s3Config = args.s3Config;
-        this.resourceLimits = args.resourceLimits;
-        this.memoryLimit = args.memoryLimit;
-        this.logger = args.logger;
-        this.onQueryProfile = args.onQueryProfile;
+        this.s3Config =
+            credentials?.type === 'duckdb_s3'
+                ? credentials.s3Config
+                : undefined;
+        this.resourceLimits = options?.resourceLimits;
+        this.sharedResourceLimits = options?.sharedResourceLimits;
+        this.instanceCacheKey = options?.instanceCacheKey;
+        this.logger = options?.logger;
+        this.onQueryProfile = options?.onQueryProfile;
     }
 
-    private static readonly CONNECT_RETRIES_BEFORE_RECREATE = 2;
+    private static getSharedInstanceSemaphore(
+        instanceCacheKey: string,
+    ): AsyncSemaphore {
+        const existingSemaphore =
+            DuckdbWarehouseClient.sharedInstanceSemaphores.get(
+                instanceCacheKey,
+            );
 
-    async close(): Promise<void> {
-        DuckdbWarehouseClient.clearSharedInstance(this.logger);
+        if (existingSemaphore) {
+            return existingSemaphore;
+        }
+
+        const semaphore = new AsyncSemaphore();
+        DuckdbWarehouseClient.sharedInstanceSemaphores.set(
+            instanceCacheKey,
+            semaphore,
+        );
+        return semaphore;
+    }
+
+    private getRequiredInstanceCacheKey(): string {
+        if (!this.instanceCacheKey) {
+            throw new Error(
+                'DuckDB instanceCacheKey is required for shared instances',
+            );
+        }
+
+        return this.instanceCacheKey;
     }
 
     private getSQLWithMetadata(sql: string, tags?: Record<string, string>) {
@@ -352,99 +299,144 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         return `${sql}\n-- ${JSON.stringify(tags)}`;
     }
 
-    private async connectWithRetry(): Promise<DuckdbConnection> {
-        const instance =
-            await DuckdbWarehouseClient.getOrCreateSharedInstance(this);
+    private static async hardenInstance(db: DuckdbConnection): Promise<void> {
+        await db.run('SET allow_community_extensions = false;');
+        await db.run('SET autoinstall_known_extensions = false;');
+        await db.run('SET autoload_known_extensions = false;');
+        await db.run('SET allow_unredacted_secrets = false;');
+    }
 
-        for (
-            let attempt = 1;
-            attempt <= DuckdbWarehouseClient.CONNECT_RETRIES_BEFORE_RECREATE;
-            attempt += 1
-        ) {
-            try {
-                // eslint-disable-next-line no-await-in-loop
-                return await instance.connect();
-            } catch (error) {
-                this.logger?.info(
-                    `DuckDB connect attempt ${attempt} failed: ${error}`,
-                );
+    private static async bootstrapQuerySession(
+        db: DuckdbConnection,
+        client: DuckdbWarehouseClient,
+    ): Promise<void> {
+        const t0 = performance.now();
+        await db.run('INSTALL httpfs;');
+        await db.run('LOAD httpfs;');
+        const httpfsMs = performance.now() - t0;
+
+        await db.run('SET enable_http_metadata_cache = true;');
+        await db.run('SET enable_external_file_cache = true;');
+        await db.run('SET parquet_metadata_cache = true;');
+
+        await DuckdbWarehouseClient.hardenInstance(db);
+
+        if (client.sharedResourceLimits?.memoryLimit) {
+            await db.run(
+                `SET memory_limit = '${client.sharedResourceLimits.memoryLimit}';`,
+            );
+        }
+
+        if (client.sharedResourceLimits?.threads) {
+            await db.run(
+                `SET threads = ${client.sharedResourceLimits.threads};`,
+            );
+        }
+
+        if (client.s3Config) {
+            await db.run(
+                DuckdbWarehouseClient.buildS3SecretSql(client.s3Config),
+            );
+        }
+
+        client.logger?.info(
+            `DuckDB query bootstrap: httpfs=${Math.round(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'}`,
+        );
+    }
+
+    private static async bootstrapSharedInstance(
+        instance: DuckdbInstance,
+        client: DuckdbWarehouseClient,
+    ): Promise<void> {
+        const db = await instance.connect();
+        try {
+            await DuckdbWarehouseClient.bootstrapQuerySession(db, client);
+        } finally {
+            db.closeSync?.();
+            db.disconnectSync?.();
+        }
+    }
+
+    private static async getOrCreateSharedInstance(
+        client: DuckdbWarehouseClient,
+    ): Promise<DuckdbInstance> {
+        const instanceCacheKey = client.getRequiredInstanceCacheKey();
+
+        const existingInstance =
+            DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
+        if (existingInstance) {
+            return existingInstance;
+        }
+
+        const semaphore =
+            DuckdbWarehouseClient.getSharedInstanceSemaphore(instanceCacheKey);
+        await semaphore.acquire();
+        try {
+            const cachedInstance =
+                DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
+            if (cachedInstance) {
+                return cachedInstance;
             }
-        }
 
-        this.logger?.info(
-            'DuckDB connect retries exhausted, recreating instance',
-        );
-        DuckdbWarehouseClient.clearSharedInstance(this.logger);
-        const freshInstance =
-            await DuckdbWarehouseClient.getOrCreateSharedInstance(this);
-        return freshInstance.connect();
-    }
-
-    /** Ephemeral DuckDB instance with resource limits (e.g. parquet conversion). */
-    private async withIsolatedSession<T>(
-        callback: (db: DuckdbConnection) => Promise<T>,
-    ): Promise<T> {
-        const sessionStart = performance.now();
-
-        const instance = await DuckDBInstance.create(this.databasePath);
-        const connection = await instance.connect();
-        const connectMs = performance.now() - sessionStart;
-
-        const tempDir = await fs.mkdtemp(
-            path.join(os.tmpdir(), 'duckdb-temp-'),
-        );
-
-        try {
-            const bootstrapStart = performance.now();
-            await this.bootstrapIsolatedSession(connection, tempDir);
-            const bootstrapMs = performance.now() - bootstrapStart;
-
-            const queryStart = performance.now();
-            const result = await callback(connection);
-            const queryMs = performance.now() - queryStart;
-
-            const totalMs = performance.now() - sessionStart;
-            this.logger?.info(
-                `DuckDB isolated session timing: connect=${Math.round(connectMs)}ms bootstrap=${Math.round(bootstrapMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+            const t0 = performance.now();
+            const instance = await DuckDBInstance.create(':memory:');
+            const createMs = performance.now() - t0;
+            client.logger?.info(
+                `DuckDB shared instance created: cacheKey=${instanceCacheKey} createMs=${Math.round(createMs)}ms`,
             );
 
-            return result;
+            try {
+                await DuckdbWarehouseClient.bootstrapSharedInstance(
+                    instance,
+                    client,
+                );
+            } catch (error) {
+                instance.closeSync?.();
+                throw error;
+            }
+
+            DuckdbWarehouseClient.sharedInstances.set(
+                instanceCacheKey,
+                instance,
+            );
+            return instance;
         } finally {
-            connection.closeSync?.();
-            connection.disconnectSync?.();
-            instance.closeSync?.();
-            await fs.rm(tempDir, { recursive: true, force: true }).catch(
-                () => {}, // best-effort cleanup
-            );
+            semaphore.release();
         }
     }
 
-    private async withSession<T>(
-        callback: (db: DuckdbConnection) => Promise<T>,
-    ): Promise<T> {
-        if (this.resourceLimits) {
-            return this.withIsolatedSession(callback);
-        }
-
-        const sessionStart = performance.now();
-
-        const connection = await this.connectWithRetry();
-        const connectMs = performance.now() - sessionStart;
-
-        try {
-            const queryStart = performance.now();
-            const result = await callback(connection);
-            const queryMs = performance.now() - queryStart;
-
-            const totalMs = performance.now() - sessionStart;
-            this.logger?.info(
-                `DuckDB shared session (reusing instance): connect=${Math.round(connectMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+    private static clearSharedInstance(
+        instanceCacheKey: string,
+        logger?: DuckdbLogger,
+    ): void {
+        const sharedInstance =
+            DuckdbWarehouseClient.sharedInstances.get(instanceCacheKey);
+        if (sharedInstance) {
+            try {
+                sharedInstance.closeSync?.();
+            } catch {
+                // best-effort cleanup
+            }
+            DuckdbWarehouseClient.sharedInstances.delete(instanceCacheKey);
+            DuckdbWarehouseClient.sharedInstanceSemaphores.delete(
+                instanceCacheKey,
             );
+            logger?.info(`DuckDB shared instance cleared: ${instanceCacheKey}`);
+        }
+    }
 
-            return result;
-        } finally {
-            connection.closeSync?.();
-            connection.disconnectSync?.();
+    /** Reset shared state without closing — for use in tests with mocked instances. */
+    static resetSharedDuckdbStateForTesting(): void {
+        DuckdbWarehouseClient.sharedInstances.clear();
+        DuckdbWarehouseClient.sharedInstanceSemaphores.clear();
+    }
+
+    async close(): Promise<void> {
+        if (this.instanceCacheKey) {
+            DuckdbWarehouseClient.clearSharedInstance(
+                this.instanceCacheKey,
+                this.logger,
+            );
         }
     }
 
@@ -472,6 +464,40 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         );`;
     }
 
+    private static readonly CONNECT_RETRIES_BEFORE_RECREATE = 2;
+
+    private async connectWithRetry(): Promise<DuckdbConnection> {
+        const instanceCacheKey = this.getRequiredInstanceCacheKey();
+        const instance =
+            await DuckdbWarehouseClient.getOrCreateSharedInstance(this);
+
+        for (
+            let attempt = 1;
+            attempt <= DuckdbWarehouseClient.CONNECT_RETRIES_BEFORE_RECREATE;
+            attempt += 1
+        ) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                return await instance.connect();
+            } catch (error) {
+                this.logger?.info(
+                    `DuckDB connect attempt ${attempt} failed: ${error}`,
+                );
+            }
+        }
+
+        this.logger?.info(
+            'DuckDB connect retries exhausted, recreating shared instance',
+        );
+        DuckdbWarehouseClient.clearSharedInstance(
+            instanceCacheKey,
+            this.logger,
+        );
+        const freshInstance =
+            await DuckdbWarehouseClient.getOrCreateSharedInstance(this);
+        return freshInstance.connect();
+    }
+
     /** Bootstrap for isolated instances — no shared locks needed. */
     private async bootstrapIsolatedSession(
         db: DuckdbConnection,
@@ -482,19 +508,140 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
         await DuckdbWarehouseClient.hardenInstance(db);
 
-        await db.run(
-            `SET memory_limit = '${this.resourceLimits!.memoryLimit}';`,
-        );
         await db.run(`SET temp_directory = '${tempDir}';`);
-        await db.run(`SET threads = ${this.resourceLimits!.threads};`);
+
+        if (this.resourceLimits?.memoryLimit) {
+            await db.run(
+                `SET memory_limit = '${this.resourceLimits.memoryLimit}';`,
+            );
+        }
+
+        if (this.resourceLimits?.threads) {
+            await db.run(`SET threads = ${this.resourceLimits.threads};`);
+        }
 
         if (this.s3Config) {
             await db.run(DuckdbWarehouseClient.buildS3SecretSql(this.s3Config));
         }
 
         this.logger?.info(
-            `DuckDB isolated bootstrap: memory_limit=${this.resourceLimits!.memoryLimit} threads=${this.resourceLimits!.threads}`,
+            `DuckDB isolated bootstrap: memory_limit=${this.resourceLimits?.memoryLimit ?? 'default'} threads=${this.resourceLimits?.threads ?? 'default'} s3=${this.s3Config ? 'configured' : 'none'}`,
         );
+    }
+
+    /** Ephemeral DuckDB instance with resource limits (e.g. parquet conversion). */
+    private async withIsolatedSession<T>(
+        callback: (db: DuckdbConnection) => Promise<T>,
+    ): Promise<T> {
+        const sessionStart = performance.now();
+
+        const instance = await DuckDBInstance.create(':memory:');
+        const connection = await instance.connect();
+        const connectMs = performance.now() - sessionStart;
+
+        const tempDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'duckdb-temp-'),
+        );
+
+        try {
+            const bootstrapStart = performance.now();
+            await this.bootstrapIsolatedSession(connection, tempDir);
+            const bootstrapMs = performance.now() - bootstrapStart;
+
+            const queryStart = performance.now();
+            const result = await callback(connection);
+            const queryMs = performance.now() - queryStart;
+
+            const totalMs = performance.now() - sessionStart;
+            this.logger?.info(
+                `DuckDB isolated session: connect=${Math.round(connectMs)}ms bootstrap=${Math.round(bootstrapMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+            );
+
+            return result;
+        } finally {
+            connection.closeSync?.();
+            connection.disconnectSync?.();
+            instance.closeSync?.();
+            await fs.rm(tempDir, { recursive: true, force: true }).catch(
+                () => {}, // best-effort cleanup
+            );
+        }
+    }
+
+    private async withEphemeralQuerySession<T>(
+        callback: (db: DuckdbConnection) => Promise<T>,
+    ): Promise<T> {
+        const sessionStart = performance.now();
+
+        const instance = await DuckDBInstance.create(':memory:');
+        const connection = await instance.connect();
+        const connectMs = performance.now() - sessionStart;
+
+        try {
+            const bootstrapStart = performance.now();
+            await DuckdbWarehouseClient.bootstrapQuerySession(connection, this);
+            const bootstrapMs = performance.now() - bootstrapStart;
+
+            const queryStart = performance.now();
+            const result = await callback(connection);
+            const queryMs = performance.now() - queryStart;
+
+            const totalMs = performance.now() - sessionStart;
+            this.logger?.info(
+                `DuckDB ephemeral query session: connect=${Math.round(connectMs)}ms bootstrap=${Math.round(bootstrapMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+            );
+
+            return result;
+        } finally {
+            connection.closeSync?.();
+            connection.disconnectSync?.();
+            instance.closeSync?.();
+        }
+    }
+
+    private async withSharedSession<T>(
+        callback: (db: DuckdbConnection) => Promise<T>,
+    ): Promise<T> {
+        const sessionStart = performance.now();
+
+        const connection = await this.connectWithRetry();
+        const connectMs = performance.now() - sessionStart;
+
+        try {
+            const queryStart = performance.now();
+            const result = await callback(connection);
+            const queryMs = performance.now() - queryStart;
+
+            const totalMs = performance.now() - sessionStart;
+            this.logger?.info(
+                `DuckDB shared session (reusing instance): connect=${Math.round(connectMs)}ms query=${Math.round(queryMs)}ms total=${Math.round(totalMs)}ms`,
+            );
+
+            return result;
+        } finally {
+            connection.closeSync?.();
+            connection.disconnectSync?.();
+        }
+    }
+
+    private hasResourceLimits(): boolean {
+        return (
+            !!this.resourceLimits && Object.keys(this.resourceLimits).length > 0
+        );
+    }
+
+    private async withSession<T>(
+        callback: (db: DuckdbConnection) => Promise<T>,
+    ): Promise<T> {
+        if (this.hasResourceLimits()) {
+            return this.withIsolatedSession(callback);
+        }
+
+        if (this.instanceCacheKey) {
+            return this.withSharedSession(callback);
+        }
+
+        return this.withEphemeralQuerySession(callback);
     }
 
     private getBindValues(options?: {

@@ -1,5 +1,13 @@
 import {
     ApiPreAggregateStatsResults,
+    CreateWarehouseCredentials,
+    DateZoom,
+    ItemsMap,
+    ParameterDefinitions,
+    ParametersValuesMap,
+    PivotConfiguration,
+    UserAccessControls,
+    WarehouseClient,
     type CacheMetadata,
     type Explore,
     type KnexPaginateArgs,
@@ -8,10 +16,7 @@ import {
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import {
-    type PreAggregationRoute,
-    type RunAsyncPreAggregateQueryArgs,
-} from './types';
+import { type PreAggregationRoute } from './types';
 
 export type PreAggregationRoutingDecision =
     | {
@@ -48,7 +53,7 @@ export interface PreAggregateStrategy {
         resolveArgs: ResolveExecutionArgs;
     }): Promise<PreAggregateExecutionResolution>;
 
-    createExecutionWarehouseClient(): import('@lightdash/common').WarehouseClient;
+    createExecutionWarehouseClient(): WarehouseClient;
 
     recordStats(params: {
         projectUuid: string;
@@ -74,15 +79,13 @@ export interface PreAggregateStrategy {
 export type ResolveExecutionArgs = {
     metricQuery: MetricQuery;
     timezone: string;
-    dateZoom: import('@lightdash/common').DateZoom | undefined;
-    parameters: import('@lightdash/common').ParametersValuesMap | undefined;
-    fieldsMap: import('@lightdash/common').ItemsMap;
-    pivotConfiguration:
-        | import('@lightdash/common').PivotConfiguration
-        | undefined;
-    startOfWeek: import('@lightdash/common').CreateWarehouseCredentials['startOfWeek'];
-    userAccessControls?: import('@lightdash/common').UserAccessControls;
-    availableParameterDefinitions?: import('@lightdash/common').ParameterDefinitions;
+    dateZoom: DateZoom | undefined;
+    parameters: ParametersValuesMap | undefined;
+    fieldsMap: ItemsMap;
+    pivotConfiguration: PivotConfiguration | undefined;
+    startOfWeek: CreateWarehouseCredentials['startOfWeek'];
+    userAccessControls?: UserAccessControls;
+    availableParameterDefinitions?: ParameterDefinitions;
 };
 
 export type PreAggregateExecutionResolution =

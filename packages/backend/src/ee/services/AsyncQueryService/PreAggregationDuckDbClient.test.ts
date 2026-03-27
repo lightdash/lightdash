@@ -60,6 +60,14 @@ describe('PreAggregationDuckDbClient', () => {
             preAggregateModel:
                 preAggregateModel as unknown as PreAggregateModel,
             projectModel: projectModel as unknown as ProjectModel,
+            sharedResourceLimits: resolvedLightdashConfig.preAggregates
+                .duckdbQueryMemoryLimit
+                ? {
+                      memoryLimit:
+                          resolvedLightdashConfig.preAggregates
+                              .duckdbQueryMemoryLimit,
+                  }
+                : undefined,
             createDuckdbWarehouseClient,
         });
 
@@ -176,6 +184,35 @@ describe('PreAggregationDuckDbClient', () => {
             }),
         );
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
+            expect.objectContaining({
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            }),
+        );
+    });
+
+    test('passes the configured shared DuckDB resource limits to the warehouse client', async () => {
+        const { client, createDuckdbWarehouseClient } = getClient({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                    duckdbQueryMemoryLimit: '3GB',
+                },
+            },
+        });
+
+        await client.resolve(baseResolveArgs);
+
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sharedResourceLimits: {
+                    memoryLimit: '3GB',
+                },
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            }),
+        );
     });
 
     test('logs selected materialization metadata for debugging', async () => {

@@ -139,16 +139,18 @@ export const createLocalParquetUploadStream = ({
                             name: 'LocalParquetUploadStream.duckdbInit',
                         },
                         () =>
-                            new DuckdbWarehouseClient({
-                                s3Config,
-                                resourceLimits: {
-                                    memoryLimit: '256MB',
-                                    threads: 1,
+                            new DuckdbWarehouseClient(
+                                { type: 'duckdb_s3', s3Config },
+                                {
+                                    resourceLimits: {
+                                        memoryLimit: '256MB',
+                                        threads: 1,
+                                    },
+                                    logger,
+                                    onQueryProfile:
+                                        prometheusMetrics?.observeDuckdbQueryProfile,
                                 },
-                                logger,
-                                onQueryProfile:
-                                    prometheusMetrics?.observeDuckdbQueryProfile,
-                            }),
+                            ),
                     );
 
                     const localJsonlSqlTable = getJsonlSqlTable(
