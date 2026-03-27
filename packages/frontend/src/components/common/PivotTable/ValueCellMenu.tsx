@@ -231,7 +231,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                     <DrillIntoSubmenu
                         drillConfig={drillConfig}
                         fieldValues={
-                            getUnderlyingFieldValues &&
+                            getUnderlyingFieldValues !== undefined &&
                             rowIndex !== undefined &&
                             colIndex !== undefined
                                 ? getUnderlyingFieldValues(rowIndex, colIndex)

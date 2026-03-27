@@ -2,6 +2,7 @@ import {
     isDrillDownPath,
     isDrillThroughPath,
     type DrillConfig,
+    type DrillPath,
     type DrillPathType,
     type DrillStack,
     type ResultValue,
