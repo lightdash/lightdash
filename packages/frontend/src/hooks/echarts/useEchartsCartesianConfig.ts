@@ -67,6 +67,7 @@ import {
     type PivotReference,
     type PivotValuesColumn,
     type ResultRow,
+    type RowLimit,
     type Series,
     type TableCalculation,
     type XAxis,
@@ -1385,6 +1386,34 @@ const getLongestLabel = ({
 };
 
 /**
+ * Filter out series whose data column has all null/undefined values in the
+ * displayed results. This prevents phantom legend entries and empty stacked
+ * segments when row limiting slices away all data for a pivot series.
+ *
+ * Returns `unfilteredSeries` unchanged when row limiting is inactive.
+ */
+export const filterSeriesWithNoData = (
+    unfilteredSeries: EChartsSeries[],
+    results: Record<string, unknown>[],
+    isShowHideRowsEnabled: boolean,
+    rowLimit: RowLimit | undefined,
+): EChartsSeries[] => {
+    if (!isShowHideRowsEnabled || !rowLimit) {
+        return unfilteredSeries;
+    }
+    if (results.length === 0) return unfilteredSeries;
+
+    return unfilteredSeries.filter((s) => {
+        const dataFieldKey = s.encode?.tooltip?.[0];
+        if (!dataFieldKey) return true;
+        return results.some((row) => {
+            const val = row[dataFieldKey];
+            return val !== null && val !== undefined;
+        });
+    });
+};
+
+/**
  * Generate continuous date range config for category axes with date intervals.
  * This ensures bar charts only show data points that exist in the dataset,
  * preventing ECharts from auto-extending the axis range.
@@ -2428,27 +2457,21 @@ const useEchartsCartesianConfig = (
         [rows],
     );
 
-    const series = useMemo(() => {
-        if (!isShowHideRowsEnabled || !validCartesianConfig?.rowLimit) {
-            return unfilteredSeries;
-        }
-        const results = resultsAndMinsAndMaxes.results;
-        if (results.length === 0) return unfilteredSeries;
-
-        return unfilteredSeries.filter((s) => {
-            const dataFieldKey = s.encode?.tooltip?.[0];
-            if (!dataFieldKey) return true;
-            return results.some((row) => {
-                const val = row[dataFieldKey];
-                return val !== null && val !== undefined;
-            });
-        });
-    }, [
-        unfilteredSeries,
-        resultsAndMinsAndMaxes.results,
-        isShowHideRowsEnabled,
-        validCartesianConfig?.rowLimit,
-    ]);
+    const series = useMemo(
+        () =>
+            filterSeriesWithNoData(
+                unfilteredSeries,
+                resultsAndMinsAndMaxes.results,
+                isShowHideRowsEnabled,
+                validCartesianConfig?.rowLimit,
+            ),
+        [
+            unfilteredSeries,
+            resultsAndMinsAndMaxes.results,
+            isShowHideRowsEnabled,
+            validCartesianConfig?.rowLimit,
+        ],
+    );
 
     const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {

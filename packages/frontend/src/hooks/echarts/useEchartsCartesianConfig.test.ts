@@ -1,6 +1,13 @@
-import { TimeFrames, type Field, type ResultRow } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    TimeFrames,
+    type EChartsSeries,
+    type Field,
+    type ResultRow,
+} from '@lightdash/common';
 import { describe, expect, test, vi } from 'vitest';
 import {
+    filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
@@ -400,5 +407,176 @@ describe('getCategoryDateAxisConfig', () => {
             // 21 days = 3 weeks, so 4 data points: Jan 1, 8, 15, 22
             expect(result.data).toHaveLength(4);
         });
+    });
+});
+
+describe('filterSeriesWithNoData', () => {
+    const makeSeries = (tooltipKey: string | undefined): EChartsSeries =>
+        ({
+            type: CartesianSeriesType.BAR,
+            encode: tooltipKey
+                ? {
+                      x: 'date',
+                      y: tooltipKey,
+                      tooltip: [tooltipKey],
+                      seriesName: tooltipKey,
+                  }
+                : undefined,
+        }) as EChartsSeries;
+
+    const rowLimit = {
+        mode: 'show' as const,
+        direction: 'first' as const,
+        count: 5,
+    };
+
+    test('removes series whose data column is all null in visible results', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: null },
+            { metric_a: 20, metric_b: null },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
+    });
+
+    test('removes series whose data column is all undefined in visible results', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: undefined },
+            { metric_a: 20 },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
+    });
+
+    test('keeps series with zero values (falsy but valid data)', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: 0 },
+            { metric_a: 20, metric_b: 0 },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series with empty string values (falsy but not null/undefined)', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: '' },
+            { metric_a: 20, metric_b: '' },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('keeps series with no encode/tooltip (fallback: keep everything)', () => {
+        const series = [makeSeries('metric_a'), makeSeries(undefined)];
+        const results = [{ metric_a: 10 }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('returns unfilteredSeries when results array is empty', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results: Record<string, unknown>[] = [];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('returns unfilteredSeries when isShowHideRowsEnabled is false', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [{ metric_a: 10, metric_b: null }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            false,
+            rowLimit,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('returns unfilteredSeries when rowLimit is undefined', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [{ metric_a: 10, metric_b: null }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            undefined,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('keeps series when at least one row has non-null data', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: null },
+            { metric_a: 20, metric_b: 5 },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
+
+    test('treats formatted null placeholder strings as having data', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [
+            { metric_a: 10, metric_b: '∅' },
+            { metric_a: 20, metric_b: '∅' },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
     });
 });
