@@ -1,3 +1,10 @@
+## [0.2682.1](https://github.com/lightdash/lightdash/compare/0.2682.0...0.2682.1) (2026-03-27)
+
+
+### Bug Fixes
+
+* dont download spaces user cant access ([#21492](https://github.com/lightdash/lightdash/issues/21492)) ([4cc6413](https://github.com/lightdash/lightdash/commit/4cc6413894a10260ad27373df3567b13a0aa16d5))
+
 # [0.2682.0](https://github.com/lightdash/lightdash/compare/0.2681.0...0.2682.0) (2026-03-27)
 
 
