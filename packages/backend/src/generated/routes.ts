@@ -4331,7 +4331,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                columnLimit: { dataType: 'double' },
                 rowLimit: { ref: 'RowLimit' },
                 metadata: { ref: 'Record_string.SeriesMetadata_' },
                 eChartsConfig: { ref: 'EChartsConfig', required: true },
@@ -4732,7 +4731,14 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MapTileBackground: {
         dataType: 'refEnum',
-        enums: ['none', 'openstreetmap', 'light', 'dark', 'satellite'],
+        enums: [
+            'none',
+            'openstreetmap',
+            'light',
+            'dark',
+            'satellite',
+            'voyager',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MapFieldConfig: {
@@ -5957,6 +5963,11 @@ const models: TsoaRoute.Models = {
         enums: ['table_calculation_present'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.USER_BYPASS': {
+        dataType: 'refEnum',
+        enums: ['user_bypass'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreAggregateMatchMiss: {
         dataType: 'refAlias',
         type: {
@@ -6063,6 +6074,19 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         reason: {
                             ref: 'PreAggregateMissReason.TABLE_CALCULATION_PRESENT',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        preAggregateName: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        reason: {
+                            ref: 'PreAggregateMissReason.USER_BYPASS',
                             required: true,
                         },
                     },
@@ -6510,7 +6534,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiGenerateAppResponse: {
+    'ApiSuccess__appUuid-string--version-number__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6518,13 +6542,21 @@ const models: TsoaRoute.Models = {
                 results: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        versionUuid: { dataType: 'string', required: true },
+                        version: { dataType: 'double', required: true },
                         appUuid: { dataType: 'string', required: true },
                     },
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiGenerateAppResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess__appUuid-string--version-number__',
             validators: {},
         },
     },
@@ -6540,7 +6572,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiPreviewTokenResponse: {
+    'ApiSuccess__token-string__': {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -6556,6 +6588,11 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiPreviewTokenResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess__token-string__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardSummaryTone: {
@@ -19666,6 +19703,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ContentAsCodeType.SPACE': {
+        dataType: 'refEnum',
+        enums: ['space'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                slug: { dataType: 'string', required: true },
+                spaceName: { dataType: 'string', required: true },
+                contentType: { ref: 'ContentAsCodeType.SPACE', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiChartAsCodeListResponse: {
         dataType: 'refAlias',
         type: {
@@ -19676,6 +19731,11 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         offset: { dataType: 'double', required: true },
                         total: { dataType: 'double', required: true },
+                        spaces: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceAsCode' },
+                            required: true,
+                        },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -20081,6 +20141,11 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         offset: { dataType: 'double', required: true },
                         total: { dataType: 'double', required: true },
+                        spaces: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceAsCode' },
+                            required: true,
+                        },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -20326,6 +20391,11 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         offset: { dataType: 'double', required: true },
                         total: { dataType: 'double', required: true },
+                        spaces: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceAsCode' },
+                            required: true,
+                        },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -25856,6 +25926,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 parameters: { ref: 'ParametersValuesMap' },
+                usePreAggregateCache: { dataType: 'boolean' },
                 invalidateCache: { dataType: 'boolean' },
                 context: { ref: 'QueryExecutionContext' },
             },
@@ -30757,15 +30828,15 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
-        versionUuid: {
+        version: {
             in: 'path',
-            name: 'versionUuid',
+            name: 'version',
             required: true,
-            dataType: 'string',
+            dataType: 'double',
         },
     };
     app.get(
-        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/versions/:versionUuid/preview-token',
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/versions/:version/preview-token',
         ...fetchMiddlewares<RequestHandler>(AppGenerateController),
         ...fetchMiddlewares<RequestHandler>(
             AppGenerateController.prototype.getPreviewToken,
@@ -50032,6 +50103,7 @@ export function RegisterRoutes(app: Router) {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        usePreAggregateCache: { dataType: 'boolean' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
                         parameters: { ref: 'ParametersValuesMap' },
                     },
