@@ -1,3 +1,10 @@
+# [0.2679.0](https://github.com/lightdash/lightdash/compare/0.2678.0...0.2679.0) (2026-03-27)
+
+
+### Features
+
+* fall back for maps base layer when unavailable ([#21486](https://github.com/lightdash/lightdash/issues/21486)) ([5cb1bd5](https://github.com/lightdash/lightdash/commit/5cb1bd5f04e0aef4a4088d8d14fafffeb0f97c08))
+
 # [0.2678.0](https://github.com/lightdash/lightdash/compare/0.2677.1...0.2678.0) (2026-03-27)
 
 
