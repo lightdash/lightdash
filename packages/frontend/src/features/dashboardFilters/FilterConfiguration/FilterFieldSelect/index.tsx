@@ -220,7 +220,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     return (
         <div>
             <Text size="sm" mb={4}>
-                Select a dimension to filter{' '}
+                Select a field to filter{' '}
                 <Text component="span" c="red">
                     *
                 </Text>

@@ -49,9 +49,9 @@ const AddFilterButton: FC<Props> = ({
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
     );
-    const isMetricFiltersEnabled = useClientFeatureFlag(
-        FeatureFlags.MetricDashboardFilters,
-    );
+    const isMetricFiltersEnabled =
+        useClientFeatureFlag(FeatureFlags.MetricDashboardFilters) ||
+        import.meta.env.DEV;
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
     );
