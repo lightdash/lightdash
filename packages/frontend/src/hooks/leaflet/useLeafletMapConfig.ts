@@ -156,7 +156,7 @@ const getMapZoom = (mapType: MapChartLocation): number => {
 const CARTO_ATTRIBUTION =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-const getTileConfig = (
+export const getTileConfig = (
     background: MapTileBackground | undefined,
 ): TileConfig => {
     switch (background) {
