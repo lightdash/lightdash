@@ -762,8 +762,8 @@ importers:
         specifier: ^4.1.1
         version: 4.1.1
       liquidjs:
-        specifier: ^10.25.0
-        version: 10.25.0
+        specifier: ^10.25.1
+        version: 10.25.2
       lodash:
         specifier: ^4.17.23
         version: 4.17.23
@@ -11570,8 +11570,8 @@ packages:
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     hasBin: true
 
-  liquidjs@10.25.0:
-    resolution: {integrity: sha512-XpO7AiGULTG4xcTlwkcTI5JreFG7b6esLCLp+aUSh7YuQErJZEoUXre9u9rbdb0057pfWG4l0VursvLd5Q/eAw==}
+  liquidjs@10.25.2:
+    resolution: {integrity: sha512-ZbgcjEjGNlAIjqhuMzymO3lCpHgmVMftKfrq4/YLLxmKaFFeQMXRGrJTqKX7OXX1hKVPUDpTIrvL7lxt3X/hmw==}
     engines: {node: '>=16'}
     hasBin: true
 
@@ -20452,7 +20452,7 @@ snapshots:
       async: 3.2.6
       chalk: 3.0.0
       dayjs: 1.8.36
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eventemitter2: 5.0.1
       fast-json-patch: 3.1.1
       fclone: 1.0.11
@@ -20471,7 +20471,7 @@ snapshots:
   '@pm2/io@6.1.0':
     dependencies:
       async: 2.6.4
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eventemitter2: 6.4.7
       require-in-the-middle: 5.2.0
       semver: 7.5.4
@@ -20484,7 +20484,7 @@ snapshots:
   '@pm2/js-api@0.8.0':
     dependencies:
       async: 2.6.4
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       eventemitter2: 6.4.7
       extrareqp2: 1.0.0(debug@4.3.7)
       ws: 7.5.10
@@ -26948,7 +26948,7 @@ snapshots:
 
   follow-redirects@1.15.9(debug@4.3.7):
     optionalDependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
 
   for-each@0.3.3:
     dependencies:
@@ -29102,7 +29102,7 @@ snapshots:
       supports-color: 9.1.0
       yaml: 1.10.2
 
-  liquidjs@10.25.0:
+  liquidjs@10.25.2:
     dependencies:
       commander: 10.0.1
 
@@ -30172,7 +30172,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@9.1.0)
+      debug: 4.3.7(supports-color@5.5.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
