@@ -719,7 +719,11 @@ export class CoderService extends BaseService {
                   })
                 : undefined,
             missingIds,
-            spaces: CoderService.transformSpaces(spaces),
+            spaces: CoderService.transformSpaces(
+                spaces.filter((s) =>
+                    dashboardsWithAccess.some((d) => d.spaceUuid === s.uuid),
+                ),
+            ),
             total: dashboardSummariesWithAccess.length,
             offset: newOffset,
         };
@@ -846,7 +850,11 @@ export class CoderService extends BaseService {
                   })
                 : undefined,
             missingIds,
-            spaces: CoderService.transformSpaces(spaces),
+            spaces: CoderService.transformSpaces(
+                spaces.filter((s) =>
+                    limitedChartSummaries.some((c) => c.spaceUuid === s.uuid),
+                ),
+            ),
             total: chartsSummariesWithAccess.length,
             offset: newOffset,
         };
@@ -965,7 +973,13 @@ export class CoderService extends BaseService {
         return {
             sqlCharts: transformedSqlCharts,
             missingIds,
-            spaces: CoderService.transformSpaces(sqlChartSpaces),
+            spaces: CoderService.transformSpaces(
+                sqlChartSpaces.filter((s) =>
+                    paginatedSqlChartRows.some(
+                        (row) => row.space_uuid === s.uuid,
+                    ),
+                ),
+            ),
             total: accessibleSqlChartRows.length,
             offset: newOffset,
         };
