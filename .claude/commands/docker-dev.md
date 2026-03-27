@@ -108,7 +108,18 @@ docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE
 # Check 9: Volume snapshot exists (for fast resets)
 docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1 && echo "OK: Volume snapshot exists" || echo "NEED: No volume snapshot (will be created after setup completes)"
 
-# Check 10: PM2 processes running for this instance
+# Check 10: Node version matches project requirement
+REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo "")
+CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
+if [ -z "$REQUIRED_NODE" ]; then
+  echo "WARN: No .nvmrc or .node-version file found"
+elif echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
+  echo "OK: Node version $CURRENT_NODE matches required $REQUIRED_NODE"
+else
+  echo "NEED: Node version mismatch (running $CURRENT_NODE, project requires $REQUIRED_NODE)"
+fi
+
+# Check 11: PM2 processes running for this instance
 PM2_PROC=$(pm2 jlist 2>/dev/null | python3 -c "
 import sys, json
 procs = json.load(sys.stdin)
@@ -143,6 +154,13 @@ esac
 - Uses `docker exec ${LD_CONTAINER_PREFIX}-db-dev-1 psql` (no local psql needed)
 - `information_schema` queries avoid "relation does not exist" errors
 - `emails` table is checked for seed status (not `users` — Lightdash separates identity from emails)
+
+### Node Version Check Notes
+
+- The project specifies its required Node version in `.nvmrc` (or `.node-version`)
+- PM2 inherits the Node binary from the current shell — if the wrong version is active, native modules (like `lz4`) will fail with `ERR_DLOPEN_FAILED` / "Module did not self-register"
+- This check uses a prefix match (e.g., required `20.19` matches `20.19.6`)
+- The "Ensure Correct Node Version" step (under `start`) handles switching automatically
 
 ---
 
@@ -371,6 +389,50 @@ if ! docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/nu
     alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)"
   docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml start db-dev
 fi
+```
+
+### Ensure Correct Node Version
+
+**CRITICAL: Always run this before starting PM2.** PM2 inherits the Node binary from the current shell. If the wrong version is active, native modules (like `lz4` used by the Databricks driver) will crash with `ERR_DLOPEN_FAILED`.
+
+Read the required version from `.nvmrc` or `.node-version`, then switch if needed:
+
+```bash
+REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo "")
+CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
+
+if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
+  echo "Node version mismatch: running $CURRENT_NODE, project requires $REQUIRED_NODE"
+
+  # Try fnm first
+  if command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env)"
+    fnm use "$REQUIRED_NODE" --install-if-missing
+    echo "Switched to Node $(node -v) via fnm"
+
+  # Try nvm
+  elif [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+    nvm use "$REQUIRED_NODE" || nvm install "$REQUIRED_NODE"
+    echo "Switched to Node $(node -v) via nvm"
+
+  # Try mise/rtx
+  elif command -v mise >/dev/null 2>&1; then
+    mise use "node@$REQUIRED_NODE"
+    echo "Switched to Node $(node -v) via mise"
+
+  else
+    echo "ERROR: Cannot switch Node version. Install fnm, nvm, or mise, then retry."
+    echo "Current: $CURRENT_NODE, Required: $REQUIRED_NODE"
+    return 1
+  fi
+fi
+```
+
+After switching, verify with `node -v` and also rebuild native modules if `pnpm install` was run under the wrong version:
+
+```bash
+pnpm rebuild 2>/dev/null || true
 ```
 
 ### Start PM2
