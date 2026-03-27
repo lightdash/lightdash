@@ -1679,7 +1679,14 @@
             "type": "object"
         },
         "MapTileBackground": {
-            "enum": ["none", "openstreetmap", "light", "dark", "satellite"],
+            "enum": [
+                "none",
+                "openstreetmap",
+                "light",
+                "dark",
+                "satellite",
+                "voyager"
+            ],
             "type": "string"
         },
         "MarkLine": {

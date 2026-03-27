@@ -77,6 +77,7 @@ export type LeafletMapConfig = {
         opacity: number;
     };
     tile: TileConfig;
+    tileBackground: MapTileBackground;
     backgroundColor: string | null;
     // Color for regions with no matching data (area maps)
     noDataColor: string;
@@ -152,12 +153,14 @@ const getMapZoom = (mapType: MapChartLocation): number => {
     }
 };
 
+const CARTO_ATTRIBUTION =
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
 const getTileConfig = (
     background: MapTileBackground | undefined,
 ): TileConfig => {
     switch (background) {
         case MapTileBackground.NONE:
-            // No base map tiles. Useful for overlays-only views or custom rendering.
             return {
                 url: null,
                 attribution: '',
@@ -173,11 +176,25 @@ const getTileConfig = (
             };
 
         case MapTileBackground.LIGHT:
-        default:
+            return {
+                url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                attribution: CARTO_ATTRIBUTION,
+            };
+
+        case MapTileBackground.DARK:
+            return {
+                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                attribution: CARTO_ATTRIBUTION,
+            };
+
+        case MapTileBackground.VOYAGER:
+            return {
+                url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                attribution: CARTO_ATTRIBUTION,
+            };
+
         case MapTileBackground.OPENSTREETMAP:
-            // OpenStreetMap standard tiles.
-            // Community-run, attribution-only, fair-use. Suitable for low–moderate traffic.
-            // Not intended for heavy commercial usage or guaranteed SLA.
+        default:
             return {
                 url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 attribution:
@@ -567,6 +584,7 @@ const useLeafletMapConfig = ({
                 opacity: heatmapConfig?.opacity ?? 0.6,
             },
             tile: getTileConfig(tileBackground),
+            tileBackground: tileBackground ?? MapTileBackground.OPENSTREETMAP,
             backgroundColor: backgroundColor ?? null,
             noDataColor: noDataColor ?? '#f3f3f3',
             dataLayerOpacity: dataLayerOpacity ?? 0.7,

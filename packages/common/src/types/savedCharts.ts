@@ -232,6 +232,7 @@ export enum MapTileBackground {
     LIGHT = 'light',
     DARK = 'dark',
     SATELLITE = 'satellite',
+    VOYAGER = 'voyager',
 }
 
 export type MapFieldConfig = {

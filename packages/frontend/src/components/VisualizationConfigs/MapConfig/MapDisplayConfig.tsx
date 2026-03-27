@@ -564,6 +564,18 @@ export const Display: FC = memo(() => {
                                 label: 'OpenStreetMap',
                             },
                             {
+                                value: MapTileBackground.LIGHT,
+                                label: 'Light',
+                            },
+                            {
+                                value: MapTileBackground.DARK,
+                                label: 'Dark',
+                            },
+                            {
+                                value: MapTileBackground.VOYAGER,
+                                label: 'Voyager (clean)',
+                            },
+                            {
                                 value: MapTileBackground.SATELLITE,
                                 label: 'Satellite',
                             },
