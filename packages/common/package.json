@@ -41,7 +41,7 @@
     "dependency-graph": "^0.11.0",
     "echarts": "^6.0.0",
     "fast-json-patch": "^3.1.1",
-    "handlebars": "^4.7.8",
+    "handlebars": "^4.7.9",
     "js-yaml": "^4.1.1",
     "liquidjs": "^10.25.1",
     "lodash": "^4.17.23",
@@ -52,7 +52,7 @@
     "sanitize-html": "^2.12.1",
     "type-fest": "^4.32.0",
     "uuid": "^11.0.3",
-    "yaml": "^2.7.0",
+    "yaml": "^2.8.3",
     "zod": "^3.25.55"
   },
   "devDependencies": {
