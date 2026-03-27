@@ -42,6 +42,7 @@ function convertDbQueryHistoryToQueryHistory(
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
+        erroredAt: queryHistory.errored_at,
         cacheKey: queryHistory.cache_key,
         pivotConfiguration: queryHistory.pivot_configuration,
         pivotValuesColumns: queryHistory.pivot_values_columns,
@@ -107,6 +108,7 @@ export class QueryHistoryModel {
             | 'warehouseQueryMetadata'
             | 'warehouseExecutionTimeMs'
             | 'error'
+            | 'erroredAt'
             | 'pivotValuesColumns'
             | 'pivotTotalColumnCount'
             | 'resultsFileName'
@@ -146,6 +148,7 @@ export class QueryHistoryModel {
                 warehouse_execution_time_ms: null,
                 warehouse_query_metadata: null,
                 error: null,
+                errored_at: null,
                 cache_key: queryHistory.cacheKey,
                 pivot_configuration: queryHistory.pivotConfiguration,
                 pivot_values_columns: null,
@@ -231,6 +234,26 @@ export class QueryHistoryModel {
                 error,
                 processing_started_at: new Date(),
             });
+    }
+
+    async updateStatusToError(
+        queryUuid: string,
+        projectUuid: string,
+        error: string,
+        account: Pick<Account, 'isRegisteredUser'> & {
+            user: Pick<Account['user'], 'id'>;
+        },
+    ) {
+        return this.update(
+            queryUuid,
+            projectUuid,
+            {
+                status: QueryHistoryStatus.ERROR,
+                error,
+                errored_at: new Date(),
+            },
+            account,
+        );
     }
 
     async get(queryUuid: string, projectUuid: string, account: Account) {

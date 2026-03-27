@@ -692,6 +692,7 @@ export type ApiGetAsyncQueryResults =
           status: QueryHistoryStatus.ERROR | QueryHistoryStatus.EXPIRED;
           queryUuid: string;
           error: string | null;
+          erroredAt?: Date | null;
       };
 
 export type ApiDownloadAsyncQueryResults = {

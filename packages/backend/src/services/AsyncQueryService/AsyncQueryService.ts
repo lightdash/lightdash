@@ -614,6 +614,7 @@ export class AsyncQueryService extends ProjectService {
                 status,
                 queryUuid,
                 error: queryHistory.error,
+                erroredAt: queryHistory.erroredAt,
             };
         }
 
@@ -2131,13 +2132,10 @@ export class AsyncQueryService extends ProjectService {
                         : { externalId: userUuid }),
                 },
             });
-            await this.queryHistoryModel.update(
+            await this.queryHistoryModel.updateStatusToError(
                 queryUuid,
                 projectUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: getErrorMessage(e),
-                },
+                getErrorMessage(e),
                 queryHistoryAccount,
             );
 
@@ -2165,13 +2163,10 @@ export class AsyncQueryService extends ProjectService {
             await sshTunnel?.disconnect();
             await stream?.close();
         } catch (e) {
-            await this.queryHistoryModel.update(
+            await this.queryHistoryModel.updateStatusToError(
                 queryUuid,
                 projectUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: getErrorMessage(e),
-                },
+                getErrorMessage(e),
                 queryHistoryAccount,
             );
 
@@ -2877,15 +2872,12 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     if (missingParameterReferences.length > 0) {
-                        await this.queryHistoryModel.update(
+                        await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
-                            {
-                                status: QueryHistoryStatus.ERROR,
-                                error: `Missing parameters: ${missingParameterReferences.join(
-                                    ', ',
-                                )}`,
-                            },
+                            `Missing parameters: ${missingParameterReferences.join(
+                                ', ',
+                            )}`,
                             account,
                         );
                         this.prometheusMetrics?.trackQueryStateTransition(
@@ -2954,13 +2946,10 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     if (executionPlan.target === 'error') {
-                        await this.queryHistoryModel.update(
+                        await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
-                            {
-                                status: QueryHistoryStatus.ERROR,
-                                error: executionPlan.error,
-                            },
+                            executionPlan.error,
                             account,
                         );
                         this.prometheusMetrics?.trackQueryStateTransition(
@@ -3062,13 +3051,10 @@ export class AsyncQueryService extends ProjectService {
                                 e,
                             );
 
-                            await this.queryHistoryModel.update(
+                            await this.queryHistoryModel.updateStatusToError(
                                 queryHistoryUuid,
                                 projectUuid,
-                                {
-                                    status: QueryHistoryStatus.ERROR,
-                                    error: `Failed to enqueue ${executionPlan.target} query: ${errorMessage}`,
-                                },
+                                `Failed to enqueue ${executionPlan.target} query: ${errorMessage}`,
                                 account,
                             );
 

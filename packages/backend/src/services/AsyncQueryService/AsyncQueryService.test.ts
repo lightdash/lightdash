@@ -217,6 +217,7 @@ const getMockedAsyncQueryService = (
             get: jest.fn(async () => undefined),
             getByQueryUuid: jest.fn(async () => undefined),
             update: jest.fn(),
+            updateStatusToError: jest.fn(async () => 1),
             updateStatusToQueued: jest.fn(async () => 1),
             updateStatusToExecuting: jest.fn(async () => 1),
             updateStatusToExpired: jest.fn(async () => 1),
@@ -743,14 +744,11 @@ describe('AsyncQueryService', () => {
 
             // THEN: Query history updated with ERROR status and missing parameters message
             expect(
-                serviceWithCache.queryHistoryModel.update,
+                serviceWithCache.queryHistoryModel.updateStatusToError,
             ).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'Missing parameters: missing_param, another_missing_param',
-                },
+                'Missing parameters: missing_param, another_missing_param',
                 sessionAccount,
             );
 
@@ -888,13 +886,12 @@ describe('AsyncQueryService', () => {
             expect(mockStrategy.resolveExecution).toHaveBeenCalledTimes(1);
             expect(runAsyncWarehouseSpy).not.toHaveBeenCalled();
             expect(runAsyncPreAggSpy).not.toHaveBeenCalled();
-            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
                 'test-query-uuid',
                 projectUuid,
-                {
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'No active materialization found for pre-aggregate explore "__preagg__valid_explore__rollup"',
-                },
+                'No active materialization found for pre-aggregate explore "__preagg__valid_explore__rollup"',
                 sessionAccount,
             );
         });
@@ -1187,6 +1184,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status,
                 error,
+                erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
                 fields: validExplore.tables.a.dimensions,
@@ -1225,6 +1223,7 @@ describe('AsyncQueryService', () => {
                 QueryHistoryStatus.ERROR,
                 'Test error message',
             );
+            errorQuery.erroredAt = new Date('2026-03-30T09:00:00.000Z');
             serviceWithCache.queryHistoryModel.get = jest
                 .fn()
                 .mockResolvedValue(errorQuery);
@@ -1239,6 +1238,7 @@ describe('AsyncQueryService', () => {
 
             expect(errorResult).toEqual({
                 error: 'Test error message',
+                erroredAt: new Date('2026-03-30T09:00:00.000Z'),
                 status: QueryHistoryStatus.ERROR,
                 queryUuid: 'test-query-uuid',
             });
@@ -1261,6 +1261,7 @@ describe('AsyncQueryService', () => {
 
             expect(expiredResult).toEqual({
                 error: 'Query expired in queue',
+                erroredAt: null,
                 status: QueryHistoryStatus.EXPIRED,
                 queryUuid: 'test-query-uuid',
             });
@@ -1424,6 +1425,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status: QueryHistoryStatus.READY,
                 error: null,
+                erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
                 fields: validExplore.tables.a.dimensions,
@@ -1522,6 +1524,7 @@ describe('AsyncQueryService', () => {
             projectUuid,
             status,
             error: null,
+            erroredAt: null,
             metricQuery: metricQueryMock,
             context: QueryExecutionContext.EXPLORE,
             fields: validExplore.tables.a.dimensions,
