@@ -1,3 +1,15 @@
+# [0.2676.0](https://github.com/lightdash/lightdash/compare/0.2675.3...0.2676.0) (2026-03-27)
+
+
+### Bug Fixes
+
+* re-throw API errors as-is in useSavedSqlChartResults ([#21479](https://github.com/lightdash/lightdash/issues/21479)) ([91a7d42](https://github.com/lightdash/lightdash/commit/91a7d422f86516a5f32fdda01151da7a758bfe59))
+
+
+### Features
+
+* generate and render lightdash app ([#21465](https://github.com/lightdash/lightdash/issues/21465)) ([e4c0c02](https://github.com/lightdash/lightdash/commit/e4c0c02ef42d94698dd5012784bd7ee7705a03ca))
+
 ## [0.2675.3](https://github.com/lightdash/lightdash/compare/0.2675.2...0.2675.3) (2026-03-27)
 
 
