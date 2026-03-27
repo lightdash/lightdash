@@ -1,3 +1,10 @@
+# [0.2680.0](https://github.com/lightdash/lightdash/compare/0.2679.0...0.2680.0) (2026-03-27)
+
+
+### Features
+
+* dark mode for maps ([#21488](https://github.com/lightdash/lightdash/issues/21488)) ([16fc757](https://github.com/lightdash/lightdash/commit/16fc75733ad6ee40b167a4ff065a247645e7ba7f))
+
 # [0.2679.0](https://github.com/lightdash/lightdash/compare/0.2678.0...0.2679.0) (2026-03-27)
 
 
