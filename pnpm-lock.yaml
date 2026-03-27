@@ -644,8 +644,8 @@ importers:
         specifier: ^5
         version: 5.1.1
       google-auth-library:
-        specifier: ^8.5.1
-        version: 8.9.0(encoding@0.1.13)
+        specifier: ^9.0.0
+        version: 9.15.1(encoding@0.1.13)
       inquirer:
         specifier: ^8.2.4
         version: 8.2.4
@@ -31274,7 +31274,7 @@ snapshots:
 
   proxy-agent@6.4.0:
     dependencies:
-      agent-base: 7.1.0
+      agent-base: 7.1.3
       debug: 4.4.3(supports-color@5.5.0)
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.6
