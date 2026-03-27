@@ -2,8 +2,8 @@ import {
     getItemId,
     matchFieldByTypeAndName,
     type DashboardFieldTarget,
+    type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterableDimension,
     type FilterOperator,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +20,7 @@ const buildSdkFilterTileTargets = (
     filter: SdkFilter,
     filterableFieldsByTileUuid: Record<
         string,
-        FilterableDimension[] | undefined
+        DashboardFilterableField[] | undefined
     >,
 ): Record<string, DashboardFieldTarget> => {
     const sourceField = Object.values(filterableFieldsByTileUuid)
@@ -56,7 +56,7 @@ export const convertSdkFilterToDashboardFilter = (
     filter: SdkFilter,
     filterableFieldsByTileUuid?: Record<
         string,
-        FilterableDimension[] | undefined
+        DashboardFilterableField[] | undefined
     >,
 ): DashboardFilterRule => {
     const fieldId = getItemId({

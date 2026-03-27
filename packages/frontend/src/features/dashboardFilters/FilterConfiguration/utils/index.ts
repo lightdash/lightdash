@@ -4,9 +4,9 @@ import {
     getItemId,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
-    type FilterableDimension,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
@@ -59,7 +59,7 @@ const tileHasFilterField = (
     filterRule: DashboardFilterRule,
     tile: DashboardTile,
     filterableFieldsByTileUuid:
-        | Record<string, FilterableDimension[]>
+        | Record<string, DashboardFilterableField[]>
         | undefined,
 ): boolean => {
     if (!filterableFieldsByTileUuid) return false;
@@ -85,7 +85,7 @@ export const doesFilterApplyToTile = (
     filterRule: DashboardFilterRule,
     tile: DashboardTile,
     filterableFieldsByTileUuid:
-        | Record<string, FilterableDimension[]>
+        | Record<string, DashboardFilterableField[]>
         | undefined,
 ): boolean => {
     const { relation } = getFilterTileRelation(filterRule, tile.uuid);
@@ -122,7 +122,7 @@ export const doesFilterApplyToAnyTile = (
     filterRule: DashboardFilterRule,
     dashboardTiles: DashboardTile[] | undefined,
     filterableFieldsByTileUuid:
-        | Record<string, FilterableDimension[]>
+        | Record<string, DashboardFilterableField[]>
         | undefined,
 ): boolean => {
     return (
@@ -150,7 +150,7 @@ export const getTabsForFilterRule = (
     dashboardTiles: DashboardTile[] | undefined,
     sortedTabUuids: string[],
     filterableFieldsByTileUuid:
-        | Record<string, FilterableDimension[]>
+        | Record<string, DashboardFilterableField[]>
         | undefined,
 ): string[] => {
     // Find which tabs have tiles targeted by this filter

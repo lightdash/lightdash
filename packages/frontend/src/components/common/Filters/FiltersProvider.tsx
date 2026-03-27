@@ -1,9 +1,9 @@
 import {
     getItemId,
     isField,
+    type DashboardFilterableField,
     type DashboardFilters,
     type DashboardTile,
-    type FilterableDimension,
     type FilterableItem,
     type FilterRule,
     type ParametersValuesMap,
@@ -22,7 +22,7 @@ type Props<T extends DefaultFieldsMap> = {
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
     dashboardTiles?: DashboardTile[];
-    filterableFieldsByTileUuid?: Record<string, FilterableDimension[]>;
+    filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
     popoverProps?: Omit<PopoverProps, 'children'>;
     parameterValues?: ParametersValuesMap;
     children?: ReactNode;

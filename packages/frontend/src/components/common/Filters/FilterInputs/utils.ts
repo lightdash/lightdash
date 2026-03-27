@@ -19,8 +19,8 @@ import {
     type BaseFilterRule,
     type ConditionalRuleLabel,
     type CustomSqlDimension,
+    type DashboardFilterableField,
     type Field,
-    type FilterableDimension,
     type FilterableItem,
     type TableCalculation,
 } from '@lightdash/common';
@@ -249,8 +249,8 @@ export const getConditionalRuleLabelFromItem = (
 
 export const getFilterRuleTables = (
     filterRule: BaseFilterRule,
-    field: FilterableDimension,
-    filterableFields: FilterableDimension[],
+    field: DashboardFilterableField,
+    filterableFields: DashboardFilterableField[],
 ): string[] => {
     if (
         isDashboardFilterRule(filterRule) &&

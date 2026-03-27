@@ -14,7 +14,8 @@ const EmbedDashboardFilters: FC = () => {
     const haveFiltersChanged = useDashboardContext(
         (c) =>
             c.haveFiltersChanged ||
-            c.dashboardTemporaryFilters.dimensions.length > 0,
+            c.dashboardTemporaryFilters.dimensions.length > 0 ||
+            c.dashboardTemporaryFilters.metrics.length > 0,
     );
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,

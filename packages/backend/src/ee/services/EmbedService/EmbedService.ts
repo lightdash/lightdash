@@ -572,6 +572,8 @@ export class EmbedService extends BaseService {
             return {
                 savedQueryFilters: {},
                 allFilterableFields: [],
+                allFilterableMetrics: [],
+                savedQueryMetricFilters: {},
             };
         }
 
@@ -676,6 +678,8 @@ export class EmbedService extends BaseService {
         return {
             savedQueryFilters,
             allFilterableFields,
+            allFilterableMetrics: [],
+            savedQueryMetricFilters: {},
         };
     }
 

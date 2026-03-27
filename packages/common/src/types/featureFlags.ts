@@ -117,6 +117,13 @@ export enum FeatureFlags {
      * browser memory to 3 GB+ when all tab data stays in memory.
      */
     DashboardTabsInMemory = 'dashboard-tabs-in-memory',
+
+    /**
+     * Enable creating and editing metric filters on dashboards.
+     * When enabled, the "Add filter" UI includes metrics alongside dimensions.
+     * Existing metric filters are always displayed regardless of this flag.
+     */
+    MetricDashboardFilters = 'metric-dashboard-filters',
 }
 
 export type FeatureFlag = {

@@ -2,9 +2,9 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
     isField,
+    type DashboardFilterableField,
     type DashboardTab,
     type DashboardTile,
-    type FilterableDimension,
 } from '@lightdash/common';
 import {
     Box,
@@ -25,13 +25,13 @@ import styles from './FilterFieldSelect.module.css';
 import { useFilterFieldSections } from './useFilterFieldSections';
 
 interface FilterFieldSelectProps {
-    fields: FilterableDimension[];
-    availableTileFilters: Record<string, FilterableDimension[]>;
+    fields: DashboardFilterableField[];
+    availableTileFilters: Record<string, DashboardFilterableField[]>;
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid: string | undefined;
-    selectedField: FilterableDimension | undefined;
-    onChange: (field: FilterableDimension) => void;
+    selectedField: DashboardFilterableField | undefined;
+    onChange: (field: DashboardFilterableField) => void;
     popoverProps?: {
         onOpen?: () => void;
         onClose?: () => void;
@@ -42,7 +42,7 @@ interface FilterFieldSelectProps {
 type VirtualItem =
     | { type: 'section-header'; label: string; dimmed: boolean }
     | { type: 'group-header'; label: string; dimmed: boolean }
-    | { type: 'field'; field: FilterableDimension; dimmed: boolean };
+    | { type: 'field'; field: DashboardFilterableField; dimmed: boolean };
 
 const FIELD_HEIGHT = 32;
 const GROUP_HEADER_HEIGHT = 28;
@@ -220,7 +220,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
     return (
         <div>
             <Text size="sm" mb={4}>
-                Select a dimension to filter{' '}
+                Select a field to filter{' '}
                 <Text component="span" c="red">
                     *
                 </Text>

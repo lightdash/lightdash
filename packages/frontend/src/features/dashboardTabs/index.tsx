@@ -443,9 +443,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         // For each required filter, check if it applies to any tile on the current tab
         return requiredDashboardFilters.some((requiredFilter) => {
             // Find the full filter rule to get tileTargets
-            const filterRule = dashboardFilters.dimensions.find(
-                (f) => f.id === requiredFilter.id,
-            );
+            const filterRule =
+                dashboardFilters.dimensions.find(
+                    (f) => f.id === requiredFilter.id,
+                ) ??
+                dashboardFilters.metrics.find(
+                    (f) => f.id === requiredFilter.id,
+                );
             if (!filterRule) return false;
 
             // If no tileTargets configuration, filter applies to all tiles
@@ -474,6 +478,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         tabsEnabled,
         dashboardTiles,
         dashboardFilters.dimensions,
+        dashboardFilters.metrics,
         activeTab?.uuid,
         filterableFieldsByTileUuid,
     ]);

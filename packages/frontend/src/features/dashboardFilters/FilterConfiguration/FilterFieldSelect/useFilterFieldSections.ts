@@ -7,9 +7,9 @@ import {
     isField,
     isMetric,
     sortTimeFrames,
+    type DashboardFilterableField,
     type DashboardTab,
     type DashboardTile,
-    type FilterableDimension,
     type Item,
 } from '@lightdash/common';
 import { useMemo } from 'react';
@@ -17,7 +17,7 @@ import { useMemo } from 'react';
 type FieldGroup = {
     tableLabel: string;
     tableName: string;
-    fields: FilterableDimension[];
+    fields: DashboardFilterableField[];
 };
 
 export type FieldSection = {
@@ -43,7 +43,9 @@ const getGroupKey = (i: Item): string => {
     return i.name;
 };
 
-const sortFields = (fields: FilterableDimension[]): FilterableDimension[] =>
+const sortFields = (
+    fields: DashboardFilterableField[],
+): DashboardFilterableField[] =>
     [...fields].sort((a, b) => {
         // Sort by table label
         if (isField(a) && isField(b) && a.table !== b.table) {
@@ -75,7 +77,7 @@ const sortFields = (fields: FilterableDimension[]): FilterableDimension[] =>
         );
     });
 
-const groupByTable = (fields: FilterableDimension[]): FieldGroup[] => {
+const groupByTable = (fields: DashboardFilterableField[]): FieldGroup[] => {
     const groupMap = new Map<string, FieldGroup>();
 
     for (const field of fields) {
@@ -93,7 +95,10 @@ const groupByTable = (fields: FilterableDimension[]): FieldGroup[] => {
     return Array.from(groupMap.values());
 };
 
-const matchesSearch = (field: FilterableDimension, search: string): boolean => {
+const matchesSearch = (
+    field: DashboardFilterableField,
+    search: string,
+): boolean => {
     if (!search) return true;
     const lowerSearch = search.toLowerCase();
     return (
@@ -103,8 +108,8 @@ const matchesSearch = (field: FilterableDimension, search: string): boolean => {
 };
 
 type UseFilterFieldSectionsArgs = {
-    fields: FilterableDimension[];
-    availableTileFilters: Record<string, FilterableDimension[]>;
+    fields: DashboardFilterableField[];
+    availableTileFilters: Record<string, DashboardFilterableField[]>;
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid: string | undefined;
@@ -145,8 +150,8 @@ export const useFilterFieldSections = ({
             }
         }
 
-        const activeTabFields: FilterableDimension[] = [];
-        const otherFields: FilterableDimension[] = [];
+        const activeTabFields: DashboardFilterableField[] = [];
+        const otherFields: DashboardFilterableField[] = [];
 
         for (const field of filtered) {
             if (activeTabFieldIds.has(getItemId(field))) {

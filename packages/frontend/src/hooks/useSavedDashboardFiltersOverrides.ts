@@ -19,14 +19,18 @@ const ADD_SAVED_FILTER_OVERRIDE = 'ADD_SAVED_FILTER_OVERRIDE';
 const REMOVE_SAVED_FILTER_OVERRIDE = 'REMOVE_SAVED_FILTER_OVERRIDE';
 const RESET_SAVED_FILTER_OVERRIDES = 'RESET_SAVED_FILTER_OVERRIDES';
 
+type FilterCategory = 'dimensions' | 'metrics';
+
 interface AddSavedFilterOverrideAction {
     type: typeof ADD_SAVED_FILTER_OVERRIDE;
     payload: DashboardFilterRuleOverride;
+    category: FilterCategory;
 }
 
 interface RemoveSavedFilterOverrideAction {
     type: typeof REMOVE_SAVED_FILTER_OVERRIDE;
     payload: DashboardFilterRuleOverride;
+    category: FilterCategory;
 }
 
 interface ResetSavedFilterOverridesAction {
@@ -43,25 +47,27 @@ const reducer = (
     state: Record<keyof DashboardFilters, DashboardFilterRuleOverride[]>,
     action: Action,
 ) => {
-    let newDimensions = [...state.dimensions];
     const { type, payload } = action;
 
     switch (type) {
-        case ADD_SAVED_FILTER_OVERRIDE:
-            newDimensions = state.dimensions.some(
-                (dim) => dim.id === payload.id,
-            )
-                ? state.dimensions.map((dim) =>
-                      dim.id === payload.id ? payload : dim,
+        case ADD_SAVED_FILTER_OVERRIDE: {
+            const key = action.category;
+            const existing = state[key];
+            const updated = existing.some((item) => item.id === payload.id)
+                ? existing.map((item) =>
+                      item.id === payload.id ? payload : item,
                   )
-                : [...state.dimensions, payload];
-            return { ...state, dimensions: newDimensions };
+                : [...existing, payload];
+            return { ...state, [key]: updated };
+        }
 
-        case REMOVE_SAVED_FILTER_OVERRIDE:
-            newDimensions = state.dimensions.filter(
-                (dim) => dim.id !== payload.id,
-            );
-            return { ...state, dimensions: newDimensions };
+        case REMOVE_SAVED_FILTER_OVERRIDE: {
+            const key = action.category;
+            return {
+                ...state,
+                [key]: state[key].filter((item) => item.id !== payload.id),
+            };
+        }
 
         case RESET_SAVED_FILTER_OVERRIDES:
             return { ...state, dimensions: [], metrics: [] };
@@ -102,18 +108,26 @@ export const useSavedDashboardFiltersOverrides = () => {
         }
     }, [showToastWarning]);
 
-    const addSavedFilterOverride = ({
-        tileTargets,
-        ...item
-    }: DashboardFilterRule) => {
-        dispatch({ type: ADD_SAVED_FILTER_OVERRIDE, payload: item });
+    const addSavedFilterOverride = (
+        { tileTargets, ...item }: DashboardFilterRule,
+        category: FilterCategory = 'dimensions',
+    ) => {
+        dispatch({
+            type: ADD_SAVED_FILTER_OVERRIDE,
+            payload: item,
+            category,
+        });
     };
 
-    const removeSavedFilterOverride = ({
-        tileTargets,
-        ...item
-    }: DashboardFilterRule) => {
-        dispatch({ type: REMOVE_SAVED_FILTER_OVERRIDE, payload: item });
+    const removeSavedFilterOverride = (
+        { tileTargets, ...item }: DashboardFilterRule,
+        category: FilterCategory = 'dimensions',
+    ) => {
+        dispatch({
+            type: REMOVE_SAVED_FILTER_OVERRIDE,
+            payload: item,
+            category,
+        });
     };
 
     const resetSavedFilterOverrides = () => {

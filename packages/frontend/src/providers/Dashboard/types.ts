@@ -2,11 +2,13 @@ import {
     type ApiError,
     type CacheMetadata,
     type Dashboard,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardParameters,
     type DateGranularity,
     type FilterableDimension,
+    type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
@@ -78,6 +80,13 @@ export type DashboardContextType = {
         filter: DashboardFilterRule,
         isTemporary: boolean,
     ) => void;
+    updateMetricDashboardFilter: (
+        filter: DashboardFilterRule,
+        index: number,
+        isTemporary: boolean,
+        isInEditMode: boolean,
+    ) => void;
+    removeMetricDashboardFilter: (index: number, isTemporary: boolean) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
@@ -87,9 +96,11 @@ export type DashboardContextType = {
     setIsAutoRefresh: (autoRefresh: boolean) => void;
     clearCacheAndFetch: () => void;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
+    allFilterableMetricsMap: Record<string, Metric>;
     allFilterableFields: FilterableDimension[] | undefined;
+    allFilterableMetrics: Metric[] | undefined;
     filterableFieldsByTileUuid:
-        | Record<string, FilterableDimension[]>
+        | Record<string, DashboardFilterableField[]>
         | undefined;
     hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;

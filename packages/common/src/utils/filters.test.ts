@@ -26,9 +26,11 @@ import {
     chartOrFilterGroup,
     customSqlDimension,
     dashboardFilters,
+    dashboardFiltersWithMetrics,
     dashboardFilterWithSameTargetAndOperator,
     dashboardFilterWithSameTargetButDifferentOperator,
     dimension,
+    emptyDashboardFilters,
     expectedChartWithOverrideDashboardFilters,
     expectedChartWithOverrideDashboardORFilters,
     expectedFiltersWithCustomSqlDimension,
@@ -37,6 +39,7 @@ import {
     filterRule,
     joinedModelRequiredFilterRule,
     metricQueryWithAndFilters,
+    metricQueryWithExistingMetricFilters,
     metricQueryWithOrFilters,
     mockExplore,
     mockExploreWithJoinedTable,
@@ -62,7 +65,69 @@ describe('addDashboardFiltersToMetricQuery', () => {
         );
         expect(result).toEqual(expectedChartWithOverrideDashboardORFilters);
     });
+
+    test('should merge dashboard metric filters into the metric query', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            dashboardFiltersWithMetrics,
+        );
+        expect(result.filters.metrics).toBeDefined();
+        expect((result.filters.metrics as AndFilterGroup).and).toHaveLength(1);
+        expect((result.filters.metrics as AndFilterGroup).and[0]).toMatchObject(
+            {
+                target: { fieldId: 'a_metric1' },
+                operator: FilterOperator.GREATER_THAN,
+                values: [100],
+            },
+        );
+    });
+
+    test('should override existing chart metric filter with same target from dashboard', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithExistingMetricFilters,
+            dashboardFiltersWithMetrics,
+        );
+        expect(result.filters.metrics).toBeDefined();
+        const metricFilters = (result.filters.metrics as AndFilterGroup).and;
+        // Dashboard metric filter overrides the existing chart metric filter with same fieldId
+        expect(metricFilters).toContainEqual(
+            expect.objectContaining({
+                target: { fieldId: 'a_metric1' },
+                operator: FilterOperator.GREATER_THAN,
+                values: [100],
+            }),
+        );
+    });
+
+    test('should return metric query unchanged when dashboard has no filters', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            emptyDashboardFilters,
+        );
+        expect(result.filters.dimensions).toBeDefined();
+        expect((result.filters.metrics as AndFilterGroup).and).toHaveLength(0);
+        expect(
+            (result.filters.tableCalculations as AndFilterGroup).and,
+        ).toHaveLength(0);
+    });
+
+    test('should not affect dimension filters when adding metric filters', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            dashboardFiltersWithMetrics,
+        );
+        expect(
+            (result.filters.dimensions as AndFilterGroup).and,
+        ).toContainEqual(
+            expect.objectContaining({
+                target: { fieldId: 'a_dim1' },
+                operator: FilterOperator.EQUALS,
+                values: ['1', '2', '3'],
+            }),
+        );
+    });
 });
+
 describe('overrideChartFilter', () => {
     test('should override the chart and group filter', async () => {
         const result = overrideChartFilter(

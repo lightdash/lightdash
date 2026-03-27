@@ -118,6 +118,15 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const updateDimensionDashboardFilter = useDashboardContext(
         (c) => c.updateDimensionDashboardFilter,
     );
+    const removeMetricDashboardFilter = useDashboardContext(
+        (c) => c.removeMetricDashboardFilter,
+    );
+    const updateMetricDashboardFilter = useDashboardContext(
+        (c) => c.updateMetricDashboardFilter,
+    );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
+    );
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -220,6 +229,27 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         setHaveFiltersChanged(true);
     };
 
+    const handleMetricDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!active || !over || active.id === over.id) return;
+        const oldIndex = dashboardFilters.metrics.findIndex(
+            (item) => item.id === active.id,
+        );
+        const newIndex = dashboardFilters.metrics.findIndex(
+            (item) => item.id === over.id,
+        );
+        const newMetrics = arrayMove(
+            dashboardFilters.metrics,
+            oldIndex,
+            newIndex,
+        );
+        setDashboardFilters({
+            ...dashboardFilters,
+            metrics: newMetrics,
+        });
+        setHaveFiltersChanged(true);
+    };
+
     return (
         <>
             <DndContext
@@ -295,6 +325,101 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 })}
                 <DragOverlay />
             </DndContext>
+
+            <DndContext
+                sensors={dragSensors}
+                onDragStart={handleDragStart}
+                onDragEnd={handleMetricDragEnd}
+            >
+                {dashboardFilters.metrics.map((item, index) => {
+                    const metricField =
+                        allFilterableMetricsMap[item.target.fieldId];
+                    const appliesToTabs = getTabsUsingFilter(item);
+
+                    return metricField ? (
+                        <DroppableArea key={item.id} id={item.id}>
+                            <DraggableItem
+                                id={item.id}
+                                disabled={!isEditMode || !!openPopoverId}
+                            >
+                                <Filter
+                                    isEditMode={isEditMode}
+                                    {...getOrphanedState(item, appliesToTabs)}
+                                    field={metricField}
+                                    filterRule={item}
+                                    openPopoverId={openPopoverId}
+                                    onPopoverOpen={onPopoverOpen}
+                                    onPopoverClose={onPopoverClose}
+                                    onRemove={() =>
+                                        removeMetricDashboardFilter(
+                                            index,
+                                            false,
+                                        )
+                                    }
+                                    onUpdate={(value) =>
+                                        updateMetricDashboardFilter(
+                                            value,
+                                            index,
+                                            false,
+                                            isEditMode,
+                                        )
+                                    }
+                                />
+                            </DraggableItem>
+                        </DroppableArea>
+                    ) : (
+                        <InvalidFilter
+                            key={item.id}
+                            isEditMode={isEditMode}
+                            filterRule={item}
+                            onRemove={() =>
+                                removeMetricDashboardFilter(index, false)
+                            }
+                        />
+                    );
+                })}
+                <DragOverlay />
+            </DndContext>
+
+            {dashboardTemporaryFilters.metrics.map((item, index) => {
+                const metricField =
+                    allFilterableMetricsMap[item.target.fieldId];
+                const appliesToTabs = getTabsUsingFilter(item);
+
+                return metricField ? (
+                    <Filter
+                        key={item.id}
+                        isTemporary
+                        isEditMode={isEditMode}
+                        {...getOrphanedState(item, appliesToTabs)}
+                        field={metricField}
+                        filterRule={item}
+                        openPopoverId={openPopoverId}
+                        onPopoverOpen={onPopoverOpen}
+                        onPopoverClose={onPopoverClose}
+                        onRemove={() =>
+                            removeMetricDashboardFilter(index, true)
+                        }
+                        onUpdate={(value) =>
+                            updateMetricDashboardFilter(
+                                value,
+                                index,
+                                true,
+                                isEditMode,
+                            )
+                        }
+                    />
+                ) : (
+                    <InvalidFilter
+                        key={item.id}
+                        isEditMode={isEditMode}
+                        filterRule={item}
+                        onRemove={() =>
+                            removeMetricDashboardFilter(index, true)
+                        }
+                    />
+                );
+            })}
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];

@@ -13,11 +13,13 @@ import {
     isSubDayGranularity,
     type CacheMetadata,
     type Dashboard,
+    type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardParameters,
     type FilterableDimension,
     type InteractivityOptions,
+    type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
@@ -778,18 +780,29 @@ const DashboardProvider: React.FC<
             return;
 
         return savedChartUuidsAndTileUuids.reduce<
-            Record<string, FilterableDimension[]>
+            Record<string, DashboardFilterableField[]>
         >((acc, { tileUuid }) => {
-            const filterFields =
+            const dimensionFields =
                 dashboardAvailableFiltersData.savedQueryFilters[tileUuid]?.map(
                     (index) =>
                         dashboardAvailableFiltersData.allFilterableFields[
                             index
                         ],
-                );
+                ) ?? [];
 
-            if (filterFields) {
-                acc[tileUuid] = filterFields;
+            const metricFields =
+                dashboardAvailableFiltersData.savedQueryMetricFilters[
+                    tileUuid
+                ]?.map(
+                    (index) =>
+                        dashboardAvailableFiltersData.allFilterableMetrics[
+                            index
+                        ],
+                ) ?? [];
+
+            const combined = [...dimensionFields, ...metricFields];
+            if (combined.length > 0) {
+                acc[tileUuid] = combined;
             }
 
             return acc;
@@ -952,9 +965,7 @@ const DashboardProvider: React.FC<
             );
         }
 
-        if (overridesForSavedDashboardFilters?.dimensions?.length === 0) {
-            newParams.delete('filters');
-        } else if (overridesForSavedDashboardFilters?.dimensions?.length > 0) {
+        if (hasSavedFiltersOverrides(overridesForSavedDashboardFilters)) {
             newParams.set(
                 'filters',
                 JSON.stringify(
@@ -963,6 +974,8 @@ const DashboardProvider: React.FC<
                     ),
                 ),
             );
+        } else {
+            newParams.delete('filters');
         }
 
         // Only navigate if search params actually changed
@@ -992,13 +1005,29 @@ const DashboardProvider: React.FC<
             dashboard?.filters &&
             hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
-            setDashboardFilters((prevFilters) => ({
-                ...prevFilters,
-                dimensions: applyDimensionOverrides(
-                    prevFilters,
-                    overridesForSavedDashboardFilters,
-                ),
-            }));
+            setDashboardFilters((prevFilters) => {
+                const updated: DashboardFilters = {
+                    ...prevFilters,
+                    dimensions: applyDimensionOverrides(
+                        prevFilters,
+                        overridesForSavedDashboardFilters,
+                    ),
+                };
+
+                if (overridesForSavedDashboardFilters.metrics?.length > 0) {
+                    updated.metrics = prevFilters.metrics.map((metric) => {
+                        const override =
+                            overridesForSavedDashboardFilters.metrics.find(
+                                (m) => m.id === metric.id,
+                            );
+                        return override
+                            ? { ...override, tileTargets: metric.tileTargets }
+                            : metric;
+                    });
+                }
+
+                return updated;
+            });
         }
     }, [dashboard?.filters, overridesForSavedDashboardFilters]);
 
@@ -1121,6 +1150,22 @@ const DashboardProvider: React.FC<
               )
             : {};
     }, [dashboardAvailableFiltersData]);
+
+    const allFilterableMetricsMap = useMemo(() => {
+        return dashboardAvailableFiltersData?.allFilterableMetrics &&
+            dashboardAvailableFiltersData.allFilterableMetrics.length > 0
+            ? dashboardAvailableFiltersData.allFilterableMetrics.reduce<
+                  Record<string, Metric>
+              >(
+                  (sum, field) => ({
+                      ...sum,
+                      [getItemId(field)]: field,
+                  }),
+                  {},
+              )
+            : {};
+    }, [dashboardAvailableFiltersData]);
+
     const allFilters = useMemo(() => {
         return {
             dimensions: [
@@ -1295,6 +1340,96 @@ const DashboardProvider: React.FC<
         [],
     );
 
+    const updateMetricDashboardFilter = useCallback(
+        (
+            item: DashboardFilterRule,
+            index: number,
+            isTemporary: boolean,
+            isInEditMode: boolean,
+        ) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+
+            const filters =
+                dashboard?.filters?.metrics ||
+                embedDashboard?.filters?.metrics ||
+                [];
+            const isFilterSaved = filters.some(({ id }) => id === item.id);
+
+            setFunction((previousFilters) => {
+                if (!isTemporary) {
+                    if (isInEditMode) {
+                        removeSavedFilterOverride(item, 'metrics');
+                    } else {
+                        const isReverted =
+                            originalDashboardFilters.metrics[index] &&
+                            !hasSavedFilterValueChanged(
+                                originalDashboardFilters.metrics[index],
+                                item,
+                            );
+                        if (isReverted) {
+                            removeSavedFilterOverride(item, 'metrics');
+                            setHaveFiltersChanged(false);
+                        } else {
+                            const hasChanged = hasSavedFilterValueChanged(
+                                previousFilters.metrics[index],
+                                item,
+                            );
+
+                            if (hasChanged && isFilterSaved) {
+                                addSavedFilterOverride(item, 'metrics');
+                            }
+                        }
+                    }
+                }
+                return {
+                    dimensions: previousFilters.dimensions,
+                    metrics: [
+                        ...previousFilters.metrics.slice(0, index),
+                        item,
+                        ...previousFilters.metrics.slice(index + 1),
+                    ],
+                    tableCalculations: previousFilters.tableCalculations,
+                };
+            });
+            setHaveFiltersChanged(true);
+        },
+        [
+            addSavedFilterOverride,
+            dashboard?.filters.metrics,
+            embedDashboard?.filters.metrics,
+            originalDashboardFilters.metrics,
+            removeSavedFilterOverride,
+        ],
+    );
+
+    const removeMetricDashboardFilter = useCallback(
+        (index: number, isTemporary: boolean) => {
+            const setFunction = isTemporary
+                ? setDashboardTemporaryFilters
+                : setDashboardFilters;
+            setFunction((previousFilters) => {
+                if (!isTemporary) {
+                    removeSavedFilterOverride(
+                        previousFilters.metrics[index],
+                        'metrics',
+                    );
+                }
+                return {
+                    dimensions: previousFilters.dimensions,
+                    metrics: [
+                        ...previousFilters.metrics.slice(0, index),
+                        ...previousFilters.metrics.slice(index + 1),
+                    ],
+                    tableCalculations: previousFilters.tableCalculations,
+                };
+            });
+            setHaveFiltersChanged(true);
+        },
+        [removeSavedFilterOverride],
+    );
+
     const removeDimensionDashboardFilter = useCallback(
         (index: number, isTemporary: boolean) => {
             const setFunction = isTemporary
@@ -1384,12 +1519,14 @@ const DashboardProvider: React.FC<
     // Filters that are required to have a value set
     const requiredDashboardFilters = useMemo(
         () =>
-            dashboardFilters.dimensions
+            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
                 // Get filters that are required to have a value set (required) and that have no default value set (disabled)
                 .filter((f) => f.required && f.disabled)
                 .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
                     (acc, f) => {
-                        const field = allFilterableFieldsMap[f.target.fieldId];
+                        const field =
+                            allFilterableFieldsMap[f.target.fieldId] ??
+                            allFilterableMetricsMap[f.target.fieldId];
 
                         let label = '';
 
@@ -1412,7 +1549,12 @@ const DashboardProvider: React.FC<
                     },
                     [],
                 ),
-        [dashboardFilters.dimensions, allFilterableFieldsMap],
+        [
+            dashboardFilters.dimensions,
+            dashboardFilters.metrics,
+            allFilterableFieldsMap,
+            allFilterableMetricsMap,
+        ],
     );
 
     // Memoized mapping of tile UUIDs to their display names
@@ -1489,6 +1631,8 @@ const DashboardProvider: React.FC<
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
         addMetricDashboardFilter,
+        updateMetricDashboardFilter,
+        removeMetricDashboardFilter,
         resetDashboardFilters,
         setDashboardFilters,
         haveFiltersChanged,
@@ -1500,7 +1644,10 @@ const DashboardProvider: React.FC<
         isAutoRefresh,
         setIsAutoRefresh,
         allFilterableFieldsMap,
+        allFilterableMetricsMap,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
+        allFilterableMetrics:
+            dashboardAvailableFiltersData?.allFilterableMetrics,
         isLoadingDashboardFilters,
         isFetchingDashboardFilters,
         filterableFieldsByTileUuid,

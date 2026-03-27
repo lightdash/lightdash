@@ -369,7 +369,10 @@ export const isTileFilterable = (tile: DashboardTile) =>
 
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,
-    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
+    availableTileFilters: Record<
+        string,
+        (FilterableDimension | Metric)[] | undefined
+    >,
 ) =>
     Object.entries(availableTileFilters).reduce<
         Record<string, DashboardFieldTarget>
@@ -395,8 +398,11 @@ export const applyDefaultTileTargets = (
         AnyType,
         AnyType
     >,
-    field: FilterableDimension,
-    availableTileFilters: Record<string, FilterableDimension[] | undefined>,
+    field: FilterableDimension | Metric,
+    availableTileFilters: Record<
+        string,
+        (FilterableDimension | Metric)[] | undefined
+    >,
 ) => {
     if (!filterRule.tileTargets) {
         return {
@@ -416,7 +422,10 @@ export const createDashboardFilterRuleFromField = ({
     field:
         | Exclude<FilterableItem, TableCalculation | CustomSqlDimension>
         | CompiledField;
-    availableTileFilters: Record<string, FilterableDimension[] | undefined>;
+    availableTileFilters: Record<
+        string,
+        (FilterableDimension | Metric)[] | undefined
+    >;
     isTemporary: boolean;
     value?: unknown;
 }): FilterDashboardToRule =>

@@ -1,8 +1,8 @@
 import type {
+    DashboardFilterableField,
     DashboardFilterRule,
     DashboardTab,
     DashboardTile,
-    FilterableDimension,
 } from '@lightdash/common';
 import { Anchor, Text } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
@@ -14,7 +14,7 @@ interface FilterCoverageSummaryProps {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
     activeTabUuid: string | undefined;
-    availableTileFilters: Record<string, FilterableDimension[]>;
+    availableTileFilters: Record<string, DashboardFilterableField[]>;
     onNavigateToTilesTab: () => void;
 }
 
