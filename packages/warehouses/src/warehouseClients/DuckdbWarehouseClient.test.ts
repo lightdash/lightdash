@@ -210,6 +210,7 @@ describe('DuckdbWarehouseClient', () => {
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
         const client = new DuckdbWarehouseClient({
+            type: 'duckdb_s3',
             s3Config: {
                 endpoint: 'localhost:9000',
                 region: 'us-east-1',
@@ -271,7 +272,7 @@ describe('DuckdbWarehouseClient', () => {
         expect(result.fields).toEqual({});
     });
 
-    it('should set timezone and S3 config before streaming', async () => {
+    it('should set timezone, S3 config, and shared resource limits before streaming', async () => {
         const runMock = jest.fn();
         const streamMock = jest.fn(async () =>
             getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
@@ -281,16 +282,26 @@ describe('DuckdbWarehouseClient', () => {
             createMockConnection(streamMock, runMock),
         );
 
-        const client = new DuckdbWarehouseClient({
-            s3Config: {
-                endpoint: 'localhost:9000',
-                region: 'us-east-1',
-                accessKey: 'key',
-                secretKey: 'secret',
-                forcePathStyle: true,
-                useSsl: false,
+        const client = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
             },
-        });
+            {
+                sharedResourceLimits: {
+                    memoryLimit: '3GB',
+                    threads: 4,
+                },
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            },
+        );
         await client.runQuery('SELECT 1 AS val', undefined, 'UTC');
 
         const runCalls = runMock.mock.calls.map(
@@ -305,6 +316,8 @@ describe('DuckdbWarehouseClient', () => {
         expect(runCalls).toContain('SET autoinstall_known_extensions = false;');
         expect(runCalls).toContain('SET autoload_known_extensions = false;');
         expect(runCalls).toContain('SET allow_unredacted_secrets = false;');
+        expect(runCalls).toContain("SET memory_limit = '3GB';");
+        expect(runCalls).toContain('SET threads = 4;');
 
         // S3 credentials should use CREATE SECRET, not individual SET commands
         const createSecretCall = runCalls.find((call) =>
@@ -328,7 +341,52 @@ describe('DuckdbWarehouseClient', () => {
         expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
-    it('should create S3 secret once and skip on subsequent connections', async () => {
+    it('should apply only provided isolated resource limits and always configure temp_directory', async () => {
+        const runMock = jest.fn();
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = new DuckdbWarehouseClient(undefined, {
+            resourceLimits: {
+                threads: 2,
+            },
+        });
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const runCalls = runMock.mock.calls.map(
+            (call: unknown[]) => call[0] as string,
+        );
+        expect(
+            runCalls.some((call) => call.startsWith('SET temp_directory = ')),
+        ).toBe(true);
+        expect(runCalls).toContain('SET threads = 2;');
+        expect(
+            runCalls.filter((call) => call.startsWith('SET memory_limit = ')),
+        ).toHaveLength(0);
+    });
+
+    it('should not cache instances when instanceCacheKey is not provided', async () => {
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
+
+        const client = new DuckdbWarehouseClient();
+
+        await client.runQuery('SELECT 1 AS val');
+        await client.runQuery('SELECT 1 AS val');
+
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should create S3 secret once and skip on subsequent shared connections', async () => {
         let releaseSecretCreation: (() => void) | undefined;
         const secretCreationBlocked = new Promise<void>((resolve) => {
             releaseSecretCreation = resolve;
@@ -351,16 +409,22 @@ describe('DuckdbWarehouseClient', () => {
             createMockConnection(streamMock, runMock),
         );
 
-        const client = new DuckdbWarehouseClient({
-            s3Config: {
-                endpoint: 'localhost:9000',
-                region: 'us-east-1',
-                accessKey: 'key',
-                secretKey: 'secret',
-                forcePathStyle: true,
-                useSsl: false,
+        const client = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key',
+                    secretKey: 'secret',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
             },
-        });
+            {
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            },
+        );
 
         const firstQuery = client.runQuery('SELECT 1 AS val');
         const secondQuery = client.runQuery('SELECT 1 AS val');
@@ -385,6 +449,122 @@ describe('DuckdbWarehouseClient', () => {
             ),
         ).toHaveLength(1);
         expect(streamMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should share the warm instance across client instances with the same config', async () => {
+        const runMock = jest.fn();
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const config = {
+            type: 'duckdb_s3' as const,
+            s3Config: {
+                endpoint: 'localhost:9000',
+                region: 'us-east-1',
+                accessKey: 'key',
+                secretKey: 'secret',
+                forcePathStyle: true,
+                useSsl: false,
+            },
+        };
+
+        const clientA = new DuckdbWarehouseClient(config, {
+            sharedResourceLimits: {
+                memoryLimit: '3GB',
+                threads: 4,
+            },
+            instanceCacheKey: 'pre-aggregate-query-instance',
+        });
+        const clientB = new DuckdbWarehouseClient(config, {
+            sharedResourceLimits: {
+                memoryLimit: '3GB',
+                threads: 4,
+            },
+            instanceCacheKey: 'pre-aggregate-query-instance',
+        });
+
+        await clientA.runQuery('SELECT 1 AS val');
+        await clientB.runQuery('SELECT 1 AS val');
+
+        expect(createInstanceMock).toHaveBeenCalledTimes(1);
+        expect(
+            runMock.mock.calls.filter(([sql]) =>
+                (sql as string).includes(
+                    'CREATE OR REPLACE SECRET __lightdash_s3',
+                ),
+            ),
+        ).toHaveLength(1);
+        expect(streamMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should treat instanceCacheKey as the shared instance identity', async () => {
+        const runMock = jest.fn();
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const clientA = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key-a',
+                    secretKey: 'secret-a',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
+            },
+            {
+                sharedResourceLimits: {
+                    memoryLimit: '3GB',
+                },
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            },
+        );
+        const clientB = new DuckdbWarehouseClient(
+            {
+                type: 'duckdb_s3',
+                s3Config: {
+                    endpoint: 'localhost:9000',
+                    region: 'us-east-1',
+                    accessKey: 'key-b',
+                    secretKey: 'secret-b',
+                    forcePathStyle: true,
+                    useSsl: false,
+                },
+            },
+            {
+                sharedResourceLimits: {
+                    memoryLimit: '6GB',
+                    threads: 8,
+                },
+                instanceCacheKey: 'pre-aggregate-query-instance',
+            },
+        );
+
+        await clientA.runQuery('SELECT 1 AS val');
+        await clientB.runQuery('SELECT 1 AS val');
+
+        expect(createInstanceMock).toHaveBeenCalledTimes(1);
+        expect(
+            runMock.mock.calls.filter(([sql]) =>
+                (sql as string).includes(
+                    'CREATE OR REPLACE SECRET __lightdash_s3',
+                ),
+            ),
+        ).toHaveLength(1);
+        expect(runMock).not.toHaveBeenCalledWith("SET memory_limit = '6GB';");
+        expect(runMock).not.toHaveBeenCalledWith('SET threads = 8;');
     });
 
     it('should log structured DuckDB profile metrics with query tags', async () => {
@@ -419,7 +599,7 @@ describe('DuckdbWarehouseClient', () => {
             createMockConnection(streamMock, runMock),
         );
 
-        const client = new DuckdbWarehouseClient({ logger });
+        const client = new DuckdbWarehouseClient(undefined, { logger });
         await client.runQuery('SELECT 1 AS val', {
             query_uuid: 'query-123',
             chart_uuid: 'chart-123',

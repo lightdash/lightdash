@@ -16,10 +16,10 @@ import {
     type RunQueryTags,
 } from '@lightdash/common';
 import {
-    DuckdbQueryProfileMetrics,
-    DuckdbS3SessionConfig,
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
+    type DuckdbResourceLimits,
+    type DuckdbS3SessionConfig,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { type LightdashConfig } from '../../../config/parseConfig';
@@ -37,14 +37,18 @@ import {
 } from '../PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import { getDuckdbRuntimeConfig } from './getDuckdbRuntimeConfig';
 
+const PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY = 'pre-aggregate-query-instance';
+
 type PreAggregationDuckDbClientArgs = {
     lightdashConfig: LightdashConfig;
     preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
     projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
     prometheusMetrics?: PrometheusMetrics;
-    memoryLimit?: string;
+    sharedResourceLimits?: DuckdbResourceLimits;
     createDuckdbWarehouseClient?: (args: {
         s3Config: DuckdbS3SessionConfig;
+        sharedResourceLimits?: DuckdbResourceLimits;
+        instanceCacheKey?: string;
     }) => WarehouseClient;
 };
 
@@ -86,9 +90,12 @@ export class PreAggregationDuckDbClient {
 
     private readonly projectModel: Pick<ProjectModel, 'getExploreFromCache'>;
 
+    private readonly sharedResourceLimits?: DuckdbResourceLimits;
+
     private readonly createDuckdbWarehouseClient: (args: {
         s3Config: DuckdbS3SessionConfig;
-        onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
+        sharedResourceLimits?: DuckdbResourceLimits;
+        instanceCacheKey?: string;
     }) => WarehouseClient;
 
     private readonly prometheusMetrics?: PrometheusMetrics;
@@ -100,14 +107,21 @@ export class PreAggregationDuckDbClient {
         this.preAggregateModel = args.preAggregateModel;
         this.projectModel = args.projectModel;
         this.prometheusMetrics = args.prometheusMetrics;
+        this.sharedResourceLimits = args.sharedResourceLimits;
         this.createDuckdbWarehouseClient =
             args.createDuckdbWarehouseClient ??
             ((warehouseArgs) =>
-                new DuckdbWarehouseClient({
-                    ...warehouseArgs,
-                    memoryLimit: args.memoryLimit,
-                    logger: Logger,
-                }));
+                new DuckdbWarehouseClient(
+                    { type: 'duckdb_s3', s3Config: warehouseArgs.s3Config },
+                    {
+                        sharedResourceLimits:
+                            warehouseArgs.sharedResourceLimits,
+                        instanceCacheKey: warehouseArgs.instanceCacheKey,
+                        logger: Logger,
+                        onQueryProfile:
+                            this.prometheusMetrics?.observeDuckdbQueryProfile,
+                    },
+                ));
     }
 
     private getOrCreateWarehouseClient(): WarehouseClient {
@@ -122,8 +136,8 @@ export class PreAggregationDuckDbClient {
 
             this.cachedWarehouseClient = this.createDuckdbWarehouseClient({
                 s3Config: duckdbRuntimeConfig,
-                onQueryProfile:
-                    this.prometheusMetrics?.observeDuckdbQueryProfile,
+                sharedResourceLimits: this.sharedResourceLimits,
+                instanceCacheKey: PRE_AGGREGATE_QUERY_INSTANCE_CACHE_KEY,
             });
 
             Logger.info('DuckDB warehouse client created and cached for reuse');
