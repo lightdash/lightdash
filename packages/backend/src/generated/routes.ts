@@ -4964,6 +4964,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        sourceMetricId: { ref: 'FieldId' },
                         fieldMappings: { ref: 'Record_FieldId.FieldId_' },
                         target: { ref: 'DrillThroughTarget', required: true },
                         linkedChartUuid: { dataType: 'string', required: true },
@@ -19830,6 +19831,24 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ContentAsCodeType.SPACE': {
+        dataType: 'refEnum',
+        enums: ['space'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SpaceAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                slug: { dataType: 'string', required: true },
+                spaceName: { dataType: 'string', required: true },
+                contentType: { ref: 'ContentAsCodeType.SPACE', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiChartAsCodeListResponse: {
         dataType: 'refAlias',
         type: {
@@ -19840,6 +19859,11 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         offset: { dataType: 'double', required: true },
                         total: { dataType: 'double', required: true },
+                        spaces: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceAsCode' },
+                            required: true,
+                        },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -20245,6 +20269,11 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         offset: { dataType: 'double', required: true },
                         total: { dataType: 'double', required: true },
+                        spaces: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceAsCode' },
+                            required: true,
+                        },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },
@@ -20497,6 +20526,11 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         offset: { dataType: 'double', required: true },
                         total: { dataType: 'double', required: true },
+                        spaces: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SpaceAsCode' },
+                            required: true,
+                        },
                         missingIds: {
                             dataType: 'array',
                             array: { dataType: 'string' },

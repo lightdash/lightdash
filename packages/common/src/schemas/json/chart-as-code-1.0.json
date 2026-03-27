@@ -319,6 +319,10 @@
                 "metadata": {
                     "$ref": "#/$defs/Record_string.SeriesMetadata_",
                     "description": "Metadata for series (colors, etc.)"
+                },
+                "rowLimit": {
+                    "$ref": "#/$defs/RowLimit",
+                    "description": "Limit displayed rows to first/last N"
                 }
             },
             "required": ["eChartsConfig", "layout"],
@@ -1100,6 +1104,10 @@
                         "linkedChartUuid": {
                             "description": "UUID of the saved chart to display when drilling",
                             "type": "string"
+                        },
+                        "sourceMetricId": {
+                            "$ref": "#/$defs/FieldId",
+                            "description": "When set, this drill path only appears when the user clicks on this specific metric.\nWhen absent, the path appears for all metrics."
                         },
                         "target": {
                             "$ref": "#/$defs/DrillThroughTarget",
@@ -2511,6 +2519,27 @@
             "properties": {},
             "type": "object"
         },
+        "RowLimit": {
+            "properties": {
+                "count": {
+                    "description": "Number of rows to show or hide",
+                    "format": "double",
+                    "type": "number"
+                },
+                "direction": {
+                    "description": "Whether to target the first or last N rows",
+                    "enum": ["first", "last"],
+                    "type": "string"
+                },
+                "mode": {
+                    "description": "Whether to show or hide the selected rows",
+                    "enum": ["show", "hide"],
+                    "type": "string"
+                }
+            },
+            "required": ["count", "direction", "mode"],
+            "type": "object"
+        },
         "SankeyChart": {
             "properties": {
                 "metricFieldId": {
@@ -2983,6 +3012,10 @@
                 "metricsAsRows": {
                     "description": "Display metrics as rows instead of columns",
                     "type": "boolean"
+                },
+                "rowLimit": {
+                    "$ref": "#/$defs/RowLimit",
+                    "description": "Limit displayed rows to first/last N"
                 },
                 "showColumnCalculation": {
                     "description": "Show column totals/calculations",
