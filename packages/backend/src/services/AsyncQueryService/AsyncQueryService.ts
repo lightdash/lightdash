@@ -22,6 +22,7 @@ import {
     Dimension,
     DimensionType,
     DownloadFileType,
+    DrillPathType,
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
@@ -82,6 +83,7 @@ import {
     type CompiledMetric,
     type CustomDimension,
     type DateZoom,
+    type DrillStack,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
@@ -3692,12 +3694,12 @@ export class AsyncQueryService extends ProjectService {
         }
 
         // Resolve drill steps from chart's drillConfig, inline data, or direct linkedChartUuid
-        const resolvedSteps = drillSteps.map((step) => {
+        const resolvedSteps = drillSteps.map((step): DrillStack[number] => {
             // Direct linked chart reference
             if (step.linkedChartUuid) {
                 return {
                     drillPath: {
-                        type: 'drillThrough' as const,
+                        type: DrillPathType.DRILL_THROUGH,
                         id: step.drillPathId,
                         label: '',
                         linkedChartUuid: step.linkedChartUuid,
@@ -3712,7 +3714,7 @@ export class AsyncQueryService extends ProjectService {
             if (step.inlineDimensions?.length) {
                 return {
                     drillPath: {
-                        type: 'drillDown' as const,
+                        type: DrillPathType.DRILL_DOWN,
                         id: step.drillPathId,
                         label: '',
                         dimensions: step.inlineDimensions,

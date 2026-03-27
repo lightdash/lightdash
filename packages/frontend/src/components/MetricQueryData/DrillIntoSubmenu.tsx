@@ -2,8 +2,8 @@ import {
     isDrillDownPath,
     isDrillThroughPath,
     type DrillConfig,
-    type DrillPath,
     type DrillPathType,
+    type DrillStack,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu } from '@mantine-8/core';
@@ -15,11 +15,6 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
-
-export type DrillStack = Array<{
-    drillPath: DrillPath;
-    drillDimensionValues: Record<string, unknown>;
-}>;
 
 type DrillIntoSubmenuProps = {
     drillConfig: DrillConfig | undefined;

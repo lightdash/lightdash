@@ -16,6 +16,7 @@ import {
     type ConditionalFormattingRowFields,
     type DrillConfig,
     type DrillPath,
+    type DrillStack,
     type ItemsMap,
     type PivotData,
     type ResultRow,
@@ -54,7 +55,6 @@ import {
     getColorFromRange,
     transformColorsForDarkMode,
 } from '../../../utils/colorUtils';
-import { type DrillStack } from '../../MetricQueryData/DrillIntoSubmenu';
 import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';

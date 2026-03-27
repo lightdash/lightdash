@@ -855,6 +855,12 @@ export type DrillConfig = {
     paths: DrillPath[];
 };
 
+/** A stack of drill steps representing the current drill navigation state */
+export type DrillStack = Array<{
+    drillPath: DrillPath;
+    drillDimensionValues: Record<string, unknown>;
+}>;
+
 export type SavedChartDAO = Omit<
     SavedChart,
     'inheritsFromOrgOrProject' | 'access'

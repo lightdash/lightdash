@@ -9,6 +9,7 @@ import {
     type DateZoom,
     type DrillConfig,
     type DrillPath,
+    type DrillStack,
     type EChartsSeries,
     type ItemsMap,
     type MetricQuery,
@@ -44,7 +45,6 @@ import {
     useServerFeatureFlag,
 } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
-import { type DrillStack } from '../MetricQueryData/DrillIntoSubmenu';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import Context from './context';
 import { type useVisualizationContext } from './useVisualizationContext';

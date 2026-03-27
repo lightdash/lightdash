@@ -9,7 +9,7 @@ import {
     isDrillThroughPath,
     type DrillConfig,
     type DrillDownPath,
-    type DrillPath,
+    type DrillStack,
     type DrillThroughTarget,
     type PivotReference,
 } from '../types/savedCharts';
@@ -106,12 +106,7 @@ export const buildDrilledMetricQuery = (
  * Ensures the backend can resolve each step even if the drill path ID
  * doesn't match the saved chart config (e.g., unsaved changes).
  */
-export const drillStackToSteps = (
-    stack: Array<{
-        drillPath: DrillPath;
-        drillDimensionValues: Record<string, unknown>;
-    }>,
-): DrillStep[] =>
+export const drillStackToSteps = (stack: DrillStack): DrillStep[] =>
     stack.map((level) => {
         const step: DrillStep = {
             drillPathId: level.drillPath.id,

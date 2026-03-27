@@ -6,6 +6,7 @@ import {
     isMetric,
     type DrillConfig,
     type DrillPath,
+    type DrillStack,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
@@ -21,9 +22,7 @@ import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { UnderlyingDataMenuItem } from '../../DashboardTiles/UnderlyingDataMenuItem';
-import DrillIntoSubmenu, {
-    type DrillStack,
-} from '../../MetricQueryData/DrillIntoSubmenu';
+import DrillIntoSubmenu from '../../MetricQueryData/DrillIntoSubmenu';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
