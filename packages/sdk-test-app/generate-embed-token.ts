@@ -119,7 +119,10 @@ async function main() {
                 type: 'dashboard',
                 projectUuid,
                 dashboardUuid,
-                dashboardFiltersInteractivity: { enabled: 'none' },
+                dashboardFiltersInteractivity: {
+                    enabled: 'all',
+                    hidden: true,
+                },
                 canExportCsv: false,
                 canExportImages: false,
                 isPreview: false,

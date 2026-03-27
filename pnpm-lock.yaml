@@ -1481,6 +1481,9 @@ importers:
       react-i18next:
         specifier: ^15.4.1
         version: 15.4.1(i18next@24.2.2(typescript@6.0.0-beta))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react-router:
+        specifier: ^7.8.0
+        version: 7.12.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
     devDependencies:
       '@types/jsonwebtoken':
         specifier: ^9.0.0

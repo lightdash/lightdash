@@ -1,14 +1,13 @@
 import '@mantine-8/core/styles.css';
-
 import {
     FilterOperator,
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
-import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
-import { MemoryRouter } from 'react-router';
+import { ModalsProvider } from '@mantine/modals';
+import { useEffect, useState, type FC, type PropsWithChildren } from 'react';
+import { MemoryRouter, useInRouterContext } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
-import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
@@ -24,8 +23,7 @@ import MantineProvider from '../src/providers/MantineProvider';
 import ReactQueryProvider from '../src/providers/ReactQuery/ReactQueryProvider';
 import ThirdPartyServicesProvider from '../src/providers/ThirdPartyServicesProvider';
 import TrackingProvider from '../src/providers/Tracking/TrackingProvider';
-
-import { ModalsProvider } from '@mantine/modals';
+import { setToInMemoryStorage } from '../src/utils/inMemoryStorage';
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -78,6 +76,16 @@ const persistInstanceUrl = (instanceUrl: string) => {
     }
 };
 
+const SdkRouterProvider: FC<PropsWithChildren> = ({ children }) => {
+    const isInRouterContext = useInRouterContext();
+
+    if (isInRouterContext) {
+        return <>{children}</>;
+    }
+
+    return <MemoryRouter>{children}</MemoryRouter>;
+};
+
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
@@ -106,7 +114,7 @@ const SdkProviders: FC<
                             <FullscreenProvider enabled={false}>
                                 <ThirdPartyServicesProvider enabled={false}>
                                     <ErrorBoundary wrapper={{ mt: '4xl' }}>
-                                        <MemoryRouter>
+                                        <SdkRouterProvider>
                                             <TrackingProvider enabled={true}>
                                                 <AbilityProvider>
                                                     <ChartColorMappingContextProvider>
@@ -116,7 +124,7 @@ const SdkProviders: FC<
                                                     </ChartColorMappingContextProvider>
                                                 </AbilityProvider>
                                             </TrackingProvider>
-                                        </MemoryRouter>
+                                        </SdkRouterProvider>
                                     </ErrorBoundary>
                                 </ThirdPartyServicesProvider>
                             </FullscreenProvider>
