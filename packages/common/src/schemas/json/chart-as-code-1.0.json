@@ -3089,8 +3089,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/BigNumber",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/BigNumber",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "big_number",
@@ -3103,8 +3110,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/CartesianChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/CartesianChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "cartesian",
@@ -3117,8 +3131,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/CustomVis",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/CustomVis",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "custom",
@@ -3131,8 +3152,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/PieChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/PieChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "pie",
@@ -3145,8 +3173,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/FunnelChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/FunnelChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "funnel",
@@ -3159,8 +3194,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/TableChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/TableChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "table",
@@ -3173,8 +3215,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/TreemapChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/TreemapChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "treemap",
@@ -3187,8 +3236,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/GaugeChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/GaugeChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "gauge",
@@ -3201,8 +3257,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/MapChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/MapChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "map",
@@ -3215,8 +3278,15 @@
                 {
                     "properties": {
                         "config": {
-                            "$ref": "#/$defs/SankeyChart",
-                            "description": "Chart-type-specific configuration"
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/SankeyChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "type": {
                             "const": "sankey",
