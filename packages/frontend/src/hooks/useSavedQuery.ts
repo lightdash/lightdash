@@ -182,6 +182,7 @@ export const useChartVersionRollbackMutation = (
         'mutationFn'
     >,
 ) => {
+    const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) =>
@@ -192,6 +193,7 @@ export const useChartVersionRollbackMutation = (
             mutationKey: ['saved_query_rollback'],
             ...useMutationOptions,
             onSuccess: async (...args) => {
+                await queryClient.invalidateQueries(['saved_query']);
                 showToastSuccess({
                     title: `Success! Chart was reverted.`,
                 });
