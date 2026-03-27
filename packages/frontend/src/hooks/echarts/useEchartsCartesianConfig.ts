@@ -1403,13 +1403,19 @@ export const filterSeriesWithNoData = (
     }
     if (results.length === 0) return unfilteredSeries;
 
+    const fieldsWithData = new Set<string>();
+    for (const row of results) {
+        for (const [key, val] of Object.entries(row)) {
+            if (val !== null && val !== undefined) {
+                fieldsWithData.add(key);
+            }
+        }
+    }
+
     return unfilteredSeries.filter((s) => {
-        const dataFieldKey = s.encode?.tooltip?.[0];
-        if (!dataFieldKey) return true;
-        return results.some((row) => {
-            const val = row[dataFieldKey];
-            return val !== null && val !== undefined;
-        });
+        const tooltipKeys = s.encode?.tooltip;
+        if (!tooltipKeys?.length) return true;
+        return tooltipKeys.some((key) => fieldsWithData.has(key));
     });
 };
 
@@ -2448,39 +2454,6 @@ const useEchartsCartesianConfig = (
         [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
     );
 
-    const unfilteredSeries = useMemo(() => {
-        if (!itemsMap || !validCartesianConfig || !resultsData) {
-            return [];
-        }
-
-        // Use new series generation for pre-pivoted data
-        if (resultsData?.pivotDetails && rowKeyMap) {
-            return getEchartsSeriesFromPivotedData(
-                itemsMap,
-                validCartesianConfig,
-                rowKeyMap,
-                pivotValuesColumnsMap,
-                parameters,
-            );
-        }
-
-        // Legacy implementation
-        return getEchartsSeries(
-            itemsMap,
-            validCartesianConfig,
-            pivotDimensions,
-            parameters,
-        );
-    }, [
-        validCartesianConfig,
-        resultsData,
-        itemsMap,
-        pivotDimensions,
-        rowKeyMap,
-        pivotValuesColumnsMap,
-        parameters,
-    ]);
-
     // Pivot references from hidden series, used for resolving custom tooltip references
     // to fields that are on the Y axis but have their chart series hidden.
     const hiddenSeriesPivotRefs = useMemo(() => {
@@ -2498,21 +2471,48 @@ const useEchartsCartesianConfig = (
         [rows],
     );
 
-    const series = useMemo(
-        () =>
-            filterSeriesWithNoData(
-                unfilteredSeries,
-                resultsAndMinsAndMaxes.results,
-                isShowHideRowsEnabled,
-                validCartesianConfig?.rowLimit,
-            ),
-        [
+    const series = useMemo(() => {
+        if (!itemsMap || !validCartesianConfig || !resultsData) {
+            return [];
+        }
+
+        // Use new series generation for pre-pivoted data
+        let unfilteredSeries: EChartsSeries[];
+        if (resultsData?.pivotDetails && rowKeyMap) {
+            unfilteredSeries = getEchartsSeriesFromPivotedData(
+                itemsMap,
+                validCartesianConfig,
+                rowKeyMap,
+                pivotValuesColumnsMap,
+                parameters,
+            );
+        } else {
+            // Legacy implementation
+            unfilteredSeries = getEchartsSeries(
+                itemsMap,
+                validCartesianConfig,
+                pivotDimensions,
+                parameters,
+            );
+        }
+
+        return filterSeriesWithNoData(
             unfilteredSeries,
             resultsAndMinsAndMaxes.results,
             isShowHideRowsEnabled,
             validCartesianConfig?.rowLimit,
-        ],
-    );
+        );
+    }, [
+        validCartesianConfig,
+        resultsData,
+        itemsMap,
+        pivotDimensions,
+        rowKeyMap,
+        pivotValuesColumnsMap,
+        parameters,
+        resultsAndMinsAndMaxes.results,
+        isShowHideRowsEnabled,
+    ]);
 
     const axes = useMemo(() => {
         if (!itemsMap || !validCartesianConfig) {
@@ -3002,7 +3002,12 @@ const useEchartsCartesianConfig = (
     // mapping (row index → category index) stays correct.
     const paddedDataToRender = useMemo(() => {
         const continuousRange = axes.continuousDateRange;
-        if (!continuousRange || !isShowHideRowsEnabled) return dataToRender;
+        if (
+            !continuousRange ||
+            !isShowHideRowsEnabled ||
+            !validCartesianConfig?.rowLimit
+        )
+            return dataToRender;
         const xFieldId = validCartesianConfig?.layout?.flipAxes
             ? validCartesianConfig?.layout?.yField?.[0]
             : validCartesianConfig?.layout?.xField;
@@ -3016,6 +3021,7 @@ const useEchartsCartesianConfig = (
         dataToRender,
         axes.continuousDateRange,
         isShowHideRowsEnabled,
+        validCartesianConfig?.rowLimit,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfig?.layout?.yField,
         validCartesianConfig?.layout?.xField,
