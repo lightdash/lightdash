@@ -171,18 +171,7 @@ chartConfig:
 
 ## Pivot Tables
 
-Pivot tables cross-tabulate dimensions and metrics. Use `pivotConfig.columns` (a top-level chart property) to specify which dimensions become column headers, and optionally set `metricsAsRows: true` to transpose metrics into rows.
-
-### How Pivoting Works
-
-1. Add **two or more dimensions** to `metricQuery.dimensions`
-2. One dimension stays as row headers (displayed in the leftmost columns)
-3. The other dimension goes into `pivotConfig.columns` — its unique values become column headers
-4. Each metric appears under each pivot column value
-
-**Important:** Every dimension in `metricQuery.dimensions` must appear either as a row dimension (in `columns` config) or in `pivotConfig.columns`. Unused dimensions cause incorrect grouping.
-
-### Example: Revenue by Region Pivoted by Product Category
+Pivot tables cross-tabulate dimensions and metrics. Add two or more dimensions to `metricQuery.dimensions`, then put the dimension you want as column headers into `pivotConfig.columns` (a **top-level** property, not inside `chartConfig`). Set `metricsAsRows: true` to transpose metrics into rows instead.
 
 ```yaml
 contentType: chart
@@ -195,8 +184,9 @@ chartConfig:
         name: "Region"
       orders_total_revenue:
         name: "Revenue"
-    showColumnCalculation: true
-    showRowCalculation: true
+    showColumnCalculation: true  # totals row at bottom
+    showRowCalculation: true     # totals column on right
+    # metricsAsRows: true        # uncomment to transpose metrics into rows
 metricQuery:
   exploreName: "orders"
   dimensions:
@@ -214,46 +204,10 @@ tableName: "orders"
 version: 1
 ```
 
-This produces a table where rows are regions, columns are product categories, and cells show total revenue. `showRowCalculation: true` adds a "Total" column on the right; `showColumnCalculation: true` adds a totals row at the bottom.
-
-### Example: Metrics as Rows
-
-When comparing many metrics across a single dimension, transpose the table so metrics become rows:
-
-```yaml
-contentType: chart
-chartConfig:
-  type: "table"
-  config:
-    metricsAsRows: true
-    showColumnCalculation: false
-metricQuery:
-  exploreName: "orders"
-  dimensions:
-    - orders_region
-  metrics:
-    - orders_total_revenue
-    - orders_order_count
-    - orders_avg_order_value
-name: "KPIs by Region (Transposed)"
-pivotConfig:
-  columns:
-    - orders_region
-slug: "kpis-by-region-transposed"
-spaceSlug: "sales"
-tableName: "orders"
-version: 1
-```
-
-Here each region becomes a column header and each metric becomes a row — useful for compact KPI comparison tables.
-
-### Pivot Table Tips
-
-1. **`pivotConfig` is top-level**, not inside `chartConfig`. This is a common mistake.
-2. **`showRowCalculation: true`** adds a row total column — useful for seeing totals across pivot columns.
-3. **`showSubtotals: true`** adds subtotal rows when you have multiple row dimensions.
-4. **Column config still works** — you can set `name`, `frozen`, `visible`, and conditional formatting on pivoted columns using their field IDs.
-5. **Limit pivot cardinality** — pivoting on a dimension with 50+ unique values creates an unwieldy table. Filter high-cardinality dimensions or use a cartesian chart instead.
+- **`pivotConfig` is top-level**, not inside `chartConfig` — this is a common mistake
+- `showSubtotals: true` adds subtotal rows when you have multiple row dimensions
+- Column config (`name`, `frozen`, `visible`, conditional formatting) still works on pivoted columns
+- Avoid pivoting on dimensions with 50+ unique values — use a cartesian chart instead
 
 ## Tips and Best Practices
 
