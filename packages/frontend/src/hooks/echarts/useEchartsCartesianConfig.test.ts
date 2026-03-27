@@ -586,6 +586,31 @@ describe('filterSeriesWithNoData', () => {
         // getResultValueArray falls back from null raw to formatted string.
         expect(filtered).toHaveLength(2);
     });
+
+    test('keeps series when any tooltip key has data (multiple tooltip keys)', () => {
+        const seriesWithMultipleKeys = {
+            type: CartesianSeriesType.BAR,
+            encode: {
+                x: 'date',
+                y: 'metric_b',
+                tooltip: ['label_col', 'metric_b'],
+                seriesName: 'metric_b',
+            },
+        } as EChartsSeries;
+        const series = [makeSeries('metric_a'), seriesWithMultipleKeys];
+        const results = [
+            { metric_a: 10, label_col: null, metric_b: 5 },
+            { metric_a: 20, label_col: null, metric_b: null },
+        ];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toHaveLength(2);
+    });
 });
 
 describe('padDatasetForContinuousAxis', () => {
@@ -645,5 +670,36 @@ describe('padDatasetForContinuousAxis', () => {
         const range = ['2023-03-01', '2023-04-01'];
         const result = padDatasetForContinuousAxis([], range, xField);
         expect(result).toEqual([]);
+    });
+
+    test('drops rows whose dates are not in the continuous range', () => {
+        const data = [
+            { [xField]: '2023-03-01', value: 10 },
+            { [xField]: '2023-06-01', value: 30 },
+        ];
+        const range = ['2023-03-01', '2023-04-01', '2023-05-01'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ [xField]: '2023-03-01', value: 10 });
+        expect(result[1]).toEqual({ [xField]: '2023-04-01' });
+        expect(result[2]).toEqual({ [xField]: '2023-05-01' });
+    });
+
+    test('rewrites x-field to canonical range value while preserving other columns', () => {
+        const data = [
+            { [xField]: '2023-03-01T01:00:00Z', value: 10, extra: 'a' },
+            { [xField]: '2023-04-01T01:00:00Z', value: 20, extra: 'b' },
+        ];
+        const range = ['2023-03-01T00:00:00Z', '2023-04-01T00:00:00Z'];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(2);
+        expect(result[0][xField]).toBe('2023-03-01T00:00:00Z');
+        expect(result[0].value).toBe(10);
+        expect(result[0].extra).toBe('a');
+        expect(result[1][xField]).toBe('2023-04-01T00:00:00Z');
+        expect(result[1].value).toBe(20);
+        expect(result[1].extra).toBe('b');
     });
 });
