@@ -113,6 +113,18 @@ REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo 
 CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
 if [ -z "$REQUIRED_NODE" ]; then
   echo "WARN: No .nvmrc or .node-version file found"
+elif [ -z "$CURRENT_NODE" ]; then
+  if command -v fnm >/dev/null 2>&1; then
+    echo "NEED: Node not found but fnm is available — run: fnm install $REQUIRED_NODE && fnm use $REQUIRED_NODE"
+  elif [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+    echo "NEED: Node not found but nvm is available — run: nvm install $REQUIRED_NODE"
+  elif command -v mise >/dev/null 2>&1; then
+    echo "NEED: Node not found but mise is available — run: mise use node@$REQUIRED_NODE"
+  else
+    echo "NEED: Node not found and no version manager detected. Install one of:"
+    echo "  fnm (recommended): curl -fsSL https://fnm.vercel.app/install | bash"
+    echo "  nvm: curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash"
+  fi
 elif echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
   echo "OK: Node version $CURRENT_NODE matches required $REQUIRED_NODE"
 else
@@ -327,7 +339,11 @@ REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo 
 CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
 
 if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
-  echo "Node version mismatch: running $CURRENT_NODE, project requires $REQUIRED_NODE"
+  if [ -z "$CURRENT_NODE" ]; then
+    echo "Node is not installed. Project requires Node $REQUIRED_NODE."
+  else
+    echo "Node version mismatch: running $CURRENT_NODE, project requires $REQUIRED_NODE"
+  fi
 
   # Try fnm first
   if command -v fnm >/dev/null 2>&1; then
@@ -336,8 +352,8 @@ if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE
     echo "Switched to Node $(node -v) via fnm"
 
   # Try nvm
-  elif [ -s "$NVM_DIR/nvm.sh" ]; then
-    . "$NVM_DIR/nvm.sh"
+  elif [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+    . "${NVM_DIR:-$HOME/.nvm}/nvm.sh"
     nvm use "$REQUIRED_NODE" || nvm install "$REQUIRED_NODE"
     echo "Switched to Node $(node -v) via nvm"
 
@@ -347,8 +363,15 @@ if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE
     echo "Switched to Node $(node -v) via mise"
 
   else
-    echo "ERROR: Cannot switch Node version. Install fnm, nvm, or mise, then retry."
-    echo "Current: $CURRENT_NODE, Required: $REQUIRED_NODE"
+    echo "ERROR: No Node version manager found. Install one to continue:"
+    echo ""
+    echo "  fnm (recommended, fast & simple):"
+    echo "    curl -fsSL https://fnm.vercel.app/install | bash"
+    echo ""
+    echo "  nvm (widely used):"
+    echo "    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.4/install.sh | bash"
+    echo ""
+    echo "After installing, restart your shell and re-run /docker-dev start"
     return 1
   fi
 fi
