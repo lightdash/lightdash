@@ -108,7 +108,18 @@ docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE
 # Check 9: Volume snapshot exists (for fast resets)
 docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1 && echo "OK: Volume snapshot exists" || echo "NEED: No volume snapshot (will be created after setup completes)"
 
-# Check 10: PM2 processes running for this instance
+# Check 10: Node version matches project requirement
+REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo "")
+CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
+if [ -z "$REQUIRED_NODE" ]; then
+  echo "WARN: No .nvmrc or .node-version file found"
+elif echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
+  echo "OK: Node version $CURRENT_NODE matches required $REQUIRED_NODE"
+else
+  echo "NEED: Node version mismatch (running $CURRENT_NODE, project requires $REQUIRED_NODE)"
+fi
+
+# Check 11: PM2 processes running for this instance
 PM2_PROC=$(pm2 jlist 2>/dev/null | python3 -c "
 import sys, json
 procs = json.load(sys.stdin)
@@ -143,6 +154,13 @@ esac
 - Uses `docker exec ${LD_CONTAINER_PREFIX}-db-dev-1 psql` (no local psql needed)
 - `information_schema` queries avoid "relation does not exist" errors
 - `emails` table is checked for seed status (not `users` — Lightdash separates identity from emails)
+
+### Node Version Check Notes
+
+- The project specifies its required Node version in `.nvmrc` (or `.node-version`)
+- PM2 inherits the Node binary from the current shell — if the wrong version is active, native modules (like `lz4`) will fail with `ERR_DLOPEN_FAILED` / "Module did not self-register"
+- This check uses a prefix match (e.g., required `20.19` matches `20.19.6`)
+- The "Ensure Correct Node Version" step runs before `pnpm install` so native modules compile against the correct ABI
 
 ---
 
@@ -297,6 +315,44 @@ Spotlight UI: http://localhost:${SPOTLIGHT_PORT}
 | Spotlight         | ${SPOTLIGHT_PORT}      | http://localhost:${SPOTLIGHT_PORT}             |
 EOF
 ````
+
+### Ensure Correct Node Version
+
+**CRITICAL: Always run this before `pnpm install` or starting PM2.** Native modules are compiled against the active Node ABI during `pnpm install`. If the wrong version is active, modules like `lz4` will crash with `ERR_DLOPEN_FAILED` at runtime.
+
+Read the required version from `.nvmrc` or `.node-version`, then switch if needed:
+
+```bash
+REQUIRED_NODE=$(cat .nvmrc 2>/dev/null || cat .node-version 2>/dev/null || echo "")
+CURRENT_NODE=$(node -v 2>/dev/null | sed 's/^v//')
+
+if [ -n "$REQUIRED_NODE" ] && ! echo "$CURRENT_NODE" | grep -q "^${REQUIRED_NODE}"; then
+  echo "Node version mismatch: running $CURRENT_NODE, project requires $REQUIRED_NODE"
+
+  # Try fnm first
+  if command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env)"
+    fnm use "$REQUIRED_NODE" --install-if-missing
+    echo "Switched to Node $(node -v) via fnm"
+
+  # Try nvm
+  elif [ -s "$NVM_DIR/nvm.sh" ]; then
+    . "$NVM_DIR/nvm.sh"
+    nvm use "$REQUIRED_NODE" || nvm install "$REQUIRED_NODE"
+    echo "Switched to Node $(node -v) via nvm"
+
+  # Try mise/rtx
+  elif command -v mise >/dev/null 2>&1; then
+    mise use "node@$REQUIRED_NODE"
+    echo "Switched to Node $(node -v) via mise"
+
+  else
+    echo "ERROR: Cannot switch Node version. Install fnm, nvm, or mise, then retry."
+    echo "Current: $CURRENT_NODE, Required: $REQUIRED_NODE"
+    return 1
+  fi
+fi
+```
 
 ### Install Dependencies
 
