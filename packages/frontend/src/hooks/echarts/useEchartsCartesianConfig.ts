@@ -1659,35 +1659,47 @@ const getEchartAxes = ({
         resultsData?.pivotDetails,
     );
     const eChartsSeries = validCartesianConfig.eChartsConfig.series;
-    const axisRows = displayedRows ?? resultsData?.rows;
-    const bottomAxisExtraConfig = getCategoryDateAxisConfig(
-        bottomAxisXId,
-        bottomAxisXField,
-        axisRows,
-        bottomAxisType,
-        eChartsSeries,
-    );
-    const topAxisExtraConfig = getCategoryDateAxisConfig(
-        topAxisXId,
-        topAxisXField,
-        axisRows,
-        topAxisType,
-        eChartsSeries,
-    );
-    const rightAxisExtraConfig = getCategoryDateAxisConfig(
-        rightAxisYId,
-        rightAxisYField,
-        axisRows,
-        rightAxisType,
-        eChartsSeries,
-    );
-    const leftAxisExtraConfig = getCategoryDateAxisConfig(
-        leftAxisYId,
-        leftAxisYField,
-        axisRows,
-        leftAxisType,
-        eChartsSeries,
-    );
+    // When row limiting is active, skip the continuous date range generation.
+    // The continuous range creates categories for every month between min and max,
+    // but with sliced data, the dataset rows don't map to those categories correctly
+    // (ECharts falls back to positional mapping when date formats don't match).
+    // Instead, let ECharts derive categories directly from the dataset values.
+    const bottomAxisExtraConfig = displayedRows
+        ? {}
+        : getCategoryDateAxisConfig(
+              bottomAxisXId,
+              bottomAxisXField,
+              resultsData?.rows,
+              bottomAxisType,
+              eChartsSeries,
+          );
+    const topAxisExtraConfig = displayedRows
+        ? {}
+        : getCategoryDateAxisConfig(
+              topAxisXId,
+              topAxisXField,
+              resultsData?.rows,
+              topAxisType,
+              eChartsSeries,
+          );
+    const rightAxisExtraConfig = displayedRows
+        ? {}
+        : getCategoryDateAxisConfig(
+              rightAxisYId,
+              rightAxisYField,
+              resultsData?.rows,
+              rightAxisType,
+              eChartsSeries,
+          );
+    const leftAxisExtraConfig = displayedRows
+        ? {}
+        : getCategoryDateAxisConfig(
+              leftAxisYId,
+              leftAxisYField,
+              resultsData?.rows,
+              leftAxisType,
+              eChartsSeries,
+          );
 
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
