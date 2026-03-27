@@ -485,7 +485,19 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         const pageData = nextPage.data;
         if (pageData?.status === QueryHistoryStatus.READY) {
-            setFetchedPages((prevState) => [...prevState, pageData]);
+            setFetchedPages((prevState) => {
+                // Deduplicate: avoid appending a page that was already fetched.
+                // This can happen when React Query re-delivers the same READY
+                // result after an invalidation or re-render, creating a new
+                // object reference even though the contents are identical.
+                const alreadyHasPage = prevState.some(
+                    (p) =>
+                        p.queryUuid === pageData.queryUuid &&
+                        p.page === pageData.page,
+                );
+                if (alreadyHasPage) return prevState;
+                return [...prevState, pageData];
+            });
         }
     }, [nextPage.data]);
 
