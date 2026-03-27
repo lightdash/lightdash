@@ -1,12 +1,38 @@
 import { useCallback, useEffect, type RefObject } from 'react';
 
 /**
+ * Routes the SDK is allowed to call through the postMessage bridge.
+ * Everything else is rejected. Patterns use :param for path segments.
+ */
+const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
+    // Async metric query execution
+    {
+        method: 'POST',
+        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
+    },
+    // Poll for query results
+    {
+        method: 'GET',
+        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/,
+    },
+    // Get current user
+    { method: 'GET', pattern: /^\/api\/v1\/user$/ },
+];
+
+function isAllowedRoute(method: string, path: string): boolean {
+    return ALLOWED_ROUTES.some(
+        (route) =>
+            route.method === method.toUpperCase() && route.pattern.test(path),
+    );
+}
+
+/**
  * Parent-side fetch proxy for sandboxed iframe SDK communication.
  *
  * The iframe's SDK sends HTTP requests via postMessage (because it has
- * no direct API access). This hook receives those requests, executes
- * them with the current user's session cookies, and posts the raw API
- * response back. It has no knowledge of queries, fields, or result types.
+ * no direct API access). This hook receives those requests, validates
+ * them against an allowlist, executes them with the current user's
+ * session cookies, and posts the raw API response back.
  */
 export function useAppSdkBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
@@ -29,6 +55,11 @@ export function useAppSdkBridge(
                     '*',
                 );
             };
+
+            if (!isAllowedRoute(method, path)) {
+                respond({ error: `Blocked: ${method} ${path}` });
+                return;
+            }
 
             try {
                 const res = await fetch(path, {
