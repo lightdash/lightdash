@@ -100,6 +100,7 @@ import {
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
+import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -2444,6 +2445,8 @@ const useEchartsCartesianConfig = (
         const isColorByCategory =
             Boolean(validCartesianConfig?.layout?.colorByCategory) &&
             !pivotDimensions?.length;
+        const conditionalFormattings =
+            validCartesianConfig?.conditionalFormattings;
         const categoryColorOverrides =
             validCartesianConfig?.layout?.categoryColorOverrides;
         // xField is always the dimension (category) field regardless of flipAxes.
@@ -2455,6 +2458,11 @@ const useEchartsCartesianConfig = (
         const barSeries = series.filter(
             (s) => s.type === CartesianSeriesType.BAR,
         );
+        const shouldApplyConditionalFormatting =
+            barSeries.length === 1 &&
+            series.length === 1 &&
+            !pivotDimensions?.length &&
+            Boolean(conditionalFormattings?.length);
         const isStacked = barSeries.some((s) => s.stack);
         const nonStackedBarCount = isStacked
             ? barSeries.filter((s) => !s.stack).length
@@ -2516,6 +2524,25 @@ const useEchartsCartesianConfig = (
                             },
                         }),
                     };
+
+                    if (shouldApplyConditionalFormatting) {
+                        return {
+                            ...barConfig,
+                            colorBy: 'data' as const,
+                            itemStyle: {
+                                ...barConfig.itemStyle,
+                                color: (params: {
+                                    data: Record<string, unknown>;
+                                }) =>
+                                    getCartesianConditionalFormattingColor({
+                                        itemsMap,
+                                        conditionalFormattings,
+                                        rowValues: params.data,
+                                        series: serie,
+                                    }) ?? computedColor,
+                            },
+                        };
+                    }
 
                     // Color by category: each bar gets a unique color
                     if (isColorByCategory) {
@@ -2601,9 +2628,10 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.colorByCategory,
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
-        pivotDimensions,
+        validCartesianConfig?.conditionalFormattings,
         series,
         rows,
+        pivotDimensions,
         validCartesianConfigLegend,
         getSeriesColor,
         colorPalette,
