@@ -169,6 +169,46 @@ chartConfig:
         applyTo: "cell"
 ```
 
+## Pivot Tables
+
+Pivot tables cross-tabulate dimensions and metrics. Add two or more dimensions to `metricQuery.dimensions`, then put the dimension you want as column headers into `pivotConfig.columns` (a **top-level** property, not inside `chartConfig`). Set `metricsAsRows: true` to transpose metrics into rows instead.
+
+```yaml
+contentType: chart
+chartConfig:
+  type: "table"
+  config:
+    columns:
+      orders_region:
+        frozen: true
+        name: "Region"
+      orders_total_revenue:
+        name: "Revenue"
+    showColumnCalculation: true  # totals row at bottom
+    showRowCalculation: true     # totals column on right
+    # metricsAsRows: true        # uncomment to transpose metrics into rows
+metricQuery:
+  exploreName: "orders"
+  dimensions:
+    - orders_region
+    - orders_product_category
+  metrics:
+    - orders_total_revenue
+name: "Revenue by Region × Category"
+pivotConfig:
+  columns:
+    - orders_product_category
+slug: "revenue-region-category-pivot"
+spaceSlug: "sales"
+tableName: "orders"
+version: 1
+```
+
+- **`pivotConfig` is top-level**, not inside `chartConfig` — this is a common mistake
+- `showSubtotals: true` adds subtotal rows when you have multiple row dimensions
+- Column config (`name`, `frozen`, `visible`, conditional formatting) still works on pivoted columns
+- Avoid pivoting on dimensions with 50+ unique values — use a cartesian chart instead
+
 ## Tips and Best Practices
 
 1. **Freeze identifier columns**: Keep key columns like IDs or names frozen for easier navigation when scrolling horizontally.
