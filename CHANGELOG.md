@@ -1,3 +1,16 @@
+# [0.2681.0](https://github.com/lightdash/lightdash/compare/0.2680.0...0.2681.0) (2026-03-27)
+
+
+### Bug Fixes
+
+* improve docker-dev node check when node is missing ([#21491](https://github.com/lightdash/lightdash/issues/21491)) ([760e28a](https://github.com/lightdash/lightdash/commit/760e28a907c81eb1e646374c8f61abbde3434fec))
+
+
+### Features
+
+* apply space names on upload ([#21459](https://github.com/lightdash/lightdash/issues/21459)) ([35ec4d1](https://github.com/lightdash/lightdash/commit/35ec4d1bde2bb20246e82538e96949a8f5a13738))
+* remove maps feature flag ([#21490](https://github.com/lightdash/lightdash/issues/21490)) ([1baadd3](https://github.com/lightdash/lightdash/commit/1baadd35d3c52d029ad2bbe756dcaa40c4bc51d3))
+
 # [0.2680.0](https://github.com/lightdash/lightdash/compare/0.2679.0...0.2680.0) (2026-03-27)
 
 
