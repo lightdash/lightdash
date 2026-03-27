@@ -1,4 +1,8 @@
-import { MapChartLocation, MapChartType } from '@lightdash/common';
+import {
+    MapChartLocation,
+    MapChartType,
+    MapTileBackground,
+} from '@lightdash/common';
 import { useDisclosure } from '@mantine/hooks';
 import { IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
@@ -33,6 +37,7 @@ import useLeafletMapConfig, {
     type ScatterPoint,
     type TooltipFieldInfo,
 } from '../../hooks/leaflet/useLeafletMapConfig';
+import { useTileFallback } from '../../hooks/leaflet/useTileFallback';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { createMultiColorScale } from '../../utils/colorUtils';
 import LoadingChart from '../common/LoadingChart';
@@ -433,6 +438,10 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         const mapConfig = useLeafletMapConfig({
             isInDashboard: props.isInDashboard,
         });
+        const { activeTile, tileLayerEventHandlers } = useTileFallback(
+            mapConfig?.tile ?? { url: null, attribution: '' },
+            mapConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP,
+        );
         const { shouldShowMenu } = useContextMenuPermissions({ minimal });
 
         // Context menu state
@@ -961,10 +970,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             geoJsonUrl={null}
                             hasSavedExtent={mapConfig.hasSavedExtent}
                         />
-                        {mapConfig.tile.url && (
+                        {activeTile.url && (
                             <TileLayer
-                                attribution={mapConfig.tile.attribution}
-                                url={mapConfig.tile.url}
+                                key={activeTile.url}
+                                attribution={activeTile.attribution}
+                                url={activeTile.url}
+                                eventHandlers={tileLayerEventHandlers}
                             />
                         )}
                         {isHeatmap ? (
@@ -1125,10 +1136,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             geoJsonUrl={mapConfig.geoJsonUrl}
                             hasSavedExtent={mapConfig.hasSavedExtent}
                         />
-                        {mapConfig.tile.url && (
+                        {activeTile.url && (
                             <TileLayer
-                                attribution={mapConfig.tile.attribution}
-                                url={mapConfig.tile.url}
+                                key={activeTile.url}
+                                attribution={activeTile.attribution}
+                                url={activeTile.url}
+                                eventHandlers={tileLayerEventHandlers}
                             />
                         )}
                         {geoJsonData?.features &&
