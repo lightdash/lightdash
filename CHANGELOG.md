@@ -1,3 +1,10 @@
+# [0.2678.0](https://github.com/lightdash/lightdash/compare/0.2677.1...0.2678.0) (2026-03-27)
+
+
+### Features
+
+* add more map tile options ([#21485](https://github.com/lightdash/lightdash/issues/21485)) ([a740097](https://github.com/lightdash/lightdash/commit/a7400970415ae26ed0f11d281bc430836f3a9642))
+
 ## [0.2677.1](https://github.com/lightdash/lightdash/compare/0.2677.0...0.2677.1) (2026-03-27)
 
 
