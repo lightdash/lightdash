@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
@@ -91,6 +91,10 @@ export class QueryHistoryModel {
     }
 
     static createUniqueResultsFileName(cacheKey: string) {
+        // Alphanumeric-only nanoid to avoid '--' sequences that break SQL comment stripping
+        const nanoid = customAlphabet(
+            '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+        );
         return `${cacheKey}-${nanoid()}`;
     }
 
