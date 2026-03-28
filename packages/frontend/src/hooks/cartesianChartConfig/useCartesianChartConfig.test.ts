@@ -148,6 +148,78 @@ describe('getExpectedSeriesMap', () => {
             expectedMultiPivotedSeriesMap,
         );
     });
+
+    describe('with columnLimit', () => {
+        test('should return all series when columnLimit covers all pivot groups', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 2,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should return all series when columnLimit exceeds available', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 100,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should not affect series without pivot', () => {
+            const result = getExpectedSeriesMap({
+                ...simpleSeriesMapArgs,
+                columnLimit: 1,
+            });
+            expect(result).toStrictEqual(expectedSimpleSeriesMap);
+        });
+
+        test('should treat columnLimit of 0 as no limit', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 0,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should treat negative columnLimit as no limit', () => {
+            const allResult = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: -5,
+            });
+            expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
+        });
+
+        test('should return identical result when columnLimit is undefined (flag-off path)', () => {
+            const withoutLimit = getExpectedSeriesMap(pivotSeriesMapArgs);
+            const withUndefinedLimit = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: undefined,
+            });
+            expect(Object.keys(withUndefinedLimit)).toStrictEqual(
+                Object.keys(withoutLimit),
+            );
+        });
+
+        test('should keep all metrics for the first pivot group when columnLimit is 1', () => {
+            const result = getExpectedSeriesMap({
+                ...pivotSeriesMapArgs,
+                columnLimit: 1,
+            });
+            const keys = Object.keys(result);
+            expect(keys).toHaveLength(2);
+            expect(keys).toStrictEqual([
+                'my_dimension|my_metric.dimension_x.a',
+                'my_dimension|my_second_metric.dimension_x.a',
+            ]);
+        });
+    });
 });
 
 describe('mergeExistingAndExpectedSeries', () => {
@@ -185,6 +257,56 @@ describe('mergeExistingAndExpectedSeries', () => {
             }),
         ).toStrictEqual(Object.values(mergedMixedSeries));
     });
+    test('should mark series beyond column limit as isFilteredOut', () => {
+        // Simulate columnLimit=1: expectedSeriesMap only has dimension_x.a series
+        const limitedExpectedMap: Record<string, Series> = {
+            'my_dimension|my_metric.dimension_x.a':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_metric.dimension_x.a'
+                ],
+            'my_dimension|my_second_metric.dimension_x.a':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_second_metric.dimension_x.a'
+                ],
+        };
+
+        // existingSeries has all 4 series (both a and b pivot values)
+        const allSeries = Object.values(expectedPivotedSeriesMap);
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: limitedExpectedMap,
+            existingSeries: allSeries,
+            sortedByPivot: false,
+        });
+
+        // dimension_x.a series should NOT be filtered out
+        const aSeries = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'a',
+        );
+        expect(aSeries).toHaveLength(2);
+        aSeries.forEach((s) => expect(s.isFilteredOut).toBeFalsy());
+
+        // dimension_x.b series should be marked as filtered out
+        const bSeries = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'b',
+        );
+        expect(bSeries).toHaveLength(2);
+        bSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
+    });
+
+    test('should not mark any series as isFilteredOut when expectedSeriesMap is full (flag-off path)', () => {
+        const allSeries = Object.values(expectedPivotedSeriesMap);
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: expectedPivotedSeriesMap,
+            existingSeries: allSeries,
+            sortedByPivot: false,
+        });
+
+        expect(result).toHaveLength(allSeries.length);
+        result.forEach((s) => expect(s.isFilteredOut).toBeFalsy());
+    });
+
     test('should insert new pivot category in sorted position, not at end', () => {
         const defaultProps = {
             label: undefined,
@@ -334,5 +456,14 @@ describe('useCartesianChartConfig', () => {
 
         expect(series[0].yAxisIndex).toBe(1);
         expect(series[1].yAxisIndex).toBe(0);
+    });
+
+    test('should return undefined columnLimit when feature flag is off', () => {
+        const { result } = renderHook(
+            // @ts-expect-error partially mock params for hook
+            () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
+        );
+
+        expect(result.current.columnLimit).toBeUndefined();
     });
 });

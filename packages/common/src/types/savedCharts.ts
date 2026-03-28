@@ -710,6 +710,8 @@ export type CartesianChart = {
     metadata?: Record<string, SeriesMetadata>;
     /** Limit displayed rows to first/last N */
     rowLimit?: RowLimit;
+    /** Maximum number of pivot columns to display */
+    columnLimit?: number;
 };
 
 export type BigNumberConfig = {
