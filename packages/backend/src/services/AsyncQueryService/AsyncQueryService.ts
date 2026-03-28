@@ -2115,6 +2115,10 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryTags.query_context || 'unknown',
             );
+            this.prometheusMetrics?.observeProcessingDuration(
+                totalMs - durationMs,
+                queryTags.query_context || 'unknown',
+            );
         } catch (e) {
             this.logger.error(
                 `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
@@ -3281,9 +3285,11 @@ export class AsyncQueryService extends ProjectService {
             forceWarehouse: usePreAggregateCache === false,
         });
 
+        const prepTotalMs = Date.now() - metricQueryStart;
         this.logger.info(
-            `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
+            `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${prepTotalMs}ms`,
         );
+        this.prometheusMetrics?.observePrepDuration(prepTotalMs, context);
 
         if (routingDecision.preAggregateMetadata) {
             this.prometheusMetrics?.incrementPreAggregateMatch(
