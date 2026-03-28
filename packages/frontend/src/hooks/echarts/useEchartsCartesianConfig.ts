@@ -2579,7 +2579,9 @@ const useEchartsCartesianConfig = (
             isHorizontal,
         );
 
-        const seriesColors = series.map((serie) => getSeriesColor(serie));
+        const seriesColors = series.map((serie, index) =>
+            getSeriesColor(serie, index),
+        );
 
         const seriesWithValidStack = series.map<EChartsSeries>(
             (serie, index) => {
