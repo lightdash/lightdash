@@ -1,0 +1,120 @@
+{
+  "defaultVersion": "dbt1.4",
+  "versions": [
+    {
+      "alias": "dbt1.4",
+      "packages": [
+        "dbt-postgres~=1.4.0",
+        "dbt-redshift~=1.4.0",
+        "dbt-snowflake~=1.4.0",
+        "dbt-bigquery~=1.4.0",
+        "dbt-databricks~=1.4.0",
+        "dbt-spark~=1.4.0",
+        "dbt-trino~=1.4.0",
+        "dbt-clickhouse~=1.4.0",
+        "psycopg2-binary==2.9.6"
+      ]
+    },
+    {
+      "alias": "dbt1.5",
+      "packages": [
+        "dbt-postgres~=1.5.0",
+        "dbt-redshift~=1.5.0",
+        "dbt-snowflake~=1.5.0",
+        "dbt-bigquery~=1.5.0",
+        "dbt-databricks~=1.5.0",
+        "dbt-spark~=1.5.0",
+        "dbt-trino~=1.5.0",
+        "dbt-clickhouse~=1.5.0",
+        "psycopg2-binary==2.9.6"
+      ]
+    },
+    {
+      "alias": "dbt1.6",
+      "packages": [
+        "dbt-postgres~=1.6.0",
+        "dbt-redshift~=1.6.0",
+        "dbt-snowflake~=1.6.0",
+        "dbt-bigquery~=1.6.0",
+        "dbt-databricks~=1.6.0",
+        "dbt-spark~=1.6.0",
+        "dbt-trino~=1.6.0",
+        "dbt-clickhouse~=1.6.0",
+        "psycopg2-binary==2.9.6"
+      ]
+    },
+    {
+      "alias": "dbt1.7",
+      "packages": [
+        "dbt-postgres~=1.7.0",
+        "dbt-redshift~=1.7.0",
+        "dbt-snowflake~=1.7.0",
+        "dbt-bigquery~=1.7.0",
+        "dbt-databricks~=1.7.0",
+        "dbt-spark~=1.7.0",
+        "dbt-trino~=1.7.0",
+        "dbt-clickhouse~=1.7.0",
+        "psycopg2-binary==2.9.6"
+      ]
+    },
+    {
+      "alias": "dbt1.8",
+      "packages": [
+        "dbt-core~=1.8.0",
+        "dbt-postgres~=1.8.0",
+        "dbt-redshift~=1.8.0",
+        "dbt-snowflake~=1.8.0",
+        "dbt-bigquery~=1.8.0",
+        "dbt-databricks~=1.8.0",
+        "dbt-spark~=1.8.0",
+        "dbt-trino~=1.8.0",
+        "dbt-clickhouse~=1.8.0"
+      ]
+    },
+    {
+      "alias": "dbt1.9",
+      "packages": [
+        "dbt-core~=1.9.0",
+        "dbt-postgres~=1.9.0",
+        "dbt-redshift~=1.9.0",
+        "dbt-snowflake~=1.9.0",
+        "dbt-bigquery~=1.9.0",
+        "dbt-databricks~=1.9.0",
+        "dbt-spark~=1.9.0",
+        "dbt-trino~=1.9.0",
+        "dbt-clickhouse~=1.9.0",
+        "dbt-athena~=1.9.0"
+      ]
+    },
+    {
+      "alias": "dbt1.10",
+      "packages": [
+        "dbt-core~=1.10.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.10.0",
+        "dbt-bigquery~=1.10.0",
+        "dbt-databricks~=1.10.0",
+        "dbt-spark~=1.10.0",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.10.0",
+        "dbt-athena~=1.10.0"
+      ]
+    },
+    {
+      "alias": "dbt1.11",
+      "packages": [
+        "dbt-core~=1.11.0",
+        "dbt-postgres~=1.10.0",
+        "dbt-redshift~=1.10.0",
+        "dbt-snowflake~=1.11.0",
+        "dbt-bigquery~=1.11.0",
+        "dbt-databricks~=1.11.0",
+        "dbt-spark~=1.10.0",
+        "dbt-trino~=1.10.0",
+        "dbt-clickhouse~=1.10.0",
+        "dbt-athena~=1.10.0"
+      ]
+    }
+  ]
+}

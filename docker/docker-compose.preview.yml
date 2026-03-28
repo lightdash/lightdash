@@ -28,6 +28,8 @@ services:
             target: pr-runner
             context: ..
             dockerfile: dockerfile-prs
+            args:
+                - DBT_VERSION_IMAGE=${DBT_VERSION_IMAGE:-lightdash/dbt-versions:latest}
         depends_on:
             - db-preview
             - headless-browser
