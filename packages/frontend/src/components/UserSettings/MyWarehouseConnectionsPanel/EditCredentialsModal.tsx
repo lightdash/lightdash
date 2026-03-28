@@ -13,7 +13,7 @@ import MantineModal, {
 } from '../../common/MantineModal';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
-const getCredentialsWithPlaceholders = (
+export const getCredentialsWithPlaceholders = (
     credentials: UserWarehouseCredentials['credentials'],
 ): UpsertUserWarehouseCredentials['credentials'] => {
     switch (credentials.type) {
@@ -34,6 +34,12 @@ const getCredentialsWithPlaceholders = (
             return {
                 ...credentials,
                 personalAccessToken: '',
+            };
+        case WarehouseTypes.ATHENA:
+            return {
+                ...credentials,
+                accessKeyId: '',
+                secretAccessKey: '',
             };
         default:
             throw new Error(`Credential type not supported`);
