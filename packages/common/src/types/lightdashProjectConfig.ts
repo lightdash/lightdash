@@ -27,6 +27,7 @@ export type LightdashProjectParameter = {
         model: string;
         dimension: string;
     };
+    order?: number; // explicit display order (lower numbers first, unset parameters appear last)
 };
 
 /**
