@@ -93,6 +93,17 @@ export const aiCopilotConfigSchema = z
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
                     }),
+                    z.object({
+                        useDefaultCredentials: z.literal(true),
+                        region: z.string(),
+                        modelName: z
+                            .string()
+                            .default(DEFAULT_BEDROCK_MODEL_NAME),
+                        embeddingModelName: z
+                            .string()
+                            .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
+                        availableModels: z.array(z.string()).optional(),
+                    }),
                 ])
                 .optional(),
         }),
