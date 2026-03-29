@@ -1,3 +1,10 @@
+# [0.2683.0](https://github.com/lightdash/lightdash/compare/0.2682.2...0.2683.0) (2026-03-29)
+
+
+### Features
+
+* env var overrides for show-hide-rows and metric-dashboard-filters flags ([#21495](https://github.com/lightdash/lightdash/issues/21495)) ([cf934d9](https://github.com/lightdash/lightdash/commit/cf934d99a4d887d5c49e45f1fd37ec119a173b23))
+
 ## [0.2682.2](https://github.com/lightdash/lightdash/compare/0.2682.1...0.2682.2) (2026-03-27)
 
 
