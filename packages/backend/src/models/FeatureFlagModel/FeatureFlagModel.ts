@@ -51,8 +51,7 @@ export class FeatureFlagModel {
                 this.getUserImpersonationEnabled.bind(this),
             [FeatureFlags.ChangeChartExplore]:
                 this.getChangeChartExploreEnabled.bind(this),
-            [FeatureFlags.ShowHideRows]:
-                this.getShowHideRowsEnabled.bind(this),
+            [FeatureFlags.ShowHideRows]: this.getShowHideRowsEnabled.bind(this),
             [FeatureFlags.MetricDashboardFilters]:
                 this.getMetricDashboardFiltersEnabled.bind(this),
         };
