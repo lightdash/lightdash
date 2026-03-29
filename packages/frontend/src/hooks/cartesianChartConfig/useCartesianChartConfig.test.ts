@@ -441,6 +441,54 @@ describe('mergeExistingAndExpectedSeries', () => {
         bSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
     });
 
+    test('should drop (not mark isFilteredOut) stale series when pivot field count differs', () => {
+        // Expected series pivots on TWO dimensions: [country, status]
+        const expectedMap: Record<string, Series> = {
+            'my_dimension|my_metric.country.US.status.open': {
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: {
+                        field: 'my_metric',
+                        pivotValues: [
+                            { field: 'country', value: 'US' },
+                            { field: 'status', value: 'open' },
+                        ],
+                    },
+                },
+            },
+        };
+
+        // Stale series from an old chart that only pivoted on ONE dimension: [country]
+        const staleSeries: Series[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: {
+                        field: 'my_metric',
+                        pivotValues: [{ field: 'country', value: 'UK' }],
+                    },
+                },
+            },
+        ];
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: expectedMap,
+            existingSeries: staleSeries,
+            sortedByPivot: false,
+        });
+
+        // The stale series should be DROPPED (different pivot schema),
+        // not retained with isFilteredOut: true
+        const staleInResult = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'UK',
+        );
+        expect(staleInResult).toHaveLength(0);
+    });
+
     test('should insert new pivot category in sorted position, not at end', () => {
         const defaultProps = {
             label: undefined,

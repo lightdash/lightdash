@@ -174,6 +174,9 @@ export const mergeExistingAndExpectedSeries = ({
                                 series.encode.xRef.field &&
                             !!expectedSeries.encode.yRef.pivotValues &&
                             expectedSeries.encode.yRef.pivotValues.length > 0 &&
+                            series.encode.yRef.pivotValues!.length ===
+                                expectedSeries.encode.yRef.pivotValues!
+                                    .length &&
                             series.encode.yRef.pivotValues!.every((pv) =>
                                 expectedSeries.encode.yRef.pivotValues!.some(
                                     (epv) => epv.field === pv.field,
