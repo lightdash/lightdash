@@ -14,6 +14,53 @@ import {
 } from '../plottedData/getPlottedData';
 import type { InfiniteQueryResults } from '../useQueryResults';
 
+type RowKeyValue = ReturnType<
+    typeof getPivotedData | typeof getPivotedDataFromPivotDetails
+>['rowKeyMap'][string];
+
+const getPivotGroupKey = (
+    pivotValues: Array<{ field: string; value: unknown }>,
+): string => pivotValues.map((pv) => `${pv.field}:${pv.value}`).join('|');
+
+const limitToFirstNPivotGroups = (
+    rowKeyValues: RowKeyValue[],
+    limit: number,
+): RowKeyValue[] => {
+    const seenGroups = new Set<string>();
+    return rowKeyValues.filter((rowKey) => {
+        if (typeof rowKey === 'string') return true;
+        const groupKey = rowKey.pivotValues
+            ? getPivotGroupKey(rowKey.pivotValues)
+            : undefined;
+        if (groupKey && !seenGroups.has(groupKey)) {
+            if (seenGroups.size >= limit) return false;
+            seenGroups.add(groupKey);
+        }
+        return true;
+    });
+};
+
+const hasSamePivotFields = (
+    series: Series,
+    expectedSeriesMap: Record<string, Series>,
+): boolean => {
+    const pivotValues = series.encode.yRef.pivotValues;
+    if (!pivotValues || pivotValues.length === 0) return false;
+
+    return Object.values(expectedSeriesMap).some((expectedSeries) => {
+        const expectedPivots = expectedSeries.encode.yRef.pivotValues;
+        return (
+            expectedSeries.encode.yRef.field === series.encode.yRef.field &&
+            expectedSeries.encode.xRef.field === series.encode.xRef.field &&
+            !!expectedPivots &&
+            expectedPivots.length === pivotValues.length &&
+            pivotValues.every((pv) =>
+                expectedPivots.some((epv) => epv.field === pv.field),
+            )
+        );
+    });
+};
+
 export type GetExpectedSeriesMapArgs = {
     defaultSmooth?: boolean;
     defaultShowSymbol?: boolean;
@@ -27,6 +74,7 @@ export type GetExpectedSeriesMapArgs = {
     availableDimensions: string[];
     defaultLabel?: Series['label'];
     itemsMap: ItemsMap | undefined;
+    columnLimit?: number;
 };
 
 export const getExpectedSeriesMap = ({
@@ -42,6 +90,7 @@ export const getExpectedSeriesMap = ({
     availableDimensions,
     defaultLabel,
     itemsMap,
+    columnLimit,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
@@ -68,35 +117,41 @@ export const getExpectedSeriesMap = ({
                   ),
               );
 
-        expectedSeriesMap = Object.values(rowKeyMap).reduce<
-            Record<string, Series>
-        >((acc, rowKey) => {
-            let series: Series;
-            if (typeof rowKey === 'string') {
-                series = {
-                    ...defaultProperties,
-                    encode: {
-                        xRef: { field: xField },
-                        yRef: {
-                            field: rowKey,
+        let rowKeyValues = Object.values(rowKeyMap);
+        if (columnLimit !== undefined && columnLimit > 0) {
+            rowKeyValues = limitToFirstNPivotGroups(rowKeyValues, columnLimit);
+        }
+
+        expectedSeriesMap = rowKeyValues.reduce<Record<string, Series>>(
+            (acc, rowKey) => {
+                let series: Series;
+                if (typeof rowKey === 'string') {
+                    series = {
+                        ...defaultProperties,
+                        encode: {
+                            xRef: { field: xField },
+                            yRef: {
+                                field: rowKey,
+                            },
                         },
-                    },
-                };
-            } else {
-                series = {
-                    ...defaultProperties,
-                    encode: {
-                        xRef: { field: xField },
-                        yRef: rowKey,
-                    },
-                    stack:
-                        defaultAreaStyle || isStacked
-                            ? rowKey.field
-                            : undefined,
-                };
-            }
-            return { ...acc, [getSeriesId(series)]: series };
-        }, {});
+                    };
+                } else {
+                    series = {
+                        ...defaultProperties,
+                        encode: {
+                            xRef: { field: xField },
+                            yRef: rowKey,
+                        },
+                        stack:
+                            defaultAreaStyle || isStacked
+                                ? rowKey.field
+                                : undefined,
+                    };
+                }
+                return { ...acc, [getSeriesId(series)]: series };
+            },
+            {},
+        );
     } else {
         expectedSeriesMap = (yFields || []).reduce<Record<string, Series>>(
             (sum, yField) => {
@@ -140,18 +195,12 @@ export const mergeExistingAndExpectedSeries = ({
             (sum, series) => {
                 const id = getSeriesId(series);
 
-                // this results in a string without the pivot values
-                //e.g. 'orders_order_date_month|orders_average_order_size.orders_is_completed.true' -> 'orders_order_date_month|orders_average_order_size.orders_is_completed'
-                // used to check if the series is not expected but part of the same pivot of expected series
-                const idWithoutPivotValues = id.replace(/\.[^.]+$/, '');
-
                 const isSeriesExpected =
                     Object.keys(expectedSeriesMap).includes(id);
 
                 const isSeriesFilteredOut =
-                    Object.keys(expectedSeriesMap).some((expectedId) =>
-                        expectedId.startsWith(idWithoutPivotValues),
-                    ) && !isSeriesExpected;
+                    !isSeriesExpected &&
+                    hasSamePivotFields(series, expectedSeriesMap);
 
                 if (!isSeriesExpected && !isSeriesFilteredOut) {
                     return { ...sum };

@@ -54,6 +54,8 @@ export class FeatureFlagModel {
             [FeatureFlags.ShowHideRows]: this.getShowHideRowsEnabled.bind(this),
             [FeatureFlags.MetricDashboardFilters]:
                 this.getMetricDashboardFiltersEnabled.bind(this),
+            [FeatureFlags.ShowHideColumns]:
+                this.getShowHideColumnsEnabled.bind(this),
         };
     }
 
@@ -355,6 +357,31 @@ export class FeatureFlagModel {
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.MetricDashboardFilters,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getShowHideColumnsEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.showHideColumns.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.ShowHideColumns,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,

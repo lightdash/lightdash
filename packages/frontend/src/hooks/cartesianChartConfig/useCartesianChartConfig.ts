@@ -189,6 +189,19 @@ const useCartesianChartConfig = ({
     cartesianType,
     tableCalculationsMetadata,
 }: Args) => {
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
+
+    const [columnLimit, setColumnLimit] = useState<number | undefined>(
+        initialChartConfig?.columnLimit,
+    );
+
+    const effectiveColumnLimit = isShowHideColumnsEnabled
+        ? columnLimit
+        : undefined;
+
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
     >(initialChartConfig?.layout);
@@ -1086,6 +1099,7 @@ const useCartesianChartConfig = ({
                     yFields: dirtyLayout.yField,
                     defaultLabel,
                     itemsMap,
+                    columnLimit: effectiveColumnLimit,
                 });
                 // Check if any sort field matches a pivot dimension
                 const sortedByPivot =
@@ -1127,6 +1141,7 @@ const useCartesianChartConfig = ({
         referenceLines,
         itemsMap,
         seriesHiddenStatesKey, // Re-run when series hidden states change
+        effectiveColumnLimit,
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {
@@ -1147,6 +1162,9 @@ const useCartesianChartConfig = ({
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
             metadata: dirtyMetadata,
             rowLimit,
+            columnLimit: isShowHideColumnsEnabled
+                ? columnLimit
+                : initialChartConfig?.columnLimit,
         };
     }, [
         dirtyLayout,
@@ -1155,6 +1173,9 @@ const useCartesianChartConfig = ({
         tooltip,
         tooltipSort,
         rowLimit,
+        isShowHideColumnsEnabled,
+        columnLimit,
+        initialChartConfig?.columnLimit,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
@@ -1230,6 +1251,8 @@ const useCartesianChartConfig = ({
         updateMetadata,
         rowLimit,
         setRowLimit,
+        columnLimit: effectiveColumnLimit,
+        setColumnLimit,
     };
 };
 

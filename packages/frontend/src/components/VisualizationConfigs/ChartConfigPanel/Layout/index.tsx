@@ -11,6 +11,7 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
+import { NumberInput } from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
@@ -44,6 +45,10 @@ export const Layout: FC<Props> = ({ items }) => {
         FeatureFlags.ShowHideRows,
     );
     const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -201,7 +206,17 @@ export const Layout: FC<Props> = ({ items }) => {
         addSingleSeries,
         rowLimit,
         setRowLimit,
+        columnLimit,
+        setColumnLimit,
     } = visualizationConfig.chartConfig;
+
+    const handleColumnLimitChange = (value: string | number) => {
+        if (typeof value === 'number') {
+            setColumnLimit(value);
+        } else {
+            setColumnLimit(undefined);
+        }
+    };
 
     return (
         <Stack>
@@ -486,6 +501,26 @@ export const Layout: FC<Props> = ({ items }) => {
                     </Config.Section>
                 </Config>
             )}
+            {isShowHideColumnsEnabled &&
+                pivotDimensions &&
+                pivotDimensions.length > 0 && (
+                    <Config>
+                        <Config.Section>
+                            <Config.Heading>Column limit</Config.Heading>
+                            <NumberInput
+                                size="xs"
+                                min={1}
+                                max={200}
+                                step={1}
+                                allowDecimal={false}
+                                clampBehavior="strict"
+                                placeholder="No limit"
+                                value={columnLimit ?? ''}
+                                onChange={handleColumnLimitChange}
+                            />
+                        </Config.Section>
+                    </Config>
+                )}
         </Stack>
     );
 };

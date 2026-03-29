@@ -308,6 +308,11 @@
         },
         "CartesianChart": {
             "properties": {
+                "columnLimit": {
+                    "description": "Maximum number of pivot columns to display",
+                    "format": "double",
+                    "type": "number"
+                },
                 "eChartsConfig": {
                     "$ref": "#/$defs/EChartsConfig",
                     "description": "ECharts-specific configuration"
