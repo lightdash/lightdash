@@ -1,3 +1,10 @@
+# [0.2684.0](https://github.com/lightdash/lightdash/compare/0.2683.0...0.2684.0) (2026-03-29)
+
+
+### Features
+
+* support column limit in chart config ([#21418](https://github.com/lightdash/lightdash/issues/21418)) ([6c8d5bd](https://github.com/lightdash/lightdash/commit/6c8d5bdea648c4a8a20b536667c29d56a2def5b7))
+
 # [0.2683.0](https://github.com/lightdash/lightdash/compare/0.2682.2...0.2683.0) (2026-03-29)
 
 
