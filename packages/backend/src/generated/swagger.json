@@ -2929,8 +2929,287 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "FieldType.METRIC": {
+                "enum": ["metric"],
+                "type": "string"
+            },
+            "MetricType": {
+                "enum": [
+                    "percentile",
+                    "average",
+                    "count",
+                    "count_distinct",
+                    "sum",
+                    "sum_distinct",
+                    "average_distinct",
+                    "min",
+                    "max",
+                    "percent_of_previous",
+                    "percent_of_total",
+                    "running_total",
+                    "number",
+                    "median",
+                    "string",
+                    "date",
+                    "timestamp",
+                    "boolean"
+                ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "description": "Filter rule for metrics, targeting fields by reference",
+                "properties": {
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string",
+                                "description": "Field reference to filter on (e.g., 'table_name.field_name')"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object",
+                        "description": "Target field for the filter"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DefaultTimeDimension": {
+                "properties": {
+                    "interval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["interval", "field"],
+                "type": "object"
+            },
+            "Metric": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.METRIC"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MetricType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "format": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "urls": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldUrl"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "showUnderlyingValues": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "percentile": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "distinctKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
+                    "dimensionReference": {
+                        "type": "string"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "anyAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "defaultTimeDimension": {
+                        "$ref": "#/components/schemas/DefaultTimeDimension"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
+                            "segmentBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "filterBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
+                    },
+                    "drivers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "aiHint": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "richText": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fieldType",
+                    "type",
+                    "name",
+                    "label",
+                    "table",
+                    "tableLabel",
+                    "sql",
+                    "hidden"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "DashboardAvailableFilters": {
                 "properties": {
+                    "savedQueryMetricFilters": {
+                        "$ref": "#/components/schemas/Record_string.number-Array_"
+                    },
+                    "allFilterableMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/Metric"
+                        },
+                        "type": "array"
+                    },
                     "allFilterableFields": {
                         "items": {
                             "$ref": "#/components/schemas/FilterableDimension"
@@ -2941,7 +3220,12 @@
                         "$ref": "#/components/schemas/Record_string.number-Array_"
                     }
                 },
-                "required": ["allFilterableFields", "savedQueryFilters"],
+                "required": [
+                    "savedQueryMetricFilters",
+                    "allFilterableMetrics",
+                    "allFilterableFields",
+                    "savedQueryFilters"
+                ],
                 "type": "object"
             },
             "ApiEmbedDashboardAvailableFiltersResponse": {
@@ -3439,75 +3723,6 @@
                         ]
                     }
                 ]
-            },
-            "MetricType": {
-                "enum": [
-                    "percentile",
-                    "average",
-                    "count",
-                    "count_distinct",
-                    "sum",
-                    "sum_distinct",
-                    "average_distinct",
-                    "min",
-                    "max",
-                    "percent_of_previous",
-                    "percent_of_total",
-                    "running_total",
-                    "number",
-                    "median",
-                    "string",
-                    "date",
-                    "timestamp",
-                    "boolean"
-                ],
-                "type": "string"
-            },
-            "MetricFilterRule": {
-                "description": "Filter rule for metrics, targeting fields by reference",
-                "properties": {
-                    "values": {
-                        "items": {
-                            "$ref": "#/components/schemas/AnyType"
-                        },
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the filter"
-                    },
-                    "target": {
-                        "properties": {
-                            "fieldRef": {
-                                "type": "string",
-                                "description": "Field reference to filter on (e.g., 'table_name.field_name')"
-                            }
-                        },
-                        "required": ["fieldRef"],
-                        "type": "object",
-                        "description": "Target field for the filter"
-                    },
-                    "settings": {
-                        "$ref": "#/components/schemas/AnyType",
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
             },
             "AdditionalMetric": {
                 "properties": {
@@ -4986,6 +5201,11 @@
             },
             "CartesianChart": {
                 "properties": {
+                    "columnLimit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum number of pivot columns to display"
+                    },
                     "rowLimit": {
                         "$ref": "#/components/schemas/RowLimit",
                         "description": "Limit displayed rows to first/last N"
@@ -6109,18 +6329,6 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "DefaultTimeDimension": {
-                "properties": {
-                    "interval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    },
-                    "field": {
-                        "type": "string"
-                    }
-                },
-                "required": ["interval", "field"],
-                "type": "object"
-            },
             "InlineErrorType": {
                 "enum": [
                     "METADATA_PARSE_ERROR",
@@ -6473,195 +6681,6 @@
                 },
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
-            },
-            "FieldType.METRIC": {
-                "enum": ["metric"],
-                "type": "string"
-            },
-            "Metric": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/FieldType.METRIC"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/MetricType"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "table": {
-                        "type": "string"
-                    },
-                    "tableLabel": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/Source"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "format": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Format"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
-                    },
-                    "groupLabel": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "groups": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "urls": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldUrl"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "parameterReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "showUnderlyingValues": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/MetricFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "percentile": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "distinctKeys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
-                    },
-                    "dimensionReference": {
-                        "type": "string"
-                    },
-                    "requiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "anyAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "defaultTimeDimension": {
-                        "$ref": "#/components/schemas/DefaultTimeDimension"
-                    },
-                    "spotlight": {
-                        "properties": {
-                            "owner": {
-                                "type": "string"
-                            },
-                            "segmentBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "filterBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "categories": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "visibility": {
-                                "type": "string",
-                                "enum": ["show", "hide"]
-                            }
-                        },
-                        "required": ["visibility"],
-                        "type": "object"
-                    },
-                    "drivers": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "aiHint": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    },
-                    "richText": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "fieldType",
-                    "type",
-                    "name",
-                    "label",
-                    "table",
-                    "tableLabel",
-                    "sql",
-                    "hidden"
-                ],
-                "type": "object",
-                "additionalProperties": true
             },
             "CompiledMetric": {
                 "allOf": [
@@ -7461,6 +7480,9 @@
                             "$ref": "#/components/schemas/Field"
                         },
                         {
+                            "$ref": "#/components/schemas/Metric"
+                        },
+                        {
                             "$ref": "#/components/schemas/TableCalculation"
                         },
                         {
@@ -7468,9 +7490,6 @@
                         },
                         {
                             "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Metric"
                         }
                     ]
                 },
@@ -7559,13 +7578,13 @@
                             "$ref": "#/components/schemas/Field"
                         },
                         {
+                            "$ref": "#/components/schemas/Metric"
+                        },
+                        {
                             "$ref": "#/components/schemas/TableCalculation"
                         },
                         {
                             "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Metric"
                         }
                     ]
                 },
@@ -9419,19 +9438,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -20971,22 +20977,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -21330,22 +21336,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -24840,9 +24846,6 @@
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
                     },
-                    "label": {
-                        "type": "string"
-                    },
                     "spotlight": {
                         "properties": {
                             "owner": {
@@ -24861,6 +24864,9 @@
                         },
                         "required": ["visibility"],
                         "type": "object"
+                    },
+                    "label": {
+                        "type": "string"
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
@@ -29132,7 +29138,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2679.0",
+        "version": "0.2682.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39054,6 +39060,9 @@
                                             "chartConfig": {
                                                 "$ref": "#/components/schemas/AnyType"
                                             },
+                                            "spaceNames": {
+                                                "$ref": "#/components/schemas/Record_string.string_"
+                                            },
                                             "force": {
                                                 "type": "boolean"
                                             },
@@ -39200,6 +39209,9 @@
                                             "config": {
                                                 "$ref": "#/components/schemas/AnyType"
                                             },
+                                            "spaceNames": {
+                                                "$ref": "#/components/schemas/Record_string.string_"
+                                            },
                                             "force": {
                                                 "type": "boolean"
                                             },
@@ -39284,6 +39296,9 @@
                                             },
                                             "tiles": {
                                                 "$ref": "#/components/schemas/AnyType"
+                                            },
+                                            "spaceNames": {
+                                                "$ref": "#/components/schemas/Record_string.string_"
                                             },
                                             "force": {
                                                 "type": "boolean"

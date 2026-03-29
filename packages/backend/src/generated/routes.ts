@@ -2627,11 +2627,174 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'FieldType.METRIC': {
+        dataType: 'refEnum',
+        enums: ['metric'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricType: {
+        dataType: 'refEnum',
+        enums: [
+            'percentile',
+            'average',
+            'count',
+            'count_distinct',
+            'sum',
+            'sum_distinct',
+            'average_distinct',
+            'min',
+            'max',
+            'percent_of_previous',
+            'percent_of_total',
+            'running_total',
+            'number',
+            'median',
+            'string',
+            'date',
+            'timestamp',
+            'boolean',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricFilterRule: {
+        dataType: 'refObject',
+        properties: {
+            values: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AnyType' },
+            },
+            operator: { ref: 'FilterOperator', required: true },
+            id: { dataType: 'string', required: true },
+            target: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    fieldRef: { dataType: 'string', required: true },
+                },
+                required: true,
+            },
+            settings: { ref: 'AnyType' },
+            disabled: { dataType: 'boolean' },
+            required: { dataType: 'boolean' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DefaultTimeDimension: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                interval: { ref: 'TimeFrames', required: true },
+                field: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Metric: {
+        dataType: 'refObject',
+        properties: {
+            fieldType: { ref: 'FieldType.METRIC', required: true },
+            type: { ref: 'MetricType', required: true },
+            name: { dataType: 'string', required: true },
+            label: { dataType: 'string', required: true },
+            table: { dataType: 'string', required: true },
+            tableLabel: { dataType: 'string', required: true },
+            sql: { dataType: 'string', required: true },
+            description: { dataType: 'string' },
+            source: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Source' }, { dataType: 'undefined' }],
+            },
+            hidden: { dataType: 'boolean', required: true },
+            compact: { ref: 'CompactOrAlias' },
+            round: { dataType: 'double' },
+            format: {
+                dataType: 'union',
+                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
+            },
+            groupLabel: { dataType: 'string' },
+            groups: { dataType: 'array', array: { dataType: 'string' } },
+            urls: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'FieldUrl' },
+            },
+            index: { dataType: 'double' },
+            tags: { dataType: 'array', array: { dataType: 'string' } },
+            parameterReferences: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+            },
+            showUnderlyingValues: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+            },
+            filters: {
+                dataType: 'array',
+                array: { dataType: 'refObject', ref: 'MetricFilterRule' },
+            },
+            percentile: { dataType: 'double' },
+            distinctKeys: { dataType: 'array', array: { dataType: 'string' } },
+            formatOptions: { ref: 'CustomFormat' },
+            dimensionReference: { dataType: 'string' },
+            requiredAttributes: {
+                ref: 'Record_string.string-or-string-Array_',
+            },
+            anyAttributes: { ref: 'Record_string.string-or-string-Array_' },
+            defaultTimeDimension: { ref: 'DefaultTimeDimension' },
+            spotlight: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    owner: { dataType: 'string' },
+                    segmentBy: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                    },
+                    filterBy: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                    },
+                    categories: {
+                        dataType: 'array',
+                        array: { dataType: 'string' },
+                    },
+                    visibility: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'enum', enums: ['show'] },
+                            { dataType: 'enum', enums: ['hide'] },
+                        ],
+                        required: true,
+                    },
+                },
+            },
+            drivers: { dataType: 'array', array: { dataType: 'string' } },
+            aiHint: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'array', array: { dataType: 'string' } },
+                ],
+            },
+            richText: { dataType: 'string' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardAvailableFilters: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                savedQueryMetricFilters: {
+                    ref: 'Record_string.number-Array_',
+                    required: true,
+                },
+                allFilterableMetrics: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'Metric' },
+                    required: true,
+                },
                 allFilterableFields: {
                     dataType: 'array',
                     array: {
@@ -3097,53 +3260,6 @@ const models: TsoaRoute.Models = {
             ],
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricType: {
-        dataType: 'refEnum',
-        enums: [
-            'percentile',
-            'average',
-            'count',
-            'count_distinct',
-            'sum',
-            'sum_distinct',
-            'average_distinct',
-            'min',
-            'max',
-            'percent_of_previous',
-            'percent_of_total',
-            'running_total',
-            'number',
-            'median',
-            'string',
-            'date',
-            'timestamp',
-            'boolean',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    MetricFilterRule: {
-        dataType: 'refObject',
-        properties: {
-            values: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'AnyType' },
-            },
-            operator: { ref: 'FilterOperator', required: true },
-            id: { dataType: 'string', required: true },
-            target: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    fieldRef: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
-            settings: { ref: 'AnyType' },
-            disabled: { dataType: 'boolean' },
-            required: { dataType: 'boolean' },
-        },
-        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AdditionalMetric: {
@@ -4331,6 +4447,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                columnLimit: { dataType: 'double' },
                 rowLimit: { ref: 'RowLimit' },
                 metadata: { ref: 'Record_string.SeriesMetadata_' },
                 eChartsConfig: { ref: 'EChartsConfig', required: true },
@@ -5178,18 +5295,6 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DefaultTimeDimension: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                interval: { ref: 'TimeFrames', required: true },
-                field: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     InlineErrorType: {
         dataType: 'refEnum',
         enums: [
@@ -5411,101 +5516,6 @@ const models: TsoaRoute.Models = {
             additionalProperties: { ref: 'CompiledDimension' },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'FieldType.METRIC': {
-        dataType: 'refEnum',
-        enums: ['metric'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    Metric: {
-        dataType: 'refObject',
-        properties: {
-            fieldType: { ref: 'FieldType.METRIC', required: true },
-            type: { ref: 'MetricType', required: true },
-            name: { dataType: 'string', required: true },
-            label: { dataType: 'string', required: true },
-            table: { dataType: 'string', required: true },
-            tableLabel: { dataType: 'string', required: true },
-            sql: { dataType: 'string', required: true },
-            description: { dataType: 'string' },
-            source: {
-                dataType: 'union',
-                subSchemas: [{ ref: 'Source' }, { dataType: 'undefined' }],
-            },
-            hidden: { dataType: 'boolean', required: true },
-            compact: { ref: 'CompactOrAlias' },
-            round: { dataType: 'double' },
-            format: {
-                dataType: 'union',
-                subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
-            },
-            groupLabel: { dataType: 'string' },
-            groups: { dataType: 'array', array: { dataType: 'string' } },
-            urls: {
-                dataType: 'array',
-                array: { dataType: 'refAlias', ref: 'FieldUrl' },
-            },
-            index: { dataType: 'double' },
-            tags: { dataType: 'array', array: { dataType: 'string' } },
-            parameterReferences: {
-                dataType: 'array',
-                array: { dataType: 'string' },
-            },
-            showUnderlyingValues: {
-                dataType: 'array',
-                array: { dataType: 'string' },
-            },
-            filters: {
-                dataType: 'array',
-                array: { dataType: 'refObject', ref: 'MetricFilterRule' },
-            },
-            percentile: { dataType: 'double' },
-            distinctKeys: { dataType: 'array', array: { dataType: 'string' } },
-            formatOptions: { ref: 'CustomFormat' },
-            dimensionReference: { dataType: 'string' },
-            requiredAttributes: {
-                ref: 'Record_string.string-or-string-Array_',
-            },
-            anyAttributes: { ref: 'Record_string.string-or-string-Array_' },
-            defaultTimeDimension: { ref: 'DefaultTimeDimension' },
-            spotlight: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    owner: { dataType: 'string' },
-                    segmentBy: {
-                        dataType: 'array',
-                        array: { dataType: 'string' },
-                    },
-                    filterBy: {
-                        dataType: 'array',
-                        array: { dataType: 'string' },
-                    },
-                    categories: {
-                        dataType: 'array',
-                        array: { dataType: 'string' },
-                    },
-                    visibility: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'enum', enums: ['show'] },
-                            { dataType: 'enum', enums: ['hide'] },
-                        ],
-                        required: true,
-                    },
-                },
-            },
-            drivers: { dataType: 'array', array: { dataType: 'string' } },
-            aiHint: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'array', array: { dataType: 'string' } },
-                ],
-            },
-            richText: { dataType: 'string' },
-        },
-        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CompiledMetric: {
@@ -6165,10 +6175,10 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { ref: 'Field' },
+                    { ref: 'Metric' },
                     { ref: 'TableCalculation' },
                     { ref: 'AdditionalMetric' },
                     { ref: 'CustomDimension' },
-                    { ref: 'Metric' },
                 ],
             },
             validators: {},
@@ -6246,9 +6256,9 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { ref: 'Field' },
+                    { ref: 'Metric' },
                     { ref: 'TableCalculation' },
                     { ref: 'CustomDimension' },
-                    { ref: 'Metric' },
                 ],
             },
             validators: {},
@@ -8023,11 +8033,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8505,11 +8515,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8524,11 +8534,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8543,11 +8553,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8562,11 +8572,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8581,11 +8591,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -19665,7 +19675,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -19675,7 +19685,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -19685,7 +19695,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -19698,7 +19708,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -20093,7 +20103,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -20103,7 +20113,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -20113,7 +20123,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -20126,7 +20136,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -23622,7 +23632,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                label: { dataType: 'string', required: true },
                 spotlight: {
                     dataType: 'union',
                     subSchemas: [
@@ -23659,6 +23668,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                label: { dataType: 'string', required: true },
                 parameters: {
                     dataType: 'union',
                     subSchemas: [
@@ -44581,6 +44591,7 @@ export function RegisterRoutes(app: Router) {
                             ],
                         },
                         chartConfig: { ref: 'AnyType', required: true },
+                        spaceNames: { ref: 'Record_string.string_' },
                         force: { dataType: 'boolean' },
                         publicSpaceCreate: { dataType: 'boolean' },
                         skipSpaceCreate: { dataType: 'boolean' },
@@ -44732,6 +44743,7 @@ export function RegisterRoutes(app: Router) {
                             ],
                         },
                         config: { ref: 'AnyType', required: true },
+                        spaceNames: { ref: 'Record_string.string_' },
                         force: { dataType: 'boolean' },
                         publicSpaceCreate: { dataType: 'boolean' },
                         skipSpaceCreate: { dataType: 'boolean' },
@@ -44817,6 +44829,7 @@ export function RegisterRoutes(app: Router) {
                             ],
                         },
                         tiles: { ref: 'AnyType', required: true },
+                        spaceNames: { ref: 'Record_string.string_' },
                         force: { dataType: 'boolean' },
                         publicSpaceCreate: { dataType: 'boolean' },
                         skipSpaceCreate: { dataType: 'boolean' },
