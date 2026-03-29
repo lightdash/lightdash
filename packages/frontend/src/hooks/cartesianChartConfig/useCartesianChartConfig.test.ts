@@ -651,8 +651,8 @@ describe('useCartesianChartConfig', () => {
 
     test('should preserve saved columnLimit in validConfig when feature flag is off', () => {
         const { result } = renderHook(() =>
+            // @ts-expect-error partially mock params for hook
             useCartesianChartConfig({
-                // @ts-expect-error partially mock params for hook
                 ...useCartesianChartConfigParamsMock,
                 initialChartConfig: {
                     ...useCartesianChartConfigParamsMock.initialChartConfig,
