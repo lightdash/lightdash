@@ -14,6 +14,53 @@ import {
 } from '../plottedData/getPlottedData';
 import type { InfiniteQueryResults } from '../useQueryResults';
 
+type RowKeyValue = ReturnType<
+    typeof getPivotedData | typeof getPivotedDataFromPivotDetails
+>['rowKeyMap'][string];
+
+const getPivotGroupKey = (
+    pivotValues: Array<{ field: string; value: unknown }>,
+): string => pivotValues.map((pv) => `${pv.field}:${pv.value}`).join('|');
+
+const limitToFirstNPivotGroups = (
+    rowKeyValues: RowKeyValue[],
+    limit: number,
+): RowKeyValue[] => {
+    const seenGroups = new Set<string>();
+    return rowKeyValues.filter((rowKey) => {
+        if (typeof rowKey === 'string') return true;
+        const groupKey = rowKey.pivotValues
+            ? getPivotGroupKey(rowKey.pivotValues)
+            : undefined;
+        if (groupKey && !seenGroups.has(groupKey)) {
+            if (seenGroups.size >= limit) return false;
+            seenGroups.add(groupKey);
+        }
+        return true;
+    });
+};
+
+const hasSamePivotFields = (
+    series: Series,
+    expectedSeriesMap: Record<string, Series>,
+): boolean => {
+    const pivotValues = series.encode.yRef.pivotValues;
+    if (!pivotValues || pivotValues.length === 0) return false;
+
+    return Object.values(expectedSeriesMap).some((expectedSeries) => {
+        const expectedPivots = expectedSeries.encode.yRef.pivotValues;
+        return (
+            expectedSeries.encode.yRef.field === series.encode.yRef.field &&
+            expectedSeries.encode.xRef.field === series.encode.xRef.field &&
+            !!expectedPivots &&
+            expectedPivots.length === pivotValues.length &&
+            pivotValues.every((pv) =>
+                expectedPivots.some((epv) => epv.field === pv.field),
+            )
+        );
+    });
+};
+
 export type GetExpectedSeriesMapArgs = {
     defaultSmooth?: boolean;
     defaultShowSymbol?: boolean;
@@ -72,18 +119,7 @@ export const getExpectedSeriesMap = ({
 
         let rowKeyValues = Object.values(rowKeyMap);
         if (columnLimit !== undefined && columnLimit > 0) {
-            const seenGroups = new Set<string>();
-            rowKeyValues = rowKeyValues.filter((rowKey) => {
-                if (typeof rowKey === 'string') return true;
-                const groupKey = rowKey.pivotValues
-                    ?.map((pv) => `${pv.field}:${pv.value}`)
-                    .join('|');
-                if (groupKey && !seenGroups.has(groupKey)) {
-                    if (seenGroups.size >= columnLimit) return false;
-                    seenGroups.add(groupKey);
-                }
-                return true;
-            });
+            rowKeyValues = limitToFirstNPivotGroups(rowKeyValues, columnLimit);
         }
 
         expectedSeriesMap = rowKeyValues.reduce<Record<string, Series>>(
@@ -164,25 +200,7 @@ export const mergeExistingAndExpectedSeries = ({
 
                 const isSeriesFilteredOut =
                     !isSeriesExpected &&
-                    !!series.encode.yRef.pivotValues &&
-                    series.encode.yRef.pivotValues.length > 0 &&
-                    Object.values(expectedSeriesMap).some(
-                        (expectedSeries) =>
-                            expectedSeries.encode.yRef.field ===
-                                series.encode.yRef.field &&
-                            expectedSeries.encode.xRef.field ===
-                                series.encode.xRef.field &&
-                            !!expectedSeries.encode.yRef.pivotValues &&
-                            expectedSeries.encode.yRef.pivotValues.length > 0 &&
-                            series.encode.yRef.pivotValues!.length ===
-                                expectedSeries.encode.yRef.pivotValues!
-                                    .length &&
-                            series.encode.yRef.pivotValues!.every((pv) =>
-                                expectedSeries.encode.yRef.pivotValues!.some(
-                                    (epv) => epv.field === pv.field,
-                                ),
-                            ),
-                    );
+                    hasSamePivotFields(series, expectedSeriesMap);
 
                 if (!isSeriesExpected && !isSeriesFilteredOut) {
                     return { ...sum };
