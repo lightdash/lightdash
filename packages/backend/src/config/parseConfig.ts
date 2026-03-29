@@ -1255,6 +1255,12 @@ export type LightdashConfig = {
     changeChartExplore: {
         enabled: boolean | undefined;
     };
+    showHideRows: {
+        enabled: boolean | undefined;
+    };
+    metricDashboardFilters: {
+        enabled: boolean | undefined;
+    };
     appRuntime: AppRuntimeConfig;
 };
 
@@ -2245,6 +2251,16 @@ export const parseConfig = (): LightdashConfig => {
         changeChartExplore: {
             enabled: process.env.CHANGE_CHART_EXPLORE_ENABLED
                 ? process.env.CHANGE_CHART_EXPLORE_ENABLED === 'true'
+                : undefined,
+        },
+        showHideRows: {
+            enabled: process.env.SHOW_HIDE_ROWS_ENABLED
+                ? process.env.SHOW_HIDE_ROWS_ENABLED === 'true'
+                : undefined,
+        },
+        metricDashboardFilters: {
+            enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
+                ? process.env.METRIC_DASHBOARD_FILTERS_ENABLED === 'true'
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),

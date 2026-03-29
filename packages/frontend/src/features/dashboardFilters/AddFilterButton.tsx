@@ -11,7 +11,7 @@ import { useDisclosure, useId } from '@mantine-8/hooks';
 import { IconEye, IconEyeOff, IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from './FilterConfiguration';
 
@@ -49,9 +49,11 @@ const AddFilterButton: FC<Props> = ({
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
     );
+    const { data: metricDashboardFiltersFlag } = useServerFeatureFlag(
+        FeatureFlags.MetricDashboardFilters,
+    );
     const isMetricFiltersEnabled =
-        useClientFeatureFlag(FeatureFlags.MetricDashboardFilters) ||
-        import.meta.env.DEV;
+        metricDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
     );

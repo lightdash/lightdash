@@ -51,6 +51,10 @@ export class FeatureFlagModel {
                 this.getUserImpersonationEnabled.bind(this),
             [FeatureFlags.ChangeChartExplore]:
                 this.getChangeChartExploreEnabled.bind(this),
+            [FeatureFlags.ShowHideRows]:
+                this.getShowHideRowsEnabled.bind(this),
+            [FeatureFlags.MetricDashboardFilters]:
+                this.getMetricDashboardFiltersEnabled.bind(this),
         };
     }
 
@@ -302,6 +306,56 @@ export class FeatureFlagModel {
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.ChangeChartExplore,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getShowHideRowsEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.showHideRows.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.ShowHideRows,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getMetricDashboardFiltersEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.metricDashboardFilters.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.MetricDashboardFilters,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,
