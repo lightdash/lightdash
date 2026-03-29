@@ -350,6 +350,97 @@ describe('mergeExistingAndExpectedSeries', () => {
         result.forEach((s) => expect(s.isFilteredOut).toBeFalsy());
     });
 
+    test('should drop series with different pivot field names, not mark as isFilteredOut', () => {
+        const expectedMap: Record<string, Series> = {
+            'my_dimension|my_metric.status.open':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_metric.dimension_x.a'
+                ],
+        };
+        const modifiedExpected: Record<string, Series> = {
+            'my_dimension|my_metric.status.open': {
+                ...Object.values(expectedMap)[0],
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: {
+                        field: 'my_metric',
+                        pivotValues: [{ field: 'status', value: 'open' }],
+                    },
+                },
+            },
+        };
+
+        const staleSeries: Series[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: {
+                        field: 'my_metric',
+                        pivotValues: [{ field: 'country', value: 'uk' }],
+                    },
+                },
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                yAxisIndex: 0,
+                encode: {
+                    xRef: { field: 'my_dimension' },
+                    yRef: {
+                        field: 'my_metric',
+                        pivotValues: [{ field: 'country', value: 'us' }],
+                    },
+                },
+            },
+        ];
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: modifiedExpected,
+            existingSeries: staleSeries,
+            sortedByPivot: false,
+        });
+
+        // Stale series with different pivot field should be dropped entirely,
+        // NOT retained with isFilteredOut
+        expect(result).toHaveLength(1);
+        expect(result[0].encode.yRef.pivotValues?.[0]?.field).toBe('status');
+        expect(result[0].isFilteredOut).toBeFalsy();
+    });
+
+    test('should mark series as isFilteredOut only when pivot field names match', () => {
+        const limitedExpectedMap: Record<string, Series> = {
+            'my_dimension|my_metric.dimension_x.a':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_metric.dimension_x.a'
+                ],
+            'my_dimension|my_second_metric.dimension_x.a':
+                expectedPivotedSeriesMap[
+                    'my_dimension|my_second_metric.dimension_x.a'
+                ],
+        };
+
+        const allSeries = Object.values(expectedPivotedSeriesMap);
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: limitedExpectedMap,
+            existingSeries: allSeries,
+            sortedByPivot: false,
+        });
+
+        // dimension_x.a series: NOT filtered out (they're expected)
+        const aSeries = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'a',
+        );
+        aSeries.forEach((s) => expect(s.isFilteredOut).toBeFalsy());
+
+        // dimension_x.b series: marked isFilteredOut (same pivot field, different value)
+        const bSeries = result.filter(
+            (s) => s.encode.yRef.pivotValues?.[0]?.value === 'b',
+        );
+        bSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
+    });
+
     test('should insert new pivot category in sorted position, not at end', () => {
         const defaultProps = {
             label: undefined,
@@ -501,12 +592,27 @@ describe('useCartesianChartConfig', () => {
         expect(series[1].yAxisIndex).toBe(0);
     });
 
-    test('should return undefined columnLimit when feature flag is off', () => {
+    test('should return undefined columnLimit when feature flag is off and no saved limit', () => {
         const { result } = renderHook(
             // @ts-expect-error partially mock params for hook
             () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
         );
 
         expect(result.current.columnLimit).toBeUndefined();
+    });
+
+    test('should preserve saved columnLimit in validConfig when feature flag is off', () => {
+        const { result } = renderHook(() =>
+            useCartesianChartConfig({
+                // @ts-expect-error partially mock params for hook
+                ...useCartesianChartConfigParamsMock,
+                initialChartConfig: {
+                    ...useCartesianChartConfigParamsMock.initialChartConfig,
+                    columnLimit: 5,
+                },
+            }),
+        );
+
+        expect(result.current.validConfig?.columnLimit).toBe(5);
     });
 });
