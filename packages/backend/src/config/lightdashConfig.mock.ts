@@ -360,6 +360,12 @@ export const lightdashConfigMock: LightdashConfig = {
     changeChartExplore: {
         enabled: undefined,
     },
+    showHideRows: {
+        enabled: undefined,
+    },
+    metricDashboardFilters: {
+        enabled: undefined,
+    },
     appRuntime: {
         enabled: false,
         lightdashOrigin: 'https://test.lightdash.cloud',
