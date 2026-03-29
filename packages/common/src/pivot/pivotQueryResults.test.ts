@@ -1304,11 +1304,20 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             columnLimit: 2,
         });
 
-        // Limited result should have fewer data columns than full result
-        const fullColumnCount = fullResult.headerValues[0]?.length ?? 0;
+        // Limited result should have exactly 2 pivot groups
         const limitedColumnCount = limitedResult.headerValues[0]?.length ?? 0;
-        expect(limitedColumnCount).toBeLessThanOrEqual(2);
-        expect(limitedColumnCount).toBeLessThan(fullColumnCount);
+        expect(limitedColumnCount).toBe(2);
+
+        // Verify the retained groups are the FIRST 2 from the full result
+        const fullHeaderValues = fullResult.headerValues[0]?.map(
+            (h) => 'value' in h && h.value?.raw,
+        );
+        const limitedHeaderValues = limitedResult.headerValues[0]?.map(
+            (h) => 'value' in h && h.value?.raw,
+        );
+        expect(limitedHeaderValues).toStrictEqual(
+            fullHeaderValues?.slice(0, 2),
+        );
     });
 
     it('should not filter when columnLimit is undefined', () => {
