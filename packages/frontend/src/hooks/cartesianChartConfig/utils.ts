@@ -173,7 +173,12 @@ export const mergeExistingAndExpectedSeries = ({
                             expectedSeries.encode.xRef.field ===
                                 series.encode.xRef.field &&
                             !!expectedSeries.encode.yRef.pivotValues &&
-                            expectedSeries.encode.yRef.pivotValues.length > 0,
+                            expectedSeries.encode.yRef.pivotValues.length > 0 &&
+                            series.encode.yRef.pivotValues!.every((pv) =>
+                                expectedSeries.encode.yRef.pivotValues!.some(
+                                    (epv) => epv.field === pv.field,
+                                ),
+                            ),
                     );
 
                 if (!isSeriesExpected && !isSeriesFilteredOut) {

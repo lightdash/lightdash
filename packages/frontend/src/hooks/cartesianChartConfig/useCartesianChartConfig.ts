@@ -1162,9 +1162,8 @@ const useCartesianChartConfig = ({
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
             metadata: dirtyMetadata,
             rowLimit,
-            ...(isShowHideColumnsEnabled
-                ? { columnLimit: effectiveColumnLimit }
-                : {}),
+            columnLimit:
+                effectiveColumnLimit ?? initialChartConfig?.columnLimit,
         };
     }, [
         dirtyLayout,
@@ -1173,8 +1172,8 @@ const useCartesianChartConfig = ({
         tooltip,
         tooltipSort,
         rowLimit,
-        isShowHideColumnsEnabled,
         effectiveColumnLimit,
+        initialChartConfig?.columnLimit,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
