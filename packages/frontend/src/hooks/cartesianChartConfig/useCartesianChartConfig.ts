@@ -1162,8 +1162,9 @@ const useCartesianChartConfig = ({
                 : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
             metadata: dirtyMetadata,
             rowLimit,
-            columnLimit:
-                effectiveColumnLimit ?? initialChartConfig?.columnLimit,
+            columnLimit: isShowHideColumnsEnabled
+                ? columnLimit
+                : initialChartConfig?.columnLimit,
         };
     }, [
         dirtyLayout,
@@ -1172,7 +1173,8 @@ const useCartesianChartConfig = ({
         tooltip,
         tooltipSort,
         rowLimit,
-        effectiveColumnLimit,
+        isShowHideColumnsEnabled,
+        columnLimit,
         initialChartConfig?.columnLimit,
     ]);
 
