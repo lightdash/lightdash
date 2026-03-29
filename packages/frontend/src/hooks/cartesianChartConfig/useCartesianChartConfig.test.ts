@@ -294,6 +294,49 @@ describe('mergeExistingAndExpectedSeries', () => {
         bSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
     });
 
+    test('should mark multi-pivot series beyond column limit as isFilteredOut, not drop them', () => {
+        // Simulate columnLimit=1 on a 2-dimension pivot:
+        // expectedSeriesMap only has the first pivot group (dimension_x.a.dimension_y.a)
+        const limitedExpectedMap: Record<string, Series> = {
+            'my_dimension|my_metric.dimension_x.a.dimension_y.a':
+                expectedMultiPivotedSeriesMap[
+                    'my_dimension|my_metric.dimension_x.a.dimension_y.a'
+                ],
+        };
+
+        // existingSeries has all 4 multi-pivot series
+        const allSeries = Object.values(expectedMultiPivotedSeriesMap);
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap: limitedExpectedMap,
+            existingSeries: allSeries,
+            sortedByPivot: false,
+        });
+
+        // The first pivot group should NOT be filtered out
+        const expectedSeries = result.filter(
+            (s) =>
+                s.encode.yRef.pivotValues?.[0]?.value === 'a' &&
+                s.encode.yRef.pivotValues?.[1]?.value === 'a',
+        );
+        expect(expectedSeries).toHaveLength(1);
+        expect(expectedSeries[0].isFilteredOut).toBeFalsy();
+
+        // All other series should be marked isFilteredOut (not dropped)
+        const filteredSeries = result.filter(
+            (s) =>
+                !(
+                    s.encode.yRef.pivotValues?.[0]?.value === 'a' &&
+                    s.encode.yRef.pivotValues?.[1]?.value === 'a'
+                ),
+        );
+        expect(filteredSeries.length).toBeGreaterThan(0);
+        filteredSeries.forEach((s) => expect(s.isFilteredOut).toBe(true));
+
+        // Total should be all 4 series (none dropped)
+        expect(result).toHaveLength(allSeries.length);
+    });
+
     test('should not mark any series as isFilteredOut when expectedSeriesMap is full (flag-off path)', () => {
         const allSeries = Object.values(expectedPivotedSeriesMap);
 

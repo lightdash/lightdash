@@ -159,18 +159,22 @@ export const mergeExistingAndExpectedSeries = ({
             (sum, series) => {
                 const id = getSeriesId(series);
 
-                // this results in a string without the pivot values
-                //e.g. 'orders_order_date_month|orders_average_order_size.orders_is_completed.true' -> 'orders_order_date_month|orders_average_order_size.orders_is_completed'
-                // used to check if the series is not expected but part of the same pivot of expected series
-                const idWithoutPivotValues = id.replace(/\.[^.]+$/, '');
-
                 const isSeriesExpected =
                     Object.keys(expectedSeriesMap).includes(id);
 
                 const isSeriesFilteredOut =
-                    Object.keys(expectedSeriesMap).some((expectedId) =>
-                        expectedId.startsWith(idWithoutPivotValues),
-                    ) && !isSeriesExpected;
+                    !isSeriesExpected &&
+                    !!series.encode.yRef.pivotValues &&
+                    series.encode.yRef.pivotValues.length > 0 &&
+                    Object.values(expectedSeriesMap).some(
+                        (expectedSeries) =>
+                            expectedSeries.encode.yRef.field ===
+                                series.encode.yRef.field &&
+                            expectedSeries.encode.xRef.field ===
+                                series.encode.xRef.field &&
+                            !!expectedSeries.encode.yRef.pivotValues &&
+                            expectedSeries.encode.yRef.pivotValues.length > 0,
+                    );
 
                 if (!isSeriesExpected && !isSeriesFilteredOut) {
                     return { ...sum };
