@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ActionIcon,
     Box,
@@ -20,6 +21,8 @@ import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import useHealth from '../hooks/health/useHealth';
+import { useAbilityContext } from '../providers/Ability/useAbilityContext';
+import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
 
 type ChatMessage = {
@@ -84,6 +87,8 @@ const AppGenerate: FC = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const { mutate, isLoading, reset } = useGenerateApp();
     const health = useHealth();
+    const { user } = useApp();
+    const ability = useAbilityContext();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -100,6 +105,18 @@ const AppGenerate: FC = () => {
     }, [messages, isLoading, scrollToBottom]);
 
     if (health.data && !health.data.dataApps.enabled) {
+        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+    }
+
+    if (
+        !ability.can(
+            'manage',
+            subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        )
+    ) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
