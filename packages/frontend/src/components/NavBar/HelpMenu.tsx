@@ -4,7 +4,6 @@ import { modals } from '@mantine/modals';
 import {
     IconBook,
     IconHelp,
-    IconMessageCircle2,
     IconMessages,
     IconSos,
     IconUsers,
@@ -59,6 +58,15 @@ const HelpMenu: FC = () => {
             </Menu.Target>
 
             <Menu.Dropdown>
+                <LargeMenuItem
+                    component="a"
+                    href="https://docs.lightdash.com/"
+                    target="_blank"
+                    title="Ask the docs"
+                    description="Chat with the Lightdash docs AI assistant"
+                    icon={IconBook}
+                />
+
                 {isCloudCustomer && (
                     <LargeMenuItem
                         onClick={() => {
@@ -70,38 +78,21 @@ const HelpMenu: FC = () => {
                                 showIntercom();
                             }
                         }}
-                        title="Contact support"
-                        description="Drop us a message and we’ll get back to you asap!"
+                        title="Talk to support"
+                        description="Drop us a message with product questions or feedback"
                         icon={IconMessages}
                     />
                 )}
 
                 <LargeMenuItem
                     component="a"
-                    href="https://docs.lightdash.com/"
-                    target="_blank"
-                    title="View Docs"
-                    description="Learn how to deploy, use, contribute to Lightdash."
-                    icon={IconBook}
-                />
-
-                <LargeMenuItem
-                    component="a"
                     href="https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w"
                     target="_blank"
-                    title="Join Slack community"
+                    title="Join the Slack community"
                     description="Get advice share best practices with other users."
                     icon={IconUsers}
                 />
 
-                <LargeMenuItem
-                    component="a"
-                    href="https://github.com/lightdash/lightdash/issues/new/choose"
-                    target="_blank"
-                    title="Feedback on Lightdash"
-                    description="Submit a feature request or bug report to improve Lightdash."
-                    icon={IconMessageCircle2}
-                />
                 {(isCloudCustomer || isDevelopment) && (
                     <LargeMenuItem
                         component="a"
@@ -115,8 +106,8 @@ const HelpMenu: FC = () => {
                                 zIndex: 1000,
                             });
                         }}
-                        title="Report an issue to Lightdash Support"
-                        description="Share a detailed issue report with Lightdash Support"
+                        title="Report an issue"
+                        description="Share a detailed report with Lightdash support"
                         icon={IconSos}
                     />
                 )}
