@@ -11,13 +11,11 @@ import {
     ActionIcon,
     Box,
     Button,
-    CopyButton,
     Group,
     Menu,
     Text,
     Title,
     Tooltip,
-    UnstyledButton,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
@@ -25,7 +23,6 @@ import {
     IconArrowBack,
     IconArrowsExchange,
     IconBell,
-    IconCheck,
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclePlus,
@@ -35,7 +32,6 @@ import {
     IconDots,
     IconFolders,
     IconFolderSymlink,
-    IconHash,
     IconHistory,
     IconLayoutGridAdd,
     IconPencil,
@@ -552,49 +548,15 @@ const SavedChartsHeader: FC = () => {
                                     user={savedChart.updatedByUser}
                                     partiallyBold={false}
                                 />
-                                <CopyButton value={savedChart.slug}>
-                                    {({ copied, copy }) => (
-                                        <Tooltip
-                                            label={
-                                                copied
-                                                    ? 'Copied slug'
-                                                    : 'Copy slug'
-                                            }
-                                            withArrow
-                                            withinPortal
-                                        >
-                                            <UnstyledButton onClick={copy}>
-                                                <Group gap={4} wrap="nowrap">
-                                                    <MantineIcon
-                                                        icon={IconHash}
-                                                        color="ldGray.6"
-                                                        size="sm"
-                                                    />
-                                                    <Text
-                                                        fz="xs"
-                                                        c="dimmed"
-                                                        ff="monospace"
-                                                    >
-                                                        {savedChart.slug}
-                                                    </Text>
-                                                    <MantineIcon
-                                                        icon={
-                                                            copied
-                                                                ? IconCheck
-                                                                : IconCopy
-                                                        }
-                                                        color="ldGray.6"
-                                                        size="sm"
-                                                    />
-                                                </Group>
-                                            </UnstyledButton>
-                                        </Tooltip>
-                                    )}
-                                </CopyButton>
                                 <ResourceInfoPopup
                                     resourceUuid={savedChart.uuid}
                                     projectUuid={projectUuid}
+                                    title={savedChart.name}
                                     description={savedChart.description}
+                                    slug={savedChart.slug}
+                                    updatedAt={savedChart.updatedAt}
+                                    spaceName={savedChart.spaceName}
+                                    spaceUuid={savedChart.spaceUuid}
                                     viewStats={chartViewStats.data?.views}
                                     firstViewedAt={
                                         chartViewStats.data?.firstViewedAt
