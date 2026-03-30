@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconFolder,
     IconFolderPlus,
     IconLayoutDashboard,
@@ -26,7 +27,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { user } = useApp();
+    const { user, health } = useApp();
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -129,6 +130,24 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconFolder}
                             />
                         </Can>
+                        {health.data?.dataApps.enabled && (
+                            <Can
+                                I="manage"
+                                this={subject('DataApp', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <LargeMenuItem
+                                    component={Link}
+                                    title="App"
+                                    description="Build an interactive app powered by your data."
+                                    to={`/projects/${projectUuid}/apps/generate`}
+                                    icon={IconAppWindow}
+                                />
+                            </Can>
+                        )}
                     </Menu.Dropdown>
                 </Menu>
             </Can>

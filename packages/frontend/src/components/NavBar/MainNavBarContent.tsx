@@ -7,7 +7,6 @@ import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
 import { AiAgentsButton } from './AiAgentsButton';
 import BrowseMenu from './BrowseMenu';
-import { BuildAppButton } from './BuildAppButton';
 import ExploreMenu from './ExploreMenu';
 import HeadwayMenuItem from './HeadwayMenuItem';
 import HelpMenu from './HelpMenu';
@@ -59,7 +58,6 @@ export const MainNavBarContent: FC<Props> = ({
                                 <MetricsLink projectUuid={activeProjectUuid} />
                             )}
                             <AiAgentsButton />
-                            <BuildAppButton />
                         </Button.Group>
                         <Omnibar projectUuid={activeProjectUuid} />
                     </>
