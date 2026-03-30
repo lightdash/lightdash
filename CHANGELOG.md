@@ -1,3 +1,10 @@
+# [0.2692.0](https://github.com/lightdash/lightdash/compare/0.2691.1...0.2692.0) (2026-03-30)
+
+
+### Features
+
+* update support nav menu options ([#21424](https://github.com/lightdash/lightdash/issues/21424)) ([0ff0481](https://github.com/lightdash/lightdash/commit/0ff0481403a5e481a3ede1aae7f04ca8d916155a))
+
 ## [0.2691.1](https://github.com/lightdash/lightdash/compare/0.2691.0...0.2691.1) (2026-03-30)
 
 
