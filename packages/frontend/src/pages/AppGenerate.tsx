@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Box,
     Group,
     Loader,
     Text,
@@ -81,7 +82,7 @@ const AppGenerate: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [prompt, setPrompt] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const { mutate, isLoading, error, reset } = useGenerateApp();
+    const { mutate, isLoading, reset } = useGenerateApp();
     const health = useHealth();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -103,7 +104,7 @@ const AppGenerate: FC = () => {
     }
 
     if (!projectUuid) {
-        return <div>Missing project UUID</div>;
+        return <Box>Missing project UUID</Box>;
     }
 
     const handleSubmit = () => {
@@ -157,14 +158,14 @@ const AppGenerate: FC = () => {
     };
 
     return (
-        <div className={classes.layout}>
+        <Box className={classes.layout}>
             <PanelGroup direction="horizontal">
                 {/* Chat Panel */}
                 <Panel defaultSize={30} minSize={20} maxSize={50}>
-                    <div className={classes.chatPanel}>
-                        <div className={classes.chatMessages}>
+                    <Box className={classes.chatPanel}>
+                        <Box className={classes.chatMessages}>
                             {messages.length === 0 && !isLoading ? (
-                                <div className={classes.emptyChat}>
+                                <Box className={classes.emptyChat}>
                                     <ThemeIcon
                                         size="xl"
                                         radius="xl"
@@ -181,25 +182,25 @@ const AppGenerate: FC = () => {
                                         generate a data app connected to your
                                         project.
                                     </Text>
-                                </div>
+                                </Box>
                             ) : (
                                 <>
                                     {messages.map((msg, i) =>
                                         msg.role === 'user' ? (
-                                            <div
+                                            <Box
                                                 key={i}
                                                 className={classes.userMessage}
                                             >
-                                                <div
+                                                <Box
                                                     className={
                                                         classes.userBubble
                                                     }
                                                 >
                                                     {msg.content}
-                                                </div>
-                                            </div>
+                                                </Box>
+                                            </Box>
                                         ) : (
-                                            <div
+                                            <Box
                                                 key={i}
                                                 className={
                                                     classes.assistantMessage
@@ -214,7 +215,7 @@ const AppGenerate: FC = () => {
                                                 >
                                                     <IconSparkles size={12} />
                                                 </ThemeIcon>
-                                                <div
+                                                <Box
                                                     className={
                                                         classes.assistantBubble
                                                     }
@@ -250,12 +251,12 @@ const AppGenerate: FC = () => {
                                                                 />
                                                             </Text>
                                                         )}
-                                                </div>
-                                            </div>
+                                                </Box>
+                                            </Box>
                                         ),
                                     )}
                                     {isLoading && (
-                                        <div
+                                        <Box
                                             className={classes.assistantMessage}
                                         >
                                             <ThemeIcon
@@ -267,7 +268,7 @@ const AppGenerate: FC = () => {
                                             >
                                                 <IconSparkles size={12} />
                                             </ThemeIcon>
-                                            <div
+                                            <Box
                                                 className={
                                                     classes.assistantBubble
                                                 }
@@ -276,37 +277,17 @@ const AppGenerate: FC = () => {
                                                     Generating your app{' '}
                                                     <LoadingDots />
                                                 </Text>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {error && !isLoading && (
-                                        <div
-                                            className={classes.assistantMessage}
-                                        >
-                                            <ThemeIcon
-                                                size="sm"
-                                                radius="xl"
-                                                variant="light"
-                                                color="red"
-                                                mt={2}
-                                            >
-                                                <IconSparkles size={12} />
-                                            </ThemeIcon>
-                                            <Text size="sm" c="red">
-                                                {error instanceof Error
-                                                    ? error.message
-                                                    : 'Failed to generate app'}
-                                            </Text>
-                                        </div>
+                                            </Box>
+                                        </Box>
                                     )}
                                 </>
                             )}
-                            <div ref={messagesEndRef} />
-                        </div>
+                            <Box ref={messagesEndRef} />
+                        </Box>
 
                         {/* Chat Input */}
-                        <div className={classes.chatInputArea}>
-                            <div className={classes.inputWrapper}>
+                        <Box className={classes.chatInputArea}>
+                            <Box className={classes.inputWrapper}>
                                 <Textarea
                                     ref={textareaRef}
                                     placeholder="Describe the app you want to build..."
@@ -337,17 +318,17 @@ const AppGenerate: FC = () => {
                                 >
                                     <IconArrowUp size={14} />
                                 </ActionIcon>
-                            </div>
-                        </div>
-                    </div>
+                            </Box>
+                        </Box>
+                    </Box>
                 </Panel>
 
                 <PanelResizeHandle className={classes.resizeHandle} />
 
                 {/* Preview Panel */}
                 <Panel minSize={40}>
-                    <div className={classes.previewPanel}>
-                        <div className={classes.previewHeader}>
+                    <Box className={classes.previewPanel}>
+                        <Box className={classes.previewHeader}>
                             <IconAppWindow size={16} />
                             <Text size="sm" fw={500}>
                                 Preview
@@ -364,9 +345,9 @@ const AppGenerate: FC = () => {
                                     <IconExternalLink size={14} />
                                 </ActionIcon>
                             )}
-                        </div>
+                        </Box>
 
-                        <div className={classes.previewContent}>
+                        <Box className={classes.previewContent}>
                             {latestApp?.appUuid && latestApp?.version ? (
                                 <AppPreview
                                     projectUuid={projectUuid}
@@ -374,18 +355,18 @@ const AppGenerate: FC = () => {
                                     version={latestApp.version}
                                 />
                             ) : (
-                                <div className={classes.previewEmpty}>
+                                <Box className={classes.previewEmpty}>
                                     <IconAppWindow size={48} stroke={1} />
                                     <Text size="sm">
                                         Your app preview will appear here
                                     </Text>
-                                </div>
+                                </Box>
                             )}
-                        </div>
-                    </div>
+                        </Box>
+                    </Box>
                 </Panel>
             </PanelGroup>
-        </div>
+        </Box>
     );
 };
 
