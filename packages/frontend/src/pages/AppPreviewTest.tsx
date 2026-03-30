@@ -1,17 +1,4 @@
-import {
-    ActionIcon,
-    Badge,
-    Code,
-    CopyButton,
-    Group,
-    Loader,
-    Paper,
-    Stack,
-    Text,
-    Title,
-    Tooltip,
-} from '@mantine-8/core';
-import { IconCheck, IconCopy, IconPlayerPlay } from '@tabler/icons-react';
+import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import { Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
@@ -50,80 +37,33 @@ export default function AppPreviewTest() {
         ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
+    if (isLoading) {
+        return (
+            <Stack align="center" justify="center" h="calc(100vh - 50px)">
+                <Loader size="md" />
+                <Text size="sm" c="dimmed">
+                    Loading app...
+                </Text>
+            </Stack>
+        );
+    }
+
+    if (error) {
+        return (
+            <Stack align="center" justify="center" h="calc(100vh - 50px)">
+                <Text c="red" size="sm">
+                    Failed to load app:{' '}
+                    {error instanceof Error ? error.message : 'Unknown error'}
+                </Text>
+            </Stack>
+        );
+    }
+
+    if (!previewUrl) return null;
+
     return (
-        <Stack p="lg" gap="md">
-            <Group justify="space-between">
-                <Group gap="sm">
-                    <IconPlayerPlay size={20} />
-                    <Title order={4}>App Preview</Title>
-                    <Badge variant="light" color="blue" size="sm">
-                        postMessage bridge
-                    </Badge>
-                </Group>
-                {previewUrl && (
-                    <Group gap="xs">
-                        <Text size="xs" c="dimmed">
-                            {previewUrl}
-                        </Text>
-                        <CopyButton value={previewUrl}>
-                            {({ copied, copy }) => (
-                                <Tooltip
-                                    label={copied ? 'Copied' : 'Copy URL'}
-                                    withArrow
-                                >
-                                    <ActionIcon
-                                        size="xs"
-                                        variant="subtle"
-                                        onClick={copy}
-                                    >
-                                        {copied ? (
-                                            <IconCheck size={14} />
-                                        ) : (
-                                            <IconCopy size={14} />
-                                        )}
-                                    </ActionIcon>
-                                </Tooltip>
-                            )}
-                        </CopyButton>
-                    </Group>
-                )}
-            </Group>
-
-            <Group gap="lg">
-                <Group gap={4}>
-                    <Text size="xs" c="dimmed">
-                        App
-                    </Text>
-                    <Code>{appUuid}</Code>
-                </Group>
-                <Group gap={4}>
-                    <Text size="xs" c="dimmed">
-                        Version
-                    </Text>
-                    <Code>{version}</Code>
-                </Group>
-                <Group gap={4}>
-                    <Text size="xs" c="dimmed">
-                        Transport
-                    </Text>
-                    <Badge variant="dot" color="green" size="xs">
-                        postMessage
-                    </Badge>
-                </Group>
-            </Group>
-
-            <Paper shadow="sm" radius="md" withBorder h="80vh">
-                {isLoading && <Loader m="auto" />}
-                {error && (
-                    <Text c="red" p="md">
-                        Failed to fetch preview token:{' '}
-                        {error instanceof Error
-                            ? error.message
-                            : 'Unknown error'}
-                    </Text>
-                )}
-                {previewUrl && <AppIframePreview src={previewUrl} />}
-            </Paper>
-        </Stack>
+        <Group h="calc(100vh - 50px)" w="100%">
+            <AppIframePreview src={previewUrl} />
+        </Group>
     );
 }
