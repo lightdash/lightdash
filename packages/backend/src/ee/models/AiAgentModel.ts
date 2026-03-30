@@ -952,7 +952,7 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiPromptTableName}.ai_thread_uuid`,
             )
-            .join(
+            .leftJoin(
                 UserTableName,
                 `${AiPromptTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -985,10 +985,10 @@ export class AiAgentModel {
                     | 'title'
                     | 'title_generated_at'
                 > &
-                    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> &
-                    Pick<DbUser, 'user_uuid'> &
-                    Pick<DbAiSlackThread, 'slack_user_id'> & {
-                        user_name: string;
+                    Pick<DbAiPrompt, 'prompt' | 'ai_prompt_uuid'> & {
+                        user_uuid: DbUser['user_uuid'] | null;
+                    } & Pick<DbAiSlackThread, 'slack_user_id'> & {
+                        user_name: string | null;
                     })[]
             >(
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -1001,7 +1001,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                    `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
                 `${AiSlackThreadTableName}.slack_user_id`,
             )
@@ -1041,8 +1041,8 @@ export class AiAgentModel {
                 message: row.prompt,
             },
             user: {
-                uuid: row.user_uuid,
-                name: row.user_name,
+                uuid: row.user_uuid ?? '',
+                name: row.user_name || 'Unknown user',
                 slackUserId: row.slack_user_id,
             },
         }));
@@ -1092,9 +1092,9 @@ export class AiAgentModel {
                     title: DbAiThread['title'];
                     title_generated_at: DbAiThread['title_generated_at'];
                     first_prompt: DbAiPrompt['prompt'];
-                    user_uuid: DbUser['user_uuid'];
-                    user_name: string;
-                    user_email: DbEmail['email'];
+                    user_uuid: DbUser['user_uuid'] | null;
+                    user_name: string | null;
+                    user_email: DbEmail['email'] | null;
                     slack_user_id: DbAiSlackThread['slack_user_id'];
                     slack_channel_id: DbAiSlackThread['slack_channel_id'];
                     slack_thread_ts: DbAiSlackThread['slack_thread_ts'];
@@ -1123,7 +1123,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.prompt as first_prompt`,
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                    `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), ${EmailTableName}.email, 'Unknown user') as user_name`,
                 ),
                 `${EmailTableName}.email as user_email`,
                 `${AiSlackThreadTableName}.slack_user_id`,
@@ -1149,18 +1149,18 @@ export class AiAgentModel {
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiPromptTableName}.ai_thread_uuid`,
             )
-            .join(
+            .leftJoin(
                 UserTableName,
                 `${AiPromptTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .leftJoin(
-                EmailTableName,
-                `${EmailTableName}.user_id`,
-                '=',
-                `${UserTableName}.user_id`,
-            )
-            .andWhere(`${EmailTableName}.is_primary`, true)
+            .leftJoin(EmailTableName, function joinEmails() {
+                this.on(
+                    `${EmailTableName}.user_id`,
+                    '=',
+                    `${UserTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, '=', true);
+            })
             .join(
                 AiAgentTableName,
                 `${AiThreadTableName}.agent_uuid`,
@@ -1304,8 +1304,8 @@ export class AiAgentModel {
                 createdFrom: row.created_from,
                 title: row.title || row.first_prompt,
                 user: {
-                    uuid: row.user_uuid,
-                    name: row.user_name,
+                    uuid: row.user_uuid ?? '',
+                    name: row.user_name || 'Unknown user',
                     slackUserId: row.slack_user_id,
                     email: row.user_email,
                 },
@@ -1430,7 +1430,7 @@ export class AiAgentModel {
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
                 this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                    `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
             )
             .leftJoin(
@@ -2055,7 +2055,7 @@ export class AiAgentModel {
                 `${AiSlackPromptTableName}.slack_user_id`,
                 `${AiWebAppPromptTableName}.user_uuid`,
                 this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                    `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
             )
             .join(
@@ -2295,7 +2295,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${UserTableName}.user_uuid`,
                 this.database.raw(
-                    `CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name) as user_name`,
+                    `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), 'Unknown user') as user_name`,
                 ),
             )
             .orderBy(`${AiThreadTableName}.created_at`, 'desc');
