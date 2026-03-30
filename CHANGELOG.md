@@ -1,3 +1,11 @@
+## [0.2687.1](https://github.com/lightdash/lightdash/compare/0.2687.0...0.2687.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* handle nested custom metrics when mixing raw and aggregate helper metrics ([#21509](https://github.com/lightdash/lightdash/issues/21509)) ([2591cf6](https://github.com/lightdash/lightdash/commit/2591cf628b41be4c2525fa9cae52755a0e9e8197))
+* replace unbounded resultsCacheTimes array with single oldest value ([#21511](https://github.com/lightdash/lightdash/issues/21511)) ([6e194a6](https://github.com/lightdash/lightdash/commit/6e194a6cf2e83062a2413af9daf109e3333b534c)), closes [#21292](https://github.com/lightdash/lightdash/issues/21292)
+
 # [0.2687.0](https://github.com/lightdash/lightdash/compare/0.2686.0...0.2687.0) (2026-03-30)
 
 
