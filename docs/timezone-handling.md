@@ -55,8 +55,18 @@ Plumbing exists to run `SET timezone TO '<tz>'` if `options.timezone` is provide
 
 Plumbing exists to run `SET TIME ZONE '<tz>'` if `options.timezone` is provided, but no caller passes it.
 
+### DuckDB
+**File:** `packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.ts`
+
+Plumbing exists to run `SET TimeZone = '<tz>'` if `options.timezone` is provided, but no caller passes it.
+
+### Trino / Athena
+**File:** `packages/warehouses/src/warehouseClients/TrinoWarehouseClient.ts`
+
+Plumbing exists to run `SET TIME ZONE '<tz>'` if `options.timezone` is provided, but no caller passes it.
+
 ### Other warehouses
-BigQuery, Redshift, Trino, DuckDB, ClickHouse, Athena — no session timezone handling exists.
+BigQuery, Redshift, ClickHouse — no session timezone handling exists.
 
 ---
 
@@ -76,6 +86,11 @@ sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
 ```
 
 The function has `// todo: implement target_tz` and `// todo: implement default_source_tz` comments.
+
+### `disableTimestampConversion` escape hatch
+**File:** `packages/common/src/types/projects.ts`
+
+A per-warehouse-connection boolean (`disableTimestampConversion`) can be set to skip the `convertTimezone()` call entirely. When `true`, TIMESTAMP dimensions use the raw column SQL with no wrapping. This is the main workaround for customers where the Snowflake conversion causes incorrect results (e.g., when all data is already in UTC and the conversion double-converts).
 
 **Per-warehouse behavior:**
 - **Snowflake**: `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` — the only warehouse with conversion
@@ -113,10 +128,16 @@ The `renderDateFilterSql()` function accepts a `timezone` parameter. However, on
 
 The timezone passed to filter compilation comes from `getQueryTimezoneForProject()`:
 ```
-project.query_timezone → lightdashConfig.query.timezone → 'UTC'
+project.query_timezone → LIGHTDASH_QUERY_TIMEZONE env var → 'UTC'
 ```
 
+The middle step (`LIGHTDASH_QUERY_TIMEZONE`) is parsed in `packages/backend/src/config/parseConfig.ts` and allows self-hosted deployments to set a server-wide default without configuring each project.
+
 `metricQuery.timezone` (the per-chart override) is NOT used — the service always resolves via the project setting.
+
+### Absolute date filters ignore timezone entirely
+
+Absolute filter operators (`EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, `IN_BETWEEN`, etc.) pass the user's input value straight through `dateFormatter()` with no timezone conversion. If a user in New York enters "2024-03-28 09:00:00" in a filter, it goes into the SQL as `('2024-03-28 09:00:00')` — compared directly against UTC-stored data. The frontend also hardcodes a `Z` suffix when serializing Date objects in `packages/frontend/src/utils/dateFilter.ts`, forcing UTC interpretation regardless of user intent.
 
 ---
 
@@ -204,7 +225,9 @@ getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
 This converts to UTC via `moment(value).utc()` before formatting.
 
 ### Chart axes
-Use a mix of ECharts built-in formatting and callbacks that call `formatItemValue`.
+**File:** `packages/frontend/src/hooks/echarts/useEchartsCartesianConfig.ts`
+
+ECharts config hardcodes `useUTC: true`, forcing all time axes to display in UTC. Axis label formatting uses a mix of ECharts built-in formatting and callbacks that call `formatItemValue`.
 
 ---
 
@@ -254,3 +277,6 @@ If a user sets project timezone to New York and filters "in the last 7 days", th
 | 8 | API response | Include timezone metadata | No timezone info in response |
 | 9 | Scheduled deliveries | Use project timezone for query and formatting | Use UTC for everything |
 | 10 | NTZ data in non-UTC timezone | Interpret correctly via data timezone setting | Assumed UTC — silently wrong |
+| 11 | Absolute date filter values | Interpreted in project/user timezone | Used as-is — compared against UTC data with no conversion |
+| 12 | `disableTimestampConversion` | Documented escape hatch with clear semantics | Undocumented boolean that silently skips all timestamp conversion |
+| 13 | Timezone picker coverage | Full IANA timezone list | ~28 predefined zones in `TimeZone` enum (`packages/common/src/types/timezone.ts`), though the API validates against the full IANA set |
