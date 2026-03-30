@@ -29137,7 +29137,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2684.0",
+        "version": "0.2686.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43709,7 +43709,7 @@
         },
         "/api/v1/csv/{jobId}": {
             "get": {
-                "operationId": "getCsvUrl",
+                "operationId": "getGsheetExportStatus",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -43732,13 +43732,13 @@
                         }
                     }
                 },
-                "description": "Get a Csv",
-                "summary": "Get CSV URL",
+                "description": "Get the status/URL of a Google Sheets export job",
+                "summary": "Get export status",
                 "tags": ["Exports"],
                 "security": [],
                 "parameters": [
                     {
-                        "description": "the jobId for the CSV",
+                        "description": "the jobId for the export",
                         "in": "path",
                         "name": "jobId",
                         "required": true,

@@ -1547,7 +1547,7 @@ export class SchedulerModel {
         return b.scheduledTime.getTime() - a.scheduledTime.getTime();
     };
 
-    async getCsvUrl(jobId: string, userUuid: string) {
+    async getGsheetExportStatus(jobId: string, userUuid: string) {
         const jobs = await this.database(SchedulerLogTableName)
             .where(`job_id`, jobId)
             .andWhere('task', 'uploadGsheetFromQuery')
@@ -1559,7 +1559,7 @@ export class SchedulerModel {
                 statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
         )[0];
         if (!job || job.details?.createdByUserUuid !== userUuid)
-            throw new NotFoundError('Download CSV job not found');
+            throw new NotFoundError('Google Sheets export job not found');
 
         return job;
     }
