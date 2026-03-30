@@ -22,13 +22,10 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useSelector } from 'react-redux';
 import {
     explorerActions,
-    selectDrillState,
-    selectSavedChart,
-    selectUnsavedChartVersion,
     useExplorerDispatch,
-    useExplorerSelector,
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useDrillThroughAction } from '../../../hooks/useDrillThroughAction';
@@ -45,6 +42,18 @@ import DrillThroughModal from '../../MetricQueryData/DrillThroughModal';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
+
+/**
+ * Safe selectors that return undefined when rendered outside an Explorer
+ * Redux Provider (e.g. inside the AI chart viewer which uses a different store).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const selectExplorerSafe = (state: any) => state?.explorer;
+const useOptionalUnsavedChartVersion = () =>
+    useSelector(selectExplorerSafe)?.unsavedChartVersion;
+const useOptionalDrillState = () =>
+    useSelector(selectExplorerSafe)?.drillState ?? null;
+const useOptionalSavedChart = () => useSelector(selectExplorerSafe)?.savedChart;
 
 export const SeriesContextMenu: FC<{
     echartsSeriesClickEvent: EchartsSeriesClickEvent | undefined;
@@ -63,10 +72,9 @@ export const SeriesContextMenu: FC<{
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
     const dispatch = useExplorerDispatch();
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
-    const drillState = useExplorerSelector(selectDrillState);
-
-    const savedChart = useExplorerSelector(selectSavedChart);
+    const unsavedChartVersion = useOptionalUnsavedChartVersion();
+    const drillState = useOptionalDrillState();
+    const savedChart = useOptionalSavedChart();
 
     const {
         modalState: linkedChartDrillConfig,
@@ -232,7 +240,7 @@ export const SeriesContextMenu: FC<{
                     </Can>
 
                     <DrillIntoSubmenu
-                        drillConfig={unsavedChartVersion.drillConfig}
+                        drillConfig={unsavedChartVersion?.drillConfig}
                         fieldValues={drillFieldValues}
                         drillStack={drillState?.stack}
                         clickedMetricId={
@@ -260,7 +268,7 @@ export const SeriesContextMenu: FC<{
                                     drillPathId,
                                     linkedChartUuid,
                                     drillConfig:
-                                        unsavedChartVersion.drillConfig,
+                                        unsavedChartVersion?.drillConfig,
                                     fieldValues: clickedValues,
                                     dimensionIds: clickedDims,
                                     dimensions: explore
