@@ -180,25 +180,47 @@ export class AppGenerateService extends BaseService {
                 );
             }
 
-            // Tar and download dist/
-            this.logger.info(`App ${appUuid}: downloading dist/`);
-            await sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
-                timeoutMs: 10_000,
-            });
+            // Tar dist/ and source in parallel
+            this.logger.info(`App ${appUuid}: packaging dist/ and source`);
+            await Promise.all([
+                sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
+                    timeoutMs: 10_000,
+                }),
+                sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
+                    timeoutMs: 30_000,
+                }),
+            ]);
 
-            const tarBytes = await sandbox.files.read('/tmp/dist.tar', {
-                format: 'bytes',
-            });
+            const [tarBytes, sourceTarBytes] = await Promise.all([
+                sandbox.files.read('/tmp/dist.tar', { format: 'bytes' }),
+                sandbox.files.read('/tmp/source.tar', { format: 'bytes' }),
+            ]);
 
-            // Extract tar and upload each file to S3
+            // Upload extracted dist files and source tar to S3
             this.logger.info(`App ${appUuid}: uploading to S3`);
+            const s3Prefix = `apps/${appUuid}/versions/${version}`;
             const tarBuffer = Buffer.from(tarBytes);
-            await AppGenerateService.extractAndUploadToS3(
-                tarBuffer,
-                s3Client,
-                bucket,
-                `apps/${appUuid}/versions/${version}`,
-            );
+            const sourceTarBuffer = Buffer.from(sourceTarBytes);
+            await Promise.all([
+                AppGenerateService.extractAndUploadToS3(
+                    tarBuffer,
+                    s3Client,
+                    bucket,
+                    s3Prefix,
+                ),
+                s3Client
+                    .send(
+                        new PutObjectCommand({
+                            Bucket: bucket,
+                            Key: `${s3Prefix}/source.tar`,
+                            Body: sourceTarBuffer,
+                            ContentType: 'application/x-tar',
+                        }),
+                    )
+                    .then(() => {
+                        Logger.debug(`Uploaded ${s3Prefix}/source.tar`);
+                    }),
+            ]);
 
             this.logger.info(
                 `App ${appUuid} version ${version} generated successfully`,
