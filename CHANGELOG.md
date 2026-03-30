@@ -1,3 +1,10 @@
+# [0.2693.0](https://github.com/lightdash/lightdash/compare/0.2692.2...0.2693.0) (2026-03-30)
+
+
+### Features
+
+* add HTML rendering support to RichTextCell with inline styles ([#21519](https://github.com/lightdash/lightdash/issues/21519)) ([ee59db7](https://github.com/lightdash/lightdash/commit/ee59db74f8f5dbbef2fd6ccf2efc31e5e6947bc0))
+
 ## [0.2692.2](https://github.com/lightdash/lightdash/compare/0.2692.1...0.2692.2) (2026-03-30)
 
 
