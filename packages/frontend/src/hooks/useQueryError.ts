@@ -19,7 +19,7 @@ const useQueryError = ({
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
     const { showToastError, addToastError } = useToaster();
     useEffect(() => {
-        (async function doIfError() {
+        void (async function doIfError() {
             const { error } = errorResponse || {};
 
             if (error) {

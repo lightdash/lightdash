@@ -1299,7 +1299,10 @@ importers:
         version: 13.5.1
       oxlint:
         specifier: ^1.57.0
-        version: 1.57.0
+        version: 1.57.0(oxlint-tsgolint@0.18.1)
+      oxlint-tsgolint:
+        specifier: ^0.18.1
+        version: 0.18.1
       react-test-renderer:
         specifier: ^19.0.0
         version: 19.0.0(react@19.2.0)
@@ -20581,6 +20584,13 @@ packages:
         integrity: sha512-QYeXWkP+aLt7utt5SLivNIk09glWx9QE235ODjgcEZ3sd1VMaUBSpLymh6ZRCA76gD2rMP4bXanUz/fx+nLM9Q==,
       }
     engines: { node: ^20.19.0 || >=22.12.0 }
+    hasBin: true
+
+  oxlint-tsgolint@0.18.1:
+    resolution:
+      {
+        integrity: sha512-Hgb0wMfuXBYL0ddY+1hAG8IIfC40ADwPnBuUaC6ENAuCtTF4dHwsy7mCYtQ2e7LoGvfoSJRY0+kqQRiembJ/jQ==,
+      }
     hasBin: true
 
   oxlint@1.57.0:
@@ -40927,7 +40937,16 @@ snapshots:
       "@oxfmt/binding-win32-ia32-msvc": 0.35.0
       "@oxfmt/binding-win32-x64-msvc": 0.35.0
 
-  oxlint@1.57.0:
+  oxlint-tsgolint@0.18.1:
+    optionalDependencies:
+      "@oxlint-tsgolint/darwin-arm64": 0.18.1
+      "@oxlint-tsgolint/darwin-x64": 0.18.1
+      "@oxlint-tsgolint/linux-arm64": 0.18.1
+      "@oxlint-tsgolint/linux-x64": 0.18.1
+      "@oxlint-tsgolint/win32-arm64": 0.18.1
+      "@oxlint-tsgolint/win32-x64": 0.18.1
+
+  oxlint@1.57.0(oxlint-tsgolint@0.18.1):
     optionalDependencies:
       "@oxlint/binding-android-arm-eabi": 1.57.0
       "@oxlint/binding-android-arm64": 1.57.0

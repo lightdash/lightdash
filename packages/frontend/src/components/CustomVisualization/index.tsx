@@ -1,7 +1,6 @@
 import { Anchor, Text, useMantineColorScheme } from '@mantine-8/core';
 import { IconGraphOff } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useMemo, useRef, type FC } from 'react';
-// @ts-expect-error - vega-themes ESM export not resolved by TS moduleResolution
 import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import LoadingChart from '../common/LoadingChart';
@@ -39,7 +38,9 @@ const CustomVisualization: FC<Props> = ({
 
     const hasSignaledScreenshotReady = useRef(false);
 
-    const vegaConfig = useMemo(
+    // Vega and Vega-Lite Config types are structurally incompatible
+    // (e.g. FontWeight vs number, ExprRef vs SignalRef), so we bypass checking here.
+    const vegaConfig: Record<string, unknown> = useMemo(
         () => ({
             ...(isDarkMode ? vegaDarkTheme : {}),
             ...vegaStyleConfig,
@@ -144,6 +145,7 @@ const CustomVisualization: FC<Props> = ({
                         width: 'container',
                         // @ts-ignore, see above
                         height: 'container',
+                        // @ts-ignore, see above
                         data: data,
                         // Merge configs: our defaults first, then user's config overrides
                         config: {

@@ -1,6 +1,9 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["oxlint:recommended"],
+  "options": {
+    "typeAware": true
+  },
   "ignorePatterns": ["**/*.css"],
   "plugins": ["typescript", "react", "jsx-a11y", "import"],
   "jsPlugins": [
@@ -46,6 +49,15 @@
     "no-throw-literal": "off",
 
     /* ── @typescript-eslint ───────────────────────────────────────── */
+    "@typescript-eslint/no-floating-promises": ["error", { "ignoreVoid": true, "ignoreIIFE": true }],
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "variable",
+        "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+        "leadingUnderscore": "allow"
+      }
+    ],
     "@typescript-eslint/no-unused-vars": [
       "error",
       {

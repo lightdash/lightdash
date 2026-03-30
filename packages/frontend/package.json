@@ -177,6 +177,7 @@
         "jsdom": "^24.0.0",
         "nock": "^13.5.1",
         "oxlint": "^1.57.0",
+        "oxlint-tsgolint": "^0.18.1",
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.15",
         "ts-unused-exports": "^9.0.4",
