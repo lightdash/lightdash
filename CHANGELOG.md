@@ -1,3 +1,11 @@
+# [0.2686.0](https://github.com/lightdash/lightdash/compare/0.2685.1...0.2686.0) (2026-03-30)
+
+
+### Features
+
+* clean up app preview page for customer use ([#21508](https://github.com/lightdash/lightdash/issues/21508)) ([6fa0f74](https://github.com/lightdash/lightdash/commit/6fa0f74822d1b63cf945f48a6b38d28c9bb7c698))
+* redesign app generation page with split-panel layout ([#21507](https://github.com/lightdash/lightdash/issues/21507)) ([898304c](https://github.com/lightdash/lightdash/commit/898304c6e6bd1803d631ebb5dcfbebf3eb8ef6fa))
+
 ## [0.2685.1](https://github.com/lightdash/lightdash/compare/0.2685.0...0.2685.1) (2026-03-30)
 
 
