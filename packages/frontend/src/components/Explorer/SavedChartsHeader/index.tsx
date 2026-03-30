@@ -551,7 +551,12 @@ const SavedChartsHeader: FC = () => {
                                 <ResourceInfoPopup
                                     resourceUuid={savedChart.uuid}
                                     projectUuid={projectUuid}
+                                    title={savedChart.name}
                                     description={savedChart.description}
+                                    slug={savedChart.slug}
+                                    updatedAt={savedChart.updatedAt}
+                                    spaceName={savedChart.spaceName}
+                                    spaceUuid={savedChart.spaceUuid}
                                     viewStats={chartViewStats.data?.views}
                                     firstViewedAt={
                                         chartViewStats.data?.firstViewedAt
