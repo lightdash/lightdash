@@ -1,3 +1,10 @@
+## [0.2692.2](https://github.com/lightdash/lightdash/compare/0.2692.1...0.2692.2) (2026-03-30)
+
+
+### Bug Fixes
+
+* show specific error when AI model context window is exceeded ([#21535](https://github.com/lightdash/lightdash/issues/21535)) ([3fc2ee9](https://github.com/lightdash/lightdash/commit/3fc2ee9fb025ca40bf643833327c7840529a8bc8))
+
 ## [0.2692.1](https://github.com/lightdash/lightdash/compare/0.2692.0...0.2692.1) (2026-03-30)
 
 
