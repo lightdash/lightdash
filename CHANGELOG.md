@@ -1,3 +1,10 @@
+## [0.2691.1](https://github.com/lightdash/lightdash/compare/0.2691.0...0.2691.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* deduplicate pages in useInfiniteQueryResults to prevent duplicate fetching ([#21484](https://github.com/lightdash/lightdash/issues/21484)) ([eae5f09](https://github.com/lightdash/lightdash/commit/eae5f0983e56cce494c7f26db8993fa11cab8473))
+
 # [0.2691.0](https://github.com/lightdash/lightdash/compare/0.2690.0...0.2691.0) (2026-03-30)
 
 
