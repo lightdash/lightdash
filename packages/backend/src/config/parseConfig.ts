@@ -1024,6 +1024,7 @@ export type LightdashConfig = {
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
+        enableTimezoneSupport: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -1926,6 +1927,10 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
                   'true'
                 : false,
+            enableTimezoneSupport:
+                process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
+                    ? true
+                    : undefined,
         },
         chart: {
             versionHistory: {
