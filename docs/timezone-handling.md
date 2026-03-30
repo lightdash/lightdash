@@ -285,3 +285,16 @@ If a user sets project timezone to New York and filters "in the last 7 days", th
 | 11 | Absolute date filter values | Interpreted in project/user timezone | Used as-is — compared against UTC data with no conversion |
 | 12 | `disableTimestampConversion` | Documented escape hatch with clear semantics | Undocumented boolean that silently skips all timestamp conversion |
 | 13 | Timezone picker coverage | Full IANA timezone list | ~28 predefined zones in `TimeZone` enum (`packages/common/src/types/timezone.ts`), though the API validates against the full IANA set |
+
+---
+
+## Implementation Considerations
+
+Things to keep in mind when changing timezone handling in this codebase.
+
+| Concern | Details |
+|---------|---------|
+| Timestamp type safety | Snowflake errors on `TIMESTAMP_TZ` vs `TIMESTAMP_NTZ` comparisons. Any SQL conversion wrapping must produce consistent types on both sides of comparisons. |
+| Conversion performance | Wrapping every timestamp dimension with `CONVERT_TIMEZONE` can slow queries. Consider only converting fields used in filters or grouping, not all selected fields. The `disableTimestampConversion` / `convert_tz: false` escape hatch exists for individual dimensions. |
+| Category vs point-in-time display | Grouped data across timezones: categorical charts (pie, bar) should label the grouping bucket, time series charts should plot at the actual point in time. Be intentional about whether a date value is a category label or a position on a continuous axis. |
+| SQL vs in-memory date math | Filter boundaries can be computed in application code and passed as literals (easier to test and reason about) or via SQL truncation (may perform better on large datasets). Currently a mix of both — pick one approach and be consistent. |
