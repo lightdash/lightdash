@@ -1,5 +1,6 @@
 import {
     OrganizationMemberRole,
+    PROJECT_MEMBERS_GROUP_UUID,
     SpaceMemberRole,
     type OrganizationMemberProfile,
     type Space,
@@ -133,7 +134,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
     // Set of all known group UUIDs for O(1) lookups
     const groupUuidsSet = useMemo(
-        () => new Set(allSearchedGroups.map((g) => g.uuid)),
+        () =>
+            new Set([
+                ...allSearchedGroups.map((g) => g.uuid),
+                PROJECT_MEMBERS_GROUP_UUID,
+            ]),
         [allSearchedGroups],
     );
 
@@ -227,6 +232,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         const groupsFiltered =
             allSearchedGroups.filter(
                 (group) =>
+                    // Exclude the sentinel — it's shown as the synthetic "All project members" entry
+                    group.uuid !== PROJECT_MEMBERS_GROUP_UUID &&
                     !space.groupsAccess.some(
                         (ga) => ga.groupUuid === group.uuid,
                     ) &&
@@ -239,6 +246,23 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             value: group.uuid,
             label: group.name,
         }));
+
+        // Prepend "All project members" pseudo-group if not already added
+        const hasProjectMembersGroup = space.groupsAccess.some(
+            (ga) => ga.groupUuid === PROJECT_MEMBERS_GROUP_UUID,
+        );
+        if (
+            !hasProjectMembersGroup &&
+            (!debouncedSearchQuery ||
+                'all project members'.includes(
+                    debouncedSearchQuery.toLowerCase(),
+                ))
+        ) {
+            groupItems.unshift({
+                value: PROJECT_MEMBERS_GROUP_UUID,
+                label: 'All project members',
+            });
+        }
 
         const result: (ComboboxItem | ComboboxItemGroup)[] = [];
 

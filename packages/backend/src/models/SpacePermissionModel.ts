@@ -4,6 +4,7 @@ import {
     InvalidSpaceStateError,
     NotFoundError,
     OrganizationSpaceAccess,
+    PROJECT_MEMBERS_GROUP_UUID,
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
     SpaceAccessUserMetadata,
@@ -68,6 +69,7 @@ export class SpacePermissionModel {
                             }
                         })
                         .union(
+                            // Expand real groups via group_memberships
                             this.database(SpaceGroupAccessTableName)
                                 .select({
                                     userUuid: `${UserTableName}.user_uuid`,
@@ -91,6 +93,109 @@ export class SpacePermissionModel {
                                 .whereIn(
                                     `${SpaceGroupAccessTableName}.space_uuid`,
                                     spaceUuids,
+                                )
+                                .where(
+                                    `${SpaceGroupAccessTableName}.group_uuid`,
+                                    '!=',
+                                    PROJECT_MEMBERS_GROUP_UUID,
+                                )
+                                .modify((qb) => {
+                                    if (filters?.userUuid) {
+                                        void qb.where(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuid,
+                                        );
+                                    }
+                                }),
+                        )
+                        .union(
+                            // "All project members" sentinel — explicit project members
+                            this.database(SpaceGroupAccessTableName)
+                                .select({
+                                    userUuid: `${UserTableName}.user_uuid`,
+                                    spaceUuid: `${SpaceGroupAccessTableName}.space_uuid`,
+                                    groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                                    role: `${SpaceGroupAccessTableName}.space_role`,
+                                    from: this.database.raw(
+                                        `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,
+                                    ),
+                                })
+                                .innerJoin(
+                                    SpaceTableName,
+                                    `${SpaceTableName}.space_uuid`,
+                                    `${SpaceGroupAccessTableName}.space_uuid`,
+                                )
+                                .innerJoin(
+                                    ProjectMembershipsTableName,
+                                    `${ProjectMembershipsTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .innerJoin(
+                                    UserTableName,
+                                    `${ProjectMembershipsTableName}.user_id`,
+                                    `${UserTableName}.user_id`,
+                                )
+                                .whereIn(
+                                    `${SpaceGroupAccessTableName}.space_uuid`,
+                                    spaceUuids,
+                                )
+                                .where(
+                                    `${SpaceGroupAccessTableName}.group_uuid`,
+                                    PROJECT_MEMBERS_GROUP_UUID,
+                                )
+                                .modify((qb) => {
+                                    if (filters?.userUuid) {
+                                        void qb.where(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuid,
+                                        );
+                                    }
+                                }),
+                        )
+                        .union(
+                            // "All project members" sentinel — org members with project access
+                            this.database(SpaceGroupAccessTableName)
+                                .select({
+                                    userUuid: `${UserTableName}.user_uuid`,
+                                    spaceUuid: `${SpaceGroupAccessTableName}.space_uuid`,
+                                    groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                                    role: `${SpaceGroupAccessTableName}.space_role`,
+                                    from: this.database.raw(
+                                        `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,
+                                    ),
+                                })
+                                .innerJoin(
+                                    SpaceTableName,
+                                    `${SpaceTableName}.space_uuid`,
+                                    `${SpaceGroupAccessTableName}.space_uuid`,
+                                )
+                                .innerJoin(
+                                    ProjectTableName,
+                                    `${ProjectTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .innerJoin(
+                                    OrganizationMembershipsTableName,
+                                    `${OrganizationMembershipsTableName}.organization_id`,
+                                    `${ProjectTableName}.organization_id`,
+                                )
+                                .innerJoin(
+                                    UserTableName,
+                                    `${UserTableName}.user_id`,
+                                    `${OrganizationMembershipsTableName}.user_id`,
+                                )
+                                .whereIn(
+                                    `${SpaceGroupAccessTableName}.space_uuid`,
+                                    spaceUuids,
+                                )
+                                .where(
+                                    `${SpaceGroupAccessTableName}.group_uuid`,
+                                    PROJECT_MEMBERS_GROUP_UUID,
+                                )
+                                .where(
+                                    `${OrganizationMembershipsTableName}.role`,
+                                    '!=',
+                                    'member',
                                 )
                                 .modify((qb) => {
                                     if (filters?.userUuid) {
@@ -397,7 +502,10 @@ export class SpacePermissionModel {
                     .select({
                         groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
                         spaceRole: `${SpaceGroupAccessTableName}.space_role`,
-                        groupName: `${GroupTableName}.name`,
+                        groupName: this.database.raw(
+                            `COALESCE(${GroupTableName}.name, CASE WHEN ${SpaceGroupAccessTableName}.group_uuid = ? THEN 'All project members' END)`,
+                            [PROJECT_MEMBERS_GROUP_UUID],
+                        ),
                     })
                     .leftJoin(
                         `${GroupTableName}`,

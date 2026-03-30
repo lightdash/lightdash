@@ -168,6 +168,14 @@ export enum SpaceMemberRole {
     ADMIN = 'admin',
 }
 
+/**
+ * Sentinel UUID representing "all project members" as a pseudo-group.
+ * When this UUID appears in space_group_access, the permission system
+ * expands it to all users with project access instead of looking up group_memberships.
+ */
+export const PROJECT_MEMBERS_GROUP_UUID =
+    '00000000-0000-0000-0000-000000000000';
+
 export type ApiSpaceSummaryListResponse = {
     status: 'ok';
     results: SpaceSummary[];
