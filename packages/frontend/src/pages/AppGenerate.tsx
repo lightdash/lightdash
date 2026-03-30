@@ -1,25 +1,33 @@
 import {
-    Button,
-    Code,
+    ActionIcon,
+    Box,
     Group,
     Loader,
-    Paper,
-    Stack,
     Text,
     Textarea,
-    Title,
+    ThemeIcon,
 } from '@mantine-8/core';
 import {
+    IconAppWindow,
+    IconArrowUp,
     IconExternalLink,
-    IconPlayerPlay,
     IconSparkles,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import useHealth from '../hooks/health/useHealth';
+import classes from './AppGenerate.module.css';
+
+type ChatMessage = {
+    role: 'user' | 'assistant';
+    content: string;
+    appUuid: string | null;
+    version: number | null;
+};
 
 const AppPreview: FC<{
     projectUuid: string;
@@ -39,7 +47,7 @@ const AppPreview: FC<{
 
     if (isLoading) {
         return (
-            <Group gap="sm" p="md">
+            <Group gap="sm" p="md" justify="center">
                 <Loader size="sm" />
                 <Text size="sm" c="dimmed">
                     Loading preview...
@@ -62,104 +70,303 @@ const AppPreview: FC<{
     return <AppIframePreview src={previewUrl} />;
 };
 
+const LoadingDots: FC = () => (
+    <span className={classes.loadingDots}>
+        <span className={classes.loadingDot} />
+        <span className={classes.loadingDot} />
+        <span className={classes.loadingDot} />
+    </span>
+);
+
 const AppGenerate: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [prompt, setPrompt] = useState('');
-    const { mutate, data, isLoading, error, reset } = useGenerateApp();
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const { mutate, isLoading, reset } = useGenerateApp();
     const health = useHealth();
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const latestApp = [...messages]
+        .reverse()
+        .find((m) => m.appUuid !== null && m.version !== null);
+
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, []);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, isLoading, scrollToBottom]);
 
     if (health.data && !health.data.dataApps.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
     if (!projectUuid) {
-        return <div>Missing project UUID</div>;
+        return <Box>Missing project UUID</Box>;
     }
 
     const handleSubmit = () => {
-        if (!prompt.trim()) return;
+        const trimmed = prompt.trim();
+        if (!trimmed || isLoading) return;
+
+        setMessages((prev) => [
+            ...prev,
+            { role: 'user', content: trimmed, appUuid: null, version: null },
+        ]);
+        setPrompt('');
         reset();
-        mutate({ projectUuid, prompt: prompt.trim() });
+
+        mutate(
+            { projectUuid, prompt: trimmed },
+            {
+                onSuccess: (data) => {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            role: 'assistant',
+                            content: 'Your app is ready!',
+                            appUuid: data.appUuid,
+                            version: data.version,
+                        },
+                    ]);
+                },
+                onError: (err) => {
+                    setMessages((prev) => [
+                        ...prev,
+                        {
+                            role: 'assistant',
+                            content:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'Failed to generate app',
+                            appUuid: null,
+                            version: null,
+                        },
+                    ]);
+                },
+            },
+        );
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSubmit();
+        }
     };
 
     return (
-        <Stack p="lg" gap="lg">
-            <Stack maw={720} mx="auto" w="100%">
-                <Group gap="sm">
-                    <IconSparkles size={24} />
-                    <Title order={3}>Generate App</Title>
-                </Group>
+        <Box className={classes.layout}>
+            <PanelGroup direction="horizontal">
+                {/* Chat Panel */}
+                <Panel defaultSize={30} minSize={20} maxSize={50}>
+                    <Box className={classes.chatPanel}>
+                        <Box className={classes.chatMessages}>
+                            {messages.length === 0 && !isLoading ? (
+                                <Box className={classes.emptyChat}>
+                                    <ThemeIcon
+                                        size="xl"
+                                        radius="xl"
+                                        variant="light"
+                                        color="violet"
+                                    >
+                                        <IconSparkles size={24} />
+                                    </ThemeIcon>
+                                    <Text fw={600} size="lg">
+                                        Build a data app
+                                    </Text>
+                                    <Text size="sm" c="dimmed" maw={280}>
+                                        Describe what you want to build and I'll
+                                        generate a data app connected to your
+                                        project.
+                                    </Text>
+                                </Box>
+                            ) : (
+                                <>
+                                    {messages.map((msg, i) =>
+                                        msg.role === 'user' ? (
+                                            <Box
+                                                key={i}
+                                                className={classes.userMessage}
+                                            >
+                                                <Box
+                                                    className={
+                                                        classes.userBubble
+                                                    }
+                                                >
+                                                    {msg.content}
+                                                </Box>
+                                            </Box>
+                                        ) : (
+                                            <Box
+                                                key={i}
+                                                className={
+                                                    classes.assistantMessage
+                                                }
+                                            >
+                                                <ThemeIcon
+                                                    size="sm"
+                                                    radius="xl"
+                                                    variant="light"
+                                                    color="violet"
+                                                    mt={2}
+                                                >
+                                                    <IconSparkles size={12} />
+                                                </ThemeIcon>
+                                                <Box
+                                                    className={
+                                                        classes.assistantBubble
+                                                    }
+                                                >
+                                                    <Text
+                                                        size="sm"
+                                                        c={
+                                                            msg.appUuid
+                                                                ? undefined
+                                                                : 'red'
+                                                        }
+                                                    >
+                                                        {msg.content}
+                                                    </Text>
+                                                    {msg.appUuid &&
+                                                        msg.version && (
+                                                            <Text
+                                                                component={Link}
+                                                                to={`/projects/${projectUuid}/apps/${msg.appUuid}/versions/${msg.version}/preview`}
+                                                                target="_blank"
+                                                                size="xs"
+                                                                c="dimmed"
+                                                                td="underline"
+                                                                mt={4}
+                                                            >
+                                                                Open in new tab{' '}
+                                                                <IconExternalLink
+                                                                    size={12}
+                                                                    style={{
+                                                                        verticalAlign:
+                                                                            'middle',
+                                                                    }}
+                                                                />
+                                                            </Text>
+                                                        )}
+                                                </Box>
+                                            </Box>
+                                        ),
+                                    )}
+                                    {isLoading && (
+                                        <Box
+                                            className={classes.assistantMessage}
+                                        >
+                                            <ThemeIcon
+                                                size="sm"
+                                                radius="xl"
+                                                variant="light"
+                                                color="violet"
+                                                mt={2}
+                                            >
+                                                <IconSparkles size={12} />
+                                            </ThemeIcon>
+                                            <Box
+                                                className={
+                                                    classes.assistantBubble
+                                                }
+                                            >
+                                                <Text size="sm" c="dimmed">
+                                                    Generating your app{' '}
+                                                    <LoadingDots />
+                                                </Text>
+                                            </Box>
+                                        </Box>
+                                    )}
+                                </>
+                            )}
+                            <Box ref={messagesEndRef} />
+                        </Box>
 
-                <Textarea
-                    placeholder="Describe the data app you want to build..."
-                    minRows={4}
-                    maxRows={10}
-                    autosize
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.currentTarget.value)}
-                    disabled={isLoading}
-                />
+                        {/* Chat Input */}
+                        <Box className={classes.chatInputArea}>
+                            <Box className={classes.inputWrapper}>
+                                <Textarea
+                                    ref={textareaRef}
+                                    placeholder="Describe the app you want to build..."
+                                    autosize
+                                    minRows={1}
+                                    maxRows={6}
+                                    value={prompt}
+                                    onChange={(e) =>
+                                        setPrompt(e.currentTarget.value)
+                                    }
+                                    onKeyDown={handleKeyDown}
+                                    disabled={isLoading}
+                                    classNames={{
+                                        root: classes.textareaRoot,
+                                        input: classes.textarea,
+                                        wrapper: classes.textareaWrapper,
+                                    }}
+                                />
+                                <ActionIcon
+                                    size="sm"
+                                    radius="xl"
+                                    variant="filled"
+                                    color="violet"
+                                    onClick={handleSubmit}
+                                    disabled={!prompt.trim() || isLoading}
+                                    loading={isLoading}
+                                    className={classes.submitButton}
+                                >
+                                    <IconArrowUp size={14} />
+                                </ActionIcon>
+                            </Box>
+                        </Box>
+                    </Box>
+                </Panel>
 
-                {isLoading ? (
-                    <Paper p="md" withBorder>
-                        <Group gap="sm">
-                            <Loader size="sm" />
-                            <Text size="sm" c="dimmed">
-                                Generating your app... This may take a few
-                                minutes.
+                <PanelResizeHandle className={classes.resizeHandle} />
+
+                {/* Preview Panel */}
+                <Panel minSize={40}>
+                    <Box className={classes.previewPanel}>
+                        <Box className={classes.previewHeader}>
+                            <IconAppWindow size={16} />
+                            <Text size="sm" fw={500}>
+                                Preview
                             </Text>
-                        </Group>
-                    </Paper>
-                ) : (
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={!prompt.trim()}
-                        leftSection={<IconSparkles size={16} />}
-                    >
-                        Generate
-                    </Button>
-                )}
+                            {latestApp?.appUuid && latestApp?.version && (
+                                <ActionIcon
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/apps/${latestApp.appUuid}/versions/${latestApp.version}/preview`}
+                                    target="_blank"
+                                    variant="subtle"
+                                    size="sm"
+                                    ml="auto"
+                                >
+                                    <IconExternalLink size={14} />
+                                </ActionIcon>
+                            )}
+                        </Box>
 
-                {error && (
-                    <Paper p="md" withBorder>
-                        <Text c="red" size="sm">
-                            {error instanceof Error
-                                ? error.message
-                                : 'Failed to generate app'}
-                        </Text>
-                    </Paper>
-                )}
-            </Stack>
-
-            {data && (
-                <Stack gap="sm">
-                    <Group gap="sm">
-                        <IconPlayerPlay size={16} />
-                        <Text fw={500} size="sm">
-                            App generated
-                        </Text>
-                        <Code>{data.appUuid}</Code>
-                        <Button
-                            component={Link}
-                            to={`/projects/${projectUuid}/apps/${data.appUuid}/versions/${data.version}/preview`}
-                            target="_blank"
-                            variant="subtle"
-                            size="compact-xs"
-                            rightSection={<IconExternalLink size={14} />}
-                        >
-                            Open preview page
-                        </Button>
-                    </Group>
-                    <Paper shadow="sm" radius="md" withBorder h="80vh">
-                        <AppPreview
-                            projectUuid={projectUuid}
-                            appUuid={data.appUuid}
-                            version={data.version}
-                        />
-                    </Paper>
-                </Stack>
-            )}
-        </Stack>
+                        <Box className={classes.previewContent}>
+                            {latestApp?.appUuid && latestApp?.version ? (
+                                <AppPreview
+                                    projectUuid={projectUuid}
+                                    appUuid={latestApp.appUuid}
+                                    version={latestApp.version}
+                                />
+                            ) : (
+                                <Box className={classes.previewEmpty}>
+                                    <IconAppWindow size={48} stroke={1} />
+                                    <Text size="sm">
+                                        Your app preview will appear here
+                                    </Text>
+                                </Box>
+                            )}
+                        </Box>
+                    </Box>
+                </Panel>
+            </PanelGroup>
+        </Box>
     );
 };
 
