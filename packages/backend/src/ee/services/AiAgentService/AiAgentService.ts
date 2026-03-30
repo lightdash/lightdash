@@ -146,6 +146,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from '../ai/types/aiAgentDependencies';
+import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
@@ -3297,9 +3298,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
             );
         } catch (e) {
+            const userFacingMessage = getUserFacingErrorMessage(
+                e,
+                'Co-pilot failed to generate a response. Please try again.',
+            );
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
-                text: `🔴 Co-pilot failed to generate a response 😥 Please try again.`,
+                text: `🔴 ${userFacingMessage}`,
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
                 username: agent?.name,
