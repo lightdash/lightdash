@@ -65,8 +65,13 @@ Plumbing exists to run `SET TimeZone = '<tz>'` if `options.timezone` is provided
 
 Plumbing exists to run `SET TIME ZONE '<tz>'` if `options.timezone` is provided, but no caller passes it.
 
+### ClickHouse
+**File:** `packages/warehouses/src/warehouseClients/ClickhouseWarehouseClient.ts`
+
+Plumbing exists to set `clickhouse_settings.timezone` on the query request if `options.timezone` is provided, but no caller passes it.
+
 ### Other warehouses
-BigQuery, Redshift, ClickHouse — no session timezone handling exists.
+BigQuery, Redshift — no session timezone handling exists.
 
 ---
 
