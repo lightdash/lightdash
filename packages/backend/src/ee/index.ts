@@ -78,6 +78,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
                     catalogModel: models.getCatalogModel(),
+                    appModel: models.getAppModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

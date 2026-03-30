@@ -16,6 +16,7 @@ import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
+import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
@@ -23,6 +24,7 @@ import { BaseService } from '../../../services/BaseService';
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     catalogModel: CatalogModel;
+    appModel: AppModel;
 };
 
 type GenerateAppResult = {
@@ -35,10 +37,17 @@ export class AppGenerateService extends BaseService {
 
     private readonly catalogModel: CatalogModel;
 
-    constructor({ lightdashConfig, catalogModel }: AppGenerateServiceDeps) {
+    private readonly appModel: AppModel;
+
+    constructor({
+        lightdashConfig,
+        catalogModel,
+        appModel,
+    }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.catalogModel = catalogModel;
+        this.appModel = appModel;
     }
 
     private getAnthropicApiKey(): string {
@@ -221,6 +230,16 @@ export class AppGenerateService extends BaseService {
                         Logger.debug(`Uploaded ${s3Prefix}/source.tar`);
                     }),
             ]);
+
+            // Persist app + version only after everything succeeded
+            await this.appModel.createWithVersion(
+                {
+                    app_id: appUuid,
+                    project_uuid: projectUuid,
+                    created_by_user_uuid: user.userUuid,
+                },
+                { version, prompt },
+            );
 
             this.logger.info(
                 `App ${appUuid} version ${version} generated successfully`,
