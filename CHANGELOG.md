@@ -1,3 +1,10 @@
+# [0.2689.0](https://github.com/lightdash/lightdash/compare/0.2688.0...0.2689.0) (2026-03-30)
+
+
+### Features
+
+* move Build App button into the New menu dropdown ([#21523](https://github.com/lightdash/lightdash/issues/21523)) ([82d6a24](https://github.com/lightdash/lightdash/commit/82d6a241e9438156c6b496b48c021d6c18812c2c))
+
 # [0.2688.0](https://github.com/lightdash/lightdash/compare/0.2687.1...0.2688.0) (2026-03-30)
 
 
