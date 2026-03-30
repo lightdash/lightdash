@@ -485,7 +485,19 @@ export const useInfiniteQueryResults = (
     useEffect(() => {
         const pageData = nextPage.data;
         if (pageData?.status === QueryHistoryStatus.READY) {
-            setFetchedPages((prevState) => [...prevState, pageData]);
+            setFetchedPages((prevState) => {
+                const pageAlreadyFetched = prevState.some(
+                    (page) =>
+                        page.queryUuid === pageData.queryUuid &&
+                        page.page === pageData.page,
+                );
+
+                if (pageAlreadyFetched) {
+                    return prevState;
+                }
+
+                return [...prevState, pageData];
+            });
         }
     }, [nextPage.data]);
 
