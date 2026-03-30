@@ -1,4 +1,4 @@
-import { WarehouseTypes } from '@lightdash/common';
+import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     NumberInput,
@@ -8,6 +8,8 @@ import {
 } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -41,6 +43,10 @@ const ClickhouseForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.CLICKHOUSE;
     const form = useFormContext();
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
 
     if (form.values.warehouse?.type !== WarehouseTypes.CLICKHOUSE) {
         throw new Error('This form is only available for ClickHouse');
@@ -152,6 +158,19 @@ const ClickhouseForm: FC<{
                             disabled={disabled}
                         />
 
+                        {isTimezoneSupportEnabled && (
+                            <TimeZonePicker
+                                label="Data timezone"
+                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
+                                searchable
+                                clearable
+                                placeholder="UTC (default)"
+                                disabled={disabled}
+                                {...form.getInputProps(
+                                    'warehouse.dataTimezone',
+                                )}
+                            />
+                        )}
                         <StartOfWeekSelect disabled={disabled} />
                     </Stack>
                 </FormSection>

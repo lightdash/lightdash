@@ -1,5 +1,6 @@
 import {
     DatabricksAuthenticationType,
+    FeatureFlags,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -22,7 +23,9 @@ import {
     useDatabricksLoginPopup,
     useIsDatabricksAuthenticated,
 } from '../../../hooks/useDatabricks';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
+import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -104,6 +107,10 @@ const DatabricksForm: FC<{
     const form = useFormContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
 
@@ -344,6 +351,19 @@ const DatabricksForm: FC<{
                                 { type: 'checkbox' },
                             )}
                         />
+                        {isTimezoneSupportEnabled && (
+                            <TimeZonePicker
+                                label="Data timezone"
+                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
+                                searchable
+                                clearable
+                                placeholder="UTC (default)"
+                                disabled={disabled}
+                                {...form.getInputProps(
+                                    'warehouse.dataTimezone',
+                                )}
+                            />
+                        )}
                         <StartOfWeekSelect disabled={disabled} />
                         <Stack spacing="xs">
                             <Stack spacing={0}>

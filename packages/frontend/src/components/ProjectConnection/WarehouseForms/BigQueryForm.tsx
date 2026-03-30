@@ -1,4 +1,8 @@
-import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    FeatureFlags,
+    WarehouseTypes,
+} from '@lightdash/common';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
@@ -26,7 +30,9 @@ import {
     useBigqueryProjects,
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
+import TimeZonePicker from '../../common/TimeZonePicker';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -115,6 +121,10 @@ const BigQueryForm: FC<{
     } = useIsBigQueryAuthenticated();
     const isAuthenticated = data !== undefined && bigqueryAuthError === null;
     const form = useFormContext();
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
     const project = form.getInputProps('warehouse.project');
     const [debouncedProject] = useDebouncedValue(project.value, 300);
     const health = useHealth();
@@ -631,6 +641,19 @@ const BigQueryForm: FC<{
                             disabled={disabled}
                         />
 
+                        {isTimezoneSupportEnabled && (
+                            <TimeZonePicker
+                                label="Data timezone"
+                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
+                                searchable
+                                clearable
+                                placeholder="UTC (default)"
+                                disabled={disabled}
+                                {...form.getInputProps(
+                                    'warehouse.dataTimezone',
+                                )}
+                            />
+                        )}
                         <StartOfWeekSelect disabled={disabled} />
                     </Stack>
                 </FormSection>
