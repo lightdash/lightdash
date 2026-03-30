@@ -1,3 +1,16 @@
+# [0.2691.0](https://github.com/lightdash/lightdash/compare/0.2690.0...0.2691.0) (2026-03-30)
+
+
+### Bug Fixes
+
+* map error on unmount ([#21522](https://github.com/lightdash/lightdash/issues/21522)) ([01c2243](https://github.com/lightdash/lightdash/commit/01c224318e43cf955d7d0d439e0648b1d0641941))
+* show missing user names in AI agent admin threads overview ([#21500](https://github.com/lightdash/lightdash/issues/21500)) ([#21527](https://github.com/lightdash/lightdash/issues/21527)) ([f72fa9d](https://github.com/lightdash/lightdash/commit/f72fa9d104309fc17f493e97fc8496a357ecf4fa))
+
+
+### Features
+
+* add cartesian chart conditional formatting for single-series bars ([#21474](https://github.com/lightdash/lightdash/issues/21474)) ([0292f36](https://github.com/lightdash/lightdash/commit/0292f36cdd505f80df7c1b3447b59e59f4dd12e4))
+
 # [0.2690.0](https://github.com/lightdash/lightdash/compare/0.2689.0...0.2690.0) (2026-03-30)
 
 
