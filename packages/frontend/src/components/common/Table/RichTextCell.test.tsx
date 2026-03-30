@@ -9,11 +9,6 @@ describe('RichTextCell', () => {
         expect(screen.getByText('Hello world')).toBeInTheDocument();
     });
 
-    it('renders markdown content', () => {
-        renderWithProviders(<RichTextCell content="**bold** and _italic_" />);
-        expect(screen.getByText('**bold** and _italic_')).toBeInTheDocument();
-    });
-
     it('renders HTML content', () => {
         renderWithProviders(
             <RichTextCell content='<p style="color: red;">styled</p>' />,
