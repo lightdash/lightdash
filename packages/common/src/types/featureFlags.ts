@@ -11,6 +11,10 @@ export enum FeatureFlags {
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 
+    /* Gate all timezone behavior: project timezone settings, timezone-aware
+       query compilation, and display formatting. Temporary — remove once stable. */
+    EnableTimezoneSupport = 'enable-timezone-support',
+
     /**
      * Enable dashboard comments
      */
