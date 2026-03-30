@@ -13,11 +13,18 @@ export const getUserFacingErrorMessage = (
 
     // Context/token limit errors
     if (
+        errorMessage.includes('context_length_exceeded') ||
+        errorMessage.includes('input exceeds the context window') ||
+        errorMessage.includes('maximum context length') ||
+        errorMessage.includes('token limit') ||
         errorMessage.includes('too long') ||
-        errorMessage.includes('maximum') ||
-        errorMessage.match(/\d+\s*tokens?\s*>\s*\d+/i)
+        errorMessage.includes('context window') ||
+        errorMessage.match(/\d+\s*tokens?\s*>\s*\d+/i) ||
+        errorMessage.match(
+            /exceeds?\s*(the\s+)?(model'?s?\s+)?maximum\s+(token|context)/i,
+        )
     ) {
-        return 'This conversation has become too long to process. Please start a new thread to continue.';
+        return "This request exceeded the AI model's context limit, usually because the conversation or tool results became too large. Please start a new thread or break the request into smaller steps.";
     }
 
     // Rate limiting / quota errors

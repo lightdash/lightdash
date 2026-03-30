@@ -135,6 +135,8 @@ const AssistantBubbleContent: FC<{
                             }
                             color="ldGray.0"
                             variant="outline"
+                            radius="md"
+                            w="80%"
                         >
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
