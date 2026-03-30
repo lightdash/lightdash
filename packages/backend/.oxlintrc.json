@@ -1,0 +1,123 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["oxlint:recommended"],
+  "ignorePatterns": [
+    "src/ee/services/McpService/mcp-chart-app/**",
+    "src/ee/sandboxes/**",
+    "src/generated/**"
+  ],
+  "plugins": ["typescript", "import"],
+  "jsPlugins": [
+    { "name": "jsdoc-js", "specifier": "eslint-plugin-jsdoc" }
+  ],
+  "rules": {
+    /* ── eslint core ──────────────────────────────────────────────── */
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-void": ["error", { "allowAsStatement": true }],
+    "no-console": "off",
+    "no-case-declarations": "off",
+    "no-template-curly-in-string": "off",
+    "prefer-const": "off",
+    "prefer-spread": "off",
+    "no-throw-literal": "off",
+    /* rules from oxlint:recommended not in original ESLint config — enable incrementally */
+    "no-extra-boolean-cast": "off",
+    "no-useless-escape": "off",
+    "no-empty-pattern": "off",
+    "no-unsafe-optional-chaining": "off",
+    "no-duplicate-case": "off",
+    "no-unassigned-vars": "off",
+    "no-constant-binary-expression": "off",
+
+    /* ── @typescript-eslint ───────────────────────────────────────── */
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-throw-literal": "off",
+    "@typescript-eslint/only-throw-error": "off",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
+    "@typescript-eslint/no-wrapper-object-types": "off",
+    "@typescript-eslint/triple-slash-reference": "off",
+    "@typescript-eslint/prefer-as-const": "off",
+
+    /* ── import ───────────────────────────────────────────────────── */
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off"
+  },
+  "overrides": [
+    {
+      /* Default for .ts files: enable unsafe rules */
+      "files": ["**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error"
+      }
+    },
+    {
+      /* Existing code: disable unsafe rules incrementally */
+      "files": [
+        "src/*.ts",
+        "src/analytics/**/*.ts",
+        "src/clients/**/*.ts",
+        "src/controllers/**/*.ts",
+        "src/database/**/*.ts",
+        "src/dbt/**/*.ts",
+        "src/ee/**/*.ts",
+        "src/models/**/*.ts",
+        "src/services/**/*.ts",
+        "src/utils/**/*.ts",
+        "src/logging/**/*.ts",
+        "src/scheduler/**/*.ts",
+        "src/config/**/*.ts",
+        "src/projectAdapters/**/*.ts",
+        "src/prometheus/**/*.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off"
+      }
+    },
+    {
+      /* Tests, mocks, migrations, routers: disable unsafe rules */
+      "files": [
+        "src/database/migrations/*.ts",
+        "src/routers/*.ts",
+        "**/*.mock.ts",
+        "**/*.test.ts",
+        "**/*.spec.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off"
+      }
+    },
+    {
+      /* Controller API endpoints: require @summary in JSDoc */
+      "files": [
+        "src/controllers/**/*Controller.ts",
+        "src/ee/controllers/**/*Controller.ts"
+      ],
+      "rules": {
+        "jsdoc-js/no-restricted-syntax": [
+          "error",
+          {
+            "contexts": [
+              {
+                "comment": "JsdocBlock:not(*:has(JsdocTag[tag=\"summary\"]))",
+                "context": "MethodDefinition:has(Decorator)",
+                "message": "@summary tag is required for API endpoint documentation. Add it like: /** @summary Human readable name */"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
