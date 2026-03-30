@@ -840,6 +840,23 @@ describe('renameChartConfigType', () => {
                     ],
                     tooltip: '${payment_id} value',
                 },
+                conditionalFormattings: [
+                    {
+                        target: {
+                            fieldId: 'payment_id',
+                        },
+                        color: '#000000',
+                        rules: [
+                            {
+                                id: 'rule_id',
+                                operator: FilterOperator.GREATER_THAN,
+                                compareTarget: {
+                                    fieldId: 'payment_id',
+                                },
+                            },
+                        ],
+                    } as ConditionalFormattingConfigWithSingleColor,
+                ],
                 metadata: {
                     'payment_id.shipped': {
                         hidden: true,
@@ -872,6 +889,19 @@ describe('renameChartConfigType', () => {
             'invoice_id',
         );
         expect(config.eChartsConfig.tooltip).toBe('${invoice_id} value');
+        expect(config.conditionalFormattings?.[0].target?.fieldId).toBe(
+            'invoice_id',
+        );
+        expect(
+            (
+                (
+                    config
+                        .conditionalFormattings?.[0] as ConditionalFormattingConfigWithSingleColor
+                ).rules[0] as {
+                    compareTarget?: { fieldId: string } | null;
+                }
+            ).compareTarget?.fieldId,
+        ).toBe('invoice_id');
         expect(Object.keys(config.metadata!)[0]).toBe('invoice_id.shipped');
     });
 

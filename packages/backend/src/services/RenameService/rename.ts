@@ -28,6 +28,7 @@ import {
     SavedChartDAO,
     SchedulerAndTargets,
     TableCalculationTemplateType,
+    type ConditionalFormattingConfig,
     type SankeyChartConfig,
 } from '@lightdash/common';
 
@@ -264,6 +265,36 @@ export const renameChartConfigType = (
         replaceReference,
     }: ReturnType<typeof createRenameFactory>,
 ): ChartConfig => {
+    const renameConditionalFormattings = (
+        conditionalFormattings: ConditionalFormattingConfig[] | undefined,
+    ) =>
+        conditionalFormattings?.map((config) => ({
+            ...config,
+            target: config.target
+                ? {
+                      ...config.target,
+                      fieldId: replaceId(config.target.fieldId),
+                  }
+                : null,
+            ...('rules' in config && {
+                rules: config.rules.map((rule) =>
+                    'compareTarget' in rule
+                        ? {
+                              ...rule,
+                              compareTarget: rule.compareTarget
+                                  ? {
+                                        ...rule.compareTarget,
+                                        fieldId: replaceId(
+                                            rule.compareTarget.fieldId,
+                                        ),
+                                    }
+                                  : null,
+                          }
+                        : rule,
+                ),
+            }),
+        }));
+
     const chartType = chartConfig.type;
     switch (chartType) {
         case ChartType.CARTESIAN:
@@ -320,6 +351,9 @@ export const renameChartConfigType = (
                               ) // Not exactly a reference, since the format is different (eg: ${payment.amount} vs ${payment_amount})
                             : undefined,
                     },
+                    conditionalFormattings: renameConditionalFormattings(
+                        chartConfig.config?.conditionalFormattings,
+                    ),
                     metadata: chartConfig.config?.metadata
                         ? Object.fromEntries(
                               Object.entries(chartConfig.config?.metadata).map(
@@ -360,22 +394,9 @@ export const renameChartConfigType = (
                             ([key, value]) => [replaceId(key), value],
                         ),
                     ), // replaceKeys<ColumnProperties>(chartConfig.config?.columns || {})
-                    conditionalFormattings: chartConfig.config
-                        ?.conditionalFormattings
-                        ? chartConfig.config?.conditionalFormattings.map(
-                              (cd) => ({
-                                  ...cd,
-                                  target: cd.target
-                                      ? {
-                                            ...cd.target,
-                                            fieldId: replaceId(
-                                                cd.target.fieldId,
-                                            ),
-                                        }
-                                      : null,
-                              }),
-                          )
-                        : undefined,
+                    conditionalFormattings: renameConditionalFormattings(
+                        chartConfig.config?.conditionalFormattings,
+                    ),
                 },
             };
 

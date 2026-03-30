@@ -706,6 +706,8 @@ export type CartesianChart = {
     layout: CartesianChartLayout;
     /** ECharts-specific configuration */
     eChartsConfig: EChartsConfig;
+    /** Conditional formatting rules */
+    conditionalFormattings?: ConditionalFormattingConfig[];
     /** Metadata for series (colors, etc.) */
     metadata?: Record<string, SeriesMetadata>;
     /** Limit displayed rows to first/last N */
