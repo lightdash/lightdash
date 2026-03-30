@@ -1,8 +1,11 @@
+import { subject } from '@casl/ability';
 import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import { Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import useHealth from '../hooks/health/useHealth';
+import { useAbilityContext } from '../providers/Ability/useAbilityContext';
+import useApp from '../providers/App/useApp';
 
 export default function AppPreviewTest() {
     const {
@@ -17,6 +20,8 @@ export default function AppPreviewTest() {
 
     const version = versionParam ? Number(versionParam) : undefined;
     const health = useHealth();
+    const { user } = useApp();
+    const ability = useAbilityContext();
 
     const {
         data: token,
@@ -25,6 +30,18 @@ export default function AppPreviewTest() {
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
     if (health.data && !health.data.dataApps.enabled) {
+        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+    }
+
+    if (
+        !ability.can(
+            'manage',
+            subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        )
+    ) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
