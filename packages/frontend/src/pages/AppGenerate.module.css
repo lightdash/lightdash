@@ -1,0 +1,281 @@
+.layout {
+    height: calc(100vh - 50px);
+    overflow: hidden;
+}
+
+.chatPanel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+    }
+}
+
+.chatMessages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--mantine-spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-lg);
+}
+
+.emptyChat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xl);
+    padding-top: 50px;
+    text-align: center;
+}
+
+.userMessage {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.userBubble {
+    max-width: 85%;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-lg);
+    border-bottom-right-radius: var(--mantine-radius-xs);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+    white-space: pre-wrap;
+
+    @mixin light {
+        background-color: var(--mantine-color-violet-6);
+        color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-violet-8);
+        color: var(--mantine-color-white);
+    }
+}
+
+.assistantMessage {
+    display: flex;
+    gap: var(--mantine-spacing-sm);
+    align-items: flex-start;
+}
+
+.assistantBubble {
+    max-width: 90%;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+}
+
+.chatInputArea {
+    flex-shrink: 0;
+    padding: var(--mantine-spacing-sm);
+    border-top: 1px solid;
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-2);
+    }
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.inputWrapper {
+    display: flex;
+    align-items: flex-end;
+    border-radius: var(--mantine-radius-lg);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    transition:
+        border-color 150ms ease,
+        box-shadow 150ms ease;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+        border: 1px solid var(--mantine-color-ldDark-6);
+    }
+
+    &:focus-within {
+        @mixin light {
+            border-color: var(--mantine-color-ldGray-4);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        @mixin dark {
+            border-color: var(--mantine-color-ldDark-5);
+        }
+    }
+}
+
+.textarea {
+    border: none;
+    background: transparent;
+    resize: none;
+    padding: 0;
+    padding-right: var(--mantine-spacing-sm);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+    min-height: unset;
+
+    &:focus {
+        outline: none;
+        box-shadow: none;
+    }
+}
+
+.textareaRoot {
+    flex: 1;
+    min-width: 0;
+}
+
+.textareaWrapper {
+    --input-bd: transparent;
+    --input-bg: transparent;
+}
+
+.submitButton {
+    flex-shrink: 0;
+    border-radius: var(--mantine-radius-xl);
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
+
+    &:disabled {
+        opacity: 0.4;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+}
+
+.resizeHandle {
+    width: 1px;
+    cursor: col-resize;
+    transition: all 0.2s ease;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-2);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
+
+    &[data-resize-handle-state='hover'],
+    &[data-resize-handle-state='drag'] {
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-4);
+            box-shadow: 0 0 0 1px var(--mantine-color-ldGray-4);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-ldDark-6);
+            box-shadow: 0 0 0 1px var(--mantine-color-ldDark-6);
+        }
+    }
+}
+
+.previewPanel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-8);
+    }
+}
+
+.previewHeader {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-bottom: 1px solid;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border-color: var(--mantine-color-ldGray-2);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.previewContent {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.previewEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding-bottom: 50px;
+    gap: var(--mantine-spacing-sm);
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-5);
+    }
+    @mixin dark {
+        color: var(--mantine-color-ldDark-8);
+    }
+}
+
+.loadingDots {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.loadingDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: dotPulse 1.4s ease-in-out infinite;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-5);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-8);
+    }
+}
+
+.loadingDot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loadingDot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+    0%,
+    80%,
+    100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
