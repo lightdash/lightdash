@@ -929,11 +929,25 @@ export class MetricQueryBuilder {
 
         const selects = new Set<string>();
         const tables = new Set<string>();
+        const nestedAggMetrics = this.getMetricsWithNestedAggregates();
         const nestedAggOuterIds = new Set(
-            this.getMetricsWithNestedAggregates().map(
-                ({ outerMetricId }) => outerMetricId,
-            ),
+            nestedAggMetrics.map(({ outerMetricId }) => outerMetricId),
         );
+        // Also exclude raw (non-aggregate) inner deps from the regular SELECT.
+        // These are plain column references that can't appear in a SELECT with
+        // GROUP BY. They're accessed from the base table in CTE 3 instead.
+        const rawInnerDepIds = new Set<string>();
+        for (const { innerDeps } of nestedAggMetrics) {
+            for (const dep of innerDeps) {
+                if (
+                    !nestedAggOuterIds.has(dep.fieldId) &&
+                    !isAggregateMetricType(dep.metric.type) &&
+                    !sqlContainsAggregation(dep.metric.compiledSql)
+                ) {
+                    rawInnerDepIds.add(dep.fieldId);
+                }
+            }
+        }
         metrics.forEach((field) => {
             try {
                 const alias = field;
@@ -950,7 +964,7 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Metrics with nested aggregate dependencies are handled via CTE
-                if (nestedAggOuterIds.has(field)) {
+                if (nestedAggOuterIds.has(field) || rawInnerDepIds.has(field)) {
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
                     );
@@ -2745,17 +2759,36 @@ export class MetricQueryBuilder {
             }
         }
 
+        // Partition inner deps into aggregate (can be pre-computed with
+        // GROUP BY) and raw/non-aggregate (plain column references that
+        // cannot appear in a SELECT with GROUP BY without aggregation).
+        const aggregateInnerDeps = new Map<string, CompiledMetric>();
+        const rawInnerDeps = new Map<string, CompiledMetric>();
+        for (const [depId, depMetric] of allInnerDeps) {
+            if (
+                isAggregateMetricType(depMetric.type) ||
+                sqlContainsAggregation(depMetric.compiledSql)
+            ) {
+                aggregateInnerDeps.set(depId, depMetric);
+            } else {
+                rawInnerDeps.set(depId, depMetric);
+            }
+        }
+
         const dimensionAlias = Object.keys(dimensionSelects).map(
             (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
         );
 
-        const innerDepAliases = Array.from(allInnerDeps.keys()).map(
+        const aggInnerDepAliases = Array.from(aggregateInnerDeps.keys()).map(
             (depId) => `${fieldQuoteChar}${depId}${fieldQuoteChar}`,
         );
 
-        // --- CTE 1: nested_agg — pre-compute inner deps from base table ---
+        // --- CTE 1: nested_agg — pre-compute AGGREGATE inner deps only ---
+        // Raw (non-aggregate) inner deps are excluded because they can't
+        // appear in a SELECT with GROUP BY. They'll be accessed from the
+        // base table in CTE 3 (nested_agg_mixed) instead.
         const naCteName = 'nested_agg';
-        const innerMetricSelects = Array.from(allInnerDeps.entries()).map(
+        const innerMetricSelects = Array.from(aggregateInnerDeps.entries()).map(
             ([depId, depMetric]) =>
                 `  ${depMetric.compiledSql} AS ${fieldQuoteChar}${depId}${fieldQuoteChar}`,
         );
@@ -2779,7 +2812,7 @@ export class MetricQueryBuilder {
         const metricCteLookup: Array<{ name: string; metrics: string[] }> = [
             {
                 name: naCteName,
-                metrics: Array.from(allInnerDeps.keys()),
+                metrics: Array.from(aggregateInnerDeps.keys()),
             },
         ];
 
@@ -2831,7 +2864,14 @@ export class MetricQueryBuilder {
         // other outer metrics can inline their already-processed expressions.
         const processedOuterMetricSql = new Map<string, string>();
 
-        const resultsMetricSelects: string[] = [];
+        // Partition outer metrics: "pure aggregate" (all inner deps are
+        // aggregate — handled in CTE 2 from CTE 1) vs "mixed" (has at least
+        // one raw/non-aggregate inner dep — needs base table access in CTE 3).
+        const pureAggResultsSelects: string[] = [];
+        const mixedResultsSelects: string[] = [];
+        const pureAggOuterMetricIds: string[] = [];
+        const mixedOuterMetricIds: string[] = [];
+
         for (const { outerMetricId, outerMetric } of sortedOuterMetrics) {
             // Build a metric with ${} refs to other outer metrics pre-replaced
             // with their already-processed CTE SQL expressions
@@ -2861,67 +2901,196 @@ export class MetricQueryBuilder {
                     );
             }
 
-            // Replace remaining metric refs with CTE column refs
-            const metricWithPreSql = { ...outerMetric, sql: preSql };
-            const processedSql = this.replaceMetricReferencesWithCteReferences(
-                metricWithPreSql,
-                metricCteLookup,
+            // Check if this outer metric has any raw (non-aggregate) inner deps
+            const metricEntry = nestedAggMetrics.find(
+                (m) => m.outerMetricId === outerMetricId,
             );
+            const hasRawDep =
+                metricEntry?.innerDeps.some((dep) =>
+                    rawInnerDeps.has(dep.fieldId),
+                ) ?? false;
 
-            processedOuterMetricSql.set(outerMetricId, processedSql);
-            resultsMetricSelects.push(
-                `  ${processedSql} AS ${fieldQuoteChar}${outerMetricId}${fieldQuoteChar}`,
-            );
+            if (hasRawDep) {
+                // Mixed metric: replace aggregate dep refs with CTE 1 column
+                // refs manually, then let compileMetricSql resolve raw refs
+                // and ${TABLE} refs against the base table (which is in scope
+                // in CTE 3).
+                let mixedSql = preSql;
+                for (const [depId, depMetric] of aggregateInnerDeps) {
+                    const escapedName = depMetric.name.replace(
+                        /[.*+?^${}()|[\]\\]/g,
+                        '\\$&',
+                    );
+                    const escapedTable = depMetric.table.replace(
+                        /[.*+?^${}()|[\]\\]/g,
+                        '\\$&',
+                    );
+                    const cteRef = `${naCteName}.${fieldQuoteChar}${depId}${fieldQuoteChar}`;
+                    mixedSql = mixedSql
+                        .replace(
+                            new RegExp(`\\$\\{${escapedName}\\}`, 'g'),
+                            cteRef,
+                        )
+                        .replace(
+                            new RegExp(
+                                `\\$\\{${escapedTable}\\.${escapedName}\\}`,
+                                'g',
+                            ),
+                            cteRef,
+                        );
+                }
+
+                // Compile remaining refs (raw metric refs, ${TABLE}, dimensions)
+                // against the explore tables — they resolve to base table columns.
+                const { explore, warehouseSqlBuilder: wsb } = this.args;
+                const exploreCompiler = new ExploreCompiler(wsb);
+                const compiled = exploreCompiler.compileMetricSql(
+                    { ...outerMetric, sql: mixedSql },
+                    explore.tables,
+                    Object.keys(this.args.parameterDefinitions),
+                );
+
+                processedOuterMetricSql.set(outerMetricId, compiled.sql);
+                mixedResultsSelects.push(
+                    `  ${compiled.sql} AS ${fieldQuoteChar}${outerMetricId}${fieldQuoteChar}`,
+                );
+                mixedOuterMetricIds.push(outerMetricId);
+            } else {
+                // Pure aggregate metric: all deps are in CTE 1 — use existing
+                // CTE column ref replacement.
+                const metricWithPreSql = { ...outerMetric, sql: preSql };
+                const processedSql =
+                    this.replaceMetricReferencesWithCteReferences(
+                        metricWithPreSql,
+                        metricCteLookup,
+                    );
+
+                processedOuterMetricSql.set(outerMetricId, processedSql);
+                pureAggResultsSelects.push(
+                    `  ${processedSql} AS ${fieldQuoteChar}${outerMetricId}${fieldQuoteChar}`,
+                );
+                pureAggOuterMetricIds.push(outerMetricId);
+            }
         }
 
-        // GROUP BY dims + inner deps so aggregate functions are valid
-        // Since CTE 1 has one row per dim group, this is effectively identity
-        const allGroupByCols = [
-            ...dimensionAlias.map((a) => `${naCteName}.${a}`),
-            ...innerDepAliases.map((a) => `${naCteName}.${a}`),
-        ];
-        const resultsGroupBy =
-            allGroupByCols.length > 0
-                ? `GROUP BY ${allGroupByCols.join(', ')}`
-                : undefined;
-
-        const resultsDimSelects = dimensionAlias.map(
-            (a) => `  ${naCteName}.${a}`,
-        );
-        const cte2Sql = MetricQueryBuilder.wrapAsCte(naResultsCteName, [
-            `SELECT\n${[...resultsDimSelects, ...resultsMetricSelects].join(',\n')}`,
-            `FROM ${naCteName}`,
-            resultsGroupBy,
-        ]);
-
-        // --- JOIN nested_agg_results to na_base ---
+        const ctes: string[] = [cte1Sql];
         const naJoins: string[] = [];
-        if (dimensionAlias.length === 0) {
-            naJoins.push(`CROSS JOIN ${naResultsCteName}`);
-        } else {
-            naJoins.push(
-                `INNER JOIN ${naResultsCteName} ON ${dimensionAlias
-                    .map(
-                        (alias) =>
-                            `( ${baseCteName}.${alias} = ${naResultsCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naResultsCteName}.${alias} IS NULL ) )`,
-                    )
-                    .join(' AND ')}`,
+        const naMetricSelects: string[] = [];
+
+        // --- CTE 2: nested_agg_results — pure aggregate outer metrics ---
+        // These read FROM CTE 1 only (one row per dim group).
+        if (pureAggResultsSelects.length > 0) {
+            // GROUP BY dims + aggregate inner deps so aggregate functions are valid
+            // Since CTE 1 has one row per dim group, this is effectively identity
+            const allGroupByCols = [
+                ...dimensionAlias.map((a) => `${naCteName}.${a}`),
+                ...aggInnerDepAliases.map((a) => `${naCteName}.${a}`),
+            ];
+            const resultsGroupBy =
+                allGroupByCols.length > 0
+                    ? `GROUP BY ${allGroupByCols.join(', ')}`
+                    : undefined;
+
+            const resultsDimSelects = dimensionAlias.map(
+                (a) => `  ${naCteName}.${a}`,
             );
+            const cte2Sql = MetricQueryBuilder.wrapAsCte(naResultsCteName, [
+                `SELECT\n${[...resultsDimSelects, ...pureAggResultsSelects].join(',\n')}`,
+                `FROM ${naCteName}`,
+                resultsGroupBy,
+            ]);
+            ctes.push(cte2Sql);
+
+            if (dimensionAlias.length === 0) {
+                naJoins.push(`CROSS JOIN ${naResultsCteName}`);
+            } else {
+                naJoins.push(
+                    `INNER JOIN ${naResultsCteName} ON ${dimensionAlias
+                        .map(
+                            (alias) =>
+                                `( ${baseCteName}.${alias} = ${naResultsCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naResultsCteName}.${alias} IS NULL ) )`,
+                        )
+                        .join(' AND ')}`,
+                );
+            }
+
+            for (const id of pureAggOuterMetricIds) {
+                naMetricSelects.push(
+                    `  ${naResultsCteName}.${fieldQuoteChar}${id}${fieldQuoteChar}`,
+                );
+            }
         }
 
-        // Outer SELECT just references nested_agg_results columns — no aggregates
-        const naMetricSelects = nestedAggMetrics.map(
-            ({ outerMetricId }) =>
-                `  ${naResultsCteName}.${fieldQuoteChar}${outerMetricId}${fieldQuoteChar}`,
-        );
+        // --- CTE 3: nested_agg_mixed — outer metrics with raw inner deps ---
+        // These need per-row access to the base table for raw column refs,
+        // JOINed with CTE 1 for pre-computed aggregate deps.
+        if (mixedResultsSelects.length > 0) {
+            const naMixedCteName = 'nested_agg_mixed';
+
+            // JOIN CTE 1 to the base table on dimensions.
+            // dimensionSelects values look like:
+            //   '  "table".col AS "alias"'
+            // Extract the expression before AS for join conditions.
+            const cteJoinConditions = Object.entries(dimensionSelects).map(
+                ([id]) => {
+                    const qId = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
+                    const expr = dimensionSelects[id]
+                        .trim()
+                        .replace(/\s+AS\s+.*$/i, '')
+                        .trim();
+                    return `( ${expr} = ${naCteName}.${qId} OR ( ${expr} IS NULL AND ${naCteName}.${qId} IS NULL ) )`;
+                },
+            );
+            const cteJoinClause =
+                dimensionAlias.length > 0
+                    ? `INNER JOIN ${naCteName} ON ${cteJoinConditions.join(' AND ')}`
+                    : `CROSS JOIN ${naCteName}`;
+
+            const mixedDimSelects = Object.entries(dimensionSelects).map(
+                ([, selectExpr]) => selectExpr,
+            );
+
+            const mixedGroupBy =
+                mixedDimSelects.length > 0
+                    ? `GROUP BY ${mixedDimSelects.map((_, i) => i + 1).join(',')}`
+                    : undefined;
+
+            const cte3Sql = MetricQueryBuilder.wrapAsCte(naMixedCteName, [
+                `SELECT\n${[...mixedDimSelects, ...mixedResultsSelects].join(',\n')}`,
+                sqlFrom,
+                joinsSql,
+                ...dimensionJoins,
+                cteJoinClause,
+                dimensionFilters,
+                mixedGroupBy,
+            ]);
+            ctes.push(cte3Sql);
+
+            if (dimensionAlias.length === 0) {
+                naJoins.push(`CROSS JOIN ${naMixedCteName}`);
+            } else {
+                naJoins.push(
+                    `INNER JOIN ${naMixedCteName} ON ${dimensionAlias
+                        .map(
+                            (alias) =>
+                                `( ${baseCteName}.${alias} = ${naMixedCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naMixedCteName}.${alias} IS NULL ) )`,
+                        )
+                        .join(' AND ')}`,
+                );
+            }
+
+            for (const id of mixedOuterMetricIds) {
+                naMetricSelects.push(
+                    `  ${naMixedCteName}.${fieldQuoteChar}${id}${fieldQuoteChar}`,
+                );
+            }
+        }
 
         return {
-            ctes: [cte1Sql, cte2Sql],
+            ctes,
             naJoins,
             naMetricSelects,
-            outerMetricIds: nestedAggMetrics.map(
-                ({ outerMetricId }) => outerMetricId,
-            ),
+            outerMetricIds: [...pureAggOuterMetricIds, ...mixedOuterMetricIds],
         };
     }
 

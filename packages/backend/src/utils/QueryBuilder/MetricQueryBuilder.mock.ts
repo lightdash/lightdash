@@ -2732,6 +2732,37 @@ export const EXPLORE_WITH_NESTED_AGG: Explore = {
                     tablesReferences: ['my_table'],
                     hidden: false,
                 },
+                // Raw (non-aggregate) helper metric — just a column reference.
+                // Used by mixed_raw_agg_repro to test the mix of raw + aggregate deps.
+                raw_value: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'raw_value',
+                    label: 'raw_value',
+                    sql: '${TABLE}.value',
+                    compiledSql: '"my_table".value',
+                    tablesReferences: ['my_table'],
+                    hidden: true,
+                },
+                // Outer metric mixing raw + aggregate inner deps (GH-21501).
+                // Emulates MAX_BY: pick the raw value ordered by the max metric.
+                // Compiles to ARRAY_AGG(raw_col ORDER BY MAX(col)) which is a
+                // nested aggregate that needs CTE routing.
+                mixed_raw_agg_repro: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'mixed_raw_agg_repro',
+                    label: 'mixed_raw_agg_repro',
+                    sql: '(ARRAY_AGG(${raw_value} ORDER BY ${max_value} DESC))[1]',
+                    compiledSql:
+                        '(ARRAY_AGG("my_table".value ORDER BY MAX("my_table".value) DESC))[1]',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
                 // Product of aggregates - NO outer aggregation, valid SQL without CTE
                 product_of_aggregates: {
                     type: MetricType.NUMBER,
@@ -2901,6 +2932,55 @@ export const METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED: CompiledMetricQuery = {
     metrics: ['my_table_ratio_of_sum_case', 'my_table_conditional_sum_of_max'],
     filters: {},
     sorts: [{ fieldId: 'my_table_ratio_of_sum_case', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Mixed raw + aggregate inner deps (GH-21501):
+// Outer metric: ARRAY_AGG(${raw_value} ORDER BY ${max_value} DESC)[1]
+// raw_value is type:number (raw column), max_value is type:max (aggregate).
+// CTE 1 should only pre-compute aggregate deps; CTE 3 (nested_agg_mixed)
+// should join base table + CTE 1 so raw columns are accessible.
+export const METRIC_QUERY_NESTED_AGG_MIXED_RAW: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: ['my_table_category'],
+    metrics: ['my_table_mixed_raw_agg_repro'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_mixed_raw_agg_repro', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Mixed raw + aggregate alongside a pure aggregate metric in the same query.
+// Tests that CTE 2 (nested_agg_results) handles pure-agg metrics and
+// CTE 3 (nested_agg_mixed) handles mixed metrics without interfering.
+export const METRIC_QUERY_NESTED_AGG_MIXED_RAW_WITH_PURE: CompiledMetricQuery =
+    {
+        exploreName: 'my_table',
+        dimensions: ['my_table_category'],
+        metrics: ['my_table_mixed_raw_agg_repro', 'my_table_sum_of_max'],
+        filters: {},
+        sorts: [{ fieldId: 'my_table_mixed_raw_agg_repro', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Mixed raw + aggregate with no dimensions — tests CROSS JOIN path.
+export const METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS: CompiledMetricQuery = {
+    exploreName: 'my_table',
+    dimensions: [],
+    metrics: ['my_table_mixed_raw_agg_repro'],
+    filters: {},
+    sorts: [{ fieldId: 'my_table_mixed_raw_agg_repro', descending: true }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],

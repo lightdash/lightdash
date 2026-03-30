@@ -61,6 +61,9 @@ import {
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
     METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
     METRIC_QUERY_NESTED_AGG_MIXED,
+    METRIC_QUERY_NESTED_AGG_MIXED_RAW,
+    METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS,
+    METRIC_QUERY_NESTED_AGG_MIXED_RAW_WITH_PURE,
     METRIC_QUERY_NESTED_AGG_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_PRODUCT,
     METRIC_QUERY_NESTED_AGG_RAW_COL,
@@ -5300,6 +5303,88 @@ describe('Nested aggregate metrics', () => {
         expect(
             result.query.match(/AS "my_table_cross_table_sum_of_max"/g),
         ).toHaveLength(1);
+    });
+
+    test('should handle mixed raw + aggregate inner deps via nested_agg_mixed CTE', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_MIXED_RAW,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // CTE 1 should only pre-compute the aggregate dep (max_value),
+        // NOT the raw dep (raw_value) which would fail GROUP BY.
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain(
+            'MAX("my_table".value) AS "my_table_max_value"',
+        );
+        // raw_value should NOT appear in CTE 1
+        expect(result.query).not.toMatch(
+            /nested_agg AS \([^)]*"my_table_raw_value"/,
+        );
+
+        // CTE 3 (nested_agg_mixed) should exist and join base table + CTE 1
+        expect(result.query).toContain('nested_agg_mixed AS (');
+        // The mixed metric should use base table raw column + CTE aggregate ref
+        expect(result.query).toContain('nested_agg."my_table_max_value"');
+        // Raw column should reference base table (inside ARRAY_AGG).
+        // compileMetricReference wraps the resolved SQL in parens.
+        expect(result.query).toContain('ARRAY_AGG(("my_table".value)');
+
+        // CTE 2 (nested_agg_results) should NOT be created since there
+        // are no pure-aggregate outer metrics
+        expect(result.query).not.toContain('nested_agg_results AS (');
+
+        // Final SELECT should reference nested_agg_mixed
+        expect(result.query).toContain(
+            'nested_agg_mixed."my_table_mixed_raw_agg_repro"',
+        );
+
+        // Should NOT contain nested aggregate (ARRAY_AGG wrapping MAX)
+        expect(result.query).not.toContain('ORDER BY MAX(');
+    });
+
+    test('should handle mixed raw + aggregate alongside pure aggregate metric', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_MIXED_RAW_WITH_PURE,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Both CTE 2 and CTE 3 should exist
+        expect(result.query).toContain('nested_agg AS (');
+        expect(result.query).toContain('nested_agg_results AS (');
+        expect(result.query).toContain('nested_agg_mixed AS (');
+
+        // Pure aggregate metric (sum_of_max) in CTE 2
+        expect(result.query).toContain(
+            'nested_agg_results."my_table_sum_of_max"',
+        );
+        // Mixed metric in CTE 3
+        expect(result.query).toContain(
+            'nested_agg_mixed."my_table_mixed_raw_agg_repro"',
+        );
+    });
+
+    test('should handle mixed raw + aggregate with no dimensions (CROSS JOIN path)', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should use nested_agg_mixed CTE
+        expect(result.query).toContain('nested_agg_mixed AS (');
+        // With no dimensions, should use CROSS JOIN
+        expect(result.query).toContain('CROSS JOIN nested_agg');
+        // Should NOT contain nested aggregate
+        expect(result.query).not.toContain('ORDER BY MAX(');
     });
 
     test('should emit max_by nested aggregate metric only once when fanout CTEs are also generated', () => {
