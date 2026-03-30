@@ -12,7 +12,7 @@ export enum FeatureFlags {
     EnableUserTimezones = 'enable-user-timezones',
 
     /* Gate new timezone features: warehouse session timezone, timezone-aware
-       DATE_TRUNC and filters, result formatting, etc. Temporary — remove once stable. */
+       DATE_TRUNC, result formatting, etc. Temporary — remove once stable. */
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
