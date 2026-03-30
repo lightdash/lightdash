@@ -1,3 +1,15 @@
+# [0.2687.0](https://github.com/lightdash/lightdash/compare/0.2686.0...0.2687.0) (2026-03-30)
+
+
+### Bug Fixes
+
+* use dbt run_results to track compiled models for deferred preview builds ([#21505](https://github.com/lightdash/lightdash/issues/21505)) ([abcad53](https://github.com/lightdash/lightdash/commit/abcad53f586fcb372faa2c2047aa24aa6d45b2ee))
+
+
+### Features
+
+* add Build App button to top nav bar ([#21513](https://github.com/lightdash/lightdash/issues/21513)) ([26c8ea6](https://github.com/lightdash/lightdash/commit/26c8ea6d3a94bb3a491262e7c4360ca5f603967b))
+
 # [0.2686.0](https://github.com/lightdash/lightdash/compare/0.2685.1...0.2686.0) (2026-03-30)
 
 
