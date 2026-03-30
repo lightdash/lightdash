@@ -1,3 +1,10 @@
+# [0.2688.0](https://github.com/lightdash/lightdash/compare/0.2687.1...0.2688.0) (2026-03-30)
+
+
+### Features
+
+* add parameters support to dashboard-as-code ([#21521](https://github.com/lightdash/lightdash/issues/21521)) ([fd85fe0](https://github.com/lightdash/lightdash/commit/fd85fe0ba37d5ca89b1e0bf2ee7e9b0707144cbc))
+
 ## [0.2687.1](https://github.com/lightdash/lightdash/compare/0.2687.0...0.2687.1) (2026-03-30)
 
 
