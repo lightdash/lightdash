@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["oxlint:recommended"],
+  "ignorePatterns": ["**/*.css", ".eslintrc.js"],
+  "plugins": ["typescript", "react", "react-hooks", "jsx-a11y", "jest-dom", "testing-library", "storybook", "import", "lodash", "react-refresh"],
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "react-hooks/exhaustive-deps": "error",
+    "react/jsx-key": "error",
+    "react-refresh/only-export-components": "error",
+    "lodash/import-scope": [2, "method"]
+  }
+}
