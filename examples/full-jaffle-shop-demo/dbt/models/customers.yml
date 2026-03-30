@@ -133,6 +133,15 @@ models:
               ai_hint:
                 - Last name of the customer
                 - Contains PII data
+              richText: "{% raw %}{% if value.raw == 'A.' %}\n    <p style=\"color: black;\
+                \ background-color: lightgreen;\">${ value.raw }</p>\n    {% elsif value.raw\
+                \ == 'B.' %}\n    <p style=\"color: black; background-color: lightblue;\"\
+                >${ value.raw }</p>\n    {% elsif value == 'Planned Shrinkage' %}\n    <p\
+                \ style=\"color: black; background-color: moccasin;\">${ value.raw }</p>\n\
+                \    {% elsif value == 'Unplanned Shrinkage' %}\n    <p style=\"color: black;\
+                \ background-color: pink;\">${ value.raw }</p>\n    {% else %}\n    <p style=\"\
+                color: black; background-color: white;\">${ value.raw }</p>\n    {% endif\
+                \ %}{% endraw %}"
         meta:
           dimension:
             type: string
