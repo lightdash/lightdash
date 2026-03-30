@@ -1,3 +1,10 @@
+# [0.2685.0](https://github.com/lightdash/lightdash/compare/0.2684.0...0.2685.0) (2026-03-30)
+
+
+### Features
+
+* upload source.tar to GCS ([#21502](https://github.com/lightdash/lightdash/issues/21502)) ([8d1182f](https://github.com/lightdash/lightdash/commit/8d1182f2cca6a89bad00718fe8ac68ed1178671f))
+
 # [0.2684.0](https://github.com/lightdash/lightdash/compare/0.2683.0...0.2684.0) (2026-03-29)
 
 
