@@ -11,7 +11,6 @@ import { type RenameResourcesPayload } from './rename';
 import {
     type CompileProjectPayload,
     type DownloadAsyncQueryResultsPayload,
-    type DownloadCsvPayload,
     type EmailBatchNotificationPayload,
     type EmailNotificationPayload,
     type ExportCsvDashboardPayload,
@@ -55,7 +54,6 @@ export const SCHEDULER_TASKS = {
     SEND_MSTEAMS_BATCH_NOTIFICATION: 'sendMsTeamsBatchNotification',
     SEND_GOOGLE_CHAT_BATCH_NOTIFICATION: 'sendGoogleChatBatchNotification',
     UPLOAD_GSHEETS: 'uploadGsheets',
-    DOWNLOAD_CSV: 'downloadCsv',
     UPLOAD_GSHEET_FROM_QUERY: 'uploadGsheetFromQuery',
     VALIDATE_PROJECT: 'validateProject',
     COMPILE_PROJECT: 'compileProject',
@@ -95,7 +93,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.SEND_MSTEAMS_BATCH_NOTIFICATION]: MsTeamsBatchNotificationPayload;
     [SCHEDULER_TASKS.SEND_GOOGLE_CHAT_BATCH_NOTIFICATION]: GoogleChatBatchNotificationPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEETS]: GsheetsNotificationPayload;
-    [SCHEDULER_TASKS.DOWNLOAD_CSV]: DownloadCsvPayload;
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: UploadMetricGsheetPayload;
     [SCHEDULER_TASKS.VALIDATE_PROJECT]: ValidateProjectPayload;
     [SCHEDULER_TASKS.COMPILE_PROJECT]: CompileProjectPayload;

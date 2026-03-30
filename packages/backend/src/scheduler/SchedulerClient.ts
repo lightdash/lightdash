@@ -3,7 +3,6 @@ import {
     CompileProjectPayload,
     CreateSchedulerAndTargets,
     CreateSchedulerTarget,
-    DownloadCsvPayload,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
     getSchedulerTargetUuid,
@@ -1017,34 +1016,6 @@ export class SchedulerClient {
             jobId: result.jobId,
             target: undefined,
         }));
-    }
-
-    async downloadCsvJob(payload: DownloadCsvPayload) {
-        const graphileClient = await this.graphileUtils;
-        const now = new Date();
-        const jobId = await SchedulerClient.addJob(
-            graphileClient,
-            SCHEDULER_TASKS.DOWNLOAD_CSV,
-            payload,
-            now,
-            JobPriority.HIGH,
-        );
-
-        await this.schedulerModel.logSchedulerJob({
-            task: SCHEDULER_TASKS.DOWNLOAD_CSV,
-            jobId,
-            scheduledTime: now,
-            status: SchedulerJobStatus.SCHEDULED,
-            details: {
-                createdByUserUuid: payload.userUuid,
-                projectUuid: payload.projectUuid,
-                exploreId: payload.exploreId,
-                metricQuery: payload.metricQuery,
-                organizationUuid: payload.organizationUuid,
-            },
-        });
-
-        return { jobId };
     }
 
     async uploadGsheetFromQueryJob(payload: UploadMetricGsheetPayload) {

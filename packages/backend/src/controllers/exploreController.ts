@@ -6,13 +6,11 @@ import {
     ApiExploresResults,
     ApiSuccessEmpty,
     MetricQuery,
-    PivotConfig,
     type ParametersValuesMap,
     type PivotConfiguration,
 } from '@lightdash/common';
 import {
     Body,
-    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -26,7 +24,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { deprecatedDownloadCsvRoute } from '../middlewares/deprecation';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -158,85 +155,6 @@ export class ExploreController extends BaseController {
                 query,
                 parameterReferences,
                 ...(pivotQuery && { pivotQuery }),
-            },
-        };
-    }
-
-    /**
-     * Download CSV from an explore query
-     * @summary Download CSV from explore
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        deprecatedDownloadCsvRoute,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Deprecated()
-    @Post('{exploreId}/downloadCsv')
-    @OperationId('DownloadCsvFromExplore')
-    async DownloadCsvFromExplore(
-        @Path() exploreId: string,
-        @Path() projectUuid: string,
-        @Request() req: express.Request,
-        @Body()
-        body: MetricQuery & {
-            onlyRaw: boolean;
-            csvLimit: number | null | undefined;
-            showTableNames: boolean;
-            customLabels?: { [key: string]: string };
-            columnOrder: string[];
-            hiddenFields?: string[];
-            chartName?: string;
-            pivotConfig?: PivotConfig;
-        },
-    ): Promise<{ status: 'ok'; results: { jobId: string } }> {
-        this.setStatus(200);
-        const {
-            onlyRaw,
-            csvLimit,
-            showTableNames,
-            customLabels,
-            columnOrder,
-            hiddenFields,
-            pivotConfig,
-        } = body;
-        const metricQuery: MetricQuery = {
-            exploreName: body.exploreName,
-            dimensions: body.dimensions,
-            metrics: body.metrics,
-            filters: body.filters,
-            sorts: body.sorts,
-            limit: body.limit,
-            tableCalculations: body.tableCalculations,
-            additionalMetrics: body.additionalMetrics,
-            customDimensions: body.customDimensions,
-            metricOverrides: body.metricOverrides,
-            dimensionOverrides: body.dimensionOverrides,
-        };
-
-        const { jobId } = await req.services
-            .getCsvService()
-            .scheduleDownloadCsv(req.user!, {
-                userUuid: req.user?.userUuid!,
-                projectUuid,
-                exploreId,
-                metricQuery,
-                onlyRaw,
-                csvLimit,
-                showTableNames,
-                customLabels,
-                chartName: body.chartName,
-                fromSavedChart: false,
-                columnOrder,
-                hiddenFields,
-                pivotConfig,
-            });
-
-        return {
-            status: 'ok',
-            results: {
-                jobId,
             },
         };
     }
