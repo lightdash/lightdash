@@ -1,3 +1,10 @@
+## [0.2692.1](https://github.com/lightdash/lightdash/compare/0.2692.0...0.2692.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* show chart slug in saved chart header ([#21528](https://github.com/lightdash/lightdash/issues/21528)) ([6c1e932](https://github.com/lightdash/lightdash/commit/6c1e9326e4cb6676a83b298f19745c4987a09c23))
+
 # [0.2692.0](https://github.com/lightdash/lightdash/compare/0.2691.1...0.2692.0) (2026-03-30)
 
 
