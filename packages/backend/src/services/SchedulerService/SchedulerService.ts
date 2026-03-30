@@ -1017,8 +1017,11 @@ export class SchedulerService extends BaseService {
         await this.schedulerModel.logSchedulerJob(log);
     }
 
-    async getCsvUrl(user: SessionUser, jobId: string) {
-        const job = await this.schedulerModel.getCsvUrl(jobId, user.userUuid);
+    async getGsheetExportStatus(user: SessionUser, jobId: string) {
+        const job = await this.schedulerModel.getGsheetExportStatus(
+            jobId,
+            user.userUuid,
+        );
         if (
             user.ability.cannot(
                 'view',

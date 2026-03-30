@@ -23,15 +23,15 @@ import { BaseController } from './baseController';
 @Tags('Exports')
 export class CsvController extends BaseController {
     /**
-     * Get a Csv
-     * @summary Get CSV URL
-     * @param jobId the jobId for the CSV
+     * Get the status/URL of a Google Sheets export job
+     * @summary Get export status
+     * @param jobId the jobId for the export
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{jobId}')
-    @OperationId('getCsvUrl')
+    @OperationId('getGsheetExportStatus')
     async get(
         @Path() jobId: string,
         @Request() req: express.Request,
@@ -39,7 +39,7 @@ export class CsvController extends BaseController {
         this.setStatus(200);
         const csvDetails = await this.services
             .getSchedulerService()
-            .getCsvUrl(req.user!, jobId);
+            .getGsheetExportStatus(req.user!, jobId);
         return {
             status: 'ok',
             results: {
