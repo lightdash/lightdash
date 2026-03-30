@@ -7,7 +7,9 @@ import {
     SupportedDbtVersions,
 } from '@lightdash/common';
 import execa from 'execa';
+import { promises as fs } from 'fs';
 import { xor } from 'lodash';
+import * as path from 'path';
 import { loadManifest, LoadManifestArgs } from '../../dbt/manifest';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
@@ -84,6 +86,39 @@ export const dbtCompile = async (options: DbtCompileOptions) => {
         throw new ParseError(`Failed to run dbt compile:\n  ${msg}`);
     }
 };
+
+/**
+ * Reads run_results.json written by dbt after each compile/run to get the
+ * unique_ids of models that were actually processed in THIS run.
+ * This is more reliable than manifest.compiled, which can contain stale flags
+ * from previous runs (e.g. when state:modified+ selects 0 models, all previously
+ * compiled models still have compiled=true in the manifest).
+ */
+async function getCompiledModelIdsFromRunResults(
+    targetDir: string,
+): Promise<string[] | undefined> {
+    const runResultsPath = path.join(targetDir, 'run_results.json');
+    try {
+        const content = await fs.readFile(runResultsPath, {
+            encoding: 'utf-8',
+        });
+        const runResults = JSON.parse(content) as {
+            results: Array<{ unique_id: string; status: string }>;
+        };
+        const modelIds = runResults.results
+            .map((r) => r.unique_id)
+            .filter((id) => id.startsWith('model.'));
+        GlobalState.debug(
+            `> Read ${modelIds.length} model(s) from run_results.json`,
+        );
+        return modelIds;
+    } catch (e) {
+        GlobalState.debug(
+            `> Warning: Could not read run_results.json from ${runResultsPath}: ${getErrorMessage(e)}`,
+        );
+        return undefined;
+    }
+}
 
 const getJoinedModelsRecursively = (
     modelNode: DbtModelNode,
@@ -214,6 +249,9 @@ export async function maybeCompileModelsAndJoins(
         compiledModelIds = await dbtList(options);
     } else {
         await dbtCompile(options);
+        compiledModelIds = await getCompiledModelIdsFromRunResults(
+            loadManifestOpts.targetDir,
+        );
     }
 
     // If no models are explicitly selected or excluded, we don't need to explicitly find joined models
