@@ -467,6 +467,36 @@
                 }
             }
         },
+        "parameters": {
+            "type": "object",
+            "description": "Dashboard parameter values that override default parameter values defined in the dbt project. Keys are parameter identifiers, values contain the parameter name and its override value.",
+            "additionalProperties": {
+                "type": "object",
+                "required": ["parameterName", "value"],
+                "additionalProperties": false,
+                "properties": {
+                    "parameterName": {
+                        "type": "string",
+                        "description": "Name of the parameter as defined in the dbt project"
+                    },
+                    "value": {
+                        "description": "Override value for the parameter",
+                        "oneOf": [
+                            { "type": "string" },
+                            { "type": "number" },
+                            {
+                                "type": "array",
+                                "items": { "type": "string" }
+                            },
+                            {
+                                "type": "array",
+                                "items": { "type": "number" }
+                            }
+                        ]
+                    }
+                }
+            }
+        },
         "config": {
             "type": "object",
             "description": "Dashboard configuration settings such as date zoom behavior",
