@@ -7,9 +7,16 @@ import {
     type FilterableItem,
     type FilterOperator,
 } from '@lightdash/common';
-import { Accordion } from '@mantine/core';
+import { Accordion, Divider } from '@mantine/core';
 import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    Fragment,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    type FC,
+} from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../../../common/FieldSelect';
 import ColorSelector from '../../ColorSelector';
@@ -129,31 +136,39 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
             />
             <Accordion.Panel>
                 <Config.Section>
-                    <Config.Group>
-                        <Config.Label>Format field</Config.Label>
-                        <FieldSelect
-                            disabled
-                            item={field}
-                            items={field ? [field] : []}
-                            onChange={() => undefined}
-                            hasGrouping
-                        />
-                    </Config.Group>
+                    <FieldSelect
+                        disabled
+                        item={field}
+                        items={field ? [field] : []}
+                        onChange={() => undefined}
+                        hasGrouping
+                    />
                     {config.rules.map((rule, ruleIndex) => (
-                        <ChartConditionalFormattingRule
-                            key={rule.id ?? ruleIndex}
-                            field={field}
-                            rule={rule}
-                            ruleIndex={ruleIndex}
-                            hasRemove={config.rules.length > 1}
-                            onChangeRule={(newRule) =>
-                                handleChangeRule(ruleIndex, newRule)
-                            }
-                            onChangeRuleOperator={(operator) =>
-                                handleChangeRuleOperator(ruleIndex, operator)
-                            }
-                            onRemoveRule={() => handleRemoveRule(ruleIndex)}
-                        />
+                        <Fragment key={rule.id ?? ruleIndex}>
+                            <ChartConditionalFormattingRule
+                                field={field}
+                                rule={rule}
+                                ruleIndex={ruleIndex}
+                                hasRemove={config.rules.length > 1}
+                                onChangeRule={(newRule) =>
+                                    handleChangeRule(ruleIndex, newRule)
+                                }
+                                onChangeRuleOperator={(operator) =>
+                                    handleChangeRuleOperator(
+                                        ruleIndex,
+                                        operator,
+                                    )
+                                }
+                                onRemoveRule={() => handleRemoveRule(ruleIndex)}
+                            />
+                            {ruleIndex !== config.rules.length - 1 && (
+                                <Divider
+                                    mt="xs"
+                                    label={<Config.Label>AND</Config.Label>}
+                                    labelPosition="center"
+                                />
+                            )}
+                        </Fragment>
                     ))}
                     <AddButton onClick={handleAddRule}>Add condition</AddButton>
                 </Config.Section>

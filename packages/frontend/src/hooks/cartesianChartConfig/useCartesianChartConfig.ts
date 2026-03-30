@@ -458,12 +458,7 @@ const useCartesianChartConfig = ({
         setDirtyLayout((prev) => ({
             ...prev,
             colorByCategory: enabled,
-            // Clear overrides when disabling
-            ...(!enabled && { categoryColorOverrides: undefined }),
         }));
-        if (enabled) {
-            setConditionalFormattings([]);
-        }
     }, []);
 
     const setCategoryColorOverride = useCallback(
@@ -497,7 +492,6 @@ const useCartesianChartConfig = ({
                 setDirtyLayout((prev) => ({
                     ...prev,
                     colorByCategory: undefined,
-                    categoryColorOverrides: undefined,
                 }));
             }
         },
@@ -1180,12 +1174,28 @@ const useCartesianChartConfig = ({
         };
     }, [dirtyEchartsConfig]);
 
+    const hasCustomColorsStacking = useMemo(
+        () =>
+            dirtyEchartsConfig?.series?.some((series) =>
+                Boolean(series.stack),
+            ) ||
+            (dirtyLayout?.stack !== undefined &&
+                dirtyLayout.stack !== StackType.NONE),
+        [dirtyEchartsConfig?.series, dirtyLayout?.stack],
+    );
+
     const isCustomColorsEligible = useMemo(
         () =>
             dirtyChartType === CartesianSeriesType.BAR &&
             !pivotKeys?.length &&
-            (dirtyLayout?.yField?.length ?? 0) <= 1,
-        [dirtyChartType, pivotKeys, dirtyLayout?.yField],
+            (dirtyLayout?.yField?.length ?? 0) <= 1 &&
+            !hasCustomColorsStacking,
+        [
+            dirtyChartType,
+            pivotKeys,
+            dirtyLayout?.yField,
+            hasCustomColorsStacking,
+        ],
     );
 
     useEffect(() => {

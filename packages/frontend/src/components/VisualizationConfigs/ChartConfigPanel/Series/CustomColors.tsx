@@ -87,10 +87,11 @@ export const CustomColors: FC<Props> = ({
 
     const [setAllColor, setSetAllColor] = useState<string | undefined>();
 
-    const customColorMode =
-        conditionalFormattings.length > 0
-            ? CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING
-            : CUSTOM_COLOR_MODE.CATEGORY;
+    const customColorMode = colorByCategory
+        ? CUSTOM_COLOR_MODE.CATEGORY
+        : conditionalFormattings.length > 0
+          ? CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING
+          : CUSTOM_COLOR_MODE.CATEGORY;
 
     const maybeTargetField = items.find(
         (candidate) => getItemId(candidate) === yField,
@@ -132,7 +133,6 @@ export const CustomColors: FC<Props> = ({
                 onChange={(value) => {
                     if (value === CUSTOM_COLOR_MODE.CATEGORY) {
                         setColorByCategory(true);
-                        onSetConditionalFormattings([]);
                         return;
                     }
 

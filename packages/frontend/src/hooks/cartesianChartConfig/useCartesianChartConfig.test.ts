@@ -2,6 +2,7 @@ import {
     CartesianSeriesType,
     createConditionalFormattingConfigWithSingleColor,
     getItemMap,
+    StackType,
     type Series,
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
@@ -729,7 +730,7 @@ describe('useCartesianChartConfig', () => {
         );
     });
 
-    test('should clear color by category when conditional formattings are set', () => {
+    test('should preserve category overrides when conditional formattings are set', () => {
         const params = getSingleSeriesParams();
         const { result } = renderHook(() =>
             useCartesianChartConfig({
@@ -739,6 +740,9 @@ describe('useCartesianChartConfig', () => {
                     layout: {
                         ...params.initialChartConfig!.layout,
                         colorByCategory: true,
+                        categoryColorOverrides: {
+                            retail: '#00ff00',
+                        },
                     },
                 },
             }),
@@ -753,8 +757,38 @@ describe('useCartesianChartConfig', () => {
         });
 
         expect(result.current.dirtyLayout?.colorByCategory).toBeUndefined();
+        expect(result.current.dirtyLayout?.categoryColorOverrides).toEqual({
+            retail: '#00ff00',
+        });
         expect(result.current.validConfig.conditionalFormattings).toHaveLength(
             1,
+        );
+    });
+
+    test('should preserve conditional formattings when switching back to category colors', () => {
+        const conditionalFormattings = [
+            createConditionalFormattingConfigWithSingleColor('#ff0000', {
+                fieldId: 'orders_total_order_amount',
+            }),
+        ];
+        const params = getSingleSeriesParams();
+        const { result } = renderHook(() =>
+            useCartesianChartConfig({
+                ...params,
+                initialChartConfig: {
+                    ...params.initialChartConfig!,
+                    conditionalFormattings,
+                },
+            }),
+        );
+
+        act(() => {
+            result.current.setColorByCategory(true);
+        });
+
+        expect(result.current.dirtyLayout?.colorByCategory).toBe(true);
+        expect(result.current.validConfig.conditionalFormattings).toEqual(
+            conditionalFormattings,
         );
     });
 
@@ -781,6 +815,62 @@ describe('useCartesianChartConfig', () => {
             result.current.addSingleSeries('orders_fulfillment_rate');
         });
 
+        expect(result.current.validConfig.conditionalFormattings).toEqual([]);
+    });
+
+    test('should clear custom colors when stacking is enabled', () => {
+        const initialParams = getSingleSeriesParams();
+        const conditionalFormattings = [
+            createConditionalFormattingConfigWithSingleColor('#ff0000', {
+                fieldId: 'orders_total_order_amount',
+            }),
+        ];
+        const { result, rerender } = renderHook(
+            ({ params }) =>
+                // @ts-expect-error partially mock params for hook
+                useCartesianChartConfig(params),
+            {
+                initialProps: {
+                    params: {
+                        ...initialParams,
+                        initialChartConfig: {
+                            ...initialParams.initialChartConfig,
+                            layout: {
+                                ...initialParams.initialChartConfig?.layout,
+                                colorByCategory: true,
+                                categoryColorOverrides: {
+                                    retail: '#00ff00',
+                                },
+                            },
+                            conditionalFormattings,
+                        },
+                    },
+                },
+            },
+        );
+
+        rerender({
+            params: {
+                ...initialParams,
+                stacking: StackType.NORMAL,
+                initialChartConfig: {
+                    ...initialParams.initialChartConfig,
+                    layout: {
+                        ...initialParams.initialChartConfig?.layout,
+                        colorByCategory: true,
+                        categoryColorOverrides: {
+                            retail: '#00ff00',
+                        },
+                    },
+                    conditionalFormattings,
+                },
+            },
+        });
+
+        expect(result.current.dirtyLayout?.colorByCategory).toBeUndefined();
+        expect(
+            result.current.dirtyLayout?.categoryColorOverrides,
+        ).toBeUndefined();
         expect(result.current.validConfig.conditionalFormattings).toEqual([]);
     });
 

@@ -9,6 +9,7 @@ import {
     CartesianSeriesType,
     getItemId,
     getSeriesId,
+    StackType,
     type CustomDimension,
     type Field,
     type Series as SeriesType,
@@ -152,10 +153,16 @@ export const Series: FC<Props> = ({ items }) => {
     };
 
     // Color by category: available for single-series bar charts without pivots
+    const hasCustomColorsStacking =
+        allSeries.some((series) => Boolean(series.stack)) ||
+        (dirtyLayout?.stack !== undefined &&
+            dirtyLayout.stack !== StackType.NONE);
+
     const isSingleSeriesBar =
         dirtyChartType === CartesianSeriesType.BAR &&
         !pivotDimensions?.length &&
-        allSeries.length <= 1;
+        allSeries.length <= 1 &&
+        !hasCustomColorsStacking;
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
     const customColorsEnabled =

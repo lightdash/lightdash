@@ -2551,12 +2551,6 @@ const useEchartsCartesianConfig = (
         if (!itemsMap) return;
 
         const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
-        // Color by category only applies to ungrouped single-series charts;
-        // ignore the setting when pivot dimensions are active so that the
-        // saved overrides survive and restore when the grouping is removed.
-        const isColorByCategory =
-            Boolean(validCartesianConfig?.layout?.colorByCategory) &&
-            !pivotDimensions?.length;
         const conditionalFormattings =
             validCartesianConfig?.conditionalFormattings;
         const categoryColorOverrides =
@@ -2570,10 +2564,24 @@ const useEchartsCartesianConfig = (
         const barSeries = series.filter(
             (s) => s.type === CartesianSeriesType.BAR,
         );
+        const hasCustomColorsStacking =
+            barSeries.some((s) => Boolean(s.stack)) ||
+            (validCartesianConfig?.layout?.stack !== undefined &&
+                validCartesianConfig.layout.stack !== StackType.NONE);
+        // Color by category only applies to ungrouped, unstacked
+        // single-series charts; ignore the setting when pivots or stacking are
+        // active so saved configs can restore if the chart becomes eligible
+        // again in edit mode.
+        const isColorByCategory =
+            Boolean(validCartesianConfig?.layout?.colorByCategory) &&
+            !pivotDimensions?.length &&
+            !hasCustomColorsStacking;
         const shouldApplyConditionalFormatting =
             barSeries.length === 1 &&
             series.length === 1 &&
             !pivotDimensions?.length &&
+            !isColorByCategory &&
+            !hasCustomColorsStacking &&
             Boolean(conditionalFormattings?.length);
         const isStacked = barSeries.some((s) => s.stack);
         const nonStackedBarCount = isStacked
