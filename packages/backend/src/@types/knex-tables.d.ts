@@ -9,6 +9,12 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    AppsTable,
+    AppsTableName,
+    AppVersionsTable,
+    AppVersionsTableName,
+} from '../database/entities/apps';
+import {
     CatalogTable,
     CatalogTableName,
     CatalogTagsTable,
@@ -475,5 +481,7 @@ declare module 'knex/types/tables' {
         [ChangesTableName]: ChangesTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentVerificationTableName]: ContentVerificationTable;
+        [AppsTableName]: AppsTable;
+        [AppVersionsTableName]: AppVersionsTable;
     }
 }
