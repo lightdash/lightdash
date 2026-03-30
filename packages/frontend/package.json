@@ -11,7 +11,7 @@
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter ./src",
         "fix-lint": "pnpm run linter ./src --fix",
