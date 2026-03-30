@@ -13,7 +13,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -48,6 +48,7 @@
     "@types/pg-cursor": "^2.7.0",
     "@types/ssh2": "^1.11.15",
     "copyfiles": "^2.4.1",
+    "oxlint": "^1.57.0",
     "typescript": "6.0.0-beta"
   }
 }
