@@ -192,7 +192,7 @@ const DashboardProvider: React.FC<
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
-    const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
+    const [oldestCacheTime, setOldestCacheTime] = useState<Date | undefined>();
     const [preAggregateStatuses, setPreAggregateStatuses] = useState<
         Record<string, TilePreAggregateStatus>
     >({});
@@ -1461,16 +1461,15 @@ const DashboardProvider: React.FC<
             cacheMetadata.cacheHit &&
             cacheMetadata.cacheUpdatedTime
         ) {
-            setResultsCacheTimes((old) =>
-                cacheMetadata.cacheUpdatedTime
-                    ? [...old, cacheMetadata.cacheUpdatedTime]
-                    : [...old],
+            const newTime = cacheMetadata.cacheUpdatedTime;
+            setOldestCacheTime((prev) =>
+                prev === undefined ? newTime : min([prev, newTime])!,
             );
         }
     }, []);
 
     const clearCacheAndFetch = useCallback(() => {
-        setResultsCacheTimes([]);
+        setOldestCacheTime(undefined);
         setPreAggregateStatuses({});
         setLoadedTiles(new Set());
 
@@ -1510,11 +1509,6 @@ const DashboardProvider: React.FC<
         setDashboardTabs,
         setSavedParameters,
     ]);
-
-    const oldestCacheTime = useMemo(
-        () => min(resultsCacheTimes),
-        [resultsCacheTimes],
-    );
 
     // Filters that are required to have a value set
     const requiredDashboardFilters = useMemo(
