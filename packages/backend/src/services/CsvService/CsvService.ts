@@ -1,45 +1,33 @@
 import { subject } from '@casl/ability';
 import {
-    addDashboardFiltersToMetricQuery,
     AnyType,
     ApiSqlQueryResults,
-    CustomSqlQueryForbiddenError,
     DashboardFilters,
     DateGranularity,
     DimensionType,
-    DownloadCsvPayload,
     DownloadFileType,
-    DownloadMetricCsv,
     ExportCsvDashboardPayload,
     ForbiddenError,
     formatItemValue,
     formatRows,
     friendlyName,
-    getCustomLabelsFromTableConfig,
-    getDashboardFiltersForTileAndTables,
     getErrorMessage,
-    getHiddenTableFields,
     getItemLabel,
     getItemLabelWithoutTableName,
     getItemMap,
-    getPivotConfig,
-    isCustomSqlDimension,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isField,
-    isTableChartConfig,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
     ParameterError,
     PivotConfig,
     pivotResultsAsCsv,
-    QueryExecutionContext,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
     SchedulerFormat,
     SessionUser,
-    type RunQueryTags,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';
@@ -61,7 +49,6 @@ import {
     LightdashAnalytics,
     parseAnalyticsLimit,
 } from '../../analytics/LightdashAnalytics';
-import * as Account from '../../auth/account';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
@@ -607,348 +594,6 @@ export class CsvService extends BaseService {
             localPath: filePath,
             truncated,
         };
-    }
-
-    /**
-     * @deprecated Uses old sync query pipeline (runMetricQuery + pivotDetails: null).
-     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
-     * Internal frontend uses v2 schedule-download flow instead.
-     */
-    async scheduleDownloadCsvForChart(
-        user: SessionUser,
-        chartUuid: string,
-        onlyRaw: boolean,
-        csvLimit: number | null | undefined,
-        tileUuid?: string,
-        dashboardFilters?: DashboardFilters,
-    ) {
-        const chart = await this.savedChartModel.get(chartUuid);
-        const {
-            projectUuid,
-            name,
-            tableName,
-            metricQuery,
-            tableConfig,
-            chartConfig,
-        } = chart;
-
-        const account = Account.fromSession(user);
-        const explore = await this.projectService.getExplore(
-            account,
-            projectUuid,
-            tableName,
-        );
-
-        const showTableNames = isTableChartConfig(chartConfig.config)
-            ? (chartConfig.config.showTableNames ?? false)
-            : true;
-        const customLabels = getCustomLabelsFromTableConfig(chartConfig.config);
-        const hiddenFields = getHiddenTableFields(chartConfig);
-
-        const dashboardFiltersForTile =
-            tileUuid && dashboardFilters
-                ? getDashboardFiltersForTileAndTables(
-                      tileUuid,
-                      Object.keys(explore.tables),
-                      dashboardFilters,
-                  )
-                : undefined;
-
-        const metricQueryWithDashboardFilters = dashboardFiltersForTile
-            ? addDashboardFiltersToMetricQuery(
-                  metricQuery,
-                  dashboardFiltersForTile,
-                  explore,
-              )
-            : metricQuery;
-
-        return this.scheduleDownloadCsv(user, {
-            userUuid: user.userUuid,
-            projectUuid,
-            exploreId: tableName,
-            metricQuery: metricQueryWithDashboardFilters,
-            onlyRaw,
-            csvLimit,
-            showTableNames,
-            customLabels,
-            chartName: name,
-            fromSavedChart: true,
-            hiddenFields,
-            columnOrder: tableConfig.columnOrder,
-            pivotConfig: getPivotConfig(chart),
-        });
-    }
-
-    /**
-     * @deprecated Uses old sync query pipeline (runMetricQuery + pivotDetails: null).
-     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
-     * Internal frontend uses v2 schedule-download flow instead.
-     */
-    async scheduleDownloadCsv(
-        user: SessionUser,
-        csvOptions: DownloadMetricCsv,
-    ) {
-        const projectSummary = await this.projectModel.getSummary(
-            csvOptions.projectUuid,
-        );
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid: projectSummary.projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        // If the request comes from a saved chart, we allow using custom dimensions, as the metricQuery was not modified by the user
-        if (
-            !csvOptions.fromSavedChart &&
-            csvOptions.metricQuery.customDimensions?.some(
-                isCustomSqlDimension,
-            ) &&
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid: projectSummary.projectUuid,
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
-        // If the user can't change the csv limit, default csvLimit to undefined
-        // csvLimit undefined means that we will be using the limit from the metricQuery
-        // csvLimit null means all rows
-        const csvLimit = user.ability.cannot(
-            'manage',
-            subject('ChangeCsvResults', {
-                organizationUuid: projectSummary.organizationUuid,
-                projectUuid: projectSummary.projectUuid,
-            }),
-        )
-            ? undefined
-            : csvOptions.csvLimit;
-        const payload: DownloadCsvPayload = {
-            ...csvOptions,
-            csvLimit,
-            userUuid: user.userUuid,
-            organizationUuid: projectSummary.organizationUuid,
-            projectUuid: projectSummary.projectUuid,
-        };
-        const { jobId } = await this.schedulerClient.downloadCsvJob(payload);
-
-        return { jobId };
-    }
-
-    /**
-     * @deprecated Uses old sync query pipeline (runMetricQuery + pivotDetails: null).
-     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
-     * Internal frontend uses v2 schedule-download flow instead.
-     */
-    async downloadCsv(
-        jobId: string,
-        {
-            userUuid,
-            projectUuid,
-            exploreId,
-            metricQuery,
-            onlyRaw,
-            csvLimit,
-            showTableNames,
-            customLabels,
-            columnOrder,
-            hiddenFields,
-            chartName,
-            fromSavedChart,
-            pivotConfig,
-        }: DownloadMetricCsv,
-    ) {
-        const user = await this.userModel.findSessionUserByUUID(userUuid);
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ExportCsv', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (
-            !fromSavedChart &&
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
-        const baseAnalyticsProperties: DownloadCsv['properties'] = {
-            jobId,
-            userId: userUuid,
-            organizationId: user.organizationUuid,
-            projectId: projectUuid,
-            fileType: SchedulerFormat.CSV,
-            storage: this.fileStorageClient.isEnabled() ? 's3' : 'local',
-        };
-        try {
-            const numberColumns =
-                metricQuery.dimensions.length +
-                metricQuery.metrics.length +
-                metricQuery.tableCalculations.length +
-                (metricQuery.customDimensions || []).length;
-            const analyticsProperties: DownloadCsv['properties'] = {
-                ...baseAnalyticsProperties,
-                tableId: exploreId,
-                values: onlyRaw ? 'raw' : 'formatted',
-                context: 'results',
-                limit: parseAnalyticsLimit(csvLimit),
-
-                numColumns: numberColumns,
-            };
-            this.analytics.track({
-                event: 'download_results.started',
-                userId: user.userUuid!,
-                properties: analyticsProperties,
-            });
-
-            const queryTags: Omit<RunQueryTags, 'query_context'> = {
-                project_uuid: projectUuid,
-                user_uuid: user.userUuid,
-                organization_uuid: user.organizationUuid,
-                explore_name: exploreId,
-            };
-
-            const account = Account.fromSession(user);
-            const { rows, fields } = await this.projectService.runMetricQuery({
-                account,
-                metricQuery,
-                projectUuid,
-                exploreName: exploreId,
-                csvLimit,
-                context: QueryExecutionContext.CSV,
-                chartUuid: undefined,
-                queryTags,
-            });
-            const numberRows = rows.length;
-            const truncated = this.couldBeTruncated(rows);
-
-            if (pivotConfig) {
-                const downloadUrl =
-                    await this.pivotTableService.downloadPivotTableCsv({
-                        pivotConfig,
-                        name: chartName,
-                        projectUuid,
-                        rows,
-                        itemMap: fields,
-                        metricQuery,
-                        exploreId,
-                        onlyRaw,
-                        truncated,
-                        customLabels,
-                        pivotDetails: null, // TODO: this is using old way of running queries + pivoting, therefore pivotDetails is not available
-                        organizationUuid: projectSummary.organizationUuid,
-                        createdByUserUuid: user.userUuid,
-                    });
-
-                this.analytics.track({
-                    event: 'download_results.completed',
-                    userId: user.userUuid,
-                    properties: {
-                        ...analyticsProperties,
-                        numRows: numberRows,
-                        numPivotDimensions: pivotConfig.pivotDimensions.length,
-                    },
-                });
-
-                return { fileUrl: downloadUrl.path, truncated };
-            }
-
-            const fileId = await CsvService.writeRowsToFile(
-                rows,
-                onlyRaw,
-                metricQuery,
-                fields,
-                showTableNames,
-                chartName || exploreId, // fileName
-                truncated,
-                customLabels,
-                columnOrder || [],
-                hiddenFields,
-            );
-            const filePath = `/tmp/${fileId}`;
-            let fileUrl;
-            if (this.fileStorageClient.isEnabled()) {
-                const csvContent = await fsPromise.readFile(filePath, {
-                    encoding: 'utf-8',
-                });
-                await this.fileStorageClient.uploadCsv(csvContent, fileId);
-                try {
-                    await fsPromise.unlink(filePath);
-                } catch (error) {
-                    this.logger.warn(
-                        `Error deleting local file ${filePath}: ${error}`,
-                    );
-                }
-                fileUrl =
-                    await this.persistentDownloadFileService.createPersistentUrl(
-                        {
-                            s3Key: fileId,
-                            fileType: DownloadFileType.CSV,
-                            organizationUuid: projectSummary.organizationUuid,
-                            projectUuid,
-                            createdByUserUuid: user.userUuid ?? null,
-                        },
-                    );
-            } else {
-                // Storing locally
-                const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
-                await this.downloadFileModel.createDownloadFile(
-                    downloadFileId,
-                    filePath,
-                    DownloadFileType.CSV,
-                );
-                fileUrl = new URL(
-                    `/api/v1/projects/${projectUuid}/csv/${downloadFileId}`,
-                    this.lightdashConfig.siteUrl,
-                ).href;
-            }
-
-            this.analytics.track({
-                event: 'download_results.completed',
-                userId: user.userUuid,
-                properties: {
-                    ...analyticsProperties,
-                    numRows: numberRows,
-                },
-            });
-
-            return { fileUrl, truncated };
-        } catch (e) {
-            this.analytics.track({
-                event: 'download_results.error',
-                userId: user.userUuid,
-                properties: {
-                    ...baseAnalyticsProperties,
-                    error: `${e}`,
-                },
-            });
-
-            throw e;
-        }
     }
 
     /**

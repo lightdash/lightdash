@@ -461,20 +461,6 @@ describe('Lightdash API tests for member user with editor project permissions', 
         expect(jaffleDashboard).toBeDefined();
     });
 
-    it('Should get success response (200) from POST downloadCsv', async () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
-        // eslint-disable-next-line no-await-in-loop
-        const resp = await client.post(`${apiUrl}${endpoint}`, {
-            ...runqueryBody,
-            onlyRaw: false,
-            columnOrder: [],
-            showTableNames: false,
-        });
-        expect(resp.status).toBe(200);
-        expect(resp.body).toHaveProperty('status', 'ok');
-    });
-
     it('Should get forbidden (403) from POST sqlQuery', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const endpoint = `/projects/${projectUuid}/sqlQuery`;
@@ -721,20 +707,6 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         expect(resp.status).toBe(403);
     });
 
-    it('Should get success response (200) from POST downloadCsv', async () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
-        // eslint-disable-next-line no-await-in-loop
-        const resp = await client.post(`${apiUrl}${endpoint}`, {
-            ...runqueryBody,
-            onlyRaw: false,
-            columnOrder: [],
-            showTableNames: false,
-        });
-        expect(resp.status).toBe(200);
-        expect(resp.body).toHaveProperty('status', 'ok');
-    });
-
     it('Should get success response (200) from POST runUnderlyingDataQuery', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const endpoint = `/projects/${projectUuid}/explores/customers/runUnderlyingDataQuery`;
@@ -946,23 +918,6 @@ describe('Lightdash API tests for member user with viewer project permissions', 
             failOnStatusCode: false,
         });
         expect(resp.status).toBe(403);
-    });
-
-    it('Should get csv (200) from POST downloadCsv', async () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
-        const endpoint = `/projects/${projectUuid}/explores/customers/downloadCsv`;
-        // eslint-disable-next-line no-await-in-loop
-        const resp = await client.post(
-            `${apiUrl}${endpoint}`,
-            {
-                ...runqueryBody,
-                onlyRaw: false,
-                columnOrder: [],
-                showTableNames: false,
-            },
-            { failOnStatusCode: false },
-        );
-        expect(resp.status).toBe(200);
     });
 
     it('Should get forbidden (403) from POST runUnderlyingDataQuery', async () => {

@@ -599,39 +599,6 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
-            [SCHEDULER_TASKS.DOWNLOAD_CSV]: async (payload, helpers) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.DOWNLOAD_CSV,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.downloadCsv(
-                                helpers.job.id,
-                                helpers.job.run_at,
-                                payload,
-                            );
-                        },
-                    ),
-                    helpers.job,
-                    this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.DOWNLOAD_CSV,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                createdByUserUuid: payload.userUuid,
-                                error: getErrorMessage(e),
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                            },
-                        });
-                    },
-                );
-            },
             [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: async (
                 payload,
                 helpers,

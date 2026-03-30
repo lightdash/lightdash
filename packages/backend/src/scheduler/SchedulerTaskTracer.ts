@@ -73,12 +73,6 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
 
-    [SCHEDULER_TASKS.DOWNLOAD_CSV]: (payload) => ({
-        'organization.uuid': payload.organizationUuid,
-        'user.uuid': payload.userUuid,
-        'project.uuid': payload.projectUuid,
-    }),
-
     [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

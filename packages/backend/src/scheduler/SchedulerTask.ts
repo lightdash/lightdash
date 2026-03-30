@@ -11,7 +11,6 @@ import {
     DashboardFilters,
     DateZoom,
     derivePivotConfigurationFromPivotConfig,
-    DownloadCsvPayload,
     DownloadFileType,
     EmailNotificationPayload,
     ExportCsvDashboardPayload,
@@ -1941,63 +1940,6 @@ export default class SchedulerTask {
                 },
             });
             throw e;
-        }
-    }
-
-    /**
-     * @deprecated Uses old sync query pipeline via CsvService.downloadCsv().
-     * Only kept alive by deprecated v1 downloadCsv endpoints for external API consumers.
-     * Internal frontend uses v2 async query + schedule-download flow instead.
-     */
-    protected async downloadCsv(
-        jobId: string,
-        scheduledTime: Date,
-        payload: DownloadCsvPayload,
-    ) {
-        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
-            {
-                task: SCHEDULER_TASKS.DOWNLOAD_CSV,
-                jobId,
-                scheduledTime,
-            };
-        try {
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                },
-                status: SchedulerJobStatus.STARTED,
-            });
-
-            const { fileUrl, truncated } = await this.csvService.downloadCsv(
-                jobId,
-                payload,
-            );
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                details: {
-                    fileUrl,
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                    createdByUserUuid: payload.userUuid,
-                    truncated,
-                },
-                status: SchedulerJobStatus.COMPLETED,
-            });
-        } catch (e) {
-            await this.schedulerService.logSchedulerJob({
-                ...baseLog,
-                status: SchedulerJobStatus.ERROR,
-                details: {
-                    createdByUserUuid: payload.userUuid,
-                    error: getErrorMessage(e),
-                    projectUuid: payload.projectUuid,
-                    organizationUuid: payload.organizationUuid,
-                },
-            });
-            throw e; // Cascade error to it can be retried by graphile
         }
     }
 

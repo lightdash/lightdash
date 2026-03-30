@@ -5,7 +5,6 @@ import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
 import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
-import { type MetricQuery } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
 import { SchedulerResourceType } from './schedulerLog';
@@ -628,20 +627,6 @@ export type BatchDeliveryResult = {
     succeeded: number;
     failed: number;
     results: DeliveryResult[];
-};
-
-export type DownloadCsvPayload = TraceTaskBase & {
-    exploreId: string;
-    metricQuery: MetricQuery;
-    onlyRaw: boolean;
-    csvLimit: number | null | undefined;
-    showTableNames: boolean;
-    columnOrder: string[];
-    customLabels: Record<string, string> | undefined;
-    hiddenFields: string[] | undefined;
-    chartName: string | undefined;
-    fromSavedChart: boolean;
-    pivotConfig?: PivotConfig;
 };
 
 export type ApiCsvUrlResponse = {

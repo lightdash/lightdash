@@ -39,7 +39,6 @@ import {
     getContextFromHeader,
     getContextFromQueryOrHeader,
 } from '../analytics/LightdashAnalytics';
-import { deprecatedDownloadCsvRoute } from '../middlewares/deprecation';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
@@ -363,54 +362,6 @@ export class SavedChartController extends BaseController {
             results: await this.services
                 .getPromoteService()
                 .getPromoteChartDiff(req.user!, chartUuid),
-        };
-    }
-
-    /**
-     * Download a CSV from a saved chart uuid
-     * @summary Download CSV from saved chart
-     * @param req express request
-     */
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        deprecatedDownloadCsvRoute,
-    ])
-    @Deprecated()
-    @SuccessResponse('200', 'Success')
-    @Post('/downloadCsv')
-    @OperationId('DownloadCsvFromSavedChart')
-    async DownloadCsvFromSavedChart(
-        @Request() req: express.Request,
-        @Path() chartUuid: string,
-        @Body()
-        body: {
-            dashboardFilters: AnyType; // DashboardFilters; temp disable validation
-            tileUuid?: string;
-            // Csv properties
-            onlyRaw: boolean;
-            csvLimit: number | null | undefined;
-        },
-    ): Promise<{ status: 'ok'; results: { jobId: string } }> {
-        this.setStatus(200);
-        const { dashboardFilters, onlyRaw, csvLimit, tileUuid } = body;
-
-        const { jobId } = await req.services
-            .getCsvService()
-            .scheduleDownloadCsvForChart(
-                req.user!,
-                chartUuid,
-                onlyRaw,
-                csvLimit,
-                tileUuid,
-                dashboardFilters,
-            );
-
-        return {
-            status: 'ok',
-            results: {
-                jobId,
-            },
         };
     }
 
