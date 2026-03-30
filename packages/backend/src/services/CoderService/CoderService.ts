@@ -407,6 +407,9 @@ export class CoderService extends BaseService {
             tabs: dashboard.tabs,
             slug: dashboard.slug,
             ...(dashboard.config ? { config: dashboard.config } : {}),
+            ...(dashboard.parameters
+                ? { parameters: dashboard.parameters }
+                : {}),
 
             spaceSlug,
             version: currentVersion,
