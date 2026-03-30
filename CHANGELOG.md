@@ -1,3 +1,11 @@
+# [0.2690.0](https://github.com/lightdash/lightdash/compare/0.2689.0...0.2690.0) (2026-03-30)
+
+
+### Features
+
+* add manage:DataApp permission check to app pages ([#21525](https://github.com/lightdash/lightdash/issues/21525)) ([7353c8d](https://github.com/lightdash/lightdash/commit/7353c8db0e9176621cd27c8065206f707426571f))
+* add updateStatusToError method to QueryHistoryModel ([#21489](https://github.com/lightdash/lightdash/issues/21489)) ([5bb5a5d](https://github.com/lightdash/lightdash/commit/5bb5a5d0cf2e13d7fc525e1660fa7ee152a0d7e4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2689.0](https://github.com/lightdash/lightdash/compare/0.2688.0...0.2689.0) (2026-03-30)
 
 
