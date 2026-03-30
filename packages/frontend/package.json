@@ -120,6 +120,7 @@
         "react-use-intercom": "^4.1.0",
         "react-vega": "^8.0.0",
         "rehype-external-links": "^3.0.0",
+        "rehype-raw": "^7.0.0",
         "rehype-sanitize": "^6.0.0",
         "reselect": "5.1.1",
         "rudder-sdk-js": "^2.8.0",
