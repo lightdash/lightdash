@@ -16,7 +16,7 @@
     "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
     "build": "tsc --build ./tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
@@ -61,6 +61,7 @@
     "@types/pegjs": "^0.10.3",
     "@types/sanitize-html": "^2.11.0",
     "@types/uuid": "^10.0.0",
+    "oxlint": "^1.57.0",
     "typescript": "6.0.0-beta"
   }
 }

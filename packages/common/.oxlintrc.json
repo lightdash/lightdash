@@ -1,0 +1,94 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["oxlint:recommended"],
+  "plugins": ["typescript", "import"],
+  "rules": {
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-void": ["error", { "allowAsStatement": true }],
+    "no-case-declarations": "off",
+    "no-template-curly-in-string": "off",
+    "prefer-const": "off",
+    "prefer-spread": "off",
+    "no-extra-boolean-cast": "off",
+    "no-useless-escape": "off",
+    "no-empty-pattern": "off",
+    "no-unsafe-optional-chaining": "off",
+    "no-duplicate-case": "off",
+    "no-unassigned-vars": "off",
+    "no-constant-binary-expression": "off",
+
+    "@typescript-eslint/consistent-type-imports": [
+      "error",
+      {
+        "prefer": "type-imports",
+        "fixStyle": "inline-type-imports"
+      }
+    ],
+    "@typescript-eslint/only-throw-error": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "none",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
+    "@typescript-eslint/no-wrapper-object-types": "off",
+    "@typescript-eslint/triple-slash-reference": "off",
+    "@typescript-eslint/prefer-as-const": "off",
+
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-member-access": "error",
+        "@typescript-eslint/no-unsafe-assignment": "error",
+        "@typescript-eslint/no-unsafe-call": "error"
+      }
+    },
+    {
+      "files": [
+        "src/compiler/exploreCompiler.ts",
+        "src/compiler/translator.ts",
+        "src/index.ts",
+        "src/pivot/pivotQueryResults.ts",
+        "src/types/dbt.ts",
+        "src/types/field.ts",
+        "src/types/filter.ts",
+        "src/types/filterGrammar.ts",
+        "src/types/metricQuery.ts",
+        "src/types/user.ts",
+        "src/utils/accessors.ts",
+        "src/utils/convertToDbt.ts",
+        "src/utils/filters.ts",
+        "src/visualizations/CartesianChartDataModel.ts",
+        "src/visualizations/TableDataModel.ts",
+        "src/types/filterGrammarConversion.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off"
+      }
+    },
+    {
+      "files": ["**/*.mock.ts", "**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off"
+      }
+    }
+  ]
+}

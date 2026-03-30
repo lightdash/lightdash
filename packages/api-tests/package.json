@@ -4,7 +4,7 @@
     "private": true,
     "license": "MIT",
     "scripts": {
-        "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+        "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
         "lint": "pnpm run linter .",
         "fix-lint": "pnpm run linter . --fix",
@@ -20,6 +20,7 @@
     },
     "devDependencies": {
         "@types/js-yaml": "^4.0.9",
+        "oxlint": "^1.57.0",
         "typescript": "6.0.0-beta",
         "vitest": "^3.0.5"
     }

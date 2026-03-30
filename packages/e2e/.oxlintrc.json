@@ -1,0 +1,35 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["oxlint:recommended"],
+  "plugins": ["typescript", "import"],
+  "rules": {
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-void": ["error", { "allowAsStatement": true }],
+    "prefer-const": "off",
+    "prefer-spread": "off",
+    "no-extra-boolean-cast": "off",
+    "no-useless-escape": "off",
+    "no-empty-pattern": "off",
+    "no-unsafe-optional-chaining": "off",
+    "no-duplicate-case": "off",
+    "no-unassigned-vars": "off",
+    "no-constant-binary-expression": "off",
+
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-non-null-asserted-optional-chain": "off",
+    "@typescript-eslint/no-wrapper-object-types": "off",
+    "@typescript-eslint/triple-slash-reference": "off",
+    "@typescript-eslint/prefer-as-const": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off"
+  }
+}
