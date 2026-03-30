@@ -59,11 +59,18 @@ interface LeafletAugmentedContainer extends HTMLElement {
     _leaflet_map?: L.Map;
 }
 
-// Monkey-patch Leaflet to handle "Map container is already initialized" error
-// that occurs with React 18 StrictMode's double-mounting behavior.
-// Instead of throwing, we remove the existing map and allow re-initialization.
+// Monkey-patch Leaflet to work around two React lifecycle issues:
+// 1. "Map container is already initialized" — React 18 StrictMode double-mounts,
+//    so we remove the existing map and allow re-initialization.
+// 2. "Cannot read properties of undefined (reading '_leaflet_pos')" — zoom
+//    transition callbacks can fire after React unmounts and destroys the DOM.
 (() => {
-    const MapPrototype = L.Map.prototype as unknown as LeafletMapPrototype;
+    const MapPrototype = L.Map.prototype as unknown as LeafletMapPrototype & {
+        _getMapPanePos: () => L.Point;
+        _mapPane: HTMLElement | undefined;
+    };
+
+    // Fix 1: Handle double-initialization
     const originalMapInitialize = MapPrototype.initialize;
     MapPrototype.initialize = function (
         this: L.Map,
@@ -73,22 +80,29 @@ interface LeafletAugmentedContainer extends HTMLElement {
         const container: LeafletAugmentedContainer | null =
             typeof id === 'string' ? document.getElementById(id) : id;
         if (container && container._leaflet_id) {
-            // Container already has a map - properly remove it first
-            // The map instance stores itself on the container as _leaflet_map
             const existingMap = container._leaflet_map;
             if (existingMap) {
                 existingMap.remove();
             } else {
-                // Fallback: just clear the ID if we can't find the map instance
                 delete container._leaflet_id;
             }
         }
-        // Store reference to this map on the container for future cleanup
         const result = originalMapInitialize.call(this, id, options);
         if (container) {
             container._leaflet_map = this;
         }
         return result;
+    };
+
+    // Fix 2: Guard against destroyed map pane
+    const originalGetMapPanePos = MapPrototype._getMapPanePos;
+    MapPrototype._getMapPanePos = function (
+        this: typeof MapPrototype,
+    ): L.Point {
+        if (!this._mapPane) {
+            return new L.Point(0, 0);
+        }
+        return originalGetMapPanePos.call(this);
     };
 })();
 import { MAP_FILL_NO_BASE_MAP_OPACITY } from './constants';
