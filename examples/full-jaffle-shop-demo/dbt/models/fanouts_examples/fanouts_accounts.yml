@@ -4,9 +4,11 @@ models:
     meta:
       primary_key: account_id
       # This filter means that unless you are an admin, you can't see Enterprise account
-      sql_filter: ${lightdash.attributes.is_admin_saas_demo} = 'true' or segment !=
+      sql_filter:
+        ${lightdash.attributes.is_admin_saas_demo} = 'true' or segment !=
         'Enterprise'
-      description: List of all customer and prospective customer fanouts_accounts pulled from
+      description:
+        List of all customer and prospective customer fanouts_accounts pulled from
         our CRM
       joins:
         - join: fanouts_deals
@@ -25,7 +27,7 @@ models:
               total_amount,
               total_deal_value,
               total_won_amount,
-              seats
+              seats,
             ]
         - join: fanouts_users
           relationship: many-to-many
@@ -42,13 +44,22 @@ models:
               created_at,
               first_logged_in_at,
               experience_in_years,
-              average_experience_in_years
+              average_experience_in_years,
             ]
         - join: fanouts_tracks
           relationship: one-to-many
           sql_on: ${fanouts_users.user_id} = ${fanouts_tracks.user_id}
           type: left
-          fields: [ id, user_id, event_count, name, timestamp, days_since_user_created, event_count]
+          fields:
+            [
+              id,
+              user_id,
+              event_count,
+              name,
+              timestamp,
+              days_since_user_created,
+              event_count,
+            ]
       metrics:
         nested_agg_fanout_repro:
           type: number
@@ -83,9 +94,25 @@ models:
           dimension:
             type: string
             urls:
-              - label: 'Open in CRM'
+              - label: "Open in CRM"
                 url: https://demo_saas.com/example/account/${ value.raw }
           metrics:
+            raw_arr_value:
+              hidden: true
+              type: number
+              label: "Raw ARR Value"
+              sql: ${TABLE}.estimated_annual_recurring_revenue
+
+            max_numeric_dim:
+              hidden: true
+              type: max
+              label: Max Numeric Dim"
+              sql: ${TABLE}.estimated_annual_recurring_revenue
+
+            mixed_raw_aggregate_repro:
+              type: number
+              label: "Mixed raw + aggregate"
+              sql: (ARRAY_AGG(${raw_arr_value} ORDER BY ${max_numeric_dim} DESC))[1]
             deals_seats_metric:
               type: sum
               description: "Sum of all deal seats for this account"
@@ -98,24 +125,27 @@ models:
             unique_smb_accounts:
               label: Unique SMB fanouts_accounts
               type: count_distinct
-              description: The unique number of fanouts_accounts based on distinct Account IDs for
+              description:
+                The unique number of fanouts_accounts based on distinct Account IDs for
                 fanouts_accounts in the SMB Segment
               filters:
-                - segment: 'SMB'
+                - segment: "SMB"
             unique_midmarket_accounts:
               label: Unique Midmarket fanouts_accounts
               type: count_distinct
-              description: The unique number of Midmarket fanouts_accounts based on distinct Account
+              description:
+                The unique number of Midmarket fanouts_accounts based on distinct Account
                 IDs for fanouts_accounts in the Midmarket Segment
               filters:
-                - segment: 'Midmarket'
+                - segment: "Midmarket"
             unique_enterprise_accounts:
               label: Unique Enterprise Accounts
               type: count_distinct
-              description: The unique number of accounts based on distinct Account IDs for
+              description:
+                The unique number of accounts based on distinct Account IDs for
                 accounts in the Enterprise Segment
               filters:
-                - segment: 'Enterprise'
+                - segment: "Enterprise"
       - name: account_name
         description: "Name of this company account"
         meta:
@@ -141,7 +171,7 @@ models:
               type: sum
               label: "Total Estimated Annual Recurring Revenue"
               description: "Sum of all estimated annual recurring revenue"
-              format: 'usd'
+              format: "usd"
       - name: numeric_dim
         description: "A numeric dimension for testing purposes"
         meta:
