@@ -125,11 +125,11 @@ const UserAttributeModal: FC<{
         setChecked(false);
         if (onClose) onClose();
     };
-    const handleSubmit = async (data: CreateUserAttribute) => {
+    const handleSubmit = (data: CreateUserAttribute) => {
         if (userAttribute?.uuid) {
-            await updateUserAttribute(data);
+            updateUserAttribute(data);
         } else {
-            await createUserAttribute(data);
+            createUserAttribute(data);
         }
         handleClose();
     };

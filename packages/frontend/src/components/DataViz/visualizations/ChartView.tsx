@@ -11,7 +11,7 @@ import EChartsReact, {
 type Props = {
     onChartReady?: EChartsReactProps['onChartReady'];
     config: AllVizChartConfig | undefined;
-    spec: EChartsReactProps['option'] | undefined;
+    spec: EChartsReactProps['option'];
     isLoading: boolean;
     error?: SerializedError | null;
 } & Partial<Pick<EChartsReactProps, 'style'>>;

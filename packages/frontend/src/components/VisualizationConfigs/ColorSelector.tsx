@@ -41,7 +41,10 @@ const ColorSelector: FC<Props> = ({
                         cursor: onColorChange ? 'pointer' : 'default',
                         transition: 'opacity 100ms ease',
                         '&:hover': { opacity: 0.8 },
-                        ...colorSwatchProps?.sx,
+                        ...(typeof colorSwatchProps?.sx === 'object' &&
+                        !Array.isArray(colorSwatchProps.sx)
+                            ? colorSwatchProps.sx
+                            : {}),
                     }}
                 />
             </Popover.Target>

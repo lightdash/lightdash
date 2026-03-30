@@ -251,17 +251,14 @@ export const EvalDetail: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
                         );
                     }}
                     onDelete={() => {
-                        void deleteEvaluationMutation.mutate(
-                            evaluation.evalUuid,
-                            {
-                                onSuccess: () => {
-                                    handleEditModalClose();
-                                    void navigate(
-                                        `/projects/${projectUuid}/ai-agents/${agentUuid}/edit`,
-                                    );
-                                },
+                        deleteEvaluationMutation.mutate(evaluation.evalUuid, {
+                            onSuccess: () => {
+                                handleEditModalClose();
+                                void navigate(
+                                    `/projects/${projectUuid}/ai-agents/${agentUuid}/edit`,
+                                );
                             },
-                        );
+                        });
                     }}
                     isLoading={updateEvaluationMutation.isLoading}
                     isDeleting={deleteEvaluationMutation.isLoading}

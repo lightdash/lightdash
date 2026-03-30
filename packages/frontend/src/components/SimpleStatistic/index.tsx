@@ -94,7 +94,10 @@ const BigNumberText: FC<
                     letterSpacing: '-0.02em',
                     lineHeight: 0.9,
                 }),
-                ...textProps.style,
+                ...(typeof textProps.style === 'object' &&
+                !Array.isArray(textProps.style)
+                    ? textProps.style
+                    : {}),
             }}
         >
             {children}

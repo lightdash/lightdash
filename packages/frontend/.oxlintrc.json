@@ -85,6 +85,10 @@
     "@typescript-eslint/no-unsafe-call": "off",
     "@typescript-eslint/no-unsafe-member-access": "off",
     "@typescript-eslint/no-wrapper-object-types": "off",
+    /* type-aware rules from oxlint:recommended — too noisy to fix now, enable incrementally */
+    "@typescript-eslint/restrict-template-expressions": "off",
+    "@typescript-eslint/no-base-to-string": "off",
+    "@typescript-eslint/unbound-method": "off",
 
     /* ── react (plugin:react/recommended equivalents) ─────────────── */
     "react/jsx-key": "error",
