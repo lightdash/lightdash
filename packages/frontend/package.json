@@ -183,6 +183,7 @@
         "isomorphic-fetch": "^3.0.0",
         "jsdom": "^24.0.0",
         "nock": "^13.5.1",
+        "oxlint": "^1.57.0",
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.15",
         "ts-unused-exports": "^9.0.4",
