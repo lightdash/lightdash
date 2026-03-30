@@ -1,3 +1,10 @@
+## [0.2685.1](https://github.com/lightdash/lightdash/compare/0.2685.0...0.2685.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* refetch chart config when rolling back version ([#21493](https://github.com/lightdash/lightdash/issues/21493)) ([f2f2f2a](https://github.com/lightdash/lightdash/commit/f2f2f2ae0ac70386f96662064c3a6698ba7537f0))
+
 # [0.2685.0](https://github.com/lightdash/lightdash/compare/0.2684.0...0.2685.0) (2026-03-30)
 
 
