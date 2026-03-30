@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["oxlint:recommended"],
-  "ignorePatterns": ["**/*.css", ".eslintrc.js"],
+  "ignorePatterns": ["**/*.css"],
   "plugins": ["typescript", "react", "jsx-a11y", "import"],
   "jsPlugins": [
     "eslint-plugin-jest-dom",
