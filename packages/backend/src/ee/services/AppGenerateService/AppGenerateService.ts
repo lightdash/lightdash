@@ -1,4 +1,5 @@
 import {
+    GetObjectCommand,
     PutObjectCommand,
     S3Client,
     type S3ClientConfig,
@@ -8,15 +9,17 @@ import {
     ForbiddenError,
     getErrorMessage,
     MissingConfigError,
+    NotFoundError,
     ParameterError,
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
 import { performance } from 'node:perf_hooks';
-import { PassThrough } from 'node:stream';
+import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { type DbApp } from '../../../database/entities/apps';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
@@ -142,12 +145,156 @@ export class AppGenerateService extends BaseService {
             timeoutMs: 10 * 60 * 1000,
             apiKey: e2bApiKey,
             envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+            lifecycle: { onTimeout: 'pause' },
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: E2B sandbox created (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
         );
         return { sandbox, durationMs };
+    }
+
+    private async pauseSandbox(
+        sandbox: Sandbox,
+        appUuid: string,
+    ): Promise<void> {
+        try {
+            const start = performance.now();
+            await sandbox.pause();
+            const durationMs = AppGenerateService.elapsed(start);
+            this.logger.info(
+                `App ${appUuid}: sandbox paused (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to pause sandbox (sandboxId=${sandbox.sandboxId}): ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async resumeSandbox(
+        sandboxId: string,
+        appUuid: string,
+        e2bApiKey: string,
+    ): Promise<{ sandbox: Sandbox; durationMs: number }> {
+        const start = performance.now();
+        const sandbox = await Sandbox.connect(sandboxId, {
+            apiKey: e2bApiKey,
+            timeoutMs: 10 * 60 * 1000,
+        });
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: E2B sandbox resumed (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
+        );
+        return { sandbox, durationMs };
+    }
+
+    private async restoreSourceFromS3(
+        sandbox: Sandbox,
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+    ): Promise<number> {
+        const start = performance.now();
+        const s3Key = `apps/${appUuid}/versions/${version}/source.tar`;
+
+        const response = await s3Client.send(
+            new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
+        );
+        const stream = response.Body as Readable;
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const tarBuffer = Buffer.concat(chunks);
+
+        await sandbox.files.write(
+            '/tmp/source.tar',
+            tarBuffer.buffer.slice(
+                tarBuffer.byteOffset,
+                tarBuffer.byteOffset + tarBuffer.byteLength,
+            ) as ArrayBuffer,
+        );
+        const result = await sandbox.commands.run(
+            'tar -xf /tmp/source.tar -C /app',
+            { timeoutMs: 30_000 },
+        );
+        if (result.exitCode !== 0) {
+            throw new Error(
+                `Failed to restore source (exit ${result.exitCode}): ${result.stderr}`,
+            );
+        }
+
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: source restored from S3 (version=${version}, tarBytes=${tarBuffer.length}, ${durationMs}ms)`,
+        );
+        return durationMs;
+    }
+
+    /**
+     * Resume an existing sandbox or create a new one with source restored from S3.
+     * Always returns a running Sandbox instance or throws.
+     */
+    private async acquireSandbox(
+        app: DbApp,
+        appUuid: string,
+        newVersion: number,
+        e2bApiKey: string,
+        anthropicApiKey: string,
+        s3Client: S3Client,
+        bucket: string,
+    ): Promise<{ sandbox: Sandbox; durations: Record<string, number> }> {
+        const durations: Record<string, number> = {};
+
+        // Try to resume existing sandbox
+        if (app.sandbox_id) {
+            try {
+                const result = await this.resumeSandbox(
+                    app.sandbox_id,
+                    appUuid,
+                    e2bApiKey,
+                );
+                durations.resumeMs = result.durationMs;
+                return { sandbox: result.sandbox, durations };
+            } catch (error) {
+                this.logger.warn(
+                    `App ${appUuid}: sandbox resume failed, falling back to new sandbox: ${getErrorMessage(error)}`,
+                );
+            }
+        }
+
+        // Fallback: create new sandbox and restore source from latest ready version
+        try {
+            const createResult = await this.createSandbox(
+                appUuid,
+                e2bApiKey,
+                anthropicApiKey,
+            );
+            durations.sandboxMs = createResult.durationMs;
+            await this.appModel.updateSandboxId(
+                appUuid,
+                createResult.sandbox.sandboxId,
+            );
+
+            const latestReady =
+                await this.appModel.getLatestReadyVersion(appUuid);
+            if (latestReady) {
+                durations.restoreMs = await this.restoreSourceFromS3(
+                    createResult.sandbox,
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    latestReady.version,
+                );
+            }
+
+            return { sandbox: createResult.sandbox, durations };
+        } catch (error) {
+            await this.markError(appUuid, newVersion, error);
+            throw error;
+        }
     }
 
     private async writeCatalogAndPrompt(
@@ -161,8 +308,27 @@ export class AppGenerateService extends BaseService {
         const catalogItems =
             await this.catalogModel.getCatalogItemsSummary(projectUuid);
         const modelYaml = AppGenerateService.catalogToYaml(catalogItems);
+
+        // Remove files that may have been created by a previous run with
+        // different ownership (e.g. root-owned after Claude CLI execution),
+        // which would cause a permission error on write.
+        // We chmod the prompt file instead of deleting it to preserve history.
+        await sandbox.commands.run(
+            'rm -f /tmp/dbt-repo/models/schema.yml && chmod 666 /tmp/prompt.txt 2>/dev/null; true',
+            { timeoutMs: 5_000 },
+        );
+
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
-        await sandbox.files.write('/tmp/prompt.txt', prompt);
+
+        // Append the new prompt to the prompt file so that on resumed sandboxes
+        // Claude sees the full conversation history of user requests.
+        // We write to a temp file first (via SDK, no shell escaping needed),
+        // then append with shell to avoid permission issues on /tmp/prompt.txt.
+        await sandbox.files.write('/tmp/prompt-new.txt', `---\n${prompt}\n`);
+        await sandbox.commands.run(
+            'cat /tmp/prompt-new.txt >> /tmp/prompt.txt && rm -f /tmp/prompt-new.txt',
+            { timeoutMs: 5_000 },
+        );
 
         let tableCount = 0;
         let totalDimensions = 0;
@@ -431,6 +597,7 @@ export class AppGenerateService extends BaseService {
             );
             sandbox = result.sandbox;
             durations.sandboxMs = result.durationMs;
+            await this.appModel.updateSandboxId(appUuid, sandbox.sandboxId);
         } catch (error) {
             await this.markError(appUuid, version, error);
             throw error;
@@ -483,10 +650,126 @@ export class AppGenerateService extends BaseService {
             await this.markError(appUuid, version, error);
             throw error;
         } finally {
-            await sandbox.kill();
-            this.logger.info(
-                `App ${appUuid}: sandbox terminated (sandboxId=${sandbox.sandboxId})`,
+            await this.pauseSandbox(sandbox, appUuid);
+        }
+    }
+
+    async iterateApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        prompt: string,
+    ): Promise<GenerateAppResult> {
+        this.assertDataAppsEnabled();
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DataApp', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to modify data apps',
             );
+        }
+
+        const app = await this.appModel.getApp(appUuid);
+        if (app.project_uuid !== projectUuid) {
+            throw new NotFoundError(`App not found: ${appUuid}`);
+        }
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (latestVersion?.status === 'building') {
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+
+        const newVersion = (latestVersion?.version ?? 0) + 1;
+        const anthropicApiKey = this.getAnthropicApiKey();
+        const e2bApiKey = this.getE2bApiKey();
+        const { client: s3Client, bucket } = this.getS3Client();
+
+        const overallStart = performance.now();
+        const durations: Record<string, number> = {};
+
+        this.logger.info(
+            `App ${appUuid}: iteration started (version=${newVersion}, promptLength=${prompt.length})`,
+        );
+
+        await this.appModel.createVersion(
+            appUuid,
+            { version: newVersion, prompt },
+            'building',
+            user.userUuid,
+        );
+
+        const acquired = await this.acquireSandbox(
+            app,
+            appUuid,
+            newVersion,
+            e2bApiKey,
+            anthropicApiKey,
+            s3Client,
+            bucket,
+        );
+        const { sandbox } = acquired;
+        Object.assign(durations, acquired.durations);
+
+        try {
+            durations.catalogMs = await this.writeCatalogAndPrompt(
+                sandbox,
+                appUuid,
+                projectUuid,
+                prompt,
+            );
+            durations.generateMs = await this.runClaudeGeneration(
+                sandbox,
+                appUuid,
+            );
+            durations.buildMs = await this.runBuild(sandbox, appUuid);
+
+            const artifacts = await this.packageArtifacts(sandbox, appUuid);
+            durations.packageMs = artifacts.durationMs;
+
+            durations.uploadMs = await this.uploadToS3(
+                s3Client,
+                bucket,
+                appUuid,
+                newVersion,
+                artifacts.distTar,
+                artifacts.sourceTar,
+            );
+
+            const dbStart = performance.now();
+            await this.appModel.updateVersionStatus(
+                appUuid,
+                newVersion,
+                'ready',
+            );
+            durations.dbMs = AppGenerateService.elapsed(dbStart);
+
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.info(
+                `App ${appUuid}: iteration completed successfully in ${totalMs}ms (${Object.entries(
+                    durations,
+                )
+                    .map(([k, v]) => `${k}=${v}ms`)
+                    .join(', ')})`,
+            );
+
+            return { appUuid, version: newVersion };
+        } catch (error) {
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.error(
+                `App ${appUuid}: iteration failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+            );
+            await this.markError(appUuid, newVersion, error);
+            throw error;
+        } finally {
+            await this.pauseSandbox(sandbox, appUuid);
         }
     }
 

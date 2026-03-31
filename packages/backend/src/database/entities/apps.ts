@@ -9,6 +9,7 @@ export type DbApp = {
     description: string;
     project_uuid: string;
     space_uuid: string | null;
+    sandbox_id: string | null;
     created_at: Date;
     created_by_user_uuid: string;
     deleted_at: Date | null;
@@ -18,13 +19,19 @@ export type DbApp = {
 export type AppsTable = Knex.CompositeTableType<
     DbApp,
     Pick<DbApp, 'project_uuid' | 'created_by_user_uuid'> &
-        Partial<Pick<DbApp, 'app_id' | 'name' | 'description' | 'space_uuid'>>,
+        Partial<
+            Pick<
+                DbApp,
+                'app_id' | 'name' | 'description' | 'space_uuid' | 'sandbox_id'
+            >
+        >,
     Partial<
         Pick<
             DbApp,
             | 'name'
             | 'description'
             | 'space_uuid'
+            | 'sandbox_id'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
         >

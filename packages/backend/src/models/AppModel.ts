@@ -1,3 +1,4 @@
+import { NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AppsTableName,
@@ -49,5 +50,58 @@ export class AppModel {
         await this.database(AppVersionsTableName)
             .where({ app_id: appId, version })
             .update({ status, error: error ?? null });
+    }
+
+    async getApp(appId: string): Promise<DbApp> {
+        const row = await this.database(AppsTableName)
+            .where({ app_id: appId })
+            .whereNull('deleted_at')
+            .first();
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    async getLatestVersion(appId: string): Promise<DbAppVersion | null> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId })
+            .orderBy('version', 'desc')
+            .first();
+        return row ?? null;
+    }
+
+    async getLatestReadyVersion(appId: string): Promise<DbAppVersion | null> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, status: 'ready' })
+            .orderBy('version', 'desc')
+            .first();
+        return row ?? null;
+    }
+
+    async createVersion(
+        appId: string,
+        version: Pick<DbAppVersion, 'version' | 'prompt'>,
+        status: AppVersionStatus,
+        createdByUserUuid: string,
+    ): Promise<DbAppVersion> {
+        const [row] = await this.database(AppVersionsTableName)
+            .insert({
+                ...version,
+                app_id: appId,
+                status,
+                created_by_user_uuid: createdByUserUuid,
+            })
+            .returning('*');
+        return row;
+    }
+
+    async updateSandboxId(
+        appId: string,
+        sandboxId: string | null,
+    ): Promise<void> {
+        await this.database(AppsTableName)
+            .where({ app_id: appId })
+            .update({ sandbox_id: sandboxId });
     }
 }
