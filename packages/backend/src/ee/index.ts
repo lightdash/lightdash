@@ -1,4 +1,4 @@
-import { ForbiddenError, isExploreError } from '@lightdash/common';
+import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -21,7 +21,7 @@ import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuth
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
-import { generatePreAggregateExplores } from './preAggregates/generatePreAggregateExplores';
+import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
@@ -386,24 +386,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     aiAgentService: repository.getAiAgentService(),
                 }),
-            deployService: ({ models, clients, repository }) =>
+            deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
                     deploySessionModel: models.getDeploySessionModel(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
                     exploreEnhancer: (explores) =>
-                        explores.flatMap((explore) => {
-                            if (isExploreError(explore)) return [explore];
-                            if (
-                                !explore.preAggregates ||
-                                explore.preAggregates.length === 0
-                            )
-                                return [explore];
-                            return generatePreAggregateExplores({
-                                compiledExplores: [explore],
-                                parsedPreAggregates: explore.preAggregates,
-                            });
+                        enhanceExploresForPreAggregates({
+                            explores,
+                            enabled:
+                                context.lightdashConfig.preAggregates.enabled,
                         }),
                 }),
         },

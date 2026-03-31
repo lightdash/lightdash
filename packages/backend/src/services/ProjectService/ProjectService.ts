@@ -208,6 +208,7 @@ import { normalizeDatabricksHostLenient } from '../../controllers/authentication
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
@@ -2150,11 +2151,17 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // TODO: Do not hardcode CLI information here
+        const exploresWithPreAggregates = enhanceExploresForPreAggregates({
+            explores,
+            enabled: this.lightdashConfig.preAggregates.enabled,
+        });
+
         await this.saveExploresToCacheAndIndexCatalog(
             user.userUuid,
             projectUuid,
-            explores,
+            exploresWithPreAggregates,
+
+            // TODO: Do not hardcode CLI information here
             'cli_deploy',
             null,
             'cli',
