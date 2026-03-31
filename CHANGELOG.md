@@ -1,3 +1,10 @@
+# [0.2695.0](https://github.com/lightdash/lightdash/compare/0.2694.0...0.2695.0) (2026-03-31)
+
+
+### Features
+
+* add EnableTimezoneSupport feature flag ([#21531](https://github.com/lightdash/lightdash/issues/21531)) ([46fd32b](https://github.com/lightdash/lightdash/commit/46fd32b628506cb3dea629ccd003cf0ecd1cb1e2))
+
 # [0.2694.0](https://github.com/lightdash/lightdash/compare/0.2693.0...0.2694.0) (2026-03-31)
 
 
