@@ -52,9 +52,9 @@ export class AppModel {
             .update({ status, error: error ?? null });
     }
 
-    async getApp(appId: string): Promise<DbApp> {
+    async getApp(appId: string, projectUuid: string): Promise<DbApp> {
         const row = await this.database(AppsTableName)
-            .where({ app_id: appId })
+            .where({ app_id: appId, project_uuid: projectUuid })
             .whereNull('deleted_at')
             .first();
         if (!row) {
@@ -94,6 +94,51 @@ export class AppModel {
             })
             .returning('*');
         return row;
+    }
+
+    async getAppWithVersions(
+        appId: string,
+        projectUuid: string,
+        opts: { beforeVersion?: number; limit?: number } = {},
+    ): Promise<{ versions: DbAppVersion[]; hasMore: boolean }> {
+        const limit = opts.limit ?? 20;
+        const query = this.database(AppsTableName)
+            .leftJoin(
+                AppVersionsTableName,
+                `${AppsTableName}.app_id`,
+                `${AppVersionsTableName}.app_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select(`${AppVersionsTableName}.*`)
+            .orderBy(`${AppVersionsTableName}.version`, 'desc')
+            .limit(limit + 1);
+
+        if (opts.beforeVersion !== undefined) {
+            void query.where(
+                `${AppVersionsTableName}.version`,
+                '<',
+                opts.beforeVersion,
+            );
+        }
+
+        const rows: (DbAppVersion | Record<string, null>)[] = await query;
+
+        // Left join: if app doesn't exist, zero rows → 404
+        if (rows.length === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+
+        // If app exists but no versions match, we get one row with all nulls
+        const versions = rows.filter(
+            (r): r is DbAppVersion => r.version !== null,
+        );
+        const hasMore = versions.length > limit;
+        return {
+            versions: versions.slice(0, limit),
+            hasMore,
+        };
     }
 
     async updateSandboxId(

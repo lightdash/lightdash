@@ -8,3 +8,16 @@ export type ApiGenerateAppResponse = ApiSuccess<{
 export type ApiPreviewTokenResponse = ApiSuccess<{
     token: string;
 }>;
+
+export type ApiAppVersionSummary = {
+    version: number;
+    prompt: string;
+    status: string;
+    createdAt: Date;
+};
+
+export type ApiGetAppResponse = ApiSuccess<{
+    appUuid: string;
+    versions: ApiAppVersionSummary[];
+    hasMore: boolean;
+}>;

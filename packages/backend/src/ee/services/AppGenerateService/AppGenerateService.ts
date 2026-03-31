@@ -675,10 +675,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const app = await this.appModel.getApp(appUuid);
-        if (app.project_uuid !== projectUuid) {
-            throw new NotFoundError(`App not found: ${appUuid}`);
-        }
+        const app = await this.appModel.getApp(appUuid, projectUuid);
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (latestVersion?.status === 'building') {
@@ -771,6 +768,54 @@ export class AppGenerateService extends BaseService {
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
         }
+    }
+
+    async getAppVersions(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        opts: { beforeVersion?: number; limit?: number },
+    ): Promise<{
+        appUuid: string;
+        versions: {
+            version: number;
+            prompt: string;
+            status: string;
+            createdAt: Date;
+        }[];
+        hasMore: boolean;
+    }> {
+        this.assertDataAppsEnabled();
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DataApp', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access data apps',
+            );
+        }
+
+        const { versions, hasMore } = await this.appModel.getAppWithVersions(
+            appUuid,
+            projectUuid,
+            opts,
+        );
+
+        return {
+            appUuid,
+            versions: versions.map((v) => ({
+                version: v.version,
+                prompt: v.prompt,
+                status: v.status,
+                createdAt: v.created_at,
+            })),
+            hasMore,
+        };
     }
 
     private static async extractAndUploadToS3(
