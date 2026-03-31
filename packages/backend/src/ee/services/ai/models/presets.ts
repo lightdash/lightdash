@@ -70,6 +70,7 @@ export const MODEL_PRESETS: {
             displayName: 'GPT-5 Mini',
             description: 'Fast and cost-effective model for simple tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: {},
             providerOptions: {
                 strictJsonSchema: true,
