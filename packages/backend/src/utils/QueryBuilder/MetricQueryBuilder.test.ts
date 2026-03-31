@@ -1054,6 +1054,21 @@ describe('Query builder', () => {
         expect(query).not.toMatch(/INNER JOIN pop_metrics_/);
     });
 
+    test('Should wrap PoP queries in an outer metrics CTE so ORDER BY is not ambiguous', () => {
+        const { query } = buildQuery({
+            explore: POP_TEST_EXPLORE,
+            compiledMetricQuery: POP_TEST_METRIC_QUERY,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(query).toMatch(/metrics AS \(\nSELECT\n {2}base_metrics\.\*/);
+        expect(query).toMatch(
+            /SELECT\s+\*\s+FROM metrics\s+ORDER BY "orders_order_date_year" DESC\s+LIMIT 500$/,
+        );
+    });
+
     test('Should reuse non-time filters for PoP metrics in fanout-protected CTEs while shifting the comparison period', () => {
         const { query } = buildQuery({
             explore: POP_TEST_FANOUT_EXPLORE,
