@@ -359,6 +359,22 @@ export const getMantineThemeOverride = (
                 fontWeight: 'bold',
             },
 
+            // CJK font selection for headless browser screenshots/PDFs.
+            // Chromium ignores fontconfig, so we use :lang() CSS selectors
+            // to explicitly select the correct Noto Sans CJK variant.
+            ':lang(ja)': {
+                fontFamily: `'Noto Sans CJK JP', ${theme.fontFamily}`,
+            },
+            ':lang(zh-CN), :lang(zh-Hans)': {
+                fontFamily: `'Noto Sans CJK SC', ${theme.fontFamily}`,
+            },
+            ':lang(zh-TW), :lang(zh-Hant)': {
+                fontFamily: `'Noto Sans CJK TC', ${theme.fontFamily}`,
+            },
+            ':lang(ko)': {
+                fontFamily: `'Noto Sans CJK KR', ${theme.fontFamily}`,
+            },
+
             strong: {
                 fontWeight: 600,
             },
