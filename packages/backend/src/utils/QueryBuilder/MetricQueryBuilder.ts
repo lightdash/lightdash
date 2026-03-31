@@ -3660,7 +3660,9 @@ export class MetricQueryBuilder {
         ].join(',\n')}`;
         const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
-        const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
+        const { sqlOrderBy, requiresQueryInCTE: initialRequiresQueryInCTE } =
+            this.getSortSQL();
+        let requiresQueryInCTE = initialRequiresQueryInCTE;
         const ctes = [...dimensionsSQL.ctes];
         let finalSelectParts: Array<string | undefined> = [
             sqlSelect,
@@ -3823,6 +3825,10 @@ export class MetricQueryBuilder {
                     `FROM ${baseCteName}`,
                     ...popJoins,
                 ];
+                // DuckDB resolves ORDER BY names against joined sources here, so
+                // sorting by a shared dimension alias becomes ambiguous unless we
+                // sort from an outer projection.
+                requiresQueryInCTE = true;
             }
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
