@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
-import { useToaster } from '../../../../hooks/toaster/useToaster';
+import useToaster from '../../../../hooks/toaster/useToaster';
 
 const getAllowedDomains = async () =>
     lightdashApi<AllowedDomain[]>({
@@ -14,12 +14,14 @@ const getAllowedDomains = async () =>
         body: undefined,
     });
 
-const addAllowedDomain = async (body: CreateAllowedDomain) =>
-    lightdashApi<AllowedDomain>({
+const addAllowedDomain = async (
+    body: CreateAllowedDomain,
+): Promise<AllowedDomain> =>
+    lightdashApi({
         url: `/org/allowedDomains`,
         method: 'POST',
         body: JSON.stringify(body),
-    });
+    }) as unknown as Promise<AllowedDomain>;
 
 const deleteAllowedDomain = async (domainUuid: string) =>
     lightdashApi<undefined>({

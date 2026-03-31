@@ -1,7 +1,6 @@
 import {
     AllowedDomain,
     CommercialFeatureFlags,
-    ConflictError,
     CreateAllowedDomain,
     ForbiddenError,
     ParameterError,
@@ -126,9 +125,8 @@ export class OrganizationAllowedDomainsService extends BaseService {
 
         await this.checkFeatureEnabled(user);
 
-        const org = await this.organizationModel.get(organizationUuid);
-        return this.organizationAllowedDomainsModel.getAllByOrganizationId(
-            org.organizationId,
+        return this.organizationAllowedDomainsModel.getAllByOrganizationUuid(
+            organizationUuid,
         );
     }
 
@@ -145,25 +143,23 @@ export class OrganizationAllowedDomainsService extends BaseService {
 
         const validatedDomain = validateDomain(body.domain);
 
-        const org = await this.organizationModel.get(organizationUuid);
-
         // Check for duplicates (DB constraint will also catch this, but nicer error)
         const existing =
-            await this.organizationAllowedDomainsModel.getAllByOrganizationId(
-                org.organizationId,
+            await this.organizationAllowedDomainsModel.getAllByOrganizationUuid(
+                organizationUuid,
             );
         if (existing.some((d) => d.domain === validatedDomain)) {
-            throw new ConflictError(
+            throw new ParameterError(
                 `Domain ${validatedDomain} is already in the allowed list`,
             );
         }
 
-        return this.organizationAllowedDomainsModel.create({
-            organization_id: org.organizationId,
-            domain: validatedDomain,
-            type: body.type,
-            created_by_user_uuid: user.userUuid,
-        });
+        return this.organizationAllowedDomainsModel.create(
+            organizationUuid,
+            validatedDomain,
+            body.type,
+            user.userUuid,
+        );
     }
 
     async deleteAllowedDomain(
@@ -177,9 +173,8 @@ export class OrganizationAllowedDomainsService extends BaseService {
 
         await this.checkFeatureEnabled(user);
 
-        const org = await this.organizationModel.get(organizationUuid);
         await this.organizationAllowedDomainsModel.delete(
-            org.organizationId,
+            organizationUuid,
             domainUuid,
         );
     }

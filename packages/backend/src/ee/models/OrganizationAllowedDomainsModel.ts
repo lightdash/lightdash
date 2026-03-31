@@ -1,12 +1,9 @@
-import {
-    AllowedDomain,
-    NotFoundError,
-} from '@lightdash/common';
+import { AllowedDomain, NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
-    CreateDbOrganizationAllowedDomain,
     OrganizationAllowedDomainsTableName,
 } from '../../database/entities/organizationAllowedDomains';
+import { OrganizationTableName } from '../../database/entities/organizations';
 
 type Dependencies = {
     database: Knex;
@@ -19,11 +16,21 @@ export class OrganizationAllowedDomainsModel {
         this.database = dependencies.database;
     }
 
-    async getAllByOrganizationId(
-        organizationId: number,
+    private organizationIdSubquery(organizationUuid: string) {
+        return this.database(OrganizationTableName)
+            .select('organization_id')
+            .where('organization_uuid', organizationUuid)
+            .first();
+    }
+
+    async getAllByOrganizationUuid(
+        organizationUuid: string,
     ): Promise<AllowedDomain[]> {
         const rows = await this.database(OrganizationAllowedDomainsTableName)
-            .where('organization_id', organizationId)
+            .where(
+                'organization_id',
+                this.organizationIdSubquery(organizationUuid),
+            )
             .orderBy('created_at', 'asc');
 
         return rows.map((row) => ({
@@ -51,10 +58,18 @@ export class OrganizationAllowedDomainsModel {
     }
 
     async create(
-        data: CreateDbOrganizationAllowedDomain,
+        organizationUuid: string,
+        domain: string,
+        type: 'sdk' | 'embed',
+        createdByUserUuid: string,
     ): Promise<AllowedDomain> {
         const [row] = await this.database(OrganizationAllowedDomainsTableName)
-            .insert(data)
+            .insert({
+                organization_id: this.organizationIdSubquery(organizationUuid),
+                domain,
+                type,
+                created_by_user_uuid: createdByUserUuid,
+            })
             .returning('*');
 
         return {
@@ -68,13 +83,16 @@ export class OrganizationAllowedDomainsModel {
     }
 
     async delete(
-        organizationId: number,
+        organizationUuid: string,
         domainUuid: string,
     ): Promise<void> {
         const deleted = await this.database(
             OrganizationAllowedDomainsTableName,
         )
-            .where('organization_id', organizationId)
+            .where(
+                'organization_id',
+                this.organizationIdSubquery(organizationUuid),
+            )
             .where('organization_allowed_domain_uuid', domainUuid)
             .delete();
 
