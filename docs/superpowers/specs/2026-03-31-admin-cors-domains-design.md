@@ -76,7 +76,10 @@ type CreateAllowedDomain = {
 ### Validation (POST)
 
 - Domain must be a valid origin: require `https://` protocol (allow `http://` only for `localhost`)
-- Reject wildcards (`*`, `*.example.com`)
+- **Subdomain wildcards supported:** `*.example.com` is allowed
+  - Wildcard must be the leftmost label only (`*.example.com` yes, `app.*.com` no)
+  - Must have at least a second-level domain (`*.com` rejected, `*.example.com` allowed)
+  - Bare `*` rejected
 - Reject paths, trailing slashes, query strings
 - Normalize: trim whitespace, strip trailing slash
 - Reject duplicates: 409 Conflict
@@ -166,9 +169,12 @@ Standard TanStack Query patterns with toast notifications on success/error.
 ### Domain validation (strict)
 
 - Require `https://` (allow `http://localhost:*` for development)
-- Reject wildcards, IP ranges, bare hostnames without protocol
+- **Subdomain wildcards:** `*.example.com` allowed (leftmost label only, requires 2+ domain levels). Bare `*` and mid-domain wildcards rejected.
+- Reject IP ranges, bare hostnames without protocol
 - Reject paths and query strings — origins only
 - Normalize before storage (trim, lowercase host, strip trailing slash)
+- CORS side: wildcard matching implemented in the origin callback (codebase already has regex pattern support)
+- CSP side: `*.example.com` passed through directly (natively supported by `frame-ancestors`)
 
 ### Access control
 
@@ -210,7 +216,7 @@ Standard TanStack Query patterns with toast notifications on success/error.
 ## Out of Scope
 
 - Per-project domain scoping (future enhancement)
-- Wildcard/subdomain pattern matching (use explicit origins)
+- Full regex pattern matching (subdomain wildcards are sufficient)
 - Domain verification (DNS-based ownership proof)
 - Audit log for domain changes (we store created_by but no deletion log)
 - Bulk import/export of domains
