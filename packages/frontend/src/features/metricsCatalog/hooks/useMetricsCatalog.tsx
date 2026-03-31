@@ -20,7 +20,7 @@ type UseMetricsCatalogOptions = {
     categoriesFilterMode?: CatalogCategoryFilterMode;
     tables?: string[];
     ownerUserUuids?: string[];
-    sortBy?: ApiSort['sort'] | 'name' | 'chartUsage';
+    sortBy?: ApiSort['sort'];
     sortDirection?: ApiSort['order'];
 };
 

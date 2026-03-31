@@ -403,7 +403,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                     }, 100);
                 }
             },
-            [chartRef, eChartsOptions?.tooltip.formatter, itemsMap],
+            [chartRef, eChartsOptions?.tooltip, itemsMap],
         );
 
         const handleOnMouseOut = useCallback(() => {

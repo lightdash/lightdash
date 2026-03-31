@@ -605,7 +605,10 @@ const getMinAndMaxReferenceLines = (
         });
 
         if (values.length === 0) return [];
-        const min: string | number = values.sort()[0];
+        const min: string | number = values.sort((a, b) => {
+            if (typeof a === 'number' && typeof b === 'number') return a - b;
+            return String(a).localeCompare(String(b));
+        })[0];
         const max = values.reverse()[0];
         return [min, max];
     };
@@ -1195,10 +1198,7 @@ const getEchartsSeriesFromPivotedData = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,
-    pivotValuesColumnsMap?:
-        | Record<string, PivotValuesColumn>
-        | null
-        | undefined,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
     parameters?: ParametersValuesMap,
     backgroundColor?: string,
 ): EChartsSeries[] => {
@@ -1873,7 +1873,7 @@ const getEchartAxes = ({
 
     // Get the min and max values for the bottom X axis
     const getMinAndMaxFromBottomAxisBounds = (
-        axisType: 'value' | 'category' | 'time' | string,
+        axisType: string,
         min?: number,
         max?: number,
     ) => {

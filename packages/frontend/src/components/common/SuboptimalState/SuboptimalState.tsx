@@ -33,7 +33,10 @@ const SuboptimalState: FC<Props> = ({
             className={adaptive ? classes.container : undefined}
             style={{
                 alignItems: 'center',
-                ...rest?.style,
+                ...(typeof rest?.style === 'object' &&
+                !Array.isArray(rest.style)
+                    ? rest.style
+                    : {}),
             }}
         >
             {loading && (

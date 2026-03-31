@@ -6,7 +6,7 @@ import {
     TextInput,
     type SystemProp,
 } from '@mantine/core';
-import { type GetInputPropsReturnType } from '@mantine/form/lib/types';
+import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import {
     useCallback,
@@ -36,7 +36,7 @@ const AudienceItem: FC<AudienceItemProps> = ({ item, removeItem }) => {
 type AudienceInputProps = {
     label?: string;
     w?: SystemProp<CSSProperties['width']>;
-} & GetInputPropsReturnType;
+} & ReturnType<UseFormReturnType<Record<string, unknown>>['getInputProps']>;
 
 const AudienceInput: FC<AudienceInputProps> = ({
     label,

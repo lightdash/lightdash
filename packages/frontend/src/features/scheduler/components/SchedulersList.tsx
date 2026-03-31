@@ -1,6 +1,5 @@
 import {
     SchedulerFormat,
-    type ApiDashboardPaginatedSchedulersResponse,
     type ApiError,
     type ApiSavedChartPaginatedSchedulersResponse,
     type SchedulerAndTargets,
@@ -21,8 +20,7 @@ import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
     schedulersQuery: UseInfiniteQueryResult<
-        | ApiSavedChartPaginatedSchedulersResponse['results']
-        | ApiDashboardPaginatedSchedulersResponse['results'],
+        ApiSavedChartPaginatedSchedulersResponse['results'],
         ApiError
     >;
     isThresholdAlertList?: boolean;

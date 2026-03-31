@@ -102,7 +102,7 @@ const SnowflakeForm: FC<{
     const { mutate: openLoginPopup, isSsoEnabled } = useSnowflakeLoginPopup({
         onLogin: async () => {
             await refetchAuth();
-            await refetchDatasets();
+            refetchDatasets();
         },
     });
 

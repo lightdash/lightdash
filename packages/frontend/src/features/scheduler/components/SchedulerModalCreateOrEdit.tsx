@@ -261,7 +261,6 @@ const useSchedulerFormModal = ({
             createMutation,
             resourceUuid,
             formResource?.type,
-            form,
         ],
     );
 

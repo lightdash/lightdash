@@ -2,7 +2,7 @@ import { createStyles } from '@mantine/core';
 import { type TAG_COLOR_SWATCHES } from '../utils/getRandomTagColor';
 
 export const useCategoryStyles = createStyles(
-    (theme, color: (typeof TAG_COLOR_SWATCHES)[number] | string) => {
+    (theme, color: (typeof TAG_COLOR_SWATCHES)[number]) => {
         const isDarkMode = theme.colorScheme === 'dark';
         // Some colors might be custom colors, not in the mantine color palette
         const isMantineColorKey = color in theme.colors;

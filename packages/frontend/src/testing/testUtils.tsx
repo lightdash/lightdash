@@ -22,6 +22,7 @@ vi.mock('src/providers/ReactQueryProvider');
 vi.mock('src/providers/TrackingProvider');
 
 const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
+    // eslint-disable-next-line react/only-export-components -- test utility, not a real module for fast refresh
     const ProviderWrapper: FC<PropsWithChildren> = ({ children }) => {
         return (
             <ReactQueryProvider>

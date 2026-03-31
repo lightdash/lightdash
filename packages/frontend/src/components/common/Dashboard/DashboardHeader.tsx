@@ -451,13 +451,13 @@ const DashboardHeader = ({
                             },
                         ]}
                         isLoading={isMovingDashboardToSpace}
-                        onConfirm={async (spaceUuid) => {
+                        onConfirm={(spaceUuid) => {
                             if (!spaceUuid) {
                                 throw new Error(
                                     'Space UUID is required to move a dashboard',
                                 );
                             }
-                            await onMoveToSpace(spaceUuid);
+                            onMoveToSpace(spaceUuid);
                             transferToSpaceModalHandlers.close();
                         }}
                     />

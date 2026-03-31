@@ -63,7 +63,10 @@ export const Table = <T extends IResultsRunner>({
                 overflow: 'auto',
                 fontFeatureSettings: "'tnum'",
                 flexGrow: 1,
-                ...flexProps?.sx,
+                ...(typeof flexProps?.sx === 'object' &&
+                !Array.isArray(flexProps.sx)
+                    ? flexProps.sx
+                    : {}),
             }}
             className="sentry-block ph-no-capture"
         >
@@ -149,9 +152,8 @@ export const Table = <T extends IResultsRunner>({
                                 {rowModelRows[index]
                                     .getVisibleCells()
                                     .map((cell) => {
-                                        const cellValue = cell.getValue() as
-                                            | RawResultRow[0]
-                                            | undefined;
+                                        const cellValue =
+                                            cell.getValue() as RawResultRow[0];
 
                                         return (
                                             <BodyCell
