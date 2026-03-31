@@ -141,7 +141,7 @@ write_instance_file() {
 
     compute_ports "$slot"
 
-    local compose_project="ld-${id}"
+    local compose_project="ld-$(echo "$id" | tr '[:upper:]' '[:lower:]')"
     local file="$REGISTRY_DIR/${id}.json"
 
     # Escape backslashes and quotes in paths for valid JSON
