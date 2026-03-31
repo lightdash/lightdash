@@ -224,6 +224,7 @@ export type CreateDuckdbCredentials = {
     threads?: number;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
 };
 export type DuckdbCredentials = Omit<
     CreateDuckdbCredentials,
