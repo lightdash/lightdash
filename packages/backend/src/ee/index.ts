@@ -20,6 +20,7 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
+import { OrganizationAllowedDomainsModel } from './models/OrganizationAllowedDomainsModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { generatePreAggregateExplores } from './preAggregates/generatePreAggregateExplores';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
@@ -413,6 +414,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),
+            organizationAllowedDomainsModel: ({ database }) =>
+                new OrganizationAllowedDomainsModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>
                 new DashboardSummaryModel({ database }),
