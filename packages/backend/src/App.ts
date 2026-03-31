@@ -1,6 +1,7 @@
 import './sentry'; // Sentry has to be initialized before anything else
 import {
     Account,
+    AllowedDomain,
     AnyType,
     ApiError,
     getErrorMessage,
@@ -14,6 +15,7 @@ import {
     SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
+import { OrganizationAllowedDomainsModel } from './ee/models/OrganizationAllowedDomainsModel';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -191,6 +193,13 @@ export default class App {
 
     private readonly analyticsEventEmitter: EventEmitter;
 
+    private allowedDomainsCache: {
+        domains: AllowedDomain[];
+        lastFetched: number;
+    } | null = null;
+
+    private static readonly DOMAIN_CACHE_TTL_MS = 60_000; // 60 seconds
+
     constructor(args: AppArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.port = args.port;
@@ -314,29 +323,50 @@ export default class App {
         }
     }
 
+    private async getCachedAllowedDomains(): Promise<AllowedDomain[]> {
+        const now = Date.now();
+        if (
+            this.allowedDomainsCache &&
+            now - this.allowedDomainsCache.lastFetched < App.DOMAIN_CACHE_TTL_MS
+        ) {
+            return this.allowedDomainsCache.domains;
+        }
+
+        try {
+            const model = this.models.getOrganizationAllowedDomainsModel<OrganizationAllowedDomainsModel>();
+            const domains = await model.getAllDomains();
+            this.allowedDomainsCache = { domains, lastFetched: now };
+            return domains;
+        } catch {
+            // If the model is not available (non-EE), return empty
+            return this.allowedDomainsCache?.domains ?? [];
+        }
+    }
+
     private async initExpress(expressApp: Express) {
         // Cross-Origin Resource Sharing policy (CORS)
         // WARNING: this middleware should be mounted before the helmet middleware
         // (ideally at the top of the middleware stack)
-        if (
-            this.lightdashConfig.security.crossOriginResourceSharingPolicy
-                .enabled &&
-            this.lightdashConfig.security.crossOriginResourceSharingPolicy
-                .allowedDomains.length > 0
-        ) {
-            const allowedOrigins: Array<string | RegExp> = [
+        {
+            const corsConfig = this.lightdashConfig.security.crossOriginResourceSharingPolicy;
+
+            // Build static origins from env vars (always available)
+            const staticOrigins: Array<string | RegExp> = [
                 this.lightdashConfig.siteUrl,
             ];
 
-            for (const allowedDomain of this.lightdashConfig.security
-                .crossOriginResourceSharingPolicy.allowedDomains) {
-                if (
-                    allowedDomain.startsWith('/') &&
-                    allowedDomain.endsWith('/')
-                ) {
-                    allowedOrigins.push(new RegExp(allowedDomain.slice(1, -1)));
-                } else {
-                    allowedOrigins.push(allowedDomain);
+            if (corsConfig.enabled) {
+                for (const allowedDomain of corsConfig.allowedDomains) {
+                    if (
+                        allowedDomain.startsWith('/') &&
+                        allowedDomain.endsWith('/')
+                    ) {
+                        staticOrigins.push(
+                            new RegExp(allowedDomain.slice(1, -1)),
+                        );
+                    } else {
+                        staticOrigins.push(allowedDomain);
+                    }
                 }
             }
 
@@ -345,7 +375,71 @@ export default class App {
                     methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
                     allowedHeaders: '*',
                     credentials: false,
-                    origin: allowedOrigins,
+                    origin: async (
+                        origin: string | undefined,
+                        callback: (
+                            err: Error | null,
+                            allow?: boolean,
+                        ) => void,
+                    ) => {
+                        if (!origin) {
+                            callback(null, true);
+                            return;
+                        }
+
+                        // Check static origins (env var)
+                        for (const allowed of staticOrigins) {
+                            if (
+                                typeof allowed === 'string' &&
+                                allowed === origin
+                            ) {
+                                callback(null, true);
+                                return;
+                            }
+                            if (
+                                allowed instanceof RegExp &&
+                                allowed.test(origin)
+                            ) {
+                                callback(null, true);
+                                return;
+                            }
+                        }
+
+                        // Check DB domains
+                        try {
+                            const dbDomains =
+                                await this.getCachedAllowedDomains();
+                            for (const dbDomain of dbDomains) {
+                                if (dbDomain.domain === origin) {
+                                    callback(null, true);
+                                    return;
+                                }
+                                // Wildcard subdomain matching: *.example.com
+                                if (dbDomain.domain.startsWith('*.')) {
+                                    const suffix = dbDomain.domain.slice(1); // .example.com
+                                    try {
+                                        const originHost = new URL(origin)
+                                            .hostname;
+                                        if (
+                                            originHost.endsWith(
+                                                suffix.slice(1),
+                                            ) &&
+                                            originHost !== suffix.slice(1)
+                                        ) {
+                                            callback(null, true);
+                                            return;
+                                        }
+                                    } catch {
+                                        // Invalid origin URL, skip
+                                    }
+                                }
+                            }
+                        } catch {
+                            // On DB error, fall through to deny
+                        }
+
+                        callback(null, false);
+                    },
                 }),
             );
         }
@@ -484,6 +578,36 @@ export default class App {
         } as const;
 
         expressApp.use(helmet(helmetConfig));
+
+        // Dynamic frame-ancestors from DB (supplements env var config)
+        expressApp.use(async (req, res, next) => {
+            try {
+                const dbDomains = await this.getCachedAllowedDomains();
+                const embedDomains = dbDomains
+                    .filter((d) => d.type === 'embed')
+                    .map((d) => d.domain);
+
+                if (embedDomains.length > 0) {
+                    const existingCsp = res.getHeader(
+                        'Content-Security-Policy',
+                    );
+                    if (typeof existingCsp === 'string') {
+                        const updatedCsp = existingCsp.replace(
+                            /frame-ancestors\s+([^;]+)/,
+                            (match, existing) =>
+                                `frame-ancestors ${existing} ${embedDomains.join(' ')}`,
+                        );
+                        res.setHeader(
+                            'Content-Security-Policy',
+                            updatedCsp,
+                        );
+                    }
+                }
+            } catch {
+                // On error, keep the static CSP
+            }
+            next();
+        });
 
         const helmetConfigForEmbeds = produce(helmetConfig, (draft) => {
             // eslint-disable-next-line no-param-reassign

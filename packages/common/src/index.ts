@@ -95,6 +95,7 @@ export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/allowedDomains';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
