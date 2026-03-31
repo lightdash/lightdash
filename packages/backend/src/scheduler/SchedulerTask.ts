@@ -429,6 +429,7 @@ export default class SchedulerTask {
                         selectedTabs,
                         sendNowSchedulerFilters,
                         sendNowSchedulerParameters,
+                        lang: imageOptions?.lang,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');

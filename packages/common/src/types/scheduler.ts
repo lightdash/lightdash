@@ -20,6 +20,7 @@ export type SchedulerCsvOptions = {
 
 export type SchedulerImageOptions = {
     withPdf?: boolean;
+    lang?: string;
 };
 
 export type SchedulerGsheetsOptions = {

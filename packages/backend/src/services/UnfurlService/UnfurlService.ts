@@ -488,6 +488,7 @@ export class UnfurlService extends BaseService {
         selectedTabs,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
+        lang,
     }: {
         url: string;
         lightdashPage?: LightdashPage;
@@ -501,6 +502,7 @@ export class UnfurlService extends BaseService {
         selectedTabs: string[] | null;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
+        lang?: string;
     }): Promise<{
         imageUrl?: string;
         pdfFile?: { source: string; fileName: string };
@@ -533,6 +535,7 @@ export class UnfurlService extends BaseService {
         const result = await this.saveScreenshot({
             ...screenshotParams,
             withPdf,
+            lang,
         });
 
         if (result === undefined) {
@@ -745,6 +748,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerParameters,
         outputFormat = 'image',
         withPdf = false,
+        lang,
     }: {
         imageId: string;
         cookie: string;
@@ -768,6 +772,7 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
+        lang?: string;
     }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
         this.logger.info(
             `with tiles ${JSON.stringify(chartTileUuids)} and ${JSON.stringify(
@@ -1125,6 +1130,13 @@ export class UnfurlService extends BaseService {
                             timeout: 150000,
                         });
 
+                        // Set <html lang="..."> for CJK font selection via CSS :lang() rules
+                        if (lang) {
+                            await page.evaluate((l) => {
+                                document.documentElement.lang = l;
+                            }, lang);
+                        }
+
                         const blockingElementChecks = [
                             {
                                 selector: SCREENSHOT_SELECTORS.ERROR_BOUNDARY,
@@ -1394,6 +1406,7 @@ export class UnfurlService extends BaseService {
                             sendNowSchedulerParameters,
                             outputFormat,
                             withPdf,
+                            lang,
                         });
                     }
 

@@ -336,14 +336,33 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                     <Space h="xxs" />
                     {form.getInputProps('format').value ===
                     SchedulerFormat.IMAGE ? (
-                        <Checkbox
-                            h={26}
-                            label="Also include image as PDF attachment"
-                            labelPosition="left"
-                            {...form.getInputProps('options.withPdf', {
-                                type: 'checkbox',
-                            })}
-                        />
+                        <Stack gap="xs">
+                            <Checkbox
+                                h={26}
+                                label="Also include image as PDF attachment"
+                                labelPosition="left"
+                                {...form.getInputProps('options.withPdf', {
+                                    type: 'checkbox',
+                                })}
+                            />
+                            <Select
+                                label="Language (for font rendering)"
+                                data={[
+                                    { value: 'en', label: 'English' },
+                                    { value: 'ja', label: '日本語' },
+                                    {
+                                        value: 'zh-CN',
+                                        label: '中文 (简体)',
+                                    },
+                                    {
+                                        value: 'zh-TW',
+                                        label: '中文 (繁體)',
+                                    },
+                                    { value: 'ko', label: '한국어' },
+                                ]}
+                                {...form.getInputProps('options.lang')}
+                            />
+                        </Stack>
                     ) : (
                         <Stack gap="xs">
                             {form.values.format === SchedulerFormat.CSV && (
