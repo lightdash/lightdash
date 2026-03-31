@@ -491,6 +491,13 @@ export type HealthState = {
     };
     dataApps: {
         enabled: boolean;
+        /**
+         * Base domain for app preview subdomains (e.g. "lightdashapp.com").
+         * The frontend constructs per-project origins as:
+         *   {protocol}//{projectUuid}.{previewDomain}
+         * Null when dataApps is disabled.
+         */
+        previewDomain: string | null;
     };
 };
 

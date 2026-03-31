@@ -374,7 +374,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
-        previewOrigin: null,
+        previewDomain: '',
         s3: null,
         e2bApiKey: null,
     },

@@ -36,16 +36,16 @@ const AppPreview: FC<{
     projectUuid: string;
     appUuid: string;
     version: number;
-}> = ({ projectUuid, appUuid, version }) => {
+    previewOrigin: string;
+}> = ({ projectUuid, appUuid, version, previewOrigin }) => {
     const {
         data: token,
         isLoading,
         error,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     if (isLoading) {
@@ -70,7 +70,7 @@ const AppPreview: FC<{
 
     if (!previewUrl) return null;
 
-    return <AppIframePreview src={previewUrl} />;
+    return <AppIframePreview src={previewUrl} previewOrigin={previewOrigin} />;
 };
 
 const LoadingDots: FC = () => (
@@ -120,7 +120,12 @@ const AppGenerate: FC = () => {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
-    if (!projectUuid) {
+    const previewDomain = health.data?.dataApps.previewDomain;
+    const previewOrigin = previewDomain
+        ? `${window.location.protocol}//${projectUuid}.${previewDomain}`
+        : undefined;
+
+    if (!projectUuid || !previewOrigin) {
         return <Box>Missing project UUID</Box>;
     }
 
@@ -370,6 +375,7 @@ const AppGenerate: FC = () => {
                                     projectUuid={projectUuid}
                                     appUuid={latestApp.appUuid}
                                     version={latestApp.version}
+                                    previewOrigin={previewOrigin}
                                 />
                             ) : (
                                 <Box className={classes.previewEmpty}>
