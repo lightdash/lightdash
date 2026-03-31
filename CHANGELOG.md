@@ -1,3 +1,22 @@
+# [0.2699.0](https://github.com/lightdash/lightdash/compare/0.2698.0...0.2699.0) (2026-03-31)
+
+
+### Bug Fixes
+
+* add dataTimezone to CreateDuckdbCredentials ([#21587](https://github.com/lightdash/lightdash/issues/21587)) ([9abc49b](https://github.com/lightdash/lightdash/commit/9abc49b6185429fe9a52e2c26b774e3907c93b6e))
+* pin all dependencies to exact versions ([#21553](https://github.com/lightdash/lightdash/issues/21553)) ([22925d6](https://github.com/lightdash/lightdash/commit/22925d68aaafe8e14eefd3b63940ba6c3d2b70dd))
+* remap filter tileTargets when duplicating dashboards with dashboard-scoped charts ([#21571](https://github.com/lightdash/lightdash/issues/21571)) ([3407813](https://github.com/lightdash/lightdash/commit/34078133db15d127f100354f943b17f18a0fc888)), closes [#21539](https://github.com/lightdash/lightdash/issues/21539)
+* throttle token last used date updates to once per minute ([#21575](https://github.com/lightdash/lightdash/issues/21575)) ([f433325](https://github.com/lightdash/lightdash/commit/f43332523769e2a7b2596d668558d8661c959ef6))
+* wrap PoP queries in outer CTE to resolve ambiguous ORDER BY ([#21566](https://github.com/lightdash/lightdash/issues/21566)) ([a49d9f7](https://github.com/lightdash/lightdash/commit/a49d9f7edbe4d907b3528b3bbea33e714aad39ef)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add DuckDB/MotherDuck warehouse support ([#21558](https://github.com/lightdash/lightdash/issues/21558)) ([40b2523](https://github.com/lightdash/lightdash/commit/40b2523b76707437a589d6cbcee019f56102aed0))
+* add start of week configuration support to DuckDB warehouse client ([#21565](https://github.com/lightdash/lightdash/issues/21565)) ([adc8044](https://github.com/lightdash/lightdash/commit/adc8044130fb10e9c368e1fe3bc6415cb3c0a321)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* resume app iteration via URL with version history ([#21577](https://github.com/lightdash/lightdash/issues/21577)) ([f4b7929](https://github.com/lightdash/lightdash/commit/f4b79296243c5caf8b6a51952cb169bbaa7b7749))
+* wire data timezone to warehouse session setup ([#21534](https://github.com/lightdash/lightdash/issues/21534)) ([9bedc1a](https://github.com/lightdash/lightdash/commit/9bedc1a18a3dbde8c99dcaec4594ef85c32d3c0f))
+
 # [0.2698.0](https://github.com/lightdash/lightdash/compare/0.2697.0...0.2698.0) (2026-03-31)
 
 
