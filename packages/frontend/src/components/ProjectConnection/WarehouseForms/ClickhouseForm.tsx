@@ -166,7 +166,7 @@ const ClickhouseForm: FC<{
                                 description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
                                 searchable
                                 clearable
-                                placeholder="UTC (default)"
+                                placeholder="Not set (uses warehouse default)"
                                 disabled={disabled}
                                 {...form.getInputProps(
                                     'warehouse.dataTimezone',
