@@ -33,6 +33,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     maximumBytesBilled: 1000000000,
     // we need to set it as undefined to avoid overwritting saved value
     startOfWeek: undefined,
+    dataTimezone: undefined,
 };
 
 export const DatabricksDefaultValues: CreateDatabricksCredentials = {
@@ -45,6 +46,7 @@ export const DatabricksDefaultValues: CreateDatabricksCredentials = {
     catalog: '',
     compute: [],
     startOfWeek: undefined,
+    dataTimezone: undefined,
     requireUserCredentials: false,
 };
 
@@ -74,6 +76,7 @@ export const PostgresDefaultValues: CreatePostgresCredentials = {
     sshTunnelUser: '',
     sshTunnelPublicKey: '',
     startOfWeek: undefined,
+    dataTimezone: undefined,
 };
 
 export const RedshiftDefaultValues: CreateRedshiftCredentials = {
@@ -95,6 +98,7 @@ export const RedshiftDefaultValues: CreateRedshiftCredentials = {
     sshTunnelUser: '',
     sshTunnelPublicKey: '',
     startOfWeek: undefined,
+    dataTimezone: undefined,
 };
 
 export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
@@ -112,6 +116,7 @@ export const SnowflakeDefaultValues: CreateSnowflakeCredentials = {
     queryTag: '',
     accessUrl: '',
     startOfWeek: undefined,
+    dataTimezone: undefined,
     authenticationType: undefined,
     privateKey: '',
     privateKeyPass: '',
@@ -129,6 +134,7 @@ export const TrinoDefaultValues: CreateTrinoCredentials = {
     dbname: '',
     http_scheme: 'https',
     source: '',
+    dataTimezone: undefined,
 };
 
 export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
@@ -141,6 +147,7 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     port: 8443,
     secure: true,
     startOfWeek: undefined,
+    dataTimezone: undefined,
     timeoutSeconds: 300,
 };
 
@@ -156,6 +163,7 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     threads: 1,
     numRetries: 5,
     startOfWeek: undefined,
+    dataTimezone: undefined,
 };
 
 export const warehouseDefaultValues = {

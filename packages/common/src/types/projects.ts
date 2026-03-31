@@ -57,6 +57,7 @@ export type CreateBigqueryCredentials = {
     location: string | undefined;
     maximumBytesBilled: number | undefined;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     executionProject?: string;
 };
 export const sensitiveCredentialsFieldNames = [
@@ -110,6 +111,7 @@ export type CreateDatabricksCredentials = {
     oauthClientSecret?: string; // OAuth M2M client secret (Service Principal)
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     compute?: Array<{
         name: string;
         httpPath: string;
@@ -145,6 +147,7 @@ export type CreatePostgresCredentials = SshTunnelConfiguration &
         searchPath?: string;
         role?: string;
         startOfWeek?: WeekDay | null;
+        dataTimezone?: string;
         timeoutSeconds?: number;
     };
 export type PostgresCredentials = Omit<
@@ -163,6 +166,7 @@ export type CreateTrinoCredentials = {
     http_scheme: string;
     source?: string;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
 };
 export type TrinoCredentials = Omit<
     CreateTrinoCredentials,
@@ -178,6 +182,7 @@ export type CreateClickhouseCredentials = {
     schema: string;
     secure?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     timeoutSeconds?: number;
 };
 export type ClickhouseCredentials = Omit<
@@ -202,6 +207,7 @@ export type CreateAthenaCredentials = {
     numRetries?: number;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
 };
 
 export type AthenaCredentials = Omit<
@@ -223,6 +229,7 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sslmode?: string;
     ra3Node?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     timeoutSeconds?: number;
 };
 export type RedshiftCredentials = Omit<
@@ -259,6 +266,7 @@ export type CreateSnowflakeCredentials = {
     queryTag?: string;
     accessUrl?: string;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     quotedIdentifiersIgnoreCase?: boolean;
     disableTimestampConversion?: boolean; // Disable timestamp conversion to UTC - only disable if all timestamp values are already in UTC
     timeoutSeconds?: number;
