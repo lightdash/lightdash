@@ -28,7 +28,6 @@ import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import useApp from '../../../../providers/App/useApp';
-import AllowedDomainsPanel from '../SettingsAllowedDomains';
 import EmbedAllowListForm from './EmbedAllowListForm';
 import EmbedPreviewChartForm from './EmbedPreviewChartForm';
 import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
@@ -248,16 +247,6 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     charts={charts || []}
                     onSave={updateEmbedConfig}
                 />
-            </SettingsCard>
-            <SettingsCard>
-                <Stack gap="xs" mb="md">
-                    <Title order={4}>Allowed domains</Title>
-                    <Text c="dimmed" fz="sm">
-                        Manage the domains that are allowed to embed Lightdash
-                        content.
-                    </Text>
-                </Stack>
-                <AllowedDomainsPanel />
             </SettingsCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">

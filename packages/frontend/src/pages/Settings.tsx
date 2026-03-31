@@ -24,6 +24,7 @@ import {
     IconPalette,
     IconPlug,
     IconRefresh,
+    IconWorld,
     IconReportAnalytics,
     IconShieldCheck,
     IconTableOptions,
@@ -71,6 +72,7 @@ import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import { useAiOrganizationSettings } from '../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import AllowedEmbedDomainsPanel from '../ee/features/embed/SettingsAllowedDomains';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
@@ -416,6 +418,30 @@ const Settings: FC = () => {
         // Commercial route
         if (
             user?.ability.can('manage', 'Organization') &&
+            embeddingEnabled?.enabled
+        ) {
+            allowedRoutes.push({
+                path: '/allowedEmbedDomains',
+                element: (
+                    <SettingsGridCard>
+                        <div>
+                            <Title order={4}>Allowed Domains</Title>
+                            <Text c="ldGray.6" fz="xs">
+                                Manage which external domains can access your
+                                Lightdash instance via the SDK or iframe
+                                embedding. Domains configured via server
+                                environment variables are always allowed.
+                            </Text>
+                        </div>
+                        <AllowedEmbedDomainsPanel />
+                    </SettingsGridCard>
+                ),
+            });
+        }
+
+        // Commercial route
+        if (
+            user?.ability.can('manage', 'Organization') &&
             isScimTokenManagementEnabled?.enabled
         ) {
             allowedRoutes.push({
@@ -458,6 +484,7 @@ const Settings: FC = () => {
         user?.ability,
         organization,
         project,
+        embeddingEnabled?.enabled,
         isScimTokenManagementEnabled?.enabled,
         isServiceAccountsEnabled,
         isCustomRolesEnabled,
@@ -748,6 +775,18 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+
+                                {user.ability.can('manage', 'Organization') &&
+                                    embeddingEnabled?.enabled && (
+                                        <RouterNavLink
+                                            label="Allowed domains"
+                                            exact
+                                            to="/generalSettings/allowedEmbedDomains"
+                                            leftSection={
+                                                <MantineIcon icon={IconWorld} />
+                                            }
+                                        />
+                                    )}
 
                                 {user.ability.can(
                                     'manage',
