@@ -3414,10 +3414,17 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        await this.analyticsModel.addChartViewEvent(
-            savedChartUuid,
-            account.isRegisteredUser() ? account.user.id : null,
-        );
+        // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
+        void this.analyticsModel
+            .addChartViewEvent(
+                savedChartUuid,
+                account.isRegisteredUser() ? account.user.id : null,
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
 
         const requestParameters: ExecuteAsyncSavedChartRequestParams = {
             context,
@@ -3660,10 +3667,17 @@ export class AsyncQueryService extends ProjectService {
             space,
         );
 
-        await this.analyticsModel.addChartViewEvent(
-            savedChart.uuid,
-            account.isRegisteredUser() ? account.user.id : null,
-        );
+        // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
+        void this.analyticsModel
+            .addChartViewEvent(
+                savedChart.uuid,
+                account.isRegisteredUser() ? account.user.id : null,
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
 
         const tables = Object.keys(explore.tables);
         const appliedDashboardFilters: DashboardFilters =
