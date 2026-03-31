@@ -507,9 +507,9 @@ export class AsyncQueryService extends ProjectService {
         exploreName: string;
         organizationUuid: string;
         materializationRole?: UserAccessControls;
-    }): Promise<Explore> {
+    }): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
         if (materializationRole === undefined) {
-            return this.getExplore(
+            return this.getExploreWithUserAccessControls(
                 account,
                 projectUuid,
                 exploreName,
@@ -567,10 +567,16 @@ export class AsyncQueryService extends ProjectService {
         }
 
         if (!exploreHasFilteredAttribute(explore)) {
-            return explore;
+            return { explore, userAccessControls: materializationRole };
         }
 
-        return getFilteredExplore(explore, materializationRole.userAttributes);
+        return {
+            explore: getFilteredExplore(
+                explore,
+                materializationRole.userAttributes,
+            ),
+            userAccessControls: materializationRole,
+        };
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -3200,6 +3206,7 @@ export class AsyncQueryService extends ProjectService {
         columnTimezone,
         sessionTimezone,
         applyDateZoomToFilters,
+        preloadedUserAccessControls,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -3221,11 +3228,14 @@ export class AsyncQueryService extends ProjectService {
          * underlying-data path sets this (PROD-880). See `_compileQuery` doc.
          */
         applyDateZoomToFilters?: boolean;
+        preloadedUserAccessControls?: UserAccessControls;
     }) {
         assertIsAccountWithOrg(account);
 
         const resolvedUserAccessControls =
-            materializationRole ?? (await this.getUserAttributes({ account }));
+            materializationRole ??
+            preloadedUserAccessControls ??
+            (await this.getUserAttributes({ account }));
         const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
             resolvedUserAccessControls;
         const userAttributes =
@@ -4032,16 +4042,18 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQueryStart = Date.now();
 
-        const explore = await this.getExploreForMetricQueryExecution({
-            account,
-            projectUuid,
-            exploreName: inputMetricQuery.exploreName,
-            organizationUuid,
-            materializationRole:
-                context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
-                    ? materializationRole
-                    : undefined,
-        });
+        const { explore, userAccessControls: preloadedUserAccessControls } =
+            await this.getExploreForMetricQueryExecution({
+                account,
+                projectUuid,
+                exploreName: inputMetricQuery.exploreName,
+                organizationUuid,
+                materializationRole:
+                    context ===
+                    QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                        ? materializationRole
+                        : undefined,
+            });
         const getExploreMs = Date.now() - metricQueryStart;
 
         // Dashboard filters (e.g. from a data-app tile) are merged once the
@@ -4117,6 +4129,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
             materializationRole,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            preloadedUserAccessControls,
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -4562,12 +4575,13 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            savedChartTableName,
-            savedChartOrganizationUuid,
-        );
+        const { explore, userAccessControls: preloadedUserAccessControls } =
+            await this.getExploreWithUserAccessControls(
+                account,
+                projectUuid,
+                savedChartTableName,
+                savedChartOrganizationUuid,
+            );
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -4626,6 +4640,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            preloadedUserAccessControls,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -4786,9 +4801,9 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        const [space, explore] = await Promise.all([
+        const [space, { explore, userAccessControls }] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
-            this.getExplore(
+            this.getExploreWithUserAccessControls(
                 account,
                 projectUuid,
                 savedChart.tableName,
@@ -4942,7 +4957,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
-            userAccessControls,
+            userAccessControls: queryUserAccessControls,
             availableParameterDefinitions,
             resolvedTimezone,
             displayTimezone,
@@ -4958,6 +4973,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             sessionTimezone,
+            preloadedUserAccessControls: userAccessControls,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -5020,7 +5036,7 @@ export class AsyncQueryService extends ProjectService {
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
-                    userAccessControls,
+                    userAccessControls: queryUserAccessControls,
                     availableParameterDefinitions,
                 }),
             },
@@ -5098,12 +5114,13 @@ export class AsyncQueryService extends ProjectService {
 
         const { exploreName } = metricQuery;
 
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            exploreName,
-            organizationUuid,
-        );
+        const { explore, userAccessControls: preloadedUserAccessControls } =
+            await this.getExploreWithUserAccessControls(
+                account,
+                projectUuid,
+                exploreName,
+                organizationUuid,
+            );
 
         // Combine parameters early so we can filter dimensions by parameter availability
         const combinedParameters = await this.combineParameters(
@@ -5311,6 +5328,7 @@ export class AsyncQueryService extends ProjectService {
             columnTimezone: getColumnTimezone(warehouseCredentials),
             // PROD-880: rewrite WHERE LHS to zoom grain (safe here — filters are click-only)
             applyDateZoomToFilters: true,
+            preloadedUserAccessControls,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
