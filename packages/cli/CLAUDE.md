@@ -169,12 +169,21 @@ The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so trans
    npm view axios time --json
    ```
 3. A caret range like `^1.13.4` will resolve to the latest matching version at install time — including a malicious one. If the compromised version falls within a transitive dep's semver range, **all published @lightdash/cli versions using that transitive dep are affected** for any user who does a fresh install during the compromise window.
-4. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
+4. Verify what a fresh install resolves to right now:
+   ```bash
+   tmp=$(mktemp -d) && cd "$tmp" && npm init -y --silent && npm install @lightdash/cli --package-lock-only && cat package-lock.json | python3 -c "import sys,json; [print(f'{k}: {v[\"version\"]}') for k,v in json.load(sys.stdin).get('packages',{}).items() if k.endswith('/<suspect-package>')]" && rm -rf "$tmp"
+   ```
+5. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
+
+**Limitation of pnpm overrides:** Overrides in the root `package.json` only affect the monorepo lockfile. They do **not** change what end users get when they `npm install -g @lightdash/cli` — published packages only carry their `package.json` dependency ranges, not pnpm overrides. The override protects our own builds and deployments, but CLI users depend on the upstream package (e.g., `snowflake-sdk`) fixing or the compromised version being unpublished from npm.
 
 **Example — axios compromise (2026-03-31):**
 - Malicious `axios@1.14.1` was published to npm for a few hours
 - `@lightdash/cli` → `@lightdash/warehouses` → `snowflake-sdk` → `axios@^1.13.4` would have resolved to `1.14.1`
-- Fix: pinned `"axios": "1.12.2"` (exact) in root pnpm overrides instead of `"^1.12.0"`
+- Monorepo was protected by the lockfile (pinned to `1.12.2`)
+- CLI end users doing fresh installs during the window were exposed
+- Compromised version was unpublished by npm, resolving the issue for new installs
+- Pinned `"axios": "1.12.2"` (exact) in root pnpm overrides to protect our own builds going forward
 
 ## Common Issues
 
