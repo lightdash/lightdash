@@ -61,16 +61,23 @@ export const convertDuckdbSchema = (
     const validate = ajv.compile<DuckdbTarget>(duckdbSchema);
 
     if (validate(target)) {
-        // Strip `md:` prefix from path to get the database name
-        const database = target.path.startsWith('md:')
-            ? target.path.slice(3)
-            : target.path;
+        if (!target.path.startsWith('md:')) {
+            throw new ParseError(
+                `Couldn't read profiles.yml file for ${target.type}:\nLightdash only supports MotherDuck duckdb targets. Expected path to start with "md:".`,
+            );
+        }
+
+        if (!target.settings?.motherduck_token) {
+            throw new ParseError(
+                `Couldn't read profiles.yml file for ${target.type}:\nLightdash only supports MotherDuck duckdb targets. Expected settings.motherduck_token to be set.`,
+            );
+        }
 
         return {
             type: WarehouseTypes.DUCKDB,
-            database,
+            database: target.path.slice(3),
             schema: target.schema,
-            token: target.settings?.motherduck_token || undefined,
+            token: target.settings.motherduck_token,
             threads: target.threads,
         };
     }

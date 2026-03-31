@@ -1202,7 +1202,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.DUCKDB: {
                 return {
                     ...credentials,
-                    token: undefined,
+                    token: '',
                 };
             }
 
