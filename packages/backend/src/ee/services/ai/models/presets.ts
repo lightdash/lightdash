@@ -10,6 +10,7 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     displayName: string;
     description: string;
     supportsReasoning: boolean;
+    supportsCompaction: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 };
@@ -27,6 +28,7 @@ export const MODEL_PRESETS: {
             displayName: 'GPT-5.4',
             description: 'Latest GPT-5 reasoning model for agentic tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: {},
             providerOptions: {
                 strictJsonSchema: true,
@@ -40,6 +42,7 @@ export const MODEL_PRESETS: {
             displayName: 'GPT-5.2',
             description: 'Flagship reasoning model for agentic tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: {},
             providerOptions: {
                 strictJsonSchema: true,
@@ -53,6 +56,7 @@ export const MODEL_PRESETS: {
             displayName: 'GPT-5.1',
             description: 'Intelligent reasoning model',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: {},
             providerOptions: {
                 strictJsonSchema: true,
@@ -82,6 +86,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Opus 4.5',
             description: 'Most intelligent model for complex tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -92,6 +97,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Sonnet 4.5',
             description: 'Balanced model for daily tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -102,6 +108,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Haiku 4.5',
             description: 'Fastest model with near-frontier AI capabilities',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -112,6 +119,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Sonnet 4',
             description: 'Previous generation model with reasoning',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -124,6 +132,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Opus 4.5',
             description: 'Most intelligent model for complex tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -134,6 +143,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Sonnet 4.5',
             description: 'Balanced model for daily tasks',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -144,6 +154,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Haiku 4.5',
             description: 'Fastest model with near-frontier AI capabilities',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -154,6 +165,7 @@ export const MODEL_PRESETS: {
             displayName: 'Claude Sonnet 4',
             description: 'Previous generation model with reasoning',
             supportsReasoning: true,
+            supportsCompaction: false,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },

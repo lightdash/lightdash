@@ -146,6 +146,7 @@ import {
     StoreToolResultsFn,
     UpdateProgressFn,
 } from '../ai/types/aiAgentDependencies';
+import { compactMessagesIfNeeded } from '../ai/utils/compactMessages';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     getAgentConfirmationBlocks,
@@ -3056,6 +3057,48 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
             },
         };
+
+        // Compact message history if it exceeds token threshold.
+        // Skip if native compaction is already configured (via providerOptions.anthropic.contextManagement).
+        // Uses a fast model (e.g. Haiku) to summarize older messages.
+        const provider =
+            (prompt.modelConfig?.modelProvider as AnyType) ??
+            this.lightdashConfig.ai.copilot.defaultProvider;
+
+        const hasNativeCompaction =
+            (modelProperties.providerOptions as AnyType)?.anthropic
+                ?.contextManagement != null;
+
+        if (
+            !hasNativeCompaction &&
+            (provider === 'anthropic' || provider === 'bedrock')
+        ) {
+            const summaryModelProps = getModel(
+                this.lightdashConfig.ai.copilot,
+                {
+                    useFastModel: true,
+                    provider,
+                },
+            );
+
+            const compactionResult = await compactMessagesIfNeeded({
+                messages: args.messageHistory,
+                summaryModel: summaryModelProps.model,
+            });
+
+            if (compactionResult.compacted) {
+                Logger.info(
+                    `[AiAgent][Compaction] Custom compaction applied for prompt ${prompt.promptUuid}: ${args.messageHistory.length} messages → ${compactionResult.messages.length} messages`,
+                );
+                args.messageHistory = compactionResult.messages;
+
+                // Persist the compaction flag
+                void this.aiAgentModel.updateModelResponse({
+                    promptUuid: prompt.promptUuid,
+                    contextCompacted: true,
+                });
+            }
+        }
 
         return stream
             ? streamAgentResponse({ args, dependencies })
