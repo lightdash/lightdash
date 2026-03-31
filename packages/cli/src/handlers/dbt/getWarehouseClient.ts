@@ -170,6 +170,16 @@ function getMockCredentials(
                 httpPath: '',
                 personalAccessToken: '',
             };
+        case SupportedDbtAdapter.SPARK:
+            // Spark uses same SQL dialect as Databricks
+            return {
+                type: WarehouseTypes.DATABRICKS,
+                catalog: '',
+                database: '',
+                serverHostName: '',
+                httpPath: '',
+                personalAccessToken: '',
+            };
         case SupportedDbtAdapter.TRINO:
             return {
                 type: WarehouseTypes.TRINO,
