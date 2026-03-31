@@ -6,16 +6,17 @@ import {
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    getErrorMessage,
     MissingConfigError,
     ParameterError,
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
+import { performance } from 'node:perf_hooks';
 import { PassThrough } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../../config/parseConfig';
-import Logger from '../../../logging/logger';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
@@ -103,6 +104,273 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    private static truncateEnd(text: string, maxLength: number): string {
+        if (text.length <= maxLength) return text;
+        return `...[truncated ${text.length - maxLength} chars]...${text.slice(-maxLength)}`;
+    }
+
+    private static elapsed(start: number): number {
+        return Math.round(performance.now() - start);
+    }
+
+    private async markError(
+        appUuid: string,
+        version: number,
+        error: unknown,
+    ): Promise<void> {
+        try {
+            await this.appModel.updateVersionStatus(
+                appUuid,
+                version,
+                'error',
+                AppGenerateService.truncateEnd(getErrorMessage(error), 4000),
+            );
+        } catch (dbError) {
+            this.logger.error(
+                `App ${appUuid}: failed to persist error status: ${getErrorMessage(dbError)}`,
+            );
+        }
+    }
+
+    private async createSandbox(
+        appUuid: string,
+        e2bApiKey: string,
+        anthropicApiKey: string,
+    ): Promise<{ sandbox: Sandbox; durationMs: number }> {
+        const start = performance.now();
+        const sandbox = await Sandbox.create('lightdash-data-app', {
+            timeoutMs: 10 * 60 * 1000,
+            apiKey: e2bApiKey,
+            envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+        });
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: E2B sandbox created (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,
+        );
+        return { sandbox, durationMs };
+    }
+
+    private async writeCatalogAndPrompt(
+        sandbox: Sandbox,
+        appUuid: string,
+        projectUuid: string,
+        prompt: string,
+    ): Promise<number> {
+        const start = performance.now();
+
+        const catalogItems =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
+        const modelYaml = AppGenerateService.catalogToYaml(catalogItems);
+        await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+        await sandbox.files.write('/tmp/prompt.txt', prompt);
+
+        let tableCount = 0;
+        let totalDimensions = 0;
+        let totalMetrics = 0;
+        for (const item of catalogItems) {
+            if (item.type === 'field') {
+                if (item.fieldType === 'metric') {
+                    totalMetrics += 1;
+                } else {
+                    totalDimensions += 1;
+                }
+            } else {
+                tableCount += 1;
+            }
+        }
+
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${totalDimensions}, metrics=${totalMetrics}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
+        );
+        return durationMs;
+    }
+
+    /**
+     * Parse a stream-json line from the Claude CLI and return a short
+     * description of tool_use events. Returns undefined for non-tool events.
+     */
+    private static parseClaudeStreamEvent(line: string): string | undefined {
+        let event: Record<string, unknown>;
+        try {
+            event = JSON.parse(line);
+        } catch {
+            return undefined;
+        }
+        if (event.type !== 'assistant') return undefined;
+
+        const msg = event.message as Record<string, unknown> | undefined;
+        const content = (msg?.content ?? []) as Array<Record<string, unknown>>;
+        const tools: string[] = [];
+        for (const block of content) {
+            if (block.type === 'tool_use') {
+                const name = String(block.name ?? '');
+                const input = (block.input ?? {}) as Record<string, unknown>;
+                if (name === 'Write' || name === 'Read' || name === 'Edit') {
+                    tools.push(`${name} ${String(input.file_path ?? '')}`);
+                } else {
+                    tools.push(name);
+                }
+            }
+        }
+        return tools.length > 0 ? tools.join(', ') : undefined;
+    }
+
+    private async runClaudeGeneration(
+        sandbox: Sandbox,
+        appUuid: string,
+    ): Promise<number> {
+        const start = performance.now();
+        let stdoutBuffer = '';
+        let toolCallCount = 0;
+
+        const result = await sandbox.commands.run(
+            `cat /tmp/prompt.txt | claude -p ` +
+                `--model sonnet ` +
+                `--verbose --output-format stream-json ` +
+                `--allowedTools "Read,Write,Edit,Glob,Grep" ` +
+                `--append-system-prompt-file /app/skill.md`,
+            {
+                cwd: '/app',
+                timeoutMs: 8 * 60 * 1000,
+                onStdout: (chunk) => {
+                    stdoutBuffer += chunk;
+                    const lines = stdoutBuffer.split('\n');
+                    stdoutBuffer = lines.pop() ?? '';
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            const description =
+                                AppGenerateService.parseClaudeStreamEvent(line);
+                            if (description) {
+                                toolCallCount += 1;
+                                this.logger.info(
+                                    `App ${appUuid}: claude tool #${toolCallCount}: ${description}`,
+                                );
+                            }
+                        }
+                    }
+                },
+                onStderr: (chunk) => {
+                    this.logger.debug(
+                        `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
+                    );
+                },
+            },
+        );
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms)`,
+        );
+
+        if (result.exitCode !== 0) {
+            this.logger.debug(
+                `App ${appUuid}: Claude stderr (tail): ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
+            );
+            throw new Error(
+                `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
+            );
+        }
+        return durationMs;
+    }
+
+    private async runBuild(sandbox: Sandbox, appUuid: string): Promise<number> {
+        const start = performance.now();
+        const result = await sandbox.commands.run('pnpm build', {
+            cwd: '/app',
+            timeoutMs: 60 * 1000,
+            onStdout: (chunk) => {
+                this.logger.debug(
+                    `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
+                );
+            },
+            onStderr: (chunk) => {
+                this.logger.info(`App ${appUuid}: build: ${chunk.trimEnd()}`);
+            },
+        });
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: Vite build completed (exit=${result.exitCode}, ${durationMs}ms)`,
+        );
+
+        if (result.exitCode !== 0) {
+            throw new Error(
+                `Build failed (exit ${result.exitCode}): ${result.stderr}`,
+            );
+        }
+        return durationMs;
+    }
+
+    private async packageArtifacts(
+        sandbox: Sandbox,
+        appUuid: string,
+    ): Promise<{ distTar: Buffer; sourceTar: Buffer; durationMs: number }> {
+        const start = performance.now();
+
+        await Promise.all([
+            sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
+                timeoutMs: 10_000,
+            }),
+            sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
+                timeoutMs: 30_000,
+            }),
+        ]);
+
+        const [distBytes, sourceBytes] = await Promise.all([
+            sandbox.files.read('/tmp/dist.tar', { format: 'bytes' }),
+            sandbox.files.read('/tmp/source.tar', { format: 'bytes' }),
+        ]);
+        const distTar = Buffer.from(distBytes);
+        const sourceTar = Buffer.from(sourceBytes);
+
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: packaging completed (distTar=${distTar.length}B, sourceTar=${sourceTar.length}B, ${durationMs}ms)`,
+        );
+        return { distTar, sourceTar, durationMs };
+    }
+
+    private async uploadToS3(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+        distTar: Buffer,
+        sourceTar: Buffer,
+    ): Promise<number> {
+        const start = performance.now();
+        const s3Prefix = `apps/${appUuid}/versions/${version}`;
+
+        const [distResult] = await Promise.all([
+            AppGenerateService.extractAndUploadToS3(
+                distTar,
+                s3Client,
+                bucket,
+                s3Prefix,
+            ),
+            s3Client
+                .send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${s3Prefix}/source.tar`,
+                        Body: sourceTar,
+                        ContentType: 'application/x-tar',
+                    }),
+                )
+                .then(() => {
+                    this.logger.debug(
+                        `App ${appUuid}: uploaded ${s3Prefix}/source.tar`,
+                    );
+                }),
+        ]);
+
+        const durationMs = AppGenerateService.elapsed(start);
+        const totalBytes = distResult.totalBytes + sourceTar.length;
+        this.logger.info(
+            `App ${appUuid}: S3 upload completed (files=${distResult.fileCount + 1}, totalBytes=${totalBytes}, ${durationMs}ms)`,
+        );
+        return durationMs;
+    }
+
     async generateApp(
         user: SessionUser,
         projectUuid: string,
@@ -129,109 +397,15 @@ export class AppGenerateService extends BaseService {
         const e2bApiKey = this.getE2bApiKey();
         const { client: s3Client, bucket } = this.getS3Client();
 
+        const overallStart = performance.now();
+        const durations: Record<string, number> = {};
+
         this.logger.info(
-            `Generating app ${appUuid} version ${version} from prompt`,
+            `App ${appUuid}: generation started (promptLength=${prompt.length})`,
         );
 
-        const sandbox = await Sandbox.create('lightdash-data-app', {
-            timeoutMs: 10 * 60 * 1000,
-            apiKey: e2bApiKey,
-            envs: {
-                ANTHROPIC_API_KEY: anthropicApiKey,
-            },
-        });
-
+        // Persist app record early so we can track status
         try {
-            // Write the project's catalog to the sandbox so Claude knows
-            // which models, dimensions, and metrics are available.
-            this.logger.info(`App ${appUuid}: writing model context`);
-            const catalogItems =
-                await this.catalogModel.getCatalogItemsSummary(projectUuid);
-            const modelYaml = AppGenerateService.catalogToYaml(catalogItems);
-            await sandbox.files.write(
-                '/tmp/dbt-repo/models/schema.yml',
-                modelYaml,
-            );
-
-            // Write the prompt to a file to avoid shell injection
-            await sandbox.files.write('/tmp/prompt.txt', prompt);
-
-            // Generate the app with Claude
-            this.logger.info(`App ${appUuid}: running Claude code generation`);
-
-            const generateResult = await sandbox.commands.run(
-                `cat /tmp/prompt.txt | claude -p ` +
-                    `--model sonnet ` +
-                    `--allowedTools "Read,Write,Edit,Glob,Grep" ` +
-                    `--append-system-prompt-file /app/skill.md`,
-                {
-                    cwd: '/app',
-                    timeoutMs: 8 * 60 * 1000,
-                },
-            );
-
-            if (generateResult.exitCode !== 0) {
-                throw new Error(
-                    `Claude generation failed (exit ${generateResult.exitCode}): ${generateResult.stderr}`,
-                );
-            }
-
-            // Build the Vite project
-            this.logger.info(`App ${appUuid}: building Vite project`);
-            const buildResult = await sandbox.commands.run('pnpm build', {
-                cwd: '/app',
-                timeoutMs: 60 * 1000,
-            });
-
-            if (buildResult.exitCode !== 0) {
-                throw new Error(
-                    `Build failed (exit ${buildResult.exitCode}): ${buildResult.stderr}`,
-                );
-            }
-
-            // Tar dist/ and source in parallel
-            this.logger.info(`App ${appUuid}: packaging dist/ and source`);
-            await Promise.all([
-                sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
-                    timeoutMs: 10_000,
-                }),
-                sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
-                    timeoutMs: 30_000,
-                }),
-            ]);
-
-            const [tarBytes, sourceTarBytes] = await Promise.all([
-                sandbox.files.read('/tmp/dist.tar', { format: 'bytes' }),
-                sandbox.files.read('/tmp/source.tar', { format: 'bytes' }),
-            ]);
-
-            // Upload extracted dist files and source tar to S3
-            this.logger.info(`App ${appUuid}: uploading to S3`);
-            const s3Prefix = `apps/${appUuid}/versions/${version}`;
-            const tarBuffer = Buffer.from(tarBytes);
-            const sourceTarBuffer = Buffer.from(sourceTarBytes);
-            await Promise.all([
-                AppGenerateService.extractAndUploadToS3(
-                    tarBuffer,
-                    s3Client,
-                    bucket,
-                    s3Prefix,
-                ),
-                s3Client
-                    .send(
-                        new PutObjectCommand({
-                            Bucket: bucket,
-                            Key: `${s3Prefix}/source.tar`,
-                            Body: sourceTarBuffer,
-                            ContentType: 'application/x-tar',
-                        }),
-                    )
-                    .then(() => {
-                        Logger.debug(`Uploaded ${s3Prefix}/source.tar`);
-                    }),
-            ]);
-
-            // Persist app + version only after everything succeeded
             await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
@@ -239,16 +413,80 @@ export class AppGenerateService extends BaseService {
                     created_by_user_uuid: user.userUuid,
                 },
                 { version, prompt },
+                'building',
+            );
+        } catch (error) {
+            this.logger.error(
+                `App ${appUuid}: failed to create app record: ${getErrorMessage(error)}`,
+            );
+            throw error;
+        }
+
+        let sandbox: Sandbox;
+        try {
+            const result = await this.createSandbox(
+                appUuid,
+                e2bApiKey,
+                anthropicApiKey,
+            );
+            sandbox = result.sandbox;
+            durations.sandboxMs = result.durationMs;
+        } catch (error) {
+            await this.markError(appUuid, version, error);
+            throw error;
+        }
+
+        try {
+            durations.catalogMs = await this.writeCatalogAndPrompt(
+                sandbox,
+                appUuid,
+                projectUuid,
+                prompt,
+            );
+            durations.generateMs = await this.runClaudeGeneration(
+                sandbox,
+                appUuid,
+            );
+            durations.buildMs = await this.runBuild(sandbox, appUuid);
+
+            const artifacts = await this.packageArtifacts(sandbox, appUuid);
+            durations.packageMs = artifacts.durationMs;
+
+            durations.uploadMs = await this.uploadToS3(
+                s3Client,
+                bucket,
+                appUuid,
+                version,
+                artifacts.distTar,
+                artifacts.sourceTar,
             );
 
+            const dbStart = performance.now();
+            await this.appModel.updateVersionStatus(appUuid, version, 'ready');
+            durations.dbMs = AppGenerateService.elapsed(dbStart);
+
+            const totalMs = AppGenerateService.elapsed(overallStart);
             this.logger.info(
-                `App ${appUuid} version ${version} generated successfully`,
+                `App ${appUuid}: generation completed successfully in ${totalMs}ms (${Object.entries(
+                    durations,
+                )
+                    .map(([k, v]) => `${k}=${v}ms`)
+                    .join(', ')})`,
             );
 
             return { appUuid, version };
+        } catch (error) {
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.error(
+                `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+            );
+            await this.markError(appUuid, version, error);
+            throw error;
         } finally {
             await sandbox.kill();
-            this.logger.info(`App ${appUuid}: sandbox terminated`);
+            this.logger.info(
+                `App ${appUuid}: sandbox terminated (sandboxId=${sandbox.sandboxId})`,
+            );
         }
     }
 
@@ -257,64 +495,76 @@ export class AppGenerateService extends BaseService {
         s3Client: S3Client,
         bucket: string,
         s3Prefix: string,
-    ): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            const extractor = extract();
-            const uploads: Promise<void>[] = [];
+    ): Promise<{ fileCount: number; totalBytes: number }> {
+        return new Promise<{ fileCount: number; totalBytes: number }>(
+            (resolve, reject) => {
+                const extractor = extract();
+                const uploads: Promise<void>[] = [];
+                let fileCount = 0;
+                let totalBytes = 0;
 
-            extractor.on(
-                'entry',
-                (header: Headers, stream: PassThrough, next: () => void) => {
-                    if (header.type === 'file' && header.name) {
-                        const chunks: Buffer[] = [];
-                        stream.on('data', (chunk: Buffer) =>
-                            chunks.push(chunk),
-                        );
-                        stream.on('end', () => {
-                            const body = Buffer.concat(chunks);
-                            // header.name is like "dist/index.html" — strip "dist/" prefix
-                            const relativePath = header.name.replace(
-                                /^dist\//,
-                                '',
+                extractor.on(
+                    'entry',
+                    (
+                        header: Headers,
+                        stream: PassThrough,
+                        next: () => void,
+                    ) => {
+                        if (header.type === 'file' && header.name) {
+                            const chunks: Buffer[] = [];
+                            stream.on('data', (chunk: Buffer) =>
+                                chunks.push(chunk),
                             );
-                            const s3Key = `${s3Prefix}/${relativePath}`;
-                            const contentType =
-                                AppGenerateService.getContentType(relativePath);
+                            stream.on('end', () => {
+                                const body = Buffer.concat(chunks);
+                                fileCount += 1;
+                                totalBytes += body.length;
+                                const relativePath = header.name.replace(
+                                    /^dist\//,
+                                    '',
+                                );
+                                const s3Key = `${s3Prefix}/${relativePath}`;
+                                const contentType =
+                                    AppGenerateService.getContentType(
+                                        relativePath,
+                                    );
 
-                            const upload = s3Client
-                                .send(
-                                    new PutObjectCommand({
-                                        Bucket: bucket,
-                                        Key: s3Key,
-                                        Body: body,
-                                        ContentType: contentType,
-                                    }),
-                                )
-                                .then(() => {
-                                    Logger.debug(`Uploaded ${s3Key}`);
-                                });
+                                const upload = s3Client
+                                    .send(
+                                        new PutObjectCommand({
+                                            Bucket: bucket,
+                                            Key: s3Key,
+                                            Body: body,
+                                            ContentType: contentType,
+                                        }),
+                                    )
+                                    .then(() => {});
 
-                            uploads.push(upload);
+                                uploads.push(upload);
+                                next();
+                            });
+                            stream.on('error', reject);
+                        } else {
+                            stream.resume();
                             next();
-                        });
-                        stream.on('error', reject);
-                    } else {
-                        stream.resume();
-                        next();
-                    }
-                },
-            );
+                        }
+                    },
+                );
 
-            extractor.on('finish', () => {
-                Promise.all(uploads).then(() => resolve(), reject);
-            });
+                extractor.on('finish', () => {
+                    Promise.all(uploads).then(
+                        () => resolve({ fileCount, totalBytes }),
+                        reject,
+                    );
+                });
 
-            extractor.on('error', reject);
+                extractor.on('error', reject);
 
-            const passThrough = new PassThrough();
-            passThrough.pipe(extractor);
-            passThrough.end(tarBuffer);
-        });
+                const passThrough = new PassThrough();
+                passThrough.pipe(extractor);
+                passThrough.end(tarBuffer);
+            },
+        );
     }
 
     getPreviewToken(
@@ -368,7 +618,6 @@ export class AppGenerateService extends BaseService {
             fieldType: string | undefined;
         }[],
     ): string {
-        // Group fields by table
         const tables = new Map<
             string,
             { dimensions: string[]; metrics: string[] }
@@ -389,7 +638,6 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Build YAML
         const lines: string[] = ['models:'];
         for (const [tableName, fields] of tables) {
             lines.push(`  - name: ${tableName}`);
