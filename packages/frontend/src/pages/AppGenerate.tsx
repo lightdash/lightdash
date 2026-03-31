@@ -20,6 +20,7 @@ import { Link, Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
+import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import useHealth from '../hooks/health/useHealth';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
@@ -85,7 +86,17 @@ const AppGenerate: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [prompt, setPrompt] = useState('');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const { mutate, isLoading, reset } = useGenerateApp();
+    const {
+        mutate: generateMutate,
+        isLoading: isGenerating,
+        reset: resetGenerate,
+    } = useGenerateApp();
+    const {
+        mutate: iterateMutate,
+        isLoading: isIterating,
+        reset: resetIterate,
+    } = useIterateApp();
+    const isLoading = isGenerating || isIterating;
     const health = useHealth();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -133,38 +144,52 @@ const AppGenerate: FC = () => {
             { role: 'user', content: trimmed, appUuid: null, version: null },
         ]);
         setPrompt('');
-        reset();
+        resetGenerate();
+        resetIterate();
 
-        mutate(
-            { projectUuid, prompt: trimmed },
-            {
-                onSuccess: (data) => {
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            role: 'assistant',
-                            content: 'Your app is ready!',
-                            appUuid: data.appUuid,
-                            version: data.version,
-                        },
-                    ]);
-                },
-                onError: (err) => {
-                    setMessages((prev) => [
-                        ...prev,
-                        {
-                            role: 'assistant',
-                            content:
-                                err instanceof Error
-                                    ? err.message
-                                    : 'Failed to generate app',
-                            appUuid: null,
-                            version: null,
-                        },
-                    ]);
-                },
+        const callbacks = {
+            onSuccess: (data: { appUuid: string; version: number }) => {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: 'assistant' as const,
+                        content:
+                            data.version === 1
+                                ? 'Your app is ready!'
+                                : `Version ${data.version} is ready!`,
+                        appUuid: data.appUuid,
+                        version: data.version,
+                    },
+                ]);
             },
-        );
+            onError: (err: unknown) => {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: 'assistant' as const,
+                        content:
+                            err instanceof Error
+                                ? err.message
+                                : 'Failed to generate app',
+                        appUuid: null,
+                        version: null,
+                    },
+                ]);
+            },
+        };
+
+        if (latestApp?.appUuid) {
+            iterateMutate(
+                {
+                    projectUuid,
+                    appUuid: latestApp.appUuid,
+                    prompt: trimmed,
+                },
+                callbacks,
+            );
+        } else {
+            generateMutate({ projectUuid, prompt: trimmed }, callbacks);
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
