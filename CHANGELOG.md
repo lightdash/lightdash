@@ -1,3 +1,15 @@
+# [0.2694.0](https://github.com/lightdash/lightdash/compare/0.2693.0...0.2694.0) (2026-03-31)
+
+
+### Bug Fixes
+
+* show 'View in Lightdash' button on mobile email clients ([#21538](https://github.com/lightdash/lightdash/issues/21538)) ([dcde4b5](https://github.com/lightdash/lightdash/commit/dcde4b5ddcbe40497a4a709053efc6c5041ff712)), closes [#4696](https://github.com/lightdash/lightdash/issues/4696) [#21384](https://github.com/lightdash/lightdash/issues/21384)
+
+
+### Features
+
+* save apps/app_versions to db ([#21532](https://github.com/lightdash/lightdash/issues/21532)) ([19829a3](https://github.com/lightdash/lightdash/commit/19829a324377defd9bdb700eaed6787ba717f916))
+
 # [0.2693.0](https://github.com/lightdash/lightdash/compare/0.2692.2...0.2693.0) (2026-03-30)
 
 
