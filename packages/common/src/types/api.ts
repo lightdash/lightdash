@@ -149,6 +149,7 @@ import { type PivotConfiguration } from './pivot';
 import type {
     ApiGetPreAggregateMaterializationsResponse,
     ApiGetPreAggregateStatsResponse,
+    ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
 import {
@@ -976,6 +977,7 @@ type ApiResults =
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
+    | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']

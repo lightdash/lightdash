@@ -7210,6 +7210,10 @@
                 "enum": ["user_bypass"],
                 "type": "string"
             },
+            "PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR": {
+                "enum": ["explore_resolution_error"],
+                "type": "string"
+            },
             "PreAggregateMatchMiss": {
                 "anyOf": [
                     {
@@ -7345,6 +7349,15 @@
                             }
                         },
                         "required": ["preAggregateName", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR"
+                            }
+                        },
+                        "required": ["reason"],
                         "type": "object"
                     }
                 ]
@@ -25270,6 +25283,59 @@
             "ApiExploreResults": {
                 "$ref": "#/components/schemas/Omit_Explore.unfilteredTables_"
             },
+            "PreAggregateCheckResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "preAggregateExploreName": {
+                                "type": "string"
+                            },
+                            "preAggregateName": {
+                                "type": "string"
+                            },
+                            "hit": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "preAggregateExploreName",
+                            "preAggregateName",
+                            "hit"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMatchMiss"
+                            },
+                            "hit": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "hit"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiPreAggregateCheckResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PreAggregateCheckResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiPromoteDashboardResponse": {
                 "properties": {
                     "results": {
@@ -29450,7 +29516,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2709.3",
+        "version": "0.2709.6",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -43652,6 +43718,77 @@
                                             },
                                             "parameters": {
                                                 "$ref": "#/components/schemas/ParametersValuesMap"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/explores/{exploreId}/preAggregateCheck": {
+            "post": {
+                "operationId": "CheckPreAggregate",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPreAggregateCheckResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Check pre-aggregate availability for a metric query",
+                "summary": "Check pre-aggregate",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "exploreId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/MetricQuery"
+                                    },
+                                    {
+                                        "properties": {
+                                            "usePreAggregateCache": {
+                                                "type": "boolean"
                                             }
                                         },
                                         "type": "object"

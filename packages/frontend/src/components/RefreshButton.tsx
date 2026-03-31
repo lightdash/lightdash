@@ -14,7 +14,7 @@ import { memo, useCallback, useTransition, type FC } from 'react';
 import {
     explorerActions,
     selectIsValidQuery,
-    selectPreAggEnabled,
+    selectPreAggVisible,
     selectQueryLimit,
     useExplorerDispatch,
     useExplorerSelector,
@@ -38,7 +38,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     const limit = useExplorerSelector(selectQueryLimit);
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
     const dispatch = useExplorerDispatch();
-    const preAggEnabled = useExplorerSelector(selectPreAggEnabled);
+    const preAggVisible = useExplorerSelector(selectPreAggVisible);
 
     // Get query state and actions from hooks
     const { isLoading, fetchResults, cancelQuery } = useExplorerQuery();
@@ -135,7 +135,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                         limit={limit}
                         onLimitChange={setRowLimit}
                         showAutoFetchSetting
-                        showPreAggregateSetting={preAggEnabled}
+                        showPreAggregateSetting={preAggVisible}
                         targetProps={{
                             style: {
                                 borderTopLeftRadius: 0,

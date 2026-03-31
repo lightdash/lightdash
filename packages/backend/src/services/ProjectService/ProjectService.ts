@@ -117,6 +117,9 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PreAggregateCheckResult,
+    PreAggregateMatchMiss,
+    PreAggregateMissReason,
     preAggregateUtils,
     Project,
     ProjectCatalog,
@@ -3201,6 +3204,103 @@ export class ProjectService extends BaseService {
             // Include pivot query if pivot configuration was provided
             ...(pivotQuery && { pivotQuery }),
         };
+    }
+
+    async checkPreAggregateMatch(args: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        metricQuery: MetricQuery;
+        usePreAggregateCache: boolean;
+    }): Promise<PreAggregateCheckResult> {
+        if (!this.lightdashConfig.preAggregates.enabled) {
+            throw new ForbiddenError('Pre-aggregates are not enabled');
+        }
+
+        const { account, projectUuid, exploreName, metricQuery } = args;
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const sourceExplore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+        );
+
+        const matchResult = preAggregateUtils.findMatch(
+            metricQuery,
+            sourceExplore,
+        );
+
+        const isUserBypass = args.usePreAggregateCache === false;
+        if (isUserBypass || !matchResult.hit) {
+            const miss =
+                isUserBypass && matchResult.hit
+                    ? ({
+                          reason: PreAggregateMissReason.USER_BYPASS,
+                          preAggregateName: matchResult.preAggregateName,
+                      } satisfies PreAggregateMatchMiss)
+                    : matchResult.miss;
+
+            if (!miss) {
+                throw new UnexpectedServerError(
+                    'Pre-aggregate miss metadata is missing',
+                );
+            }
+
+            return {
+                hit: false,
+                reason: miss,
+            };
+        }
+
+        const preAggExploreName = getPreAggregateExploreName(
+            sourceExplore.name,
+            matchResult.preAggregateName,
+        );
+        try {
+            await this.getExplore(account, projectUuid, preAggExploreName);
+            return {
+                hit: true,
+                preAggregateName: matchResult.preAggregateName,
+                preAggregateExploreName: preAggExploreName,
+            };
+        } catch (error) {
+            this.logger.error(
+                `Failed to resolve pre-aggregate explore "${preAggExploreName}", falling back to source explore`,
+                {
+                    projectUuid,
+                    sourceExploreName: sourceExplore.name,
+                    preAggregateName: matchResult.preAggregateName,
+                    preAggExploreName,
+                    error: getErrorMessage(error),
+                },
+            );
+            Sentry.captureException(error, {
+                tags: {
+                    projectUuid,
+                    sourceExploreName: sourceExplore.name,
+                    preAggregateName: matchResult.preAggregateName,
+                },
+                extra: { preAggExploreName },
+            });
+            return {
+                hit: false,
+                reason: {
+                    reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR,
+                },
+            };
+        }
     }
 
     async runUnderlyingDataQuery(

@@ -30,6 +30,7 @@ const PreAggregateCacheSwitch: FC<Props> = memo(({ size }) => {
                 label="Use pre-aggregate cache"
                 checked={enabled}
                 onChange={handleToggle}
+                thumbIcon={<></>}
             />
         </Tooltip>
     );

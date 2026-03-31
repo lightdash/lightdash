@@ -5985,6 +5985,11 @@ const models: TsoaRoute.Models = {
         enums: ['user_bypass'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR': {
+        dataType: 'refEnum',
+        enums: ['explore_resolution_error'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreAggregateMatchMiss: {
         dataType: 'refAlias',
         type: {
@@ -6104,6 +6109,15 @@ const models: TsoaRoute.Models = {
                         },
                         reason: {
                             ref: 'PreAggregateMissReason.USER_BYPASS',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        reason: {
+                            ref: 'PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR',
                             required: true,
                         },
                     },
@@ -24096,6 +24110,60 @@ const models: TsoaRoute.Models = {
     ApiExploreResults: {
         dataType: 'refAlias',
         type: { ref: 'Omit_Explore.unfilteredTables_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateCheckResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        preAggregateExploreName: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        preAggregateName: {
+                            dataType: 'string',
+                            required: true,
+                        },
+                        hit: {
+                            dataType: 'enum',
+                            enums: [true],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        reason: {
+                            ref: 'PreAggregateMatchMiss',
+                            required: true,
+                        },
+                        hit: {
+                            dataType: 'enum',
+                            enums: [false],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiPreAggregateCheckResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'PreAggregateCheckResult', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiPromoteDashboardResponse: {
@@ -50737,6 +50805,86 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'CompileQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_CheckPreAggregate: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'MetricQuery' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        usePreAggregateCache: { dataType: 'boolean' },
+                    },
+                },
+            ],
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/explores/:exploreId/preAggregateCheck',
+        ...fetchMiddlewares<RequestHandler>(ExploreController),
+        ...fetchMiddlewares<RequestHandler>(
+            ExploreController.prototype.CheckPreAggregate,
+        ),
+
+        async function ExploreController_CheckPreAggregate(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsExploreController_CheckPreAggregate,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'CheckPreAggregate',
                     controller,
                     response,
                     next,

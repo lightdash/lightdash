@@ -21,7 +21,7 @@ import {
     type MetricType,
     type ParameterDefinitions,
     type PieChartConfig,
-    type PreAggregateMatchResult,
+    type PreAggregateCheckResult,
     type ReplaceCustomFields,
     type SankeyChartConfig,
     type SavedChart,
@@ -233,6 +233,26 @@ export type Action =
           payload: string[] | null;
       };
 
+export type PreAggregateCheck =
+    | {
+          status: 'unavailable';
+          reason: 'feature_disabled' | 'no_configured_pre_aggregates';
+      }
+    | {
+          status: 'idle';
+      }
+    | {
+          status: 'loading';
+      }
+    | {
+          status: 'error';
+          message: string;
+      }
+    | {
+          status: 'ready';
+          result: PreAggregateCheckResult;
+      };
+
 export interface ExplorerReduceState {
     expandedSections: ExplorerSection[];
     metadata?: {
@@ -301,11 +321,9 @@ export interface ExplorerReduceState {
     isExploreFromHere?: boolean;
     savedChart?: SavedChart;
 
-    // Pre-aggregate match state — computed once in useExplorerQueryEffects, read via selectors
+    // Pre-aggregate check state — computed once in useExplorerQueryEffects
     preAggregate: {
-        matchResult: PreAggregateMatchResult | null;
-        preAggExploreName: string | null;
-        isEnabled: boolean;
-        cacheEnabled: boolean;
+        usePreAggregateCache: boolean;
+        check: PreAggregateCheck;
     };
 }
