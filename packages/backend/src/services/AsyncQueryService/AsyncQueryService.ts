@@ -2509,6 +2509,7 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         preloadedUserAccessControls,
         preloadedProjectParameters,
+        preloadedTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2523,6 +2524,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration?: PivotConfiguration;
         preloadedUserAccessControls: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
+        preloadedTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -2538,7 +2540,9 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const timezone =
+            preloadedTimezone ??
+            (await this.getQueryTimezoneForProject(projectUuid));
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -3758,12 +3762,27 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        // Load project warehouse config once (used by both warehouse credentials and timezone)
+        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+
+        // Run independent data loads in parallel to minimize Postgres round-trips
+        const [
+            warehouseCredentials,
+            rawDashboardParameters,
+            projectParameters,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                preloadedOrgWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid,
+            }),
+            this.dashboardModel.getDashboardParametersById(dashboardUuid),
+            this.projectParametersModel.find(projectUuid),
+        ]);
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -3771,12 +3790,11 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
-            await this.dashboardModel.getDashboardParametersById(dashboardUuid),
+            rawDashboardParameters,
         );
 
-        // Load project parameters once and pass to both combineParameters and prepareMetricQueryAsyncQueryArgs
-        const projectParameters =
-            await this.projectParametersModel.find(projectUuid);
+        const timezone =
+            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
@@ -3823,6 +3841,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             preloadedUserAccessControls: userAccessControls,
             preloadedProjectParameters: projectParameters,
+            preloadedTimezone: timezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({

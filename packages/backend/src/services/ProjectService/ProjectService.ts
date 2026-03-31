@@ -1221,15 +1221,23 @@ export class ProjectService extends BaseService {
         userId,
         isRegisteredUser,
         isServiceAccount = false,
+        preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
+        preloadedOrgWarehouseCredentialsUuid?: string | null;
     }) {
-        // Lightweight query for just the fields we need instead of loading the full project
-        const { organizationWarehouseCredentialsUuid } =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        // Use preloaded config if available, otherwise fetch it
+        const organizationWarehouseCredentialsUuid =
+            preloadedOrgWarehouseCredentialsUuid !== undefined
+                ? preloadedOrgWarehouseCredentialsUuid
+                : (
+                      await this.projectModel.getProjectWarehouseConfig(
+                          projectUuid,
+                      )
+                  ).organizationWarehouseCredentialsUuid;
 
         // Load base credentials from either organization or project table
         let credentials: CreateWarehouseCredentials =
