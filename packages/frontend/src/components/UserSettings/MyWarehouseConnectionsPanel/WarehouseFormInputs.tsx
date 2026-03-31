@@ -127,7 +127,8 @@ export const WarehouseFormInputs: FC<{
             return (
                 <PasswordInput
                     size="xs"
-                    label="Service Token"
+                    label="MotherDuck access token"
+                    description="Create an access token in MotherDuck Settings."
                     disabled={disabled}
                     {...form.getInputProps('credentials.token')}
                 />

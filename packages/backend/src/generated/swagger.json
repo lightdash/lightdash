@@ -12703,7 +12703,7 @@
                         "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
                     }
                 },
-                "required": ["schema", "database", "type"],
+                "required": ["token", "schema", "database", "type"],
                 "type": "object"
             },
             "CreateWarehouseCredentials": {
@@ -14191,7 +14191,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["type"],
+                "required": ["type", "token"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },

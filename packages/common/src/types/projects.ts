@@ -214,7 +214,7 @@ export type CreateDuckdbCredentials = {
     type: WarehouseTypes.DUCKDB;
     database: string;
     schema: string;
-    token?: string;
+    token: string;
     threads?: number;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;

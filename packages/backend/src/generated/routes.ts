@@ -11813,7 +11813,7 @@ const models: TsoaRoute.Models = {
                 },
                 requireUserCredentials: { dataType: 'boolean' },
                 threads: { dataType: 'double' },
-                token: { dataType: 'string' },
+                token: { dataType: 'string', required: true },
                 schema: { dataType: 'string', required: true },
                 database: { dataType: 'string', required: true },
                 type: { ref: 'WarehouseTypes.DUCKDB', required: true },
@@ -13334,13 +13334,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 type: { ref: 'WarehouseTypes.DUCKDB', required: true },
-                token: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
+                token: { dataType: 'string', required: true },
             },
             validators: {},
         },

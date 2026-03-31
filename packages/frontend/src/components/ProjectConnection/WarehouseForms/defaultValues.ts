@@ -163,6 +163,7 @@ const DuckdbDefaultValues: CreateDuckdbCredentials = {
     type: WarehouseTypes.DUCKDB,
     database: '',
     schema: 'main',
+    token: '',
     threads: 1,
     startOfWeek: undefined,
 };

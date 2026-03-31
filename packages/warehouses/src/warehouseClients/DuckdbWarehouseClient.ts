@@ -8,6 +8,7 @@ import {
     Metric,
     MetricType,
     NotImplementedError,
+    ParameterError,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseResults,
@@ -195,6 +196,7 @@ const DUCKDB_INTERNAL_CREDENTIALS: CreateDuckdbCredentials = {
     type: WarehouseTypes.DUCKDB,
     database: ':memory:',
     schema: 'main',
+    token: '',
 };
 
 export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
@@ -321,11 +323,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
             this.s3Config = (credentials as DuckdbS3Credentials).s3Config;
         }
 
-        // Determine databasePath
-        if (effectiveCredentials.token) {
-            this.databasePath = `md:${effectiveCredentials.database}?motherduck_token=${effectiveCredentials.token}`;
+        // Project DuckDB credentials map to MotherDuck only. The in-memory
+        // internal credentials remain available for pre-aggregate helper flows.
+        if (effectiveCredentials.database === ':memory:') {
+            this.databasePath = ':memory:';
         } else {
-            this.databasePath = effectiveCredentials.database || ':memory:';
+            const token = effectiveCredentials.token.trim();
+            if (!token) {
+                throw new ParameterError(
+                    'MotherDuck token is required for DuckDB warehouse connections',
+                );
+            }
+            this.databasePath = `md:${effectiveCredentials.database}?motherduck_token=${token}`;
         }
 
         this.resourceLimits = options?.resourceLimits;
@@ -843,7 +852,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
     /**
      * Dispatches to the appropriate session strategy:
-     * - Direct database (non-:memory: databasePath): connects to the file/MotherDuck path
+     * - Direct database (non-:memory: databasePath): connects to the MotherDuck path
      * - Resource-limited: isolated ephemeral instance (e.g. parquet conversion)
      * - Shared instance (has instanceCacheKey): warm cached instance for queries
      * - Default: ephemeral query session
@@ -866,7 +875,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         return this.withEphemeralQuerySession(callback);
     }
 
-    /** Direct connection to a DuckDB database path (local file or MotherDuck). */
+    /** Direct connection to the configured MotherDuck database. */
     private async withDirectSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
     ): Promise<T> {
@@ -881,6 +890,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         const connectMs = performance.now() - connectStart;
 
         try {
+            await DuckdbWarehouseClient.hardenInstance(connection);
             const queryStart = performance.now();
             const result = await callback(connection);
             const queryMs = performance.now() - queryStart;

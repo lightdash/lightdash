@@ -50,7 +50,7 @@ const getCredentialsWithPlaceholders = (
         case WarehouseTypes.DUCKDB:
             return {
                 ...credentials,
-                token: undefined,
+                token: '',
             };
         default:
             return assertUnreachable(

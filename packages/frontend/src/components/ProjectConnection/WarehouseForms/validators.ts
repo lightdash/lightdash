@@ -69,5 +69,6 @@ export const warehouseValueValidators: Record<
     [WarehouseTypes.DUCKDB]: {
         database: hasNoWhiteSpaces('Database'),
         schema: hasNoWhiteSpaces('Schema'),
+        token: hasNoWhiteSpaces('Service token'),
     },
 } as const;

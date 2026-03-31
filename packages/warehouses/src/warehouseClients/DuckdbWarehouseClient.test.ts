@@ -704,27 +704,47 @@ describe('DuckdbWarehouseClient', () => {
             },
             expectedPath: 'md:my_database?motherduck_token=my_motherduck_token',
         },
-        {
-            name: 'use local path when no token is provided',
-            credentials: {
-                type: WarehouseTypes.DUCKDB as const,
-                database: 'my_local.db',
-                schema: 'main',
-            },
-            expectedPath: 'my_local.db',
-        },
     ])('should $name', async ({ credentials, expectedPath }) => {
+        const runMock = jest.fn();
         const streamMock = jest.fn(async () =>
             getMockStreamResult([[{ id: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
-        createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
 
         const client = new DuckdbWarehouseClient(credentials);
 
         await client.runQuery('SELECT 1 AS id');
 
         expect(createInstanceMock).toHaveBeenCalledWith(expectedPath);
+        expect(runMock).toHaveBeenCalledWith(
+            'SET allow_community_extensions = false;',
+        );
+        expect(runMock).toHaveBeenCalledWith(
+            'SET autoinstall_known_extensions = false;',
+        );
+        expect(runMock).toHaveBeenCalledWith(
+            'SET autoload_known_extensions = false;',
+        );
+        expect(runMock).toHaveBeenCalledWith(
+            'SET allow_unredacted_secrets = false;',
+        );
+    });
+
+    it('should require a MotherDuck token for direct DuckDB connections', () => {
+        expect(
+            () =>
+                new DuckdbWarehouseClient({
+                    type: WarehouseTypes.DUCKDB,
+                    database: 'my_database',
+                    schema: 'main',
+                    token: '',
+                }),
+        ).toThrow(
+            'MotherDuck token is required for DuckDB warehouse connections',
+        );
     });
 
     it('should default getFields database to the configured DuckDB database', async () => {
@@ -749,6 +769,7 @@ describe('DuckdbWarehouseClient', () => {
             type: WarehouseTypes.DUCKDB,
             database: 'analytics',
             schema: 'main',
+            token: 'motherduck_token',
         });
 
         const result = await client.getFields('orders');

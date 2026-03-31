@@ -69,6 +69,7 @@ const defaultCredentials: Record<
     },
     [WarehouseTypes.DUCKDB]: {
         type: WarehouseTypes.DUCKDB,
+        token: '',
     },
 };
 

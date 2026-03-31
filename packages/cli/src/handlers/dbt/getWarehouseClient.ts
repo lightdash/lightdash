@@ -136,8 +136,9 @@ function getMockCredentials(
         case SupportedDbtAdapter.DUCKDB:
             return {
                 type: WarehouseTypes.DUCKDB,
-                database: '',
+                database: ':memory:',
                 schema: 'main',
+                token: '',
             };
         case SupportedDbtAdapter.REDSHIFT:
             return {
