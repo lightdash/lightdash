@@ -9,7 +9,7 @@ overrides:
   '@types/react': 19.2.2
   '@types/react-dom': 19.2.2
   linkifyjs: ^4.3.2
-  axios: ^1.12.0
+  axios: 1.12.2
   form-data@2.5.3: 2.5.5
   form-data@3.0.1: 3.0.4
   form-data@4.0.0: 4.0.4
@@ -7750,7 +7750,7 @@ packages:
   axios-retry@4.5.0:
     resolution: {integrity: sha512-aR99oXhpEDGo0UuAlYcn2iGRds30k366Zfa05XWScR9QaQD4JYiP3/1Qt1u7YlefUOK+cn0CcwoL1oefavQUlQ==}
     peerDependencies:
-      axios: ^1.12.0
+      axios: 1.12.2
 
   axios@1.12.2:
     resolution: {integrity: sha512-vMJzPewAlRyOgxV2dU0Cuz2O8zzzx9VYtbJOaBgXFeLc4IV/Eg50n4LowmehOOR61S8ZMpc2K5Sa7g6A4jfkUw==}
@@ -11466,7 +11466,7 @@ packages:
       '@langchain/mistralai': '*'
       '@langchain/ollama': '*'
       '@langchain/xai': '*'
-      axios: ^1.12.0
+      axios: 1.12.2
       cheerio: '*'
       handlebars: ^4.7.8
       peggy: ^3.0.2
