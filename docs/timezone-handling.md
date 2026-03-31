@@ -11,7 +11,7 @@ There are six distinct timezone concepts in the codebase:
 | Concept | What it is | Current behavior |
 |---------|-----------|-----------------|
 | **Data timezone** | The timezone raw data was written in at the warehouse (e.g., NTZ columns in Snowflake) | Unknown to Lightdash — always assumed to be UTC |
-| **Session timezone** | The warehouse connection's timezone setting. Affects how the warehouse interprets ambiguous timestamps (NTZ) and displays LTZ values | Hardcoded to `'UTC'` for all warehouses |
+| **Session timezone** | The warehouse connection's timezone setting. Affects how the warehouse interprets ambiguous timestamps (NTZ) and displays LTZ values | Configurable via `dataTimezone` field on warehouse credentials when `EnableTimezoneSupport` flag is on. When set, the warehouse session timezone is changed to this value, which controls how the warehouse processes queries. When not set or flag is off, not explicitly set — warehouse uses its server default (typically UTC). |
 | **Project timezone** | Project-level setting in DB (`projects.query_timezone`). Intended to control filter boundaries, grouping, and display | Exists in DB but only affects 2 of 5 relative date filter operators |
 | **Chart timezone** | Per-chart override (`metricQuery.timezone`). Behind `EnableUserTimezones` feature flag | Stored but ignored during query compilation |
 | **Process timezone** | Node.js server's system timezone | `'UTC'` in production Docker containers (by convention) |
@@ -29,7 +29,7 @@ Snowflake has three timestamp types that behave differently with timezone operat
 | **TIMESTAMP_LTZ** | Implicitly | Stored as UTC internally, displayed in session TZ | Converts from session TZ (UTC) to UTC — **no-op** | If session were non-UTC, display would shift |
 | **TIMESTAMP_TZ** | Yes (explicit offset) | Stored with offset, e.g. `09:00:00 +10:00` | Converts from stored offset to UTC — **actually works** | Not affected — stored offset takes precedence |
 
-Since the session timezone is always UTC, `CONVERT_TIMEZONE('UTC', col)` is effectively a no-op for NTZ and LTZ. It only does real work for TZ columns with non-UTC offsets.
+When `dataTimezone` is not set, the session timezone defaults to UTC and `CONVERT_TIMEZONE('UTC', col)` is effectively a no-op for NTZ and LTZ. When `dataTimezone` is set (e.g., to `Pacific/Auckland`), Snowflake interprets NTZ values as being in that timezone, and `CONVERT_TIMEZONE('UTC', col)` performs a real conversion — shifting values to UTC. This is the primary use case for the `dataTimezone` setting.
 
 ---
 
@@ -43,35 +43,40 @@ When a Snowflake connection is opened, the client runs:
 ALTER SESSION SET TIMEZONE = 'UTC';
 ```
 
-The code accepts an `options.timezone` parameter but no caller ever passes one. The session timezone is always UTC.
+The code accepts an `options.timezone` parameter. When `dataTimezone` is set on the warehouse credentials and the `EnableTimezoneSupport` flag is enabled, `AsyncQueryService` passes it via `executeAsyncQuery({ timezone: dataTimezone })`. The session timezone is then set to the configured value instead of UTC.
 
 ### Postgres
 **File:** `packages/warehouses/src/warehouseClients/PostgresWarehouseClient.ts`
 
-Plumbing exists to run `SET timezone TO '<tz>'` if `options.timezone` is provided, but no caller passes it. Defaults to the server's timezone (typically UTC in containers).
+Runs `SET timezone TO '<tz>'` when `options.timezone` is provided. Note: on Postgres this affects `timestamptz` column display/grouping but has no effect on `timestamp` (NTZ) columns. NTZ support on Postgres requires SQL-level `AT TIME ZONE` conversion (not yet implemented).
 
 ### Databricks
 **File:** `packages/warehouses/src/warehouseClients/DatabricksWarehouseClient.ts`
 
-Plumbing exists to run `SET TIME ZONE '<tz>'` if `options.timezone` is provided, but no caller passes it.
+Runs `SET TIME ZONE '<tz>'` when `options.timezone` is provided.
 
 ### DuckDB
 **File:** `packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.ts`
 
-Plumbing exists to run `SET TimeZone = '<tz>'` if `options.timezone` is provided, but no caller passes it.
+Runs `SET TimeZone = '<tz>'` when `options.timezone` is provided.
 
 ### Trino / Athena
 **File:** `packages/warehouses/src/warehouseClients/TrinoWarehouseClient.ts`
 
-Plumbing exists to run `SET TIME ZONE '<tz>'` if `options.timezone` is provided, but no caller passes it.
+Runs `SET TIME ZONE '<tz>'` when `options.timezone` is provided.
 
 ### ClickHouse
 **File:** `packages/warehouses/src/warehouseClients/ClickhouseWarehouseClient.ts`
 
-Plumbing exists to set `clickhouse_settings.timezone` on the query request if `options.timezone` is provided, but no caller passes it.
+Sets `clickhouse_settings.timezone` on the query request when `options.timezone` is provided.
 
 ### Other warehouses
 BigQuery, Redshift — no session timezone handling exists.
+
+### How `dataTimezone` flows
+**File:** `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
+
+The `dataTimezone` value is read from `warehouseClient.credentials.dataTimezone` and passed to `executeAsyncQuery()` via `runQueryAndTransformRows()`. The value is only passed when the `EnableTimezoneSupport` feature flag is enabled (config-only check, no PostHog). When the flag is off or `dataTimezone` is not set, no timezone is passed and warehouses use their server default.
 
 ---
 
@@ -150,16 +155,16 @@ Absolute filter operators (`EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, 
 
 **File:** `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
 
-When executing a query, the `executeAsyncQuery` call does NOT pass timezone to the warehouse client:
+When executing a query, `AsyncQueryService` checks the `EnableTimezoneSupport` feature flag and passes `dataTimezone` from the warehouse credentials:
 ```typescript
 warehouseClient.executeAsyncQuery({
     sql: query,
     tags: queryTags,
-    // timezone is NOT passed here
+    timezone: dataTimezone, // from credentials, gated by EnableTimezoneSupport flag
 });
 ```
 
-This means even though the warehouse clients (Snowflake, Postgres, Databricks) can accept a timezone parameter for session setup, they never receive one. The session timezone is always UTC.
+When `dataTimezone` is set and the flag is enabled, the warehouse client sets the session timezone before running the query. When not set or flag is off, no timezone is passed and the warehouse uses its server default (typically UTC).
 
 ---
 
@@ -250,8 +255,8 @@ Query results in scheduled deliveries are formatted using the same `formatRow` p
 
 **Setup:** Project timezone = `America/New_York` (UTC-4 during EDT), Snowflake warehouse, user filters "In the current month" (March)
 
-1. **Session timezone**: `ALTER SESSION SET TIMEZONE = 'UTC'` — always UTC, project timezone ignored
-2. **CONVERT_TIMEZONE**: `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` — no-op for NTZ/LTZ
+1. **Session timezone**: `ALTER SESSION SET TIMEZONE = '<dataTimezone>'` if `dataTimezone` is set on credentials and `EnableTimezoneSupport` flag is on. Otherwise defaults to UTC.
+2. **CONVERT_TIMEZONE**: `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` — no-op when session timezone is UTC, but performs real conversion when `dataTimezone` is set to a non-UTC timezone
 3. **Filter compilation (IN_THE_CURRENT)**: Correctly uses project timezone — March 1 00:00 New York → March 1 04:00 UTC as filter boundary
 4. **DATE_TRUNC**: `DATE_TRUNC('MONTH', col)` — truncates in UTC, not New York time
 5. **Display formatting**: `moment(value).format(...)` — formats in process timezone (UTC)
@@ -276,12 +281,13 @@ If a user sets project timezone to New York and filters "in the last 7 days", th
 | 2 | `metricQuery.timezone` | Override project timezone in query compilation | Ignored — only used for cache key generation |
 | 3 | DATE_TRUNC grouping | Respect project timezone for day/week/month boundaries | Always truncates in UTC |
 | 4 | Display formatting | Format timestamps in project timezone | Formats in process timezone (UTC) |
-| 5 | Session timezone | Set to project/data timezone | Hardcoded to UTC |
+| 5a | Session timezone from data timezone | Set from `dataTimezone` warehouse credential | ✅ **Addressed** — `dataTimezone` passed to warehouse session via `EnableTimezoneSupport` flag |
+| 5b | Project timezone in SQL generation | Use project timezone for DATE_TRUNC, `convertTimezone()`, and display | Not yet — requires SQL-level timezone conversion for DATE_TRUNC and `convertTimezone()` |
 | 6 | `CONVERT_TIMEZONE` target | Convert to project timezone | Hardcoded to UTC |
 | 7 | Non-Snowflake warehouses | Have timestamp conversion equivalent | No conversion at all |
 | 8 | API response | Include timezone metadata | No timezone info in response |
 | 9 | Scheduled deliveries | Use project timezone for query and formatting | Use UTC for everything |
-| 10 | NTZ data in non-UTC timezone | Interpret correctly via data timezone setting | Assumed UTC — silently wrong |
+| 10 | NTZ data in non-UTC timezone | Interpret correctly via data timezone setting | ✅ **Addressed** — `dataTimezone` on warehouse credentials sets session timezone, which tells Snowflake how to interpret NTZ values. On Postgres, NTZ columns are unaffected by session timezone (requires SQL-level `AT TIME ZONE` conversion). |
 | 11 | Absolute date filter values | Interpreted in project/user timezone | Used as-is — compared against UTC data with no conversion |
 | 12 | `disableTimestampConversion` | Documented escape hatch with clear semantics | Undocumented boolean that silently skips all timestamp conversion |
 | 13 | Timezone picker coverage | Full IANA timezone list | ~28 predefined zones in `TimeZone` enum (`packages/common/src/types/timezone.ts`), though the API validates against the full IANA set |
