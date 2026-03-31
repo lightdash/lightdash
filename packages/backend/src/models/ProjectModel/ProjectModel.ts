@@ -3073,6 +3073,27 @@ export class ProjectModel {
         return updatedProject;
     }
 
+    async getProjectWarehouseConfig(projectUuid: string): Promise<{
+        organizationWarehouseCredentialsUuid: string | null;
+        queryTimezone: string | null;
+    }> {
+        const [project] = await this.database(ProjectTableName)
+            .select('organization_warehouse_credentials_uuid', 'query_timezone')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return {
+            organizationWarehouseCredentialsUuid:
+                project.organization_warehouse_credentials_uuid,
+            queryTimezone: project.query_timezone,
+        };
+    }
+
     async getQueryTimezone(projectUuid: string): Promise<string | null> {
         const [project] = await this.database(ProjectTableName)
             .select('query_timezone')
