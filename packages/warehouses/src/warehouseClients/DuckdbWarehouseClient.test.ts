@@ -494,7 +494,28 @@ describe('DuckdbWarehouseClient', () => {
     });
 
     describe('SQL security validation', () => {
-        it('should reject SET statements', async () => {
+        it.each([
+            {
+                name: 'SET statements',
+                sql: "SET s3_endpoint = 'attacker.com'",
+                statementType: 20,
+            },
+            {
+                name: 'COPY statements',
+                sql: "COPY t TO '/tmp/data.csv'",
+                statementType: 11,
+            },
+            {
+                name: 'ATTACH statements',
+                sql: "ATTACH DATABASE 'file.db'",
+                statementType: 25,
+            },
+            {
+                name: 'EXPLAIN statements',
+                sql: 'EXPLAIN SELECT * FROM users',
+                statementType: 4,
+            },
+        ])('should reject $name', async ({ sql, statementType }) => {
             const streamMock = jest.fn(async () =>
                 getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
             );
@@ -502,60 +523,16 @@ describe('DuckdbWarehouseClient', () => {
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, jest.fn(), {
                     extractStatements: createMockExtractStatements({
-                        statementType: 20, // SET
+                        statementType,
                     }),
                 }),
             );
 
             const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery("SET s3_endpoint = 'attacker.com'"),
-            ).rejects.toThrow(
+            await expect(client.runQuery(sql)).rejects.toThrow(
                 'SQL validation error: only SELECT statements are allowed',
             );
             expect(streamMock).not.toHaveBeenCalled();
-        });
-
-        it('should reject COPY statements', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, jest.fn(), {
-                    extractStatements: createMockExtractStatements({
-                        statementType: 11, // COPY
-                    }),
-                }),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery("COPY t TO '/tmp/data.csv'"),
-            ).rejects.toThrow(
-                'SQL validation error: only SELECT statements are allowed',
-            );
-        });
-
-        it('should reject ATTACH statements', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, jest.fn(), {
-                    extractStatements: createMockExtractStatements({
-                        statementType: 25, // ATTACH
-                    }),
-                }),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery("ATTACH DATABASE 'file.db'"),
-            ).rejects.toThrow(
-                'SQL validation error: only SELECT statements are allowed',
-            );
         });
 
         it('should reject multiple statements', async () => {
@@ -579,58 +556,28 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
-        it('should reject queries with current_setting()', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
+        it.each(['current_setting', 'duckdb_settings', 'duckdb_secrets'])(
+            'should reject queries with %s()',
+            async (blockedFunction) => {
+                const streamMock = jest.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                );
 
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
+                createInstanceMock.mockResolvedValue(
+                    createMockConnection(streamMock),
+                );
 
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery(
-                    "SELECT current_setting('s3_secret_access_key')",
-                ),
-            ).rejects.toThrow(
-                "SQL validation error: function 'current_setting' is not allowed",
-            );
-        });
-
-        it('should reject queries with duckdb_settings()', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery('SELECT * FROM duckdb_settings()'),
-            ).rejects.toThrow(
-                "SQL validation error: function 'duckdb_settings' is not allowed",
-            );
-        });
-
-        it('should reject queries with duckdb_secrets()', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery('SELECT * FROM duckdb_secrets()'),
-            ).rejects.toThrow(
-                "SQL validation error: function 'duckdb_secrets' is not allowed",
-            );
-        });
+                const client = new DuckdbWarehouseClient();
+                await expect(
+                    client.runQuery(`SELECT * FROM ${blockedFunction}()`),
+                ).rejects.toThrow(
+                    `SQL validation error: function '${blockedFunction}' is not allowed`,
+                );
+            },
+        );
 
         it('should ignore blocked functions inside SQL comments', async () => {
             const streamMock = jest.fn(async () =>
@@ -670,64 +617,39 @@ describe('DuckdbWarehouseClient', () => {
             );
         });
 
-        it('should reject SET statements in runSql', async () => {
+        it.each([
+            {
+                name: 'SET statements',
+                sql: "SET s3_endpoint = 'attacker.com'",
+                statementType: 20,
+            },
+            {
+                name: 'ATTACH statements',
+                sql: "ATTACH DATABASE 'file.db'",
+                statementType: 25,
+            },
+            {
+                name: 'LOAD statements',
+                sql: "LOAD 'malicious_extension'",
+                statementType: 21,
+            },
+        ])('should reject $name in runSql', async ({ sql, statementType }) => {
             const streamMock = jest.fn();
             const runMock = jest.fn();
 
             createInstanceMock.mockResolvedValue(
                 createMockConnection(streamMock, runMock, {
                     extractStatements: createMockExtractStatements({
-                        statementType: 20, // SET
+                        statementType,
                     }),
                 }),
             );
 
             const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runSql("SET s3_endpoint = 'attacker.com'"),
-            ).rejects.toThrow(
-                'SQL validation error: statement type 20 is not allowed in internal SQL',
+            await expect(client.runSql(sql)).rejects.toThrow(
+                `SQL validation error: statement type ${statementType} is not allowed in internal SQL`,
             );
-        });
-
-        it('should reject ATTACH statements in runSql', async () => {
-            const streamMock = jest.fn();
-            const runMock = jest.fn();
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, runMock, {
-                    extractStatements: createMockExtractStatements({
-                        statementType: 25, // ATTACH
-                    }),
-                }),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runSql("ATTACH DATABASE 'file.db'"),
-            ).rejects.toThrow(
-                'SQL validation error: statement type 25 is not allowed in internal SQL',
-            );
-        });
-
-        it('should reject LOAD statements in runSql', async () => {
-            const streamMock = jest.fn();
-            const runMock = jest.fn();
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, runMock, {
-                    extractStatements: createMockExtractStatements({
-                        statementType: 21, // LOAD
-                    }),
-                }),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runSql("LOAD 'malicious_extension'"),
-            ).rejects.toThrow(
-                'SQL validation error: statement type 21 is not allowed in internal SQL',
-            );
+            expect(runMock).not.toHaveBeenCalledWith(sql);
         });
 
         it('should reject introspection functions in runSql', async () => {
@@ -745,6 +667,9 @@ describe('DuckdbWarehouseClient', () => {
                 ),
             ).rejects.toThrow(
                 "SQL validation error: function 'current_setting' is not allowed",
+            );
+            expect(runMock).not.toHaveBeenCalledWith(
+                "COPY (SELECT current_setting('s3_secret_access_key')) TO '/tmp/out.csv'",
             );
         });
 
@@ -766,68 +691,80 @@ describe('DuckdbWarehouseClient', () => {
             );
             expect(result.rows).toEqual([{ id: 1, name: 'test' }]);
         });
-
-        it('should reject EXPLAIN statements', async () => {
-            const streamMock = jest.fn(async () =>
-                getMockStreamResult(
-                    [[{ explain_value: 'plan output' }]],
-                    [DUCKDB_TYPE_IDS.VARCHAR],
-                ),
-            );
-
-            createInstanceMock.mockResolvedValue(
-                createMockConnection(streamMock, jest.fn(), {
-                    extractStatements: createMockExtractStatements({
-                        statementType: 4, // EXPLAIN
-                    }),
-                }),
-            );
-
-            const client = new DuckdbWarehouseClient();
-            await expect(
-                client.runQuery('EXPLAIN SELECT * FROM users'),
-            ).rejects.toThrow(
-                'SQL validation error: only SELECT statements are allowed',
-            );
-        });
     });
 
-    it('should pass token in connection string for MotherDuck', async () => {
+    it.each([
+        {
+            name: 'pass token in connection string for MotherDuck',
+            credentials: {
+                type: WarehouseTypes.DUCKDB as const,
+                database: 'my_database',
+                schema: 'main',
+                token: 'my_motherduck_token',
+            },
+            expectedPath: 'md:my_database?motherduck_token=my_motherduck_token',
+        },
+        {
+            name: 'use local path when no token is provided',
+            credentials: {
+                type: WarehouseTypes.DUCKDB as const,
+                database: 'my_local.db',
+                schema: 'main',
+            },
+            expectedPath: 'my_local.db',
+        },
+    ])('should $name', async ({ credentials, expectedPath }) => {
         const streamMock = jest.fn(async () =>
             getMockStreamResult([[{ id: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
         );
 
         createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
 
-        const client = new DuckdbWarehouseClient({
-            type: WarehouseTypes.DUCKDB,
-            database: 'my_database',
-            schema: 'main',
-            token: 'my_motherduck_token',
-        });
+        const client = new DuckdbWarehouseClient(credentials);
 
         await client.runQuery('SELECT 1 AS id');
 
-        expect(createInstanceMock).toHaveBeenCalledWith(
-            'md:my_database?motherduck_token=my_motherduck_token',
-        );
+        expect(createInstanceMock).toHaveBeenCalledWith(expectedPath);
     });
 
-    it('should use local path when no token is provided', async () => {
-        const streamMock = jest.fn(async () =>
-            getMockStreamResult([[{ id: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
-        );
+    it('should default getFields database to the configured DuckDB database', async () => {
+        const runMock = jest.fn(async () => ({
+            getRowObjects: async () => [
+                {
+                    column_name: 'order_id',
+                    data_type: 'INTEGER',
+                },
+                {
+                    column_name: 'created_at',
+                    data_type: 'TIMESTAMP',
+                },
+            ],
+        }));
 
-        createInstanceMock.mockResolvedValue(createMockConnection(streamMock));
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(jest.fn(), runMock),
+        );
 
         const client = new DuckdbWarehouseClient({
             type: WarehouseTypes.DUCKDB,
-            database: 'my_local.db',
+            database: 'analytics',
             schema: 'main',
         });
 
-        await client.runQuery('SELECT 1 AS id');
+        const result = await client.getFields('orders');
 
-        expect(createInstanceMock).toHaveBeenCalledWith('my_local.db');
+        expect(runMock).toHaveBeenCalledWith(
+            expect.stringContaining("WHERE table_catalog = 'analytics'"),
+        );
+        expect(result).toEqual({
+            analytics: {
+                main: {
+                    orders: {
+                        order_id: DimensionType.NUMBER,
+                        created_at: DimensionType.TIMESTAMP,
+                    },
+                },
+            },
+        });
     });
 });
