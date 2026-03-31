@@ -1274,6 +1274,74 @@ export class DashboardModel {
         };
     }
 
+    /**
+     * Lightweight query to fetch only dashboard parameters without loading
+     * tiles, tabs, verification, or other dashboard metadata.
+     * Used by dashboard chart query execution where only parameters are needed.
+     */
+    async getDashboardParametersByIdOrSlug(
+        dashboardUuidOrSlug: string,
+        projectUuid: string,
+    ): Promise<DashboardParameters | undefined> {
+        const query = this.database(DashboardsTableName)
+            .innerJoin(
+                DashboardVersionsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                DashboardViewsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardViewsTableName}.dashboard_version_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select<{ parameters: DashboardParameters | null } | undefined>(
+                `${DashboardViewsTableName}.parameters`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .orderBy(`${DashboardViewsTableName}.created_at`, 'desc');
+
+        // Mirror getByIdOrSlug resolution: a value that parses as a UUID may
+        // still be a slug, so match either column; otherwise match slug only.
+        if (isValidUuid(dashboardUuidOrSlug)) {
+            void query.where((builder) => {
+                void builder
+                    .where(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuidOrSlug,
+                    )
+                    .orWhere(
+                        `${DashboardsTableName}.slug`,
+                        dashboardUuidOrSlug,
+                    );
+            });
+        } else {
+            void query.where(
+                `${DashboardsTableName}.slug`,
+                dashboardUuidOrSlug,
+            );
+        }
+
+        const row = await query.first();
+
+        if (!row) {
+            throw new NotFoundError('Dashboard not found');
+        }
+
+        return row.parameters ?? undefined;
+    }
+
     /*
     This utility method wraps the slug generation functionality for testing purposes
     */
