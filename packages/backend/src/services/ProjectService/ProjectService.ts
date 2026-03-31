@@ -5310,18 +5310,36 @@ export class ProjectService extends BaseService {
         organizationUuid?: string,
         includeUnfilteredTables: boolean = true,
     ): Promise<Explore> {
+        const { explore } = await this.getExploreWithUserAccessControls(
+            account,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+            includeUnfilteredTables,
+        );
+        return explore;
+    }
+
+    async getExploreWithUserAccessControls(
+        account: Account,
+        projectUuid: string,
+        exploreName: string,
+        organizationUuid?: string,
+        includeUnfilteredTables: boolean = true,
+    ): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
         return Sentry.startSpan(
             {
                 op: 'ProjectService.getExplore',
                 name: 'ProjectService.getExplore',
             },
             async () => {
-                const exploresMap = await this.findExplores({
-                    account,
-                    projectUuid,
-                    exploreNames: [exploreName],
-                    organizationUuid,
-                });
+                const { explores: exploresMap, userAccessControls } =
+                    await this.findExploresWithUserAccessControls({
+                        account,
+                        projectUuid,
+                        exploreNames: [exploreName],
+                        organizationUuid,
+                    });
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
@@ -5334,10 +5352,10 @@ export class ProjectService extends BaseService {
                         `Explore "${exploreName}" has an error.`,
                     );
                 }
-                if (includeUnfilteredTables) {
-                    return explore;
-                }
-                return { ...explore, unfilteredTables: undefined };
+                const finalExplore = includeUnfilteredTables
+                    ? explore
+                    : { ...explore, unfilteredTables: undefined };
+                return { explore: finalExplore, userAccessControls };
             },
         );
     }
@@ -5353,6 +5371,29 @@ export class ProjectService extends BaseService {
         exploreNames: string[];
         organizationUuid?: string;
     }): Promise<Record<string, Explore | ExploreError>> {
+        const { explores } = await this.findExploresWithUserAccessControls({
+            account,
+            projectUuid,
+            exploreNames,
+            organizationUuid,
+        });
+        return explores;
+    }
+
+    async findExploresWithUserAccessControls({
+        account,
+        projectUuid,
+        exploreNames,
+        organizationUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        exploreNames: string[];
+        organizationUuid?: string;
+    }): Promise<{
+        explores: Record<string, Explore | ExploreError>;
+        userAccessControls: UserAccessControls;
+    }> {
         return Sentry.startSpan(
             {
                 op: 'ProjectService.findExplores',
@@ -5401,11 +5442,11 @@ export class ProjectService extends BaseService {
                         projectUuid,
                     );
 
-                const { userAttributes } = await this.getUserAttributes({
+                const userAccessControls = await this.getUserAttributes({
                     account,
                 });
 
-                return Object.values(explores).reduce<
+                const filteredExplores = Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
                     if (
@@ -5424,12 +5465,17 @@ export class ProjectService extends BaseService {
                         } else {
                             acc[explore.name] = getFilteredExplore(
                                 explore,
-                                userAttributes,
+                                userAccessControls.userAttributes,
                             );
                         }
                     }
                     return acc;
                 }, {});
+
+                return {
+                    explores: filteredExplores,
+                    userAccessControls,
+                };
             },
         );
     }
