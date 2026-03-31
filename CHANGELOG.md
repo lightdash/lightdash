@@ -1,3 +1,10 @@
+## [0.2696.1](https://github.com/lightdash/lightdash/compare/0.2696.0...0.2696.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* add permission checks for AI agent message feedback and artifact access ([#21557](https://github.com/lightdash/lightdash/issues/21557)) ([b2e34c6](https://github.com/lightdash/lightdash/commit/b2e34c605dbf58bbc69523803a9835d8aa3cc179)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2696.0](https://github.com/lightdash/lightdash/compare/0.2695.1...0.2696.0) (2026-03-31)
 
 
