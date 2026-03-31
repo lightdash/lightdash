@@ -23,6 +23,7 @@ import {
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
+    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -1324,6 +1325,7 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
+        dataTimezone,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1331,6 +1333,7 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
+        dataTimezone?: string;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1502,6 +1505,7 @@ export class AsyncQueryService extends ProjectService {
                     {
                         sql: query,
                         tags: queryTags,
+                        timezone: dataTimezone,
                     },
                     write ? writeAndTransformRowsIfPivot : undefined,
                 ),
@@ -1881,6 +1885,14 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
+            const { enabled: isTimezoneSupportEnabled } =
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                });
+            const resolvedDataTimezone = isTimezoneSupportEnabled
+                ? warehouseClient.credentials.dataTimezone
+                : undefined;
+
             const t0 = Date.now();
 
             this.logger.info(
@@ -1977,6 +1989,7 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
+                        dataTimezone: resolvedDataTimezone,
                     }),
             );
 

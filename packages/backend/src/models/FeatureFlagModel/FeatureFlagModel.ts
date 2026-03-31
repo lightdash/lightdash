@@ -400,28 +400,16 @@ export class FeatureFlagModel {
         };
     }
 
+    // Config-only (no PostHog) to avoid needing a user context — this flag
+    // is checked in the query execution path where only userUuid is available,
+    // and loading the full user would add an extra DB query on every query.
+    // It also needs to work for embed users who don't have a user record.
     private async getEnableTimezoneSupportEnabled({
-        user,
         featureFlagId,
     }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.enableTimezoneSupport ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.EnableTimezoneSupport,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
         return {
             id: featureFlagId,
-            enabled,
+            enabled: this.lightdashConfig.query.enableTimezoneSupport ?? false,
         };
     }
 }

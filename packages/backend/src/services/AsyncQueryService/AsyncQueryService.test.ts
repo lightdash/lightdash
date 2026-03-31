@@ -245,7 +245,9 @@ const getMockedAsyncQueryService = (
                 close: jest.fn(),
             })),
         } as unknown as S3ResultsFileStorageClient,
-        featureFlagModel: {} as FeatureFlagModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({ enabled: false })),
+        } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
