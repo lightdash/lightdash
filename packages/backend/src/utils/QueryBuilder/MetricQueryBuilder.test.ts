@@ -5408,4 +5408,88 @@ describe('Nested aggregate metrics', () => {
             1,
         );
     });
+
+    test('should handle MAX_BY wrapping non-aggregate metric refs (customer pattern)', () => {
+        // Customer pattern: MAX_BY(${type_number}, ${type_number}) where both
+        // inner deps are non-aggregate. Previously CTE routing didn't activate
+        // because it required at least one aggregate ref, causing raw column
+        // references to leak into the SELECT and fail GROUP BY.
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: {
+                exploreName: 'my_table',
+                dimensions: ['my_table_category'],
+                metrics: ['my_table_max_by_of_raw'],
+                filters: {},
+                sorts: [
+                    { fieldId: 'my_table_max_by_of_raw', descending: true },
+                ],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // CTE routing should activate — raw inner deps should NOT appear
+        // as standalone SELECT entries (would fail GROUP BY).
+        // The outer metric should be handled via nested_agg_mixed CTE
+        // since inner deps are raw (non-aggregate).
+        expect(result.query).toContain('nested_agg_mixed AS (');
+        expect(result.query).toContain(
+            'nested_agg_mixed."my_table_max_by_of_raw"',
+        );
+        // raw_value and raw_updated_on should NOT appear as standalone
+        // SELECT entries in the regular query
+        expect(result.query).not.toMatch(
+            /na_base[^]*AS "my_table_raw_value"/,
+        );
+        expect(result.query).not.toMatch(
+            /na_base[^]*AS "my_table_raw_updated_on"/,
+        );
+    });
+
+    test('should not duplicate aggregate inner deps that are also independently selected', () => {
+        // Reproduces the customer bug: a nested metric like MAX_BY(${max_value}, ${count_records})
+        // has aggregate inner deps (max_value, count_records). When count_records is also
+        // independently selected as a metric, it was appearing twice in the SQL:
+        // once from the CTE and once from the regular SELECT.
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: {
+                exploreName: 'my_table',
+                dimensions: ['my_table_category'],
+                // count_records is both an inner dep of sum_of_max AND independently selected
+                metrics: ['my_table_sum_of_max', 'my_table_count_records'],
+                filters: {},
+                sorts: [
+                    { fieldId: 'my_table_sum_of_max', descending: true },
+                ],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // count_records is an aggregate inner dep pre-computed in CTE 1.
+        // It must NOT also appear in the regular SELECT (would cause duplicate column).
+        expect(
+            result.query.match(/AS "my_table_count_records"/g),
+        ).toHaveLength(1);
+        // max_value is also an aggregate inner dep, should appear only once
+        expect(result.query.match(/AS "my_table_max_value"/g)).toHaveLength(1);
+        // The outer metric should appear once via nested_agg_results
+        expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(
+            1,
+        );
+    });
 });

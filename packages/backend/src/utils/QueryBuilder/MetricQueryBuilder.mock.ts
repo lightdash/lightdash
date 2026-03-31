@@ -2665,6 +2665,36 @@ export const EXPLORE_WITH_NESTED_AGG: Explore = {
                     tablesReferences: ['my_table'],
                     hidden: false,
                 },
+                // MAX_BY wrapping two non-aggregate (type:number) metric refs.
+                // Both inner deps compile to raw column references.
+                // Reproduces customer pattern: MAX_BY(${active_customers}, ${updated_on})
+                // where both helpers are type:number.
+                max_by_of_raw: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'max_by_of_raw',
+                    label: 'max_by_of_raw',
+                    sql: 'max_by(${raw_value}, ${raw_updated_on})',
+                    compiledSql:
+                        'MAX_BY("my_table".value, "my_table".updated_on)',
+                    tablesReferences: ['my_table'],
+                    hidden: false,
+                },
+                // Helper non-aggregate metric (raw column reference)
+                raw_updated_on: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'my_table',
+                    tableLabel: 'my_table',
+                    name: 'raw_updated_on',
+                    label: 'raw_updated_on',
+                    sql: '${TABLE}.updated_on',
+                    compiledSql: '"my_table".updated_on',
+                    tablesReferences: ['my_table'],
+                    hidden: true,
+                },
                 // Raw column aggregation combined with metric reference
                 // sql: sum(raw_col) / ${count_records}
                 // The sum() wraps a raw column (not a ${ } ref), so this is
