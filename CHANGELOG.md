@@ -1,3 +1,13 @@
+# [0.2700.0](https://github.com/lightdash/lightdash/compare/0.2699.1...0.2700.0) (2026-03-31)
+
+
+### Features
+
+* add database-backed feature flag overrides with priority hierarchy ([#21582](https://github.com/lightdash/lightdash/issues/21582)) ([7c9d0cf](https://github.com/lightdash/lightdash/commit/7c9d0cf664e1bd70278fdc631bbce78fcffe0875)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add feature flag database entity types (GLITCH-307) ([#21572](https://github.com/lightdash/lightdash/issues/21572)) ([0f688d0](https://github.com/lightdash/lightdash/commit/0f688d038f102edf4466650550093fcc25fddb9d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add feature_flags and feature_flag_overrides migration (GLITCH-308) ([#21573](https://github.com/lightdash/lightdash/issues/21573)) ([a0c41cc](https://github.com/lightdash/lightdash/commit/a0c41cc60d7ce363ce2eddd9a7166fe8068ec622)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add LIGHTDASH_ENABLE_FEATURE_FLAGS env var config (GLITCH-309) ([#21574](https://github.com/lightdash/lightdash/issues/21574)) ([025a9ca](https://github.com/lightdash/lightdash/commit/025a9ca83e702132b9e04882a6f99225b6105893)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2699.1](https://github.com/lightdash/lightdash/compare/0.2699.0...0.2699.1) (2026-03-31)
 
 
