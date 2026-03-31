@@ -312,7 +312,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
                 : ((credentials as CreateDuckdbCredentials) ??
                   DUCKDB_INTERNAL_CREDENTIALS);
 
-        super(effectiveCredentials, new DuckdbSqlBuilder());
+        super(
+            effectiveCredentials,
+            new DuckdbSqlBuilder(effectiveCredentials.startOfWeek),
+        );
 
         // Determine s3Config from either the old DuckdbConnectionCredentials or options
         if (

@@ -2,6 +2,7 @@ import {
     DimensionType,
     QueryExecutionContext,
     WarehouseTypes,
+    WeekDay,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import {
@@ -745,6 +746,18 @@ describe('DuckdbWarehouseClient', () => {
         ).toThrow(
             'MotherDuck token is required for DuckDB warehouse connections',
         );
+    });
+
+    it('should expose the configured start of week', () => {
+        const client = new DuckdbWarehouseClient({
+            type: WarehouseTypes.DUCKDB,
+            database: 'analytics',
+            schema: 'main',
+            token: 'motherduck_token',
+            startOfWeek: WeekDay.SUNDAY,
+        });
+
+        expect(client.getStartOfWeek()).toBe(WeekDay.SUNDAY);
     });
 
     it('should default getFields database to the configured DuckDB database', async () => {
