@@ -14,12 +14,20 @@ import {
     IconExternalLink,
     IconSparkles,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
+import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import useHealth from '../hooks/health/useHealth';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
@@ -83,9 +91,12 @@ const LoadingDots: FC = () => (
 );
 
 const AppGenerate: FC = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { projectUuid, appUuid: urlAppUuid } = useParams<{
+        projectUuid: string;
+        appUuid: string;
+    }>();
     const [prompt, setPrompt] = useState('');
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     const {
         mutate: generateMutate,
         isLoading: isGenerating,
@@ -103,6 +114,57 @@ const AppGenerate: FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Fetch version history when we have an appUuid in the URL
+    const {
+        data: appData,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useGetApp(projectUuid, urlAppUuid);
+
+    // Convert fetched versions into chat messages (oldest first)
+    const historyMessages = useMemo<ChatMessage[]>(() => {
+        if (!appData?.pages) return [];
+        const allVersions = appData.pages.flatMap((page) => page.versions);
+        // Versions come newest-first from API; reverse for chronological chat order
+        const sorted = [...allVersions].sort((a, b) => a.version - b.version);
+        return sorted.flatMap((v) => {
+            const msgs: ChatMessage[] = [
+                {
+                    role: 'user',
+                    content: v.prompt,
+                    appUuid: null,
+                    version: null,
+                },
+            ];
+            if (v.status === 'ready') {
+                msgs.push({
+                    role: 'assistant',
+                    content:
+                        v.version === 1
+                            ? 'Your app is ready!'
+                            : `Version ${v.version} is ready!`,
+                    appUuid: appData.pages[0].appUuid,
+                    version: v.version,
+                });
+            } else if (v.status === 'error') {
+                msgs.push({
+                    role: 'assistant',
+                    content: 'Generation failed',
+                    appUuid: null,
+                    version: null,
+                });
+            }
+            return msgs;
+        });
+    }, [appData]);
+
+    // Merge: history messages first, then any new local messages from this session
+    const messages = useMemo(
+        () => [...historyMessages, ...localMessages],
+        [historyMessages, localMessages],
+    );
+
     const latestApp = [...messages]
         .reverse()
         .find((m) => m.appUuid !== null && m.version !== null);
@@ -114,6 +176,20 @@ const AppGenerate: FC = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages, isLoading, scrollToBottom]);
+
+    // Load more versions when scrolling to top
+    const handleChatScroll = useCallback(
+        (e: React.UIEvent<HTMLDivElement>) => {
+            if (
+                e.currentTarget.scrollTop === 0 &&
+                hasNextPage &&
+                !isFetchingNextPage
+            ) {
+                void fetchNextPage();
+            }
+        },
+        [hasNextPage, isFetchingNextPage, fetchNextPage],
+    );
 
     if (health.data && !health.data.dataApps.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
@@ -139,7 +215,7 @@ const AppGenerate: FC = () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
-        setMessages((prev) => [
+        setLocalMessages((prev) => [
             ...prev,
             { role: 'user', content: trimmed, appUuid: null, version: null },
         ]);
@@ -149,7 +225,7 @@ const AppGenerate: FC = () => {
 
         const callbacks = {
             onSuccess: (data: { appUuid: string; version: number }) => {
-                setMessages((prev) => [
+                setLocalMessages((prev) => [
                     ...prev,
                     {
                         role: 'assistant' as const,
@@ -161,9 +237,18 @@ const AppGenerate: FC = () => {
                         version: data.version,
                     },
                 ]);
+                // Update URL so the session is resumable, without triggering
+                // a re-render or refetch — just silently swap the URL.
+                if (!urlAppUuid) {
+                    window.history.replaceState(
+                        null,
+                        '',
+                        `/projects/${projectUuid}/apps/${data.appUuid}`,
+                    );
+                }
             },
             onError: (err: unknown) => {
-                setMessages((prev) => [
+                setLocalMessages((prev) => [
                     ...prev,
                     {
                         role: 'assistant' as const,
@@ -205,7 +290,32 @@ const AppGenerate: FC = () => {
                 {/* Chat Panel */}
                 <Panel defaultSize={30} minSize={20} maxSize={50}>
                     <Box className={classes.chatPanel}>
-                        <Box className={classes.chatMessages}>
+                        <Box
+                            className={classes.chatMessages}
+                            onScroll={handleChatScroll}
+                        >
+                            {hasNextPage && (
+                                <Group
+                                    gap="xs"
+                                    justify="center"
+                                    p="xs"
+                                    onClick={() => {
+                                        if (!isFetchingNextPage) {
+                                            void fetchNextPage();
+                                        }
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                >
+                                    {isFetchingNextPage ? (
+                                        <Loader size="xs" />
+                                    ) : null}
+                                    <Text size="xs" c="dimmed">
+                                        {isFetchingNextPage
+                                            ? 'Loading earlier messages...'
+                                            : 'Load earlier messages'}
+                                    </Text>
+                                </Group>
+                            )}
                             {messages.length === 0 && !isLoading ? (
                                 <Box className={classes.emptyChat}>
                                     <ThemeIcon

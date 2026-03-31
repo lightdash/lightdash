@@ -24,6 +24,7 @@ import type {
     ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
+    ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
@@ -983,6 +984,7 @@ type ApiResults =
     | OAuthClientSummary
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
+    | ApiGetAppResponse['results']
     | ApiPreviewTokenResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

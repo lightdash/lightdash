@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     type ApiGenerateAppResponse,
+    type ApiGetAppResponse,
     type ApiPreviewTokenResponse,
 } from '@lightdash/common';
 import {
@@ -11,6 +12,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -46,6 +48,33 @@ export class AppGenerateController extends BaseController {
             req.user!,
             projectUuid,
             body.prompt,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Get an app with its version history, paginated backwards.
+     * @summary Get app with versions
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}')
+    @OperationId('getApp')
+    async getApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Query() beforeVersion?: number,
+        @Query() limit?: number,
+    ): Promise<ApiGetAppResponse> {
+        const result = await this.getAppGenerateService().getAppVersions(
+            req.user!,
+            projectUuid,
+            appUuid,
+            { beforeVersion, limit },
         );
         return {
             status: 'ok',
