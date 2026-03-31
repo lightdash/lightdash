@@ -1266,6 +1266,7 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     appRuntime: AppRuntimeConfig;
+    enabledFeatureFlags: Set<string>;
 };
 
 export type SlackConfig = {
@@ -2276,5 +2277,11 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
+        enabledFeatureFlags: new Set(
+            (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+        ),
     };
 };
