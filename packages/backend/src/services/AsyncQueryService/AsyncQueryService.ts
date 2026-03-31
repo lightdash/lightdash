@@ -137,7 +137,7 @@ import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
-import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
+import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -3770,9 +3770,9 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            await this.dashboardModel.getDashboardParametersById(dashboardUuid),
+        );
 
         // Load project parameters once and pass to both combineParameters and prepareMetricQueryAsyncQueryArgs
         const projectParameters =
@@ -4614,9 +4614,9 @@ export class AsyncQueryService extends ProjectService {
 
         await this.assertSavedChartAccess(account, 'view', savedChart);
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            await this.dashboardModel.getDashboardParametersById(dashboardUuid),
+        );
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(

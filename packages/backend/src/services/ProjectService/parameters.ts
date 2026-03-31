@@ -1,11 +1,26 @@
 import {
     getAvailableParametersFromTables,
     type DashboardDAO,
+    type DashboardParameters,
     type Explore,
     type ParameterDefinitions,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+
+/**
+ * Convert raw DashboardParameters to ParametersValuesMap format
+ */
+export const convertDashboardParametersToValuesMap = (
+    rawDashboardParameters: DashboardParameters | undefined,
+): ParametersValuesMap | undefined =>
+    rawDashboardParameters
+        ? Object.fromEntries(
+              Object.entries(rawDashboardParameters).map(
+                  ([key, dashboardParam]) => [key, dashboardParam.value],
+              ),
+          )
+        : undefined;
 
 /**
  * Convert dashboard parameters to ParametersValuesMap format
@@ -14,18 +29,8 @@ import type { DbProjectParameter } from '../../database/entities/projectParamete
  */
 export const getDashboardParametersValuesMap = (
     dashboard: DashboardDAO,
-): ParametersValuesMap | undefined => {
-    const { parameters: rawDashboardParameters } = dashboard;
-
-    // Convert dashboard parameters to ParametersValuesMap format
-    return rawDashboardParameters
-        ? Object.fromEntries(
-              Object.entries(rawDashboardParameters).map(
-                  ([key, dashboardParam]) => [key, dashboardParam.value],
-              ),
-          )
-        : undefined;
-};
+): ParametersValuesMap | undefined =>
+    convertDashboardParametersToValuesMap(dashboard.parameters);
 
 /**
  * Get full parameter definitions from project and explore

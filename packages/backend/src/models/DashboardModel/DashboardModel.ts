@@ -1180,6 +1180,41 @@ export class DashboardModel {
         };
     }
 
+    /**
+     * Lightweight query to fetch only dashboard parameters without loading
+     * tiles, tabs, verification, or other dashboard metadata.
+     * Used by dashboard chart query execution where only parameters are needed.
+     */
+    async getDashboardParametersById(
+        dashboardUuid: string,
+    ): Promise<DashboardParameters | undefined> {
+        const row = await this.database(DashboardsTableName)
+            .innerJoin(
+                DashboardVersionsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .leftJoin(
+                DashboardViewsTableName,
+                `${DashboardVersionsTableName}.dashboard_version_id`,
+                `${DashboardViewsTableName}.dashboard_version_id`,
+            )
+            .select<{ parameters: DashboardParameters | null } | undefined>(
+                `${DashboardViewsTableName}.parameters`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
+            .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
+            .first();
+
+        if (!row) {
+            throw new NotFoundError('Dashboard not found');
+        }
+
+        return row.parameters ?? undefined;
+    }
+
     /*
     This utility method wraps the slug generation functionality for testing purposes
     */
