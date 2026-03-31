@@ -1328,7 +1328,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     ): Promise<WarehouseCatalog> {
         const refs = [
             {
-                database: database ?? '',
+                database: database ?? this.credentials.database,
                 schema: schema ?? this.credentials.schema,
                 table: tableName,
             },
