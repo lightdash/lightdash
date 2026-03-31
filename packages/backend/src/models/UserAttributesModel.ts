@@ -32,67 +32,68 @@ export class UserAttributesModel {
         organizationUuid: string;
         userUuid: string;
     }): Promise<UserAttributeValueMap> {
-        const attributeValues = await this.database(UserAttributesTable)
-            .leftJoin(
-                OrganizationTableName,
-                `${UserAttributesTable}.organization_id`,
-                `${OrganizationTableName}.organization_id`,
-            )
-            .select<
-                Array<
-                    Pick<
-                        DbUserAttribute,
-                        'name' | 'attribute_default' | 'user_attribute_uuid'
+        // Run org defaults and user overrides in parallel (both independent)
+        const [attributeValues, userValues] = await Promise.all([
+            this.database(UserAttributesTable)
+                .leftJoin(
+                    OrganizationTableName,
+                    `${UserAttributesTable}.organization_id`,
+                    `${OrganizationTableName}.organization_id`,
+                )
+                .select<
+                    Array<
+                        Pick<
+                            DbUserAttribute,
+                            'name' | 'attribute_default' | 'user_attribute_uuid'
+                        >
                     >
-                >
-            >(
-                `${UserAttributesTable}.user_attribute_uuid`,
-                `${UserAttributesTable}.name`,
-                `${UserAttributesTable}.attribute_default`,
-            )
-            .where(
-                `${OrganizationTableName}.organization_uuid`,
-                filters.organizationUuid,
-            );
-
-        const userValues = await this.database(
-            OrganizationMemberUserAttributesTable,
-        )
-            .leftJoin(
-                UserTableName,
-                `${OrganizationMemberUserAttributesTable}.user_id`,
-                `${UserTableName}.user_id`,
-            )
-            .leftJoin(
-                OrganizationTableName,
-                `${OrganizationMemberUserAttributesTable}.organization_id`,
-                `${OrganizationTableName}.organization_id`,
-            )
-            .leftJoin(
-                UserAttributesTable,
-                `${OrganizationMemberUserAttributesTable}.user_attribute_uuid`,
-                `${UserAttributesTable}.user_attribute_uuid`,
-            )
-            .select<
-                Array<
-                    Pick<DbUserAttribute, 'name'> &
-                        Pick<DbOrganizationMemberUserAttribute, 'value'>
-                >
-            >(
-                `${UserAttributesTable}.name`,
-                `${OrganizationMemberUserAttributesTable}.value`,
-            )
-            .where(
-                `${OrganizationTableName}.organization_uuid`,
-                filters.organizationUuid,
-            )
-            .where(`${UserTableName}.user_uuid`, filters.userUuid);
+                >(
+                    `${UserAttributesTable}.user_attribute_uuid`,
+                    `${UserAttributesTable}.name`,
+                    `${UserAttributesTable}.attribute_default`,
+                )
+                .where(
+                    `${OrganizationTableName}.organization_uuid`,
+                    filters.organizationUuid,
+                ),
+            this.database(OrganizationMemberUserAttributesTable)
+                .leftJoin(
+                    UserTableName,
+                    `${OrganizationMemberUserAttributesTable}.user_id`,
+                    `${UserTableName}.user_id`,
+                )
+                .leftJoin(
+                    OrganizationTableName,
+                    `${OrganizationMemberUserAttributesTable}.organization_id`,
+                    `${OrganizationTableName}.organization_id`,
+                )
+                .leftJoin(
+                    UserAttributesTable,
+                    `${OrganizationMemberUserAttributesTable}.user_attribute_uuid`,
+                    `${UserAttributesTable}.user_attribute_uuid`,
+                )
+                .select<
+                    Array<
+                        Pick<DbUserAttribute, 'name'> &
+                            Pick<DbOrganizationMemberUserAttribute, 'value'>
+                    >
+                >(
+                    `${UserAttributesTable}.name`,
+                    `${OrganizationMemberUserAttributesTable}.value`,
+                )
+                .where(
+                    `${OrganizationTableName}.organization_uuid`,
+                    filters.organizationUuid,
+                )
+                .where(`${UserTableName}.user_uuid`, filters.userUuid),
+        ]);
 
         const userValuesMap = userValues.reduce<Record<string, string>>(
             (acc, row) => ({ ...acc, [row.name]: row.value }),
             {},
         );
 
+        // Group attrs depend on org defaults result for the whereIn filter
         const groupsValues = await this.database(GroupUserAttributesTable)
             .leftJoin(
                 GroupTableName,
