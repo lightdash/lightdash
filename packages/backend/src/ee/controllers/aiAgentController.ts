@@ -613,6 +613,9 @@ export class AiAgentController extends BaseController {
         this.setStatus(200);
         await this.getAiAgentService().updateHumanScoreForMessage(
             req.user!,
+            projectUuid,
+            agentUuid,
+            threadUuid,
             messageUuid,
             body.humanScore,
             body.humanFeedback,
@@ -660,6 +663,7 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results: (await this.getAiAgentService().getArtifact(
                 req.user!,
+                projectUuid,
                 agentUuid,
                 artifactUuid,
             )) as unknown as AiArtifactTSOACompat,
@@ -685,6 +689,7 @@ export class AiAgentController extends BaseController {
 
             results: (await this.getAiAgentService().getArtifact(
                 req.user!,
+                projectUuid,
                 agentUuid,
                 artifactUuid,
                 versionUuid,
