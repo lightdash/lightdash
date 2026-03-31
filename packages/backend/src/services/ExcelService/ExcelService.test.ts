@@ -621,6 +621,26 @@ describe('ExcelService', () => {
             expect(result[0]).toEqual(moment('2020-07-05').toDate());
             expect(result[1]).toEqual(new Date('2023-12-25T10:30:00.000Z'));
         });
+
+        it('should preserve numeric metric values that resemble YYYYMM dates (PROD-6683)', () => {
+            const row = {
+                number_without_format: '202811',
+                string_column: 'test',
+            };
+
+            const sortedFieldIds = ['number_without_format', 'string_column'];
+
+            const result = ExcelService.convertRowToExcel(
+                row,
+                mockItemMapWithFormats,
+                false,
+                sortedFieldIds,
+            );
+
+            expect(result[0]).toBe(202811);
+            expect(typeof result[0]).toBe('number');
+            expect(result[0]).not.toBeInstanceOf(Date);
+        });
     });
 
     describe('generateFileId', () => {
@@ -645,24 +665,149 @@ describe('ExcelService', () => {
         });
     });
 
-    describe('convertToExcelDate', () => {
-        it('should convert date strings to Date objects', () => {
-            const dateString = '2023-12-25T10:30:00.000Z';
-            const result = ExcelService.convertToExcelDate(dateString);
+    // PROD-6683: pivoted XLSX export now only converts date/timestamp
+    // index columns to Excel Date objects — metric columns are never
+    // converted, even if values match ISO 8601 (e.g. "202811").
 
-            expect(result).toBeInstanceOf(Date);
-        });
+    describe('downloadPivotTableXlsx', () => {
+        it('should not convert metric values that look like YYYYMM to dates (PROD-6683)', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const indexDimension = 'customers_created_month';
+            const metric = 'payments_total_revenue';
 
-        it('should return non-date values unchanged', () => {
-            const nonDate = 'not a date';
-            const result = ExcelService.convertToExcelDate(nonDate);
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [indexDimension]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
 
-            expect(result).toBe('not a date');
-        });
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [indexDimension]: '2023-01-01',
+                    [metric]: 202811,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [indexDimension]: '2023-01-01',
+                    [metric]: 2028,
+                },
+                {
+                    [pivotDimension]: 'credit_card',
+                    [indexDimension]: '2023-02-01',
+                    [metric]: 20281101,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [indexDimension]: '2023-02-01',
+                    [metric]: 141312,
+                },
+            ];
 
-        it('should handle null and undefined', () => {
-            expect(ExcelService.convertToExcelDate(null)).toBeNull();
-            expect(ExcelService.convertToExcelDate(undefined)).toBeUndefined();
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, indexDimension],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: indexDimension, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore - Buffer type mismatch between exceljs and Node 20
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dataValues: { row: number; col: number; value: unknown }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    dataValues.push({
+                        row: rowNum,
+                        col: colNum,
+                        value: cell.value,
+                    });
+                });
+            });
+
+            // Date index column (col 1) should have Date objects in data rows
+            const dateValues = dataValues.filter(
+                (v) => v.value instanceof Date,
+            );
+            expect(dateValues.length).toBeGreaterThanOrEqual(2);
+
+            // Metric value columns (col 2+) should NOT have Date objects
+            const metricDateValues = dataValues.filter(
+                (v) => v.col > 1 && v.value instanceof Date,
+            );
+            expect(metricDateValues).toHaveLength(0);
+
+            // YYYYMM-like metric values should be preserved as strings
+            const stringValues = dataValues
+                .filter((v) => typeof v.value === 'string')
+                .map((v) => v.value as string);
+            const numericStrings = stringValues.filter((v) =>
+                [
+                    '202,811',
+                    '202811',
+                    '2,028',
+                    '2028',
+                    '20,281,101',
+                    '20281101',
+                    '141,312',
+                    '141312',
+                ].includes(v),
+            );
+            expect(numericStrings.length).toBeGreaterThanOrEqual(4);
         });
     });
 

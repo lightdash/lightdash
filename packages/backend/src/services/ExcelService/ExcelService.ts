@@ -34,17 +34,6 @@ import {
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
-    // Helper method for date/timestamp conversion
-    static convertToExcelDate(value: unknown): Date | unknown {
-        if (typeof value === 'string') {
-            const dateValue = moment(value, moment.ISO_8601, true);
-            if (dateValue.isValid()) {
-                return dateValue.toDate();
-            }
-        }
-        return value;
-    }
-
     static generateFileId(
         fileName: string,
         truncated: boolean = false,
@@ -139,19 +128,51 @@ export class ExcelService {
             pivotDetails,
         });
 
+        // Build a set of column indices that contain date/timestamp values.
+        // In pivoted output, the first N columns are the index dimensions
+        // (non-pivot dimensions). Only those can be dates — metric value
+        // columns must never be converted, even if they match ISO 8601.
+        const pivotDimensions = new Set(pivotConfig.pivotDimensions ?? []);
+        const indexDimensions = metricQuery.dimensions.filter(
+            (d) => !pivotDimensions.has(d),
+        );
+        const dateColumnIndices = new Set<number>();
+        indexDimensions.forEach((fieldId, colIndex) => {
+            const field = itemMap[fieldId];
+            if (
+                field &&
+                isField(field) &&
+                (field.type === DimensionType.DATE ||
+                    field.type === DimensionType.TIMESTAMP)
+            ) {
+                dateColumnIndices.add(colIndex);
+            }
+        });
+
         // Create Excel workbook
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
 
-        // Add data to worksheet
-        csvResults.forEach((row, index) => {
-            const excelRow = row.map((value) =>
-                ExcelService.convertToExcelDate(value),
-            );
+        // Add data to worksheet — only convert cells in known date columns.
+        // Header strings like "Created month" won't parse as ISO 8601,
+        // so it's safe to apply this to all rows without skipping headers.
+        csvResults.forEach((row, rowIndex) => {
+            const excelRow = row.map((value, colIndex) => {
+                if (
+                    dateColumnIndices.has(colIndex) &&
+                    typeof value === 'string'
+                ) {
+                    const dateValue = moment(value, moment.ISO_8601, true);
+                    if (dateValue.isValid()) {
+                        return dateValue.toDate();
+                    }
+                }
+                return value;
+            });
             worksheet.addRow(excelRow);
 
             // Style headers (first row)
-            if (index === 0) {
+            if (rowIndex === 0) {
                 const headerRow = worksheet.getRow(1);
                 headerRow.font = { bold: true };
                 headerRow.fill = {
