@@ -1654,13 +1654,65 @@ export class AiAgentService {
         };
     }
 
-    // TODO: user permissions
     async updateHumanScoreForMessage(
         user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
         messageUuid: string,
         humanScore: number,
         humanFeedback?: string | null,
     ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const message = await this.aiAgentModel.findPromptContext(messageUuid);
+        if (
+            !message ||
+            message.organizationUuid !== organizationUuid ||
+            message.projectUuid !== agent.projectUuid ||
+            message.agentUuid !== agent.uuid ||
+            message.threadUuid !== threadUuid
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to update feedback for this message',
+            );
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid: agent.uuid,
+            threadUuid,
+        });
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to update feedback for this thread',
+            );
+        }
+
+        const threadMessage = await this.aiAgentModel.findThreadMessage(
+            'assistant',
+            {
+                organizationUuid,
+                threadUuid,
+                messageUuid,
+            },
+        );
+
         if (humanScore !== 0) {
             this.analytics.track<AiAgentPromptFeedbackEvent>({
                 event: 'ai_agent_prompt.feedback',
@@ -1668,14 +1720,14 @@ export class AiAgentService {
                 properties: {
                     organizationId: user.organizationUuid,
                     humanScore,
-                    messageId: messageUuid,
+                    messageId: threadMessage.uuid,
                     context: 'web_app',
                 },
             });
         }
 
         await this.aiAgentModel.updateHumanScore({
-            promptUuid: messageUuid,
+            promptUuid: threadMessage.uuid,
             humanScore,
             humanFeedback,
         });
@@ -5971,14 +6023,53 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
     async getArtifact(
         user: SessionUser,
+        projectUuid: string,
         agentUuid: string,
         artifactUuid: string,
         versionUuid?: string,
     ) {
-        // TODO: Add proper permission checking - for now just check user has access to the agent
-        await this.getAgent(user, agentUuid);
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
 
-        return this.aiAgentModel.getArtifact(artifactUuid, versionUuid);
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        const artifact = await this.aiAgentModel.getArtifact(
+            artifactUuid,
+            versionUuid,
+        );
+        const artifactThread = await this.aiAgentModel.findThread(
+            artifact.threadUuid,
+        );
+        if (
+            !artifactThread ||
+            artifactThread.organizationUuid !== organizationUuid ||
+            artifactThread.projectUuid !== agent.projectUuid ||
+            artifactThread.agentUuid !== agent.uuid
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this artifact',
+            );
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid: agent.uuid,
+            threadUuid: artifact.threadUuid,
+        });
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access this artifact',
+            );
+        }
+
+        return artifact;
     }
 
     async appendInstruction(

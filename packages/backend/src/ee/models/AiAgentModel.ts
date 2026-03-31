@@ -2345,6 +2345,36 @@ export class AiAgentModel {
             .orderBy(`${AiPromptTableName}.created_at`, 'asc');
     }
 
+    async findPromptContext(
+        promptUuid: string,
+    ): Promise<
+        | Pick<
+              AiWebAppPrompt,
+              | 'organizationUuid'
+              | 'projectUuid'
+              | 'agentUuid'
+              | 'promptUuid'
+              | 'threadUuid'
+          >
+        | undefined
+    > {
+        return this.database(AiPromptTableName)
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select({
+                organizationUuid: `${AiThreadTableName}.organization_uuid`,
+                projectUuid: `${AiThreadTableName}.project_uuid`,
+                agentUuid: `${AiThreadTableName}.agent_uuid`,
+                promptUuid: `${AiPromptTableName}.ai_prompt_uuid`,
+                threadUuid: `${AiPromptTableName}.ai_thread_uuid`,
+            })
+            .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
+            .first();
+    }
+
     async findSlackPrompt(
         promptUuid: string,
     ): Promise<SlackPrompt | undefined> {
