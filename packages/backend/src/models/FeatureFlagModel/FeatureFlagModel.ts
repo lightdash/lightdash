@@ -56,6 +56,8 @@ export class FeatureFlagModel {
                 this.getMetricDashboardFiltersEnabled.bind(this),
             [FeatureFlags.ShowHideColumns]:
                 this.getShowHideColumnsEnabled.bind(this),
+            [FeatureFlags.EnableTimezoneSupport]:
+                this.getEnableTimezoneSupportEnabled.bind(this),
         };
     }
 
@@ -382,6 +384,31 @@ export class FeatureFlagModel {
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.ShowHideColumns,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getEnableTimezoneSupportEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.query.enableTimezoneSupport ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.EnableTimezoneSupport,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,

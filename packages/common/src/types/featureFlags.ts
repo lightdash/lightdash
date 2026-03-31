@@ -11,6 +11,10 @@ export enum FeatureFlags {
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 
+    /* Gate new timezone features: warehouse session timezone, timezone-aware
+       DATE_TRUNC, result formatting, etc. Temporary — remove once stable. */
+    EnableTimezoneSupport = 'enable-timezone-support',
+
     /**
      * Enable dashboard comments
      */

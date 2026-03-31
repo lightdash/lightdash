@@ -220,6 +220,7 @@ export const lightdashConfigMock: LightdashConfig = {
         useSqlPivotResults: false,
         showExecutionTime: false,
         retryQueryOnTransientErrors: true,
+        enableTimezoneSupport: undefined,
     },
     ai: {
         copilot: {

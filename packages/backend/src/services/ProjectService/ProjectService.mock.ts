@@ -479,6 +479,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         retryQueryOnTransientErrors: false,
+        enableTimezoneSupport: undefined,
     },
 };
 
