@@ -29,6 +29,11 @@ type ServiceAccountServiceArguments = {
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
 };
 
+function isSameMinute(a: Date | null, b: Date): boolean {
+    if (!a) return false;
+    return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
+}
+
 export class ServiceAccountService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -290,8 +295,10 @@ export class ServiceAccountService extends BaseService {
                         requestRoutePath: request.routePath,
                     },
                 });
-                // Update last used date
-                await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
+                // Update last used date (throttled to once per minute)
+                if (!isSameMinute(dbToken.lastUsedAt, new Date())) {
+                    await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
+                }
                 // finally return organization uuid
                 return {
                     organizationUuid: dbToken.organizationUuid,
@@ -319,8 +326,10 @@ export class ServiceAccountService extends BaseService {
 
                 // TODO add analytics
 
-                // Update last used date
-                await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
+                // Update last used date (throttled to once per minute)
+                if (!isSameMinute(dbToken.lastUsedAt, new Date())) {
+                    await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
+                }
                 // finally return organization uuid
                 return dbToken;
             }

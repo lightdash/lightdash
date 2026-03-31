@@ -98,6 +98,11 @@ type UserServiceArguments = {
     featureFlagModel: FeatureFlagModel;
 };
 
+function isSameMinute(a: Date | null, b: Date): boolean {
+    if (!a) return false;
+    return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
+}
+
 export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -1376,10 +1381,12 @@ export class UserService extends BaseService {
             }
             throw new AuthorizationError();
         }
-        // Update last used date
-        await this.personalAccessTokenModel.updateUsedDate(
-            personalAccessToken.uuid,
-        );
+        // Update last used date (throttled to once per minute)
+        if (!isSameMinute(personalAccessToken.lastUsedAt, now)) {
+            await this.personalAccessTokenModel.updateUsedDate(
+                personalAccessToken.uuid,
+            );
+        }
         return userWithOrganization;
     }
 
