@@ -205,6 +205,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
+import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
@@ -3012,9 +3013,11 @@ export class ProjectService extends BaseService {
     protected async getAvailableParameters(
         projectUuid: string,
         explore: Explore,
+        preloadedProjectParameters?: DbProjectParameter[],
     ): Promise<ParameterDefinitions> {
         const projectParameters =
-            await this.projectParametersModel.find(projectUuid);
+            preloadedProjectParameters ??
+            (await this.projectParametersModel.find(projectUuid));
 
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
@@ -8157,13 +8160,15 @@ export class ProjectService extends BaseService {
         explore?: Explore,
         requestParameters?: ParametersValuesMap,
         savedParameters?: ParametersValuesMap,
+        preloadedProjectParameters?: DbProjectParameter[],
     ): Promise<ParametersValuesMap> {
         // Get default values for parameters
         const projectDefaultParameterValues: ParametersValuesMap = {};
 
         // Fetch all parameters
         const parameterConfigs =
-            await this.projectParametersModel.find(projectUuid);
+            preloadedProjectParameters ??
+            (await this.projectParametersModel.find(projectUuid));
 
         for (const paramConfig of parameterConfigs) {
             if (paramConfig.config.default !== undefined) {
