@@ -2811,6 +2811,7 @@ export class AsyncQueryService extends ProjectService {
         userTimezone,
         sessionTimezone,
         metricQuery,
+        preloadedProjectTimezone,
     }: {
         projectUuid: string | null;
         organizationUuid: string;
@@ -2818,14 +2819,17 @@ export class AsyncQueryService extends ProjectService {
         userTimezone: string | null;
         sessionTimezone: string | null;
         metricQuery: MetricQuery;
+        preloadedProjectTimezone?: string;
     }): Promise<{
         resolvedTimezone: string;
         displayTimezone: string | null;
         enabled: boolean;
     }> {
-        const projectTimezone = projectUuid
-            ? await this.getQueryTimezoneForProject(projectUuid)
-            : 'UTC';
+        const projectTimezone =
+            preloadedProjectTimezone ??
+            (projectUuid
+                ? await this.getQueryTimezoneForProject(projectUuid)
+                : 'UTC');
         const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
             userUuid,
             organizationUuid,
@@ -3209,6 +3213,7 @@ export class AsyncQueryService extends ProjectService {
         applyDateZoomToFilters,
         preloadedUserAccessControls,
         preloadedProjectParameters,
+        preloadedProjectTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -3232,6 +3237,7 @@ export class AsyncQueryService extends ProjectService {
         applyDateZoomToFilters?: boolean;
         preloadedUserAccessControls?: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
+        preloadedProjectTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -3269,6 +3275,7 @@ export class AsyncQueryService extends ProjectService {
                     : getAccountUserTimezone(account),
             sessionTimezone: sessionTimezone ?? null,
             metricQuery,
+            preloadedProjectTimezone,
         });
 
         const fullQuery = await ProjectService._compileQuery({
@@ -4926,12 +4933,32 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
+        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        const projectTimezone =
+            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+
+        // Run independent data loads in parallel to minimize Postgres round-trips
+        const [
+            warehouseCredentials,
+            rawDashboardParameters,
+            projectParameters,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                preloadedOrgWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid,
+            }),
+            this.dashboardModel.getDashboardParametersByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            ),
+            this.projectParametersModel.find(projectUuid),
+        ]);
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -4939,15 +4966,8 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
-            await this.dashboardModel.getDashboardParametersByIdOrSlug(
-                dashboardUuid,
-                projectUuid,
-            ),
+            rawDashboardParameters,
         );
-
-        // Load project parameters once and pass to both combineParameters and prepareMetricQueryAsyncQueryArgs
-        const projectParameters =
-            await this.projectParametersModel.find(projectUuid);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
@@ -4999,6 +5019,7 @@ export class AsyncQueryService extends ProjectService {
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,
             preloadedProjectParameters: projectParameters,
+            preloadedProjectTimezone: projectTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
