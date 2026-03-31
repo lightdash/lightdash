@@ -135,6 +135,7 @@ interface ServiceManifest {
     slackService: SlackService;
     changesetService: ChangesetService;
     organizationWarehouseCredentialsService: unknown;
+    organizationAllowedDomainsService: unknown;
 }
 
 /**
@@ -1214,6 +1215,12 @@ export class ServiceRepository
         OrganizationWarehouseCredentialsServiceImplT,
     >(): OrganizationWarehouseCredentialsServiceImplT {
         return this.getService('organizationWarehouseCredentialsService');
+    }
+
+    public getOrganizationAllowedDomainsService<
+        OrganizationAllowedDomainsServiceImplT,
+    >(): OrganizationAllowedDomainsServiceImplT {
+        return this.getService('organizationAllowedDomainsService');
     }
 
     public getInstanceConfigurationService<

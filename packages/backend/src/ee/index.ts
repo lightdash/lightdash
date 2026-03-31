@@ -37,6 +37,7 @@ import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
 import { McpService } from './services/McpService/McpService';
+import { OrganizationAllowedDomainsService } from './services/OrganizationAllowedDomainsService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -207,6 +208,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
                     userModel: models.getUserModel(),
+                }),
+            organizationAllowedDomainsService: ({ models }) =>
+                new OrganizationAllowedDomainsService({
+                    organizationAllowedDomainsModel:
+                        models.getOrganizationAllowedDomainsModel(),
+                    organizationModel: models.getOrganizationModel(),
+                    commercialFeatureFlagModel:
+                        models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
