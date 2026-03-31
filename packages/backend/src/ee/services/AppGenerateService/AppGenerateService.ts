@@ -6,16 +6,17 @@ import {
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
+    getErrorMessage,
     MissingConfigError,
     ParameterError,
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
+import { performance } from 'node:perf_hooks';
 import { PassThrough } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../../../config/parseConfig';
-import Logger from '../../../logging/logger';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
@@ -103,6 +104,11 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    private static truncateEnd(text: string, maxLength: number): string {
+        if (text.length <= maxLength) return text;
+        return `...[truncated ${text.length - maxLength} chars]...${text.slice(-maxLength)}`;
+    }
+
     async generateApp(
         user: SessionUser,
         projectUuid: string,
@@ -129,22 +135,71 @@ export class AppGenerateService extends BaseService {
         const e2bApiKey = this.getE2bApiKey();
         const { client: s3Client, bucket } = this.getS3Client();
 
+        const overallStart = performance.now();
+
         this.logger.info(
-            `Generating app ${appUuid} version ${version} from prompt`,
+            `App ${appUuid}: generation started (promptLength=${prompt.length})`,
         );
 
-        const sandbox = await Sandbox.create('lightdash-data-app', {
-            timeoutMs: 10 * 60 * 1000,
-            apiKey: e2bApiKey,
-            envs: {
-                ANTHROPIC_API_KEY: anthropicApiKey,
-            },
-        });
+        // Persist app record early so we can track status
+        try {
+            await this.appModel.createWithVersion(
+                {
+                    app_id: appUuid,
+                    project_uuid: projectUuid,
+                    created_by_user_uuid: user.userUuid,
+                },
+                { version, prompt },
+                'building',
+            );
+        } catch (error) {
+            this.logger.error(
+                `App ${appUuid}: failed to create app record: ${getErrorMessage(error)}`,
+            );
+            throw error;
+        }
+
+        // Create sandbox
+        const sandboxStart = performance.now();
+        let sandbox: Sandbox | undefined;
+        try {
+            sandbox = await Sandbox.create('lightdash-data-app', {
+                timeoutMs: 10 * 60 * 1000,
+                apiKey: e2bApiKey,
+                envs: {
+                    ANTHROPIC_API_KEY: anthropicApiKey,
+                },
+            });
+        } catch (error) {
+            const durationMs = Math.round(performance.now() - sandboxStart);
+            this.logger.error(
+                `App ${appUuid}: E2B sandbox creation failed after ${durationMs}ms: ${getErrorMessage(error)}`,
+            );
+            try {
+                await this.appModel.updateVersionStatus(
+                    appUuid,
+                    version,
+                    'error',
+                    getErrorMessage(error),
+                );
+            } catch (dbError) {
+                this.logger.error(
+                    `App ${appUuid}: failed to persist error status: ${getErrorMessage(dbError)}`,
+                );
+            }
+            throw error;
+        }
+        const sandboxDurationMs = Math.round(performance.now() - sandboxStart);
+        this.logger.info(
+            `App ${appUuid}: E2B sandbox created (sandboxId=${sandbox.sandboxId}, ${sandboxDurationMs}ms)`,
+        );
+
+        const durations: Record<string, number> = { sandboxDurationMs };
 
         try {
             // Write the project's catalog to the sandbox so Claude knows
             // which models, dimensions, and metrics are available.
-            this.logger.info(`App ${appUuid}: writing model context`);
+            const catalogStart = performance.now();
             const catalogItems =
                 await this.catalogModel.getCatalogItemsSummary(projectUuid);
             const modelYaml = AppGenerateService.catalogToYaml(catalogItems);
@@ -152,13 +207,32 @@ export class AppGenerateService extends BaseService {
                 '/tmp/dbt-repo/models/schema.yml',
                 modelYaml,
             );
-
             // Write the prompt to a file to avoid shell injection
             await sandbox.files.write('/tmp/prompt.txt', prompt);
 
-            // Generate the app with Claude
-            this.logger.info(`App ${appUuid}: running Claude code generation`);
+            let tableCount = 0;
+            let totalDimensions = 0;
+            let totalMetrics = 0;
+            for (const item of catalogItems) {
+                if (item.type === 'field') {
+                    if (item.fieldType === 'metric') {
+                        totalMetrics += 1;
+                    } else {
+                        totalDimensions += 1;
+                    }
+                } else {
+                    tableCount += 1;
+                }
+            }
+            durations.catalogDurationMs = Math.round(
+                performance.now() - catalogStart,
+            );
+            this.logger.info(
+                `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${totalDimensions}, metrics=${totalMetrics}, yamlBytes=${modelYaml.length}, ${durations.catalogDurationMs}ms)`,
+            );
 
+            // Generate the app with Claude
+            const generateStart = performance.now();
             const generateResult = await sandbox.commands.run(
                 `cat /tmp/prompt.txt | claude -p ` +
                     `--model sonnet ` +
@@ -169,6 +243,15 @@ export class AppGenerateService extends BaseService {
                     timeoutMs: 8 * 60 * 1000,
                 },
             );
+            durations.generateDurationMs = Math.round(
+                performance.now() - generateStart,
+            );
+            this.logger.info(
+                `App ${appUuid}: Claude code generation completed (exit=${generateResult.exitCode}, stdoutLen=${generateResult.stdout.length}, stderrLen=${generateResult.stderr.length}, ${durations.generateDurationMs}ms)`,
+            );
+            this.logger.debug(
+                `App ${appUuid}: Claude stdout (tail): ${AppGenerateService.truncateEnd(generateResult.stdout, 8000)}`,
+            );
 
             if (generateResult.exitCode !== 0) {
                 throw new Error(
@@ -177,11 +260,22 @@ export class AppGenerateService extends BaseService {
             }
 
             // Build the Vite project
-            this.logger.info(`App ${appUuid}: building Vite project`);
+            const buildStart = performance.now();
             const buildResult = await sandbox.commands.run('pnpm build', {
                 cwd: '/app',
                 timeoutMs: 60 * 1000,
             });
+            durations.buildDurationMs = Math.round(
+                performance.now() - buildStart,
+            );
+            this.logger.info(
+                `App ${appUuid}: Vite build completed (exit=${buildResult.exitCode}, ${durations.buildDurationMs}ms)`,
+            );
+            if (buildResult.stderr.length > 0) {
+                this.logger.debug(
+                    `App ${appUuid}: build stderr: ${AppGenerateService.truncateEnd(buildResult.stderr, 4000)}`,
+                );
+            }
 
             if (buildResult.exitCode !== 0) {
                 throw new Error(
@@ -190,7 +284,7 @@ export class AppGenerateService extends BaseService {
             }
 
             // Tar dist/ and source in parallel
-            this.logger.info(`App ${appUuid}: packaging dist/ and source`);
+            const packageStart = performance.now();
             await Promise.all([
                 sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
                     timeoutMs: 10_000,
@@ -204,13 +298,19 @@ export class AppGenerateService extends BaseService {
                 sandbox.files.read('/tmp/dist.tar', { format: 'bytes' }),
                 sandbox.files.read('/tmp/source.tar', { format: 'bytes' }),
             ]);
-
-            // Upload extracted dist files and source tar to S3
-            this.logger.info(`App ${appUuid}: uploading to S3`);
-            const s3Prefix = `apps/${appUuid}/versions/${version}`;
             const tarBuffer = Buffer.from(tarBytes);
             const sourceTarBuffer = Buffer.from(sourceTarBytes);
-            await Promise.all([
+            durations.packageDurationMs = Math.round(
+                performance.now() - packageStart,
+            );
+            this.logger.info(
+                `App ${appUuid}: packaging completed (distTar=${tarBuffer.length}B, sourceTar=${sourceTarBuffer.length}B, ${durations.packageDurationMs}ms)`,
+            );
+
+            // Upload extracted dist files and source tar to S3
+            const uploadStart = performance.now();
+            const s3Prefix = `apps/${appUuid}/versions/${version}`;
+            const [distUploadResult] = await Promise.all([
                 AppGenerateService.extractAndUploadToS3(
                     tarBuffer,
                     s3Client,
@@ -227,28 +327,63 @@ export class AppGenerateService extends BaseService {
                         }),
                     )
                     .then(() => {
-                        Logger.debug(`Uploaded ${s3Prefix}/source.tar`);
+                        this.logger.debug(
+                            `App ${appUuid}: uploaded ${s3Prefix}/source.tar`,
+                        );
                     }),
             ]);
-
-            // Persist app + version only after everything succeeded
-            await this.appModel.createWithVersion(
-                {
-                    app_id: appUuid,
-                    project_uuid: projectUuid,
-                    created_by_user_uuid: user.userUuid,
-                },
-                { version, prompt },
+            durations.uploadDurationMs = Math.round(
+                performance.now() - uploadStart,
+            );
+            const totalUploadedBytes =
+                distUploadResult.totalBytes + sourceTarBuffer.length;
+            this.logger.info(
+                `App ${appUuid}: S3 upload completed (files=${distUploadResult.fileCount + 1}, totalBytes=${totalUploadedBytes}, ${durations.uploadDurationMs}ms)`,
             );
 
+            // Mark as ready
+            const dbStart = performance.now();
+            await this.appModel.updateVersionStatus(appUuid, version, 'ready');
+            durations.dbDurationMs = Math.round(performance.now() - dbStart);
+
+            const totalDurationMs = Math.round(
+                performance.now() - overallStart,
+            );
             this.logger.info(
-                `App ${appUuid} version ${version} generated successfully`,
+                `App ${appUuid}: generation completed successfully in ${totalDurationMs}ms (sandbox=${durations.sandboxDurationMs}ms, catalog=${durations.catalogDurationMs}ms, generate=${durations.generateDurationMs}ms, build=${durations.buildDurationMs}ms, package=${durations.packageDurationMs}ms, upload=${durations.uploadDurationMs}ms, db=${durations.dbDurationMs}ms)`,
             );
 
             return { appUuid, version };
+        } catch (error) {
+            const totalDurationMs = Math.round(
+                performance.now() - overallStart,
+            );
+            this.logger.error(
+                `App ${appUuid}: generation failed after ${totalDurationMs}ms: ${getErrorMessage(error)}`,
+            );
+
+            try {
+                await this.appModel.updateVersionStatus(
+                    appUuid,
+                    version,
+                    'error',
+                    AppGenerateService.truncateEnd(
+                        getErrorMessage(error),
+                        4000,
+                    ),
+                );
+            } catch (dbError) {
+                this.logger.error(
+                    `App ${appUuid}: failed to persist error status: ${getErrorMessage(dbError)}`,
+                );
+            }
+
+            throw error;
         } finally {
             await sandbox.kill();
-            this.logger.info(`App ${appUuid}: sandbox terminated`);
+            this.logger.info(
+                `App ${appUuid}: sandbox terminated (sandboxId=${sandbox.sandboxId})`,
+            );
         }
     }
 
@@ -257,64 +392,77 @@ export class AppGenerateService extends BaseService {
         s3Client: S3Client,
         bucket: string,
         s3Prefix: string,
-    ): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            const extractor = extract();
-            const uploads: Promise<void>[] = [];
+    ): Promise<{ fileCount: number; totalBytes: number }> {
+        return new Promise<{ fileCount: number; totalBytes: number }>(
+            (resolve, reject) => {
+                const extractor = extract();
+                const uploads: Promise<void>[] = [];
+                let fileCount = 0;
+                let totalBytes = 0;
 
-            extractor.on(
-                'entry',
-                (header: Headers, stream: PassThrough, next: () => void) => {
-                    if (header.type === 'file' && header.name) {
-                        const chunks: Buffer[] = [];
-                        stream.on('data', (chunk: Buffer) =>
-                            chunks.push(chunk),
-                        );
-                        stream.on('end', () => {
-                            const body = Buffer.concat(chunks);
-                            // header.name is like "dist/index.html" — strip "dist/" prefix
-                            const relativePath = header.name.replace(
-                                /^dist\//,
-                                '',
+                extractor.on(
+                    'entry',
+                    (
+                        header: Headers,
+                        stream: PassThrough,
+                        next: () => void,
+                    ) => {
+                        if (header.type === 'file' && header.name) {
+                            const chunks: Buffer[] = [];
+                            stream.on('data', (chunk: Buffer) =>
+                                chunks.push(chunk),
                             );
-                            const s3Key = `${s3Prefix}/${relativePath}`;
-                            const contentType =
-                                AppGenerateService.getContentType(relativePath);
+                            stream.on('end', () => {
+                                const body = Buffer.concat(chunks);
+                                fileCount += 1;
+                                totalBytes += body.length;
+                                // header.name is like "dist/index.html" — strip "dist/" prefix
+                                const relativePath = header.name.replace(
+                                    /^dist\//,
+                                    '',
+                                );
+                                const s3Key = `${s3Prefix}/${relativePath}`;
+                                const contentType =
+                                    AppGenerateService.getContentType(
+                                        relativePath,
+                                    );
 
-                            const upload = s3Client
-                                .send(
-                                    new PutObjectCommand({
-                                        Bucket: bucket,
-                                        Key: s3Key,
-                                        Body: body,
-                                        ContentType: contentType,
-                                    }),
-                                )
-                                .then(() => {
-                                    Logger.debug(`Uploaded ${s3Key}`);
-                                });
+                                const upload = s3Client
+                                    .send(
+                                        new PutObjectCommand({
+                                            Bucket: bucket,
+                                            Key: s3Key,
+                                            Body: body,
+                                            ContentType: contentType,
+                                        }),
+                                    )
+                                    .then(() => {});
 
-                            uploads.push(upload);
+                                uploads.push(upload);
+                                next();
+                            });
+                            stream.on('error', reject);
+                        } else {
+                            stream.resume();
                             next();
-                        });
-                        stream.on('error', reject);
-                    } else {
-                        stream.resume();
-                        next();
-                    }
-                },
-            );
+                        }
+                    },
+                );
 
-            extractor.on('finish', () => {
-                Promise.all(uploads).then(() => resolve(), reject);
-            });
+                extractor.on('finish', () => {
+                    Promise.all(uploads).then(
+                        () => resolve({ fileCount, totalBytes }),
+                        reject,
+                    );
+                });
 
-            extractor.on('error', reject);
+                extractor.on('error', reject);
 
-            const passThrough = new PassThrough();
-            passThrough.pipe(extractor);
-            passThrough.end(tarBuffer);
-        });
+                const passThrough = new PassThrough();
+                passThrough.pipe(extractor);
+                passThrough.end(tarBuffer);
+            },
+        );
     }
 
     getPreviewToken(

@@ -31,12 +31,14 @@ export type AppsTable = Knex.CompositeTableType<
     >
 >;
 
+export type AppVersionStatus = 'building' | 'ready' | 'error';
+
 export type DbAppVersion = {
     app_version_id: string;
     app_id: string;
     version: number;
     prompt: string;
-    status: string;
+    status: AppVersionStatus;
     error: string | null;
     created_at: Date;
     created_by_user_uuid: string;
@@ -48,5 +50,6 @@ export type AppVersionsTable = Knex.CompositeTableType<
         DbAppVersion,
         'app_id' | 'version' | 'prompt' | 'status' | 'created_by_user_uuid'
     > &
-        Partial<Pick<DbAppVersion, 'app_version_id'>>
+        Partial<Pick<DbAppVersion, 'app_version_id'>>,
+    Partial<Pick<DbAppVersion, 'status' | 'error'>>
 >;
