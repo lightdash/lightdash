@@ -56,6 +56,7 @@
     "ora": "5.4.1",
     "p-limit": "3.1.0",
     "parse-node-version": "^2.0.0",
+    "semver": "^7.7.3",
     "unique-names-generator": "^4.7.1",
     "uuid": "^11.0.3",
     "yaml": "^2.7.0"
@@ -67,6 +68,7 @@
     "@types/node-fetch": "^2.6.13",
     "@types/nunjucks": "^3.2.1",
     "@types/parse-node-version": "^1.0.0",
+    "@types/semver": "^7.7.1",
     "@types/uuid": "^10.0.0",
     "@vercel/ncc": "^0.38.4",
     "@yao-pkg/pkg": "^6.6.0",
