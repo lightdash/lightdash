@@ -1227,9 +1227,9 @@ export class ProjectService extends BaseService {
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
     }) {
-        // First, check if project uses organization-level credentials
-        const project = await this.projectModel.get(projectUuid);
-        const { organizationWarehouseCredentialsUuid } = project;
+        // Lightweight query for just the fields we need instead of loading the full project
+        const { organizationWarehouseCredentialsUuid } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
 
         // Load base credentials from either organization or project table
         let credentials: CreateWarehouseCredentials =
