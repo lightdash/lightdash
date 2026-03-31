@@ -77,6 +77,12 @@ import {
 } from '../database/entities/emailOneTimePasscodes';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
 import {
+    FeatureFlagOverridesTable,
+    FeatureFlagOverridesTableName,
+    FeatureFlagsTable,
+    FeatureFlagsTableName,
+} from '../database/entities/featureFlags';
+import {
     GithubAppInstallationTable,
     GithubAppInstallationTableName,
 } from '../database/entities/githubAppInstallation';
@@ -363,6 +369,8 @@ declare module 'knex/types/tables' {
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;
         [EmailTableName]: EmailTable;
+        [FeatureFlagsTableName]: FeatureFlagsTable;
+        [FeatureFlagOverridesTableName]: FeatureFlagOverridesTable;
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [UserWarehouseCredentialsTableName]: UserWarehouseCredentialsTable;
