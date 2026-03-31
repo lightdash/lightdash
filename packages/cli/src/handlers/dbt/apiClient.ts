@@ -11,6 +11,7 @@ import {
     type PossibleAbilities,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
+import { major } from 'semver';
 import { URL } from 'url';
 import { gzipSync } from 'zlib';
 import { getConfig } from '../../config';
@@ -226,18 +227,23 @@ export const checkLightdashVersion = async (): Promise<void> => {
             body: undefined,
         });
 
-        if (health.version !== CLI_VERSION) {
+        const cliMajor = major(CLI_VERSION);
+        const serverMajor = major(health.version);
+
+        if (cliMajor !== serverMajor) {
             const config = await getConfig();
             console.error(
                 `${styles.title(
                     'Warning',
-                )}: CLI (${CLI_VERSION}) is running a different version than Lightdash (${
-                    health.version
-                }) on ${
+                )}: CLI v${CLI_VERSION} may be incompatible with Lightdash v${health.version} on ${
                     config.context?.serverUrl
-                }.\n         Some commands may fail, consider upgrading your CLI by ${styles.secondary(
+                }.\n         Major version mismatch (${cliMajor} vs ${serverMajor}). Some commands may fail.\n         Upgrade your CLI: ${styles.secondary(
                     getUpdateInstructions(health.version),
                 )}`,
+            );
+        } else if (health.version !== CLI_VERSION) {
+            GlobalState.debug(
+                `CLI v${CLI_VERSION} differs from server v${health.version} (compatible — same major version)`,
             );
         }
     } catch (err) {
