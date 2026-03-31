@@ -3,6 +3,7 @@ import {
     type ApiCancelAppVersionResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
+    type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
@@ -194,5 +195,35 @@ export class AppGenerateController extends BaseController {
 
     protected getAppGenerateService() {
         return this.services.getAppGenerateService<AppGenerateService>();
+    }
+}
+
+@Route('/api/v1/ee/user/apps')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class UserAppsController extends BaseController {
+    /**
+     * List the current user's apps with pagination.
+     * @summary List my apps
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('listMyApps')
+    async listMyApps(
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiMyAppsResponse> {
+        const result = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .listMyApps(
+                req.user!,
+                page && pageSize ? { page, pageSize } : undefined,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
     }
 }
