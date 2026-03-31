@@ -1,3 +1,10 @@
+## [0.2695.1](https://github.com/lightdash/lightdash/compare/0.2695.0...0.2695.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* pin axios to exact version 1.12.2 to prevent supply chain attacks ([#21544](https://github.com/lightdash/lightdash/issues/21544)) ([43135e7](https://github.com/lightdash/lightdash/commit/43135e7582617e889a617aababecc318977e900f))
+
 # [0.2695.0](https://github.com/lightdash/lightdash/compare/0.2694.0...0.2695.0) (2026-03-31)
 
 
