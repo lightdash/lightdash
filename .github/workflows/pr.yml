@@ -18,6 +18,59 @@ permissions:
 
 jobs:
   # ============================================================================
+  # Stage 0: Fast checks (no install needed)
+  # ============================================================================
+  check-exact-deps:
+    name: Enforce Exact Dependency Versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check for range specifiers in package.json files
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+
+          const files = require('child_process')
+            .execSync('find . -name package.json -not -path \"*/node_modules/*\"', { encoding: 'utf8' })
+            .trim().split('\n');
+
+          const issues = [];
+          for (const f of files) {
+            const pkg = JSON.parse(fs.readFileSync(f, 'utf8'));
+            for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+              if (!pkg[section]) continue;
+              for (const [name, ver] of Object.entries(pkg[section])) {
+                if (ver.startsWith('workspace:')) continue;
+                if (/^[\^~><=]/.test(ver) || ver.includes('||')) {
+                  issues.push(f + ' [' + section + '] ' + name + ': ' + ver);
+                }
+              }
+            }
+            if (pkg.pnpm && pkg.pnpm.overrides) {
+              for (const [key, ver] of Object.entries(pkg.pnpm.overrides)) {
+                if (/^[\^~><=]/.test(ver) || ver.includes('||')) {
+                  issues.push(f + ' [pnpm.overrides] ' + key + ': ' + ver);
+                }
+              }
+            }
+          }
+
+          if (issues.length > 0) {
+            console.error('ERROR: Found range specifiers in dependencies. All deps must use exact versions.');
+            console.error('See: https://github.com/lightdash/lightdash/pull/21553');
+            console.error('');
+            issues.forEach(i => console.error('  ' + i));
+            console.error('');
+            console.error('Fix: use exact versions (e.g. \"1.2.3\" not \"^1.2.3\"). The .npmrc save-exact=true');
+            console.error('setting ensures pnpm add uses exact versions by default.');
+            process.exit(1);
+          }
+
+          console.log('All ' + files.length + ' package.json files use exact dependency versions.');
+          "
+
+  # ============================================================================
   # Stage 1: Build, lint, typecheck, and test
   # ============================================================================
   build-and-test:
