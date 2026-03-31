@@ -2659,10 +2659,7 @@ export class MetricQueryBuilder {
                     hasSqlAgg &&
                     !hasAggregateRef &&
                     allMetricDeps.length > 0 &&
-                    sqlAggregationWrapsReferences(
-                        metric.sql,
-                        allMetricRefNames,
-                    )
+                    sqlAggregationWrapsReferences(metric.sql, allMetricRefNames)
                 ) {
                     wrapsNonAggMetricRefs = true;
                 }

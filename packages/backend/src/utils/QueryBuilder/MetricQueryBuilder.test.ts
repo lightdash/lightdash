@@ -5445,9 +5445,7 @@ describe('Nested aggregate metrics', () => {
         );
         // raw_value and raw_updated_on should NOT appear as standalone
         // SELECT entries in the regular query
-        expect(result.query).not.toMatch(
-            /na_base[^]*AS "my_table_raw_value"/,
-        );
+        expect(result.query).not.toMatch(/na_base[^]*AS "my_table_raw_value"/);
         expect(result.query).not.toMatch(
             /na_base[^]*AS "my_table_raw_updated_on"/,
         );
@@ -5466,9 +5464,7 @@ describe('Nested aggregate metrics', () => {
                 // count_records is both an inner dep of sum_of_max AND independently selected
                 metrics: ['my_table_sum_of_max', 'my_table_count_records'],
                 filters: {},
-                sorts: [
-                    { fieldId: 'my_table_sum_of_max', descending: true },
-                ],
+                sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
                 limit: 10,
                 tableCalculations: [],
                 compiledTableCalculations: [],
@@ -5482,14 +5478,12 @@ describe('Nested aggregate metrics', () => {
 
         // count_records is an aggregate inner dep pre-computed in CTE 1.
         // It must NOT also appear in the regular SELECT (would cause duplicate column).
-        expect(
-            result.query.match(/AS "my_table_count_records"/g),
-        ).toHaveLength(1);
+        expect(result.query.match(/AS "my_table_count_records"/g)).toHaveLength(
+            1,
+        );
         // max_value is also an aggregate inner dep, should appear only once
         expect(result.query.match(/AS "my_table_max_value"/g)).toHaveLength(1);
         // The outer metric should appear once via nested_agg_results
-        expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(
-            1,
-        );
+        expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
     });
 });
