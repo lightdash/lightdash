@@ -856,6 +856,8 @@ export class ServiceRepository
                     fileStorageClient: this.clients.getFileStorageClient(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    slackUnfurlImageModel:
+                        this.models.getSlackUnfurlImageModel(),
                     slackClient: this.clients.getSlackClient(),
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:

@@ -202,6 +202,41 @@ export class SlackController extends BaseController {
     }
 
     /**
+     * Get a Slack unfurl preview image via redirect to a fresh signed URL.
+     * Falls back to a placeholder image if the preview is not found.
+     * @summary Get Slack preview
+     */
+    @SuccessResponse('302', 'Redirect')
+    @Get('/preview/{id}')
+    @OperationId('getSlackPreview')
+    async getPreview(@Path() id: string): Promise<void> {
+        const NANOID_REGEX = /^[\w-]{21}$/;
+        const PLACEHOLDER_URL =
+            'https://lightdash-public.s3.amazonaws.com/slack-unfurl-placeholder.png';
+
+        this.setHeader('Cache-Control', 'no-store');
+        this.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+        if (!NANOID_REGEX.test(id)) {
+            this.setStatus(302);
+            this.setHeader('Location', PLACEHOLDER_URL);
+            return;
+        }
+
+        try {
+            const signedUrl = await this.services
+                .getUnfurlService()
+                .getPreviewSignedUrl(id);
+
+            this.setStatus(302);
+            this.setHeader('Location', signedUrl);
+        } catch (e) {
+            this.setStatus(302);
+            this.setHeader('Location', PLACEHOLDER_URL);
+        }
+    }
+
+    /**
      * Delete the Slack installation for the organization
      * @summary Delete Slack installation
      */
