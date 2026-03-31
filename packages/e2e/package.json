@@ -17,12 +17,12 @@
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "@testing-library/cypress": "^10.0.3",
-        "cypress": "^14.3.2",
-        "cypress-file-upload": "^5.0.8",
-        "cypress-split": "^1.24.19",
-        "dayjs": "^1.11.10",
-        "js-yaml": "^4.1.1"
+        "@testing-library/cypress": "10.0.3",
+        "cypress": "14.3.2",
+        "cypress-file-upload": "5.0.8",
+        "cypress-split": "1.24.28",
+        "dayjs": "1.11.10",
+        "js-yaml": "4.1.1"
     },
     "devDependencies": {
         "typescript": "6.0.0-beta"
