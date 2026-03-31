@@ -42,6 +42,7 @@ import {
     type ContentVerificationInfo,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
+    type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
     type Explore,
@@ -669,6 +670,8 @@ export class DashboardService
         );
 
         if (hasChartsInDashboard(newDashboard)) {
+            const tileUuidMap = new Map<string, string>();
+
             const updatedTiles = await Promise.all(
                 newDashboard.tiles.map(async (tile) => {
                     if (
@@ -684,9 +687,12 @@ export class DashboardService
                                 user,
                             });
 
+                        const newTileUuid = uuidv4();
+                        tileUuidMap.set(tile.uuid, newTileUuid);
+
                         return {
                             ...tile,
-                            uuid: uuidv4(),
+                            uuid: newTileUuid,
                             properties: {
                                 ...tile.properties,
                                 savedChartUuid: newChartUuid,
@@ -697,11 +703,40 @@ export class DashboardService
                 }),
             );
 
+            const remapTileTargets = (
+                tileTargets: Record<string, DashboardTileTarget> | undefined,
+            ): Record<string, DashboardTileTarget> | undefined => {
+                if (!tileTargets) return undefined;
+                return Object.fromEntries(
+                    Object.entries(tileTargets).map(([key, value]) => [
+                        tileUuidMap.get(key) ?? key,
+                        value,
+                    ]),
+                );
+            };
+
+            const remappedFilters: typeof newDashboard.filters = {
+                dimensions: newDashboard.filters.dimensions.map((filter) => ({
+                    ...filter,
+                    tileTargets: remapTileTargets(filter.tileTargets),
+                })),
+                metrics: newDashboard.filters.metrics.map((filter) => ({
+                    ...filter,
+                    tileTargets: remapTileTargets(filter.tileTargets),
+                })),
+                tableCalculations: newDashboard.filters.tableCalculations.map(
+                    (filter) => ({
+                        ...filter,
+                        tileTargets: remapTileTargets(filter.tileTargets),
+                    }),
+                ),
+            };
+
             await this.dashboardModel.addVersion(
                 newDashboard.uuid,
                 {
                     tiles: [...updatedTiles],
-                    filters: newDashboard.filters,
+                    filters: remappedFilters,
                     tabs: newTabs,
                 },
                 user,
