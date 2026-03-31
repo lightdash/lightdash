@@ -712,13 +712,14 @@ export class ProjectService extends BaseService {
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
+        // Run attribute queries and email status in parallel (independent)
+        const [userAttributes, emailStatus] = await Promise.all([
+            this.userAttributesModel.getAttributeValuesForOrgMember({
                 organizationUuid: organizationUuid || '',
                 userUuid: userId || '',
-            });
-
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(userId);
+            }),
+            this.emailModel.getPrimaryEmailStatus(userId),
+        ]);
         const intrinsicUserAttributes = emailStatus.isVerified
             ? getIntrinsicUserAttributes({ email })
             : {};
