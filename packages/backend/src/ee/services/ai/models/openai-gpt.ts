@@ -45,6 +45,8 @@ export const getOpenaiGptmodel = (
                         store: false,
                         include: ['reasoning.encrypted_content'],
                     }),
+                /** @ref https://ai-sdk.dev/providers/ai-sdk-providers/openai#truncation */
+                truncation: 'auto',
                 ...(preset.providerOptions || {}),
             },
         },

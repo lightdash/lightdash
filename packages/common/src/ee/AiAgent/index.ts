@@ -175,6 +175,7 @@ export type AiAgentMessageAssistant = {
         modelProvider: string;
         reasoning?: boolean;
     } | null;
+    contextCompacted: boolean;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

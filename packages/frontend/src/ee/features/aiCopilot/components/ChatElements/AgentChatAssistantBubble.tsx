@@ -22,6 +22,7 @@ import {
     IconCheck,
     IconCopy,
     IconExclamationCircle,
+    IconFold,
     IconMessageX,
     IconRefresh,
     IconTestPipe,
@@ -567,6 +568,25 @@ export const AssistantBubble: FC<Props> = memo(
                             >
                                 <MantineIcon icon={IconBug} />
                             </ActionIcon>
+                        )}
+
+                        {message.contextCompacted && (
+                            <Tooltip
+                                label="Earlier conversation context was summarized to fit within the model's limits"
+                                position="top"
+                                withArrow
+                            >
+                                <Group gap={4} c="dimmed">
+                                    <MantineIcon
+                                        icon={IconFold}
+                                        size="sm"
+                                        color="dimmed"
+                                    />
+                                    <Text size="xs" c="dimmed">
+                                        Context compacted
+                                    </Text>
+                                </Group>
+                            </Tooltip>
                         )}
 
                         <MessageModelIndicator

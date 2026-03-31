@@ -40,6 +40,21 @@ export const getAnthropicModel = (
                         budgetTokens: 2048,
                     },
                 }),
+                /** @ref https://ai-sdk.dev/providers/ai-sdk-providers/anthropic#compaction */
+                contextManagement: {
+                    edits: [
+                        {
+                            type: 'compact_20260112',
+                            trigger: {
+                                type: 'input_tokens',
+                                value: 80000,
+                            },
+                            instructions:
+                                'Summarize concisely, preserving key data questions asked, query results, tool outputs, decisions made, and any context the user may reference.',
+                            pauseAfterCompaction: false,
+                        },
+                    ],
+                },
             },
         },
     };

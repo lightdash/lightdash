@@ -35,6 +35,8 @@ export const getAzureGpt41Model = (
             // @ts-expect-error - provider should be set to openai for azure
             openai: {
                 strictJsonSchema: true,
+                /** @ref https://ai-sdk.dev/providers/ai-sdk-providers/openai#truncation */
+                truncation: 'auto',
                 ...(reasoningEnabled && {
                     reasoningSummary: 'auto',
                     reasoningEffort,

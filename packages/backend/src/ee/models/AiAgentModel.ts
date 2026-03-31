@@ -1404,6 +1404,7 @@ export class AiAgentModel {
                     | 'human_feedback'
                     | 'saved_query_uuid'
                     | 'model_config'
+                    | 'context_compacted'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -1425,6 +1426,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.human_feedback`,
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
+                `${AiPromptTableName}.context_compacted`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -1533,6 +1535,7 @@ export class AiAgentModel {
                 toolResults,
                 reasoning,
                 savedQueryUuid: row.saved_query_uuid,
+                contextCompacted: row.context_compacted ?? false,
             });
 
             return messages;
@@ -2458,6 +2461,9 @@ export class AiAgentModel {
                     ? { error_message: data.errorMessage }
                     : {}),
                 ...(data.humanScore ? { human_score: data.humanScore } : {}),
+                ...(data.contextCompacted !== undefined
+                    ? { context_compacted: data.contextCompacted }
+                    : {}),
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,

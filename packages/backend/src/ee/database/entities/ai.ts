@@ -81,6 +81,7 @@ export type DbAiPrompt = {
     metric_query: object | null;
     saved_query_uuid: string | null;
     model_config: { modelName: string; modelProvider: string } | null;
+    context_compacted: boolean | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
@@ -102,6 +103,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'metric_query'
             | 'saved_query_uuid'
             | 'model_config'
+            | 'context_compacted'
         > & {
             responded_at: Knex.Raw;
         }

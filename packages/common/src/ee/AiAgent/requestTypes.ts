@@ -86,6 +86,7 @@ export type UpdateSlackResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    contextCompacted?: boolean;
 };
 
 export type UpdateWebAppResponse = {
@@ -93,6 +94,7 @@ export type UpdateWebAppResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    contextCompacted?: boolean;
 };
 
 export type UpdateSlackResponseTs = {

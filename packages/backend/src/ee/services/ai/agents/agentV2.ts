@@ -329,6 +329,23 @@ export const generateAgentResponse = async ({
             ),
         });
 
+        // Log and persist if Anthropic context compaction was applied
+        const contextManagement =
+            result.providerMetadata?.anthropic?.contextManagement;
+        if (contextManagement) {
+            Logger.info(
+                `[AiAgent][Compaction] Context compaction applied for prompt ${args.promptUuid}`,
+            );
+            logger(
+                'Generate Agent Response',
+                `Context compaction applied: ${JSON.stringify(contextManagement)}`,
+            );
+            void dependencies.updatePrompt({
+                promptUuid: args.promptUuid,
+                contextCompacted: true,
+            });
+        }
+
         logger(
             'Generate Agent Response',
             `Generation complete. Result text length: ${result.text.length}`,
@@ -546,11 +563,24 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: ({ usage, steps, reasoning }) => {
+            onFinish: ({ usage, steps, reasoning, providerMetadata }) => {
                 logger(
                     'On Finish',
                     'Stream finished. Updating prompt with response.',
                 );
+
+                // Log if Anthropic context compaction was applied
+                const contextManagement =
+                    providerMetadata?.anthropic?.contextManagement;
+                if (contextManagement) {
+                    Logger.info(
+                        `[AiAgent][Compaction] Context compaction applied for prompt ${args.promptUuid}`,
+                    );
+                    logger(
+                        'On Finish',
+                        `Context compaction applied: ${JSON.stringify(contextManagement)}`,
+                    );
+                }
 
                 // Extract complete response from all steps instead of just the last text
                 const completeResponse = steps
@@ -560,6 +590,9 @@ export const streamAgentResponse = async ({
                 void dependencies.updatePrompt({
                     response: completeResponse,
                     promptUuid: args.promptUuid,
+                    ...(contextManagement
+                        ? { contextCompacted: true }
+                        : {}),
                 });
 
                 logger(
