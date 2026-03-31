@@ -186,27 +186,86 @@ export class AppGenerateService extends BaseService {
         return durationMs;
     }
 
+    /**
+     * Parse a stream-json line from the Claude CLI and return a short
+     * description of tool_use events. Returns undefined for non-tool events.
+     */
+    private static parseClaudeStreamEvent(line: string): string | undefined {
+        let event: Record<string, unknown>;
+        try {
+            event = JSON.parse(line);
+        } catch {
+            return undefined;
+        }
+        if (event.type !== 'assistant') return undefined;
+
+        const msg = event.message as Record<string, unknown> | undefined;
+        const content = (msg?.content ?? []) as Array<Record<string, unknown>>;
+        const tools: string[] = [];
+        for (const block of content) {
+            if (block.type === 'tool_use') {
+                const name = String(block.name ?? '');
+                const input = (block.input ?? {}) as Record<string, unknown>;
+                if (name === 'Write' || name === 'Read' || name === 'Edit') {
+                    tools.push(`${name} ${String(input.file_path ?? '')}`);
+                } else {
+                    tools.push(name);
+                }
+            }
+        }
+        return tools.length > 0 ? tools.join(', ') : undefined;
+    }
+
     private async runClaudeGeneration(
         sandbox: Sandbox,
         appUuid: string,
     ): Promise<number> {
         const start = performance.now();
+        let stdoutBuffer = '';
+        let toolCallCount = 0;
+
         const result = await sandbox.commands.run(
             `cat /tmp/prompt.txt | claude -p ` +
                 `--model sonnet ` +
+                `--verbose --output-format stream-json ` +
                 `--allowedTools "Read,Write,Edit,Glob,Grep" ` +
                 `--append-system-prompt-file /app/skill.md`,
-            { cwd: '/app', timeoutMs: 8 * 60 * 1000 },
+            {
+                cwd: '/app',
+                timeoutMs: 8 * 60 * 1000,
+                onStdout: (chunk) => {
+                    stdoutBuffer += chunk;
+                    const lines = stdoutBuffer.split('\n');
+                    stdoutBuffer = lines.pop() ?? '';
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            const description =
+                                AppGenerateService.parseClaudeStreamEvent(line);
+                            if (description) {
+                                toolCallCount += 1;
+                                this.logger.info(
+                                    `App ${appUuid}: claude tool #${toolCallCount}: ${description}`,
+                                );
+                            }
+                        }
+                    }
+                },
+                onStderr: (chunk) => {
+                    this.logger.debug(
+                        `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
+                    );
+                },
+            },
         );
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
-            `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, stdoutLen=${result.stdout.length}, stderrLen=${result.stderr.length}, ${durationMs}ms)`,
-        );
-        this.logger.debug(
-            `App ${appUuid}: Claude stdout (tail): ${AppGenerateService.truncateEnd(result.stdout, 8000)}`,
+            `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms)`,
         );
 
         if (result.exitCode !== 0) {
+            this.logger.debug(
+                `App ${appUuid}: Claude stderr (tail): ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
+            );
             throw new Error(
                 `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
             );
@@ -219,16 +278,19 @@ export class AppGenerateService extends BaseService {
         const result = await sandbox.commands.run('pnpm build', {
             cwd: '/app',
             timeoutMs: 60 * 1000,
+            onStdout: (chunk) => {
+                this.logger.debug(
+                    `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
+                );
+            },
+            onStderr: (chunk) => {
+                this.logger.info(`App ${appUuid}: build: ${chunk.trimEnd()}`);
+            },
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: Vite build completed (exit=${result.exitCode}, ${durationMs}ms)`,
         );
-        if (result.stderr.length > 0) {
-            this.logger.debug(
-                `App ${appUuid}: build stderr: ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
-            );
-        }
 
         if (result.exitCode !== 0) {
             throw new Error(
