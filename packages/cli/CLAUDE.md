@@ -151,6 +151,25 @@ pnpm release            # Publish to npm (with --no-git-checks)
 - Package name: `@lightdash/cli`
 - Global install: `npm i -g @lightdash/cli`
 
+## Supply Chain Security
+
+The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so transitive dependency vulnerabilities directly affect users. Unlike the monorepo (protected by `pnpm-lock.yaml`), fresh CLI installs resolve transitive deps at install time with no lockfile protection.
+
+**Investigating a compromised transitive dependency:**
+
+1. Check if the dependency is in the CLI's tree and how it gets there:
+   ```bash
+   pnpm why <package> --filter @lightdash/cli
+   ```
+2. Check the version range declared by the intermediate dependency (e.g., `npm view snowflake-sdk dependencies.axios`). A caret range like `^1.13.4` will resolve to the latest matching version at install time — including a malicious one.
+3. If the compromised version falls within a transitive dep's semver range, **all published @lightdash/cli versions using that transitive dep are affected** for any user who does a fresh install during the compromise window.
+4. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
+
+**Example — axios compromise (2026-03-31):**
+- Malicious `axios@1.14.1` was published to npm for a few hours
+- `@lightdash/cli` → `@lightdash/warehouses` → `snowflake-sdk` → `axios@^1.13.4` would have resolved to `1.14.1`
+- Fix: pinned `"axios": "1.12.2"` (exact) in root pnpm overrides instead of `"^1.12.0"`
+
 ## Common Issues
 
 **dbt Version Compatibility:**
