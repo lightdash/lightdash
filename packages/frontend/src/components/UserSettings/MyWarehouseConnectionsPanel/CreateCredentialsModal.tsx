@@ -67,6 +67,10 @@ const defaultCredentials: Record<
         accessKeyId: '',
         secretAccessKey: '',
     },
+    [WarehouseTypes.DUCKDB]: {
+        type: WarehouseTypes.DUCKDB,
+        token: '',
+    },
 };
 
 const FORM_ID = 'create-credentials-form';

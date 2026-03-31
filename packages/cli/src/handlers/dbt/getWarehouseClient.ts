@@ -134,9 +134,12 @@ function getMockCredentials(
                 schema: '',
             };
         case SupportedDbtAdapter.DUCKDB:
-            throw new ParseError(
-                `Unsupported dbt adaptor type ${dbtAdaptorType}`,
-            );
+            return {
+                type: WarehouseTypes.DUCKDB,
+                database: ':memory:',
+                schema: 'main',
+                token: '',
+            };
         case SupportedDbtAdapter.REDSHIFT:
             return {
                 type: WarehouseTypes.REDSHIFT,

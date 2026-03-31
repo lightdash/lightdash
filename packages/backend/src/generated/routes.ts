@@ -10384,6 +10384,7 @@ const models: TsoaRoute.Models = {
             'trino',
             'clickhouse',
             'athena',
+            'duckdb',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -11238,6 +11239,63 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'WarehouseTypes.DUCKDB': {
+        dataType: 'refEnum',
+        enums: ['duckdb'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    type: { ref: 'WarehouseTypes.DUCKDB', required: true },
+                    requireUserCredentials: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    database: { dataType: 'string', required: true },
+                    schema: { dataType: 'string', required: true },
+                    threads: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'double' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    startOfWeek: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'WeekDay' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_': {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DuckdbCredentials: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseCredentials: {
         dataType: 'refAlias',
         type: {
@@ -11251,6 +11309,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'TrinoCredentials' },
                 { ref: 'ClickhouseCredentials' },
                 { ref: 'AthenaCredentials' },
+                { ref: 'DuckdbCredentials' },
             ],
             validators: {},
         },
@@ -11740,6 +11799,29 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateDuckdbCredentials: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                startOfWeek: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'WeekDay' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                requireUserCredentials: { dataType: 'boolean' },
+                threads: { dataType: 'double' },
+                token: { dataType: 'string', required: true },
+                schema: { dataType: 'string', required: true },
+                database: { dataType: 'string', required: true },
+                type: { ref: 'WarehouseTypes.DUCKDB', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CreateWarehouseCredentials: {
         dataType: 'refAlias',
         type: {
@@ -11753,6 +11835,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'CreateTrinoCredentials' },
                 { ref: 'CreateClickhouseCredentials' },
                 { ref: 'CreateAthenaCredentials' },
+                { ref: 'CreateDuckdbCredentials' },
             ],
             validators: {},
         },
@@ -12974,6 +13057,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDuckdbCredentials.type_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'WarehouseTypes.DUCKDB', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectType: {
         dataType: 'refEnum',
         enums: ['DEFAULT', 'PREVIEW'],
@@ -13014,6 +13108,7 @@ const models: TsoaRoute.Models = {
                         { ref: 'Pick_CreateBigqueryCredentials.type_' },
                         { ref: 'Pick_CreateDatabricksCredentials.type_' },
                         { ref: 'Pick_CreateAthenaCredentials.type_' },
+                        { ref: 'Pick_CreateDuckdbCredentials.type_' },
                     ],
                     required: true,
                 },
@@ -13233,6 +13328,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_CreateDuckdbCredentials.type-or-token_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                type: { ref: 'WarehouseTypes.DUCKDB', required: true },
+                token: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     UpsertUserWarehouseCredentials: {
         dataType: 'refAlias',
         type: {
@@ -13273,6 +13380,7 @@ const models: TsoaRoute.Models = {
                         {
                             ref: 'Pick_CreateAthenaCredentials.type-or-accessKeyId-or-secretAccessKey_',
                         },
+                        { ref: 'Pick_CreateDuckdbCredentials.type-or-token_' },
                     ],
                     required: true,
                 },

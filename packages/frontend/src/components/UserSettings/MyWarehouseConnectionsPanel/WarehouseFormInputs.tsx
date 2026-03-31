@@ -123,6 +123,16 @@ export const WarehouseFormInputs: FC<{
                     credentialsName={databricksCredentialsName}
                 />
             );
+        case WarehouseTypes.DUCKDB:
+            return (
+                <PasswordInput
+                    size="xs"
+                    label="MotherDuck access token"
+                    description="Create an access token in MotherDuck Settings."
+                    disabled={disabled}
+                    {...form.getInputProps('credentials.token')}
+                />
+            );
         default:
             return null;
     }

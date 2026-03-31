@@ -1,13 +1,14 @@
 import { DuckDBInstance, DuckDBTypeId } from '@duckdb/node-api';
 import {
     AnyType,
-    CreatePostgresCredentials,
+    CreateDuckdbCredentials,
     DimensionType,
     formatMilliseconds,
     getErrorMessage,
     Metric,
     MetricType,
     NotImplementedError,
+    ParameterError,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseResults,
@@ -26,6 +27,10 @@ type DuckdbStreamResult = {
     yieldRowObjectJson: () => AsyncIterableIterator<Record<string, AnyType>[]>;
 };
 
+type DuckdbRunResult = {
+    getRowObjects: () => Promise<Record<string, AnyType>[]>;
+};
+
 type DuckdbPreparedStatement = {
     statementType: number;
     destroySync: () => void;
@@ -40,7 +45,7 @@ type DuckdbConnection = {
     run: (
         sql: string,
         values?: AnyType[] | Record<string, AnyType>,
-    ) => Promise<unknown>;
+    ) => Promise<DuckdbRunResult>;
     stream: (
         sql: string,
         values?: AnyType[] | Record<string, AnyType>,
@@ -128,16 +133,6 @@ export type DuckdbWarehouseClientOptions = {
     onQueryProfile?: (profile: DuckdbQueryProfileMetrics) => void;
 };
 
-const DUCKDB_INTERNAL_CREDENTIALS: CreatePostgresCredentials = {
-    type: WarehouseTypes.POSTGRES,
-    host: 'localhost',
-    port: 5432,
-    dbname: 'duckdb',
-    schema: 'main',
-    user: 'duckdb',
-    password: 'duckdb',
-};
-
 export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
     switch (typeId) {
         case DuckDBTypeId.DATE:
@@ -169,6 +164,39 @@ export const mapFieldTypeFromTypeId = (typeId: number): DimensionType => {
         default:
             return DimensionType.STRING;
     }
+};
+
+const mapFieldTypeFromString = (typeName: string): DimensionType => {
+    const upper = typeName.toUpperCase();
+    if (upper === 'DATE') return DimensionType.DATE;
+    if (
+        upper.includes('TIMESTAMP') ||
+        upper === 'TIME' ||
+        upper === 'TIMETZ' ||
+        upper === 'TIME WITH TIME ZONE'
+    )
+        return DimensionType.TIMESTAMP;
+    if (upper === 'BOOLEAN') return DimensionType.BOOLEAN;
+    if (upper === 'INTERVAL') return DimensionType.STRING;
+    if (
+        upper.includes('INT') ||
+        upper === 'FLOAT' ||
+        upper === 'DOUBLE' ||
+        upper === 'REAL' ||
+        upper.startsWith('DECIMAL') ||
+        upper.startsWith('NUMERIC') ||
+        upper === 'HUGEINT' ||
+        upper === 'UHUGEINT'
+    )
+        return DimensionType.NUMBER;
+    return DimensionType.STRING;
+};
+
+const DUCKDB_INTERNAL_CREDENTIALS: CreateDuckdbCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    database: ':memory:',
+    schema: 'main',
+    token: '',
 };
 
 export class DuckdbSqlBuilder extends WarehouseBaseSqlBuilder {
@@ -241,7 +269,12 @@ const BLOCKED_STATEMENT_TYPES_INTERNAL_SQL = new Set([
 const BLOCKED_FUNCTION_PATTERN =
     /\b(current_setting|duckdb_settings|duckdb_secrets)\s*\(/i;
 
-export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCredentials> {
+export type DuckdbWarehouseClientArgs = {
+    databasePath?: string;
+    s3Config?: DuckdbS3SessionConfig;
+};
+
+export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCredentials> {
     private static readonly sharedInstances = new Map<string, DuckdbInstance>();
 
     private static readonly sharedInstanceSemaphores = new Map<
@@ -250,6 +283,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     >();
 
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
+
+    private readonly databasePath: string;
 
     private readonly s3Config?: DuckdbS3SessionConfig;
 
@@ -266,19 +301,54 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     ) => void;
 
     constructor(
-        credentials?: DuckdbConnectionCredentials,
+        credentials?: CreateDuckdbCredentials | DuckdbConnectionCredentials,
         options?: DuckdbWarehouseClientOptions,
     ) {
-        super(DUCKDB_INTERNAL_CREDENTIALS, new DuckdbSqlBuilder());
-        this.s3Config =
-            credentials?.type === 'duckdb_s3'
-                ? credentials.s3Config
-                : undefined;
+        const effectiveCredentials: CreateDuckdbCredentials =
+            credentials &&
+            'type' in credentials &&
+            credentials.type === 'duckdb_s3'
+                ? DUCKDB_INTERNAL_CREDENTIALS
+                : ((credentials as CreateDuckdbCredentials) ??
+                  DUCKDB_INTERNAL_CREDENTIALS);
+
+        super(effectiveCredentials, new DuckdbSqlBuilder());
+
+        // Determine s3Config from either the old DuckdbConnectionCredentials or options
+        if (
+            credentials &&
+            'type' in credentials &&
+            credentials.type === 'duckdb_s3'
+        ) {
+            this.s3Config = (credentials as DuckdbS3Credentials).s3Config;
+        }
+
+        // Project DuckDB credentials map to MotherDuck only. The in-memory
+        // internal credentials remain available for pre-aggregate helper flows.
+        if (effectiveCredentials.database === ':memory:') {
+            this.databasePath = ':memory:';
+        } else {
+            const token = effectiveCredentials.token.trim();
+            if (!token) {
+                throw new ParameterError(
+                    'MotherDuck token is required for DuckDB warehouse connections',
+                );
+            }
+            this.databasePath = `md:${effectiveCredentials.database}?motherduck_token=${token}`;
+        }
+
         this.resourceLimits = options?.resourceLimits;
         this.sharedResourceLimits = options?.sharedResourceLimits;
         this.instanceCacheKey = options?.instanceCacheKey;
         this.logger = options?.logger;
         this.onQueryProfile = options?.onQueryProfile;
+    }
+
+    static createForPreAggregate(
+        credentials?: DuckdbConnectionCredentials,
+        options?: DuckdbWarehouseClientOptions,
+    ): DuckdbWarehouseClient {
+        return new DuckdbWarehouseClient(credentials, options);
     }
 
     private static getSharedInstanceSemaphore(
@@ -780,9 +850,20 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         );
     }
 
+    /**
+     * Dispatches to the appropriate session strategy:
+     * - Direct database (non-:memory: databasePath): connects to the MotherDuck path
+     * - Resource-limited: isolated ephemeral instance (e.g. parquet conversion)
+     * - Shared instance (has instanceCacheKey): warm cached instance for queries
+     * - Default: ephemeral query session
+     */
     private async withSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
     ): Promise<T> {
+        if (this.databasePath !== ':memory:') {
+            return this.withDirectSession(callback);
+        }
+
         if (this.hasResourceLimits()) {
             return this.withIsolatedSession(callback);
         }
@@ -792,6 +873,49 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
         }
 
         return this.withEphemeralQuerySession(callback);
+    }
+
+    /** Direct connection to the configured MotherDuck database. */
+    private async withDirectSession<T>(
+        callback: (db: DuckdbConnection) => Promise<T>,
+    ): Promise<T> {
+        const sessionStart = performance.now();
+
+        const instanceCreateStart = performance.now();
+        const instance = await DuckDBInstance.create(this.databasePath);
+        const instanceCreateMs = performance.now() - instanceCreateStart;
+
+        const connectStart = performance.now();
+        const connection = await instance.connect();
+        const connectMs = performance.now() - connectStart;
+
+        try {
+            await DuckdbWarehouseClient.hardenInstance(connection);
+            const queryStart = performance.now();
+            const result = await callback(connection);
+            const queryMs = performance.now() - queryStart;
+
+            const totalMs = performance.now() - sessionStart;
+            const sanitizedPath = this.databasePath.replace(
+                /motherduck_token=[^&]*/,
+                'motherduck_token=***',
+            );
+            this.logger?.info(
+                `DuckDB direct session complete: path=${sanitizedPath} instance_create=${formatMilliseconds(instanceCreateMs)}ms connect=${formatMilliseconds(connectMs)}ms query=${formatMilliseconds(queryMs)}ms total=${formatMilliseconds(totalMs)}ms`,
+                {
+                    instanceCreateMs,
+                    connectMs,
+                    queryMs,
+                    totalMs,
+                },
+            );
+
+            return result;
+        } finally {
+            connection.closeSync?.();
+            connection.disconnectSync?.();
+            instance.closeSync?.();
+        }
     }
 
     private getBindValues(options?: {
@@ -1059,7 +1183,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     async executeAsyncQuery(
         ...args: Parameters<
-            WarehouseBaseClient<CreatePostgresCredentials>['executeAsyncQuery']
+            WarehouseBaseClient<CreateDuckdbCredentials>['executeAsyncQuery']
         >
     ) {
         const [queryArgs, resultsStreamCallback] = args;
@@ -1123,7 +1247,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
 
     async runQuery(
         ...args: Parameters<
-            WarehouseBaseClient<CreatePostgresCredentials>['runQuery']
+            WarehouseBaseClient<CreateDuckdbCredentials>['runQuery']
         >
     ) {
         return super.runQuery(...args);
@@ -1134,16 +1258,49 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
     }
 
     async getCatalog(
-        _config: { database: string; schema: string; table: string }[],
+        config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog> {
-        throw new NotImplementedError(
-            'DuckDB catalog discovery is not implemented yet',
-        );
+        return this.withSession(async (db) => {
+            const catalog: WarehouseCatalog = {};
+
+            /* eslint-disable no-await-in-loop */
+            // eslint-disable-next-line no-restricted-syntax
+            for (const ref of config) {
+                const result = await db.run(
+                    `SELECT column_name, data_type
+                     FROM information_schema.columns
+                     WHERE table_catalog = '${this.escapeString(ref.database)}'
+                       AND table_schema = '${this.escapeString(ref.schema)}'
+                       AND table_name = '${this.escapeString(ref.table)}'`,
+                );
+                const rows = await result.getRowObjects();
+
+                if (rows.length > 0) {
+                    if (!catalog[ref.database]) {
+                        catalog[ref.database] = {};
+                    }
+                    if (!catalog[ref.database][ref.schema]) {
+                        catalog[ref.database][ref.schema] = {};
+                    }
+                    catalog[ref.database][ref.schema][ref.table] = rows.reduce<
+                        Record<string, DimensionType>
+                    >((acc, row) => {
+                        const colName = row.column_name as string;
+                        const colType = row.data_type as string;
+                        acc[colName] = mapFieldTypeFromString(colType);
+                        return acc;
+                    }, {});
+                }
+            }
+            /* eslint-enable no-await-in-loop */
+
+            return catalog;
+        });
     }
 
     async getAllTables(
-        _schema?: string,
-        _tags?: Record<string, string>,
+        schema?: string,
+        tags?: Record<string, string>,
     ): Promise<
         {
             database: string;
@@ -1151,19 +1308,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreatePostgresCre
             table: string;
         }[]
     > {
-        throw new NotImplementedError(
-            'DuckDB table discovery is not implemented yet',
-        );
+        return this.withSession(async (db) => {
+            let sql = `SELECT table_catalog AS database, table_schema AS schema, table_name AS table
+                        FROM information_schema.tables
+                        WHERE table_type IN ('BASE TABLE', 'VIEW')`;
+
+            if (schema) {
+                sql += ` AND table_schema = '${this.escapeString(schema)}'`;
+            }
+
+            const result = await db.run(
+                tags ? this.getSQLWithMetadata(sql, tags) : sql,
+            );
+            const rows = await result.getRowObjects();
+
+            return rows.map((row) => ({
+                database: row.database as string,
+                schema: row.schema as string,
+                table: row.table as string,
+            }));
+        });
     }
 
     async getFields(
-        _tableName: string,
-        _schema?: string,
-        _database?: string,
+        tableName: string,
+        schema?: string,
+        database?: string,
         _tags?: Record<string, string>,
     ): Promise<WarehouseCatalog> {
-        throw new NotImplementedError(
-            'DuckDB field discovery is not implemented yet',
-        );
+        const refs = [
+            {
+                database: database ?? this.credentials.database,
+                schema: schema ?? this.credentials.schema,
+                table: tableName,
+            },
+        ];
+        return this.getCatalog(refs);
     }
 }
