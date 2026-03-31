@@ -1,3 +1,16 @@
+# [0.2696.0](https://github.com/lightdash/lightdash/compare/0.2695.1...0.2696.0) (2026-03-31)
+
+
+### Bug Fixes
+
+* re-encrypt warehouse credentials after branch DB template copy ([#21540](https://github.com/lightdash/lightdash/issues/21540)) ([b5385af](https://github.com/lightdash/lightdash/commit/b5385af16bbb9b8ed2207a781fee2bc5e13aafdd))
+
+
+### Features
+
+* add proper tracking of app generation steps ([#21554](https://github.com/lightdash/lightdash/issues/21554)) ([c43fa79](https://github.com/lightdash/lightdash/commit/c43fa795bb1344270fedf223edf1858f6d6d4188))
+* promote App menu item to top of New menu with beta badge ([#21556](https://github.com/lightdash/lightdash/issues/21556)) ([2fcbf1b](https://github.com/lightdash/lightdash/commit/2fcbf1b64c8954920becb1abc82c52cd23ddd307))
+
 ## [0.2695.1](https://github.com/lightdash/lightdash/compare/0.2695.0...0.2695.1) (2026-03-31)
 
 
