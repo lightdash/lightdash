@@ -1,3 +1,15 @@
+# [0.2698.0](https://github.com/lightdash/lightdash/compare/0.2697.0...0.2698.0) (2026-03-31)
+
+
+### Bug Fixes
+
+* pre aggregate deployment from cli ([#21570](https://github.com/lightdash/lightdash/issues/21570)) ([75e8bd9](https://github.com/lightdash/lightdash/commit/75e8bd9c7e4d877540149d3008ee94cc7d1fea9f))
+
+
+### Features
+
+* add data timezone setting to warehouse connections ([#21533](https://github.com/lightdash/lightdash/issues/21533)) ([fc44801](https://github.com/lightdash/lightdash/commit/fc44801d2ed1c0b6e9252bf84ba44dba57b5b325))
+
 # [0.2697.0](https://github.com/lightdash/lightdash/compare/0.2696.1...0.2697.0) (2026-03-31)
 
 
