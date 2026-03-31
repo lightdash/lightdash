@@ -1,3 +1,10 @@
+# [0.2697.0](https://github.com/lightdash/lightdash/compare/0.2696.1...0.2697.0) (2026-03-31)
+
+
+### Features
+
+* add app iteration to create follow-up versions with sandbox reuse ([#21568](https://github.com/lightdash/lightdash/issues/21568)) ([fc12852](https://github.com/lightdash/lightdash/commit/fc128525460bcf3d4d871e4ccb7f4df3fe4aba06))
+
 ## [0.2696.1](https://github.com/lightdash/lightdash/compare/0.2696.0...0.2696.1) (2026-03-31)
 
 
