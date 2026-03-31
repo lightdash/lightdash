@@ -157,12 +157,18 @@ The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so trans
 
 **Investigating a compromised transitive dependency:**
 
-1. Check if the dependency is in the CLI's tree and how it gets there:
+1. Trace the dependency chain through published packages on npm:
    ```bash
-   pnpm why <package> --filter @lightdash/cli
+   npm view @lightdash/cli dependencies          # direct deps
+   npm view @lightdash/warehouses dependencies    # next level
+   npm view snowflake-sdk dependencies.axios      # find the version range
    ```
-2. Check the version range declared by the intermediate dependency (e.g., `npm view snowflake-sdk dependencies.axios`). A caret range like `^1.13.4` will resolve to the latest matching version at install time — including a malicious one.
-3. If the compromised version falls within a transitive dep's semver range, **all published @lightdash/cli versions using that transitive dep are affected** for any user who does a fresh install during the compromise window.
+2. Check what versions are published and their timestamps:
+   ```bash
+   npm view axios versions --json
+   npm view axios time --json
+   ```
+3. A caret range like `^1.13.4` will resolve to the latest matching version at install time — including a malicious one. If the compromised version falls within a transitive dep's semver range, **all published @lightdash/cli versions using that transitive dep are affected** for any user who does a fresh install during the compromise window.
 4. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
 
 **Example — axios compromise (2026-03-31):**
