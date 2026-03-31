@@ -158,6 +158,8 @@ const TrinoForm: FC<{
 
                         {isTimezoneSupportEnabled && (
                             <TimeZonePicker
+                                size="sm"
+                                maw="100%"
                                 label="Data timezone"
                                 description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
                                 searchable
