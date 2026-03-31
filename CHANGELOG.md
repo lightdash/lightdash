@@ -1,3 +1,10 @@
+## [0.2699.1](https://github.com/lightdash/lightdash/compare/0.2699.0...0.2699.1) (2026-03-31)
+
+
+### Bug Fixes
+
+* lowercase Docker Compose project name in dev-ports.sh ([#21590](https://github.com/lightdash/lightdash/issues/21590)) ([6d2b0d3](https://github.com/lightdash/lightdash/commit/6d2b0d30028d6a80c632950289aead0dcb1d79b3))
+
 # [0.2699.0](https://github.com/lightdash/lightdash/compare/0.2698.0...0.2699.0) (2026-03-31)
 
 
