@@ -376,6 +376,24 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
                 formatOptions,
             };
+
+            // Propagate format override to any period-over-period metrics
+            // derived from this base metric
+            const additionalMetrics =
+                state.unsavedChartVersion.metricQuery.additionalMetrics;
+            if (additionalMetrics) {
+                for (const am of additionalMetrics) {
+                    if (
+                        am.baseMetricId === metricId &&
+                        am.generationType === 'periodOverPeriod'
+                    ) {
+                        const popMetricId = getItemId(am);
+                        state.unsavedChartVersion.metricQuery.metricOverrides[
+                            popMetricId
+                        ] = { formatOptions };
+                    }
+                }
+            }
         },
         updateDimensionFormat: (
             state,
