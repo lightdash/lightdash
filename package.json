@@ -35,6 +35,8 @@
         "tslib": "^2.8.1"
     },
     "devDependencies": {
+        "@commitlint/cli": "^19.6.0",
+        "@commitlint/config-conventional": "^19.6.0",
         "@spotlightjs/spotlight": "^4.10.0",
         "@types/jest": "^29.5.5",
         "@types/node": "^22.13.1",
