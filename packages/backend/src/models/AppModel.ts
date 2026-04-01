@@ -46,10 +46,29 @@ export class AppModel {
         version: number,
         status: AppVersionStatus,
         error?: string | null,
+        statusMessage?: string | null,
     ): Promise<void> {
         await this.database(AppVersionsTableName)
             .where({ app_id: appId, version })
-            .update({ status, error: error ?? null });
+            .update({
+                status,
+                error: error ?? null,
+                status_message: statusMessage ?? null,
+                status_updated_at: new Date(),
+            });
+    }
+
+    async updateStatusMessage(
+        appId: string,
+        version: number,
+        statusMessage: string,
+    ): Promise<void> {
+        await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .update({
+                status_message: statusMessage,
+                status_updated_at: new Date(),
+            });
     }
 
     async getApp(appId: string, projectUuid: string): Promise<DbApp> {
