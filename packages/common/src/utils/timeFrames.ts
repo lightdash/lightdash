@@ -2,6 +2,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import { DimensionType } from '../types/field';
 import { DateGranularity, TimeFrames } from '../types/timeFrames';
+import assertUnreachable from './assertUnreachable';
 
 export enum WeekDay {
     MONDAY,
@@ -755,4 +756,141 @@ export const getDateDimension = (dimensionId: string) => {
     }
 
     return {};
+};
+
+/**
+ * Generates timezone-aware DATE_TRUNC SQL for a given warehouse.
+ *
+ * The pattern is: convert base SQL to project timezone → DATE_TRUNC →
+ * convert back to UTC. The result is a UTC timestamp representing the
+ * start of the truncated period in the project timezone.
+ *
+ * For example, with timezone 'America/New_York' and DAY truncation:
+ *   Postgres:  DATE_TRUNC('day', (col) AT TIME ZONE 'America/New_York') AT TIME ZONE 'America/New_York'
+ *   Snowflake: CONVERT_TIMEZONE('America/New_York', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', 'America/New_York', col)))
+ *   BigQuery:  TIMESTAMP_TRUNC(col, DAY, 'America/New_York')
+ *
+ * @param baseSql - The compiled SQL for the base dimension (before DATE_TRUNC)
+ * @param timeFrame - The time frame to truncate to (DAY, WEEK, MONTH, etc.)
+ * @param timezone - The project timezone (e.g., 'America/New_York')
+ * @param adapterType - The warehouse adapter type
+ * @param startOfWeek - Optional custom start of week
+ */
+export const getTimezoneAwareDateTruncSql = (
+    baseSql: string,
+    timeFrame: TimeFrames,
+    timezone: string,
+    adapterType: SupportedDbtAdapter,
+    startOfWeek?: WeekDay | null,
+): string => {
+    const tz = timezone;
+
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY: {
+            // BigQuery TIMESTAMP_TRUNC has native timezone support
+            const datePart =
+                timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)
+                    ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
+                    : timeFrame;
+            return `TIMESTAMP_TRUNC(${baseSql}, ${datePart}, '${tz}')`;
+        }
+
+        case SupportedDbtAdapter.SNOWFLAKE: {
+            // Snowflake: convert to project TZ → truncate → convert back to UTC
+            // CONVERT_TIMEZONE source defaults to session TZ (data timezone)
+            const truncated = warehouseConfigs[
+                adapterType
+            ].getSqlForTruncatedDate(
+                timeFrame,
+                `CONVERT_TIMEZONE('UTC', '${tz}', ${baseSql})`,
+                DimensionType.TIMESTAMP,
+                startOfWeek,
+            );
+            return `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('${tz}', 'UTC', ${truncated}))`;
+        }
+
+        case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.REDSHIFT:
+        case SupportedDbtAdapter.DUCKDB: {
+            // The ::timestamptz cast ensures NTZ columns are interpreted
+            // using the session timezone (data timezone). For timestamptz
+            // columns the cast is a no-op. Without it, AT TIME ZONE on
+            // NTZ ignores the session timezone and treats the value as
+            // being in the specified timezone — which is wrong when
+            // data TZ ≠ project TZ.
+            //
+            // Flow:
+            //   NTZ col → ::timestamptz (session TZ) → AT TIME ZONE (project TZ)
+            //   TZ  col → ::timestamptz (no-op) → AT TIME ZONE (project TZ)
+            // Then DATE_TRUNC truncates at project TZ boundaries.
+            // The outer AT TIME ZONE converts the result back to
+            // timestamptz (UTC).
+            const inProjectTz = `(${baseSql})::timestamptz AT TIME ZONE '${tz}'`;
+            const truncated = warehouseConfigs[
+                adapterType
+            ].getSqlForTruncatedDate(
+                timeFrame,
+                inProjectTz,
+                DimensionType.TIMESTAMP,
+                startOfWeek,
+            );
+            return `(${truncated}) AT TIME ZONE '${tz}'`;
+        }
+
+        case SupportedDbtAdapter.DATABRICKS: {
+            // Databricks: normalize to UTC via session TZ (current_timezone),
+            // then convert to project TZ for truncation, then back to UTC.
+            // If no data TZ is set, current_timezone() defaults to UTC.
+            const inProjectTz = `from_utc_timestamp(to_utc_timestamp(${baseSql}, current_timezone()), '${tz}')`;
+            const truncated = warehouseConfigs[
+                adapterType
+            ].getSqlForTruncatedDate(
+                timeFrame,
+                inProjectTz,
+                DimensionType.TIMESTAMP,
+                startOfWeek,
+            );
+            return `to_utc_timestamp(${truncated}, '${tz}')`;
+        }
+
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA: {
+            // Cast to timestamp with time zone first — for NTZ this
+            // interprets via session timezone (data timezone), for
+            // timestamp with tz it's a no-op. Same pattern as Postgres
+            // ::timestamptz cast. Then AT TIME ZONE converts to project
+            // TZ for truncation, and the outer chain converts back to UTC.
+            const inProjectTz = `CAST(${baseSql} AS timestamp with time zone) AT TIME ZONE '${tz}'`;
+            const truncated = warehouseConfigs[
+                adapterType
+            ].getSqlForTruncatedDate(
+                timeFrame,
+                inProjectTz,
+                DimensionType.TIMESTAMP,
+                startOfWeek,
+            );
+            return `${truncated} AT TIME ZONE '${tz}' AT TIME ZONE 'UTC'`;
+        }
+
+        case SupportedDbtAdapter.CLICKHOUSE: {
+            // ClickHouse DateTime is UTC internally (epoch seconds) — no
+            // NTZ ambiguity. toTimeZone converts display to project TZ
+            // for truncation, then back to UTC.
+            const truncated = warehouseConfigs[
+                adapterType
+            ].getSqlForTruncatedDate(
+                timeFrame,
+                `toTimeZone(${baseSql}, '${tz}')`,
+                DimensionType.TIMESTAMP,
+                startOfWeek,
+            );
+            return `toTimeZone(${truncated}, 'UTC')`;
+        }
+
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unknown adapter type: ${adapterType}`,
+            );
+    }
 };

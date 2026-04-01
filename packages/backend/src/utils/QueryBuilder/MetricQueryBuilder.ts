@@ -25,6 +25,7 @@ import {
     getMetricsMapFromTables,
     getParsedReference,
     getPopComparisonConfigKey,
+    getTimezoneAwareDateTruncSql,
     hashPopComparisonConfigKeyToSuffix,
     hasPivotFunctions,
     hasRowFunctions,
@@ -61,6 +62,7 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { compilePostCalculationMetric } from '../../queryCompiler';
@@ -548,6 +550,51 @@ export class MetricQueryBuilder {
         );
     }
 
+    /**
+     * Returns timezone-aware dimension SQL when the dimension has a time
+     * interval and the query timezone is non-UTC. Looks up the base
+     * dimension's compiledSql (before DATE_TRUNC) and regenerates the
+     * DATE_TRUNC with timezone conversion.
+     */
+    private getTimezoneAwareDimensionSql(
+        dimension: CompiledDimension,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+    ): string {
+        const { timezone } = this.args;
+
+        // Only apply timezone-aware DATE_TRUNC when timezone is non-UTC
+        // and the dimension has a time interval
+        if (!dimension.timeInterval || timezone === 'UTC') {
+            return dimension.compiledSql;
+        }
+
+        // Look up the base dimension (without time interval) to check
+        // if it's a timestamp and get its compiledSql before DATE_TRUNC
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+
+        const baseDimension = baseDimensionId
+            ? this.exploreDimensions[baseDimensionId]
+            : undefined;
+
+        if (
+            !baseDimension?.compiledSql ||
+            baseDimension.type !== DimensionType.TIMESTAMP
+        ) {
+            return dimension.compiledSql;
+        }
+
+        return getTimezoneAwareDateTruncSql(
+            baseDimension.compiledSql,
+            dimension.timeInterval,
+            timezone,
+            adapterType,
+            startOfWeek,
+        );
+    }
+
     private buildDimensionsWhereClause(
         dimensionsFilterGroup?: FilterGroup,
     ): string | undefined {
@@ -730,7 +777,12 @@ export class MetricQueryBuilder {
         dimensionsObjects.forEach((dimension) => {
             const id = getItemId(dimension);
             const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
-            selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
+            const sql = this.getTimezoneAwareDimensionSql(
+                dimension,
+                adapterType,
+                startOfWeek,
+            );
+            selects[id] = `  ${sql} AS ${quotedAlias}`;
         });
 
         if (customBinDimensionSql?.selects) {
