@@ -126,7 +126,7 @@
         "rudder-sdk-js": "2.9.1",
         "scheduler": "0.23.2",
         "sql-formatter": "15.4.2",
-        "styled-components": "5.3.3",
+        "styled-components": "6.0.0",
         "tippy.js": "6.3.7",
         "topojson-client": "3.1.0",
         "type-fest": "4.32.0",
