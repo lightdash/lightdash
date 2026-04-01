@@ -1,3 +1,17 @@
+# [0.2709.0](https://github.com/lightdash/lightdash/compare/0.2708.0...0.2709.0) (2026-04-01)
+
+
+### Bug Fixes
+
+* only convert date dimensions in pivoted XLSX exports ([#21605](https://github.com/lightdash/lightdash/issues/21605)) ([a580fde](https://github.com/lightdash/lightdash/commit/a580fdee82bc5b10d2093ce8e7e7a14c5526a510))
+
+
+### Features
+
+* add agent context resource to MCP service ([#21625](https://github.com/lightdash/lightdash/issues/21625)) ([ded2f9c](https://github.com/lightdash/lightdash/commit/ded2f9c074600d344ac6ea074a52c0f7a0522468))
+* add cancel button for app generation ([#21644](https://github.com/lightdash/lightdash/issues/21644)) ([40e60e1](https://github.com/lightdash/lightdash/commit/40e60e1ebb76295316b4ed7d32a295c346b8057a))
+* add user permission filtering to MCP list projects tool ([#21632](https://github.com/lightdash/lightdash/issues/21632)) ([46644e7](https://github.com/lightdash/lightdash/commit/46644e7c124368e8f7d0812a5e39ae374d1a0128))
+
 # [0.2708.0](https://github.com/lightdash/lightdash/compare/0.2707.0...0.2708.0) (2026-04-01)
 
 
