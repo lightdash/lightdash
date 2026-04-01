@@ -1189,82 +1189,6 @@
                 "type": "object",
                 "additionalProperties": true
             },
-            "AllowedDomainType": {
-                "type": "string",
-                "enum": ["sdk", "embed"]
-            },
-            "AllowedDomain": {
-                "properties": {
-                    "createdByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "createdAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/AllowedDomainType"
-                    },
-                    "domain": {
-                        "type": "string"
-                    },
-                    "organizationAllowedDomainUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "createdByUserUuid",
-                    "createdAt",
-                    "type",
-                    "domain",
-                    "organizationAllowedDomainUuid"
-                ],
-                "type": "object"
-            },
-            "ApiOrganizationAllowedDomainsResponse": {
-                "properties": {
-                    "results": {
-                        "items": {
-                            "$ref": "#/components/schemas/AllowedDomain"
-                        },
-                        "type": "array"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiOrganizationAllowedDomainResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AllowedDomain"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "CreateAllowedDomain": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/AllowedDomainType"
-                    },
-                    "domain": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type", "domain"],
-                "type": "object"
-            },
             "Pick_Organization.name-or-createdAt-or-organizationUuid_": {
                 "properties": {
                     "name": {
@@ -23797,6 +23721,82 @@
                     }
                 },
                 "required": ["impersonationEnabled"],
+                "type": "object"
+            },
+            "AllowedDomainType": {
+                "type": "string",
+                "enum": ["sdk", "embed"]
+            },
+            "AllowedDomain": {
+                "properties": {
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/AllowedDomainType"
+                    },
+                    "domain": {
+                        "type": "string"
+                    },
+                    "organizationAllowedDomainUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserUuid",
+                    "createdAt",
+                    "type",
+                    "domain",
+                    "organizationAllowedDomainUuid"
+                ],
+                "type": "object"
+            },
+            "ApiOrganizationAllowedDomainsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AllowedDomain"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOrganizationAllowedDomainResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AllowedDomain"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateAllowedDomain": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/AllowedDomainType"
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "domain"],
                 "type": "object"
             },
             "NotificationBase": {

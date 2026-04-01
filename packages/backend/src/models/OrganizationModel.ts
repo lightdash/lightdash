@@ -1,4 +1,5 @@
 import {
+    AllowedDomain,
     CreateColorPalette,
     CreateOrganization,
     NotFoundError,
@@ -12,6 +13,9 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
+import {
+    OrganizationAllowedDomainsTableName,
+} from '../database/entities/organizationAllowedDomains';
 import {
     DbOrganizationColorPalette,
     OrganizationColorPaletteTableName,
@@ -517,5 +521,88 @@ export class OrganizationModel {
             isActive:
                 palette.color_palette_uuid === organization.color_palette_uuid,
         };
+    }
+
+    // --- Allowed Domains (CORS / iframe embedding) ---
+
+    private organizationIdSubquery(organizationUuid: string) {
+        return this.database(OrganizationTableName)
+            .select('organization_id')
+            .where('organization_uuid', organizationUuid)
+            .first();
+    }
+
+    private static mapDbAllowedDomain(row: {
+        organization_allowed_domain_uuid: string;
+        domain: string;
+        type: 'sdk' | 'embed';
+        created_at: Date;
+        created_by_user_uuid: string | null;
+    }): AllowedDomain {
+        return {
+            organizationAllowedDomainUuid:
+                row.organization_allowed_domain_uuid,
+            domain: row.domain,
+            type: row.type,
+            createdAt: row.created_at,
+            createdByUserUuid: row.created_by_user_uuid,
+        };
+    }
+
+    async getAllowedDomainsByOrganizationUuid(
+        organizationUuid: string,
+    ): Promise<AllowedDomain[]> {
+        const rows = await this.database(OrganizationAllowedDomainsTableName)
+            .where(
+                'organization_id',
+                this.organizationIdSubquery(organizationUuid),
+            )
+            .orderBy('created_at', 'asc');
+
+        return rows.map(OrganizationModel.mapDbAllowedDomain);
+    }
+
+    async getAllAllowedDomains(): Promise<AllowedDomain[]> {
+        const rows = await this.database(OrganizationAllowedDomainsTableName)
+            .orderBy('created_at', 'asc');
+
+        return rows.map(OrganizationModel.mapDbAllowedDomain);
+    }
+
+    async createAllowedDomain(
+        organizationUuid: string,
+        domain: string,
+        type: 'sdk' | 'embed',
+        createdByUserUuid: string,
+    ): Promise<AllowedDomain> {
+        const [row] = await this.database(OrganizationAllowedDomainsTableName)
+            .insert({
+                organization_id: this.organizationIdSubquery(organizationUuid),
+                domain,
+                type,
+                created_by_user_uuid: createdByUserUuid,
+            })
+            .returning('*');
+
+        return OrganizationModel.mapDbAllowedDomain(row);
+    }
+
+    async deleteAllowedDomain(
+        organizationUuid: string,
+        domainUuid: string,
+    ): Promise<void> {
+        const deleted = await this.database(
+            OrganizationAllowedDomainsTableName,
+        )
+            .where(
+                'organization_id',
+                this.organizationIdSubquery(organizationUuid),
+            )
+            .where('organization_allowed_domain_uuid', domainUuid)
+            .delete();
+
+        if (deleted === 0) {
+            throw new NotFoundError('Allowed domain not found');
+        }
     }
 }

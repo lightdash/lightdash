@@ -9,10 +9,8 @@ import {
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
-import { OrganizationAllowedDomainsModel } from '../models/OrganizationAllowedDomainsModel';
 
 type Dependencies = {
-    organizationAllowedDomainsModel: OrganizationAllowedDomainsModel;
     organizationModel: OrganizationModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
 };
@@ -80,16 +78,12 @@ function validateDomain(raw: string): string {
 }
 
 export class OrganizationAllowedDomainsService extends BaseService {
-    private readonly organizationAllowedDomainsModel: OrganizationAllowedDomainsModel;
-
     private readonly organizationModel: OrganizationModel;
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
     constructor(dependencies: Dependencies) {
         super();
-        this.organizationAllowedDomainsModel =
-            dependencies.organizationAllowedDomainsModel;
         this.organizationModel = dependencies.organizationModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
@@ -125,7 +119,7 @@ export class OrganizationAllowedDomainsService extends BaseService {
 
         await this.checkFeatureEnabled(user);
 
-        return this.organizationAllowedDomainsModel.getAllByOrganizationUuid(
+        return this.organizationModel.getAllowedDomainsByOrganizationUuid(
             organizationUuid,
         );
     }
@@ -145,7 +139,7 @@ export class OrganizationAllowedDomainsService extends BaseService {
 
         // Check for duplicates (DB constraint will also catch this, but nicer error)
         const existing =
-            await this.organizationAllowedDomainsModel.getAllByOrganizationUuid(
+            await this.organizationModel.getAllowedDomainsByOrganizationUuid(
                 organizationUuid,
             );
         if (existing.some((d) => d.domain === validatedDomain)) {
@@ -154,7 +148,7 @@ export class OrganizationAllowedDomainsService extends BaseService {
             );
         }
 
-        return this.organizationAllowedDomainsModel.create(
+        return this.organizationModel.createAllowedDomain(
             organizationUuid,
             validatedDomain,
             body.type,
@@ -173,7 +167,7 @@ export class OrganizationAllowedDomainsService extends BaseService {
 
         await this.checkFeatureEnabled(user);
 
-        await this.organizationAllowedDomainsModel.delete(
+        await this.organizationModel.deleteAllowedDomain(
             organizationUuid,
             domainUuid,
         );
@@ -184,6 +178,6 @@ export class OrganizationAllowedDomainsService extends BaseService {
      * which fires before auth (no org context available).
      */
     async getAllDomainsForMiddleware(): Promise<AllowedDomain[]> {
-        return this.organizationAllowedDomainsModel.getAllDomains();
+        return this.organizationModel.getAllAllowedDomains();
     }
 }

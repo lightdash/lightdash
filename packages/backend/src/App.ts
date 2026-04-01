@@ -15,7 +15,7 @@ import {
     SessionUser,
     UnexpectedServerError,
 } from '@lightdash/common';
-import { OrganizationAllowedDomainsModel } from './ee/models/OrganizationAllowedDomainsModel';
+import { OrganizationModel } from './models/OrganizationModel';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -333,12 +333,12 @@ export default class App {
         }
 
         try {
-            const model = this.models.getOrganizationAllowedDomainsModel<OrganizationAllowedDomainsModel>();
-            const domains = await model.getAllDomains();
+            const model = this.models.getOrganizationModel();
+            const domains = await model.getAllAllowedDomains();
             this.allowedDomainsCache = { domains, lastFetched: now };
             return domains;
         } catch {
-            // If the model is not available (non-EE), return empty
+            // If the table doesn't exist yet (pre-migration), return empty
             return this.allowedDomainsCache?.domains ?? [];
         }
     }

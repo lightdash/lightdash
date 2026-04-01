@@ -131,7 +131,6 @@ export type ModelManifest = {
     embedModel: unknown;
     dashboardSummaryModel: unknown;
     serviceAccountModel: unknown;
-    organizationAllowedDomainsModel: unknown;
 };
 
 /**
@@ -693,10 +692,6 @@ export class ModelRepository
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {
         return this.getModel('serviceAccountModel');
-    }
-
-    public getOrganizationAllowedDomainsModel<ModelImplT>(): ModelImplT {
-        return this.getModel('organizationAllowedDomainsModel');
     }
 
     public getSpotlightTableConfigModel(): SpotlightTableConfigModel {
