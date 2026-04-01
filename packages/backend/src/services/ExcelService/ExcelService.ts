@@ -12,7 +12,9 @@ import {
     ItemsMap,
     MetricQuery,
     PivotConfig,
+    pivotResultsAsCsv,
     pivotResultsAsData,
+    ResultRow,
     timeIntervalToExcelNumFmt,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
@@ -35,6 +37,16 @@ import {
 
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
+
+    static convertToExcelDate(value: unknown): Date | unknown {
+        if (typeof value === 'string') {
+            const dateValue = moment(value, moment.ISO_8601, true);
+            if (dateValue.isValid()) {
+                return dateValue.toDate();
+            }
+        }
+        return value;
+    }
 
     static generateFileId(
         fileName: string,
@@ -106,6 +118,7 @@ export class ExcelService {
         customLabels,
         maxColumnLimit,
         pivotDetails,
+        enableImprovedExcelDates = false,
     }: {
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
@@ -115,8 +128,22 @@ export class ExcelService {
         customLabels: Record<string, string> | undefined;
         maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        enableImprovedExcelDates?: boolean;
     }): Promise<Excel.Buffer> {
         const formattedRows = formatRows(rows, itemMap);
+
+        if (!enableImprovedExcelDates) {
+            return ExcelService.downloadPivotTableXlsxLegacy({
+                formattedRows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw,
+                customLabels,
+                maxColumnLimit,
+                pivotDetails,
+            });
+        }
 
         const pivotData = pivotResultsAsData({
             pivotConfig,
@@ -220,6 +247,75 @@ export class ExcelService {
         return workbook.xlsx.writeBuffer();
     }
 
+    private static async downloadPivotTableXlsxLegacy({
+        formattedRows,
+        itemMap,
+        metricQuery,
+        pivotConfig,
+        onlyRaw,
+        customLabels,
+        maxColumnLimit,
+        pivotDetails,
+    }: {
+        formattedRows: ResultRow[];
+        itemMap: ItemsMap;
+        metricQuery: MetricQuery;
+        pivotConfig: PivotConfig;
+        onlyRaw: boolean;
+        customLabels: Record<string, string> | undefined;
+        maxColumnLimit: number;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    }): Promise<Excel.Buffer> {
+        const csvResults = pivotResultsAsCsv({
+            pivotConfig,
+            rows: formattedRows,
+            itemMap,
+            metricQuery,
+            customLabels,
+            onlyRaw,
+            maxColumnLimit,
+            pivotDetails,
+        });
+
+        const workbook = new Excel.Workbook();
+        const worksheet = workbook.addWorksheet('Pivot Table');
+
+        csvResults.forEach((row, index) => {
+            const excelRow = row.map((value) =>
+                ExcelService.convertToExcelDate(value),
+            );
+            worksheet.addRow(excelRow);
+
+            if (index === 0) {
+                const headerRow = worksheet.getRow(1);
+                headerRow.font = { bold: true };
+                headerRow.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE0E0E0' },
+                };
+            }
+        });
+
+        worksheet.columns.forEach((column, index) => {
+            if (column) {
+                let maxLength = 0;
+                csvResults.forEach((row) => {
+                    if (
+                        row[index] &&
+                        row[index].toString().length > maxLength
+                    ) {
+                        maxLength = row[index].toString().length;
+                    }
+                });
+                // eslint-disable-next-line no-param-reassign
+                column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+            }
+        });
+
+        return workbook.xlsx.writeBuffer();
+    }
+
     /**
      * Downloads pivot table XLSX from async query results file
      * Handles loading data from JSONL storage file and generating pivot Excel file
@@ -298,6 +394,8 @@ export class ExcelService {
             customLabels,
             maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            enableImprovedExcelDates:
+                lightdashConfig.pivotTable.enableImprovedExcelDates,
         });
 
         // Upload the Excel buffer to exports bucket using cross-bucket transform

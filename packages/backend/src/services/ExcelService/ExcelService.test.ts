@@ -761,6 +761,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -904,6 +905,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1039,6 +1041,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1177,6 +1180,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1300,6 +1304,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1414,6 +1419,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1523,6 +1529,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1632,6 +1639,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();
@@ -1749,6 +1757,7 @@ describe('ExcelService', () => {
                 customLabels: undefined,
                 maxColumnLimit: 60,
                 pivotDetails: null,
+                enableImprovedExcelDates: true,
             });
 
             const workbook = new (await import('exceljs')).Workbook();

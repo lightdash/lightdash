@@ -1032,6 +1032,7 @@ export type LightdashConfig = {
     };
     pivotTable: {
         maxColumnLimit: number;
+        enableImprovedExcelDates: boolean;
     };
     chart: {
         versionHistory: {
@@ -1965,6 +1966,9 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
                 ) || 200,
+            enableImprovedExcelDates:
+                process.env.LIGHTDASH_PIVOT_TABLE_IMPROVED_EXCEL_DATES ===
+                'true',
         },
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
