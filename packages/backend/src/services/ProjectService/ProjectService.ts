@@ -1572,6 +1572,26 @@ export class ProjectService extends BaseService {
                         }),
                     ),
                 );
+
+                const { schedulerTimezone } = await this.projectModel.get(
+                    args.projectUuid,
+                );
+
+                await this.schedulerClient.schedulePreAggregateCronJobs(
+                    materializableDefinitions
+                        .filter((definition) => definition.refreshCron !== null)
+                        .map((definition) => ({
+                            organizationUuid: args.organizationUuid,
+                            projectUuid: args.projectUuid,
+                            createdByUserUuid: args.userUuid,
+                            preAggregateDefinitionUuid:
+                                definition.preAggregateDefinitionUuid,
+                            refreshCron: definition.refreshCron!,
+                            schedulerTimezone,
+                            preAggExploreName: undefined,
+                        })),
+                    new Date(),
+                );
             }
         } catch (error) {
             this.logger.error(

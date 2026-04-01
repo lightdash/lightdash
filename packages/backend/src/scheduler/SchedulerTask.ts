@@ -159,7 +159,7 @@ import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
-import { getDailyDatesFromCron, SchedulerClient } from './SchedulerClient';
+import { SchedulerClient } from './SchedulerClient';
 
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
@@ -1746,6 +1746,12 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (error) {
+            if (payload.trigger === 'cron' && error instanceof NotFoundError) {
+                await this.schedulerClient.deleteScheduledPreAggregateCronJobsForDefinition(
+                    payload.preAggregateDefinitionUuid,
+                );
+            }
+
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: {
@@ -1780,38 +1786,29 @@ export default class SchedulerTask {
                 }
 
                 try {
-                    const materializationDates = getDailyDatesFromCron(
-                        {
-                            cron: definition.refreshCron,
-                            timezone:
-                                definition.schedulerTimezone || TimeZone.UTC,
-                        },
-                        currentDateStartOfDay,
-                    );
+                    const scheduledJobs =
+                        await this.schedulerClient.schedulePreAggregateCronJobs(
+                            [
+                                {
+                                    organizationUuid:
+                                        definition.organizationUuid,
+                                    projectUuid: definition.projectUuid,
+                                    createdByUserUuid,
+                                    preAggregateDefinitionUuid:
+                                        definition.preAggregateDefinitionUuid,
+                                    refreshCron: definition.refreshCron,
+                                    schedulerTimezone:
+                                        definition.schedulerTimezone ||
+                                        TimeZone.UTC,
+                                    preAggExploreName:
+                                        definition.preAggExploreName,
+                                },
+                            ],
+                            currentDateStartOfDay,
+                            true,
+                        );
 
-                    const materializationJobs = materializationDates.map(
-                        (runAt) =>
-                            this.schedulerClient
-                                .materializePreAggregate(
-                                    {
-                                        organizationUuid:
-                                            definition.organizationUuid,
-                                        projectUuid: definition.projectUuid,
-                                        userUuid: createdByUserUuid,
-                                        preAggregateDefinitionUuid:
-                                            definition.preAggregateDefinitionUuid,
-                                        trigger: 'cron',
-                                    },
-                                    runAt,
-                                )
-                                .then(({ jobId }) => ({
-                                    jobId,
-                                    runAt,
-                                })),
-                    );
-
-                    // eslint-disable-next-line no-await-in-loop
-                    for await (const { jobId, runAt } of materializationJobs) {
+                    scheduledJobs.forEach(({ jobId, runAt }) => {
                         totalScheduledJobs += 1;
 
                         Logger.info(
@@ -1825,7 +1822,7 @@ export default class SchedulerTask {
                                 runAt,
                             },
                         );
-                    }
+                    });
                 } catch (error) {
                     Logger.error(
                         `Failed scheduling pre-aggregate cron jobs for definition ${definition.preAggregateDefinitionUuid} in project ${definition.projectUuid}: ${getErrorMessage(

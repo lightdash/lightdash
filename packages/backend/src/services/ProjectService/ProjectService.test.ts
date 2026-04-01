@@ -172,7 +172,11 @@ const userAttributesModel = {
 };
 
 const schedulerClient = {
+    deleteScheduledPreAggregateCronJobsForProject: jest.fn(
+        async () => undefined,
+    ),
     materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
+    schedulePreAggregateCronJobs: jest.fn(async () => []),
 };
 
 const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
