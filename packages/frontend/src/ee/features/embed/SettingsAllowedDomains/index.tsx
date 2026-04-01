@@ -25,19 +25,19 @@ import {
 const DOMAIN_TYPE_OPTIONS = [
     {
         value: 'embed',
-        label: 'Embedding',
-        description: 'Allow this domain to embed Lightdash in an iframe',
+        label: 'Embed (iframe)',
+        description: 'Embeds Lightdash dashboards in an iframe',
     },
     {
         value: 'sdk',
-        label: 'API only',
-        description: 'Allow this domain to make API requests',
+        label: 'SDK & API',
+        description: 'Connects to Lightdash via the SDK or API',
     },
 ];
 
 const TYPE_LABELS: Record<AllowedDomainType, string> = {
-    embed: 'Embedding',
-    sdk: 'API only',
+    embed: 'Embed (iframe)',
+    sdk: 'SDK & API',
 };
 
 const AllowedDomainsPanel: FC = () => {
@@ -80,7 +80,6 @@ const AllowedDomainsPanel: FC = () => {
     return (
         <Stack gap="lg">
             <Stack gap="xs">
-                <Title order={6}>Allowed domains</Title>
                 {domains && domains.length > 0 ? (
                     <Stack gap="xs">
                         {domains.map((domain) => (
