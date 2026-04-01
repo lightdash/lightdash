@@ -1,3 +1,10 @@
+## [0.2709.3](https://github.com/lightdash/lightdash/compare/0.2709.2...0.2709.3) (2026-04-01)
+
+
+### Performance Improvements
+
+* lazy-render ValueCellMenu dropdown and wrap in memo ([#21651](https://github.com/lightdash/lightdash/issues/21651)) ([520ad28](https://github.com/lightdash/lightdash/commit/520ad28742342ba7328e876bacaed0a298726ec9))
+
 ## [0.2709.2](https://github.com/lightdash/lightdash/compare/0.2709.1...0.2709.2) (2026-04-01)
 
 
