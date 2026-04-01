@@ -824,6 +824,8 @@ const getBedrockConfig = () => {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
             region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -838,6 +840,8 @@ const getBedrockConfig = () => {
             secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
             sessionToken: process.env.BEDROCK_SESSION_TOKEN,
             region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,

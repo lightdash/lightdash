@@ -72,6 +72,7 @@ export const aiCopilotConfigSchema = z
                     z.object({
                         apiKey: z.string(),
                         region: z.string(),
+                        inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
@@ -85,6 +86,7 @@ export const aiCopilotConfigSchema = z
                         accessKeyId: z.string(),
                         secretAccessKey: z.string(),
                         sessionToken: z.string().optional(),
+                        inferenceProfilePrefix: z.string().optional(),
                         modelName: z
                             .string()
                             .default(DEFAULT_BEDROCK_MODEL_NAME),
