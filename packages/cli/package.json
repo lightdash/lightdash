@@ -47,7 +47,7 @@
     "commander": "9.5.0",
     "execa": "5.1.1",
     "google-auth-library": "9.15.1",
-    "inquirer": "8.2.4",
+    "inquirer": "9.3.0",
     "js-yaml": "4.1.1",
     "lodash": "4.17.23",
     "node-fetch": "2.7.0",
