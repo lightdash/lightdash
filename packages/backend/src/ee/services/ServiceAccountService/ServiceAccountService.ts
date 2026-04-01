@@ -56,12 +56,14 @@ export class ServiceAccountService extends BaseService {
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
     }
 
-    private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
+    private throwForbiddenErrorOnNoPermission(user: SessionUser) {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
@@ -79,7 +81,7 @@ export class ServiceAccountService extends BaseService {
         prefix?: string;
     }): Promise<ServiceAccount> {
         try {
-            ServiceAccountService.throwForbiddenErrorOnNoPermission(user);
+            this.throwForbiddenErrorOnNoPermission(user);
             const token = await this.serviceAccountModel.create({
                 user,
                 data: {
@@ -120,7 +122,7 @@ export class ServiceAccountService extends BaseService {
         tokenUuid: string;
     }): Promise<void> {
         try {
-            ServiceAccountService.throwForbiddenErrorOnNoPermission(user);
+            this.throwForbiddenErrorOnNoPermission(user);
             const organizationUuid = user.organizationUuid as string;
             // get by uuid to check if token exists
             const token =
@@ -171,7 +173,7 @@ export class ServiceAccountService extends BaseService {
         update: { expiresAt: Date };
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
-        ServiceAccountService.throwForbiddenErrorOnNoPermission(user);
+        this.throwForbiddenErrorOnNoPermission(user);
 
         if (update.expiresAt.getTime() < Date.now()) {
             throw new ParameterError('Expire time must be in the future');
@@ -225,7 +227,7 @@ export class ServiceAccountService extends BaseService {
         user: SessionUser;
         tokenUuid: string;
     }): Promise<ServiceAccount> {
-        ServiceAccountService.throwForbiddenErrorOnNoPermission(user);
+        this.throwForbiddenErrorOnNoPermission(user);
 
         // get by uuid to check if token exists
         const existingToken =
@@ -245,7 +247,7 @@ export class ServiceAccountService extends BaseService {
         scopes: ServiceAccountScope[],
     ): Promise<ServiceAccount[]> {
         try {
-            ServiceAccountService.throwForbiddenErrorOnNoPermission(user);
+            this.throwForbiddenErrorOnNoPermission(user);
             const organizationUuid = user.organizationUuid as string;
             const tokens = await this.serviceAccountModel.getAllForOrganization(
                 organizationUuid,

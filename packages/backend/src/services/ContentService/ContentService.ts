@@ -86,6 +86,7 @@ export class ContentService extends BaseService {
         queryArgs: ContentArgs,
         paginateArgs: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<SummaryContent[]>> {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
@@ -101,9 +102,10 @@ export class ContentService extends BaseService {
             )
         )
             .filter((project) =>
-                user.ability.can(
+                auditedAbility.can(
                     'view',
                     subject('Project', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: project.projectUuid,
                     }),
@@ -201,12 +203,13 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', { uuid: '', organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -291,12 +294,13 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', { uuid: '', organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -360,6 +364,7 @@ export class ContentService extends BaseService {
         filters: DeletedContentFilters,
         paginateArgs?: KnexPaginateArgs,
     ): Promise<KnexPaginatedData<DeletedContentWithDescendants[]>> {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
@@ -372,18 +377,22 @@ export class ContentService extends BaseService {
 
         // Check project access
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', { uuid: '', organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
         }
 
         // Non-admins can only see their own deleted content
-        const isAdmin = user.ability.can(
+        const isAdmin = auditedAbility.can(
             'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
+            subject('DeletedContent', {
+                uuid: '',
+                organizationUuid,
+                projectUuid,
+            }),
         );
         const deletedByUserUuids = isAdmin
             ? filters.deletedByUserUuids
@@ -418,12 +427,13 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', { uuid: '', organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -463,12 +473,13 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', { uuid: '', organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();

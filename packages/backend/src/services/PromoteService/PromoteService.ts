@@ -368,6 +368,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'manage',
                     subject('Space', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
                         inheritsFromOrgOrProject:
@@ -387,6 +388,7 @@ export class PromoteService extends BaseService {
             user.ability.cannot(
                 'create',
                 subject('Space', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: upstreamContent.projectUuid,
                 }),
@@ -412,6 +414,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'promote',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: promotedChart.projectUuid,
                         inheritsFromOrgOrProject:
@@ -431,6 +434,7 @@ export class PromoteService extends BaseService {
             user.ability.cannot(
                 'promote',
                 subject('SavedChart', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: promotedChart.projectUuid,
                 }),
@@ -451,6 +455,7 @@ export class PromoteService extends BaseService {
                     user.ability.cannot(
                         'promote',
                         subject('SavedChart', {
+                            uuid: '',
                             organizationUuid,
                             projectUuid: upstreamChart.projectUuid,
                             inheritsFromOrgOrProject:
@@ -471,6 +476,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'promote',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                     }),
@@ -488,6 +494,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'manage',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                         access: upstreamChart.spaceAccessContext?.access ?? [],
@@ -517,6 +524,7 @@ export class PromoteService extends BaseService {
             user.ability.cannot(
                 'promote',
                 subject('SavedChart', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: promotedSqlChart.projectUuid,
                     inheritsFromOrgOrProject:
@@ -539,6 +547,7 @@ export class PromoteService extends BaseService {
                     user.ability.cannot(
                         'promote',
                         subject('SavedChart', {
+                            uuid: '',
                             organizationUuid,
                             projectUuid: upstreamSqlChart.projectUuid,
                             inheritsFromOrgOrProject:
@@ -560,6 +569,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'promote',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                     }),
@@ -576,6 +586,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'manage',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                         access:
@@ -605,6 +616,7 @@ export class PromoteService extends BaseService {
             user.ability.cannot(
                 'promote',
                 subject('Dashboard', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: promotedDashboard.projectUuid,
                     inheritsFromOrgOrProject:
@@ -627,6 +639,7 @@ export class PromoteService extends BaseService {
                     user.ability.cannot(
                         'promote',
                         subject('Dashboard', {
+                            uuid: '',
                             organizationUuid,
                             projectUuid: upstreamDashboard.projectUuid,
                             inheritsFromOrgOrProject:
@@ -646,6 +659,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'promote',
                     subject('Dashboard', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                     }),
@@ -661,6 +675,7 @@ export class PromoteService extends BaseService {
                 user.ability.cannot(
                     'manage',
                     subject('Dashboard', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                         access:

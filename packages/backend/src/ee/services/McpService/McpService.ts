@@ -719,10 +719,12 @@ export class McpService extends BaseService {
                     account,
                 );
 
+                const auditedAbility = this.createAuditedAbility(user);
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'view',
                         subject('Project', {
+                            uuid: '',
                             projectUuid: args.projectUuid,
                             organizationUuid: project.organizationUuid,
                         }),
@@ -1923,10 +1925,12 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
+                    uuid: '',
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -2024,10 +2028,12 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
+                    uuid: '',
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -2099,10 +2105,12 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
+                    uuid: '',
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -2167,10 +2175,12 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
+                    uuid: '',
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -2228,10 +2238,12 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
+                    uuid: '',
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),

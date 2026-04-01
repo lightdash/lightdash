@@ -367,6 +367,7 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const userToDelete =
             await this.userModel.getUserDetailsByUuid(userUuidToDelete);
         // The user might not have an org yet
@@ -375,9 +376,10 @@ export class UserService extends BaseService {
             // We assume only one org per user
 
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('OrganizationMemberProfile', {
+                        uuid: userUuidToDelete,
                         organizationUuid: userToDelete.organizationUuid,
                     }),
                 )
@@ -427,10 +429,14 @@ export class UserService extends BaseService {
         // We assume users can only have one org
         const { organizationUuid } = user;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('InviteLink', { organizationUuid }),
+                subject('InviteLink', {
+                    uuid: '',
+                    organizationUuid: organizationUuid || '',
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -456,9 +462,12 @@ export class UserService extends BaseService {
         }
 
         let userUuid: string;
-        const userRole = user.ability.can(
+        const userRole = auditedAbility.can(
             'manage',
-            subject('OrganizationMemberProfile', { organizationUuid }),
+            subject('OrganizationMemberProfile', {
+                uuid: '',
+                organizationUuid,
+            }),
         )
             ? role || OrganizationMemberRole.MEMBER
             : OrganizationMemberRole.MEMBER;
@@ -525,10 +534,14 @@ export class UserService extends BaseService {
         // We assume users can only have one org
         const { organizationUuid } = user;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'delete',
-                subject('InviteLink', { organizationUuid }),
+                subject('InviteLink', {
+                    uuid: '',
+                    organizationUuid: organizationUuid || '',
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -983,11 +996,13 @@ export class UserService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         if (organizationName) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'update',
                     subject('Organization', {
+                        uuid: user.organizationUuid,
                         organizationUuid: user.organizationUuid,
                     }),
                 )
@@ -1358,7 +1373,16 @@ export class UserService extends BaseService {
         if (!user.isActive) {
             throw new DeactivatedAccountError();
         }
-        if (user.ability.cannot('view', subject('PersonalAccessToken', {}))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('PersonalAccessToken', {
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to login with personal access tokens',
             );
@@ -1623,14 +1647,17 @@ export class UserService extends BaseService {
 
         if (projects.length === 0) return;
 
+        const auditedAbility = this.createAuditedAbility(sessionUser);
         await Promise.all(
             projects.map(async (project) => {
                 if (
-                    sessionUser.ability.cannot(
+                    auditedAbility.cannot(
                         'manage',
                         subject('SavedChart', {
+                            uuid: '',
                             projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid,
+                            organizationUuid:
+                                sessionUser.organizationUuid || '',
                             access: [
                                 {
                                     userUuid: sessionUser.userUuid,
@@ -1641,11 +1668,13 @@ export class UserService extends BaseService {
                             ],
                         }),
                     ) ||
-                    sessionUser.ability.cannot(
+                    auditedAbility.cannot(
                         'manage',
                         subject('Explore', {
+                            uuid: '',
                             projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid,
+                            organizationUuid:
+                                sessionUser.organizationUuid || '',
                         }),
                     )
                 )
@@ -1681,6 +1710,7 @@ export class UserService extends BaseService {
         clearImpersonation: () => void,
     ): Promise<SessionUser> {
         const requestUser = await this.findSessionUser(passportUser);
+        const auditedAbility = this.createAuditedAbility(requestUser);
 
         if (!impersonation) {
             return requestUser;
@@ -1710,10 +1740,11 @@ export class UserService extends BaseService {
         // Validate admin can still impersonate
         if (
             !requestUser.isActive ||
-            requestUser.ability.cannot(
+            auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
-                    organizationUuid: requestUser.organizationUuid,
+                    uuid: requestUser.userUuid,
+                    organizationUuid: requestUser.organizationUuid || '',
                     isActive: requestUser.isActive,
                 }),
             )
@@ -2337,6 +2368,7 @@ export class UserService extends BaseService {
             }) => void;
         },
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(adminUser);
         if (!(await this.isImpersonationEnabled(adminUser))) {
             throw new ForbiddenError('User impersonation is not enabled');
         }
@@ -2365,10 +2397,11 @@ export class UserService extends BaseService {
 
         // Check permissions using CASL (includes org match and isActive)
         if (
-            adminUser.ability.cannot(
+            auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
-                    organizationUuid: targetUser.organizationUuid,
+                    uuid: targetUserUuid,
+                    organizationUuid: targetUser.organizationUuid || '',
                     isActive: targetUser.isActive,
                 }),
             )

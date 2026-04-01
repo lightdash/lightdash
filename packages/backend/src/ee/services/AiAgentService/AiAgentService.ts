@@ -336,6 +336,7 @@ export class AiAgentService {
             user.ability.can(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid: agent.organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -400,6 +401,7 @@ export class AiAgentService {
             user.ability.can(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid: agent.organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -736,6 +738,7 @@ export class AiAgentService {
             user.ability.can(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -1039,6 +1042,7 @@ export class AiAgentService {
             user.ability.cannot(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: body.projectUuid,
                 }),
@@ -1098,6 +1102,7 @@ export class AiAgentService {
             user.ability.cannot(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -1161,6 +1166,7 @@ export class AiAgentService {
             user.ability.cannot(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -1298,6 +1304,7 @@ export class AiAgentService {
             const canManageAgent = user.ability.can(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid,
                     projectUuid: prompt.projectUuid,
                 }),
@@ -1341,6 +1348,7 @@ export class AiAgentService {
             const canManageAgent = user.ability.can(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid,
                     projectUuid: prompt.projectUuid,
                 }),
@@ -1417,6 +1425,7 @@ export class AiAgentService {
             user.ability.cannot(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid,
                     projectUuid,
                 }),
@@ -1928,6 +1937,7 @@ export class AiAgentService {
             user.ability.cannot(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -2119,6 +2129,7 @@ export class AiAgentService {
             user.ability.cannot(
                 'view',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: agent.projectUuid,
                 }),
@@ -3325,6 +3336,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         const canManageAgent = user.ability.can(
             'manage',
             subject('AiAgent', {
+                uuid: '',
                 organizationUuid: slackPrompt.organizationUuid,
                 projectUuid: slackPrompt.projectUuid,
             }),

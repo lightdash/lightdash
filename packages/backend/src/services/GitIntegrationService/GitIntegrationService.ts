@@ -586,10 +586,12 @@ Affected charts:
 
         if (fields.length === 0) throw new ParseError(`Missing ${typeName}s`);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -938,10 +940,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         exploreName: string,
     ): Promise<{ content: string; sha: string; filePath: string }> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1010,10 +1014,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         exploreName: string,
     ): Promise<{ filePath: string }> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1054,11 +1060,13 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         prTitle: string,
         prDescription: string,
     ): Promise<PullRequestCreated> {
+        const auditedAbility = this.createAuditedAbility(user);
         // PR creates its own feature branch, so always allow (isProtectedBranch: false)
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
@@ -1222,10 +1230,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         user: SessionUser,
         projectUuid: string,
     ): Promise<GitBranch[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1270,10 +1280,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branch: string,
         path?: string,
     ): Promise<GitFileOrDirectory> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1356,13 +1368,15 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         sha?: string,
         message?: string,
     ): Promise<{ sha: string; path: string }> {
+        const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
         const isProtectedBranch = branch === protectedBranch;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
@@ -1454,13 +1468,15 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         sha: string,
         message?: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
         const isProtectedBranch = branch === protectedBranch;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
@@ -1507,10 +1523,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branchName: string,
         sourceBranch: string,
     ): Promise<GitBranch> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
@@ -1577,10 +1595,12 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         title: string,
         description: string,
     ): Promise<PullRequestCreated> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,

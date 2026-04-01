@@ -45,13 +45,15 @@ export class ShareService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         const shareUrl = await this.shareModel.getSharedUrl(nanoid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('OrganizationMemberProfile', {
-                    organizationUuid: shareUrl.organizationUuid,
+                    uuid: '',
+                    organizationUuid: shareUrl.organizationUuid || '',
                 }),
             )
         ) {

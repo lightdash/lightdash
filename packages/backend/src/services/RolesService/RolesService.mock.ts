@@ -22,6 +22,8 @@ export const mockAccount = {
         ability: {
             can: jest.fn(() => true),
             cannot: jest.fn(() => false),
+            relevantRuleFor: jest.fn(() => null),
+            rules: [],
         } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         isTrackingAnonymized: false,
@@ -53,6 +55,8 @@ export const mockAccountNoAccess = {
         ability: {
             can: jest.fn(() => false),
             cannot: jest.fn(() => true),
+            relevantRuleFor: jest.fn(() => null),
+            rules: [],
         } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
     },
 } as SessionAccount;

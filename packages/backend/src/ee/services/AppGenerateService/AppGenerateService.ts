@@ -828,11 +828,13 @@ export class AppGenerateService extends BaseService {
         prompt: string,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
@@ -960,11 +962,13 @@ export class AppGenerateService extends BaseService {
         prompt: string,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
@@ -1092,11 +1096,13 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
     }> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
@@ -1351,11 +1357,13 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): string {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )

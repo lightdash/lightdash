@@ -39,7 +39,7 @@ export const validateUserAttributeOverrides = (
     if (
         user.ability.cannot(
             'manage',
-            subject('Organization', { organizationUuid }),
+            subject('Organization', { uuid: '', organizationUuid }),
         )
     ) {
         throw new ForbiddenError(
