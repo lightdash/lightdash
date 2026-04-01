@@ -125,9 +125,7 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.query.retryQueryOnTransientErrors,
             },
             dashboard: this.lightdashConfig.dashboard,
-            pivotTable: {
-                maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            },
+            pivotTable: this.lightdashConfig.pivotTable,
             hasSlack: this.hasSlackConfig(),
             hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,
             hasGitlab:

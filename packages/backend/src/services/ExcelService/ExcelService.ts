@@ -394,8 +394,7 @@ export class ExcelService {
             customLabels,
             maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
-            enableImprovedExcelDates:
-                lightdashConfig.pivotTable.enableImprovedExcelDates,
+            enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
         });
 
         // Upload the Excel buffer to exports bucket using cross-bucket transform
