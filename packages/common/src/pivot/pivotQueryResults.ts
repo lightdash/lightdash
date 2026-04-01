@@ -4,6 +4,7 @@ import { type Entries } from 'type-fest';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
+    DimensionType,
     FieldType,
     isDimension,
     isField,
@@ -18,6 +19,7 @@ import {
     type TotalField,
 } from '../types/pivot';
 import { type ResultRow, type ResultValue } from '../types/results';
+import { TimeFrames } from '../types/timeFrames';
 import { getArrayValue, getObjectValue } from '../utils/accessors';
 import { formatItemValue } from '../utils/formatting';
 
@@ -1484,17 +1486,64 @@ export const convertSqlPivotedRowsToPivotData = ({
     return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
 
-export const pivotResultsAsCsv = ({
-    pivotConfig,
-    rows,
-    itemMap,
-    metricQuery,
-    customLabels,
-    onlyRaw,
-    maxColumnLimit,
-    undefinedCharacter = '',
-    pivotDetails,
-}: {
+export type PivotResultsDataCell = {
+    raw: unknown;
+    formatted: string;
+    fieldId: string;
+};
+
+export type PivotResultsData = {
+    headers: string[][];
+    dataRows: Array<Array<PivotResultsDataCell>>;
+    fieldIds: string[];
+    hasIndex: boolean;
+};
+
+const NATIVE_DATE_TIME_FRAMES = new Set<TimeFrames>([
+    TimeFrames.YEAR,
+    TimeFrames.MONTH,
+    TimeFrames.DAY,
+    TimeFrames.HOUR,
+    TimeFrames.MINUTE,
+    TimeFrames.SECOND,
+    TimeFrames.MILLISECOND,
+    TimeFrames.RAW,
+]);
+
+export function timeIntervalToExcelNumFmt(
+    timeInterval: TimeFrames | undefined,
+    dimensionType: DimensionType,
+): string | null {
+    if (timeInterval && !NATIVE_DATE_TIME_FRAMES.has(timeInterval)) {
+        return null;
+    }
+
+    switch (timeInterval) {
+        case TimeFrames.YEAR:
+            return 'yyyy';
+        case TimeFrames.MONTH:
+            return 'yyyy-mm';
+        case TimeFrames.DAY:
+            return 'yyyy-mm-dd';
+        case TimeFrames.HOUR:
+            return 'yyyy-mm-dd hh:00';
+        case TimeFrames.MINUTE:
+            return 'yyyy-mm-dd hh:mm';
+        case TimeFrames.SECOND:
+            return 'yyyy-mm-dd hh:mm:ss';
+        case TimeFrames.MILLISECOND:
+            return 'yyyy-mm-dd hh:mm:ss.000';
+        case TimeFrames.RAW:
+        case undefined:
+            return dimensionType === DimensionType.TIMESTAMP
+                ? 'yyyy-mm-dd hh:mm:ss'
+                : 'yyyy-mm-dd';
+        default:
+            return null;
+    }
+}
+
+type PivotResultsParams = {
     pivotConfig: PivotConfig;
     pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     rows: ResultRow[];
@@ -1504,7 +1553,19 @@ export const pivotResultsAsCsv = ({
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
-}) => {
+};
+
+export const pivotResultsAsData = ({
+    pivotConfig,
+    rows,
+    itemMap,
+    metricQuery,
+    customLabels,
+    onlyRaw,
+    maxColumnLimit,
+    undefinedCharacter = '',
+    pivotDetails,
+}: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
         if (customLabel !== undefined) return customLabel;
@@ -1518,7 +1579,7 @@ export const pivotResultsAsCsv = ({
               rows,
               pivotDetails,
               pivotConfig,
-              groupedSubtotals: undefined, // TODO: is this something that we have?
+              groupedSubtotals: undefined,
           })
         : pivotQueryResults({
               pivotConfig,
@@ -1527,9 +1588,10 @@ export const pivotResultsAsCsv = ({
               options: {
                   maxColumns: maxColumnLimit,
               },
-              getField: (fieldId: string) => itemMap && itemMap[fieldId], // itemsMap && itemsMap[fieldId],
+              getField: (fieldId: string) => itemMap && itemMap[fieldId],
               getFieldLabel,
           });
+
     const formatField = onlyRaw ? 'raw' : 'formatted';
     const headers = pivotedResults.headerValues.reduce<string[][]>(
         (acc, row, i) => {
@@ -1543,7 +1605,6 @@ export const pivotResultsAsCsv = ({
                 field ? getFieldLabel(field.fieldId) : undefinedCharacter,
             );
 
-            // Row totals
             const rowTotalLabels =
                 pivotedResults.rowTotalFields?.[i]?.map((totalField) =>
                     totalField?.fieldId
@@ -1556,23 +1617,35 @@ export const pivotResultsAsCsv = ({
         },
         [[]],
     );
+
     const fieldIds = Object.values(
         pivotedResults.retrofitData.pivotColumnInfo,
     ).map((field) => field.fieldId);
 
     const hasIndex = pivotedResults.indexValues.length > 0;
-    const pivotedRows: string[][] =
-        pivotedResults.retrofitData.allCombinedData.map((row) => {
-            // Fields that return `null` don't appear in the pivot table
-            // If there are no index fields, we need to add an empty string to the beginning of the row
-            const noIndexPrefix = hasIndex ? [] : [''];
-            const formattedRows = fieldIds.map(
-                (fieldId) =>
-                    (row[fieldId]?.value?.[formatField] as string) ||
-                    undefinedCharacter,
-            );
-            return [...noIndexPrefix, ...formattedRows];
-        });
+    const dataRows = pivotedResults.retrofitData.allCombinedData.map((row) => {
+        const noIndexPrefix: PivotResultsDataCell[] = hasIndex
+            ? []
+            : [{ raw: '', formatted: '', fieldId: '' }];
+        const cells: PivotResultsDataCell[] = fieldIds.map((fieldId) => ({
+            raw: row[fieldId]?.value?.raw ?? '',
+            formatted:
+                (row[fieldId]?.value?.[formatField] as string) ||
+                undefinedCharacter,
+            fieldId,
+        }));
+        return [...noIndexPrefix, ...cells];
+    });
 
-    return [...headers, ...pivotedRows];
+    return { headers, dataRows, fieldIds, hasIndex };
+};
+
+export const pivotResultsAsCsv = (params: PivotResultsParams) => {
+    const data = pivotResultsAsData(params);
+
+    const pivotedRows: string[][] = data.dataRows.map((row) =>
+        row.map((cell) => cell.formatted),
+    );
+
+    return [...data.headers, ...pivotedRows];
 };
