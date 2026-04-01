@@ -112,6 +112,7 @@ export class SpaceService
                 user.userUuid,
                 space.uuid,
             );
+        // eslint-disable-next-line no-direct-ability-check -- internal test helper receives partial user type
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
 
