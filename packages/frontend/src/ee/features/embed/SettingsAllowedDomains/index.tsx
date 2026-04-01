@@ -9,12 +9,11 @@ import {
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
     useAddOrganizationAllowedDomain,
@@ -40,10 +39,19 @@ const TYPE_LABELS: Record<AllowedDomainType, string> = {
     sdk: 'SDK & API',
 };
 
+function getWildcardHint(domain: string): string | null {
+    const trimmed = domain.trim();
+    const match = trimmed.match(/^\*\.(.+)$/);
+    if (!match) return null;
+    const base = match[1];
+    return `Matches any subdomain, e.g. app.${base}, staging.${base}`;
+}
+
 const AllowedDomainsPanel: FC = () => {
     const { data: domains, isLoading } = useOrganizationAllowedDomains();
     const addMutation = useAddOrganizationAllowedDomain();
     const deleteMutation = useDeleteOrganizationAllowedDomain();
+    const [isAdding, setIsAdding] = useState(false);
 
     const form = useForm({
         initialValues: {
@@ -65,13 +73,21 @@ const AllowedDomainsPanel: FC = () => {
         },
     });
 
+    const wildcardHint = getWildcardHint(form.values.domain);
+
     const handleSubmit = form.onSubmit(async (values) => {
         await addMutation.mutateAsync({
             domain: values.domain.trim(),
             type: values.type,
         });
         form.reset();
+        setIsAdding(false);
     });
+
+    const handleCancel = () => {
+        form.reset();
+        setIsAdding(false);
+    };
 
     if (isLoading) {
         return <Loader size="sm" />;
@@ -136,13 +152,13 @@ const AllowedDomainsPanel: FC = () => {
                 )}
             </Stack>
 
-            <Stack gap="xs">
-                <Title order={6}>New domain</Title>
+            {isAdding ? (
                 <form onSubmit={handleSubmit}>
                     <Stack gap="xs">
                         <TextInput
                             label="Domain"
                             placeholder="https://app.example.com"
+                            description={wildcardHint}
                             size="sm"
                             {...form.getInputProps('domain')}
                         />
@@ -152,7 +168,18 @@ const AllowedDomainsPanel: FC = () => {
                             size="sm"
                             {...form.getInputProps('type')}
                         />
-                        <Group justify="flex-end" mt="xs">
+                        <Group justify="flex-end" gap="xs" mt="xs">
+                            <Button
+                                variant="subtle"
+                                color="ldGray"
+                                size="sm"
+                                onClick={handleCancel}
+                                leftSection={
+                                    <MantineIcon icon={IconX} />
+                                }
+                            >
+                                Cancel
+                            </Button>
                             <Button
                                 type="submit"
                                 variant="default"
@@ -167,7 +194,18 @@ const AllowedDomainsPanel: FC = () => {
                         </Group>
                     </Stack>
                 </form>
-            </Stack>
+            ) : (
+                <Group justify="flex-end">
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setIsAdding(true)}
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                    >
+                        Add domain
+                    </Button>
+                </Group>
+            )}
         </Stack>
     );
 };
