@@ -25,12 +25,13 @@ const DOMAIN_TYPE_OPTIONS = [
     {
         value: 'embed',
         label: 'Embed (iframe)',
-        description: 'Embeds Lightdash dashboards in an iframe',
+        description: 'For embedding dashboards in your app using an iframe',
     },
     {
         value: 'sdk',
         label: 'SDK & API',
-        description: 'Connects to Lightdash via the SDK or API',
+        description:
+            'For connecting via the Lightdash SDK or making API requests',
     },
 ];
 
@@ -156,12 +157,14 @@ const AllowedDomainsPanel: FC = () => {
                 <form onSubmit={handleSubmit}>
                     <Stack gap={4}>
                         <TextInput
+                            label="Domain"
                             placeholder="https://app.example.com"
                             description={wildcardHint}
                             size="xs"
                             {...form.getInputProps('domain')}
                         />
                         <Select
+                            label="Access type"
                             data={DOMAIN_TYPE_OPTIONS}
                             size="xs"
                             {...form.getInputProps('type')}
