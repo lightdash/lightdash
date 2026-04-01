@@ -13,6 +13,7 @@ import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import FilterConfiguration from './FilterConfiguration';
 
 type Props = {
@@ -54,7 +55,7 @@ const AddFilterButton: FC<Props> = ({
     );
     const isMetricFiltersEnabled =
         metricDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
-    const sqlChartTilesMetadata = useDashboardContext(
+    const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
     const disabled = useMemo(() => {

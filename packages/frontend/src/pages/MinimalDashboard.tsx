@@ -33,6 +33,7 @@ import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -68,16 +69,16 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
 
-    const isReadyForScreenshot = useDashboardContext(
+    const isReadyForScreenshot = useDashboardTileStatusContext(
         (c) => c.isReadyForScreenshot,
     );
-    const expectedScreenshotTilesCount = useDashboardContext(
+    const expectedScreenshotTilesCount = useDashboardTileStatusContext(
         (c) => c.expectedScreenshotTilesCount,
     );
-    const screenshotReadyTilesCount = useDashboardContext(
+    const screenshotReadyTilesCount = useDashboardTileStatusContext(
         (c) => c.screenshotReadyTilesCount,
     );
-    const screenshotErroredTilesCount = useDashboardContext(
+    const screenshotErroredTilesCount = useDashboardTileStatusContext(
         (c) => c.screenshotErroredTilesCount,
     );
 

@@ -2,6 +2,7 @@ import { Group } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Parameters } from '../../../../../features/parameters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
 
 const EmbedDashboardParameters: FC = () => {
     const parameterValues = useDashboardContext((c) => c.parameterValues);
@@ -13,7 +14,9 @@ const EmbedDashboardParameters: FC = () => {
     const parameterReferences = useDashboardContext(
         (c) => c.dashboardParameterReferences,
     );
-    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+    const areAllChartsLoaded = useDashboardTileStatusContext(
+        (c) => c.areAllChartsLoaded,
+    );
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
     );

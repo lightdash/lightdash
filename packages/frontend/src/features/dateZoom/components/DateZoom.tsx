@@ -25,6 +25,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { getGranularityLabel } from '../utils';
@@ -144,10 +145,10 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
     );
-    const availableCustomGranularities = useDashboardContext(
+    const availableCustomGranularities = useDashboardTileStatusContext(
         (c) => c.availableCustomGranularities,
     );
-    const dashboardHasTimestampDimension = useDashboardContext(
+    const dashboardHasTimestampDimension = useDashboardTileStatusContext(
         (c) => c.dashboardHasTimestampDimension,
     );
     const { track } = useTracking();
