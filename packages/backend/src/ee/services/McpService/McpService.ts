@@ -331,6 +331,11 @@ export class McpService extends BaseService {
             {
                 description: 'Get the current Lightdash version',
                 inputSchema: {},
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             async (
                 _args: Record<string, never>,
@@ -360,6 +365,11 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpToolListExploresArgsSchema,
                 ),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
@@ -431,6 +441,11 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     toolFindExploresArgsSchemaV3,
                 ),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
@@ -502,6 +517,11 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     toolFindFieldsArgsSchema,
                 ),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
@@ -552,6 +572,11 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     toolFindContentArgsSchema,
                 ),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
@@ -599,6 +624,11 @@ export class McpService extends BaseService {
                 description:
                     'List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.',
                 inputSchema: {},
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             async (
                 _args: Record<string, never>,
@@ -646,6 +676,11 @@ export class McpService extends BaseService {
                 inputSchema: {
                     projectUuid: z.string(),
                     tags: z.array(z.string()).optional(),
+                },
+                annotations: {
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: true,
                 },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -730,6 +765,11 @@ export class McpService extends BaseService {
                 description:
                     'Get the currently active project and its configuration. Returns the project UUID, name, and any selected tags. Use this to verify context before calling data tools.',
                 inputSchema: {},
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             async (
                 _args: Record<string, never>,
@@ -795,6 +835,11 @@ export class McpService extends BaseService {
                 inputSchema: {
                     projectUuid: z.string().optional(),
                 },
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             async (
                 _args: AnyType,
@@ -839,6 +884,11 @@ export class McpService extends BaseService {
                     "Set the active AI agent. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
                 inputSchema: {
                     agentUuid: z.string(),
+                },
+                annotations: {
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: true,
                 },
             },
             async (
@@ -916,6 +966,11 @@ export class McpService extends BaseService {
                 description:
                     "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
                 inputSchema: {},
+                annotations: {
+                    readOnlyHint: false,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             async (
                 _args: Record<string, never>,
@@ -971,6 +1026,11 @@ export class McpService extends BaseService {
                 description:
                     "Get the currently active AI agent with its full context: explores it has access to, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
                 inputSchema: {},
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             async (
                 _args: Record<string, never>,
@@ -1074,6 +1134,11 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     toolRunQueryArgsSchema,
                 ),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
                 _meta: { ui: { resourceUri: chartResourceUri } },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1307,6 +1372,11 @@ export class McpService extends BaseService {
                 inputSchema: this.getMcpCompatibleSchema(
                     toolSearchFieldValuesArgsSchema,
                 ),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
@@ -1355,6 +1425,11 @@ export class McpService extends BaseService {
             {
                 description: toolRunSqlArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(toolRunSqlArgsSchema),
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
