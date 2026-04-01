@@ -1,3 +1,10 @@
+# [0.2708.0](https://github.com/lightdash/lightdash/compare/0.2707.0...0.2708.0) (2026-04-01)
+
+
+### Features
+
+* add pre-aggregate cron job scheduling and management ([#21622](https://github.com/lightdash/lightdash/issues/21622)) ([bae47e8](https://github.com/lightdash/lightdash/commit/bae47e816077bf34f8403376d7cb3843ebd70dfd))
+
 # [0.2707.0](https://github.com/lightdash/lightdash/compare/0.2706.0...0.2707.0) (2026-04-01)
 
 
