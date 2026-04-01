@@ -49,10 +49,14 @@ export default function AppPreviewTest() {
         return <div>Missing route params</div>;
     }
 
-    const baseUrl = window.location.origin;
-    const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+    const previewDomain = health.data?.dataApps.previewDomain;
+    const previewOrigin = previewDomain
+        ? `${window.location.protocol}//${projectUuid}.${previewDomain}`
         : undefined;
+    const previewUrl =
+        token && previewOrigin
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+            : undefined;
 
     if (isLoading) {
         return (
@@ -76,11 +80,11 @@ export default function AppPreviewTest() {
         );
     }
 
-    if (!previewUrl) return null;
+    if (!previewUrl || !previewOrigin) return null;
 
     return (
         <Group h="calc(100vh - 50px)" w="100%">
-            <AppIframePreview src={previewUrl} />
+            <AppIframePreview src={previewUrl} previewOrigin={previewOrigin} />
         </Group>
     );
 }

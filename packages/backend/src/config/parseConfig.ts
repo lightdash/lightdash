@@ -1312,7 +1312,15 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     lightdashOrigin: string;
     cdnOrigin: string | null;
-    previewOrigin: string | null;
+    /**
+     * Base domain (with optional port) for app preview subdomains.
+     * Required when enabled. Each project gets its own subdomain:
+     *   {projectUuid}.{previewDomain}
+     * Must be a separate registrable domain from lightdashOrigin
+     * for full cookie/origin isolation.
+     * Examples: "lightdashapp.com", "lightdashapp.local:3002"
+     */
+    previewDomain: string;
     s3: S3Config | null;
     e2bApiKey: string | null;
 };
@@ -1513,11 +1521,22 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         };
     }
 
+    const previewDomain = process.env.APP_RUNTIME_PREVIEW_DOMAIN;
+
+    if (enabled && !previewDomain) {
+        throw new ParseError(
+            'APP_RUNTIME_PREVIEW_DOMAIN is required when APPS_RUNTIME_ENABLED=true. ' +
+                'Set it to a separate registrable domain for cookie/origin isolation ' +
+                '(e.g. "lightdashapp.com" or "lightdashapp.local:3002" for local dev).',
+            {},
+        );
+    }
+
     return {
         enabled,
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
-        previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
+        previewDomain: previewDomain || '',
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
     };

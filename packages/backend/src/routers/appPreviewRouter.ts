@@ -4,11 +4,7 @@ import path from 'path';
 import { validate as isValidUuid } from 'uuid';
 import { type AppRuntimeConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import {
-    PREVIEW_COOKIE_NAME,
-    PREVIEW_TOKEN_MAX_AGE_SECONDS,
-    verifyPreviewToken,
-} from './appPreviewToken';
+import { verifyPreviewToken } from './appPreviewToken';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.js': 'application/javascript',
@@ -56,18 +52,6 @@ const isSafeFilename = (filename: string): boolean =>
     /^[a-zA-Z0-9._-]+$/.test(filename) && !filename.includes('..');
 
 /**
- * Extracts a named cookie value from the Cookie header.
- */
-const getCookieValue = (
-    cookieHeader: string | undefined,
-    name: string,
-): string | undefined => {
-    if (!cookieHeader) return undefined;
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-    return match ? match[1] : undefined;
-};
-
-/**
  * Rewrites Vite-generated asset references in HTML to include a token
  * query parameter so they authenticate without cookies.
  *
@@ -91,24 +75,22 @@ export const createAppPreviewRouter = (
 ): Router => {
     const router = express.Router({ strict: true });
 
-    // Host header validation — defense-in-depth for domain isolation.
-    // When APP_RUNTIME_PREVIEW_ORIGIN is set (production), reject requests
-    // that arrive on the wrong hostname (e.g. the main app domain).
-    // previewOrigin is a full URL (e.g. "https://preview.lightdash.cloud")
-    // consistent with other *_ORIGIN env vars, so we extract the hostname.
-    if (config.previewOrigin) {
-        const previewHostname = new URL(config.previewOrigin).hostname;
-        router.use((req, res, next) => {
-            if (req.hostname !== previewHostname) {
-                res.status(404).json({
-                    status: 'error',
-                    error: { message: 'Not found' },
-                });
-                return;
-            }
-            next();
-        });
-    }
+    // Host header validation — reject requests that don't arrive on a
+    // valid preview subdomain (e.g. {projectUuid}.lightdashapp.com).
+    // previewDomain may include a port (e.g. "lightdashapp.local:3002"),
+    // so we only check the hostname portion against req.hostname.
+    const previewDomainHostname = config.previewDomain.split(':')[0];
+    const expectedSuffix = `.${previewDomainHostname}`;
+    router.use((req, res, next) => {
+        if (!req.hostname.endsWith(expectedSuffix)) {
+            res.status(404).json({
+                status: 'error',
+                error: { message: 'Not found' },
+            });
+            return;
+        }
+        next();
+    });
 
     const s3 =
         config.s3 !== null
@@ -248,39 +230,10 @@ export const createAppPreviewRouter = (
         next();
     };
 
-    /**
-     * Accepts a JWT from the `?token` query param, verifies it, and
-     * promotes it to a path-scoped HttpOnly cookie so subsequent asset
-     * requests are authenticated automatically by the browser.
-     */
-    const requireTokenAndSetCookie: express.RequestHandler = (
-        req,
-        res,
-        next,
-    ) => {
+    /** Requires a valid JWT in the `?token` query param. */
+    const requireToken: express.RequestHandler = (req, res, next) => {
         const token =
             typeof req.query.token === 'string' ? req.query.token : undefined;
-
-        handleTokenVerification(token, req, res, () => {
-            const { appUuid, version } = req.params;
-            const cookiePath = `/api/apps/${appUuid}/versions/${version}/`;
-            res.cookie(PREVIEW_COOKIE_NAME, token!, {
-                path: cookiePath,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: PREVIEW_TOKEN_MAX_AGE_SECONDS * 1000,
-            });
-            next();
-        });
-    };
-
-    /** Accepts a JWT from a `?token` query param or the path-scoped cookie. */
-    const requireTokenOrCookie: express.RequestHandler = (req, res, next) => {
-        const token =
-            typeof req.query.token === 'string'
-                ? req.query.token
-                : getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
         handleTokenVerification(token, req, res, next);
     };
 
@@ -302,7 +255,7 @@ export const createAppPreviewRouter = (
     // (needed when the iframe sandbox omits allow-same-origin).
     router.get(
         '/:appUuid/versions/:version/',
-        requireTokenAndSetCookie,
+        requireToken,
         async (req, res) => {
             const { appUuid, version } = req.params;
             const s3Key = `apps/${appUuid}/versions/${version}/index.html`;
@@ -339,7 +292,7 @@ export const createAppPreviewRouter = (
     // allow-same-origin) or the path-scoped cookie (for normal browsers).
     router.get(
         '/:appUuid/versions/:version/assets/:filename',
-        requireTokenOrCookie,
+        requireToken,
         async (req, res) => {
             const { filename } = req.params;
 

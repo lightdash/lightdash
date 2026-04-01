@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, type RefObject } from 'react';
 
 /**
  * Routes the SDK is allowed to call through the postMessage bridge.
@@ -33,12 +33,23 @@ function isAllowedRoute(method: string, path: string): boolean {
  * no direct API access). This hook receives those requests, validates
  * them against an allowlist, executes them with the current user's
  * session cookies, and posts the raw API response back.
+ *
+ * @param previewOrigin — the origin of the preview domain. Used to
+ *   verify incoming message origins and target outgoing postMessages.
  */
 export function useAppSdkBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
+    previewOrigin: string,
 ) {
+    // Strip any trailing slash so origin comparison is consistent.
+    const normalizedOrigin = useMemo(
+        () => previewOrigin.replace(/\/+$/, ''),
+        [previewOrigin],
+    );
+
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
+            if (event.origin !== normalizedOrigin) return;
             if (event.source !== iframeRef.current?.contentWindow) return;
 
             const { data } = event;
@@ -52,7 +63,7 @@ export function useAppSdkBridge(
             }) => {
                 iframeRef.current?.contentWindow?.postMessage(
                     { type: 'lightdash:sdk:fetch-response', id, ...response },
-                    '*',
+                    normalizedOrigin,
                 );
             };
 
@@ -84,7 +95,7 @@ export function useAppSdkBridge(
                 });
             }
         },
-        [iframeRef],
+        [iframeRef, normalizedOrigin],
     );
 
     useEffect(() => {
@@ -95,9 +106,9 @@ export function useAppSdkBridge(
     const handleIframeLoad = useCallback(() => {
         iframeRef.current?.contentWindow?.postMessage(
             { type: 'lightdash:sdk:ready' },
-            '*',
+            normalizedOrigin,
         );
-    }, [iframeRef]);
+    }, [iframeRef, normalizedOrigin]);
 
     return { handleIframeLoad };
 }

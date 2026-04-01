@@ -122,3 +122,4 @@ http-client.private.env.json
 scripts/har-replay-server.ts
 *.har
 agent-harness/cloud/credentials.env
+Caddyfile
