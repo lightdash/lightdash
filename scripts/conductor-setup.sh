@@ -41,7 +41,7 @@ log "Instance: $LD_INSTANCE_ID | Ports: FE=$FE_PORT API=$PORT PG=$LD_PG_PORT"
 ENV_FILE="$REPO_ROOT/.env.development.local"
 if [ -f "$ENV_FILE" ]; then
     # Remove existing instance-specific lines, then append ours
-    sed -i '' '/^LD_INSTANCE_ID=/d; /^PGHOST=/d; /^PGPORT=/d; /^PGUSER=/d; /^PGPASSWORD=/d; /^PORT=/d; /^FE_PORT=/d; /^SCHEDULER_PORT=/d; /^DEBUG_PORT=/d; /^SDK_TEST_PORT=/d; /^SPOTLIGHT_PORT=/d; /^LIGHTDASH_PROMETHEUS_PORT=/d; /^SITE_URL=/d; /^INTERNAL_LIGHTDASH_HOST=/d' "$ENV_FILE"
+    sed -i '' '/^LD_INSTANCE_ID=/d; /^PGHOST=/d; /^PGPORT=/d; /^PGUSER=/d; /^PGPASSWORD=/d; /^PGDATABASE=/d; /^PORT=/d; /^FE_PORT=/d; /^SCHEDULER_PORT=/d; /^DEBUG_PORT=/d; /^SDK_TEST_PORT=/d; /^SPOTLIGHT_PORT=/d; /^LIGHTDASH_PROMETHEUS_PORT=/d; /^SITE_URL=/d; /^INTERNAL_LIGHTDASH_HOST=/d' "$ENV_FILE"
     cat >> "$ENV_FILE" <<ENVEOF
 
 # Conductor workspace overrides (instance: $LD_INSTANCE_ID)
@@ -50,6 +50,7 @@ PGHOST=localhost
 PGPORT=$LD_PG_PORT
 PGUSER=postgres
 PGPASSWORD=password
+PGDATABASE=postgres
 PORT=$PORT
 FE_PORT=$FE_PORT
 SCHEDULER_PORT=$SCHEDULER_PORT
