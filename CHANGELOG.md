@@ -1,3 +1,11 @@
+# [0.2705.0](https://github.com/lightdash/lightdash/compare/0.2704.0...0.2705.0) (2026-04-01)
+
+
+### Features
+
+* add annotations to MCP service tools ([#21624](https://github.com/lightdash/lightdash/issues/21624)) ([8770cde](https://github.com/lightdash/lightdash/commit/8770cde2cfdef9186f1e7a6f4a94cc6b8715b36d))
+* add Lightdash analyst prompt to MCP service ([#21621](https://github.com/lightdash/lightdash/issues/21621)) ([5530973](https://github.com/lightdash/lightdash/commit/5530973503cc6af323b95ac1c7c4a6598be0d416))
+
 # [0.2704.0](https://github.com/lightdash/lightdash/compare/0.2703.0...0.2704.0) (2026-04-01)
 
 
