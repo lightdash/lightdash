@@ -261,6 +261,37 @@ export class McpService extends BaseService {
         }
     }
 
+    private async buildScopedResponse(
+        context: McpProtocolContext,
+        toolResult: string,
+    ): Promise<{
+        content: Array<{ type: 'text'; text: string }>;
+    }> {
+        const metadata = await this.getActiveContextMetadata(context);
+
+        const scopeInfo = [
+            metadata.agentName ? `Active agent: ${metadata.agentName}` : null,
+            metadata.tags
+                ? `Filtered by tags: ${metadata.tags.join(', ')}`
+                : null,
+        ]
+            .filter(Boolean)
+            .join('. ');
+
+        const content: Array<{ type: 'text'; text: string }> = [
+            { type: 'text', text: toolResult },
+        ];
+
+        if (scopeInfo) {
+            content.push({
+                type: 'text',
+                text: `[Scope: ${scopeInfo}]`,
+            });
+        }
+
+        return { content };
+    }
+
     static async streamToolResult(
         result:
             | { result: string }
@@ -375,14 +406,10 @@ export class McpService extends BaseService {
                         },
                     );
 
-                    return {
-                        content: [
-                            {
-                                type: 'text',
-                                text: await McpService.streamToolResult(result),
-                            },
-                        ],
-                    };
+                    return await this.buildScopedResponse(
+                        extra as McpProtocolContext,
+                        await McpService.streamToolResult(result),
+                    );
                 } catch (error) {
                     this.logger.error(
                         '[McpService] Error in LIST_EXPLORES tool',
@@ -457,14 +484,10 @@ export class McpService extends BaseService {
                     },
                 );
 
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: await McpService.streamToolResult(result),
-                        },
-                    ],
-                };
+                return this.buildScopedResponse(
+                    extra as McpProtocolContext,
+                    await McpService.streamToolResult(result),
+                );
             },
         );
 
@@ -511,14 +534,10 @@ export class McpService extends BaseService {
                     messages: [],
                 });
 
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: await McpService.streamToolResult(result),
-                        },
-                    ],
-                };
+                return this.buildScopedResponse(
+                    extra as McpProtocolContext,
+                    await McpService.streamToolResult(result),
+                );
             },
         );
 
@@ -563,14 +582,10 @@ export class McpService extends BaseService {
                     messages: [],
                 });
 
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: await McpService.streamToolResult(result),
-                        },
-                    ],
-                };
+                return this.buildScopedResponse(
+                    extra as McpProtocolContext,
+                    await McpService.streamToolResult(result),
+                );
             },
         );
 
@@ -1229,13 +1244,35 @@ export class McpService extends BaseService {
                     );
                     const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
 
+                    const metadata = await this.getActiveContextMetadata(
+                        extra as McpProtocolContext,
+                    );
+                    const scopeInfo = [
+                        metadata.agentName
+                            ? `Active agent: ${metadata.agentName}`
+                            : null,
+                        metadata.tags
+                            ? `Filtered by tags: ${metadata.tags.join(', ')}`
+                            : null,
+                    ]
+                        .filter(Boolean)
+                        .join('. ');
+
+                    const content: Array<{ type: 'text'; text: string }> = [
+                        {
+                            type: 'text' as const,
+                            text: serializeData(csv, 'csv'),
+                        },
+                    ];
+                    if (scopeInfo) {
+                        content.push({
+                            type: 'text' as const,
+                            text: `[Scope: ${scopeInfo}]`,
+                        });
+                    }
+
                     return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: serializeData(csv, 'csv'),
-                            },
-                        ],
+                        content,
                         structuredContent: {
                             rows: results.rows,
                             fields: results.fields,
@@ -1302,14 +1339,10 @@ export class McpService extends BaseService {
                     },
                 );
 
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: await McpService.streamToolResult(result),
-                        },
-                    ],
-                };
+                return this.buildScopedResponse(
+                    extra as McpProtocolContext,
+                    await McpService.streamToolResult(result),
+                );
             },
         );
 
@@ -1365,14 +1398,10 @@ export class McpService extends BaseService {
                             columns.length > 0
                                 ? `Columns: ${columns.join(', ')}`
                                 : '';
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: `Query returned 0 rows.${header ? ` ${header}` : ''}`,
-                                },
-                            ],
-                        };
+                        return await this.buildScopedResponse(
+                            extra as McpProtocolContext,
+                            `Query returned 0 rows.${header ? ` ${header}` : ''}`,
+                        );
                     }
 
                     const csv = stringify(rows, {
@@ -1380,14 +1409,10 @@ export class McpService extends BaseService {
                         columns,
                     });
 
-                    return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: csv,
-                            },
-                        ],
-                    };
+                    return await this.buildScopedResponse(
+                        extra as McpProtocolContext,
+                        csv,
+                    );
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
@@ -1530,6 +1555,53 @@ export class McpService extends BaseService {
         );
 
         return contextRow?.context.agentUuid ?? null;
+    }
+
+    async getActiveContextMetadata(context: McpProtocolContext): Promise<{
+        projectUuid: string | null;
+        projectName: string | null;
+        agentUuid: string | null;
+        agentName: string | null;
+        tags: string[] | null;
+    }> {
+        const { user } = context.authInfo!.extra;
+        const { organizationUuid } = user;
+
+        if (!user || !organizationUuid) {
+            return {
+                projectUuid: null,
+                projectName: null,
+                agentUuid: null,
+                agentName: null,
+                tags: null,
+            };
+        }
+
+        const contextRow = await this.mcpContextModel.getContext(
+            user.userUuid,
+            organizationUuid,
+        );
+
+        if (!contextRow) {
+            return {
+                projectUuid: null,
+                projectName: null,
+                agentUuid: null,
+                agentName: null,
+                tags: null,
+            };
+        }
+
+        const { projectUuid, projectName, agentUuid, agentName, tags } =
+            contextRow.context;
+
+        return {
+            projectUuid: projectUuid || null,
+            projectName: projectName || null,
+            agentUuid: agentUuid ?? null,
+            agentName: agentName ?? null,
+            tags: tags || null,
+        };
     }
 
     async getMergedUserAttributes(
