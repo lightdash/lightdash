@@ -1,3 +1,10 @@
+## [0.2709.2](https://github.com/lightdash/lightdash/compare/0.2709.1...0.2709.2) (2026-04-01)
+
+
+### Performance Improvements
+
+* memoize DashboardChartTileMain and ValidDashboardChartTile ([#21627](https://github.com/lightdash/lightdash/issues/21627)) ([ea8bb1d](https://github.com/lightdash/lightdash/commit/ea8bb1deae4fea136e1a821f4a81eafefc120053))
+
 ## [0.2709.1](https://github.com/lightdash/lightdash/compare/0.2709.0...0.2709.1) (2026-04-01)
 
 
