@@ -319,11 +319,11 @@ export const renderDateFilterSql = (
                     : '';
 
             if (completed) {
-                const completedDate = moment(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .tz(timezone)
-                        .startOf(unitOfTime),
+                const completedDate = getMomentDateWithCustomStartOfWeek(
+                    effectiveStartOfWeek,
                 )
+                    .tz(timezone)
+                    .startOf(unitOfTime)
                     .utc()
                     .toDate();
                 const untilDate = dateFormatter(
@@ -368,12 +368,12 @@ export const renderDateFilterSql = (
             const completed: boolean = !!filter.settings?.completed;
 
             if (completed) {
-                const fromDate = moment(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .tz(timezone)
-                        .add(1, unitOfTime)
-                        .startOf(unitOfTime),
+                const fromDate = getMomentDateWithCustomStartOfWeek(
+                    effectiveStartOfWeek,
                 )
+                    .tz(timezone)
+                    .add(1, unitOfTime)
+                    .startOf(unitOfTime)
                     .utc()
                     .toDate();
                 const toDate = dateFormatter(
