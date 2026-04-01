@@ -128,6 +128,12 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
+    /**
+     * When true, DATE_TRUNC on timestamp dimensions is wrapped with
+     * timezone conversion to group by day/week/month in the project
+     * timezone instead of UTC. Gated behind EnableTimezoneSupport.
+     */
+    useTimezoneAwareDateTrunc?: boolean;
 };
 
 /**
@@ -561,11 +567,15 @@ export class MetricQueryBuilder {
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
     ): string {
-        const { timezone } = this.args;
+        const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
-        // Only apply timezone-aware DATE_TRUNC when timezone is non-UTC
-        // and the dimension has a time interval
-        if (!dimension.timeInterval || timezone === 'UTC') {
+        // Only apply timezone-aware DATE_TRUNC when the feature is enabled,
+        // timezone is non-UTC, and the dimension has a time interval
+        if (
+            !useTimezoneAwareDateTrunc ||
+            !dimension.timeInterval ||
+            timezone === 'UTC'
+        ) {
             return dimension.compiledSql;
         }
 

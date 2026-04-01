@@ -23,6 +23,7 @@ import {
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
     ExploreError,
+    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -862,6 +863,11 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
+        const { enabled: useTimezoneAwareDateTrunc } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            });
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore: filteredExplore,
@@ -876,6 +882,7 @@ export class EmbedService extends BaseService {
                 : undefined,
             parameters: combinedParameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
         });
 
         const results =
@@ -1375,6 +1382,10 @@ export class EmbedService extends BaseService {
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const { enabled: useTimezoneAwareDateTrunc } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            });
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1387,6 +1398,7 @@ export class EmbedService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     combinedParameters,
+                    useTimezoneAwareDateTrunc,
                 );
 
             const { rows } = await this._runEmbedQuery({
@@ -1635,6 +1647,10 @@ export class EmbedService extends BaseService {
             data.metricQuery,
             projectTimezone,
         );
+        const { enabled: useTimezoneAwareDateTrunc } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            });
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1647,6 +1663,7 @@ export class EmbedService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     combinedParameters,
+                    useTimezoneAwareDateTrunc,
                 );
 
             const { rows } = await this._runEmbedQuery({

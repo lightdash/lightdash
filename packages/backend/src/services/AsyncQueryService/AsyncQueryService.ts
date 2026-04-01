@@ -2559,6 +2559,11 @@ export class AsyncQueryService extends ProjectService {
             projectTimezone,
         );
 
+        const { enabled: useTimezoneAwareDateTrunc } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            });
+
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
@@ -2572,6 +2577,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             pivotConfiguration,
             pivotDimensions: metricQuery.pivotDimensions,
+            useTimezoneAwareDateTrunc,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
