@@ -1,4 +1,5 @@
 {
   "setup": "bash ./scripts/conductor-setup.sh",
+  "run": "bash ./scripts/conductor-run.sh",
   "archive": "bash ./scripts/conductor-archive.sh"
 }
