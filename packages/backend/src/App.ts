@@ -416,15 +416,14 @@ export default class App {
                                 }
                                 // Wildcard subdomain matching: *.example.com
                                 if (dbDomain.domain.startsWith('*.')) {
-                                    const suffix = dbDomain.domain.slice(1); // .example.com
+                                    const baseDomain = dbDomain.domain.slice(2); // example.com
                                     try {
                                         const originHost = new URL(origin)
                                             .hostname;
                                         if (
                                             originHost.endsWith(
-                                                suffix.slice(1),
-                                            ) &&
-                                            originHost !== suffix.slice(1)
+                                                `.${baseDomain}`,
+                                            )
                                         ) {
                                             callback(null, true);
                                             return;
