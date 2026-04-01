@@ -6,12 +6,14 @@ import {
     formatRows,
     getErrorMessage,
     getFormatExpression,
+    isDimension,
     isField,
     isNumber,
     ItemsMap,
     MetricQuery,
     PivotConfig,
-    pivotResultsAsCsv,
+    pivotResultsAsData,
+    timeIntervalToExcelNumFmt,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -114,10 +116,9 @@ export class ExcelService {
         maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
     }): Promise<Excel.Buffer> {
-        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
         const formattedRows = formatRows(rows, itemMap);
 
-        const csvResults = pivotResultsAsCsv({
+        const pivotData = pivotResultsAsData({
             pivotConfig,
             rows: formattedRows,
             itemMap,
@@ -128,50 +129,38 @@ export class ExcelService {
             pivotDetails,
         });
 
-        // Build a set of column indices that contain date/timestamp values.
-        // In pivoted output, the first N columns are the index dimensions
-        // (non-pivot dimensions). Only those can be dates — metric value
-        // columns must never be converted, even if they match ISO 8601.
-        const pivotDimensions = new Set(pivotConfig.pivotDimensions ?? []);
-        const indexDimensions = metricQuery.dimensions.filter(
-            (d) => !pivotDimensions.has(d),
-        );
-        const dateColumnIndices = new Set<number>();
-        indexDimensions.forEach((fieldId, colIndex) => {
-            const field = itemMap[fieldId];
-            if (
-                field &&
-                isField(field) &&
-                (field.type === DimensionType.DATE ||
-                    field.type === DimensionType.TIMESTAMP)
-            ) {
-                dateColumnIndices.add(colIndex);
-            }
-        });
+        // Build date column metadata: for each data column, determine if
+        // it's a date/timestamp dimension and what Excel numFmt to apply.
+        const dateColumnFormats = new Map<number, { numFmt: string }>();
+        if (!onlyRaw) {
+            pivotData.fieldIds.forEach((fieldId, colIndex) => {
+                const field = itemMap[fieldId];
+                if (
+                    field &&
+                    isField(field) &&
+                    isDimension(field) &&
+                    (field.type === DimensionType.DATE ||
+                        field.type === DimensionType.TIMESTAMP)
+                ) {
+                    const numFmt = timeIntervalToExcelNumFmt(
+                        field.timeInterval,
+                        field.type,
+                    );
+                    if (numFmt) {
+                        const offset = pivotData.hasIndex ? 0 : 1;
+                        dateColumnFormats.set(colIndex + offset, { numFmt });
+                    }
+                }
+            });
+        }
 
-        // Create Excel workbook
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
 
-        // Add data to worksheet — only convert cells in known date columns.
-        // Header strings like "Created month" won't parse as ISO 8601,
-        // so it's safe to apply this to all rows without skipping headers.
-        csvResults.forEach((row, rowIndex) => {
-            const excelRow = row.map((value, colIndex) => {
-                if (
-                    dateColumnIndices.has(colIndex) &&
-                    typeof value === 'string'
-                ) {
-                    const dateValue = moment(value, moment.ISO_8601, true);
-                    if (dateValue.isValid()) {
-                        return dateValue.toDate();
-                    }
-                }
-                return value;
-            });
-            worksheet.addRow(excelRow);
+        // Add header rows
+        pivotData.headers.forEach((row, rowIndex) => {
+            worksheet.addRow(row);
 
-            // Style headers (first row)
             if (rowIndex === 0) {
                 const headerRow = worksheet.getRow(1);
                 headerRow.font = { bold: true };
@@ -183,11 +172,38 @@ export class ExcelService {
             }
         });
 
+        // Add data rows — use raw values for date columns, formatted for everything else
+        pivotData.dataRows.forEach((row) => {
+            const excelRow = row.map((cell, colIndex) => {
+                const dateFmt = dateColumnFormats.get(colIndex);
+                if (dateFmt && cell.raw != null && cell.raw !== '') {
+                    const m = moment.utc(cell.raw as string);
+                    if (m.isValid()) {
+                        return m.toDate();
+                    }
+                }
+                return cell.formatted;
+            });
+            const wsRow = worksheet.addRow(excelRow);
+
+            // Apply numFmt to date cells in this row
+            dateColumnFormats.forEach(({ numFmt }, colIndex) => {
+                const cell = wsRow.getCell(colIndex + 1); // 1-indexed
+                if (cell.value instanceof Date) {
+                    cell.numFmt = numFmt;
+                }
+            });
+        });
+
         // Auto-adjust column widths
+        const allRows = [
+            ...pivotData.headers,
+            ...pivotData.dataRows.map((row) => row.map((c) => c.formatted)),
+        ];
         worksheet.columns.forEach((column, index) => {
             if (column) {
                 let maxLength = 0;
-                csvResults.forEach((row) => {
+                allRows.forEach((row) => {
                     if (
                         row[index] &&
                         row[index].toString().length > maxLength
