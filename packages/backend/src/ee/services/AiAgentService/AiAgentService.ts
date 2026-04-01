@@ -564,7 +564,22 @@ export class AiAgentService {
         user: SessionUser,
         agentUuid: string,
         projectUuid?: string,
-    ) {
+        options?: { includeSummaryContext: true },
+    ): Promise<AiAgentWithContext>;
+
+    public async getAgent(
+        user: SessionUser,
+        agentUuid: string,
+        projectUuid?: string,
+        options?: { includeSummaryContext?: false },
+    ): Promise<AiAgent>;
+
+    public async getAgent(
+        user: SessionUser,
+        agentUuid: string,
+        projectUuid?: string,
+        options?: { includeSummaryContext?: boolean },
+    ): Promise<AiAgent | AiAgentWithContext> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -591,6 +606,11 @@ export class AiAgentService {
             throw new ForbiddenError(
                 'Insufficient permissions to access this agent',
             );
+        }
+
+        if (options?.includeSummaryContext) {
+            const context = await this.getAgentSummaryContext(user, agent);
+            return { ...agent, context };
         }
 
         return agent;
