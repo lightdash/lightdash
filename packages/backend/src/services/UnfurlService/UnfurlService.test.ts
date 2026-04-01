@@ -1,4 +1,4 @@
-import { NotFoundError } from '@lightdash/common';
+import { DownloadFileType, NotFoundError } from '@lightdash/common';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
@@ -12,6 +12,14 @@ import { type SlackAuthenticationModel } from '../../models/SlackAuthenticationM
 import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UnfurlService } from './UnfurlService';
+
+jest.mock('../../postHog', () => ({
+    isFeatureFlagEnabled: jest.fn(),
+}));
+
+const { isFeatureFlagEnabled } = jest.requireMock('../../postHog') as {
+    isFeatureFlagEnabled: jest.Mock;
+};
 
 const mockFileStorageClient = {
     isEnabled: jest.fn(),
@@ -38,31 +46,35 @@ const mockDownloadFileModel = {
     getDownloadFile: jest.fn(),
 };
 
-describe('UnfurlService', () => {
-    describe('getPreviewSignedUrl', () => {
-        const service = new UnfurlService({
-            lightdashConfig: {
-                siteUrl: 'https://app.lightdash.cloud',
-            } as unknown as LightdashConfig,
-            dashboardModel: {} as unknown as DashboardModel,
-            savedChartModel: {} as unknown as SavedChartModel,
-            shareModel: {} as unknown as ShareModel,
-            fileStorageClient:
-                mockFileStorageClient as unknown as FileStorageClient,
-            slackClient: {} as unknown as SlackClient,
-            projectModel: {} as unknown as ProjectModel,
-            downloadFileModel:
-                mockDownloadFileModel as unknown as DownloadFileModel,
-            slackUnfurlImageModel:
-                mockSlackUnfurlImageModel as unknown as SlackUnfurlImageModel,
-            analytics: {} as unknown as LightdashAnalytics,
-            slackAuthenticationModel: {} as unknown as SlackAuthenticationModel,
-            spacePermissionService: {} as unknown as SpacePermissionService,
-        });
+function createService() {
+    return new UnfurlService({
+        lightdashConfig: {
+            siteUrl: 'https://app.lightdash.cloud',
+        } as unknown as LightdashConfig,
+        dashboardModel: {} as unknown as DashboardModel,
+        savedChartModel: {} as unknown as SavedChartModel,
+        shareModel: {} as unknown as ShareModel,
+        fileStorageClient:
+            mockFileStorageClient as unknown as FileStorageClient,
+        slackClient: {} as unknown as SlackClient,
+        projectModel: {} as unknown as ProjectModel,
+        downloadFileModel:
+            mockDownloadFileModel as unknown as DownloadFileModel,
+        slackUnfurlImageModel:
+            mockSlackUnfurlImageModel as unknown as SlackUnfurlImageModel,
+        analytics: {} as unknown as LightdashAnalytics,
+        slackAuthenticationModel: {} as unknown as SlackAuthenticationModel,
+        spacePermissionService: {} as unknown as SpacePermissionService,
+    });
+}
 
-        afterEach(() => {
-            jest.clearAllMocks();
-        });
+describe('UnfurlService', () => {
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    describe('getPreviewSignedUrl', () => {
+        const service = createService();
 
         it('returns a signed URL for a valid record', async () => {
             mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
@@ -99,6 +111,127 @@ describe('UnfurlService', () => {
             ).rejects.toThrow(NotFoundError);
 
             expect(mockFileStorageClient.getFileUrl).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('unfurlImage feature flag branching', () => {
+        const service = createService();
+        const imageBuffer = Buffer.from('fake-png');
+
+        beforeEach(() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            jest.spyOn(service as any, 'getUserCookie').mockResolvedValue(
+                'mock-cookie',
+            );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            jest.spyOn(service as any, 'saveScreenshot').mockResolvedValue({
+                imageBuffer,
+                pdfBuffer: undefined,
+            });
+        });
+
+        const callUnfurlImage = (orgUuid: string | undefined) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            jest.spyOn(service as any, 'unfurlDetails').mockResolvedValue(
+                orgUuid
+                    ? {
+                          title: 'Test',
+                          organizationUuid: orgUuid,
+                          pageType: 'dashboard',
+                          minimalUrl: 'https://app.lightdash.cloud/test',
+                          imageUrl: undefined,
+                      }
+                    : undefined,
+            );
+
+            return service.unfurlImage({
+                url: 'https://app.lightdash.cloud/test',
+                imageId: 'slack-image-test_abc',
+                authUserUuid: 'user-uuid-1',
+                context: 'slack' as never,
+                selectedTabs: null,
+            });
+        };
+
+        it('flag ON + orgUuid → creates preview record and returns preview URL', async () => {
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+            isFeatureFlagEnabled.mockResolvedValue(true);
+            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
+
+            const result = await callUnfurlImage('org-uuid-1');
+
+            expect(mockFileStorageClient.uploadImage).toHaveBeenCalledWith(
+                imageBuffer,
+                'slack-image-test_abc',
+            );
+            expect(isFeatureFlagEnabled).toHaveBeenCalledWith(
+                'slack-unfurl-persistent-images',
+                {
+                    userUuid: 'user-uuid-1',
+                    organizationUuid: 'org-uuid-1',
+                },
+            );
+            expect(mockSlackUnfurlImageModel.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    s3Key: 'slack-image-test_abc.png',
+                    organizationUuid: 'org-uuid-1',
+                }),
+            );
+            expect(result.imageUrl).toMatch(
+                /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/preview\//,
+            );
+        });
+
+        it('flag OFF + orgUuid → returns raw S3 signed URL, no DB create', async () => {
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+            isFeatureFlagEnabled.mockResolvedValue(false);
+
+            const result = await callUnfurlImage('org-uuid-1');
+
+            expect(mockFileStorageClient.uploadImage).toHaveBeenCalled();
+            expect(isFeatureFlagEnabled).toHaveBeenCalled();
+            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+            expect(result.imageUrl).toBe(
+                'https://s3.example.com/raw-signed-url',
+            );
+        });
+
+        it('missing orgUuid → returns raw S3 URL, flag not checked', async () => {
+            mockFileStorageClient.isEnabled.mockReturnValue(true);
+            mockFileStorageClient.uploadImage.mockResolvedValue(
+                'https://s3.example.com/raw-signed-url',
+            );
+
+            const result = await callUnfurlImage(undefined);
+
+            expect(mockFileStorageClient.uploadImage).toHaveBeenCalled();
+            expect(isFeatureFlagEnabled).not.toHaveBeenCalled();
+            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+            expect(result.imageUrl).toBe(
+                'https://s3.example.com/raw-signed-url',
+            );
+        });
+
+        it('S3 disabled → uses local /tmp path, flag not checked', async () => {
+            mockFileStorageClient.isEnabled.mockReturnValue(false);
+            mockDownloadFileModel.createDownloadFile.mockResolvedValue(
+                undefined,
+            );
+
+            const result = await callUnfurlImage('org-uuid-1');
+
+            expect(isFeatureFlagEnabled).not.toHaveBeenCalled();
+            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
+            expect(mockDownloadFileModel.createDownloadFile).toHaveBeenCalled();
+            expect(result.imageUrl).toMatch(
+                /^https:\/\/app\.lightdash\.cloud\/api\/v1\/slack\/image\//,
+            );
         });
     });
 });
