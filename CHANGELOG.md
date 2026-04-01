@@ -1,3 +1,10 @@
+## [0.2709.4](https://github.com/lightdash/lightdash/compare/0.2709.3...0.2709.4) (2026-04-01)
+
+
+### Bug Fixes
+
+* use alphanumeric-only nanoid to prevent SQL comment parsing issues ([#21221](https://github.com/lightdash/lightdash/issues/21221)) ([087a5ab](https://github.com/lightdash/lightdash/commit/087a5ab77334982e6d1bad29851de64a49c67b70))
+
 ## [0.2709.3](https://github.com/lightdash/lightdash/compare/0.2709.2...0.2709.3) (2026-04-01)
 
 
