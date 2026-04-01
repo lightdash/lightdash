@@ -1513,8 +1513,8 @@ importers:
         specifier: 1.12.1
         version: 1.12.1
       '@databricks/sql':
-        specifier: 1.8.4
-        version: 1.8.4(encoding@0.1.13)
+        specifier: 1.13.0
+        version: 1.13.0(encoding@0.1.13)
       '@duckdb/node-api':
         specifier: 1.4.4-r.1
         version: 1.4.4-r.1
@@ -2177,8 +2177,8 @@ packages:
     resolution: {integrity: sha512-mepCf/e9+SKYy1d02/UkvSy6+6MoyXhVxP8lLDfA7BPE1X1d4dR0sZznmbM8/XVJ1GPM+Svnx7Xj6ZweByWUkw==}
     engines: {node: '>17.0.0'}
 
-  '@databricks/sql@1.8.4':
-    resolution: {integrity: sha512-FB8JfRMTANMdzVnXjdeRK+FF8FWgoq8goXzAQIikz2Q1QYET77WJrCsbLaQLX3EfWy6HabNHVv0C2xlcFmHITg==}
+  '@databricks/sql@1.13.0':
+    resolution: {integrity: sha512-xBuxCKmq3gR2fXnCzHsWkPujd5Vi/QxtHAyZXlj180v0fAqucIrG3SckSS5bpbF/NOH7uPLjolBUiZWDJ8E4xQ==}
     engines: {node: '>=14.0.0'}
 
   '@dependents/detective-less@5.0.1':
@@ -12365,7 +12365,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.14.1:
@@ -16304,7 +16303,7 @@ snapshots:
 
   '@dagrejs/graphlib@2.2.4': {}
 
-  '@databricks/sql@1.8.4(encoding@0.1.13)':
+  '@databricks/sql@1.13.0(encoding@0.1.13)':
     dependencies:
       apache-arrow: 13.0.0
       commander: 9.5.0
