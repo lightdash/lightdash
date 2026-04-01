@@ -415,6 +415,8 @@ export class AppGenerateService extends BaseService {
             case 'Glob':
             case 'Grep':
                 return 'Searching codebase';
+            case 'TodoWrite':
+                return 'Updating TODOs';
             default:
                 return AppGenerateService.randomCodingPhrase();
         }
