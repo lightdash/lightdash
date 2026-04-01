@@ -45,8 +45,9 @@ export class ProjectCompileLogService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -75,12 +76,13 @@ export class ProjectCompileLogService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', { organizationUuid, projectUuid }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('JobStatus', {
                     organizationUuid,

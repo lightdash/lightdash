@@ -39,9 +39,10 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
@@ -62,9 +63,10 @@ export class SpotlightService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
+        const auditedAbility = this.createAuditedAbility(user);
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
@@ -93,9 +95,10 @@ export class SpotlightService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,

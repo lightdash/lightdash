@@ -155,11 +155,12 @@ export class CommentService extends BaseService {
     ): Promise<string> {
         await this.isFeatureEnabled(user);
 
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('DashboardComments', {
                     projectUuid: dashboard.projectUuid,
@@ -218,6 +219,7 @@ export class CommentService extends BaseService {
     ): Promise<Record<string, Comment[]>> {
         await this.isFeatureEnabled(user);
 
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             {
@@ -226,7 +228,7 @@ export class CommentService extends BaseService {
         );
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
@@ -243,7 +245,7 @@ export class CommentService extends BaseService {
             );
         }
 
-        const canUserRemoveAnyComment = user.ability.can(
+        const canUserRemoveAnyComment = auditedAbility.can(
             'manage',
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
@@ -265,10 +267,11 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         await this.isFeatureEnabled(user);
 
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
@@ -309,6 +312,7 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         await this.isFeatureEnabled(user);
 
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
@@ -318,7 +322,7 @@ export class CommentService extends BaseService {
             );
         }
 
-        const canRemoveAnyComment = user.ability.can(
+        const canRemoveAnyComment = auditedAbility.can(
             'manage',
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,

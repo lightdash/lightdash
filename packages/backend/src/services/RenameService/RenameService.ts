@@ -87,10 +87,11 @@ export class RenameService extends BaseService {
         projectUuid: string;
         chartUuid: string;
     }) {
+        const auditedAbility = this.createAuditedAbility(user);
         const chart = await this.savedChartModel.get(chartUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: chart.organizationUuid,
@@ -163,10 +164,11 @@ export class RenameService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -309,11 +311,12 @@ export class RenameService extends BaseService {
         dashboardUuid: string;
         tableName?: string;
     }) {
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: dashboard.organizationUuid,
@@ -412,10 +415,11 @@ export class RenameService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -558,10 +562,11 @@ export class RenameService extends BaseService {
         projectUuid: string;
         context: RequestMethod;
     }) {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,

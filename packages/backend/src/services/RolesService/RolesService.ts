@@ -94,9 +94,10 @@ export class RolesService extends BaseService {
         account: Account,
         organizationUuid: string,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         // if user is admin of organization, they can see roles
         if (
-            account.user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('Organization', {
                     organizationUuid,
@@ -115,7 +116,7 @@ export class RolesService extends BaseService {
         );
 
         const canManageSomeProjects = projects.some((project) =>
-            account.user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('Project', {
                     organizationUuid,
@@ -129,7 +130,7 @@ export class RolesService extends BaseService {
         }
     }
 
-    private static validateOrganizationAccess(
+    private validateOrganizationAccess(
         account: Account,
         organizationUuid?: string,
     ): void {
@@ -141,8 +142,9 @@ export class RolesService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
                     organizationUuid,
@@ -155,7 +157,7 @@ export class RolesService extends BaseService {
         }
     }
 
-    private static validateRoleOwnership(account: Account, role: Role): void {
+    private validateRoleOwnership(account: Account, role: Role): void {
         if (isSystemRole(role.roleUuid) && role.ownerType === 'system') {
             return;
         }
@@ -164,8 +166,9 @@ export class RolesService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
                     organizationUuid: role.organizationUuid,
@@ -182,8 +185,9 @@ export class RolesService extends BaseService {
     ) {
         if (projectUuid) {
             const project = await this.projectModel.getSummary(projectUuid);
+            const auditedAbility = this.createAuditedAbility(account);
             if (
-                account.user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Project', {
                         organizationUuid: project.organizationUuid,
@@ -221,7 +225,7 @@ export class RolesService extends BaseService {
         await this.validateRolesViewAccess(account, organizationUuid);
 
         if (loadScopes) {
-            RolesService.validateOrganizationAccess(account, organizationUuid);
+            this.validateOrganizationAccess(account, organizationUuid);
             return this.rolesModel.getRolesWithScopesByOrganizationUuid(
                 organizationUuid,
                 roleTypeFilter,
@@ -246,7 +250,7 @@ export class RolesService extends BaseService {
             );
         }
 
-        RolesService.validateOrganizationAccess(account, organizationUuid);
+        this.validateOrganizationAccess(account, organizationUuid);
         RolesService.validateRoleName(name);
 
         const role = await this.rolesModel.db.transaction(
@@ -300,7 +304,7 @@ export class RolesService extends BaseService {
         }
 
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
+        this.validateRoleOwnership(account, role);
 
         if (name) {
             RolesService.validateRoleName(name);
@@ -355,7 +359,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
     ): Promise<RoleWithScopes> {
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
+        this.validateRoleOwnership(account, role);
 
         return role;
     }
@@ -396,7 +400,7 @@ export class RolesService extends BaseService {
         const { roleId } = request;
 
         // Validate organization access
-        RolesService.validateOrganizationAccess(account, orgUuid);
+        this.validateOrganizationAccess(account, orgUuid);
 
         // Ensure only system roles can be assigned at organization level
         if (roleId !== OrganizationMemberRole.MEMBER && !isSystemRole(roleId)) {
@@ -704,10 +708,7 @@ export class RolesService extends BaseService {
     ): Promise<RoleAssignment> {
         const { roleId } = request;
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(
-            account,
-            project.organizationUuid,
-        );
+        this.validateOrganizationAccess(account, project.organizationUuid);
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
@@ -764,7 +765,7 @@ export class RolesService extends BaseService {
         }
         try {
             const role = await this.rolesModel.getRoleByUuid(roleUuid);
-            RolesService.validateRoleOwnership(account, role);
+            this.validateRoleOwnership(account, role);
 
             await this.rolesModel.deleteRole(roleUuid);
 
@@ -802,7 +803,7 @@ export class RolesService extends BaseService {
         organizationUuid: string,
         projectUuid: string,
     ): Promise<void> {
-        RolesService.validateOrganizationAccess(account, organizationUuid);
+        this.validateOrganizationAccess(account, organizationUuid);
         await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.unassignCustomRoleFromUser(userUuid, projectUuid);
@@ -825,7 +826,7 @@ export class RolesService extends BaseService {
         projectUuid: string,
     ): Promise<void> {
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
+        this.validateRoleOwnership(account, role);
         await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.assignRoleToGroup(
@@ -851,7 +852,7 @@ export class RolesService extends BaseService {
         groupUuid: string,
         projectUuid: string,
     ): Promise<void> {
-        RolesService.validateOrganizationAccess(
+        this.validateOrganizationAccess(
             account,
             account.organization?.organizationUuid,
         );
@@ -889,10 +890,7 @@ export class RolesService extends BaseService {
         userUuid: string,
     ): Promise<void> {
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(
-            account,
-            project.organizationUuid,
-        );
+        this.validateOrganizationAccess(account, project.organizationUuid);
         await this.validateProjectAccess(account, projectUuid);
 
         await this.rolesModel.removeUserProjectAccess(userUuid, projectUuid);
@@ -919,7 +917,7 @@ export class RolesService extends BaseService {
 
         const foundRole =
             role || (await this.rolesModel.getRoleByUuid(roleUuid));
-        RolesService.validateRoleOwnership(account, foundRole);
+        this.validateRoleOwnership(account, foundRole);
 
         await this.rolesModel.addScopesToRole(
             roleUuid,
@@ -949,7 +947,7 @@ export class RolesService extends BaseService {
         }
 
         const role = await this.rolesModel.getRoleByUuid(roleUuid);
-        RolesService.validateRoleOwnership(account, role);
+        this.validateRoleOwnership(account, role);
 
         await this.rolesModel.removeScopeFromRole(roleUuid, scopeName);
 
@@ -971,7 +969,7 @@ export class RolesService extends BaseService {
         scopeNames: string[],
         tx?: Knex.Transaction,
     ): Promise<void> {
-        RolesService.validateOrganizationAccess(account, organizationUuid);
+        this.validateOrganizationAccess(account, organizationUuid);
 
         if (scopeNames.filter(Boolean).length === 0) {
             throw new ParameterError('scopeNames are required');
@@ -1000,7 +998,7 @@ export class RolesService extends BaseService {
         roleUuid: string,
         duplicateRoleData: CreateRole,
     ): Promise<RoleWithScopes> {
-        RolesService.validateOrganizationAccess(account, organizationUuid);
+        this.validateOrganizationAccess(account, organizationUuid);
 
         const { name, description } = duplicateRoleData;
         RolesService.validateRoleName(name);
@@ -1010,7 +1008,7 @@ export class RolesService extends BaseService {
         if (!sourceRole) {
             throw new NotFoundError(`Role to duplicate: ${roleUuid} not found`);
         }
-        RolesService.validateRoleOwnership(account, sourceRole);
+        this.validateRoleOwnership(account, sourceRole);
 
         const copyOfRoleName = `Copy of: ${sourceRole.name}`;
         const newDescription =

@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     NotFoundError,
@@ -128,8 +129,9 @@ export class OAuthService extends BaseService {
     }
 
     public async listClients(user: SessionUser): Promise<OAuthClientSummary[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot('manage', 'Organization') ||
+            auditedAbility.cannot('manage', subject('Organization', {})) ||
             !user.organizationUuid
         ) {
             throw new ForbiddenError(
@@ -149,8 +151,9 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot('manage', 'Organization') ||
+            auditedAbility.cannot('manage', subject('Organization', {})) ||
             !user.organizationUuid
         ) {
             throw new ForbiddenError(
@@ -186,8 +189,9 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ): Promise<OAuthClientSummary> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot('manage', 'Organization') ||
+            auditedAbility.cannot('manage', subject('Organization', {})) ||
             !user.organizationUuid
         ) {
             throw new ForbiddenError(
@@ -219,8 +223,9 @@ export class OAuthService extends BaseService {
         user: SessionUser,
         clientId: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot('manage', 'Organization') ||
+            auditedAbility.cannot('manage', subject('Organization', {})) ||
             !user.organizationUuid
         ) {
             throw new ForbiddenError(

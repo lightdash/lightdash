@@ -15,7 +15,7 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
-    plugins: ['jsdoc'],
+    plugins: ['jsdoc', 'custom-rules'],
     settings: {
         'import/resolver': {
             node: {
@@ -85,6 +85,16 @@ module.exports = {
                 '@typescript-eslint/no-unsafe-member-access': 'off',
                 '@typescript-eslint/no-unsafe-assignment': 'off',
                 '@typescript-eslint/no-unsafe-call': 'off',
+            },
+        },
+        {
+            // Warn on direct ability checks in services - use createAuditedAbility() instead
+            files: [
+                'src/services/**/*.ts',
+                'src/ee/services/**/*.ts',
+            ],
+            rules: {
+                'custom-rules/no-direct-ability-check': 'warn',
             },
         },
         {

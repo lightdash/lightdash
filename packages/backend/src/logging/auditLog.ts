@@ -5,7 +5,8 @@ export type AuditStatusType = 'allowed' | 'denied';
 
 export const AuditStatusSchema = z.enum(['allowed', 'denied']);
 
-export const AuditActorSchema = z.object({
+// Discriminated union for audit actors
+const BaseUserActorSchema = z.object({
     uuid: z.string(),
     firstName: z.string().optional(),
     lastName: z.string().optional(),
@@ -13,9 +14,44 @@ export const AuditActorSchema = z.object({
     organizationUuid: z.string(),
     organizationRole: z.string(),
     groupMemberships: z.array(z.string()).optional(),
+    impersonatedBy: z
+        .object({
+            uuid: z.string(),
+            email: z.string().optional(),
+            firstName: z.string().optional(),
+            lastName: z.string().optional(),
+            role: z.string(),
+        })
+        .optional(),
 });
 
+export const UserAuditActorSchema = BaseUserActorSchema.extend({
+    type: z.enum(['session', 'pat', 'oauth']),
+});
+
+export const ServiceAccountAuditActorSchema = BaseUserActorSchema.extend({
+    type: z.literal('service-account'),
+});
+
+export const AnonymousAuditActorSchema = z.object({
+    type: z.literal('anonymous'),
+    uuid: z.string(),
+    organizationUuid: z.string(),
+});
+
+export const AuditActorSchema = z.discriminatedUnion('type', [
+    UserAuditActorSchema,
+    ServiceAccountAuditActorSchema,
+    AnonymousAuditActorSchema,
+]);
+
 export type AuditActor = z.infer<typeof AuditActorSchema>;
+
+export type CallStackEntry = {
+    serviceName: string;
+    methodName: string;
+    depth: number;
+};
 
 export const AuditResourceSchema = z.object({
     type: z.string(),
@@ -35,6 +71,12 @@ export const AuditContextSchema = z.object({
 
 export type AuditContext = z.infer<typeof AuditContextSchema>;
 
+export const CallStackEntrySchema = z.object({
+    serviceName: z.string(),
+    methodName: z.string(),
+    depth: z.number(),
+});
+
 export const AuditLogEventSchema = z.object({
     id: z.string().default(() => uuidv4()),
     timestamp: z.string().default(() => new Date().toISOString()),
@@ -45,6 +87,7 @@ export const AuditLogEventSchema = z.object({
     status: AuditStatusSchema,
     reason: z.string().optional(),
     ruleConditions: z.string().optional(),
+    callStack: z.array(CallStackEntrySchema).optional(),
 });
 
 export type AuditLogEvent = z.infer<typeof AuditLogEventSchema>;
@@ -60,6 +103,7 @@ export const createAuditLogEvent = (
     status: AuditStatusType,
     reason?: string,
     ruleConditions?: string,
+    callStack?: CallStackEntry[],
 ): AuditLogEvent =>
     validateAuditLogEvent({
         actor,
@@ -69,4 +113,5 @@ export const createAuditLogEvent = (
         status,
         reason,
         ruleConditions,
+        callStack,
     });

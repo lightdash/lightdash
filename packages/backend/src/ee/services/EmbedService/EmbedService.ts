@@ -53,6 +53,7 @@ import {
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
+    SessionUser,
     SortField,
     UpdateEmbed,
     UserAccessControls,
@@ -157,8 +158,9 @@ export class EmbedService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid,
         });
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -200,8 +202,11 @@ export class EmbedService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid,
         });
+        const auditedAbility = this.createAuditedAbility(
+            user as unknown as SessionUser,
+        );
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -232,8 +237,11 @@ export class EmbedService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid,
         });
+        const auditedAbility = this.createAuditedAbility(
+            user as unknown as SessionUser,
+        );
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -274,8 +282,9 @@ export class EmbedService extends BaseService {
             userUuid: user.userUuid,
             organizationUuid,
         });
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -310,8 +319,9 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,

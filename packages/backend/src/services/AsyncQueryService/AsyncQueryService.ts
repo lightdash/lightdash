@@ -296,8 +296,9 @@ export class AsyncQueryService extends ProjectService {
             savedChart.space.uuid,
         );
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 action,
                 subject('SavedChart', {
                     organizationUuid: savedChart.organization.organizationUuid,
@@ -469,8 +470,9 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -575,15 +577,16 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(account);
         const isForbidden =
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
                 }),
             ) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Explore', {
                     organizationUuid,
@@ -794,8 +797,9 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -894,8 +898,9 @@ export class AsyncQueryService extends ProjectService {
 
         const { organizationUuid } = account.organization;
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
@@ -950,8 +955,9 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -2654,15 +2660,16 @@ export class AsyncQueryService extends ProjectService {
 
                     const { organizationUuid } =
                         await this.projectModel.getSummary(projectUuid);
+                    const auditedAbility = this.createAuditedAbility(account);
                     const isForbidden =
-                        account.user.ability.cannot(
+                        auditedAbility.cannot(
                             'view',
                             subject('Project', {
                                 organizationUuid,
                                 projectUuid,
                             }),
                         ) &&
-                        account.user.ability.cannot(
+                        auditedAbility.cannot(
                             'view',
                             subject('Explore', {
                                 organizationUuid,
@@ -3181,7 +3188,8 @@ export class AsyncQueryService extends ProjectService {
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
 
-        const isForbidden = account.user.ability.cannot(
+        const auditedAbility = this.createAuditedAbility(account);
+        const isForbidden = auditedAbility.cannot(
             'view',
             subject('Explore', {
                 organizationUuid,
@@ -3195,7 +3203,7 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
@@ -3397,8 +3405,9 @@ export class AsyncQueryService extends ProjectService {
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     organizationUuid: savedChartOrganizationUuid,
@@ -3407,7 +3416,7 @@ export class AsyncQueryService extends ProjectService {
                     access,
                 }),
             ) ||
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: savedChartOrganizationUuid,
@@ -3578,6 +3587,7 @@ export class AsyncQueryService extends ProjectService {
         savedChartUuid: string,
         space: SpaceSummaryBase,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         if (isJwtUser(account)) {
             await this.permissionsService.checkEmbedPermissions(
                 account,
@@ -3590,7 +3600,7 @@ export class AsyncQueryService extends ProjectService {
             );
 
             if (
-                account.user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('SavedChart', {
                         organizationUuid: space.organizationUuid,
@@ -3605,7 +3615,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: space.organizationUuid,
@@ -3890,8 +3900,9 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('UnderlyingData', { organizationUuid, projectUuid }),
             )
@@ -4151,8 +4162,9 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {
                     organizationUuid,
@@ -4919,8 +4931,9 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,

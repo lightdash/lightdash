@@ -175,11 +175,9 @@ export class SavedSqlService
                   [spaceUuid],
               );
 
+        const auditedAbility = this.createAuditedAbility(actor.user);
         if (
-            actor.user.ability.cannot(
-                action,
-                subject('SavedChart', ctx[spaceUuid]),
-            )
+            auditedAbility.cannot(action, subject('SavedChart', ctx[spaceUuid]))
         ) {
             throw new ForbiddenError(
                 `You don't have access to ${action} this Saved SQL chart`,
@@ -188,7 +186,7 @@ export class SavedSqlService
 
         if (needsNewSpaceCheck) {
             if (
-                actor.user.ability.cannot(
+                auditedAbility.cannot(
                     action,
                     subject('SavedChart', ctx[resource.spaceUuid!]),
                 )
@@ -255,8 +253,9 @@ export class SavedSqlService
     ): Promise<ApiCreateSqlChart['results']> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
@@ -314,8 +313,9 @@ export class SavedSqlService
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', { organizationUuid, projectUuid }),
             )
@@ -445,8 +445,9 @@ export class SavedSqlService
         const { organizationUuid } = savedChart.organization;
 
         if (!options?.bypassPermissions) {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('Project', { organizationUuid, projectUuid }),
                 )
@@ -454,7 +455,7 @@ export class SavedSqlService
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', { organizationUuid, projectUuid }),
             );
@@ -492,8 +493,9 @@ export class SavedSqlService
             const { projectUuid } = savedChart.project;
             const { organizationUuid } = savedChart.organization;
 
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('Project', { organizationUuid, projectUuid }),
                 )
@@ -501,7 +503,7 @@ export class SavedSqlService
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', { organizationUuid, projectUuid }),
             );
@@ -524,12 +526,13 @@ export class SavedSqlService
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Job', { organizationUuid, projectUuid }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {
                     organizationUuid,
@@ -577,21 +580,24 @@ export class SavedSqlService
                 { user, projectUuid },
                 { savedSqlUuid: savedChart.savedSqlUuid },
             );
-        } else if (
+        } else {
             // If it's not a saved chart, check if the user has access to run a pivot query
-            user.ability.cannot(
-                'create',
-                subject('Job', { organizationUuid, projectUuid }),
-            ) ||
-            user.ability.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Job', { organizationUuid, projectUuid }),
+                ) ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
         const jobId = await this.schedulerClient.runSqlPivotQuery({
             savedSqlUuid: savedChart?.savedSqlUuid,
@@ -722,8 +728,9 @@ export class SavedSqlService
         });
         const { organizationUuid } = sqlChart.organization;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
@@ -748,8 +755,9 @@ export class SavedSqlService
         });
         const { organizationUuid } = sqlChart.organization;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ScheduledDeliveries', {
                     organizationUuid,

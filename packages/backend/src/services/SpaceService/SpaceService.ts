@@ -194,8 +194,9 @@ export class SpaceService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Space', { organizationUuid, projectUuid }),
             )
@@ -609,7 +610,8 @@ export class SpaceService
         });
 
         if (!options?.bypassPermissions) {
-            const isAdmin = user.ability.can(
+            const auditedAbility = this.createAuditedAbility(user);
+            const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
                     organizationUuid: space.organizationUuid,
@@ -685,8 +687,9 @@ export class SpaceService
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
             });
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
                         organizationUuid: space.organizationUuid,
@@ -774,8 +777,9 @@ export class SpaceService
         const existingSpace = await this.spaceModel.get(spaceUuid);
         const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('PinnedItems', { projectUuid, organizationUuid }),
             )

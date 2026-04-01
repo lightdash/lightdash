@@ -48,11 +48,12 @@ export class ProjectParametersService extends BaseService {
             sortOrder?: 'asc' | 'desc';
         },
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )

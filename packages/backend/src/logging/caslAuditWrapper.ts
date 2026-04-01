@@ -1,18 +1,28 @@
 import { type Ability } from '@casl/ability';
 import type { Rule as CaslRule } from '@casl/ability/dist/types/Rule';
 import { Abilities, ForcedSubject } from '@casl/ability/dist/types/types';
-import { CaslSubjectNames, type SessionUser } from '@lightdash/common';
 import {
-    AuditActor,
-    AuditContext,
-    AuditResource,
-    AuditStatusType,
+    CaslSubjectNames,
+    type Account,
+    type AnonymousAccount,
+    type SessionUser,
+} from '@lightdash/common';
+import {
     createAuditLogEvent,
+    type AuditActor,
+    type AuditContext,
     type AuditLogEvent,
+    type AuditResource,
+    type AuditStatusType,
+    type CallStackEntry,
 } from './auditLog';
 
 export type AuditLogger = (event: AuditLogEvent) => void;
 
+/**
+ * @deprecated Use Account type directly with createAuditedAbility() in BaseService.
+ * Kept for backward compatibility during migration.
+ */
 export type AuditableUser = Pick<
     SessionUser,
     | 'userUuid'
@@ -25,26 +35,86 @@ export type AuditableUser = Pick<
 
 // Todo: can we remove the & { properties } by improving typing of CaslSubjectNames?
 type AuditableCaslSubject = ForcedSubject<CaslSubjectNames> & {
-    organizationUuid: string;
-    uuid: string;
+    organizationUuid?: string;
+    uuid?: string;
     name?: string;
     projectUuid?: string;
 };
 
 type AuditHelperArgs = {
-    user: AuditableUser;
+    actor: AuditActor;
     action: string;
     subject: AuditableCaslSubject;
     ip?: string;
     userAgent?: string;
     requestId?: string;
     ruleConditions?: string;
+    callStack?: CallStackEntry[];
 };
 
 /**
- * Creates an audit actor from a user
+ * Creates an audit actor from an Account (discriminated union by auth type)
  */
-const createActorFromUser = (user: AuditableUser): AuditActor => ({
+export const createActorFromAccount = (account: Account): AuditActor => {
+    if (account.isAnonymousUser()) {
+        const anonAccount = account as AnonymousAccount;
+        return {
+            type: 'anonymous' as const,
+            uuid: anonAccount.user.id,
+            organizationUuid:
+                anonAccount.organization.organizationUuid || 'unknown',
+        };
+    }
+
+    if (account.isServiceAccount()) {
+        return {
+            type: 'service-account' as const,
+            uuid: account.user.id,
+            email: account.user.email || '',
+            organizationUuid:
+                account.organization.organizationUuid || 'unknown',
+            organizationRole:
+                'role' in account.user
+                    ? (account.user as { role?: string }).role || 'unknown'
+                    : 'unknown',
+        };
+    }
+
+    // Session, PAT, or OAuth users
+    const authType = account.authentication.type;
+    const actorType =
+        authType === 'session' || authType === 'pat' || authType === 'oauth'
+            ? authType
+            : 'session';
+
+    const user = account.user as {
+        userUuid?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        role?: string;
+        id: string;
+    };
+
+    return {
+        type: actorType,
+        uuid: user.userUuid || user.id,
+        email: user.email || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        organizationUuid: account.organization.organizationUuid || 'unknown',
+        organizationRole: user.role || 'unknown',
+        // TODO: Add group memberships
+        groupMemberships: [],
+    };
+};
+
+/**
+ * Creates an audit actor from a SessionUser (legacy support)
+ * @deprecated Prefer createActorFromAccount with Account type
+ */
+export const createActorFromUser = (user: AuditableUser): AuditActor => ({
+    type: 'session' as const,
     uuid: user.userUuid,
     email: user.email || '',
     firstName: user.firstName || '',
@@ -61,7 +131,7 @@ const createResourceFromSubject = (
     type: subject.__caslSubjectType__ || 'unknown',
     uuid: subject.uuid,
     name: subject.name,
-    organizationUuid: subject.organizationUuid,
+    organizationUuid: subject.organizationUuid || 'unknown',
     projectUuid: subject.projectUuid,
 });
 
@@ -94,7 +164,7 @@ const extractRuleConditions = <A extends Abilities, C>(
 export class CaslAuditWrapper<T extends Ability> {
     private wrappedAbility: T;
 
-    private user: AuditableUser;
+    private actor: AuditActor;
 
     private ip?: string;
 
@@ -102,23 +172,34 @@ export class CaslAuditWrapper<T extends Ability> {
 
     private requestId?: string;
 
+    private callStack?: CallStackEntry[];
+
     private auditLogger: AuditLogger;
 
     constructor(
         ability: T,
-        user: AuditableUser,
+        actorSource: Account | AuditableUser,
         options?: {
             ip?: string;
             userAgent?: string;
             requestId?: string;
+            callStack?: CallStackEntry[];
             auditLogger?: AuditLogger;
         },
     ) {
         this.wrappedAbility = ability;
-        this.user = user;
+
+        // Determine if actorSource is an Account or legacy AuditableUser
+        if ('authentication' in actorSource) {
+            this.actor = createActorFromAccount(actorSource as Account);
+        } else {
+            this.actor = createActorFromUser(actorSource as AuditableUser);
+        }
+
         this.ip = options?.ip;
         this.userAgent = options?.userAgent;
         this.requestId = options?.requestId;
+        this.callStack = options?.callStack;
         this.auditLogger = options?.auditLogger || ((_event) => {});
     }
 
@@ -127,18 +208,18 @@ export class CaslAuditWrapper<T extends Ability> {
         status: AuditStatusType,
         reason?: string,
     ): void {
-        const actor = createActorFromUser(args.user);
         const resource = createResourceFromSubject(args.subject);
         const context = createContextFromArgs(args);
 
         const event = createAuditLogEvent(
-            actor,
+            args.actor,
             args.action,
             resource,
             context,
             status,
             reason,
             args.ruleConditions,
+            args.callStack,
         );
 
         this.auditLogger(event);
@@ -155,13 +236,14 @@ export class CaslAuditWrapper<T extends Ability> {
 
         this.logAbilityCheck(
             {
-                user: this.user,
+                actor: this.actor,
                 action,
                 subject,
                 ip: this.ip,
                 userAgent: this.userAgent,
                 requestId: this.requestId,
                 ruleConditions,
+                callStack: this.callStack,
             },
             result ? 'allowed' : 'denied',
             reason,
@@ -178,13 +260,14 @@ export class CaslAuditWrapper<T extends Ability> {
 
         this.logAbilityCheck(
             {
-                user: this.user,
+                actor: this.actor,
                 action,
                 subject,
                 ip: this.ip,
                 userAgent: this.userAgent,
                 requestId: this.requestId,
                 ruleConditions,
+                callStack: this.callStack,
             },
             result ? 'denied' : 'allowed',
             reason,

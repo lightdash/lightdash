@@ -644,8 +644,9 @@ export class McpService extends BaseService {
                     account,
                 );
 
+                const auditedAbility = this.createAuditedAbility(user);
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'view',
                         subject('Project', {
                             projectUuid: args.projectUuid,
@@ -1425,8 +1426,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -1526,8 +1528,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -1601,8 +1604,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -1669,8 +1673,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -1730,8 +1735,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,

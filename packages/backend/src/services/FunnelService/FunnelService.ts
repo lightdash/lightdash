@@ -73,11 +73,12 @@ export class FunnelService extends BaseService {
             throw new ForbiddenError('Funnel Builder feature is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', { organizationUuid, projectUuid }),
             )

@@ -606,10 +606,11 @@ export class CsvService extends BaseService {
         selectedTabs: string[] | null,
         dateZoomGranularity?: DateGranularity | string,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
                     organizationUuid: dashboard.organizationUuid,
