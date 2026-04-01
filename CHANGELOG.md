@@ -1,3 +1,10 @@
+## [0.2709.1](https://github.com/lightdash/lightdash/compare/0.2709.0...0.2709.1) (2026-04-01)
+
+
+### Performance Improvements
+
+* memoize DashboardProvider context value ([#21626](https://github.com/lightdash/lightdash/issues/21626)) ([2e91a97](https://github.com/lightdash/lightdash/commit/2e91a974740bb0ab515e7957b5ca5189beae13fc))
+
 # [0.2709.0](https://github.com/lightdash/lightdash/compare/0.2708.0...0.2709.0) (2026-04-01)
 
 
