@@ -3,6 +3,7 @@ import {
     ActionIcon,
     Badge,
     Button,
+    Divider,
     Group,
     Loader,
     Select,
@@ -78,11 +79,12 @@ const AllowedDomainsPanel: FC = () => {
                             key={domain.organizationAllowedDomainUuid}
                             justify="space-between"
                             wrap="nowrap"
+                            gap="sm"
                         >
-                            <Group gap="sm" wrap="nowrap">
-                                <Text size="sm" fw={500} truncate>
-                                    {domain.domain}
-                                </Text>
+                            <Text size="sm" fw={500} truncate maw="60%">
+                                {domain.domain}
+                            </Text>
+                            <Group gap="xs" wrap="nowrap">
                                 <Badge
                                     size="sm"
                                     variant="light"
@@ -96,22 +98,25 @@ const AllowedDomainsPanel: FC = () => {
                                         ? 'Iframe embed'
                                         : 'SDK access'}
                                 </Badge>
-                            </Group>
-                            <Tooltip label="Remove domain" position="left">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    size="sm"
-                                    loading={deleteMutation.isLoading}
-                                    onClick={() =>
-                                        deleteMutation.mutate(
-                                            domain.organizationAllowedDomainUuid,
-                                        )
-                                    }
+                                <Tooltip
+                                    label="Remove domain"
+                                    position="left"
                                 >
-                                    <MantineIcon icon={IconTrash} />
-                                </ActionIcon>
-                            </Tooltip>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="red"
+                                        size="sm"
+                                        loading={deleteMutation.isLoading}
+                                        onClick={() =>
+                                            deleteMutation.mutate(
+                                                domain.organizationAllowedDomainUuid,
+                                            )
+                                        }
+                                    >
+                                        <MantineIcon icon={IconTrash} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
                         </Group>
                     ))}
                 </Stack>
@@ -122,26 +127,34 @@ const AllowedDomainsPanel: FC = () => {
                 </Text>
             )}
 
+            <Divider />
+
             <form onSubmit={handleSubmit}>
-                <Group gap="xs" align="flex-start" wrap="nowrap">
-                    <TextInput
-                        placeholder="https://app.example.com"
-                        style={{ flex: 1 }}
-                        {...form.getInputProps('domain')}
-                    />
-                    <Select
-                        data={DOMAIN_TYPE_OPTIONS}
-                        w={160}
-                        {...form.getInputProps('type')}
-                    />
+                <Stack gap="xs">
+                    <Group gap="xs" align="flex-start" wrap="nowrap">
+                        <TextInput
+                            placeholder="https://app.example.com"
+                            flex={1}
+                            size="sm"
+                            {...form.getInputProps('domain')}
+                        />
+                        <Select
+                            data={DOMAIN_TYPE_OPTIONS}
+                            w={140}
+                            size="sm"
+                            {...form.getInputProps('type')}
+                        />
+                    </Group>
                     <Button
                         type="submit"
+                        variant="light"
+                        size="sm"
                         loading={addMutation.isLoading}
                         leftSection={<MantineIcon icon={IconPlus} />}
                     >
-                        Add
+                        Add domain
                     </Button>
-                </Group>
+                </Stack>
             </form>
         </Stack>
     );
