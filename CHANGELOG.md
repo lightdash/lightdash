@@ -1,3 +1,10 @@
+# [0.2701.0](https://github.com/lightdash/lightdash/compare/0.2700.1...0.2701.0) (2026-04-01)
+
+
+### Features
+
+* move 'new app' menu just above space ([#21596](https://github.com/lightdash/lightdash/issues/21596)) ([bf2e0c5](https://github.com/lightdash/lightdash/commit/bf2e0c5ae8cc7398923d1f54324a9edc6f595caf))
+
 ## [0.2700.1](https://github.com/lightdash/lightdash/compare/0.2700.0...0.2700.1) (2026-04-01)
 
 
