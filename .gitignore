@@ -122,3 +122,7 @@ http-client.private.env.json
 scripts/har-replay-server.ts
 *.har
 agent-harness/cloud/credentials.env
+
+# Conductor workspace (auto-generated per workspace)
+.env.conductor
+ecosystem.conductor.config.cjs

@@ -41,7 +41,7 @@ The backend, scheduler worker, and headless browser run as separate services tha
 
 ## Common Development Commands
 
--   Assume the dev-server is always running
+-   **At the start of every conversation**, run `/docker-dev start` to ensure Docker services and dev servers are running. This is idempotent — it detects what's already running and only starts what's needed.
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**
