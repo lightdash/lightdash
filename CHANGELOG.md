@@ -1,3 +1,10 @@
+# [0.2704.0](https://github.com/lightdash/lightdash/compare/0.2703.0...0.2704.0) (2026-04-01)
+
+
+### Features
+
+* add editable name and description for data apps ([#21606](https://github.com/lightdash/lightdash/issues/21606)) ([e10f2f6](https://github.com/lightdash/lightdash/commit/e10f2f64d3a7a73bef447214d57414c12b8bf915))
+
 # [0.2703.0](https://github.com/lightdash/lightdash/compare/0.2702.2...0.2703.0) (2026-04-01)
 
 
