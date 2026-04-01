@@ -739,17 +739,21 @@ export class OrganizationController extends BaseController {
      * @summary Delete allowed domain
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('204', 'Deleted')
+    @SuccessResponse('200', 'Deleted')
     @Delete('/allowedDomains/{domainUuid}')
     @OperationId('deleteOrganizationAllowedDomain')
     @Hidden()
     async deleteAllowedDomain(
         @Request() req: express.Request,
         @Path() domainUuid: string,
-    ): Promise<void> {
-        this.setStatus(204);
+    ): Promise<ApiSuccessEmpty> {
         const service =
             this.services.getOrganizationAllowedDomainsService<OrganizationAllowedDomainsService>();
         await service.deleteAllowedDomain(req.user!, domainUuid);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 }

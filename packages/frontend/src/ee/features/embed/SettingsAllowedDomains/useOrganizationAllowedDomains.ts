@@ -24,7 +24,7 @@ const addAllowedDomain = async (
     }) as unknown as Promise<AllowedDomain>;
 
 const deleteAllowedDomain = async (domainUuid: string) =>
-    lightdashApi<undefined>({
+    lightdashApi<null>({
         url: `/org/allowedDomains/${domainUuid}`,
         method: 'DELETE',
         body: undefined,

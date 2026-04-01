@@ -5,6 +5,7 @@ import {
     Button,
     Group,
     Loader,
+    Paper,
     Select,
     Stack,
     Text,
@@ -12,7 +13,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconPlus, IconTrash, IconX } from '@tabler/icons-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import {
@@ -95,63 +96,68 @@ const AllowedDomainsPanel: FC = () => {
     }
 
     return (
-        <Stack gap="lg">
-            <Stack gap="xs" mt="md">
-                {domains && domains.length > 0 ? (
-                    <Stack gap="xs">
-                        {domains.map((domain) => (
-                            <Group
-                                key={domain.organizationAllowedDomainUuid}
-                                justify="space-between"
-                                wrap="nowrap"
-                                gap="sm"
-                            >
-                                <Text size="sm" fw={500} truncate maw="60%">
-                                    {domain.domain}
-                                </Text>
-                                <Group gap="xs" wrap="nowrap">
-                                    <Badge
+        <Stack gap="md" mt="md">
+            {domains && domains.length > 0 ? (
+                <Paper withBorder shadow="subtle" radius="md" style={{ overflow: 'hidden' }}>
+                    {domains.map((domain, index) => (
+                        <Group
+                            key={domain.organizationAllowedDomainUuid}
+                            justify="space-between"
+                            wrap="nowrap"
+                            gap="sm"
+                            p="sm"
+                            style={
+                                index < domains.length - 1
+                                    ? {
+                                          borderBottom:
+                                              '1px solid var(--mantine-color-default-border)',
+                                      }
+                                    : undefined
+                            }
+                        >
+                            <Text size="sm" fw={500} truncate maw="60%">
+                                {domain.domain}
+                            </Text>
+                            <Group gap="xs" wrap="nowrap">
+                                <Badge
+                                    size="sm"
+                                    variant="light"
+                                    color={
+                                        domain.type === 'embed'
+                                            ? 'blue'
+                                            : 'teal'
+                                    }
+                                >
+                                    {TYPE_LABELS[domain.type]}
+                                </Badge>
+                                <Tooltip
+                                    label="Remove domain"
+                                    position="left"
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="red"
                                         size="sm"
-                                        variant="light"
-                                        color={
-                                            domain.type === 'embed'
-                                                ? 'blue'
-                                                : 'teal'
+                                        loading={deleteMutation.isLoading}
+                                        onClick={() =>
+                                            deleteMutation.mutate(
+                                                domain.organizationAllowedDomainUuid,
+                                            )
                                         }
                                     >
-                                        {TYPE_LABELS[domain.type]}
-                                    </Badge>
-                                    <Tooltip
-                                        label="Remove domain"
-                                        position="left"
-                                    >
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="red"
-                                            size="sm"
-                                            loading={
-                                                deleteMutation.isLoading
-                                            }
-                                            onClick={() =>
-                                                deleteMutation.mutate(
-                                                    domain.organizationAllowedDomainUuid,
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon icon={IconTrash} />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                </Group>
+                                        <MantineIcon icon={IconTrash} />
+                                    </ActionIcon>
+                                </Tooltip>
                             </Group>
-                        ))}
-                    </Stack>
-                ) : (
-                    <Text size="sm" c="dimmed">
-                        No custom domains configured. Domains from server
-                        environment variables are always allowed.
-                    </Text>
-                )}
-            </Stack>
+                        </Group>
+                    ))}
+                </Paper>
+            ) : (
+                <Text size="sm" c="dimmed">
+                    No custom domains configured. Domains from server
+                    environment variables are always allowed.
+                </Text>
+            )}
 
             {isAdding ? (
                 <form onSubmit={handleSubmit}>
