@@ -38,7 +38,6 @@ import {
     isExploreError,
     isSlackPrompt,
     KnexPaginateArgs,
-    LightdashUser,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
@@ -294,30 +293,42 @@ export class AiAgentService {
         return this.lightdashConfig.ai.copilot.embeddingEnabled;
     }
 
-    private async getIsCopilotEnabled(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
-    ) {
+    private async getIsCopilotEnabled(user: SessionUser) {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
         const aiCopilotFlag = await this.featureFlagService.get({
             user,
             featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
 
-        if (aiCopilotFlag.enabled) {
-            return true;
+        if (!aiCopilotFlag.enabled) {
+            const isEligibleForTrial =
+                await this.aiOrganizationSettingsService.isEligibleForTrial(
+                    aiCopilotFlag.enabled,
+                    user.organizationUuid,
+                );
+            if (!isEligibleForTrial) {
+                return false;
+            }
         }
-        if (!user.organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-        const isEligibleForTrial =
-            await this.aiOrganizationSettingsService.isEligibleForTrial(
-                aiCopilotFlag.enabled,
-                user.organizationUuid,
-            );
 
-        return isEligibleForTrial;
+        const canManageAgents = user.ability.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid: user.organizationUuid,
+            }),
+        );
+        if (!canManageAgents) {
+            const orgSettings =
+                await this.aiOrganizationSettingsService.getSettings(user);
+            if (!orgSettings.aiAgentsVisible) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
