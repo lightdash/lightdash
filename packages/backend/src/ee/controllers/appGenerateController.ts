@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    type ApiCancelAppVersionResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiPreviewTokenResponse,
@@ -110,6 +111,32 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Cancel a building version, killing the sandbox and marking it as cancelled.
+     * @summary Cancel app version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/cancel')
+    @OperationId('cancelAppVersion')
+    async cancelAppVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+    ): Promise<ApiCancelAppVersionResponse> {
+        await this.getAppGenerateService().cancelVersion(
+            req.user!,
+            projectUuid,
+            appUuid,
+            version,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

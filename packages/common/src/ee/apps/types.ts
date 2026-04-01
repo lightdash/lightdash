@@ -1,4 +1,4 @@
-import { type ApiSuccess } from '../../types/api/success';
+import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 
 export type ApiGenerateAppResponse = ApiSuccess<{
     appUuid: string;
@@ -35,3 +35,5 @@ export type ApiUpdateAppResponse = ApiSuccess<{
     name: string;
     description: string;
 }>;
+
+export type ApiCancelAppVersionResponse = ApiSuccessEmpty;

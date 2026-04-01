@@ -123,13 +123,18 @@ export class AppGenerateService extends BaseService {
         userMessage: string,
     ): Promise<void> {
         try {
-            await this.appModel.updateVersionStatus(
+            const updated = await this.appModel.updateVersionStatusIfBuilding(
                 appUuid,
                 version,
                 'error',
                 AppGenerateService.truncateEnd(getErrorMessage(error), 4000),
                 userMessage,
             );
+            if (!updated) {
+                this.logger.info(
+                    `App ${appUuid}: skipped markError — version ${version} is no longer building (likely cancelled)`,
+                );
+            }
         } catch (dbError) {
             this.logger.error(
                 `App ${appUuid}: failed to persist error status: ${getErrorMessage(dbError)}`,
@@ -782,8 +787,18 @@ export class AppGenerateService extends BaseService {
 
         try {
             const dbStart = performance.now();
-            await this.appModel.updateVersionStatus(appUuid, version, 'ready');
+            const updated = await this.appModel.updateVersionStatusIfBuilding(
+                appUuid,
+                version,
+                'ready',
+            );
             durations.dbMs = AppGenerateService.elapsed(dbStart);
+            if (!updated) {
+                this.logger.info(
+                    `App ${appUuid}: skipped marking ready — version ${version} is no longer building (likely cancelled)`,
+                );
+                return;
+            }
         } catch (error) {
             this.logger.error(
                 `App ${appUuid}: failed to mark version as ready: ${getErrorMessage(error)}`,
@@ -997,6 +1012,67 @@ export class AppGenerateService extends BaseService {
         return { appUuid, version: newVersion };
     }
 
+    async cancelVersion(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        this.assertDataAppsEnabled();
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DataApp', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to cancel app generation',
+            );
+        }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+
+        // Atomically mark the version as cancelled (only if still building)
+        const updated = await this.appModel.updateVersionStatusIfBuilding(
+            appUuid,
+            version,
+            'error',
+            'Cancelled by user',
+            'Cancelled by user',
+        );
+        if (!updated) {
+            throw new ParameterError('This version is not currently building');
+        }
+
+        this.logger.info(
+            `App ${appUuid}: version ${version} cancelled by user ${user.userUuid}`,
+        );
+
+        // Pause the sandbox to interrupt any running commands while keeping
+        // it resumable for the next iteration.
+        // The pipeline will catch the resulting error, but markError is now
+        // a no-op since the version is already in 'error' state.
+        if (app.sandbox_id) {
+            try {
+                const sandbox = await Sandbox.connect(app.sandbox_id, {
+                    apiKey: this.getE2bApiKey(),
+                });
+                await sandbox.pause();
+                this.logger.info(
+                    `App ${appUuid}: sandbox paused after cancel (sandboxId=${app.sandbox_id})`,
+                );
+            } catch (error) {
+                // Sandbox may already be dead/paused — that's fine
+                this.logger.warn(
+                    `App ${appUuid}: failed to pause sandbox after cancel: ${getErrorMessage(error)}`,
+                );
+            }
+        }
+    }
+
     async getAppVersions(
         user: SessionUser,
         projectUuid: string,
@@ -1035,7 +1111,7 @@ export class AppGenerateService extends BaseService {
 
         // Auto-heal stale builds: if the pipeline died (e.g. server restart)
         // the version stays "building" forever. Detect via heartbeat timeout.
-        const STALE_THRESHOLD_MS = 10 * 60_000;
+        const STALE_THRESHOLD_MS = 60 * 60_000;
         const now = Date.now();
         const staleVersions = versions.filter((v) => {
             if (v.status !== 'building') return false;
