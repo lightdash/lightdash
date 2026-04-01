@@ -219,7 +219,7 @@ export class SlackController extends BaseController {
         this.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
         if (!NANOID_REGEX.test(id)) {
-            SlackController.sendPlaceholder(req.res!);
+            await SlackController.sendPlaceholder(req.res!);
             return;
         }
 
@@ -231,20 +231,24 @@ export class SlackController extends BaseController {
             this.setStatus(302);
             this.setHeader('Location', signedUrl);
         } catch (e) {
-            SlackController.sendPlaceholder(req.res!);
+            await SlackController.sendPlaceholder(req.res!);
         }
     }
 
-    private static sendPlaceholder(res: express.Response): void {
-        const placeholderPath = path.resolve(
-            __dirname,
-            '../services/UnfurlService/assets/slack-unfurl-placeholder.png',
-        );
-        res.status(200);
-        res.setHeader('Content-Type', 'image/png');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
-        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-        fs.createReadStream(placeholderPath).pipe(res);
+    private static sendPlaceholder(res: express.Response): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const placeholderPath = path.resolve(
+                __dirname,
+                '../services/UnfurlService/assets/slack-unfurl-placeholder.png',
+            );
+            res.status(200);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+            const stream = fs.createReadStream(placeholderPath);
+            stream.on('error', reject);
+            stream.pipe(res).on('finish', resolve);
+        });
     }
 
     /**
