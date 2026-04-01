@@ -154,42 +154,34 @@ const AllowedDomainsPanel: FC = () => {
 
             {isAdding ? (
                 <form onSubmit={handleSubmit}>
-                    <Stack gap="xs">
+                    <Stack gap={4}>
                         <TextInput
-                            label="Domain"
                             placeholder="https://app.example.com"
                             description={wildcardHint}
-                            size="sm"
+                            size="xs"
                             {...form.getInputProps('domain')}
                         />
                         <Select
-                            label="Access type"
                             data={DOMAIN_TYPE_OPTIONS}
-                            size="sm"
+                            size="xs"
                             {...form.getInputProps('type')}
                         />
-                        <Group justify="flex-end" gap="xs" mt="xs">
+                        <Group justify="flex-end" gap="xs" mt={4}>
                             <Button
                                 variant="subtle"
                                 color="ldGray"
-                                size="sm"
+                                size="xs"
                                 onClick={handleCancel}
-                                leftSection={
-                                    <MantineIcon icon={IconX} />
-                                }
                             >
                                 Cancel
                             </Button>
                             <Button
                                 type="submit"
                                 variant="default"
-                                size="sm"
+                                size="xs"
                                 loading={addMutation.isLoading}
-                                leftSection={
-                                    <MantineIcon icon={IconPlus} />
-                                }
                             >
-                                Add domain
+                                Add
                             </Button>
                         </Group>
                     </Stack>
@@ -198,7 +190,7 @@ const AllowedDomainsPanel: FC = () => {
                 <Group justify="flex-end">
                     <Button
                         variant="default"
-                        size="sm"
+                        size="xs"
                         onClick={() => setIsAdding(true)}
                         leftSection={<MantineIcon icon={IconPlus} />}
                     >
