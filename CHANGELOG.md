@@ -1,3 +1,10 @@
+## [0.2702.2](https://github.com/lightdash/lightdash/compare/0.2702.1...0.2702.2) (2026-04-01)
+
+
+### Bug Fixes
+
+* mock worker_threads in ProjectService test ([#21611](https://github.com/lightdash/lightdash/issues/21611)) ([c4036f5](https://github.com/lightdash/lightdash/commit/c4036f5dd0cbd8750031bc999f76a73282500146))
+
 ## [0.2702.1](https://github.com/lightdash/lightdash/compare/0.2702.0...0.2702.1) (2026-04-01)
 
 
