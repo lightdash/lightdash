@@ -3,13 +3,13 @@ import {
     ActionIcon,
     Badge,
     Button,
-    Divider,
     Group,
     Loader,
     Select,
     Stack,
     Text,
     TextInput,
+    Title,
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
@@ -25,13 +25,20 @@ import {
 const DOMAIN_TYPE_OPTIONS = [
     {
         value: 'embed',
-        label: 'Iframe embed',
+        label: 'Embedding',
+        description: 'Allow this domain to embed Lightdash in an iframe',
     },
     {
         value: 'sdk',
-        label: 'SDK access',
+        label: 'API only',
+        description: 'Allow this domain to make API requests',
     },
 ];
+
+const TYPE_LABELS: Record<AllowedDomainType, string> = {
+    embed: 'Embedding',
+    sdk: 'API only',
+};
 
 const AllowedDomainsPanel: FC = () => {
     const { data: domains, isLoading } = useOrganizationAllowedDomains();
@@ -71,91 +78,99 @@ const AllowedDomainsPanel: FC = () => {
     }
 
     return (
-        <Stack gap="md">
-            {domains && domains.length > 0 ? (
-                <Stack gap="xs">
-                    {domains.map((domain) => (
-                        <Group
-                            key={domain.organizationAllowedDomainUuid}
-                            justify="space-between"
-                            wrap="nowrap"
-                            gap="sm"
-                        >
-                            <Text size="sm" fw={500} truncate maw="60%">
-                                {domain.domain}
-                            </Text>
-                            <Group gap="xs" wrap="nowrap">
-                                <Badge
-                                    size="sm"
-                                    variant="light"
-                                    color={
-                                        domain.type === 'embed'
-                                            ? 'blue'
-                                            : 'teal'
-                                    }
-                                >
-                                    {domain.type === 'embed'
-                                        ? 'Iframe embed'
-                                        : 'SDK access'}
-                                </Badge>
-                                <Tooltip
-                                    label="Remove domain"
-                                    position="left"
-                                >
-                                    <ActionIcon
-                                        variant="subtle"
-                                        color="red"
+        <Stack gap="lg">
+            <Stack gap="xs">
+                <Title order={6}>Allowed domains</Title>
+                {domains && domains.length > 0 ? (
+                    <Stack gap="xs">
+                        {domains.map((domain) => (
+                            <Group
+                                key={domain.organizationAllowedDomainUuid}
+                                justify="space-between"
+                                wrap="nowrap"
+                                gap="sm"
+                            >
+                                <Text size="sm" fw={500} truncate maw="60%">
+                                    {domain.domain}
+                                </Text>
+                                <Group gap="xs" wrap="nowrap">
+                                    <Badge
                                         size="sm"
-                                        loading={deleteMutation.isLoading}
-                                        onClick={() =>
-                                            deleteMutation.mutate(
-                                                domain.organizationAllowedDomainUuid,
-                                            )
+                                        variant="light"
+                                        color={
+                                            domain.type === 'embed'
+                                                ? 'blue'
+                                                : 'teal'
                                         }
                                     >
-                                        <MantineIcon icon={IconTrash} />
-                                    </ActionIcon>
-                                </Tooltip>
+                                        {TYPE_LABELS[domain.type]}
+                                    </Badge>
+                                    <Tooltip
+                                        label="Remove domain"
+                                        position="left"
+                                    >
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="red"
+                                            size="sm"
+                                            loading={
+                                                deleteMutation.isLoading
+                                            }
+                                            onClick={() =>
+                                                deleteMutation.mutate(
+                                                    domain.organizationAllowedDomainUuid,
+                                                )
+                                            }
+                                        >
+                                            <MantineIcon icon={IconTrash} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
                             </Group>
+                        ))}
+                    </Stack>
+                ) : (
+                    <Text size="sm" c="dimmed">
+                        No custom domains configured. Domains from server
+                        environment variables are always allowed.
+                    </Text>
+                )}
+            </Stack>
+
+            <Stack gap="xs">
+                <Title order={6}>New domain</Title>
+                <form onSubmit={handleSubmit}>
+                    <Stack gap="xs">
+                        <Group gap="xs" align="flex-start" wrap="nowrap">
+                            <TextInput
+                                placeholder="https://app.example.com"
+                                flex={1}
+                                size="sm"
+                                {...form.getInputProps('domain')}
+                            />
+                            <Select
+                                data={DOMAIN_TYPE_OPTIONS}
+                                w={140}
+                                size="sm"
+                                {...form.getInputProps('type')}
+                            />
                         </Group>
-                    ))}
-                </Stack>
-            ) : (
-                <Text size="sm" c="dimmed">
-                    No custom domains configured. Domains from server
-                    environment variables are always allowed.
-                </Text>
-            )}
-
-            <Divider />
-
-            <form onSubmit={handleSubmit}>
-                <Stack gap="xs">
-                    <Group gap="xs" align="flex-start" wrap="nowrap">
-                        <TextInput
-                            placeholder="https://app.example.com"
-                            flex={1}
-                            size="sm"
-                            {...form.getInputProps('domain')}
-                        />
-                        <Select
-                            data={DOMAIN_TYPE_OPTIONS}
-                            w={140}
-                            size="sm"
-                            {...form.getInputProps('type')}
-                        />
-                    </Group>
-                    <Button
-                        type="submit"
-                        variant="light"
-                        size="sm"
-                        loading={addMutation.isLoading}
-                        leftSection={<MantineIcon icon={IconPlus} />}
-                    >
-                        Add domain
-                    </Button>
-                </Stack>
-            </form>
+                        <Group justify="flex-end">
+                            <Button
+                                type="submit"
+                                variant="default"
+                                size="sm"
+                                loading={addMutation.isLoading}
+                                leftSection={
+                                    <MantineIcon icon={IconPlus} />
+                                }
+                            >
+                                Add domain
+                            </Button>
+                        </Group>
+                    </Stack>
+                </form>
+            </Stack>
         </Stack>
     );
 };
