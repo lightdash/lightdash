@@ -133,6 +133,13 @@ export enum FeatureFlags {
      * Enable user-configurable column limit for pivoted queries
      */
     ShowHideColumns = 'show-hide-columns',
+
+    /**
+     * Use Redux store for dashboard state management instead of React Context.
+     * Improves performance by enabling fine-grained selector subscriptions
+     * that only re-render when selected state actually changes.
+     */
+    DashboardReduxStore = 'dashboard-redux-store',
 }
 
 export type FeatureFlag = {

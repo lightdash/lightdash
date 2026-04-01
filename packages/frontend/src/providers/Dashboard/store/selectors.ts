@@ -9,8 +9,6 @@ import type { DashboardStoreState } from '.';
 
 const selectDashboardData = (state: DashboardStoreState) => state.dashboardData;
 const selectFilters = (state: DashboardStoreState) => state.dashboardFilters;
-const selectTileStatus = (state: DashboardStoreState) =>
-    state.dashboardTileStatus;
 
 // ts-unused-exports:disable-next-line
 export const selectAllFilters = createSelector(
@@ -33,9 +31,9 @@ export const selectAllFilters = createSelector(
 
 // ts-unused-exports:disable-next-line
 export const selectParameterValues = createSelector(
-    [selectFilters],
-    (filters): ParametersValuesMap =>
-        Object.entries(filters.parameters).reduce((acc, [key, param]) => {
+    [selectDashboardData],
+    (data): ParametersValuesMap =>
+        Object.entries(data.parameters).reduce((acc, [key, param]) => {
             if (
                 param.value !== null &&
                 param.value !== undefined &&
@@ -49,20 +47,20 @@ export const selectParameterValues = createSelector(
 
 // ts-unused-exports:disable-next-line
 export const selectParametersHaveChanged = createSelector(
-    [selectFilters],
-    (filters) => !isEqual(filters.parameters, filters.savedParameters),
+    [selectDashboardData],
+    (data) => !isEqual(data.parameters, data.savedParameters),
 );
 
 // ts-unused-exports:disable-next-line
 export const selectDashboardParameterReferences = createSelector(
-    [selectFilters],
-    (filters) => new Set(Object.values(filters.tileParameterReferences).flat()),
+    [selectDashboardData],
+    (data) => new Set(Object.values(data.tileParameterReferences).flat()),
 );
 
 // ts-unused-exports:disable-next-line
 export const selectAreAllChartsLoaded = createSelector(
-    [selectDashboardData, selectTileStatus],
-    (data, tileStatus) => {
+    [selectDashboardData],
+    (data) => {
         if (!data.dashboardTiles) return false;
         if (data.dashboardTabs.length > 0 && !data.activeTab) return false;
 
@@ -74,16 +72,14 @@ export const selectAreAllChartsLoaded = createSelector(
             })
             .map((tile) => tile.uuid);
 
-        return chartTileUuids.every((uuid) =>
-            tileStatus.loadedTiles.includes(uuid),
-        );
+        return chartTileUuids.every((uuid) => data.loadedTiles.has(uuid));
     },
 );
 
 // ts-unused-exports:disable-next-line
 export const selectDashboardHasTimestampDimension = createSelector(
-    [selectTileStatus],
-    (tileStatus) => tileStatus.tilesWithTimestampDimension.length > 0,
+    [selectDashboardData],
+    (data) => data.tilesWithTimestampDimension.size > 0,
 );
 
 // ts-unused-exports:disable-next-line
@@ -133,13 +129,13 @@ export const selectSelectedParametersCount = createSelector(
 
 // ts-unused-exports:disable-next-line
 export const selectMissingRequiredParameters = createSelector(
-    [selectDashboardParameterReferences, selectFilters],
-    (refs, filters) => {
+    [selectDashboardParameterReferences, selectDashboardData],
+    (refs, data) => {
         if (!refs.size) return [];
         return Array.from(refs).filter(
             (parameterName) =>
-                !filters.parameters[parameterName] &&
-                !filters.parameterDefinitions[parameterName]?.default,
+                !data.parameters[parameterName] &&
+                !data.parameterDefinitions[parameterName]?.default,
         );
     },
 );

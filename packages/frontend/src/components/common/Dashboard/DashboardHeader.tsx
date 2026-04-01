@@ -263,7 +263,7 @@ const DashboardHeader = memo(
             health.data?.preAggregates.enabled ?? false;
         const userCanManageDashboard = user.data?.ability.can(
             'manage',
-            subject('Dashboard', dashboard),
+            subject('Dashboard', { ...dashboard }),
         );
         const userCanRefreshPreAggregates =
             user.data?.ability.can(

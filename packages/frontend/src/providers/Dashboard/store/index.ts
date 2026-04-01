@@ -1,14 +1,10 @@
-// FIXES ts2742 issue with configureStore
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
-import type * as rtk from '@reduxjs/toolkit';
 import { configureStore } from '@reduxjs/toolkit';
-import { dashboardDataReducer } from './dashboardDataSlice';
-import { dashboardFiltersReducer } from './dashboardFiltersSlice';
-import { dashboardTileStatusReducer } from './dashboardTileStatusSlice';
+import dashboardDataReducer from './dashboardDataSlice';
+import dashboardFiltersReducer from './dashboardFiltersSlice';
+import dashboardTileStatusReducer from './dashboardTileStatusSlice';
 
-// ts-unused-exports:disable-next-line
-export const createDashboardStore = () =>
-    configureStore({
+export function createDashboardStore() {
+    return configureStore({
         reducer: {
             dashboardData: dashboardDataReducer,
             dashboardFilters: dashboardFiltersReducer,
@@ -16,22 +12,12 @@ export const createDashboardStore = () =>
         },
         middleware: (getDefaultMiddleware) =>
             getDefaultMiddleware({
-                serializableCheck: {
-                    ignoredPaths: [
-                        'dashboardTileStatus.oldestCacheTime',
-                        'dashboardData.dashboard',
-                        'dashboardData.dashboardCommentsCheck',
-                        'dashboardData.dashboardComments',
-                        'dashboardFilters.embedDashboard',
-                    ],
-                    ignoredActionPaths: ['payload'],
-                },
+                // We store non-serializable values (Set, Date, etc.) in the store
+                serializableCheck: false,
             }),
-        devTools: process.env.NODE_ENV === 'development',
     });
+}
 
-type DashboardStore = ReturnType<typeof createDashboardStore>;
-// ts-unused-exports:disable-next-line
+export type DashboardStore = ReturnType<typeof createDashboardStore>;
 export type DashboardStoreState = ReturnType<DashboardStore['getState']>;
-// ts-unused-exports:disable-next-line
 export type DashboardStoreDispatch = DashboardStore['dispatch'];
