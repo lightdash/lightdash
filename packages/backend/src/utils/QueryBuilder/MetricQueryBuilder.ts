@@ -933,18 +933,16 @@ export class MetricQueryBuilder {
         const nestedAggOuterIds = new Set(
             nestedAggMetrics.map(({ outerMetricId }) => outerMetricId),
         );
-        // Also exclude raw (non-aggregate) inner deps from the regular SELECT.
-        // These are plain column references that can't appear in a SELECT with
-        // GROUP BY. They're accessed from the base table in CTE 3 instead.
-        const rawInnerDepIds = new Set<string>();
+        // Exclude ALL inner deps from the regular SELECT — both raw and
+        // aggregate. Raw deps can't appear in GROUP BY, and aggregate deps
+        // are pre-computed in CTE 1. Without this, aggregate inner deps
+        // would appear twice: once from the CTE and once from the regular
+        // SELECT, causing duplicate column errors.
+        const innerDepIds = new Set<string>();
         for (const { innerDeps } of nestedAggMetrics) {
             for (const dep of innerDeps) {
-                if (
-                    !nestedAggOuterIds.has(dep.fieldId) &&
-                    !isAggregateMetricType(dep.metric.type) &&
-                    !sqlContainsAggregation(dep.metric.compiledSql)
-                ) {
-                    rawInnerDepIds.add(dep.fieldId);
+                if (!nestedAggOuterIds.has(dep.fieldId)) {
+                    innerDepIds.add(dep.fieldId);
                 }
             }
         }
@@ -964,7 +962,7 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Metrics with nested aggregate dependencies are handled via CTE
-                if (nestedAggOuterIds.has(field) || rawInnerDepIds.has(field)) {
+                if (nestedAggOuterIds.has(field) || innerDepIds.has(field)) {
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
                     );
@@ -2606,6 +2604,7 @@ export class MetricQueryBuilder {
                     metric: CompiledMetric;
                 }> = [];
                 const aggregateRefNames: string[] = [];
+                const allMetricRefNames: string[] = [];
                 let hasAggregateRef = false;
                 for (const ref of refs) {
                     if (ref.refName !== 'TABLE') {
@@ -2619,14 +2618,15 @@ export class MetricQueryBuilder {
                                 fieldId: refMetricId,
                                 metric: refMetric,
                             });
+                            const refDisplayName =
+                                ref.refTable === metric.table
+                                    ? ref.refName
+                                    : `${ref.refTable}.${ref.refName}`;
+                            allMetricRefNames.push(refDisplayName);
                             if (isAggregateMetricType(refMetric.type)) {
                                 hasAggregateRef = true;
                                 // Track the raw reference name for position checking
-                                aggregateRefNames.push(
-                                    ref.refTable === metric.table
-                                        ? ref.refName
-                                        : `${ref.refTable}.${ref.refName}`,
-                                );
+                                aggregateRefNames.push(refDisplayName);
                             }
                         } catch {
                             // Not a metric reference (could be a dimension), skip
@@ -2649,10 +2649,29 @@ export class MetricQueryBuilder {
                     hasAggregateRef = false;
                 }
 
-                // Only treat as nested aggregate if at least one ref is an
-                // aggregate metric type (to avoid pulling in normal
-                // type:number → type:number chains)
-                const innerDeps = hasAggregateRef ? allMetricDeps : [];
+                // Also detect the case where SQL aggregation wraps
+                // non-aggregate metric refs (e.g. MAX_BY(${number_metric},
+                // ${number_metric})). These raw column refs can't appear
+                // standalone in GROUP BY and need CTE routing just like
+                // aggregate refs do.
+                let wrapsNonAggMetricRefs = false;
+                if (
+                    hasSqlAgg &&
+                    !hasAggregateRef &&
+                    allMetricDeps.length > 0 &&
+                    sqlAggregationWrapsReferences(metric.sql, allMetricRefNames)
+                ) {
+                    wrapsNonAggMetricRefs = true;
+                }
+
+                // Treat as nested aggregate if:
+                // 1. At least one ref is an aggregate metric type, OR
+                // 2. SQL aggregation wraps non-aggregate metric refs
+                //    (e.g. MAX_BY(${type_number}, ${type_number}))
+                const innerDeps =
+                    hasAggregateRef || wrapsNonAggMetricRefs
+                        ? allMetricDeps
+                        : [];
 
                 if (innerDeps.length > 0) {
                     acc.push({
