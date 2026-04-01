@@ -167,6 +167,24 @@ const AllowedDomainsPanel: FC = () => {
                             label="Access type"
                             data={DOMAIN_TYPE_OPTIONS}
                             size="xs"
+                            renderOption={({ option }) => {
+                                const desc =
+                                    'description' in option
+                                        ? String(option.description)
+                                        : null;
+                                return (
+                                    <Stack gap={2}>
+                                        <Text size="xs" fw={500}>
+                                            {option.label}
+                                        </Text>
+                                        {desc && (
+                                            <Text size="xs" c="dimmed">
+                                                {desc}
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                );
+                            }}
                             {...form.getInputProps('type')}
                         />
                         <Group justify="flex-end" gap="xs" mt={4}>
