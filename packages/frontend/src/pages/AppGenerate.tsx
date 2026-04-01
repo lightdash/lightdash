@@ -12,6 +12,7 @@ import {
     IconAppWindow,
     IconArrowUp,
     IconExternalLink,
+    IconPlayerStop,
     IconSparkles,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,6 +29,7 @@ import { Link, Navigate, useParams } from 'react-router';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -121,6 +123,8 @@ const AppGenerate: FC = () => {
         reset: resetIterate,
     } = useIterateApp();
     const { mutate: updateAppMutate } = useUpdateApp();
+    const { mutate: cancelMutate, isLoading: isCancelling } =
+        useCancelAppVersion();
     const health = useHealth();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -217,11 +221,6 @@ const AppGenerate: FC = () => {
         () => [...historyMessages, ...localMessages],
         [historyMessages, localMessages],
     );
-
-    // Used for chat links + handleSubmit (recalculated every render, fine)
-    const latestApp = [...messages]
-        .reverse()
-        .find((m) => m.appUuid !== null && m.version !== null);
 
     // Stable reference for the preview — only updates when a new version
     // becomes ready, preventing iframe reloads during status polling.
@@ -332,11 +331,11 @@ const AppGenerate: FC = () => {
             },
         };
 
-        if (latestApp?.appUuid) {
+        if (activeAppUuid) {
             iterateMutate(
                 {
                     projectUuid,
-                    appUuid: latestApp.appUuid,
+                    appUuid: activeAppUuid,
                     prompt: trimmed,
                 },
                 callbacks,
@@ -351,6 +350,30 @@ const AppGenerate: FC = () => {
             e.preventDefault();
             handleSubmit();
         }
+    };
+
+    const handleCancel = () => {
+        if (
+            !projectUuid ||
+            !activeAppUuid ||
+            !latestBuildingVersion ||
+            isCancelling
+        )
+            return;
+        cancelMutate(
+            {
+                projectUuid,
+                appUuid: activeAppUuid,
+                version: latestBuildingVersion.version,
+            },
+            {
+                onSuccess: () => {
+                    void queryClient.invalidateQueries({
+                        queryKey: ['app', projectUuid, activeAppUuid],
+                    });
+                },
+            },
+        );
     };
 
     return (
@@ -528,18 +551,32 @@ const AppGenerate: FC = () => {
                                         wrapper: classes.textareaWrapper,
                                     }}
                                 />
-                                <ActionIcon
-                                    size="sm"
-                                    radius="xl"
-                                    variant="filled"
-                                    color="violet"
-                                    onClick={handleSubmit}
-                                    disabled={!prompt.trim() || isLoading}
-                                    loading={isLoading}
-                                    className={classes.submitButton}
-                                >
-                                    <IconArrowUp size={14} />
-                                </ActionIcon>
+                                {isBuilding ? (
+                                    <ActionIcon
+                                        size="sm"
+                                        radius="xl"
+                                        variant="filled"
+                                        color="red"
+                                        onClick={handleCancel}
+                                        loading={isCancelling}
+                                        className={classes.submitButton}
+                                    >
+                                        <IconPlayerStop size={14} />
+                                    </ActionIcon>
+                                ) : (
+                                    <ActionIcon
+                                        size="sm"
+                                        radius="xl"
+                                        variant="filled"
+                                        color="violet"
+                                        onClick={handleSubmit}
+                                        disabled={!prompt.trim() || isLoading}
+                                        loading={isGenerating || isIterating}
+                                        className={classes.submitButton}
+                                    >
+                                        <IconArrowUp size={14} />
+                                    </ActionIcon>
+                                )}
                             </Box>
                         </Box>
                     </Box>

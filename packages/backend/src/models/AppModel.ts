@@ -58,6 +58,29 @@ export class AppModel {
             });
     }
 
+    /**
+     * Update version status only if it is currently 'building'.
+     * Returns true if the update was applied, false if the version was
+     * already in a terminal state (e.g. cancelled by the user).
+     */
+    async updateVersionStatusIfBuilding(
+        appId: string,
+        version: number,
+        status: AppVersionStatus,
+        error?: string | null,
+        statusMessage?: string | null,
+    ): Promise<boolean> {
+        const updatedRows = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version, status: 'building' })
+            .update({
+                status,
+                error: error ?? null,
+                status_message: statusMessage ?? null,
+                status_updated_at: new Date(),
+            });
+        return updatedRows > 0;
+    }
+
     async updateStatusMessage(
         appId: string,
         version: number,
