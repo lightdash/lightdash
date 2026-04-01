@@ -1,3 +1,11 @@
+## [0.2700.1](https://github.com/lightdash/lightdash/compare/0.2700.0...0.2700.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* nested metric CTE routing for MAX_BY with non-aggregate refs ([#21580](https://github.com/lightdash/lightdash/issues/21580)) ([45ca6cf](https://github.com/lightdash/lightdash/commit/45ca6cf3d5b585f50b3816c599e0eb4fe13dac67)), closes [#21501](https://github.com/lightdash/lightdash/issues/21501)
+* update mcp chart app build dependencies ([#21595](https://github.com/lightdash/lightdash/issues/21595)) ([40776e6](https://github.com/lightdash/lightdash/commit/40776e67dfa15f4dfaa9c6f00e52f1acc091f41c))
+
 # [0.2700.0](https://github.com/lightdash/lightdash/compare/0.2699.1...0.2700.0) (2026-03-31)
 
 
