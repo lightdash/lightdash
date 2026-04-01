@@ -1,3 +1,10 @@
+## [0.2709.6](https://github.com/lightdash/lightdash/compare/0.2709.5...0.2709.6) (2026-04-01)
+
+
+### Bug Fixes
+
+* databricks u2m refresh token cache when deploying using cli ([#21657](https://github.com/lightdash/lightdash/issues/21657)) ([906b325](https://github.com/lightdash/lightdash/commit/906b3253159e2c54ec84c966945a66098656ebd2))
+
 ## [0.2709.5](https://github.com/lightdash/lightdash/compare/0.2709.4...0.2709.5) (2026-04-01)
 
 
