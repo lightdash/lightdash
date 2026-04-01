@@ -21,6 +21,8 @@ import {
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
     filterInTheCurrentDayTimezoneMocks,
+    filterInTheNextCompletedDayTimezoneMocks,
+    filterInThePastCompletedDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -645,6 +647,77 @@ describe('Filter SQL', () => {
                 renderDateFilterSql(
                     DimensionSqlMock,
                     InTheCurrentFilterBase,
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastCompletedDayTimezoneMocks)(
+        'should return in the past completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test('completed day filter range should be exactly 24 hours for non-UTC timezone', () => {
+        jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+        const result = renderDateFilterSql(
+            DimensionSqlMock,
+            {
+                ...InThePastFilterBase,
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    completed: true,
+                },
+            },
+            adapterType.default,
+            'America/New_York',
+            formatTimestamp,
+        );
+        // Extract timestamps from the SQL: >= ('from') AND ... < ('until')
+        const matches = result?.match(
+            />= \('(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'\).*< \('(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'\)/,
+        );
+        expect(matches).not.toBeNull();
+        if (matches) {
+            const from = new Date(`${matches[1]}Z`);
+            const until = new Date(`${matches[2]}Z`);
+            const hours = (until.getTime() - from.getTime()) / (1000 * 60 * 60);
+            expect(hours).toBe(24);
+        }
+    });
+    test.each(filterInTheNextCompletedDayTimezoneMocks)(
+        'should return in the next completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
                     adapterType.default,
                     timezone,
                     formatTimestamp,

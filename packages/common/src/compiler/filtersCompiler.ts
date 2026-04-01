@@ -17,7 +17,6 @@ import {
     isFilterTarget,
     isMetricFilterTarget,
     UnitOfTime,
-    unitOfTimeFormat,
     type DateFilterRule,
     type FilterRule,
 } from '../types/filter';
@@ -322,12 +321,16 @@ export const renderDateFilterSql = (
             if (completed) {
                 const completedDate = moment(
                     getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .startOf(unitOfTime)
-                        .format(unitOfTimeFormat[unitOfTime]),
-                ).toDate();
+                        .tz(timezone)
+                        .startOf(unitOfTime),
+                )
+                    .utc()
+                    .toDate();
                 const untilDate = dateFormatter(
                     getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                        .tz(timezone)
                         .startOf(unitOfTime)
+                        .utc()
                         .toDate(),
                 );
                 return `${not}((${dimensionSql}) >= ${castValue(
@@ -337,19 +340,23 @@ export const renderDateFilterSql = (
                             completedDate,
                         )
                             .subtract(filter.values?.[0], unitOfTime)
+                            .utc()
                             .toDate(),
                     ),
                 )} AND (${dimensionSql}) < ${castValue(untilDate)})`;
             }
             const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(
-                    effectiveStartOfWeek,
-                ).toDate(),
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                    .tz(timezone)
+                    .utc()
+                    .toDate(),
             );
             return `${not}((${dimensionSql}) >= ${castValue(
                 dateFormatter(
                     getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                        .tz(timezone)
                         .subtract(filter.values?.[0], unitOfTime)
+                        .utc()
                         .toDate(),
                 ),
             )} AND (${dimensionSql}) <= ${castValue(untilDate)})`;
@@ -362,15 +369,19 @@ export const renderDateFilterSql = (
             if (completed) {
                 const fromDate = moment(
                     getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                        .tz(timezone)
                         .add(1, unitOfTime)
                         .startOf(unitOfTime),
-                ).toDate();
+                )
+                    .utc()
+                    .toDate();
                 const toDate = dateFormatter(
                     getMomentDateWithCustomStartOfWeek(
                         effectiveStartOfWeek,
                         fromDate,
                     )
                         .add(filter.values?.[0], unitOfTime)
+                        .utc()
                         .toDate(),
                 );
                 return `((${dimensionSql}) >= ${castValue(
@@ -378,13 +389,16 @@ export const renderDateFilterSql = (
                 )} AND (${dimensionSql}) < ${castValue(toDate)})`;
             }
             const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(
-                    effectiveStartOfWeek,
-                ).toDate(),
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                    .tz(timezone)
+                    .utc()
+                    .toDate(),
             );
             const toDate = dateFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
+                    .tz(timezone)
                     .add(filter.values?.[0], unitOfTime)
+                    .utc()
                     .toDate(),
             );
             return `((${dimensionSql}) >= ${castValue(

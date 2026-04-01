@@ -585,6 +585,35 @@ export const disabledFilterMock: {
     timezone: 'UTC',
 };
 
+// System time: 04 Apr 2020 06:12:30 GMT
+// IN_THE_PAST 1 completed day: .tz(tz).startOf('day') → subtract 1 day
+// UTC:            start of day = 2020-04-04 00:00 UTC → from 2020-04-03 00:00, until 2020-04-04 00:00
+// America/New_York (EDT, UTC-4): start of day = 2020-04-04 04:00 UTC → from 2020-04-03 04:00, until 2020-04-04 04:00
+export const filterInThePastCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03 00:00:00') AND (customers.created) < ('2020-04-04 00:00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03 04:00:00') AND (customers.created) < ('2020-04-04 04:00:00'))",
+    ],
+];
+
+// IN_THE_NEXT 1 completed day: .tz(tz).add(1, 'day').startOf('day') → add 1 day
+// UTC:            next day start = 2020-04-05 00:00 UTC → from 2020-04-05 00:00, until 2020-04-06 00:00
+// America/New_York (EDT, UTC-4): next day start = 2020-04-05 04:00 UTC → from 2020-04-05 04:00, until 2020-04-06 04:00
+export const filterInTheNextCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-06 00:00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-05 04:00:00') AND (customers.created) < ('2020-04-06 04:00:00'))",
+    ],
+];
+
 export const filterInTheCurrentDayTimezoneMocks = [
     [
         'UTC',
