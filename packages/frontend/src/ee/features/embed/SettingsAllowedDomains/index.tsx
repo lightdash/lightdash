@@ -96,8 +96,8 @@ const AllowedDomainsPanel: FC = () => {
     }
 
     return (
-        <Stack gap="md" mt="md">
-            {domains && domains.length > 0 ? (
+        <Stack gap="md">
+            {domains && domains.length > 0 && (
                 <Paper withBorder shadow="subtle" radius="md" style={{ overflow: 'hidden' }}>
                     {domains.map((domain, index) => (
                         <Group
@@ -152,11 +152,6 @@ const AllowedDomainsPanel: FC = () => {
                         </Group>
                     ))}
                 </Paper>
-            ) : (
-                <Text size="sm" c="dimmed">
-                    No custom domains configured. Domains from server
-                    environment variables are always allowed.
-                </Text>
             )}
 
             {isAdding ? (
