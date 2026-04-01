@@ -6,12 +6,16 @@ import {
     formatRows,
     getErrorMessage,
     getFormatExpression,
+    isDimension,
     isField,
     isNumber,
     ItemsMap,
     MetricQuery,
     PivotConfig,
     pivotResultsAsCsv,
+    pivotResultsAsData,
+    ResultRow,
+    timeIntervalToExcelNumFmt,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -34,7 +38,6 @@ import {
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
-    // Helper method for date/timestamp conversion
     static convertToExcelDate(value: unknown): Date | unknown {
         if (typeof value === 'string') {
             const dateValue = moment(value, moment.ISO_8601, true);
@@ -115,6 +118,7 @@ export class ExcelService {
         customLabels,
         maxColumnLimit,
         pivotDetails,
+        enableImprovedExcelDates = false,
     }: {
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
@@ -124,10 +128,149 @@ export class ExcelService {
         customLabels: Record<string, string> | undefined;
         maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        enableImprovedExcelDates?: boolean;
     }): Promise<Excel.Buffer> {
-        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
         const formattedRows = formatRows(rows, itemMap);
 
+        if (!enableImprovedExcelDates) {
+            return ExcelService.downloadPivotTableXlsxLegacy({
+                formattedRows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw,
+                customLabels,
+                maxColumnLimit,
+                pivotDetails,
+            });
+        }
+
+        const pivotData = pivotResultsAsData({
+            pivotConfig,
+            rows: formattedRows,
+            itemMap,
+            metricQuery,
+            customLabels,
+            onlyRaw,
+            maxColumnLimit,
+            pivotDetails,
+        });
+
+        // Build date column metadata: for each data column, determine if
+        // it's a date/timestamp dimension and what Excel numFmt to apply.
+        const dateColumnFormats = new Map<number, { numFmt: string }>();
+        if (!onlyRaw) {
+            pivotData.fieldIds.forEach((fieldId, colIndex) => {
+                const field = itemMap[fieldId];
+                if (
+                    field &&
+                    isField(field) &&
+                    isDimension(field) &&
+                    (field.type === DimensionType.DATE ||
+                        field.type === DimensionType.TIMESTAMP)
+                ) {
+                    const numFmt = timeIntervalToExcelNumFmt(
+                        field.timeInterval,
+                        field.type,
+                    );
+                    if (numFmt) {
+                        const offset = pivotData.hasIndex ? 0 : 1;
+                        dateColumnFormats.set(colIndex + offset, { numFmt });
+                    }
+                }
+            });
+        }
+
+        const workbook = new Excel.Workbook();
+        const worksheet = workbook.addWorksheet('Pivot Table');
+
+        // Add header rows
+        pivotData.headers.forEach((row, rowIndex) => {
+            worksheet.addRow(row);
+
+            if (rowIndex === 0) {
+                const headerRow = worksheet.getRow(1);
+                headerRow.font = { bold: true };
+                headerRow.fill = {
+                    type: 'pattern',
+                    pattern: 'solid',
+                    fgColor: { argb: 'FFE0E0E0' },
+                };
+            }
+        });
+
+        // Add data rows — use raw values for date columns, formatted for everything else
+        pivotData.dataRows.forEach((row) => {
+            const excelRow = row.map((cell, colIndex) => {
+                const dateFmt = dateColumnFormats.get(colIndex);
+                if (
+                    dateFmt &&
+                    cell.raw != null &&
+                    cell.raw !== '' &&
+                    typeof cell.raw === 'string'
+                ) {
+                    const m = moment.utc(cell.raw);
+                    if (m.isValid()) {
+                        return m.toDate();
+                    }
+                }
+                return cell.formatted;
+            });
+            const wsRow = worksheet.addRow(excelRow);
+
+            // Apply numFmt to date cells in this row
+            dateColumnFormats.forEach(({ numFmt }, colIndex) => {
+                const cell = wsRow.getCell(colIndex + 1); // 1-indexed
+                if (cell.value instanceof Date) {
+                    cell.numFmt = numFmt;
+                }
+            });
+        });
+
+        // Auto-adjust column widths
+        const allRows = [
+            ...pivotData.headers,
+            ...pivotData.dataRows.map((row) => row.map((c) => c.formatted)),
+        ];
+        worksheet.columns.forEach((column, index) => {
+            if (column) {
+                let maxLength = 0;
+                allRows.forEach((row) => {
+                    if (
+                        row[index] &&
+                        row[index].toString().length > maxLength
+                    ) {
+                        maxLength = row[index].toString().length;
+                    }
+                });
+                // eslint-disable-next-line no-param-reassign
+                column.width = Math.min(Math.max(maxLength + 2, 10), 50);
+            }
+        });
+
+        // Write to buffer
+        return workbook.xlsx.writeBuffer();
+    }
+
+    private static async downloadPivotTableXlsxLegacy({
+        formattedRows,
+        itemMap,
+        metricQuery,
+        pivotConfig,
+        onlyRaw,
+        customLabels,
+        maxColumnLimit,
+        pivotDetails,
+    }: {
+        formattedRows: ResultRow[];
+        itemMap: ItemsMap;
+        metricQuery: MetricQuery;
+        pivotConfig: PivotConfig;
+        onlyRaw: boolean;
+        customLabels: Record<string, string> | undefined;
+        maxColumnLimit: number;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+    }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
@@ -139,18 +282,15 @@ export class ExcelService {
             pivotDetails,
         });
 
-        // Create Excel workbook
         const workbook = new Excel.Workbook();
         const worksheet = workbook.addWorksheet('Pivot Table');
 
-        // Add data to worksheet
         csvResults.forEach((row, index) => {
             const excelRow = row.map((value) =>
                 ExcelService.convertToExcelDate(value),
             );
             worksheet.addRow(excelRow);
 
-            // Style headers (first row)
             if (index === 0) {
                 const headerRow = worksheet.getRow(1);
                 headerRow.font = { bold: true };
@@ -162,7 +302,6 @@ export class ExcelService {
             }
         });
 
-        // Auto-adjust column widths
         worksheet.columns.forEach((column, index) => {
             if (column) {
                 let maxLength = 0;
@@ -179,7 +318,6 @@ export class ExcelService {
             }
         });
 
-        // Write to buffer
         return workbook.xlsx.writeBuffer();
     }
 
@@ -261,6 +399,7 @@ export class ExcelService {
             customLabels,
             maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
         });
 
         // Upload the Excel buffer to exports bucket using cross-bucket transform
