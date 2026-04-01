@@ -1,3 +1,10 @@
+# [0.2707.0](https://github.com/lightdash/lightdash/compare/0.2706.0...0.2707.0) (2026-04-01)
+
+
+### Features
+
+* wire metricQuery.timezone into timezone resolution hierarchy ([#21636](https://github.com/lightdash/lightdash/issues/21636)) ([47029bb](https://github.com/lightdash/lightdash/commit/47029bb067e2b77c1b439f764a866711a2ac94a2))
+
 # [0.2706.0](https://github.com/lightdash/lightdash/compare/0.2705.0...0.2706.0) (2026-04-01)
 
 
