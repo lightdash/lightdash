@@ -144,7 +144,7 @@ export class AppGenerateService extends BaseService {
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
         const sandbox = await Sandbox.create('lightdash-data-app', {
-            timeoutMs: 10 * 60 * 1000,
+            timeoutMs: 60 * 60 * 1000,
             apiKey: e2bApiKey,
             envs: { ANTHROPIC_API_KEY: anthropicApiKey },
             lifecycle: { onTimeout: 'pause' },
@@ -182,7 +182,7 @@ export class AppGenerateService extends BaseService {
         const start = performance.now();
         const sandbox = await Sandbox.connect(sandboxId, {
             apiKey: e2bApiKey,
-            timeoutMs: 10 * 60 * 1000,
+            timeoutMs: 60 * 60 * 1000,
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -437,7 +437,7 @@ export class AppGenerateService extends BaseService {
                 `--append-system-prompt-file /app/skill.md`,
             {
                 cwd: '/app',
-                timeoutMs: 8 * 60 * 1000,
+                timeoutMs: 55 * 60 * 1000,
                 onStdout: (chunk) => {
                     stdoutBuffer += chunk;
                     const lines = stdoutBuffer.split('\n');
