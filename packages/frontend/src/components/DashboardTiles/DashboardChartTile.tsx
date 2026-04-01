@@ -80,7 +80,16 @@ type ClientSideError = {
     };
 };
 
-type DashboardTileError = ApiError | ClientSideError;
+type DashboardTileError = ApiError | ClientSideError | Error;
+
+const getDashboardTileErrorMessage = (
+    error: DashboardTileError,
+): string | undefined => {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return error.error?.message;
+};
 
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
@@ -1990,7 +1999,10 @@ export const GenericDashboardChartTile: FC<
                     adaptive
                     icon={IconAlertCircle}
                     title={tileTitle}
-                    description={error?.error?.message || 'No data available'}
+                    description={
+                        getDashboardTileErrorMessage(error) ||
+                        'No data available'
+                    }
                 />
             </TileBase>
         );
