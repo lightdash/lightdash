@@ -13,7 +13,12 @@ const PROVIDER = 'bedrock';
  * Maps AWS region codes to Bedrock cross-region inference profile prefixes.
  * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html
  */
-function getBedrockModelPrefix(region: string): string {
+function getBedrockModelPrefix(
+    region: string,
+    overridePrefix?: string,
+): string {
+    if (overridePrefix) return overridePrefix;
+
     if (region.startsWith('us-')) return 'us';
     if (region.startsWith('eu-')) return 'eu';
     if (region.startsWith('ap-')) return 'apac';
@@ -48,7 +53,10 @@ export const getBedrockModel = (
 ): AiModel<typeof PROVIDER> => {
     const bedrock = getBedrockProvider(config);
     /** @ref https://platform.claude.com/docs/en/build-with-claude/claude-on-amazon-bedrock#api-model-ids */
-    const modelPrefix = getBedrockModelPrefix(config.region);
+    const modelPrefix = getBedrockModelPrefix(
+        config.region,
+        config.inferenceProfilePrefix,
+    );
     const model = bedrock(`${modelPrefix}.${preset.modelId}`);
 
     const reasoningEnabled =
@@ -85,3 +93,5 @@ export const getBedrockEmbeddingModel = (
     const bedrock = getBedrockProvider(config);
     return bedrock.embedding(config.embeddingModelName);
 };
+
+export { getBedrockModelPrefix };
