@@ -178,7 +178,7 @@ const AllowedDomainsPanel: FC = () => {
                                             {option.label}
                                         </Text>
                                         {desc && (
-                                            <Text size="xs" c="dimmed">
+                                            <Text fz={10} c="dimmed">
                                                 {desc}
                                             </Text>
                                         )}
