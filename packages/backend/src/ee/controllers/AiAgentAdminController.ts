@@ -27,6 +27,7 @@ import express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentAdminService } from '../services/AiAgentAdminService';
@@ -168,7 +169,7 @@ export class AiAgentAdminController extends BaseController {
      * Update AI organization settings
      * @summary Update AI settings
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Updated AI organization settings')
     @Patch('/settings')
     @OperationId('upsertAiOrganizationSettings')
