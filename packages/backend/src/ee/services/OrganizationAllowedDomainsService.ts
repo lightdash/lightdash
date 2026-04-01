@@ -25,7 +25,7 @@ type Dependencies = {
  * Rejects:
  *   - bare *, *.com, paths, trailing slashes, query strings
  */
-function validateDomain(raw: string): string {
+export function validateDomain(raw: string): string {
     const trimmed = raw.trim().replace(/\/+$/, '');
 
     // Subdomain wildcard pattern: *.example.com (must have at least two levels after *)
