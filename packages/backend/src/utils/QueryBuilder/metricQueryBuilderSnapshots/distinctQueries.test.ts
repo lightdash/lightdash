@@ -20,6 +20,22 @@ describe('MetricQueryBuilder snapshot: distinct queries', () => {
         ).toMatchSnapshot();
     });
 
+    // Covers the distinct-metric join ambiguity fix, where sorting by a selected
+    // dimension alias after rejoining deduplicated metric CTEs requires an outer projection.
+    test('matches snapshot for a sum-distinct query with dimensions sorted by dimension', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                    sorts: [
+                        { fieldId: 'orders_payment_method', descending: false },
+                    ],
+                },
+            }),
+        ).toMatchSnapshot();
+    });
+
     // Covers the no-dimension sum_distinct path, where the deduped aggregate should avoid
     // dimension joins entirely and collapse back to a single-row aggregation shape.
     test('matches snapshot for a sum-distinct query without dimensions', () => {

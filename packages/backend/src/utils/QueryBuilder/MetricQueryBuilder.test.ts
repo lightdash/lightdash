@@ -844,21 +844,6 @@ describe('Query builder', () => {
         expect(query).not.toMatch(/INNER JOIN pop_metrics_/);
     });
 
-    test('Should wrap PoP queries in an outer metrics CTE so ORDER BY is not ambiguous', () => {
-        const { query } = buildQuery({
-            explore: POP_TEST_EXPLORE,
-            compiledMetricQuery: POP_TEST_METRIC_QUERY,
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: QUERY_BUILDER_UTC_TIMEZONE,
-        });
-
-        expect(query).toMatch(/metrics AS \(\nSELECT\n {2}base_metrics\.\*/);
-        expect(query).toMatch(
-            /SELECT\s+\*\s+FROM metrics\s+ORDER BY "orders_order_date_year" DESC\s+LIMIT 500$/,
-        );
-    });
-
     test('Should reuse non-time filters for PoP metrics in fanout-protected CTEs while shifting the comparison period', () => {
         const { query } = buildQuery({
             explore: POP_TEST_FANOUT_EXPLORE,
@@ -1625,30 +1610,6 @@ LIMIT 10`;
             expect(result.warnings).toHaveLength(0);
         });
 
-        test('Should wrap fanout-protected joins in an outer metrics CTE so ORDER BY dimension aliases are not ambiguous', () => {
-            const result = buildQuery({
-                explore: EXPLORE,
-                compiledMetricQuery: {
-                    ...METRIC_QUERY_TWO_TABLES,
-                    tableCalculations: [],
-                    compiledTableCalculations: [],
-                    dimensions: ['table1_dim1'],
-                    metrics: ['table1_metric1', 'table2_metric3'],
-                    sorts: [{ fieldId: 'table1_dim1', descending: false }],
-                },
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            expect(result.query).toMatch(
-                /metrics AS \(\nSELECT\n {2}cte_unaffected\.\*/,
-            );
-            expect(result.query).toMatch(
-                /SELECT\s+\*\s+FROM metrics\s+ORDER BY "table1_dim1"\s+LIMIT 10$/,
-            );
-        });
-
         test('Should handle inflation-proof metrics correctly', () => {
             // Create a metric query that includes both the count distinct metric and the sum metric
             const metricQueryWithMixedMetrics = {
@@ -2290,28 +2251,6 @@ LIMIT 10`;
             );
             expect(result.query).toContain('GROUP BY');
             expect(result.query).toContain('dd_orders_avg_shipping_cost');
-        });
-
-        test('distinct metric joins should be wrapped in an outer metrics CTE so ORDER BY dimension aliases are not ambiguous', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_SUM_DISTINCT,
-                compiledMetricQuery: {
-                    ...METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
-                    sorts: [
-                        { fieldId: 'orders_payment_method', descending: false },
-                    ],
-                },
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            expect(result.query).toMatch(
-                /metrics AS \(\nSELECT\n {2}dd_base\.\*/,
-            );
-            expect(result.query).toMatch(
-                /SELECT\s+\*\s+FROM metrics\s+ORDER BY "orders_payment_method"\s+LIMIT 10$/,
-            );
         });
     });
 
@@ -4000,97 +3939,6 @@ describe('Query Structure Tests', () => {
      * AVG(order_value) — each metric gets its own correct aggregation,
      * they don't all default to SUM.
      */
-    test('Should use correct aggregation per metric when multiple metric types use total()', () => {
-        const exploreWithMultipleMetrics: Explore = {
-            ...EXPLORE,
-            tables: {
-                ...EXPLORE.tables,
-                table1: {
-                    ...EXPLORE.tables.table1,
-                    metrics: {
-                        ...EXPLORE.tables.table1.metrics,
-                        total_revenue: {
-                            type: MetricType.SUM,
-                            fieldType: FieldType.METRIC,
-                            table: 'table1',
-                            tableLabel: 'table1',
-                            name: 'total_revenue',
-                            label: 'total_revenue',
-                            sql: '${TABLE}.revenue',
-                            compiledSql: 'SUM("table1".revenue)',
-                            tablesReferences: ['table1'],
-                            hidden: false,
-                        } as CompiledMetric,
-                        avg_order_value: {
-                            type: MetricType.AVERAGE,
-                            fieldType: FieldType.METRIC,
-                            table: 'table1',
-                            tableLabel: 'table1',
-                            name: 'avg_order_value',
-                            label: 'avg_order_value',
-                            sql: '${TABLE}.order_value',
-                            compiledSql: 'AVG("table1".order_value)',
-                            tablesReferences: ['table1'],
-                            hidden: false,
-                        } as CompiledMetric,
-                    },
-                },
-            },
-        };
-
-        const metricQueryWithMultipleTotals = {
-            ...METRIC_QUERY,
-            metrics: ['table1_total_revenue', 'table1_avg_order_value'],
-            tableCalculations: [
-                {
-                    name: 'revenue_pct',
-                    displayName: 'Revenue %',
-                    sql: '${table1.total_revenue} / total(${table1.total_revenue})',
-                },
-                {
-                    name: 'avg_pct',
-                    displayName: 'Avg %',
-                    sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
-                },
-            ],
-            compiledTableCalculations: [
-                {
-                    name: 'revenue_pct',
-                    displayName: 'Revenue %',
-                    sql: '${table1.total_revenue} / total(${table1.total_revenue})',
-                    compiledSql:
-                        '"table1_total_revenue" / total("table1_total_revenue")',
-                    dependsOn: [],
-                },
-                {
-                    name: 'avg_pct',
-                    displayName: 'Avg %',
-                    sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
-                    compiledSql:
-                        '"table1_avg_order_value" / total("table1_avg_order_value")',
-                    dependsOn: [],
-                },
-            ],
-        };
-
-        const result = buildQuery({
-            explore: exploreWithMultipleMetrics,
-            compiledMetricQuery: metricQueryWithMultipleTotals,
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-            timezone: QUERY_BUILDER_UTC_TIMEZONE,
-        });
-
-        // SUM metric should use SUM in column_totals
-        expect(result.query).toContain(
-            'SUM("table1".revenue) AS "table1_total_revenue__total"',
-        );
-        // AVG metric should use AVG in column_totals (not SUM)
-        expect(result.query).toContain(
-            'AVG("table1".order_value) AS "table1_avg_order_value__total"',
-        );
-    });
-
     /**
      * "Avg Order Value" pivoted by region: North=$50, South=$45, East=$60.
      * row_total() gives $50+$45+$60 = $155 — a SUM of the averages.

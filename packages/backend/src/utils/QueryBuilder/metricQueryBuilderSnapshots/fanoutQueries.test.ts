@@ -22,6 +22,42 @@ describe('MetricQueryBuilder snapshot: fanout queries', () => {
         ).toMatchSnapshot();
     });
 
+    // Covers the DuckDB/MotherDuck ambiguity fix, where sorting a fanout-protected
+    // joined result by a selected dimension alias requires an outer projection CTE.
+    test('matches snapshot for a fanout-protected metric query sorted by dimension', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                    sorts: [{ fieldId: 'table1_dim1', descending: false }],
+                },
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Covers the non-ambiguous variant of the same fanout-protected join shape,
+    // where sorting by a metric alias should not add the extra outer metrics CTE.
+    test('matches snapshot for a fanout-protected metric query sorted by metric without wrapper', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                    sorts: [{ fieldId: 'table1_metric1', descending: true }],
+                },
+            }),
+        ).toMatchSnapshot();
+    });
+
     // Covers the no-dimensions variant of the fanout-protection path,
     // where independently aggregated CTEs must be merged with a CROSS JOIN instead of keyed joins.
     test('matches snapshot for a fanout-protected metric query without dimensions', () => {

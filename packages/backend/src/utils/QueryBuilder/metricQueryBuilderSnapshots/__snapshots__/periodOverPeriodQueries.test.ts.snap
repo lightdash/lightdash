@@ -73,24 +73,30 @@ exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapsho
       )
     GROUP BY
       1
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_table2."table2_metric_amount" AS "table2_metric_amount",
+      cte_metrics_table2."table2_metric_amount__pop__year_1__fanout" AS "table2_metric_amount__pop__year_1__fanout",
+      cte_pop_metrics_table2__year_1__00355f4s."table2_metric_amount__pop__year_1__fanout" AS "table2_metric_amount__pop__year_1__fanout"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_table2 ON (
+        cte_unaffected."table2_order_date_year" = cte_metrics_table2."table2_order_date_year"
+        OR (
+          cte_unaffected."table2_order_date_year" IS NULL
+          AND cte_metrics_table2."table2_order_date_year" IS NULL
+        )
+      )
+      LEFT JOIN cte_pop_metrics_table2__year_1__00355f4s ON (
+        cte_unaffected."table2_order_date_year" = cte_pop_metrics_table2__year_1__00355f4s."table2_order_date_year" + INTERVAL '1 YEAR'
+      )
   )
 SELECT
-  cte_unaffected.*,
-  cte_metrics_table2."table2_metric_amount" AS "table2_metric_amount",
-  cte_metrics_table2."table2_metric_amount__pop__year_1__fanout" AS "table2_metric_amount__pop__year_1__fanout",
-  cte_pop_metrics_table2__year_1__00355f4s."table2_metric_amount__pop__year_1__fanout" AS "table2_metric_amount__pop__year_1__fanout"
+  *
 FROM
-  cte_unaffected
-  INNER JOIN cte_metrics_table2 ON (
-    cte_unaffected."table2_order_date_year" = cte_metrics_table2."table2_order_date_year"
-    OR (
-      cte_unaffected."table2_order_date_year" IS NULL
-      AND cte_metrics_table2."table2_order_date_year" IS NULL
-    )
-  )
-  LEFT JOIN cte_pop_metrics_table2__year_1__00355f4s ON (
-    cte_unaffected."table2_order_date_year" = cte_pop_metrics_table2__year_1__00355f4s."table2_order_date_year" + INTERVAL '1 YEAR'
-  )
+  metrics
 ORDER BY
   "table2_order_date_year" DESC
 LIMIT
@@ -175,52 +181,58 @@ exports[`MetricQueryBuilder snapshot: period-over-period queries matches snapsho
       1,
       2,
       3
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_country_orders."country_orders_total_order_amount" AS "country_orders_total_order_amount",
+      cte_metrics_country_orders."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country",
+      cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_country_orders ON (
+        cte_unaffected."country_orders_order_date_year" = cte_metrics_country_orders."country_orders_order_date_year"
+        OR (
+          cte_unaffected."country_orders_order_date_year" IS NULL
+          AND cte_metrics_country_orders."country_orders_order_date_year" IS NULL
+        )
+      )
+      AND (
+        cte_unaffected."country_orders_country" = cte_metrics_country_orders."country_orders_country"
+        OR (
+          cte_unaffected."country_orders_country" IS NULL
+          AND cte_metrics_country_orders."country_orders_country" IS NULL
+        )
+      )
+      AND (
+        cte_unaffected."order_currencies_currency" = cte_metrics_country_orders."order_currencies_currency"
+        OR (
+          cte_unaffected."order_currencies_currency" IS NULL
+          AND cte_metrics_country_orders."order_currencies_currency" IS NULL
+        )
+      )
+      LEFT JOIN cte_pop_metrics_country_orders__year_1__00rp9exa ON (
+        cte_unaffected."country_orders_order_date_year" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_order_date_year" + INTERVAL '1 YEAR'
+      )
+      AND (
+        cte_unaffected."country_orders_country" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_country"
+        OR (
+          cte_unaffected."country_orders_country" IS NULL
+          AND cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_country" IS NULL
+        )
+      )
+      AND (
+        cte_unaffected."order_currencies_currency" = cte_pop_metrics_country_orders__year_1__00rp9exa."order_currencies_currency"
+        OR (
+          cte_unaffected."order_currencies_currency" IS NULL
+          AND cte_pop_metrics_country_orders__year_1__00rp9exa."order_currencies_currency" IS NULL
+        )
+      )
   )
 SELECT
-  cte_unaffected.*,
-  cte_metrics_country_orders."country_orders_total_order_amount" AS "country_orders_total_order_amount",
-  cte_metrics_country_orders."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country",
-  cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_total_order_amount__pop__year_1__country" AS "country_orders_total_order_amount__pop__year_1__country"
+  *
 FROM
-  cte_unaffected
-  INNER JOIN cte_metrics_country_orders ON (
-    cte_unaffected."country_orders_order_date_year" = cte_metrics_country_orders."country_orders_order_date_year"
-    OR (
-      cte_unaffected."country_orders_order_date_year" IS NULL
-      AND cte_metrics_country_orders."country_orders_order_date_year" IS NULL
-    )
-  )
-  AND (
-    cte_unaffected."country_orders_country" = cte_metrics_country_orders."country_orders_country"
-    OR (
-      cte_unaffected."country_orders_country" IS NULL
-      AND cte_metrics_country_orders."country_orders_country" IS NULL
-    )
-  )
-  AND (
-    cte_unaffected."order_currencies_currency" = cte_metrics_country_orders."order_currencies_currency"
-    OR (
-      cte_unaffected."order_currencies_currency" IS NULL
-      AND cte_metrics_country_orders."order_currencies_currency" IS NULL
-    )
-  )
-  LEFT JOIN cte_pop_metrics_country_orders__year_1__00rp9exa ON (
-    cte_unaffected."country_orders_order_date_year" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_order_date_year" + INTERVAL '1 YEAR'
-  )
-  AND (
-    cte_unaffected."country_orders_country" = cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_country"
-    OR (
-      cte_unaffected."country_orders_country" IS NULL
-      AND cte_pop_metrics_country_orders__year_1__00rp9exa."country_orders_country" IS NULL
-    )
-  )
-  AND (
-    cte_unaffected."order_currencies_currency" = cte_pop_metrics_country_orders__year_1__00rp9exa."order_currencies_currency"
-    OR (
-      cte_unaffected."order_currencies_currency" IS NULL
-      AND cte_pop_metrics_country_orders__year_1__00rp9exa."order_currencies_currency" IS NULL
-    )
-  )
+  metrics
 ORDER BY
   "country_orders_order_date_year" DESC
 LIMIT

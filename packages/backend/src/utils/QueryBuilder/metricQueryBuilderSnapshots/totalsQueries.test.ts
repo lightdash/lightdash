@@ -170,6 +170,106 @@ const METRIC_QUERY_WITH_ROW_TOTAL_PIVOT_DIMENSIONS = {
     ],
 };
 
+const EXPLORE_WITH_MIXED_TOTAL_METRICS: Explore = {
+    ...EXPLORE,
+    tables: {
+        ...EXPLORE.tables,
+        table1: {
+            ...EXPLORE.tables.table1,
+            metrics: {
+                ...EXPLORE.tables.table1.metrics,
+                total_revenue: {
+                    type: MetricType.SUM,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'total_revenue',
+                    label: 'total_revenue',
+                    sql: '${TABLE}.revenue',
+                    compiledSql: 'SUM("table1".revenue)',
+                    tablesReferences: ['table1'],
+                    hidden: false,
+                } as CompiledMetric,
+                avg_order_value: {
+                    type: MetricType.AVERAGE,
+                    fieldType: FieldType.METRIC,
+                    table: 'table1',
+                    tableLabel: 'table1',
+                    name: 'avg_order_value',
+                    label: 'avg_order_value',
+                    sql: '${TABLE}.order_value',
+                    compiledSql: 'AVG("table1".order_value)',
+                    tablesReferences: ['table1'],
+                    hidden: false,
+                } as CompiledMetric,
+            },
+        },
+    },
+};
+
+const METRIC_QUERY_WITH_MIXED_TOTALS = {
+    ...METRIC_QUERY,
+    metrics: ['table1_total_revenue', 'table1_avg_order_value'],
+    sorts: [{ fieldId: 'table1_total_revenue', descending: true }],
+    tableCalculations: [
+        {
+            name: 'revenue_pct',
+            displayName: 'Revenue %',
+            sql: '${table1.total_revenue} / total(${table1.total_revenue})',
+        },
+        {
+            name: 'avg_pct',
+            displayName: 'Avg %',
+            sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
+        },
+    ],
+    compiledTableCalculations: [
+        {
+            name: 'revenue_pct',
+            displayName: 'Revenue %',
+            sql: '${table1.total_revenue} / total(${table1.total_revenue})',
+            compiledSql:
+                '"table1_total_revenue" / total("table1_total_revenue")',
+            dependsOn: [],
+        },
+        {
+            name: 'avg_pct',
+            displayName: 'Avg %',
+            sql: '${table1.avg_order_value} / total(${table1.avg_order_value})',
+            compiledSql:
+                '"table1_avg_order_value" / total("table1_avg_order_value")',
+            dependsOn: [],
+        },
+    ],
+};
+
+const METRIC_QUERY_WITH_FANOUT_TOTAL = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1'],
+    metrics: ['table2_metric3'],
+    filters: {},
+    sorts: [{ fieldId: 'table2_metric3', descending: true }],
+    limit: 10,
+    tableCalculations: [
+        {
+            name: 'pct_total',
+            displayName: 'Pct Total',
+            sql: '${table2.metric3} / total(${table2.metric3})',
+        },
+    ],
+    compiledTableCalculations: [
+        {
+            name: 'pct_total',
+            displayName: 'Pct Total',
+            sql: '${table2.metric3} / total(${table2.metric3})',
+            compiledSql: '"table2_metric3" / total("table2_metric3")',
+            dependsOn: [],
+        },
+    ],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
 describe('MetricQueryBuilder snapshot: totals queries', () => {
     // Covers totals referenced by dependent table calculations, where total() must be rewritten
     // before downstream calculations materialize their own chained table-calculation CTEs.
@@ -212,6 +312,28 @@ describe('MetricQueryBuilder snapshot: totals queries', () => {
             buildQuery({
                 explore: EXPLORE_WITH_AVG_METRIC,
                 compiledMetricQuery: METRIC_QUERY_WITH_AVG_TOTAL,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Covers mixed total() semantics in one query, where additive metrics can roll up
+    // from grouped results while non-additive metrics still re-aggregate from raw rows.
+    test('matches snapshot for a mixed additive and non-additive totals query', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_MIXED_TOTAL_METRICS,
+                compiledMetricQuery: METRIC_QUERY_WITH_MIXED_TOTALS,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Covers the fanout-protected total() path, where additive metrics must stay on the raw
+    // totals route instead of summing grouped result rows that can repeat across groups.
+    test('matches snapshot for a fanout-protected additive total query', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: METRIC_QUERY_WITH_FANOUT_TOTAL,
             }),
         ).toMatchSnapshot();
     });

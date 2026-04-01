@@ -11,11 +11,17 @@ exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a depe
     GROUP BY
       1
   ),
-  column_totals AS (
+  column_totals_raw AS (
     SELECT
       MAX("table1".number_column) AS "table1_metric1__total"
     FROM
       "db"."schema"."table1" AS "table1"
+  ),
+  column_totals AS (
+    SELECT
+      "table1_metric1__total"
+    FROM
+      column_totals_raw
   ),
   with_totals AS (
     SELECT
@@ -49,6 +55,134 @@ LIMIT
   10"
 `;
 
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a fanout-protected additive total query 1`] = `
+"WITH
+  cte_keys_table2 AS (
+    SELECT DISTINCT
+      "table1".dim1 AS "table1_dim1",
+      "table2".dim2 AS "pk_dim2"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  ),
+  cte_metrics_table2 AS (
+    SELECT
+      cte_keys_table2."table1_dim1",
+      SUM("table2".number_column) AS "table2_metric3"
+    FROM
+      cte_keys_table2
+      LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    GROUP BY
+      1
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_table2 ON (
+        cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1"
+        OR (
+          cte_unaffected."table1_dim1" IS NULL
+          AND cte_metrics_table2."table1_dim1" IS NULL
+        )
+      )
+  ),
+  column_totals_raw AS (
+    SELECT
+      SUM("table2".number_column) AS "table2_metric3__total"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  ),
+  column_totals AS (
+    SELECT
+      "table2_metric3__total"
+    FROM
+      column_totals_raw
+  ),
+  with_totals AS (
+    SELECT
+      metrics.*,
+      column_totals."table2_metric3__total"
+    FROM
+      metrics
+      CROSS JOIN column_totals
+  )
+SELECT
+  *,
+  "table2_metric3" / "table2_metric3__total" AS "pct_total"
+FROM
+  with_totals
+ORDER BY
+  "table2_metric3" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a mixed additive and non-additive totals query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      SUM("table1".revenue) AS "table1_total_revenue",
+      AVG("table1".order_value) AS "table1_avg_order_value"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  ),
+  column_totals_grouped AS (
+    SELECT
+      SUM("table1_total_revenue") AS "table1_total_revenue__total"
+    FROM
+      metrics
+  ),
+  column_totals_raw AS (
+    SELECT
+      AVG("table1".order_value) AS "table1_avg_order_value__total"
+    FROM
+      "db"."schema"."table1" AS "table1"
+  ),
+  column_totals AS (
+    SELECT
+      "table1_total_revenue__total",
+      "table1_avg_order_value__total"
+    FROM
+      column_totals_grouped
+      CROSS JOIN column_totals_raw
+  ),
+  with_totals AS (
+    SELECT
+      metrics.*,
+      column_totals."table1_total_revenue__total",
+      column_totals."table1_avg_order_value__total"
+    FROM
+      metrics
+      CROSS JOIN column_totals
+  )
+SELECT
+  *,
+  "table1_total_revenue" / "table1_total_revenue__total" AS "revenue_pct",
+  "table1_avg_order_value" / "table1_avg_order_value__total" AS "avg_pct"
+FROM
+  with_totals
+ORDER BY
+  "table1_total_revenue" DESC
+LIMIT
+  10"
+`;
+
 exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a pivoted totals query 1`] = `
 "WITH
   metrics AS (
@@ -60,11 +194,17 @@ exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a pivo
     GROUP BY
       1
   ),
-  column_totals AS (
+  column_totals_raw AS (
     SELECT
       MAX("table1".number_column) AS "table1_metric1__total"
     FROM
       "db"."schema"."table1" AS "table1"
+  ),
+  column_totals AS (
+    SELECT
+      "table1_metric1__total"
+    FROM
+      column_totals_raw
   ),
   row_totals AS (
     SELECT
@@ -181,11 +321,17 @@ exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for an ave
     GROUP BY
       1
   ),
-  column_totals AS (
+  column_totals_raw AS (
     SELECT
       AVG("table1".number_column) AS "table1_avg_metric__total"
     FROM
       "db"."schema"."table1" AS "table1"
+  ),
+  column_totals AS (
+    SELECT
+      "table1_avg_metric__total"
+    FROM
+      column_totals_raw
   ),
   with_totals AS (
     SELECT

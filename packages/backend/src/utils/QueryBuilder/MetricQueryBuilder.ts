@@ -1343,22 +1343,55 @@ export class MetricQueryBuilder {
         return undefined;
     }
 
-    private getSortSQL(excludePostCalculationMetrics: boolean = false) {
-        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
-        const { sorts, metrics, compiledCustomDimensions } =
-            compiledMetricQuery;
-        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
-        let requiresQueryInCTE = false;
+    private getEffectiveSorts(
+        excludePostCalculationMetrics: boolean = false,
+    ): SortField[] {
+        const { compiledMetricQuery } = this.args;
+        const { sorts, metrics } = compiledMetricQuery;
 
-        // Apply default sort if no sorts are specified
         let effectiveSorts: SortField[] = sorts;
         if (sorts.length === 0) {
             const defaultSort = this.getDefaultSort();
             effectiveSorts = defaultSort ? [defaultSort] : [];
         }
 
-        const fieldOrders = effectiveSorts.reduce<string[]>((acc, sort) => {
+        if (!excludePostCalculationMetrics) {
+            return effectiveSorts;
+        }
+
+        return effectiveSorts.filter((sort) => {
+            if (!metrics.includes(sort.fieldId)) return true;
+
+            const metric = this.getMetricFromId(sort.fieldId);
+            return !isPostCalculationMetric(metric);
+        });
+    }
+
+    private isSortingBySelectedDimensionAlias(): boolean {
+        const { compiledMetricQuery } = this.args;
+        const customBinDimensionIds = new Set(
+            compiledMetricQuery.compiledCustomDimensions
+                .filter(isCustomBinDimension)
+                .map(getItemId),
+        );
+
+        return this.getEffectiveSorts().some(
+            (sort) =>
+                compiledMetricQuery.dimensions.includes(sort.fieldId) &&
+                !customBinDimensionIds.has(sort.fieldId),
+        );
+    }
+
+    private getSortSQL(excludePostCalculationMetrics: boolean = false) {
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const { compiledCustomDimensions } = compiledMetricQuery;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
+        let requiresQueryInCTE = false;
+
+        const fieldOrders = this.getEffectiveSorts(
+            excludePostCalculationMetrics,
+        ).reduce<string[]>((acc, sort) => {
             // Default sort
             let fieldSort: string = `${fieldQuoteChar}${
                 sort.fieldId
@@ -1409,15 +1442,6 @@ export class MetricQueryBuilder {
                     warehouseSqlBuilder.getFieldQuoteChar(),
                     sort.descending,
                 );
-            } else if (
-                excludePostCalculationMetrics &&
-                metrics.includes(sort.fieldId)
-            ) {
-                const metric = this.getMetricFromId(sort.fieldId);
-                if (isPostCalculationMetric(metric)) {
-                    // Skip sorting by PostCalculation metrics
-                    return acc;
-                }
             }
             acc.push(fieldSort);
             return acc;
@@ -2391,7 +2415,7 @@ export class MetricQueryBuilder {
                     }),
                 ];
                 if (
-                    Object.keys(dimensionSelects).length > 0 &&
+                    this.isSortingBySelectedDimensionAlias() &&
                     (metricCtes.length > 0 || popMetricCtes.length > 0)
                 ) {
                     requiresQueryInCTE = true;
@@ -3424,6 +3448,31 @@ export class MetricQueryBuilder {
         return [];
     }
 
+    private static shouldUseGroupedResultsForTotal(
+        metric: CompiledMetric,
+    ): boolean {
+        return (
+            metric.type === MetricType.SUM || metric.type === MetricType.COUNT
+        );
+    }
+
+    private getGroupedResultsTotalSql(
+        fieldId: string,
+        metric: CompiledMetric,
+    ): string {
+        const fieldQuoteChar =
+            this.args.warehouseSqlBuilder.getFieldQuoteChar();
+        const fieldRef = `${fieldQuoteChar}${fieldId}${fieldQuoteChar}`;
+
+        switch (metric.type) {
+            case MetricType.SUM:
+            case MetricType.COUNT:
+                return `SUM(${fieldRef})`;
+            default:
+                return metric.compiledSql;
+        }
+    }
+
     private replaceTotalReferences(compiledSql: string): string {
         const q = this.args.warehouseSqlBuilder.getFieldQuoteChar();
         const { totalRegex, rowTotalRegex } = buildTotalFieldRegex(q);
@@ -3446,6 +3495,7 @@ export class MetricQueryBuilder {
         totalFields: string[];
         rowTotalFields: string[];
         currentCteName: string;
+        allowGroupedTotals: boolean;
         sqlFrom: string;
         joinsSql: string | undefined;
         dimensionJoins: string[];
@@ -3455,20 +3505,71 @@ export class MetricQueryBuilder {
         const fieldQuoteChar =
             this.args.warehouseSqlBuilder.getFieldQuoteChar();
         const ctes: string[] = [];
+        const groupedTotalFields = opts.allowGroupedTotals
+            ? opts.totalFields.filter((fieldId) =>
+                  MetricQueryBuilder.shouldUseGroupedResultsForTotal(
+                      this.getMetricFromId(fieldId),
+                  ),
+              )
+            : [];
+        const rawTotalFields = opts.totalFields.filter(
+            (fieldId) => !groupedTotalFields.includes(fieldId),
+        );
 
         // column_totals CTE: grand total with no GROUP BY
-        if (opts.totalFields.length > 0) {
-            const totalSelects = opts.totalFields.map((fieldId) => {
+        if (groupedTotalFields.length > 0) {
+            const groupedTotalSelects = groupedTotalFields.map((fieldId) => {
+                const metric = this.getMetricFromId(fieldId);
+                return `  ${this.getGroupedResultsTotalSql(
+                    fieldId,
+                    metric,
+                )} AS ${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`;
+            });
+            ctes.push(
+                MetricQueryBuilder.wrapAsCte('column_totals_grouped', [
+                    `SELECT\n${groupedTotalSelects.join(',\n')}`,
+                    `FROM ${opts.currentCteName}`,
+                ]),
+            );
+        }
+
+        if (rawTotalFields.length > 0) {
+            const rawTotalSelects = rawTotalFields.map((fieldId) => {
                 const metric = this.getMetricFromId(fieldId);
                 return `  ${metric.compiledSql} AS ${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`;
             });
             ctes.push(
-                MetricQueryBuilder.wrapAsCte('column_totals', [
-                    `SELECT\n${totalSelects.join(',\n')}`,
+                MetricQueryBuilder.wrapAsCte('column_totals_raw', [
+                    `SELECT\n${rawTotalSelects.join(',\n')}`,
                     opts.sqlFrom,
                     opts.joinsSql,
                     ...opts.dimensionJoins,
                     opts.dimensionFilters,
+                ]),
+            );
+        }
+
+        if (opts.totalFields.length > 0) {
+            const totalColumnRefs = opts.totalFields.map(
+                (fieldId) =>
+                    `  ${fieldQuoteChar}${fieldId}__total${fieldQuoteChar}`,
+            );
+            let columnTotalsFrom: string[];
+            if (groupedTotalFields.length > 0 && rawTotalFields.length > 0) {
+                columnTotalsFrom = [
+                    'FROM column_totals_grouped',
+                    'CROSS JOIN column_totals_raw',
+                ];
+            } else if (groupedTotalFields.length > 0) {
+                columnTotalsFrom = ['FROM column_totals_grouped'];
+            } else {
+                columnTotalsFrom = ['FROM column_totals_raw'];
+            }
+
+            ctes.push(
+                MetricQueryBuilder.wrapAsCte('column_totals', [
+                    `SELECT\n${totalColumnRefs.join(',\n')}`,
+                    ...columnTotalsFrom,
                 ]),
             );
         }
@@ -3863,7 +3964,7 @@ export class MetricQueryBuilder {
                 // DuckDB resolves ORDER BY names against joined sources here, so
                 // sorting by a shared dimension alias becomes ambiguous unless we
                 // sort from an outer projection.
-                requiresQueryInCTE = true;
+                requiresQueryInCTE = this.isSortingBySelectedDimensionAlias();
             }
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
@@ -3919,7 +4020,7 @@ export class MetricQueryBuilder {
                     `FROM ${ddBaseCteName}`,
                     ...ddJoins,
                 ];
-                if (Object.keys(dimensionsSQL.selects).length > 0) {
+                if (this.isSortingBySelectedDimensionAlias()) {
                     requiresQueryInCTE = true;
                 }
             } else {
@@ -4013,6 +4114,10 @@ export class MetricQueryBuilder {
             (this.args.pivotDimensions && this.args.pivotDimensions.length > 0);
         const needsTotalsCtes =
             totalFields.length > 0 || (rowTotalFields.length > 0 && hasPivot);
+        const allowGroupedTotals =
+            !experimentalMetricsCteSQL.finalSelectParts &&
+            ddMetricIds.length === 0 &&
+            nestedAggMetrics.length === 0;
 
         if (needsPostAgg) {
             const fieldQuoteChar =
@@ -4054,6 +4159,7 @@ export class MetricQueryBuilder {
                         totalFields,
                         rowTotalFields,
                         currentCteName,
+                        allowGroupedTotals,
                         sqlFrom,
                         joinsSql: joins.joinSQL,
                         dimensionJoins: dimensionsSQL.joins,

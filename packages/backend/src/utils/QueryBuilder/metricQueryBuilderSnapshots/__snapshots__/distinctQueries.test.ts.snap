@@ -68,6 +68,80 @@ LIMIT
   10"
 `;
 
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query with dimensions sorted by dimension 1`] = `
+"WITH
+  dd_orders_total_revenue AS (
+    SELECT
+      "orders_payment_method",
+      "orders_status",
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "orders_total_revenue"
+    FROM
+      (
+        SELECT
+          "orders".payment_method AS "orders_payment_method",
+          "orders".status AS "orders_status",
+          "orders".amount AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "orders".line_item_id,
+              "orders".payment_method,
+              "orders".status
+            ORDER BY
+              "orders".amount
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."orders" AS "orders"
+      ) __dd_sub
+    GROUP BY
+      1,
+      2
+  ),
+  dd_base AS (
+    SELECT
+      "orders".payment_method AS "orders_payment_method",
+      "orders".status AS "orders_status"
+    FROM
+      "db"."schema"."orders" AS "orders"
+    GROUP BY
+      1,
+      2
+  ),
+  metrics AS (
+    SELECT
+      dd_base.*,
+      dd_orders_total_revenue."orders_total_revenue" AS "orders_total_revenue"
+    FROM
+      dd_base
+      INNER JOIN dd_orders_total_revenue ON (
+        dd_base."orders_payment_method" = dd_orders_total_revenue."orders_payment_method"
+        OR (
+          dd_base."orders_payment_method" IS NULL
+          AND dd_orders_total_revenue."orders_payment_method" IS NULL
+        )
+      )
+      AND (
+        dd_base."orders_status" = dd_orders_total_revenue."orders_status"
+        OR (
+          dd_base."orders_status" IS NULL
+          AND dd_orders_total_revenue."orders_status" IS NULL
+        )
+      )
+  )
+SELECT
+  *
+FROM
+  metrics
+ORDER BY
+  "orders_payment_method"
+LIMIT
+  10"
+`;
+
 exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query without dimensions 1`] = `
 "WITH
   dd_orders_total_revenue AS (
