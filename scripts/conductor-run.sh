@@ -21,6 +21,10 @@ for i in $(seq 1 15); do
     sleep 1
 done
 
+# Run pending migrations (handles EE migrations if LIGHTDASH_LICENSE_KEY is set)
+log "Running migrations..."
+PGHOST=localhost PGPORT="$LD_PG_PORT" pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate 2>&1 | tail -5
+
 # Start PM2
 log "Starting PM2 dev servers..."
 pnpm pm2:start
