@@ -1677,7 +1677,12 @@ export class MetricQueryBuilder {
         dimensionGroupBy: string | undefined;
         sqlFrom: string;
         joins: string[];
-    }) {
+    }): {
+        ctes: string[];
+        finalSelectParts?: Array<string | undefined>;
+        warnings: QueryWarning[];
+        requiresQueryInCTE: boolean;
+    } {
         const {
             explore,
             compiledMetricQuery,
@@ -1787,6 +1792,7 @@ export class MetricQueryBuilder {
             };
         }> = [];
         let finalSelectParts: Array<string | undefined> | undefined;
+        let requiresQueryInCTE = false;
 
         // We can't handle deduplication for joins without relationship type
         joinWithoutRelationship.forEach((tableName) => {
@@ -2384,6 +2390,12 @@ export class MetricQueryBuilder {
                             .join(' AND ')}`;
                     }),
                 ];
+                if (
+                    Object.keys(dimensionSelects).length > 0 &&
+                    (metricCtes.length > 0 || popMetricCtes.length > 0)
+                ) {
+                    requiresQueryInCTE = true;
+                }
             } else {
                 // If there is no unaffected CTE, cross join metric CTEs
                 finalSelectParts = [
@@ -2400,6 +2412,7 @@ export class MetricQueryBuilder {
             ctes,
             finalSelectParts,
             warnings,
+            requiresQueryInCTE,
         };
     }
 
@@ -3704,6 +3717,9 @@ export class MetricQueryBuilder {
         if (experimentalMetricsCteSQL.finalSelectParts) {
             finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
             ctes.push(...experimentalMetricsCteSQL.ctes);
+            requiresQueryInCTE =
+                requiresQueryInCTE ||
+                experimentalMetricsCteSQL.requiresQueryInCTE;
         } else if (this.popComparisonConfigs.length > 0) {
             // Support multiple PoP configs (e.g. Previous month + 2 months ago) in the same query
             const fieldQuoteChar =
@@ -3903,6 +3919,9 @@ export class MetricQueryBuilder {
                     `FROM ${ddBaseCteName}`,
                     ...ddJoins,
                 ];
+                if (Object.keys(dimensionsSQL.selects).length > 0) {
+                    requiresQueryInCTE = true;
+                }
             } else {
                 // Only distinct metrics, no dimensions or regular metrics
                 // Select directly from the first dd CTE (no base needed)

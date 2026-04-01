@@ -1625,6 +1625,30 @@ LIMIT 10`;
             expect(result.warnings).toHaveLength(0);
         });
 
+        test('Should wrap fanout-protected joins in an outer metrics CTE so ORDER BY dimension aliases are not ambiguous', () => {
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                    dimensions: ['table1_dim1'],
+                    metrics: ['table1_metric1', 'table2_metric3'],
+                    sorts: [{ fieldId: 'table1_dim1', descending: false }],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toMatch(
+                /metrics AS \(\nSELECT\n {2}cte_unaffected\.\*/,
+            );
+            expect(result.query).toMatch(
+                /SELECT\s+\*\s+FROM metrics\s+ORDER BY "table1_dim1"\s+LIMIT 10$/,
+            );
+        });
+
         test('Should handle inflation-proof metrics correctly', () => {
             // Create a metric query that includes both the count distinct metric and the sum metric
             const metricQueryWithMixedMetrics = {
@@ -2266,6 +2290,28 @@ LIMIT 10`;
             );
             expect(result.query).toContain('GROUP BY');
             expect(result.query).toContain('dd_orders_avg_shipping_cost');
+        });
+
+        test('distinct metric joins should be wrapped in an outer metrics CTE so ORDER BY dimension aliases are not ambiguous', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                    sorts: [
+                        { fieldId: 'orders_payment_method', descending: false },
+                    ],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(result.query).toMatch(
+                /metrics AS \(\nSELECT\n {2}dd_base\.\*/,
+            );
+            expect(result.query).toMatch(
+                /SELECT\s+\*\s+FROM metrics\s+ORDER BY "orders_payment_method"\s+LIMIT 10$/,
+            );
         });
     });
 
