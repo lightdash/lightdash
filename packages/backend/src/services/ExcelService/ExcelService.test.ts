@@ -1442,6 +1442,334 @@ describe('ExcelService', () => {
                 expect(cell.numFmt).toBe('yyyy-mm');
             });
         });
+
+        it('TC6: should not convert any values to Date when onlyRaw is true', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const dateIndex = 'customers_created_month';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [dateIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                } as Dimension,
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 200,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, dateIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: dateIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: true,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dateCells: unknown[] = [];
+            worksheet!.eachRow((row) => {
+                row.eachCell({ includeEmpty: true }, (cell) => {
+                    if (cell.value instanceof Date) {
+                        dateCells.push(cell.value);
+                    }
+                });
+            });
+
+            expect(dateCells).toHaveLength(0);
+        });
+
+        it('TC7: should preserve null/empty raw values in date columns as formatted strings', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const dateIndex = 'customers_created_month';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [dateIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: null,
+                    [metric]: 200,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 300,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: null,
+                    [metric]: 400,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, dateIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: dateIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const allValues: { row: number; col: number; value: unknown }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    allValues.push({
+                        row: rowNum,
+                        col: colNum,
+                        value: cell.value,
+                    });
+                });
+            });
+
+            // Valid date should still be converted
+            const dateCells = allValues.filter((v) => v.value instanceof Date);
+            expect(dateCells.length).toBeGreaterThanOrEqual(1);
+
+            // No "Invalid Date" values should exist
+            const invalidDates = allValues.filter((v) => {
+                if (v.value instanceof Date) {
+                    return Number.isNaN(v.value.getTime());
+                }
+                return (
+                    typeof v.value === 'string' &&
+                    v.value.includes('Invalid Date')
+                );
+            });
+            expect(invalidDates).toHaveLength(0);
+        });
+
+        it('TC8: should not convert date columns with WEEK timeframe to Date objects', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const weekIndex = 'customers_created_week';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [weekIndex]: {
+                    name: 'created_week',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created week',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.WEEK,
+                    hidden: false,
+                    sql: '${TABLE}.created_week',
+                } as Dimension,
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [weekIndex]: '2023-01-02',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [weekIndex]: '2023-01-02',
+                    [metric]: 200,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, weekIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: weekIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dateCells: unknown[] = [];
+            worksheet!.eachRow((row) => {
+                row.eachCell({ includeEmpty: true }, (cell) => {
+                    if (cell.value instanceof Date) {
+                        dateCells.push(cell.value);
+                    }
+                });
+            });
+
+            // WEEK is a non-native timeframe, so timeIntervalToExcelNumFmt
+            // returns null → no date conversion should happen
+            expect(dateCells).toHaveLength(0);
+        });
     });
 
     describe('format expression integration', () => {
