@@ -1,3 +1,10 @@
+# [0.2703.0](https://github.com/lightdash/lightdash/compare/0.2702.2...0.2703.0) (2026-04-01)
+
+
+### Features
+
+* add AI agent management tools to MCP service ([#21610](https://github.com/lightdash/lightdash/issues/21610)) ([4c85955](https://github.com/lightdash/lightdash/commit/4c85955700693d76dc2c20b2fa58cc99ec4ade08))
+
 ## [0.2702.2](https://github.com/lightdash/lightdash/compare/0.2702.1...0.2702.2) (2026-04-01)
 
 
