@@ -897,4 +897,111 @@ describe('SpacePermissionService', () => {
             expect(result.groupAccessEntries).toHaveLength(0);
         });
     });
+
+    describe('project member access role (via space column)', () => {
+        // When a space has project_member_access_role set, the DB query
+        // returns expanded project members as GROUP_ACCESS entries in
+        // getDirectSpaceAccess. These tests verify the service passes
+        // them through correctly.
+
+        const projectUuid = 'project-uuid';
+        const organizationUuid = 'org-uuid';
+
+        test('project member with GROUP_ACCESS on private space gets access', async () => {
+            const spaceUuid = 'restricted-space';
+            const userUuid = 'project-member';
+
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid,
+                            spaceName: 'Restricted',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+
+            // The UNION expansion returns this user as GROUP_ACCESS
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid,
+                        spaceUuid,
+                        groupUuid: null,
+                        role: SpaceMemberRole.VIEWER,
+                        from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                    },
+                ],
+            });
+
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid,
+                        spaceUuid,
+                        role: 'viewer' as OrganizationMemberRole,
+                    },
+                ],
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: { projectUuid, organizationUuid },
+            });
+
+            const result = await service.getAllSpaceAccessContext(spaceUuid);
+
+            expect(result.inheritsFromOrgOrProject).toBe(false);
+            const userAccess = result.access.find(
+                (a) => a.userUuid === userUuid,
+            );
+            expect(userAccess).toBeDefined();
+            expect(userAccess?.role).toBe(SpaceMemberRole.VIEWER);
+            expect(userAccess?.hasDirectAccess).toBe(true);
+        });
+
+        test('user without project member access on private space has no access', async () => {
+            const spaceUuid = 'restricted-space';
+            const userUuid = 'non-member';
+
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid,
+                            spaceName: 'Restricted',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+
+            // No direct access — project_member_access_role is not set
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid,
+                        spaceUuid,
+                        role: 'viewer' as OrganizationMemberRole,
+                    },
+                ],
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: { projectUuid, organizationUuid },
+            });
+
+            const result = await service.getAllSpaceAccessContext(spaceUuid);
+
+            // Non-admin on private space without direct access = excluded
+            const userAccess = result.access.find(
+                (a) => a.userUuid === userUuid,
+            );
+            expect(userAccess).toBeUndefined();
+        });
+    });
 });
