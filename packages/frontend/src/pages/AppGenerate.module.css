@@ -214,6 +214,14 @@
     }
 }
 
+.previewHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    flex: 1;
+}
+
 .previewContent {
     flex: 1;
     overflow: hidden;

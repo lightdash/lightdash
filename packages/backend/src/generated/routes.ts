@@ -6595,6 +6595,14 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 createdAt: { dataType: 'datetime', required: true },
+                statusMessage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 status: { dataType: 'string', required: true },
                 prompt: { dataType: 'string', required: true },
                 version: { dataType: 'double', required: true },
@@ -6603,7 +6611,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__':
+    'ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__':
         {
             dataType: 'refAlias',
             type: {
@@ -6621,6 +6629,8 @@ const models: TsoaRoute.Models = {
                                 },
                                 required: true,
                             },
+                            description: { dataType: 'string', required: true },
+                            name: { dataType: 'string', required: true },
                             appUuid: { dataType: 'string', required: true },
                         },
                         required: true,
@@ -6634,7 +6644,47 @@ const models: TsoaRoute.Models = {
     ApiGetAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__appUuid-string--name-string--description-string__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        description: { dataType: 'string', required: true },
+                        name: { dataType: 'string', required: true },
+                        appUuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpdateAppResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpdateAppRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                description: { dataType: 'string' },
+                name: { dataType: 'string' },
+            },
             validators: {},
         },
     },
@@ -10521,6 +10571,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     quotedIdentifiersIgnoreCase: {
                         dataType: 'union',
                         subSchemas: [
@@ -10609,6 +10666,13 @@ const models: TsoaRoute.Models = {
                         subSchemas: [
                             { ref: 'WeekDay' },
                             { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -10738,6 +10802,13 @@ const models: TsoaRoute.Models = {
                         subSchemas: [
                             { ref: 'WeekDay' },
                             { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -10895,6 +10966,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     timeoutSeconds: {
                         dataType: 'union',
                         subSchemas: [
@@ -11006,6 +11084,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     catalog: {
                         dataType: 'union',
                         subSchemas: [
@@ -11086,6 +11171,13 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     host: { dataType: 'string', required: true },
                     port: { dataType: 'double', required: true },
                     dbname: { dataType: 'string', required: true },
@@ -11143,6 +11235,13 @@ const models: TsoaRoute.Models = {
                         subSchemas: [
                             { ref: 'WeekDay' },
                             { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -11228,6 +11327,13 @@ const models: TsoaRoute.Models = {
                         subSchemas: [
                             { ref: 'WeekDay' },
                             { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    dataTimezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
                             { dataType: 'undefined' },
                         ],
                     },
@@ -11512,6 +11618,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         timeoutSeconds: { dataType: 'double' },
+                        dataTimezone: { dataType: 'string' },
                         startOfWeek: {
                             dataType: 'union',
                             subSchemas: [
@@ -11547,6 +11654,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 executionProject: { dataType: 'string' },
+                dataTimezone: { dataType: 'string' },
                 startOfWeek: {
                     dataType: 'union',
                     subSchemas: [
@@ -11656,6 +11764,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         timeoutSeconds: { dataType: 'double' },
+                        dataTimezone: { dataType: 'string' },
                         startOfWeek: {
                             dataType: 'union',
                             subSchemas: [
@@ -11695,6 +11804,7 @@ const models: TsoaRoute.Models = {
                 timeoutSeconds: { dataType: 'double' },
                 disableTimestampConversion: { dataType: 'boolean' },
                 quotedIdentifiersIgnoreCase: { dataType: 'boolean' },
+                dataTimezone: { dataType: 'string' },
                 startOfWeek: {
                     dataType: 'union',
                     subSchemas: [
@@ -11740,6 +11850,7 @@ const models: TsoaRoute.Models = {
                         },
                     },
                 },
+                dataTimezone: { dataType: 'string' },
                 startOfWeek: {
                     dataType: 'union',
                     subSchemas: [
@@ -11769,6 +11880,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dataTimezone: { dataType: 'string' },
                 startOfWeek: {
                     dataType: 'union',
                     subSchemas: [
@@ -11797,6 +11909,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 timeoutSeconds: { dataType: 'double' },
+                dataTimezone: { dataType: 'string' },
                 startOfWeek: {
                     dataType: 'union',
                     subSchemas: [
@@ -11822,6 +11935,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dataTimezone: { dataType: 'string' },
                 startOfWeek: {
                     dataType: 'union',
                     subSchemas: [
@@ -31141,6 +31255,79 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'iterateApp',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppGenerateController_updateApp: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        appUuid: {
+            in: 'path',
+            name: 'appUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiUpdateAppRequest',
+        },
+    };
+    app.patch(
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid',
+        ...fetchMiddlewares<RequestHandler>(AppGenerateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppGenerateController.prototype.updateApp,
+        ),
+
+        async function AppGenerateController_updateApp(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppGenerateController_updateApp,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppGenerateController>(
+                        AppGenerateController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateApp',
                     controller,
                     response,
                     next,

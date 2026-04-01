@@ -119,7 +119,12 @@ export class AppModel {
         appId: string,
         projectUuid: string,
         opts: { beforeVersion?: number; limit?: number } = {},
-    ): Promise<{ versions: DbAppVersion[]; hasMore: boolean }> {
+    ): Promise<{
+        name: string;
+        description: string;
+        versions: DbAppVersion[];
+        hasMore: boolean;
+    }> {
         const limit = opts.limit ?? 20;
         const query = this.database(AppsTableName)
             .leftJoin(
@@ -130,7 +135,11 @@ export class AppModel {
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
-            .select(`${AppVersionsTableName}.*`)
+            .select(
+                `${AppVersionsTableName}.*`,
+                `${AppsTableName}.name`,
+                `${AppsTableName}.description`,
+            )
             .orderBy(`${AppVersionsTableName}.version`, 'desc')
             .limit(limit + 1);
 
@@ -142,22 +151,47 @@ export class AppModel {
             );
         }
 
-        const rows: (DbAppVersion | Record<string, null>)[] = await query;
+        const rows: ((DbAppVersion | Record<string, null>) & {
+            name: string;
+            description: string;
+        })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
         if (rows.length === 0) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
 
+        // App-level fields come from every row (same values); grab from first
+        const { name, description } = rows[0];
+
         // If app exists but no versions match, we get one row with all nulls
         const versions = rows.filter(
-            (r): r is DbAppVersion => r.version !== null,
+            (r): r is DbAppVersion & { name: string; description: string } =>
+                r.version !== null,
         );
         const hasMore = versions.length > limit;
         return {
+            name,
+            description,
             versions: versions.slice(0, limit),
             hasMore,
         };
+    }
+
+    async updateApp(
+        appId: string,
+        projectUuid: string,
+        update: Partial<Pick<DbApp, 'name' | 'description'>>,
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update(update)
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
     }
 
     async updateSandboxId(

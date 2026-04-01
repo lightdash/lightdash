@@ -1002,6 +1002,8 @@ export class AppGenerateService extends BaseService {
         opts: { beforeVersion?: number; limit?: number },
     ): Promise<{
         appUuid: string;
+        name: string;
+        description: string;
         versions: {
             version: number;
             prompt: string;
@@ -1026,11 +1028,8 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const { versions, hasMore } = await this.appModel.getAppWithVersions(
-            appUuid,
-            projectUuid,
-            opts,
-        );
+        const { name, description, versions, hasMore } =
+            await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
 
         // Auto-heal stale builds: if the pipeline died (e.g. server restart)
         // the version stays "building" forever. Detect via heartbeat timeout.
@@ -1068,6 +1067,8 @@ export class AppGenerateService extends BaseService {
 
         return {
             appUuid,
+            name,
+            description,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,
@@ -1078,6 +1079,69 @@ export class AppGenerateService extends BaseService {
                 createdAt: v.created_at,
             })),
             hasMore,
+        };
+    }
+
+    async updateApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        update: { name?: string; description?: string },
+    ): Promise<{ appUuid: string; name: string; description: string }> {
+        this.assertDataAppsEnabled();
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DataApp', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to manage data apps',
+            );
+        }
+
+        const fieldsToUpdate: Partial<{ name: string; description: string }> =
+            {};
+        if (update.name !== undefined) {
+            const trimmedName = update.name.trim();
+            if (trimmedName.length === 0) {
+                throw new ParameterError('App name cannot be empty');
+            }
+            if (trimmedName.length > 255) {
+                throw new ParameterError(
+                    'App name must be 255 characters or fewer',
+                );
+            }
+            fieldsToUpdate.name = trimmedName;
+        }
+        if (update.description !== undefined) {
+            const trimmedDescription = update.description.trim();
+            if (trimmedDescription.length > 1024) {
+                throw new ParameterError(
+                    'App description must be 1024 characters or fewer',
+                );
+            }
+            fieldsToUpdate.description = trimmedDescription;
+        }
+
+        if (Object.keys(fieldsToUpdate).length === 0) {
+            throw new ParameterError(
+                'At least one of name or description must be provided',
+            );
+        }
+
+        const app = await this.appModel.updateApp(
+            appUuid,
+            projectUuid,
+            fieldsToUpdate,
+        );
+        return {
+            appUuid: app.app_id,
+            name: app.name,
+            description: app.description,
         };
     }
 
