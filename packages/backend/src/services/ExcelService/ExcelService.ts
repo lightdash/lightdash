@@ -203,8 +203,13 @@ export class ExcelService {
         pivotData.dataRows.forEach((row) => {
             const excelRow = row.map((cell, colIndex) => {
                 const dateFmt = dateColumnFormats.get(colIndex);
-                if (dateFmt && cell.raw != null && cell.raw !== '') {
-                    const m = moment.utc(cell.raw as string);
+                if (
+                    dateFmt &&
+                    cell.raw != null &&
+                    cell.raw !== '' &&
+                    typeof cell.raw === 'string'
+                ) {
+                    const m = moment.utc(cell.raw);
                     if (m.isValid()) {
                         return m.toDate();
                     }
