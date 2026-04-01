@@ -3,6 +3,8 @@ import {
     FieldType,
     getFormatExpression,
     ItemsMap,
+    TimeFrames,
+    type Dimension,
 } from '@lightdash/common';
 import moment from 'moment';
 import { ExcelService } from './ExcelService';
@@ -808,6 +810,637 @@ describe('ExcelService', () => {
                 ].includes(v),
             );
             expect(numericStrings.length).toBeGreaterThanOrEqual(4);
+        });
+
+        it('TC1: should convert both DATE and TIMESTAMP index dimensions to Date objects', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const dateIndex = 'customers_created_month';
+            const timestampIndex = 'orders_created_at';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [dateIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [timestampIndex]: {
+                    name: 'created_at',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Created at',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.TIMESTAMP,
+                    hidden: false,
+                    sql: '${TABLE}.created_at',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: '2023-01-01',
+                    [timestampIndex]: '2023-01-15T14:30:00.000Z',
+                    [metric]: 202811,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: '2023-01-01',
+                    [timestampIndex]: '2023-01-15T14:30:00.000Z',
+                    [metric]: 5000,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, dateIndex, timestampIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: dateIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dataValues: { row: number; col: number; value: unknown }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    dataValues.push({
+                        row: rowNum,
+                        col: colNum,
+                        value: cell.value,
+                    });
+                });
+            });
+
+            // Col 1 = date index — should have Date objects in data rows
+            const col1Dates = dataValues.filter(
+                (v) => v.col === 1 && v.value instanceof Date,
+            );
+            expect(col1Dates.length).toBeGreaterThanOrEqual(1);
+
+            // Col 2 = timestamp index — now uses raw values directly,
+            // so timestamps are correctly converted to Date objects.
+            const col2Dates = dataValues.filter(
+                (v) => v.col === 2 && v.value instanceof Date,
+            );
+            expect(col2Dates.length).toBeGreaterThanOrEqual(1);
+
+            // Metric columns (col 3+) should NOT have Date objects
+            const metricDateValues = dataValues.filter(
+                (v) => v.col > 2 && v.value instanceof Date,
+            );
+            expect(metricDateValues).toHaveLength(0);
+        });
+
+        it('TC2: should handle columnOrder reordering of index dimensions', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const stringIndex = 'customers_customer_type';
+            const dateIndex = 'customers_created_month';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [stringIndex]: {
+                    name: 'customer_type',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Customer type',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.customer_type',
+                },
+                [dateIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [stringIndex]: 'enterprise',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 202811,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [stringIndex]: 'enterprise',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 5000,
+                },
+            ];
+
+            // dimensions order: stringIndex FIRST, dateIndex SECOND
+            // but columnOrder reverses them: dateIndex FIRST, stringIndex SECOND
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, stringIndex, dateIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: dateIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+                columnOrder: [dateIndex, stringIndex, metric],
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dataValues: { row: number; col: number; value: unknown }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    dataValues.push({
+                        row: rowNum,
+                        col: colNum,
+                        value: cell.value,
+                    });
+                });
+            });
+
+            // With the columnOrder fix, indexDimensions are sorted by
+            // columnOrder before computing dateColumnIndices, matching
+            // pivotQueryResults behavior. The date column (reordered to
+            // col 0 by columnOrder) should be converted to Date objects.
+            const allDateCells = dataValues.filter(
+                (v) => v.value instanceof Date,
+            );
+            expect(allDateCells.length).toBeGreaterThanOrEqual(1);
+
+            // The string index "enterprise" should NOT be a Date
+            const enterpriseCells = dataValues.filter(
+                (v) => v.value === 'enterprise',
+            );
+            expect(enterpriseCells.length).toBeGreaterThanOrEqual(1);
+            enterpriseCells.forEach((cell) => {
+                expect(cell.value).not.toBeInstanceOf(Date);
+            });
+
+            // Metric columns should not have Date objects
+            const maxIndexCol = Math.max(
+                ...allDateCells.map((v) => v.col),
+                ...enterpriseCells.map((v) => v.col),
+            );
+            const metricDateValues = dataValues.filter(
+                (v) => v.col > maxIndexCol && v.value instanceof Date,
+            );
+            expect(metricDateValues).toHaveLength(0);
+        });
+
+        it('TC3: should not convert metric label or value columns with metricsAsRows: true', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const dateIndex = 'customers_created_month';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [dateIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 202811,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 5000,
+                },
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: '2023-02-01',
+                    [metric]: 141312,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: '2023-02-01',
+                    [metric]: 3000,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, dateIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: dateIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: true,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dataValues: { row: number; col: number; value: unknown }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    dataValues.push({
+                        row: rowNum,
+                        col: colNum,
+                        value: cell.value,
+                    });
+                });
+            });
+
+            // With metricsAsRows, layout is: [date index] [metric label] [value cols...]
+            // Only col 1 (date index) should have Date objects
+            const dateCells = dataValues.filter((v) => v.value instanceof Date);
+            dateCells.forEach((cell) => {
+                expect(cell.col).toBe(1);
+            });
+
+            // Metric value cells (col 2+) should NOT be Date objects
+            const nonCol1Dates = dataValues.filter(
+                (v) => v.col > 1 && v.value instanceof Date,
+            );
+            expect(nonCol1Dates).toHaveLength(0);
+        });
+
+        it('TC4: should preserve invalid date strings in date-typed index columns', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const dateIndex = 'customers_created_month';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [dateIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                },
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'credit_card',
+                    [dateIndex]: 'N/A',
+                    [metric]: 200,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: '2023-01-01',
+                    [metric]: 300,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [dateIndex]: 'N/A',
+                    [metric]: 400,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, dateIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: dateIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            const dataValues: { row: number; col: number; value: unknown }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    dataValues.push({
+                        row: rowNum,
+                        col: colNum,
+                        value: cell.value,
+                    });
+                });
+            });
+
+            // Valid date should be converted
+            const dateCells = dataValues.filter((v) => v.value instanceof Date);
+            expect(dateCells.length).toBeGreaterThanOrEqual(1);
+
+            // "N/A" is formatted to "NaT" by formatDate() before the pivot
+            // runs. The strict ISO 8601 check correctly rejects "NaT", so
+            // the value stays as a string — no Invalid Date is created.
+            const natCells = dataValues.filter((v) => v.value === 'NaT');
+            expect(natCells.length).toBeGreaterThanOrEqual(1);
+            natCells.forEach((cell) => {
+                expect(cell.value).not.toBeInstanceOf(Date);
+            });
+        });
+
+        it('TC5: should apply Excel numFmt to date columns based on timeInterval', async () => {
+            const pivotDimension = 'payments_payment_method';
+            const monthIndex = 'customers_created_month';
+            const metric = 'payments_total_revenue';
+
+            const itemMap: ItemsMap = {
+                [pivotDimension]: {
+                    name: 'payment_method',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Payment method',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    hidden: false,
+                    sql: '${TABLE}.payment_method',
+                },
+                [monthIndex]: {
+                    name: 'created_month',
+                    table: 'customers',
+                    tableLabel: 'Customers',
+                    label: 'Created month',
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    hidden: false,
+                    sql: '${TABLE}.created_month',
+                } as Dimension,
+                [metric]: {
+                    name: 'total_revenue',
+                    table: 'payments',
+                    tableLabel: 'Payments',
+                    label: 'Total revenue',
+                    fieldType: FieldType.METRIC,
+                    type: DimensionType.NUMBER,
+                    hidden: false,
+                    sql: 'SUM(${TABLE}.amount)',
+                },
+            };
+
+            const rows = [
+                {
+                    [pivotDimension]: 'credit_card',
+                    [monthIndex]: '2023-01-01',
+                    [metric]: 100,
+                },
+                {
+                    [pivotDimension]: 'bank_transfer',
+                    [monthIndex]: '2023-01-01',
+                    [metric]: 200,
+                },
+            ];
+
+            const metricQuery = {
+                exploreName: 'payments',
+                dimensions: [pivotDimension, monthIndex],
+                metrics: [metric],
+                filters: {},
+                sorts: [{ fieldId: monthIndex, descending: false }],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                metricOverrides: {},
+                dimensionOverrides: {},
+            };
+
+            const pivotConfig = {
+                pivotDimensions: [pivotDimension],
+                metricsAsRows: false,
+            };
+
+            const buffer = await ExcelService.downloadPivotTableXlsx({
+                rows,
+                itemMap,
+                metricQuery,
+                pivotConfig,
+                onlyRaw: false,
+                customLabels: undefined,
+                maxColumnLimit: 60,
+                pivotDetails: null,
+            });
+
+            const workbook = new (await import('exceljs')).Workbook();
+            // @ts-ignore
+            await workbook.xlsx.load(buffer);
+            const worksheet = workbook.getWorksheet('Pivot Table');
+            expect(worksheet).toBeDefined();
+
+            // Find date cells and check they have numFmt applied
+            const dateCells: { row: number; col: number; numFmt: string }[] =
+                [];
+            worksheet!.eachRow((row, rowNum) => {
+                row.eachCell({ includeEmpty: true }, (cell, colNum) => {
+                    if (cell.value instanceof Date) {
+                        dateCells.push({
+                            row: rowNum,
+                            col: colNum,
+                            numFmt: cell.numFmt,
+                        });
+                    }
+                });
+            });
+
+            expect(dateCells.length).toBeGreaterThanOrEqual(1);
+            dateCells.forEach((cell) => {
+                expect(cell.numFmt).toBe('yyyy-mm');
+            });
         });
     });
 
