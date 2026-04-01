@@ -41,8 +41,8 @@ const TYPE_LABELS: Record<AllowedDomainType, string> = {
 
 function getWildcardHint(domain: string): string | null {
     const trimmed = domain.trim();
-    const match = trimmed.match(/^\*\.(.+)$/);
-    if (!match) return null;
+    const match = trimmed.match(/(?:^|\*\.)([a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+)$/);
+    if (!match || !trimmed.includes('*')) return null;
     const base = match[1];
     return `Matches any subdomain, e.g. app.${base}, staging.${base}`;
 }
