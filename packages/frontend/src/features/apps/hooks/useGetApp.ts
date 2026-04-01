@@ -28,8 +28,8 @@ const fetchAppVersions = async (
 export const useGetApp = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
-) =>
-    useInfiniteQuery<GetAppResult, ApiError>({
+) => {
+    const query = useInfiniteQuery<GetAppResult, ApiError>({
         queryKey: ['app', projectUuid, appUuid],
         queryFn: ({ pageParam }) =>
             fetchAppVersions(
@@ -43,4 +43,15 @@ export const useGetApp = (
             return lastPage.versions[lastPage.versions.length - 1].version;
         },
         enabled: !!projectUuid && !!appUuid,
+        // Poll every 2s while the latest version is still building
+        refetchInterval: (data) => {
+            const firstPage = data?.pages?.[0];
+            if (!firstPage) return false;
+            // First page has the newest versions (sorted desc)
+            const latestVersion = firstPage.versions[0];
+            if (latestVersion?.status === 'building') return 2000;
+            return false;
+        },
     });
+    return query;
+};

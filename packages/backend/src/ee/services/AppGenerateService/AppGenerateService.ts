@@ -120,6 +120,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         error: unknown,
+        userMessage: string,
     ): Promise<void> {
         try {
             await this.appModel.updateVersionStatus(
@@ -127,6 +128,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 'error',
                 AppGenerateService.truncateEnd(getErrorMessage(error), 4000),
+                userMessage,
             );
         } catch (dbError) {
             this.logger.error(
@@ -266,35 +268,29 @@ export class AppGenerateService extends BaseService {
         }
 
         // Fallback: create new sandbox and restore source from latest ready version
-        try {
-            const createResult = await this.createSandbox(
-                appUuid,
-                e2bApiKey,
-                anthropicApiKey,
-            );
-            durations.sandboxMs = createResult.durationMs;
-            await this.appModel.updateSandboxId(
-                appUuid,
-                createResult.sandbox.sandboxId,
-            );
+        const createResult = await this.createSandbox(
+            appUuid,
+            e2bApiKey,
+            anthropicApiKey,
+        );
+        durations.sandboxMs = createResult.durationMs;
+        await this.appModel.updateSandboxId(
+            appUuid,
+            createResult.sandbox.sandboxId,
+        );
 
-            const latestReady =
-                await this.appModel.getLatestReadyVersion(appUuid);
-            if (latestReady) {
-                durations.restoreMs = await this.restoreSourceFromS3(
-                    createResult.sandbox,
-                    s3Client,
-                    bucket,
-                    appUuid,
-                    latestReady.version,
-                );
-            }
-
-            return { sandbox: createResult.sandbox, durations };
-        } catch (error) {
-            await this.markError(appUuid, newVersion, error);
-            throw error;
+        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        if (latestReady) {
+            durations.restoreMs = await this.restoreSourceFromS3(
+                createResult.sandbox,
+                s3Client,
+                bucket,
+                appUuid,
+                latestReady.version,
+            );
         }
+
+        return { sandbox: createResult.sandbox, durations };
     }
 
     private async writeCatalogAndPrompt(
@@ -382,9 +378,52 @@ export class AppGenerateService extends BaseService {
         return tools.length > 0 ? tools.join(', ') : undefined;
     }
 
+    private static readonly CODING_PHRASES = [
+        'Shipping BI like we ship code',
+        'Turning your metrics into pixels',
+        'Claude is in the zone',
+        'Wiring up your data',
+        'Making your dashboards jealous',
+        'Teaching your data new tricks',
+        'Brewing some fresh analytics',
+        '10x-ing your data app',
+    ];
+
+    private static randomCodingPhrase(): string {
+        return AppGenerateService.CODING_PHRASES[
+            Math.floor(Math.random() * AppGenerateService.CODING_PHRASES.length)
+        ];
+    }
+
+    /**
+     * Convert an internal tool description (e.g. "Write /app/src/Dashboard.tsx")
+     * into a user-friendly status message (e.g. "Creating Dashboard.tsx").
+     */
+    private static toolDescriptionToStatusMessage(description: string): string {
+        const parts = description.split(' ');
+        const tool = parts[0];
+        const filePath = parts.slice(1).join(' ');
+        const fileName = filePath ? filePath.split('/').pop() : undefined;
+
+        switch (tool) {
+            case 'Write':
+                return fileName ? `Creating ${fileName}` : 'Creating files';
+            case 'Edit':
+                return fileName ? `Editing ${fileName}` : 'Editing files';
+            case 'Read':
+                return fileName ? `Reading ${fileName}` : 'Reading files';
+            case 'Glob':
+            case 'Grep':
+                return 'Searching codebase';
+            default:
+                return AppGenerateService.randomCodingPhrase();
+        }
+    }
+
     private async runClaudeGeneration(
         sandbox: Sandbox,
         appUuid: string,
+        version: number,
     ): Promise<number> {
         const start = performance.now();
         let stdoutBuffer = '';
@@ -412,6 +451,22 @@ export class AppGenerateService extends BaseService {
                                 this.logger.info(
                                     `App ${appUuid}: claude tool #${toolCallCount}: ${description}`,
                                 );
+
+                                // description can be comma-separated
+                                // (e.g. "Write foo.tsx, Read bar.tsx") —
+                                // use only the first tool for the status.
+                                const firstTool = description.split(', ')[0];
+                                const msg =
+                                    AppGenerateService.toolDescriptionToStatusMessage(
+                                        firstTool,
+                                    );
+                                void this.appModel
+                                    .updateStatusMessage(appUuid, version, msg)
+                                    .catch((e) => {
+                                        this.logger.warn(
+                                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                                        );
+                                    });
                             }
                         }
                     }
@@ -537,6 +592,219 @@ export class AppGenerateService extends BaseService {
         return durationMs;
     }
 
+    private async runNewAppPipeline(
+        appUuid: string,
+        version: number,
+        projectUuid: string,
+        prompt: string,
+    ): Promise<void> {
+        let anthropicApiKey: string;
+        let e2bApiKey: string;
+        let s3Client: S3Client;
+        let bucket: string;
+        try {
+            anthropicApiKey = this.getAnthropicApiKey();
+            e2bApiKey = this.getE2bApiKey();
+            ({ client: s3Client, bucket } = this.getS3Client());
+        } catch (error) {
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Something went wrong. Please try again.',
+            );
+            return;
+        }
+
+        const overallStart = performance.now();
+        const durations: Record<string, number> = {};
+
+        await this.appModel.updateStatusMessage(
+            appUuid,
+            version,
+            'Setting up build environment',
+        );
+
+        let sandbox: Sandbox;
+        try {
+            const result = await this.createSandbox(
+                appUuid,
+                e2bApiKey,
+                anthropicApiKey,
+            );
+            sandbox = result.sandbox;
+            durations.sandboxMs = result.durationMs;
+            await this.appModel.updateSandboxId(appUuid, sandbox.sandboxId);
+        } catch (error) {
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Failed to set up build environment. Please try again.',
+            );
+            return;
+        }
+
+        try {
+            await this.runPipelineStages(
+                sandbox,
+                appUuid,
+                version,
+                projectUuid,
+                prompt,
+                s3Client,
+                bucket,
+                durations,
+                overallStart,
+            );
+        } finally {
+            await this.pauseSandbox(sandbox, appUuid);
+        }
+    }
+
+    private async runPipelineStages(
+        sandbox: Sandbox,
+        appUuid: string,
+        version: number,
+        projectUuid: string,
+        prompt: string,
+        s3Client: S3Client,
+        bucket: string,
+        extraDurations: Record<string, number>,
+        overallStart: number,
+    ): Promise<void> {
+        const durations: Record<string, number> = { ...extraDurations };
+
+        try {
+            await this.appModel.updateStatusMessage(
+                appUuid,
+                version,
+                'Loading your data models',
+            );
+            durations.catalogMs = await this.writeCatalogAndPrompt(
+                sandbox,
+                appUuid,
+                projectUuid,
+                prompt,
+            );
+        } catch (error) {
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.error(
+                `App ${appUuid}: catalog failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+            );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Failed to load your data models. Please try again.',
+            );
+            return;
+        }
+
+        try {
+            await this.appModel.updateStatusMessage(
+                appUuid,
+                version,
+                AppGenerateService.randomCodingPhrase(),
+            );
+            durations.generateMs = await this.runClaudeGeneration(
+                sandbox,
+                appUuid,
+                version,
+            );
+        } catch (error) {
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.error(
+                `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+            );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Failed to generate app code. Try rephrasing your request.',
+            );
+            return;
+        }
+
+        try {
+            await this.appModel.updateStatusMessage(
+                appUuid,
+                version,
+                'Packaging your app',
+            );
+            durations.buildMs = await this.runBuild(sandbox, appUuid);
+        } catch (error) {
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.error(
+                `App ${appUuid}: build failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+            );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                "The generated code couldn't be compiled. Try again or simplify your request.",
+            );
+            return;
+        }
+
+        try {
+            await this.appModel.updateStatusMessage(
+                appUuid,
+                version,
+                'Deploying your app',
+            );
+            const artifacts = await this.packageArtifacts(sandbox, appUuid);
+            durations.packageMs = artifacts.durationMs;
+
+            durations.uploadMs = await this.uploadToS3(
+                s3Client,
+                bucket,
+                appUuid,
+                version,
+                artifacts.distTar,
+                artifacts.sourceTar,
+            );
+        } catch (error) {
+            const totalMs = AppGenerateService.elapsed(overallStart);
+            this.logger.error(
+                `App ${appUuid}: deploy failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+            );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Failed to deploy your app. Please try again.',
+            );
+            return;
+        }
+
+        try {
+            const dbStart = performance.now();
+            await this.appModel.updateVersionStatus(appUuid, version, 'ready');
+            durations.dbMs = AppGenerateService.elapsed(dbStart);
+        } catch (error) {
+            this.logger.error(
+                `App ${appUuid}: failed to mark version as ready: ${getErrorMessage(error)}`,
+            );
+            await this.markError(
+                appUuid,
+                version,
+                error,
+                'Something went wrong. Please try again.',
+            );
+            return;
+        }
+
+        const totalMs = AppGenerateService.elapsed(overallStart);
+        this.logger.info(
+            `App ${appUuid}: generation completed successfully in ${totalMs}ms (${Object.entries(
+                durations,
+            )
+                .map(([k, v]) => `${k}=${v}ms`)
+                .join(', ')})`,
+        );
+    }
+
     async generateApp(
         user: SessionUser,
         projectUuid: string,
@@ -559,18 +827,12 @@ export class AppGenerateService extends BaseService {
 
         const appUuid = uuidv4();
         const version = 1;
-        const anthropicApiKey = this.getAnthropicApiKey();
-        const e2bApiKey = this.getE2bApiKey();
-        const { client: s3Client, bucket } = this.getS3Client();
-
-        const overallStart = performance.now();
-        const durations: Record<string, number> = {};
 
         this.logger.info(
             `App ${appUuid}: generation started (promptLength=${prompt.length})`,
         );
 
-        // Persist app record early so we can track status
+        // Persist app record so we can track status immediately
         try {
             await this.appModel.createWithVersion(
                 {
@@ -588,67 +850,87 @@ export class AppGenerateService extends BaseService {
             throw error;
         }
 
+        // Fire pipeline in background — status updates flow through DB polling
+        this.runNewAppPipeline(appUuid, version, projectUuid, prompt).catch(
+            (error) => {
+                this.logger.error(
+                    `App ${appUuid}: unhandled pipeline error: ${getErrorMessage(error)}`,
+                );
+            },
+        );
+
+        return { appUuid, version };
+    }
+
+    private async runIterationPipeline(
+        app: DbApp,
+        appUuid: string,
+        newVersion: number,
+        projectUuid: string,
+        prompt: string,
+    ): Promise<void> {
+        let anthropicApiKey: string;
+        let e2bApiKey: string;
+        let s3Client: S3Client;
+        let bucket: string;
+        try {
+            anthropicApiKey = this.getAnthropicApiKey();
+            e2bApiKey = this.getE2bApiKey();
+            ({ client: s3Client, bucket } = this.getS3Client());
+        } catch (error) {
+            await this.markError(
+                appUuid,
+                newVersion,
+                error,
+                'Something went wrong. Please try again.',
+            );
+            return;
+        }
+
+        const overallStart = performance.now();
+        const durations: Record<string, number> = {};
+
+        await this.appModel.updateStatusMessage(
+            appUuid,
+            newVersion,
+            'Setting up build environment',
+        );
+
         let sandbox: Sandbox;
         try {
-            const result = await this.createSandbox(
+            const acquired = await this.acquireSandbox(
+                app,
                 appUuid,
+                newVersion,
                 e2bApiKey,
                 anthropicApiKey,
+                s3Client,
+                bucket,
             );
-            sandbox = result.sandbox;
-            durations.sandboxMs = result.durationMs;
-            await this.appModel.updateSandboxId(appUuid, sandbox.sandboxId);
+            sandbox = acquired.sandbox;
+            Object.assign(durations, acquired.durations);
         } catch (error) {
-            await this.markError(appUuid, version, error);
-            throw error;
+            await this.markError(
+                appUuid,
+                newVersion,
+                error,
+                'Failed to set up build environment. Please try again.',
+            );
+            return;
         }
 
         try {
-            durations.catalogMs = await this.writeCatalogAndPrompt(
+            await this.runPipelineStages(
                 sandbox,
                 appUuid,
+                newVersion,
                 projectUuid,
                 prompt,
-            );
-            durations.generateMs = await this.runClaudeGeneration(
-                sandbox,
-                appUuid,
-            );
-            durations.buildMs = await this.runBuild(sandbox, appUuid);
-
-            const artifacts = await this.packageArtifacts(sandbox, appUuid);
-            durations.packageMs = artifacts.durationMs;
-
-            durations.uploadMs = await this.uploadToS3(
                 s3Client,
                 bucket,
-                appUuid,
-                version,
-                artifacts.distTar,
-                artifacts.sourceTar,
+                durations,
+                overallStart,
             );
-
-            const dbStart = performance.now();
-            await this.appModel.updateVersionStatus(appUuid, version, 'ready');
-            durations.dbMs = AppGenerateService.elapsed(dbStart);
-
-            const totalMs = AppGenerateService.elapsed(overallStart);
-            this.logger.info(
-                `App ${appUuid}: generation completed successfully in ${totalMs}ms (${Object.entries(
-                    durations,
-                )
-                    .map(([k, v]) => `${k}=${v}ms`)
-                    .join(', ')})`,
-            );
-
-            return { appUuid, version };
-        } catch (error) {
-            const totalMs = AppGenerateService.elapsed(overallStart);
-            this.logger.error(
-                `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
-            );
-            await this.markError(appUuid, version, error);
-            throw error;
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
         }
@@ -685,12 +967,6 @@ export class AppGenerateService extends BaseService {
         }
 
         const newVersion = (latestVersion?.version ?? 0) + 1;
-        const anthropicApiKey = this.getAnthropicApiKey();
-        const e2bApiKey = this.getE2bApiKey();
-        const { client: s3Client, bucket } = this.getS3Client();
-
-        const overallStart = performance.now();
-        const durations: Record<string, number> = {};
 
         this.logger.info(
             `App ${appUuid}: iteration started (version=${newVersion}, promptLength=${prompt.length})`,
@@ -703,71 +979,20 @@ export class AppGenerateService extends BaseService {
             user.userUuid,
         );
 
-        const acquired = await this.acquireSandbox(
+        // Fire pipeline in background — status updates flow through DB polling
+        this.runIterationPipeline(
             app,
             appUuid,
             newVersion,
-            e2bApiKey,
-            anthropicApiKey,
-            s3Client,
-            bucket,
-        );
-        const { sandbox } = acquired;
-        Object.assign(durations, acquired.durations);
-
-        try {
-            durations.catalogMs = await this.writeCatalogAndPrompt(
-                sandbox,
-                appUuid,
-                projectUuid,
-                prompt,
-            );
-            durations.generateMs = await this.runClaudeGeneration(
-                sandbox,
-                appUuid,
-            );
-            durations.buildMs = await this.runBuild(sandbox, appUuid);
-
-            const artifacts = await this.packageArtifacts(sandbox, appUuid);
-            durations.packageMs = artifacts.durationMs;
-
-            durations.uploadMs = await this.uploadToS3(
-                s3Client,
-                bucket,
-                appUuid,
-                newVersion,
-                artifacts.distTar,
-                artifacts.sourceTar,
-            );
-
-            const dbStart = performance.now();
-            await this.appModel.updateVersionStatus(
-                appUuid,
-                newVersion,
-                'ready',
-            );
-            durations.dbMs = AppGenerateService.elapsed(dbStart);
-
-            const totalMs = AppGenerateService.elapsed(overallStart);
-            this.logger.info(
-                `App ${appUuid}: iteration completed successfully in ${totalMs}ms (${Object.entries(
-                    durations,
-                )
-                    .map(([k, v]) => `${k}=${v}ms`)
-                    .join(', ')})`,
-            );
-
-            return { appUuid, version: newVersion };
-        } catch (error) {
-            const totalMs = AppGenerateService.elapsed(overallStart);
+            projectUuid,
+            prompt,
+        ).catch((error) => {
             this.logger.error(
-                `App ${appUuid}: iteration failed after ${totalMs}ms: ${getErrorMessage(error)}`,
+                `App ${appUuid}: unhandled iteration pipeline error: ${getErrorMessage(error)}`,
             );
-            await this.markError(appUuid, newVersion, error);
-            throw error;
-        } finally {
-            await this.pauseSandbox(sandbox, appUuid);
-        }
+        });
+
+        return { appUuid, version: newVersion };
     }
 
     async getAppVersions(
@@ -781,6 +1006,7 @@ export class AppGenerateService extends BaseService {
             version: number;
             prompt: string;
             status: string;
+            statusMessage: string | null;
             createdAt: Date;
         }[];
         hasMore: boolean;
@@ -806,12 +1032,49 @@ export class AppGenerateService extends BaseService {
             opts,
         );
 
+        // Auto-heal stale builds: if the pipeline died (e.g. server restart)
+        // the version stays "building" forever. Detect via heartbeat timeout.
+        const STALE_THRESHOLD_MS = 10 * 60_000;
+        const now = Date.now();
+        const staleVersions = versions.filter((v) => {
+            if (v.status !== 'building') return false;
+            const lastActivity = v.status_updated_at ?? v.created_at;
+            return now - new Date(lastActivity).getTime() > STALE_THRESHOLD_MS;
+        });
+        // Best-effort — don't let a failed DB write break the GET response
+        try {
+            await Promise.all(
+                staleVersions.map(async (v) => {
+                    this.logger.warn(
+                        `App ${appUuid}: auto-healing stale build (version=${v.version})`,
+                    );
+                    await this.appModel.updateVersionStatus(
+                        appUuid,
+                        v.version,
+                        'error',
+                        'Build process was interrupted',
+                        'Something went wrong. Please try again.',
+                    );
+                }),
+            );
+        } catch (healError) {
+            this.logger.error(
+                `App ${appUuid}: auto-heal failed: ${getErrorMessage(healError)}`,
+            );
+        }
+        const staleVersionNumbers = new Set(
+            staleVersions.map((v) => v.version),
+        );
+
         return {
             appUuid,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,
-                status: v.status,
+                status: staleVersionNumbers.has(v.version) ? 'error' : v.status,
+                statusMessage: staleVersionNumbers.has(v.version)
+                    ? 'Something went wrong. Please try again.'
+                    : v.status_message,
                 createdAt: v.created_at,
             })),
             hasMore,

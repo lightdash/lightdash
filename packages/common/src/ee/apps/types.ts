@@ -13,6 +13,7 @@ export type ApiAppVersionSummary = {
     version: number;
     prompt: string;
     status: string;
+    statusMessage: string | null;
     createdAt: Date;
 };
 

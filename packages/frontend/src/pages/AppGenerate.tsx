@@ -14,6 +14,7 @@ import {
     IconExternalLink,
     IconSparkles,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
     useEffect,
@@ -95,8 +96,18 @@ const AppGenerate: FC = () => {
         projectUuid: string;
         appUuid: string;
     }>();
+    const queryClient = useQueryClient();
     const [prompt, setPrompt] = useState('');
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+    // Track appUuid in local state so polling starts immediately after creation
+    // (before the URL param updates via replaceState)
+    const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
+        urlAppUuid,
+    );
+    // Sync from URL when navigating (e.g. browser back/forward)
+    useEffect(() => {
+        setActiveAppUuid(urlAppUuid);
+    }, [urlAppUuid]);
     const {
         mutate: generateMutate,
         isLoading: isGenerating,
@@ -107,20 +118,39 @@ const AppGenerate: FC = () => {
         isLoading: isIterating,
         reset: resetIterate,
     } = useIterateApp();
-    const isLoading = isGenerating || isIterating;
     const health = useHealth();
     const { user } = useApp();
     const ability = useAbilityContext();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Fetch version history when we have an appUuid in the URL
+    // Fetch version history — polls every 2s while latest version is building
     const {
         data: appData,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useGetApp(projectUuid, urlAppUuid);
+    } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
+
+    // Derive building state from the latest version in fetched data
+    const latestBuildingVersion = useMemo(() => {
+        if (!appData?.pages?.[0]) return null;
+        const latest = appData.pages[0].versions[0];
+        if (latest?.status === 'building') return latest;
+        return null;
+    }, [appData]);
+    const isBuilding = latestBuildingVersion !== null;
+    const isLoading = isGenerating || isIterating || isBuilding;
+
+    // Clear local messages once server data takes over (avoids duplicates).
+    // Use the version count as dependency so this doesn't fire on every poll.
+    const serverVersionCount =
+        appData?.pages?.reduce((n, p) => n + p.versions.length, 0) ?? 0;
+    useEffect(() => {
+        if (serverVersionCount > 0) {
+            setLocalMessages([]);
+        }
+    }, [serverVersionCount]);
 
     // Convert fetched versions into chat messages (oldest first)
     const historyMessages = useMemo<ChatMessage[]>(() => {
@@ -150,11 +180,15 @@ const AppGenerate: FC = () => {
             } else if (v.status === 'error') {
                 msgs.push({
                     role: 'assistant',
-                    content: 'Generation failed',
+                    content:
+                        v.statusMessage ??
+                        'Generation failed. Please try again.',
                     appUuid: null,
                     version: null,
                 });
             }
+            // 'building' status is not rendered as a history message —
+            // it's shown as a live progress indicator below
             return msgs;
         });
     }, [appData]);
@@ -165,9 +199,30 @@ const AppGenerate: FC = () => {
         [historyMessages, localMessages],
     );
 
+    // Used for chat links + handleSubmit (recalculated every render, fine)
     const latestApp = [...messages]
         .reverse()
         .find((m) => m.appUuid !== null && m.version !== null);
+
+    // Stable reference for the preview — only updates when a new version
+    // becomes ready, preventing iframe reloads during status polling.
+    const latestReadyPreview = useMemo(() => {
+        if (!appData?.pages?.[0]) return null;
+        const allVersions = appData.pages.flatMap((p) => p.versions);
+        const ready = allVersions.find((v) => v.status === 'ready');
+        if (!ready) return null;
+        return { appUuid: appData.pages[0].appUuid, version: ready.version };
+    }, [appData]);
+    const [previewApp, setPreviewApp] = useState(latestReadyPreview);
+    useEffect(() => {
+        if (
+            latestReadyPreview &&
+            (latestReadyPreview.appUuid !== previewApp?.appUuid ||
+                latestReadyPreview.version !== previewApp?.version)
+        ) {
+            setPreviewApp(latestReadyPreview);
+        }
+    }, [latestReadyPreview, previewApp?.appUuid, previewApp?.version]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -225,20 +280,15 @@ const AppGenerate: FC = () => {
 
         const callbacks = {
             onSuccess: (data: { appUuid: string; version: number }) => {
-                setLocalMessages((prev) => [
-                    ...prev,
-                    {
-                        role: 'assistant' as const,
-                        content:
-                            data.version === 1
-                                ? 'Your app is ready!'
-                                : `Version ${data.version} is ready!`,
-                        appUuid: data.appUuid,
-                        version: data.version,
-                    },
-                ]);
-                // Update URL so the session is resumable, without triggering
-                // a re-render or refetch — just silently swap the URL.
+                // Set active app so polling starts immediately
+                setActiveAppUuid(data.appUuid);
+                // Invalidate so useGetApp refetches and picks up the new
+                // building version — otherwise stale cache shows "ready"
+                // and refetchInterval stays off.
+                void queryClient.invalidateQueries({
+                    queryKey: ['app', projectUuid, data.appUuid],
+                });
+                // Update URL so the session is resumable
                 if (!urlAppUuid) {
                     window.history.replaceState(
                         null,
@@ -426,7 +476,8 @@ const AppGenerate: FC = () => {
                                                 }
                                             >
                                                 <Text size="sm" c="dimmed">
-                                                    Generating your app{' '}
+                                                    {latestBuildingVersion?.statusMessage ??
+                                                        'Generating your app'}{' '}
                                                     <LoadingDots />
                                                 </Text>
                                             </Box>
@@ -485,10 +536,10 @@ const AppGenerate: FC = () => {
                             <Text size="sm" fw={500}>
                                 Preview
                             </Text>
-                            {latestApp?.appUuid && latestApp?.version && (
+                            {previewApp && (
                                 <ActionIcon
                                     component={Link}
-                                    to={`/projects/${projectUuid}/apps/${latestApp.appUuid}/versions/${latestApp.version}/preview`}
+                                    to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/versions/${previewApp.version}/preview`}
                                     target="_blank"
                                     variant="subtle"
                                     size="sm"
@@ -500,11 +551,11 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         <Box className={classes.previewContent}>
-                            {latestApp?.appUuid && latestApp?.version ? (
+                            {previewApp ? (
                                 <AppPreview
                                     projectUuid={projectUuid}
-                                    appUuid={latestApp.appUuid}
-                                    version={latestApp.version}
+                                    appUuid={previewApp.appUuid}
+                                    version={previewApp.version}
                                 />
                             ) : (
                                 <Box className={classes.previewEmpty}>
