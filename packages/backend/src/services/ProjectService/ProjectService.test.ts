@@ -81,6 +81,41 @@ import {
     virtualExplore,
 } from './ProjectService.mock';
 
+// Mock worker_threads so the >500 rows test doesn't need a compiled
+// dist/services/ProjectService/formatRows.js artifact. In production,
+// formatRows runs in a Worker thread for large result sets, but the Worker
+// constructor requires the built JS file which only exists after `pnpm build`.
+// This mock runs formatRows synchronously in the main thread instead.
+jest.mock('worker_threads', () => {
+    const { formatRows } = jest.requireActual('@lightdash/common');
+    return {
+        Worker: jest.fn().mockImplementation(
+            (
+                _path: string,
+                options: {
+                    workerData: { rows: unknown[]; itemMap: unknown };
+                },
+            ) => {
+                const { rows, itemMap } = options.workerData;
+                const result = formatRows(rows, itemMap);
+                return {
+                    on: jest.fn(
+                        (
+                            event: string,
+                            callback: (...args: unknown[]) => void,
+                        ) => {
+                            if (event === 'message') {
+                                setTimeout(() => callback(result), 0);
+                            }
+                        },
+                    ),
+                    terminate: jest.fn(),
+                };
+            },
+        ),
+    };
+});
+
 jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => ({
         connect: jest.fn(() => warehouseClientMock.credentials),
