@@ -1,3 +1,16 @@
+# [0.2706.0](https://github.com/lightdash/lightdash/compare/0.2705.0...0.2706.0) (2026-04-01)
+
+
+### Bug Fixes
+
+* **slack:** update AI block link text and remove debug drawer navigation ([#21631](https://github.com/lightdash/lightdash/issues/21631)) ([02055ef](https://github.com/lightdash/lightdash/commit/02055ef9cea74a3fdcd6fb5c9f07106cdab9e93c))
+
+
+### Features
+
+* bump e2b timeout to 1h ([#21633](https://github.com/lightdash/lightdash/issues/21633)) ([20b41a9](https://github.com/lightdash/lightdash/commit/20b41a94f708d489b62a72b521db9e8c97d84099))
+* map `TodoWrite` tool call ([#21639](https://github.com/lightdash/lightdash/issues/21639)) ([37cb85f](https://github.com/lightdash/lightdash/commit/37cb85fd6541661f7e7e6d859fc9815573ff158e))
+
 # [0.2705.0](https://github.com/lightdash/lightdash/compare/0.2704.0...0.2705.0) (2026-04-01)
 
 
