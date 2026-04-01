@@ -132,6 +132,7 @@ import {
     replaceDimensionInExplore,
     RequestMethod,
     resolveBaseDimension,
+    resolveQueryTimezone,
     resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
@@ -259,7 +260,6 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
-import { resolveQueryTimezone } from '../resolveQueryTimezone';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,

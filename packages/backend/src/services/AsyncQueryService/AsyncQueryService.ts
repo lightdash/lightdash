@@ -59,6 +59,7 @@ import {
     PivotConfiguration,
     QueryExecutionContext,
     QueryHistoryStatus,
+    resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
     S3Error,
@@ -146,7 +147,6 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
-import { resolveQueryTimezone } from '../resolveQueryTimezone';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {

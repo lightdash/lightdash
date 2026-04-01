@@ -1,4 +1,4 @@
-import { type MetricQuery } from '@lightdash/common';
+import { type MetricQuery } from '../types/metricQuery';
 
 /**
  * Resolves the effective timezone for a query using the hierarchy:

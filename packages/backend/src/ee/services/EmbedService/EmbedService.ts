@@ -50,6 +50,7 @@ import {
     NotSupportedError,
     ParameterError,
     QueryExecutionContext,
+    resolveQueryTimezone,
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
@@ -82,7 +83,6 @@ import {
     getDashboardParametersValuesMap,
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
-import { resolveQueryTimezone } from '../../../services/resolveQueryTimezone';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
