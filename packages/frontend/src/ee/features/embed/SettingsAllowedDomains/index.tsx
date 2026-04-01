@@ -79,7 +79,7 @@ const AllowedDomainsPanel: FC = () => {
 
     return (
         <Stack gap="lg">
-            <Stack gap="xs">
+            <Stack gap="xs" mt="md">
                 {domains && domains.length > 0 ? (
                     <Stack gap="xs">
                         {domains.map((domain) => (
@@ -136,7 +136,7 @@ const AllowedDomainsPanel: FC = () => {
                 )}
             </Stack>
 
-            <Stack gap="xs" mt="md">
+            <Stack gap="xs">
                 <Title order={6}>New domain</Title>
                 <form onSubmit={handleSubmit}>
                     <Stack gap="xs">
