@@ -86,6 +86,7 @@ export type ResolveExecutionArgs = {
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls?: UserAccessControls;
     availableParameterDefinitions?: ParameterDefinitions;
+    useTimezoneAwareDateTrunc?: boolean;
 };
 
 export type PreAggregateExecutionResolution =

@@ -863,6 +863,9 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneAwareDateTruncEnabled();
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore: filteredExplore,
@@ -877,6 +880,7 @@ export class EmbedService extends BaseService {
                 : undefined,
             parameters: combinedParameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
         });
 
         const results =
@@ -1383,6 +1387,8 @@ export class EmbedService extends BaseService {
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneAwareDateTruncEnabled();
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1395,6 +1401,7 @@ export class EmbedService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     combinedParameters,
+                    useTimezoneAwareDateTrunc,
                 );
 
             const { rows } = await this._runEmbedQuery({
@@ -1643,6 +1650,8 @@ export class EmbedService extends BaseService {
             data.metricQuery,
             projectTimezone,
         );
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneAwareDateTruncEnabled();
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1655,6 +1664,7 @@ export class EmbedService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     combinedParameters,
+                    useTimezoneAwareDateTrunc,
                 );
 
             const { rows } = await this._runEmbedQuery({

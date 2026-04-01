@@ -159,6 +159,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             userAccessControls: resolveArgs.userAccessControls!,
             availableParameterDefinitions:
                 resolveArgs.availableParameterDefinitions!,
+            useTimezoneAwareDateTrunc: resolveArgs.useTimezoneAwareDateTrunc,
         });
 
         if (resolution.resolved) {
