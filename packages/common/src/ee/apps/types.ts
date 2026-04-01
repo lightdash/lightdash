@@ -19,6 +19,19 @@ export type ApiAppVersionSummary = {
 
 export type ApiGetAppResponse = ApiSuccess<{
     appUuid: string;
+    name: string;
+    description: string;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
+}>;
+
+export type ApiUpdateAppRequest = {
+    name?: string;
+    description?: string;
+};
+
+export type ApiUpdateAppResponse = ApiSuccess<{
+    appUuid: string;
+    name: string;
+    description: string;
 }>;

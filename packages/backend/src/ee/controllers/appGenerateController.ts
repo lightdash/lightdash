@@ -3,6 +3,8 @@ import {
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiPreviewTokenResponse,
+    type ApiUpdateAppRequest,
+    type ApiUpdateAppResponse,
 } from '@lightdash/common';
 import {
     Body,
@@ -10,6 +12,7 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -103,6 +106,32 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             body.prompt,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Update an app's name and/or description.
+     * @summary Update app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{appUuid}')
+    @OperationId('updateApp')
+    async updateApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: ApiUpdateAppRequest,
+    ): Promise<ApiUpdateAppResponse> {
+        const result = await this.getAppGenerateService().updateApp(
+            req.user!,
+            projectUuid,
+            appUuid,
+            body,
         );
         return {
             status: 'ok',

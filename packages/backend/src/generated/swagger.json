@@ -7941,6 +7941,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "statusMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "status": {
                         "type": "string"
                     },
@@ -7952,10 +7956,16 @@
                         "format": "double"
                     }
                 },
-                "required": ["createdAt", "status", "prompt", "version"],
+                "required": [
+                    "createdAt",
+                    "statusMessage",
+                    "status",
+                    "prompt",
+                    "version"
+                ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -7968,11 +7978,23 @@
                                 },
                                 "type": "array"
                             },
+                            "description": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
                             "appUuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["hasMore", "versions", "appUuid"],
+                        "required": [
+                            "hasMore",
+                            "versions",
+                            "description",
+                            "name",
+                            "appUuid"
+                        ],
                         "type": "object"
                     },
                     "status": {
@@ -7985,7 +8007,47 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+            },
+            "ApiSuccess__appUuid-string--name-string--description-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "description": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["description", "name", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpdateAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string__"
+            },
+            "ApiUpdateAppRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
             },
             "ApiSuccess__token-string__": {
                 "properties": {
@@ -11422,6 +11484,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
                     },
@@ -11482,6 +11547,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "timeoutSeconds": {
                         "type": "number",
@@ -11564,6 +11632,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "timeoutSeconds": {
                         "type": "number",
@@ -11657,6 +11728,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "timeoutSeconds": {
                         "type": "number",
                         "format": "double"
@@ -11727,6 +11801,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "catalog": {
                         "type": "string"
                     },
@@ -11786,6 +11863,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "host": {
                         "type": "string"
                     },
@@ -11843,6 +11923,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "timeoutSeconds": {
                         "type": "number",
@@ -11906,6 +11989,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "region": {
                         "type": "string"
@@ -12174,6 +12260,9 @@
                                 "type": "number",
                                 "format": "double"
                             },
+                            "dataTimezone": {
+                                "type": "string"
+                            },
                             "startOfWeek": {
                                 "allOf": [
                                     {
@@ -12238,6 +12327,9 @@
             "CreateBigqueryCredentials": {
                 "properties": {
                     "executionProject": {
+                        "type": "string"
+                    },
+                    "dataTimezone": {
                         "type": "string"
                     },
                     "startOfWeek": {
@@ -12336,6 +12428,9 @@
                                 "type": "number",
                                 "format": "double"
                             },
+                            "dataTimezone": {
+                                "type": "string"
+                            },
                             "startOfWeek": {
                                 "allOf": [
                                     {
@@ -12414,6 +12509,9 @@
                     },
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "startOfWeek": {
                         "allOf": [
@@ -12506,6 +12604,9 @@
                         },
                         "type": "array"
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12556,6 +12657,9 @@
             },
             "CreateTrinoCredentials": {
                 "properties": {
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12614,6 +12718,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12660,6 +12767,9 @@
             },
             "CreateAthenaCredentials": {
                 "properties": {
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -29318,7 +29428,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2696.1",
+        "version": "0.2701.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

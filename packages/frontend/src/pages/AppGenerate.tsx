@@ -25,11 +25,13 @@ import {
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useParams } from 'react-router';
+import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
+import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
 import useHealth from '../hooks/health/useHealth';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
@@ -118,6 +120,7 @@ const AppGenerate: FC = () => {
         isLoading: isIterating,
         reset: resetIterate,
     } = useIterateApp();
+    const { mutate: updateAppMutate } = useUpdateApp();
     const health = useHealth();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -131,6 +134,22 @@ const AppGenerate: FC = () => {
         hasNextPage,
         isFetchingNextPage,
     } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
+
+    // Derive app name/description from fetched data
+    const appName = appData?.pages?.[0]?.name ?? '';
+    const appDescription = appData?.pages?.[0]?.description ?? '';
+
+    // Draft state for inline editing (synced from server, saved on blur)
+    const [draftName, setDraftName] = useState(appName);
+    const [draftDescription, setDraftDescription] = useState(appDescription);
+    const isEditingName = useRef(false);
+    const isEditingDescription = useRef(false);
+    useEffect(() => {
+        if (!isEditingName.current) setDraftName(appName);
+    }, [appName]);
+    useEffect(() => {
+        if (!isEditingDescription.current) setDraftDescription(appDescription);
+    }, [appDescription]);
 
     // Derive building state from the latest version in fetched data
     const latestBuildingVersion = useMemo(() => {
@@ -531,24 +550,80 @@ const AppGenerate: FC = () => {
                 {/* Preview Panel */}
                 <Panel minSize={40}>
                     <Box className={classes.previewPanel}>
-                        <Box className={classes.previewHeader}>
-                            <IconAppWindow size={16} />
-                            <Text size="sm" fw={500}>
-                                Preview
-                            </Text>
-                            {previewApp && (
-                                <ActionIcon
-                                    component={Link}
-                                    to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/versions/${previewApp.version}/preview`}
-                                    target="_blank"
-                                    variant="subtle"
-                                    size="sm"
-                                    ml="auto"
-                                >
-                                    <IconExternalLink size={14} />
-                                </ActionIcon>
-                            )}
-                        </Box>
+                        {activeAppUuid && (
+                            <Box className={classes.previewHeader}>
+                                <Box className={classes.previewHeaderInfo}>
+                                    <EditableText
+                                        value={draftName}
+                                        placeholder="Untitled app"
+                                        fw={500}
+                                        onFocus={() => {
+                                            isEditingName.current = true;
+                                        }}
+                                        onChange={(e) =>
+                                            setDraftName(e.currentTarget.value)
+                                        }
+                                        onBlur={() => {
+                                            isEditingName.current = false;
+                                            const trimmed = draftName.trim();
+                                            if (
+                                                trimmed &&
+                                                trimmed !== appName
+                                            ) {
+                                                updateAppMutate({
+                                                    projectUuid,
+                                                    appUuid: activeAppUuid,
+                                                    name: trimmed,
+                                                });
+                                            } else {
+                                                setDraftName(appName);
+                                            }
+                                        }}
+                                    />
+                                    <EditableText
+                                        value={draftDescription}
+                                        placeholder="Add a description..."
+                                        lighter
+                                        onFocus={() => {
+                                            isEditingDescription.current = true;
+                                        }}
+                                        onChange={(e) =>
+                                            setDraftDescription(
+                                                e.currentTarget.value,
+                                            )
+                                        }
+                                        onBlur={() => {
+                                            isEditingDescription.current = false;
+                                            const trimmed =
+                                                draftDescription.trim();
+                                            if (trimmed !== appDescription) {
+                                                updateAppMutate({
+                                                    projectUuid,
+                                                    appUuid: activeAppUuid,
+                                                    description: trimmed,
+                                                });
+                                            } else {
+                                                setDraftDescription(
+                                                    appDescription,
+                                                );
+                                            }
+                                        }}
+                                    />
+                                </Box>
+                                {previewApp && (
+                                    <ActionIcon
+                                        component={Link}
+                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/versions/${previewApp.version}/preview`}
+                                        target="_blank"
+                                        variant="subtle"
+                                        size="sm"
+                                        ml="auto"
+                                    >
+                                        <IconExternalLink size={14} />
+                                    </ActionIcon>
+                                )}
+                            </Box>
+                        )}
 
                         <Box className={classes.previewContent}>
                             {previewApp ? (
