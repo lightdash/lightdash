@@ -716,7 +716,7 @@ export class OrganizationController extends BaseController {
      * Add a new allowed domain for the current organization
      * @summary Add allowed domain
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('201', 'Created')
     @Post('/allowedDomains')
     @OperationId('addOrganizationAllowedDomain')
@@ -738,7 +738,7 @@ export class OrganizationController extends BaseController {
      * Remove an allowed domain from the current organization
      * @summary Delete allowed domain
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Deleted')
     @Delete('/allowedDomains/{domainUuid}')
     @OperationId('deleteOrganizationAllowedDomain')

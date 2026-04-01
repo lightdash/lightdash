@@ -2,7 +2,7 @@ import {
     AllowedDomain,
     ForbiddenError,
     ParameterError,
-    type SessionUser,
+    SessionUser,
 } from '@lightdash/common';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
@@ -108,10 +108,16 @@ describe('OrganizationAllowedDomainsService', () => {
         get: jest.fn(),
     };
 
+    const mockAdminAbility = {
+        can: jest.fn().mockReturnValue(true),
+        cannot: jest.fn().mockReturnValue(false),
+    };
+
     const mockUser = {
         userUuid: 'user-uuid-1',
         organizationUuid: 'org-uuid-1',
-    } as SessionUser;
+        ability: mockAdminAbility,
+    } as unknown as SessionUser;
 
     let service: OrganizationAllowedDomainsService;
 
@@ -128,6 +134,34 @@ describe('OrganizationAllowedDomainsService', () => {
                 mockOrganizationModel as unknown as OrganizationModel,
             commercialFeatureFlagModel:
                 mockFeatureFlagModel as unknown as CommercialFeatureFlagModel,
+        });
+    });
+
+    describe('authorization', () => {
+        it('throws ForbiddenError when user is not an org admin', async () => {
+            const viewerUser = {
+                userUuid: 'user-uuid-2',
+                organizationUuid: 'org-uuid-1',
+                ability: {
+                    can: jest.fn().mockReturnValue(false),
+                    cannot: jest.fn().mockReturnValue(true),
+                },
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getAllowedDomains(viewerUser),
+            ).rejects.toThrow(ForbiddenError);
+
+            await expect(
+                service.addAllowedDomain(viewerUser, {
+                    domain: 'https://example.com',
+                    type: 'sdk',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+
+            await expect(
+                service.deleteAllowedDomain(viewerUser, 'dom-1'),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 

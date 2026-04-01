@@ -111,12 +111,21 @@ export class OrganizationAllowedDomainsService extends BaseService {
         }
     }
 
+    private checkIsOrgAdmin(user: SessionUser): void {
+        if (user.ability.cannot('manage', 'Organization')) {
+            throw new ForbiddenError(
+                'Only organization admins can manage allowed domains',
+            );
+        }
+    }
+
     async getAllowedDomains(user: SessionUser): Promise<AllowedDomain[]> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('User does not belong to an organization');
         }
 
+        this.checkIsOrgAdmin(user);
         await this.checkFeatureEnabled(user);
 
         return this.organizationModel.getAllowedDomainsByOrganizationUuid(
@@ -133,7 +142,14 @@ export class OrganizationAllowedDomainsService extends BaseService {
             throw new ForbiddenError('User does not belong to an organization');
         }
 
+        this.checkIsOrgAdmin(user);
         await this.checkFeatureEnabled(user);
+
+        if (!['sdk', 'embed'].includes(body.type)) {
+            throw new ParameterError(
+                `Invalid domain type: ${body.type}. Must be 'sdk' or 'embed'`,
+            );
+        }
 
         const validatedDomain = validateDomain(body.domain);
 
@@ -165,6 +181,7 @@ export class OrganizationAllowedDomainsService extends BaseService {
             throw new ForbiddenError('User does not belong to an organization');
         }
 
+        this.checkIsOrgAdmin(user);
         await this.checkFeatureEnabled(user);
 
         await this.organizationModel.deleteAllowedDomain(

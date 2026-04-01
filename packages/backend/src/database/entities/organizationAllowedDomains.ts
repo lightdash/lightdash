@@ -1,3 +1,5 @@
+import { Knex } from 'knex';
+
 export const OrganizationAllowedDomainsTableName =
     'organization_allowed_domains';
 
@@ -13,4 +15,9 @@ export type DbOrganizationAllowedDomain = {
 export type CreateDbOrganizationAllowedDomain = Pick<
     DbOrganizationAllowedDomain,
     'organization_id' | 'domain' | 'type' | 'created_by_user_uuid'
+>;
+
+export type OrganizationAllowedDomainsTable = Knex.CompositeTableType<
+    DbOrganizationAllowedDomain,
+    CreateDbOrganizationAllowedDomain
 >;
