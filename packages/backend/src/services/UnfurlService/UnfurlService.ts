@@ -6,6 +6,7 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -58,6 +59,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -555,23 +557,32 @@ export class UnfurlService extends BaseService {
         let imageUrl;
         if (imageBuffer) {
             if (this.fileStorageClient.isEnabled()) {
-                await this.fileStorageClient.uploadImage(imageBuffer, imageId);
+                imageUrl = await this.fileStorageClient.uploadImage(
+                    imageBuffer,
+                    imageId,
+                );
 
-                const previewId = useNanoid();
                 if (details?.organizationUuid) {
-                    await this.slackUnfurlImageModel.create({
-                        nanoid: previewId,
-                        s3Key: `${imageId}.png`,
-                        organizationUuid: details.organizationUuid,
-                    });
-                    imageUrl = new URL(
-                        `/api/v1/slack/preview/${previewId}`,
-                        this.lightdashConfig.siteUrl,
-                    ).href;
-                } else {
-                    imageUrl = await this.fileStorageClient.getFileUrl(
-                        `${imageId}.png`,
+                    const usePersistentUrls = await isFeatureFlagEnabled(
+                        FeatureFlags.SlackUnfurlPersistentImages,
+                        {
+                            userUuid: authUserUuid,
+                            organizationUuid: details.organizationUuid,
+                        },
                     );
+
+                    if (usePersistentUrls) {
+                        const previewId = useNanoid();
+                        await this.slackUnfurlImageModel.create({
+                            nanoid: previewId,
+                            s3Key: `${imageId}.png`,
+                            organizationUuid: details.organizationUuid,
+                        });
+                        imageUrl = new URL(
+                            `/api/v1/slack/preview/${previewId}`,
+                            this.lightdashConfig.siteUrl,
+                        ).href;
+                    }
                 }
             } else {
                 const filePath = `/tmp/${imageId}.png`;

@@ -133,6 +133,13 @@ export enum FeatureFlags {
      * Enable user-configurable column limit for pivoted queries
      */
     ShowHideColumns = 'show-hide-columns',
+
+    /**
+     * Use persistent preview URLs for Slack unfurl images instead of
+     * raw S3 signed URLs. When enabled, unfurl images are served via
+     * /api/v1/slack/preview/:id which mints fresh signed URLs on demand.
+     */
+    SlackUnfurlPersistentImages = 'slack-unfurl-persistent-images',
 }
 
 export type FeatureFlag = {
