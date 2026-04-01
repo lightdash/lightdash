@@ -140,21 +140,19 @@ const AllowedDomainsPanel: FC = () => {
                 <Title order={6}>New domain</Title>
                 <form onSubmit={handleSubmit}>
                     <Stack gap="xs">
-                        <Group gap="xs" align="flex-start" wrap="nowrap">
-                            <TextInput
-                                placeholder="https://app.example.com"
-                                flex={1}
-                                size="sm"
-                                {...form.getInputProps('domain')}
-                            />
-                            <Select
-                                data={DOMAIN_TYPE_OPTIONS}
-                                w={140}
-                                size="sm"
-                                {...form.getInputProps('type')}
-                            />
-                        </Group>
-                        <Group justify="flex-end">
+                        <TextInput
+                            label="Domain"
+                            placeholder="https://app.example.com"
+                            size="sm"
+                            {...form.getInputProps('domain')}
+                        />
+                        <Select
+                            label="Access type"
+                            data={DOMAIN_TYPE_OPTIONS}
+                            size="sm"
+                            {...form.getInputProps('type')}
+                        />
+                        <Group justify="flex-end" mt="xs">
                             <Button
                                 type="submit"
                                 variant="default"
