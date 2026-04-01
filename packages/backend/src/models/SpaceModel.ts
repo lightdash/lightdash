@@ -181,6 +181,7 @@ export class SpaceModel {
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
                         inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
+                        projectMemberAccessRole: `${SpaceTableName}.project_member_access_role`,
                         deletedAt: `${SpaceTableName}.deleted_at`,
                         deletedByUserUuid: `${SpaceTableName}.deleted_by_user_uuid`,
                         deletedByFirstName: 'deleted_by_user.first_name',
@@ -325,6 +326,8 @@ export class SpaceModel {
             parentSpaceUuid: row.parent_space_uuid,
             path: row.path,
             inheritParentPermissions: row.inherit_parent_permissions,
+            projectMemberAccessRole:
+                (row.project_member_access_role as SpaceMemberRole) ?? null,
         };
     }
 
@@ -1108,6 +1111,8 @@ export class SpaceModel {
             parentSpaceUuid: space.parent_space_uuid,
             path: space.path,
             inheritParentPermissions: space.inherit_parent_permissions,
+            projectMemberAccessRole:
+                (space.project_member_access_role as SpaceMemberRole) ?? null,
         };
     }
 
@@ -1256,11 +1261,16 @@ export class SpaceModel {
         spaceUuid: string,
         space: Partial<UpdateSpace>,
     ): Promise<void> {
+        const updateData: Record<string, unknown> = {
+            name: space.name,
+            inherit_parent_permissions: space.inheritParentPermissions,
+        };
+        if (space.projectMemberAccessRole !== undefined) {
+            updateData.project_member_access_role =
+                space.projectMemberAccessRole;
+        }
         await this.database(SpaceTableName)
-            .update({
-                name: space.name,
-                inherit_parent_permissions: space.inheritParentPermissions,
-            })
+            .update(updateData)
             .where('space_uuid', spaceUuid);
     }
 
@@ -1302,11 +1312,16 @@ export class SpaceModel {
                     .merge();
             }
 
+            const updateData: Record<string, unknown> = {
+                name: space.name,
+                inherit_parent_permissions: space.inheritParentPermissions,
+            };
+            if (space.projectMemberAccessRole !== undefined) {
+                updateData.project_member_access_role =
+                    space.projectMemberAccessRole;
+            }
             await trx(SpaceTableName)
-                .update({
-                    name: space.name,
-                    inherit_parent_permissions: space.inheritParentPermissions,
-                })
+                .update(updateData)
                 .where('space_uuid', spaceUuid);
         });
     }
