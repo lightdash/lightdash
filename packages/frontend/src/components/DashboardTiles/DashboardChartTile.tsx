@@ -116,6 +116,7 @@ import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
@@ -254,18 +255,20 @@ const ValidDashboardChartTile: FC<{
     onSeriesContextMenu,
     setEchartsRef,
 }) => {
-    const addResultsCacheTime = useDashboardContext(
+    const addResultsCacheTime = useDashboardTileStatusContext(
         (c) => c.addResultsCacheTime,
     );
-    const addPreAggregateStatus = useDashboardContext(
+    const addPreAggregateStatus = useDashboardTileStatusContext(
         (c) => c.addPreAggregateStatus,
     );
-    const markTileScreenshotReady = useDashboardContext(
+    const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
     );
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+    const invalidateCache = useDashboardTileStatusContext(
+        (c) => c.invalidateCache,
+    );
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
@@ -417,7 +420,7 @@ const ValidDashboardChartTileMinimal: FC<{
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const markTileScreenshotReady = useDashboardContext(
+    const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
     );
 
@@ -687,7 +690,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         (c) => c.parameterDefinitions,
     );
 
-    const preAggregateStatuses = useDashboardContext(
+    const preAggregateStatuses = useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     );
     const tilePreAggStatus = preAggregateStatuses[tileUuid];
@@ -1904,7 +1907,7 @@ export const GenericDashboardChartTile: FC<
     }>();
     const { user } = useApp();
 
-    const markTileScreenshotErrored = useDashboardContext(
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
     useEffect(() => {
@@ -2026,7 +2029,7 @@ export const GenericDashboardChartTile: FC<
     );
 };
 
-const DashboardChartTileInner: FC<DashboardChartTileProps> = (props) => {
+const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     // Handle orphaned tiles where the chart was deleted but tile remains
     const orphanedChartError = useMemo((): ClientSideError | null => {
         if (props.tile.properties.savedChartUuid === null) {
@@ -2093,37 +2096,6 @@ const DashboardChartTileInner: FC<DashboardChartTileProps> = (props) => {
             error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );
-};
-
-/**
- * Wrapper that skips heavy query fetching and chart rendering for tiles
- * on inactive tabs. When the DashboardTabsInMemory feature flag is enabled,
- * all visited tabs stay mounted but hidden. Without this guard, context
- * changes trigger full re-renders (including data fetches) for every
- * mounted tile, even those on hidden tabs.
- */
-const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
-    const { tile, ...rest } = props;
-    const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
-
-    const hasTabs = dashboardTabs.length > 1;
-    const isOnActiveTab =
-        !hasTabs || !tile.tabUuid || tile.tabUuid === activeTabUuid;
-
-    if (!isOnActiveTab) {
-        return (
-            <TileBase
-                isLoading={false}
-                title={tile.properties.title || tile.properties.chartName || ''}
-                tile={tile}
-                chartKind={tile.properties.lastVersionChartKind ?? null}
-                {...rest}
-            />
-        );
-    }
-
-    return <DashboardChartTileInner {...props} />;
 };
 
 export default DashboardChartTile;

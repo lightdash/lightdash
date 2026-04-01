@@ -8,10 +8,8 @@ import {
     getFilterInteractivityValue,
     getItemId,
     isDashboardChartTileType,
-    isDashboardSqlChartTile,
     isStandardDateGranularity,
     isSubDayGranularity,
-    type CacheMetadata,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -28,13 +26,11 @@ import {
 } from '@lightdash/common';
 import clone from 'lodash/clone';
 import isEqual from 'lodash/isEqual';
-import min from 'lodash/min';
 import sortBy from 'lodash/sortBy';
 import React, {
     useCallback,
     useEffect,
     useMemo,
-    useReducer,
     useRef,
     useState,
 } from 'react';
@@ -63,10 +59,9 @@ import {
     useSavedDashboardFiltersOverrides,
 } from '../../hooks/useSavedDashboardFiltersOverrides';
 import DashboardContext from './context';
-import {
-    type SqlChartTileMetadata,
-    type TilePreAggregateStatus,
-} from './types';
+import DashboardTileStatusProvider from './DashboardTileStatusProvider';
+import useDashboardContext from './useDashboardContext';
+import useDashboardTileStatusContext from './useDashboardTileStatusContext';
 
 const emptyFilters: DashboardFilters = {
     dimensions: [],
@@ -74,156 +69,19 @@ const emptyFilters: DashboardFilters = {
     tableCalculations: [],
 };
 
-type TileAccumulatorState = {
-    oldestCacheTime: Date | undefined;
-    preAggregateStatuses: Record<string, TilePreAggregateStatus>;
-    tileParameterReferences: Record<string, string[]>;
-    loadedTiles: Set<string>;
-    tilesWithTimestampDimension: Set<string>;
-    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
-};
+type DashboardProviderProps = React.PropsWithChildren<{
+    schedulerFilters?: DashboardFilterRule[] | undefined;
+    schedulerParameters?: ParametersValuesMap | undefined;
+    schedulerTabsSelected?: string[] | undefined;
+    dateZoom?: DateGranularity | string | undefined;
+    projectUuid?: string;
+    embedToken?: string;
+    dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
+    defaultInvalidateCache?: boolean;
+    sdkFilters?: SdkFilter[];
+}>;
 
-type TileAccumulatorAction =
-    | { type: 'ADD_CACHE_TIME'; cacheMetadata: CacheMetadata | undefined }
-    | {
-          type: 'ADD_PRE_AGGREGATE_STATUS';
-          tileUuid: string;
-          tileNamesById: Record<string, string>;
-          tileTabsById: Record<string, string | null | undefined>;
-          cacheMetadata: CacheMetadata | undefined;
-      }
-    | {
-          type: 'ADD_PARAMETER_REFERENCES';
-          tileUuid: string;
-          references: string[];
-      }
-    | {
-          type: 'SET_TILE_TIMESTAMP_DIMENSION';
-          tileUuid: string;
-          hasTimestamp: boolean;
-      }
-    | {
-          type: 'UPDATE_SQL_CHART_METADATA';
-          tileUuid: string;
-          metadata: SqlChartTileMetadata;
-      }
-    | { type: 'CLEAR_FOR_REFRESH' }
-    | { type: 'CLEANUP_STALE_TILES'; tileUuids: Set<string> };
-
-const tileAccumulatorInitialState: TileAccumulatorState = {
-    oldestCacheTime: undefined,
-    preAggregateStatuses: {},
-    tileParameterReferences: {},
-    loadedTiles: new Set(),
-    tilesWithTimestampDimension: new Set(),
-    sqlChartTilesMetadata: {},
-};
-
-function tileAccumulatorReducer(
-    state: TileAccumulatorState,
-    action: TileAccumulatorAction,
-): TileAccumulatorState {
-    switch (action.type) {
-        case 'ADD_CACHE_TIME': {
-            if (
-                !action.cacheMetadata?.cacheHit ||
-                !action.cacheMetadata?.cacheUpdatedTime
-            )
-                return state;
-            const newTime = action.cacheMetadata.cacheUpdatedTime;
-            const oldestCacheTime =
-                state.oldestCacheTime === undefined
-                    ? newTime
-                    : min([state.oldestCacheTime, newTime])!;
-            if (oldestCacheTime === state.oldestCacheTime) return state;
-            return { ...state, oldestCacheTime };
-        }
-        case 'ADD_PRE_AGGREGATE_STATUS': {
-            const preAggregate = action.cacheMetadata?.preAggregate ?? null;
-            return {
-                ...state,
-                preAggregateStatuses: {
-                    ...state.preAggregateStatuses,
-                    [action.tileUuid]: {
-                        tileUuid: action.tileUuid,
-                        tileName:
-                            action.tileNamesById[action.tileUuid] ??
-                            action.tileUuid,
-                        hit: preAggregate?.hit ?? false,
-                        preAggregateName: preAggregate?.name ?? null,
-                        reason: preAggregate?.reason ?? null,
-                        hasPreAggregateMetadata: preAggregate !== null,
-                        tabUuid: action.tileTabsById[action.tileUuid],
-                    },
-                },
-            };
-        }
-        case 'ADD_PARAMETER_REFERENCES': {
-            return {
-                ...state,
-                tileParameterReferences: {
-                    ...state.tileParameterReferences,
-                    [action.tileUuid]: action.references,
-                },
-                loadedTiles: new Set(state.loadedTiles).add(action.tileUuid),
-            };
-        }
-        case 'SET_TILE_TIMESTAMP_DIMENSION': {
-            if (
-                state.tilesWithTimestampDimension.has(action.tileUuid) ===
-                action.hasTimestamp
-            )
-                return state;
-            const next = new Set(state.tilesWithTimestampDimension);
-            if (action.hasTimestamp) next.add(action.tileUuid);
-            else next.delete(action.tileUuid);
-            return { ...state, tilesWithTimestampDimension: next };
-        }
-        case 'UPDATE_SQL_CHART_METADATA': {
-            return {
-                ...state,
-                sqlChartTilesMetadata: {
-                    ...state.sqlChartTilesMetadata,
-                    [action.tileUuid]: action.metadata,
-                },
-            };
-        }
-        case 'CLEAR_FOR_REFRESH': {
-            return {
-                ...state,
-                oldestCacheTime: undefined,
-                preAggregateStatuses: {},
-                loadedTiles: new Set(),
-            };
-        }
-        case 'CLEANUP_STALE_TILES': {
-            return {
-                ...state,
-                tileParameterReferences: Object.fromEntries(
-                    Object.entries(state.tileParameterReferences).filter(
-                        ([tileId]) => action.tileUuids.has(tileId),
-                    ),
-                ),
-            };
-        }
-        default:
-            return state;
-    }
-}
-
-const DashboardProvider: React.FC<
-    React.PropsWithChildren<{
-        schedulerFilters?: DashboardFilterRule[] | undefined;
-        schedulerParameters?: ParametersValuesMap | undefined;
-        schedulerTabsSelected?: string[] | undefined;
-        dateZoom?: DateGranularity | string | undefined;
-        projectUuid?: string;
-        embedToken?: string;
-        dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
-        defaultInvalidateCache?: boolean;
-        sdkFilters?: SdkFilter[];
-    }>
-> = ({
+const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     schedulerFilters,
     schedulerParameters,
     schedulerTabsSelected,
@@ -253,8 +111,6 @@ const DashboardProvider: React.FC<
         mutateAsync: versionRefresh,
         isLoading: isRefreshingDashboardVersion,
     } = useDashboardVersionRefresh(dashboardUuid, projectUuid);
-
-    const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
     // Embedded dashboards will not be using this query hook to load the dashboard,
     // so we need to set the dashboard manually
@@ -330,22 +186,6 @@ const DashboardProvider: React.FC<
         useState<DashboardFilters>(emptyFilters);
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
-    const [tileState, dispatchTileAction] = useReducer(
-        tileAccumulatorReducer,
-        tileAccumulatorInitialState,
-    );
-    const {
-        oldestCacheTime,
-        preAggregateStatuses,
-        tileParameterReferences,
-        loadedTiles,
-        sqlChartTilesMetadata,
-    } = tileState;
-
-    const [invalidateCache, setInvalidateCache] = useState<boolean>(
-        defaultInvalidateCache === true,
-    );
-
     // Event system for filter change tracking
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const embed = useEmbed();
@@ -410,45 +250,6 @@ const DashboardProvider: React.FC<
         [],
     );
 
-    const dashboardHasTimestampDimension =
-        tileState.tilesWithTimestampDimension.size > 0;
-
-    const setTileHasTimestampDimension = useCallback(
-        (tileUuid: string, hasTimestamp: boolean) => {
-            dispatchTileAction({
-                type: 'SET_TILE_TIMESTAMP_DIMENSION',
-                tileUuid,
-                hasTimestamp,
-            });
-        },
-        [],
-    );
-
-    // Custom granularities discovered from explores: key → label (e.g., "fiscal_quarter" → "Fiscal Quarter")
-    const [availableCustomGranularities, setAvailableCustomGranularities] =
-        useState<Record<string, string>>({});
-
-    const addAvailableCustomGranularities = useCallback(
-        (granularities: Record<string, string>) => {
-            setAvailableCustomGranularities((prev) => {
-                const newKeys = Object.keys(granularities).filter(
-                    (k) => !(k in prev),
-                );
-                if (newKeys.length === 0) return prev;
-                return { ...prev, ...granularities };
-            });
-        },
-        [],
-    );
-
-    const allGranularities = useMemo(
-        () => [
-            ...allStandardGranularities,
-            ...Object.keys(availableCustomGranularities),
-        ],
-        [allStandardGranularities, availableCustomGranularities],
-    );
-
     const [dateZoomGranularities, setDateZoomGranularitiesState] = useState<
         (DateGranularity | string)[]
     >(allStandardGranularities);
@@ -482,15 +283,16 @@ const DashboardProvider: React.FC<
     }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
 
     // Sync date zoom granularities from dashboard config
+    // Note: Custom granularities from explores are added by DashboardGranularitySync
     useEffect(() => {
         if (dashboard?.config?.dateZoomGranularities !== undefined) {
             setDateZoomGranularitiesState(
                 dashboard.config.dateZoomGranularities,
             );
         } else {
-            setDateZoomGranularitiesState(allGranularities);
+            setDateZoomGranularitiesState(allStandardGranularities);
         }
-    }, [dashboard?.config?.dateZoomGranularities, allGranularities]);
+    }, [dashboard?.config?.dateZoomGranularities, allStandardGranularities]);
 
     // Sync default date zoom granularity from dashboard config
     useEffect(() => {
@@ -596,6 +398,38 @@ const DashboardProvider: React.FC<
         [],
     );
 
+    // Track parameter references from each tile
+    const [tileParameterReferences, setTileParameterReferences] = useState<
+        Record<string, string[]>
+    >({});
+
+    const addParameterReferences = useCallback(
+        (tileUuid: string, references: string[]) => {
+            setTileParameterReferences((prev) => ({
+                ...prev,
+                [tileUuid]: references,
+            }));
+        },
+        [],
+    );
+
+    // Remove parameter references for tiles that are no longer in the dashboard
+    useEffect(() => {
+        if (dashboardTiles) {
+            setTileParameterReferences((old) => {
+                if (!dashboardTiles) return {};
+                const tileIds = new Set(
+                    dashboardTiles.map((tile) => tile.uuid),
+                );
+                return Object.fromEntries(
+                    Object.entries(old).filter(([tileId]) =>
+                        tileIds.has(tileId),
+                    ),
+                );
+            });
+        }
+    }, [dashboardTiles]);
+
     const parameterValues = useMemo(() => {
         return Object.entries(parameters).reduce((acc, [key, parameter]) => {
             if (
@@ -614,17 +448,6 @@ const DashboardProvider: React.FC<
             (value) => value !== null && value !== '' && value !== undefined,
         ).length;
     }, [parameterValues]);
-
-    const addParameterReferences = useCallback(
-        (tileUuid: string, references: string[]) => {
-            dispatchTileAction({
-                type: 'ADD_PARAMETER_REFERENCES',
-                tileUuid,
-                references,
-            });
-        },
-        [],
-    );
 
     // Calculate aggregated parameter references from all tiles
     const dashboardParameterReferences = useMemo(() => {
@@ -646,139 +469,6 @@ const DashboardProvider: React.FC<
         }
     }, [projectParameters, addParameterDefinitions]);
 
-    // Determine if all chart tiles have loaded their parameter references
-    const areAllChartsLoaded = useMemo(() => {
-        if (!dashboardTiles) return false;
-
-        // If tabs exist, but no active tab is specified, tiles are not loaded
-        if (dashboardTabs && dashboardTabs.length > 0 && !activeTab)
-            return false;
-
-        const chartTileUuids = dashboardTiles
-            .filter(isDashboardChartTileType)
-            .filter((tile) => {
-                // If no active tab specified, include all tiles (backwards compatibility)
-                if (!activeTab) return true;
-
-                // If tabs exist, only include tiles from the active tab or no tabUuid
-                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
-            })
-            .map((tile) => tile.uuid);
-
-        return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
-    }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
-
-    // Once all charts have loaded, clean up stale granularities:
-    // - Custom granularities no longer provided by any explore
-    // - Sub-day granularities when no TIMESTAMP dimensions exist
-    useEffect(() => {
-        if (!areAllChartsLoaded) return;
-
-        const availableCustomGranularityKeys = new Set(
-            Object.keys(availableCustomGranularities),
-        );
-        const isAvailable = (g: string) => {
-            if (!isStandardDateGranularity(g)) {
-                return availableCustomGranularityKeys.has(g);
-            }
-            // Strip sub-day standard granularities when no timestamp dims
-            if (!dashboardHasTimestampDimension && isSubDayGranularity(g)) {
-                return false;
-            }
-            return true;
-        };
-
-        setDateZoomGranularitiesState((prev) => {
-            const filtered = prev.filter(isAvailable);
-            if (
-                filtered.length === prev.length &&
-                filtered.every((g, i) => prev[i] === g)
-            )
-                return prev;
-            setHaveDateZoomGranularitiesChanged(true);
-            return filtered;
-        });
-
-        setDefaultDateZoomGranularityState((prev) => {
-            if (prev && !isAvailable(prev)) {
-                setHasDefaultDateZoomGranularityChanged(true);
-                return undefined;
-            }
-            return prev;
-        });
-    }, [
-        areAllChartsLoaded,
-        availableCustomGranularities,
-        dashboardHasTimestampDimension,
-    ]);
-
-    const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
-        Set<string>
-    >(new Set());
-    const [screenshotErroredTiles, setScreenshotErroredTiles] = useState<
-        Set<string>
-    >(new Set());
-
-    const markTileScreenshotReady = useCallback((tileUuid: string) => {
-        setScreenshotReadyTiles((prev) => new Set(prev).add(tileUuid));
-    }, []);
-
-    const markTileScreenshotErrored = useCallback((tileUuid: string) => {
-        setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
-    }, []);
-
-    const expectedScreenshotTileUuids = useMemo(() => {
-        if (!dashboardTiles) return [];
-
-        // When schedulerTabsSelected is provided, use it to filter tiles for screenshots
-        if (schedulerTabsSelected && schedulerTabsSelected.length > 0) {
-            return dashboardTiles
-                .filter(
-                    (tile) =>
-                        isDashboardChartTileType(tile) ||
-                        isDashboardSqlChartTile(tile),
-                )
-                .filter((tile) => schedulerTabsSelected.includes(tile.tabUuid!))
-                .map((tile) => tile.uuid);
-        }
-
-        if (dashboardTabs && dashboardTabs.length > 0 && !activeTab) return [];
-
-        return dashboardTiles
-            .filter(
-                (tile) =>
-                    isDashboardChartTileType(tile) ||
-                    isDashboardSqlChartTile(tile),
-            )
-            .filter((tile) => {
-                if (!activeTab) return true;
-                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
-            })
-            .map((tile) => tile.uuid);
-    }, [dashboardTiles, activeTab, dashboardTabs, schedulerTabsSelected]);
-
-    const isReadyForScreenshot = useMemo(() => {
-        if (expectedScreenshotTileUuids.length === 0) {
-            return !!dashboardTiles;
-        }
-
-        return expectedScreenshotTileUuids.every(
-            (tileUuid) =>
-                screenshotReadyTiles.has(tileUuid) ||
-                screenshotErroredTiles.has(tileUuid),
-        );
-    }, [
-        expectedScreenshotTileUuids,
-        screenshotReadyTiles,
-        screenshotErroredTiles,
-        dashboardTiles,
-    ]);
-
-    useEffect(() => {
-        setScreenshotReadyTiles(new Set());
-        setScreenshotErroredTiles(new Set());
-    }, [dashboardTiles, activeTab]);
-
     const missingRequiredParameters = useMemo(() => {
         // If no parameter references, return empty array
         if (!dashboardParameterReferences.size) return [];
@@ -790,17 +480,6 @@ const DashboardProvider: React.FC<
                 !parameterDefinitions[parameterName]?.default,
         );
     }, [dashboardParameterReferences, parameters, parameterDefinitions]);
-
-    // Remove parameter references for tiles that are no longer in the dashboard
-    useEffect(() => {
-        if (dashboardTiles) {
-            const tileIds = new Set(dashboardTiles.map((tile) => tile.uuid));
-            dispatchTileAction({
-                type: 'CLEANUP_STALE_TILES',
-                tileUuids: tileIds,
-            });
-        }
-    }, [dashboardTiles]);
 
     const [chartsWithDateZoomApplied, setChartsWithDateZoomApplied] =
         useState<Set<string>>();
@@ -1573,28 +1252,6 @@ const DashboardProvider: React.FC<
         [removeSavedFilterOverride],
     );
 
-    const addResultsCacheTime = useCallback((cacheMetadata?: CacheMetadata) => {
-        dispatchTileAction({ type: 'ADD_CACHE_TIME', cacheMetadata });
-    }, []);
-
-    const clearCacheAndFetch = useCallback(() => {
-        dispatchTileAction({ type: 'CLEAR_FOR_REFRESH' });
-
-        // Causes results refetch
-        setInvalidateCache(true);
-    }, []);
-
-    const updateSqlChartTilesMetadata = useCallback(
-        (tileUuid: string, metadata: SqlChartTileMetadata) => {
-            dispatchTileAction({
-                type: 'UPDATE_SQL_CHART_METADATA',
-                tileUuid,
-                metadata,
-            });
-        },
-        [],
-    );
-
     const refreshDashboardVersion = useCallback(async () => {
         try {
             const freshDashboard = await versionRefresh(dashboard);
@@ -1659,51 +1316,6 @@ const DashboardProvider: React.FC<
         ],
     );
 
-    // Memoized mapping of tile UUIDs to their display names
-    const tileNamesById = useMemo(() => {
-        if (!dashboardTiles) return {};
-
-        return dashboardTiles.reduce<Record<string, string>>((acc, tile) => {
-            const tileWithoutTitle =
-                !tile.properties.title || tile.properties.title.length === 0;
-            const isChartTileType = isDashboardChartTileType(tile);
-
-            let tileName = '';
-            if (tileWithoutTitle && isChartTileType) {
-                tileName = tile.properties.chartName || '';
-            } else if (tile.properties.title) {
-                tileName = tile.properties.title;
-            }
-
-            acc[tile.uuid] = tileName;
-            return acc;
-        }, {});
-    }, [dashboardTiles]);
-
-    const tileTabsById = useMemo(() => {
-        if (!dashboardTiles) return {};
-        return dashboardTiles.reduce<Record<string, string | null | undefined>>(
-            (acc, tile) => {
-                acc[tile.uuid] = tile.tabUuid;
-                return acc;
-            },
-            {},
-        );
-    }, [dashboardTiles]);
-
-    const addPreAggregateStatus = useCallback(
-        (tileUuid: string, cacheMetadata?: CacheMetadata) => {
-            dispatchTileAction({
-                type: 'ADD_PRE_AGGREGATE_STATUS',
-                tileUuid,
-                tileNamesById,
-                tileTabsById,
-                cacheMetadata,
-            });
-        },
-        [tileNamesById, tileTabsById],
-    );
-
     const value = {
         projectUuid,
         isDashboardLoading,
@@ -1733,12 +1345,6 @@ const DashboardProvider: React.FC<
         setDashboardFilters,
         haveFiltersChanged,
         setHaveFiltersChanged,
-        addResultsCacheTime,
-        oldestCacheTime,
-        invalidateCache,
-        clearCacheAndFetch,
-        isAutoRefresh,
-        setIsAutoRefresh,
         allFilterableFieldsMap,
         allFilterableMetricsMap,
         allFilterableFields: dashboardAvailableFiltersData?.allFilterableFields,
@@ -1751,8 +1357,6 @@ const DashboardProvider: React.FC<
         hasTilesThatSupportFilters,
         chartSort,
         setChartSort,
-        sqlChartTilesMetadata,
-        updateSqlChartTilesMetadata,
         dateZoomGranularity,
         setDateZoomGranularity,
         chartsWithDateZoomApplied,
@@ -1776,7 +1380,6 @@ const DashboardProvider: React.FC<
         dashboardParameterReferences,
         addParameterReferences,
         tileParameterReferences,
-        areAllChartsLoaded,
         missingRequiredParameters,
         pinnedParameters,
         setPinnedParameters,
@@ -1792,27 +1395,112 @@ const DashboardProvider: React.FC<
         hasDefaultDateZoomGranularityChanged,
         setHasDefaultDateZoomGranularityChanged,
         addParameterDefinitions,
-        dashboardHasTimestampDimension,
-        setTileHasTimestampDimension,
-        availableCustomGranularities,
-        addAvailableCustomGranularities,
-        tileNamesById,
-        preAggregateStatuses,
-        addPreAggregateStatus,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
-        markTileScreenshotReady,
-        markTileScreenshotErrored,
-        isReadyForScreenshot,
-        screenshotReadyTilesCount: screenshotReadyTiles.size,
-        screenshotErroredTilesCount: screenshotErroredTiles.size,
-        expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
     };
     return (
         <DashboardContext.Provider value={value}>
-            {children}
+            <DashboardTileStatusProvider
+                dashboardTiles={dashboardTiles}
+                dashboardTabs={dashboardTabs}
+                activeTab={activeTab}
+                schedulerTabsSelected={schedulerTabsSelected}
+                defaultInvalidateCache={defaultInvalidateCache}
+            >
+                <DashboardGranularitySync />
+                {children}
+            </DashboardTileStatusProvider>
         </DashboardContext.Provider>
     );
+};
+
+/**
+ * Bridge component that reads tile-status context values
+ * and syncs them back to the main dashboard context via effects.
+ * This exists because DashboardProviderInner cannot use useDashboardTileStatusContext
+ * (tile status provider is rendered as its child).
+ */
+const DashboardGranularitySync: React.FC = () => {
+    const areAllChartsLoaded = useDashboardTileStatusContext(
+        (c) => c.areAllChartsLoaded,
+    );
+    const availableCustomGranularities = useDashboardTileStatusContext(
+        (c) => c.availableCustomGranularities,
+    );
+    const dashboardHasTimestampDimension = useDashboardTileStatusContext(
+        (c) => c.dashboardHasTimestampDimension,
+    );
+
+    // Use refs for values we read but should NOT trigger re-runs of the effect.
+    // Reading dateZoomGranularities directly in the dep array would cause an
+    // infinite loop: effect filters → setDateZoomGranularities (which also sets
+    // haveDateZoomGranularitiesChanged) → new context value → effect re-fires.
+    const dateZoomGranularities = useDashboardContext(
+        (c) => c.dateZoomGranularities,
+    );
+    const dateZoomGranularitiesRef = useRef(dateZoomGranularities);
+    dateZoomGranularitiesRef.current = dateZoomGranularities;
+
+    const defaultDateZoomGranularity = useDashboardContext(
+        (c) => c.defaultDateZoomGranularity,
+    );
+    const defaultDateZoomGranularityRef = useRef(defaultDateZoomGranularity);
+    defaultDateZoomGranularityRef.current = defaultDateZoomGranularity;
+
+    const setDateZoomGranularities = useDashboardContext(
+        (c) => c.setDateZoomGranularities,
+    );
+    const setDefaultDateZoomGranularity = useDashboardContext(
+        (c) => c.setDefaultDateZoomGranularity,
+    );
+
+    // Once all charts have loaded, clean up stale granularities:
+    // - Custom granularities no longer provided by any explore
+    // - Sub-day granularities when no TIMESTAMP dimensions exist
+    useEffect(() => {
+        if (!areAllChartsLoaded) return;
+
+        const currentGranularities = dateZoomGranularitiesRef.current;
+        const currentDefault = defaultDateZoomGranularityRef.current;
+
+        const availableCustomGranularityKeys = new Set(
+            Object.keys(availableCustomGranularities),
+        );
+        const isAvailable = (g: string) => {
+            if (!isStandardDateGranularity(g)) {
+                return availableCustomGranularityKeys.has(g);
+            }
+            // Strip sub-day standard granularities when no timestamp dims
+            if (!dashboardHasTimestampDimension && isSubDayGranularity(g)) {
+                return false;
+            }
+            return true;
+        };
+
+        const filtered = currentGranularities.filter(isAvailable);
+        if (
+            filtered.length !== currentGranularities.length ||
+            !filtered.every((g, i) => currentGranularities[i] === g)
+        ) {
+            setDateZoomGranularities(filtered);
+        }
+
+        if (currentDefault && !isAvailable(currentDefault)) {
+            setDefaultDateZoomGranularity(undefined);
+        }
+    }, [
+        areAllChartsLoaded,
+        availableCustomGranularities,
+        dashboardHasTimestampDimension,
+        setDateZoomGranularities,
+        setDefaultDateZoomGranularity,
+    ]);
+
+    return null;
+};
+
+const DashboardProvider: React.FC<DashboardProviderProps> = (props) => {
+    return <DashboardProviderInner {...props} />;
 };
 
 export default DashboardProvider;

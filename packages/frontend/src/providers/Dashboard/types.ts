@@ -1,6 +1,5 @@
 import {
     type ApiError,
-    type CacheMetadata,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -89,12 +88,6 @@ export type DashboardContextType = {
     removeMetricDashboardFilter: (index: number, isTemporary: boolean) => void;
     haveFiltersChanged: boolean;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
-    addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
-    oldestCacheTime: Date | undefined;
-    invalidateCache: boolean | undefined;
-    isAutoRefresh: boolean;
-    setIsAutoRefresh: (autoRefresh: boolean) => void;
-    clearCacheAndFetch: () => void;
     allFilterableFieldsMap: Record<string, FilterableDimension>;
     allFilterableMetricsMap: Record<string, Metric>;
     allFilterableFields: FilterableDimension[] | undefined;
@@ -105,11 +98,6 @@ export type DashboardContextType = {
     hasTilesThatSupportFilters: boolean;
     chartSort: Record<string, SortField[]>;
     setChartSort: (sort: Record<string, SortField[]>) => void;
-    sqlChartTilesMetadata: Record<string, SqlChartTileMetadata>;
-    updateSqlChartTilesMetadata: (
-        tileUuid: string,
-        metadata: SqlChartTileMetadata,
-    ) => void;
     dateZoomGranularity: DateGranularity | string | undefined;
     setDateZoomGranularity: Dispatch<
         SetStateAction<DateGranularity | string | undefined>
@@ -135,24 +123,14 @@ export type DashboardContextType = {
     dashboardParameterReferences: Set<string>;
     addParameterReferences: (tileUuid: string, references: string[]) => void;
     tileParameterReferences: Record<string, string[]>;
-    areAllChartsLoaded: boolean;
     parameterDefinitions: ParameterDefinitions;
     addParameterDefinitions: (parameters: ParameterDefinitions) => void;
-    availableCustomGranularities: Record<string, string>;
-    addAvailableCustomGranularities: (
-        granularities: Record<string, string>,
-    ) => void;
     missingRequiredParameters: string[];
     pinnedParameters: string[];
     setPinnedParameters: (parameters: string[]) => void;
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
-    dashboardHasTimestampDimension: boolean;
-    setTileHasTimestampDimension: (
-        tileUuid: string,
-        hasTimestamp: boolean,
-    ) => void;
     dateZoomGranularities: (DateGranularity | string)[];
     setDateZoomGranularities: (
         granularities: (DateGranularity | string)[],
@@ -165,18 +143,6 @@ export type DashboardContextType = {
     ) => void;
     hasDefaultDateZoomGranularityChanged: boolean;
     setHasDefaultDateZoomGranularityChanged: Dispatch<SetStateAction<boolean>>;
-    tileNamesById: Record<string, string>;
-    preAggregateStatuses: Record<string, TilePreAggregateStatus>;
-    addPreAggregateStatus: (
-        tileUuid: string,
-        cacheMetadata: CacheMetadata,
-    ) => void;
     refreshDashboardVersion: () => Promise<void>;
     isRefreshingDashboardVersion: boolean;
-    markTileScreenshotReady: (tileUuid: string) => void;
-    markTileScreenshotErrored: (tileUuid: string) => void;
-    isReadyForScreenshot: boolean;
-    screenshotReadyTilesCount: number;
-    screenshotErroredTilesCount: number;
-    expectedScreenshotTilesCount: number;
 };

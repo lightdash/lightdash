@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { useDashboardRefresh } from '../../../hooks/dashboard/useDashboardRefresh';
 import useToaster from '../../../hooks/toaster/useToaster';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import MantineIcon from '../MantineIcon';
 
 const REFRESH_INTERVAL_OPTIONS = [
@@ -63,11 +63,13 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             removeDashboardResultsQueries,
         } = useDashboardRefresh();
 
-        const clearCacheAndFetch = useDashboardContext(
+        const clearCacheAndFetch = useDashboardTileStatusContext(
             (c) => c.clearCacheAndFetch,
         );
 
-        const setIsAutoRefresh = useDashboardContext((c) => c.setIsAutoRefresh);
+        const setIsAutoRefresh = useDashboardTileStatusContext(
+            (c) => c.setIsAutoRefresh,
+        );
         const isOneAtLeastFetching = isFetching > 0;
 
         const invalidateAndSetRefreshTime = useCallback(async () => {
