@@ -73,8 +73,17 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
     abilityRules: AbilityBuilder<MemberAbility>['rules'];
 }
 
+export type ImpersonationContext = {
+    adminUserUuid: string;
+    adminEmail: string;
+    adminFirstName: string;
+    adminLastName: string;
+    adminRole: string;
+};
+
 export interface SessionUser extends LightdashUserWithAbilityRules {
     ability: MemberAbility;
+    impersonation?: ImpersonationContext;
 }
 
 export interface UpdatedByUser {

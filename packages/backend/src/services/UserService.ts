@@ -1748,7 +1748,17 @@ export class UserService extends BaseService {
             return requestUser;
         }
 
-        return targetUser;
+        // Attach impersonation context so audit logs record the admin
+        return {
+            ...targetUser,
+            impersonation: {
+                adminUserUuid: requestUser.userUuid,
+                adminEmail: requestUser.email || '',
+                adminFirstName: requestUser.firstName,
+                adminLastName: requestUser.lastName,
+                adminRole: requestUser.role || 'unknown',
+            },
+        };
     }
 
     static async generateGoogleAccessToken(
