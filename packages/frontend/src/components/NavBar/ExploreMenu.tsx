@@ -70,26 +70,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     </Menu.Target>
 
                     <Menu.Dropdown>
-                        {health.data?.dataApps.enabled && (
-                            <Can
-                                I="manage"
-                                this={subject('DataApp', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <LargeMenuItem
-                                    component={Link}
-                                    title="App"
-                                    description="Build an interactive app powered by your data."
-                                    to={`/projects/${projectUuid}/apps/generate`}
-                                    icon={IconAppWindow}
-                                    isBeta
-                                />
-                            </Can>
-                        )}
-
                         <LargeMenuItem
                             component={Link}
                             title="Chart"
@@ -136,6 +116,27 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             icon={IconLayoutDashboard}
                             data-testid="ExploreMenu/NewDashboardButton"
                         />
+
+                        {health.data?.dataApps.enabled && (
+                            <Can
+                                I="manage"
+                                this={subject('DataApp', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <LargeMenuItem
+                                    component={Link}
+                                    title="App"
+                                    description="Build an interactive app powered by your data."
+                                    to={`/projects/${projectUuid}/apps/generate`}
+                                    icon={IconAppWindow}
+                                    isBeta
+                                />
+                            </Can>
+                        )}
+
                         <Can
                             I="create"
                             this={subject('Space', {
