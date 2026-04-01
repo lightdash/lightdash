@@ -88,6 +88,16 @@ module.exports = {
             },
         },
         {
+            // Warn on direct ability checks in services - use createAuditedAbility() instead
+            files: [
+                'src/services/**/*.ts',
+                'src/ee/services/**/*.ts',
+            ],
+            rules: {
+                'no-direct-ability-check': 'warn',
+            },
+        },
+        {
             // Require @summary tag in JSDoc comments for controller API endpoints
             // This ensures API documentation has human-readable names
             // Only applies to methods with decorators (API endpoints have @Get, @Post, etc.)
