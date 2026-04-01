@@ -59,6 +59,7 @@ import {
     PivotConfiguration,
     QueryExecutionContext,
     QueryHistoryStatus,
+    resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
     S3Error,
@@ -2545,7 +2546,9 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
