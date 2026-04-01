@@ -5,6 +5,7 @@ seeds:
     config:
       column_types:
         event_timestamp: "{{ 'timestamp_tz' if target.type == 'snowflake' else 'timestamptz' }}"
+        event_timestamp_ntz: "{{ 'timestamp_ntz' if target.type == 'snowflake' else 'timestamp' }}"
   - name: raw_events
     config:
       column_types:

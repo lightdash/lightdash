@@ -42,6 +42,19 @@ models:
             count:
               type: count
               description: Total number of events
+      - name: event_timestamp_ntz
+        description: >
+          Snowflake only. Same events as event_timestamp but cast to
+          TIMESTAMP_NTZ. The raw UTC values are stripped of timezone info,
+          so the warehouse treats them as ambiguous wall-clock times.
+          Use with dataTimezone to test NTZ interpretation.
+        meta:
+          dimension:
+            type: timestamp
+          metrics:
+            count_ntz:
+              type: count
+              description: Total number of events (NTZ)
       - name: category
         description: >
           Classifies events by their UTC time of day. "early_utc" events
