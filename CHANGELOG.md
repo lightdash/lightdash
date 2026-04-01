@@ -1,3 +1,10 @@
+## [0.2702.1](https://github.com/lightdash/lightdash/compare/0.2702.0...0.2702.1) (2026-04-01)
+
+
+### Bug Fixes
+
+* support overriding Bedrock inference profile prefix ([#21597](https://github.com/lightdash/lightdash/issues/21597)) ([6d34fac](https://github.com/lightdash/lightdash/commit/6d34fac2451131a7140306773674553fde591ce3))
+
 # [0.2702.0](https://github.com/lightdash/lightdash/compare/0.2701.0...0.2702.0) (2026-04-01)
 
 
