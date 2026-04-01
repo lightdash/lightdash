@@ -1,3 +1,10 @@
+# [0.2702.0](https://github.com/lightdash/lightdash/compare/0.2701.0...0.2702.0) (2026-04-01)
+
+
+### Features
+
+* add progress feedback during data app generation ([#21598](https://github.com/lightdash/lightdash/issues/21598)) ([63e8f09](https://github.com/lightdash/lightdash/commit/63e8f09d34725074f96b8316f656750a7b023a21))
+
 # [0.2701.0](https://github.com/lightdash/lightdash/compare/0.2700.1...0.2701.0) (2026-04-01)
 
 
