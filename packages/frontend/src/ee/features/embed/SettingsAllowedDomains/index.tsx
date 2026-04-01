@@ -136,7 +136,7 @@ const AllowedDomainsPanel: FC = () => {
                 )}
             </Stack>
 
-            <Stack gap="xs">
+            <Stack gap="xs" mt="md">
                 <Title order={6}>New domain</Title>
                 <form onSubmit={handleSubmit}>
                     <Stack gap="xs">
