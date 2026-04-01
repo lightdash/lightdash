@@ -146,6 +146,7 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import { resolveQueryTimezone } from '../resolveQueryTimezone';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
@@ -2545,7 +2546,9 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,

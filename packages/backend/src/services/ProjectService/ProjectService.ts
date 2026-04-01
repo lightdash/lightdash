@@ -259,6 +259,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { resolveQueryTimezone } from '../resolveQueryTimezone';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -3136,7 +3137,9 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -3905,8 +3908,12 @@ export class ProjectService extends BaseService {
                     const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
-                    const timezone =
+                    const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
+                    const timezone = resolveQueryTimezone(
+                        metricQueryWithLimit,
+                        projectTimezone,
+                    );
 
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
@@ -4540,7 +4547,9 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,
@@ -6707,7 +6716,9 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         try {
             const { query } = await ProjectService._getCalculateTotalQuery(
@@ -6773,7 +6784,9 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         try {
             const { query, totalQuery } =

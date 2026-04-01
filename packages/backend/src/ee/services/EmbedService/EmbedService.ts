@@ -82,6 +82,7 @@ import {
     getDashboardParametersValuesMap,
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { resolveQueryTimezone } from '../../../services/resolveQueryTimezone';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -1153,8 +1154,12 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(
+            metricQueryWithDashboardOverrides,
+            projectTimezone,
+        );
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
@@ -1355,8 +1360,9 @@ export class EmbedService extends BaseService {
             explore,
         );
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1500,8 +1506,9 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         // Run the query for each dimension group using embed query runner
         const subtotalsPromises = dimensionGroupsToSubtotal.map<
@@ -1610,8 +1617,12 @@ export class EmbedService extends BaseService {
             explore,
         );
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(
+            data.metricQuery,
+            projectTimezone,
+        );
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1817,8 +1828,9 @@ export class EmbedService extends BaseService {
                 filters,
             });
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,
