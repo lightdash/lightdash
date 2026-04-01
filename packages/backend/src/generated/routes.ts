@@ -40292,6 +40292,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         id: { in: 'path', name: 'id', required: true, dataType: 'string' },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
         '/api/v1/slack/preview/:id',

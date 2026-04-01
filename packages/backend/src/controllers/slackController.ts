@@ -209,17 +209,17 @@ export class SlackController extends BaseController {
     @SuccessResponse('302', 'Redirect')
     @Get('/preview/{id}')
     @OperationId('getSlackPreview')
-    async getPreview(@Path() id: string): Promise<void> {
+    async getPreview(
+        @Path() id: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
         const NANOID_REGEX = /^[\w-]{21}$/;
-        const PLACEHOLDER_URL =
-            'https://lightdash-public.s3.amazonaws.com/slack-unfurl-placeholder.png';
 
         this.setHeader('Cache-Control', 'no-store');
         this.setHeader('X-Robots-Tag', 'noindex, nofollow');
 
         if (!NANOID_REGEX.test(id)) {
-            this.setStatus(302);
-            this.setHeader('Location', PLACEHOLDER_URL);
+            SlackController.sendPlaceholder(req.res!);
             return;
         }
 
@@ -231,9 +231,20 @@ export class SlackController extends BaseController {
             this.setStatus(302);
             this.setHeader('Location', signedUrl);
         } catch (e) {
-            this.setStatus(302);
-            this.setHeader('Location', PLACEHOLDER_URL);
+            SlackController.sendPlaceholder(req.res!);
         }
+    }
+
+    private static sendPlaceholder(res: express.Response): void {
+        const placeholderPath = path.resolve(
+            __dirname,
+            '../services/UnfurlService/assets/slack-unfurl-placeholder.png',
+        );
+        res.status(200);
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        fs.createReadStream(placeholderPath).pipe(res);
     }
 
     /**

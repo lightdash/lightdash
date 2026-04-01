@@ -266,9 +266,6 @@ const notifySlackError = async (
         );
 };
 
-const SLACK_UNFURL_PLACEHOLDER_IMAGE_URL =
-    'https://lightdash-public.s3.amazonaws.com/slack-unfurl-placeholder.png';
-
 type UnfurlServiceArguments = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
