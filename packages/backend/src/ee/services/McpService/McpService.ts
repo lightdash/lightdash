@@ -646,7 +646,7 @@ export class McpService extends BaseService {
                     McpToolName.LIST_PROJECTS,
                 );
 
-                const projects = await wrapSentryTransaction(
+                const allProjects = await wrapSentryTransaction(
                     'McpService.listProjects.getAllByOrganizationUuid',
                     { organizationUuid },
                     async () =>
@@ -655,10 +655,20 @@ export class McpService extends BaseService {
                         ),
                 );
 
-                const projectList = projects.map((project) => ({
-                    name: project.name,
-                    projectUuid: project.projectUuid,
-                }));
+                const projectList = allProjects
+                    .filter((project) =>
+                        user.ability.can(
+                            'view',
+                            subject('Project', {
+                                organizationUuid,
+                                projectUuid: project.projectUuid,
+                            }),
+                        ),
+                    )
+                    .map((project) => ({
+                        name: project.name,
+                        projectUuid: project.projectUuid,
+                    }));
 
                 return {
                     content: [
