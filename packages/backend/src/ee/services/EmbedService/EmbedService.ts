@@ -23,7 +23,6 @@ import {
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
     ExploreError,
-    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -863,10 +862,8 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
-        const { enabled: useTimezoneAwareDateTrunc } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-            });
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneAwareDateTruncEnabled();
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -1382,10 +1379,8 @@ export class EmbedService extends BaseService {
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
-        const { enabled: useTimezoneAwareDateTrunc } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-            });
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneAwareDateTruncEnabled();
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1647,10 +1642,8 @@ export class EmbedService extends BaseService {
             data.metricQuery,
             projectTimezone,
         );
-        const { enabled: useTimezoneAwareDateTrunc } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-            });
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneAwareDateTruncEnabled();
 
         try {
             const { totalQuery: totalMetricQuery } =
