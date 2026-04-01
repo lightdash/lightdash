@@ -1,3 +1,11 @@
+## [0.2709.5](https://github.com/lightdash/lightdash/compare/0.2709.4...0.2709.5) (2026-04-01)
+
+
+### Bug Fixes
+
+* improve dashboard tile error message handling ([#21109](https://github.com/lightdash/lightdash/issues/21109)) ([b9bea69](https://github.com/lightdash/lightdash/commit/b9bea69d9ee0ed3637f81c2923a26c83ea53cd4b))
+* Slack unfurl preview images breaking after S3 URL expiry ([#21586](https://github.com/lightdash/lightdash/issues/21586)) ([f04d768](https://github.com/lightdash/lightdash/commit/f04d7682e94e858527399b96792dc0519ca19ede))
+
 ## [0.2709.4](https://github.com/lightdash/lightdash/compare/0.2709.3...0.2709.4) (2026-04-01)
 
 
