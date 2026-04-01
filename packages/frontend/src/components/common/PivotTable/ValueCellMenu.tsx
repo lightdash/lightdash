@@ -8,7 +8,7 @@ import {
 import { Menu, type MenuProps } from '@mantine-8/core';
 import { Text } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { memo, type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
 import { useContextMenuPermissions } from '../../../hooks/useContextMenuPermissions';
@@ -34,35 +34,59 @@ type ValueCellMenuProps = {
     isMinimal?: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
-const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
-    children,
+/**
+ * Inner dropdown content that is only mounted when the menu is opened.
+ * This avoids running expensive hooks (useProject, useAccount, etc.)
+ * for every cell in the pivot table — only the opened cell pays the cost.
+ */
+const ValueCellMenuDropdownContent: FC<{
+    value: ResultValue;
+    item?: ItemsMap[string] | undefined;
+    rowIndex?: number;
+    colIndex?: number;
+    getUnderlyingFieldValues?: (
+        colIndex: number,
+        rowIndex: number,
+    ) => Record<string, ResultValue>;
+    isMinimal: boolean;
+    onCopy: () => void;
+}> = ({
+    value,
+    item,
     rowIndex,
     colIndex,
     getUnderlyingFieldValues,
-    item,
-    value,
-    opened,
-    onOpen,
-    onClose,
+    isMinimal,
     onCopy,
-    isMinimal = false,
 }) => {
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
     const { data: account } = useAccount();
-
-    // FIXME: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
-
     const { canDrillInto, canViewUnderlyingData } = useContextMenuPermissions({
         minimal: isMinimal,
     });
 
-    if (!value || !tracking || !metricQueryData) {
-        return <>{children}</>;
+    if (!tracking || !metricQueryData) {
+        return (
+            <Menu.Dropdown>
+                <Menu.Item
+                    leftSection={
+                        <MantineIcon
+                            icon={IconCopy}
+                            size="md"
+                            fillOpacity={0}
+                        />
+                    }
+                    onClick={onCopy}
+                >
+                    Copy value
+                </Menu.Item>
+            </Menu.Dropdown>
+        );
     }
 
     const { openUnderlyingDataModal, openDrillDownModal, metricQuery } =
@@ -127,7 +151,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     const filterValue =
         value.raw === undefined ||
         (isDimension(item) && isDimensionValueInvalidDate(item, value))
-            ? null // Set as null if value is invalid date or undefined
+            ? null
             : value.raw;
 
     const filters =
@@ -143,70 +167,100 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
             : [];
 
     return (
-        <Menu
-            opened={opened}
-            onOpen={onOpen}
-            onClose={onClose}
-            withinPortal
-            closeOnItemClick
-            closeOnEscape
-            shadow="md"
-            radius={0}
-            position="bottom-end"
-            offset={{
-                mainAxis: 0,
-                crossAxis: 0,
-            }}
-        >
-            <Menu.Target>{children}</Menu.Target>
+        <Menu.Dropdown>
+            <Menu.Item
+                leftSection={
+                    <MantineIcon icon={IconCopy} size="md" fillOpacity={0} />
+                }
+                onClick={onCopy}
+            >
+                Copy value
+            </Menu.Item>
 
-            <Menu.Dropdown>
+            {hasUnderlyingData &&
+                !isDimension(item) &&
+                metricQuery &&
+                canViewUnderlyingData && (
+                    <UnderlyingDataMenuItem
+                        metricQuery={metricQuery}
+                        onViewUnderlyingData={handleOpenUnderlyingDataModal}
+                    />
+                )}
+
+            {!isMinimal && hasDrillInto && canDrillInto && project && (
                 <Menu.Item
                     leftSection={
                         <MantineIcon
-                            icon={IconCopy}
+                            icon={IconArrowBarToDown}
                             size="md"
                             fillOpacity={0}
                         />
                     }
-                    onClick={onCopy}
+                    onClick={handleOpenDrillIntoModal}
                 >
-                    Copy value
+                    Drill into{' '}
+                    <Text span fw={500}>
+                        {value.formatted}
+                    </Text>
                 </Menu.Item>
-
-                {hasUnderlyingData &&
-                    !isDimension(item) &&
-                    metricQuery &&
-                    canViewUnderlyingData && (
-                        <UnderlyingDataMenuItem
-                            metricQuery={metricQuery}
-                            onViewUnderlyingData={handleOpenUnderlyingDataModal}
-                        />
-                    )}
-
-                {!isMinimal && hasDrillInto && canDrillInto && project && (
-                    <Menu.Item
-                        leftSection={
-                            <MantineIcon
-                                icon={IconArrowBarToDown}
-                                size="md"
-                                fillOpacity={0}
-                            />
-                        }
-                        onClick={handleOpenDrillIntoModal}
-                    >
-                        Drill into{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
-                        </Text>
-                    </Menu.Item>
-                )}
-                {isDashboardPage && filters.length > 0 && (
-                    <FilterDashboardTo filters={filters} />
-                )}
-            </Menu.Dropdown>
-        </Menu>
+            )}
+            {isDashboardPage && filters.length > 0 && (
+                <FilterDashboardTo filters={filters} />
+            )}
+        </Menu.Dropdown>
     );
 };
+
+const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = memo(
+    ({
+        children,
+        rowIndex,
+        colIndex,
+        getUnderlyingFieldValues,
+        item,
+        value,
+        opened,
+        onOpen,
+        onClose,
+        onCopy,
+        isMinimal = false,
+    }) => {
+        if (!value) {
+            return <>{children}</>;
+        }
+
+        return (
+            <Menu
+                opened={opened}
+                onOpen={onOpen}
+                onClose={onClose}
+                withinPortal
+                closeOnItemClick
+                closeOnEscape
+                shadow="md"
+                radius={0}
+                position="bottom-end"
+                offset={{
+                    mainAxis: 0,
+                    crossAxis: 0,
+                }}
+            >
+                <Menu.Target>{children}</Menu.Target>
+
+                {opened && (
+                    <ValueCellMenuDropdownContent
+                        value={value}
+                        item={item}
+                        rowIndex={rowIndex}
+                        colIndex={colIndex}
+                        getUnderlyingFieldValues={getUnderlyingFieldValues}
+                        isMinimal={isMinimal}
+                        onCopy={onCopy}
+                    />
+                )}
+            </Menu>
+        );
+    },
+);
 
 export default ValueCellMenu;
