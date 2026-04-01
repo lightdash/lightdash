@@ -80,6 +80,10 @@ import {
 import { wrapSentryTransaction } from '../../../utils';
 import { streamJsonlData } from '../../../utils/FileDownloadUtils/FileDownloadUtils';
 import { VERSION } from '../../../version';
+import {
+    getMcpAnalystPromptWithContext,
+    MCP_ANALYST_PROMPT,
+} from '../ai/prompts/mcpAnalyst';
 import { NO_RESULTS_RETRY_PROMPT } from '../ai/prompts/noResultsRetry';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
@@ -1426,6 +1430,59 @@ export class McpService extends BaseService {
                         isError: true,
                     };
                 }
+            },
+        );
+
+        this.mcpServer.registerPrompt(
+            'lightdash-analyst',
+            {
+                title: 'Lightdash Data Analyst',
+                description:
+                    'Guidelines for querying Lightdash data using MCP tools. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.',
+                argsSchema: {},
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
+                const context = extra as McpProtocolContext;
+                const metadata = await this.getActiveContextMetadata(context);
+
+                let promptText: string;
+
+                if (metadata.agentUuid) {
+                    try {
+                        const agent = await this.aiAgentService.getAgent(
+                            context.authInfo!.extra.user,
+                            metadata.agentUuid,
+                            undefined,
+                            { includeSummaryContext: true },
+                        );
+                        promptText = getMcpAnalystPromptWithContext({
+                            agentName: agent.name,
+                            instruction: agent.context.instruction,
+                            explores: agent.context.explores,
+                            verifiedQuestions: agent.context.verifiedQuestions,
+                        });
+                    } catch {
+                        promptText = MCP_ANALYST_PROMPT;
+                    }
+                } else {
+                    promptText = MCP_ANALYST_PROMPT;
+                }
+
+                return {
+                    messages: [
+                        {
+                            role: 'user' as const,
+                            content: {
+                                type: 'text' as const,
+                                text: promptText,
+                            },
+                        },
+                    ],
+                };
             },
         );
     }
