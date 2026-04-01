@@ -34,6 +34,7 @@ import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
+    useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import { LightdashUserAvatar } from '../../Avatar';
 import MantineIcon from '../MantineIcon';
@@ -42,6 +43,8 @@ import styles from './ShareSpaceAddUser.module.css';
 import { getAccessColor } from './ShareSpaceModalUtils';
 import { UserAccessOptions } from './ShareSpaceSelect';
 import { getUserNameOrEmail } from './Utils';
+
+const ALL_PROJECT_MEMBERS_VALUE = '__all_project_members__';
 
 interface ShareSpaceAddUserProps {
     space: Space;
@@ -73,6 +76,10 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
     );
     const { mutateAsync: shareGroupSpaceMutation } =
         useAddGroupSpaceShareMutation(projectUuid, space.uuid);
+    const { mutateAsync: updateSpaceMutation } = useUpdateMutation(
+        projectUuid,
+        space.uuid,
+    );
 
     const {
         data: infiniteOrganizationGroups,
@@ -133,7 +140,11 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
     // Set of all known group UUIDs for O(1) lookups
     const groupUuidsSet = useMemo(
-        () => new Set(allSearchedGroups.map((g) => g.uuid)),
+        () =>
+            new Set([
+                ...allSearchedGroups.map((g) => g.uuid),
+                ALL_PROJECT_MEMBERS_VALUE,
+            ]),
         [allSearchedGroups],
     );
 
@@ -240,6 +251,20 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
             label: group.name,
         }));
 
+        // Show "All project members" option if not already enabled on this space
+        if (
+            !space.projectMemberAccessRole &&
+            (!debouncedSearchQuery ||
+                'all project members'.includes(
+                    debouncedSearchQuery.toLowerCase(),
+                ))
+        ) {
+            groupItems.unshift({
+                value: ALL_PROJECT_MEMBERS_VALUE,
+                label: 'All project members',
+            });
+        }
+
         const result: (ComboboxItem | ComboboxItemGroup)[] = [];
 
         if (groupItems.length > 0) {
@@ -257,6 +282,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         allSearchedOrganizationUsers,
         space.access,
         space.groupsAccess,
+        space.projectMemberAccessRole,
         debouncedSearchQuery,
         currentSearchUserUuids,
         currentSearchGroupUuids,
@@ -403,10 +429,17 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
 
     const handleShare = useCallback(async () => {
         for (const uuid of selectedItems.groups) {
-            const role =
-                space.access.find((a) => a.userUuid === uuid)?.role ??
-                SpaceMemberRole.VIEWER;
-            await shareGroupSpaceMutation([uuid, role]);
+            if (uuid === ALL_PROJECT_MEMBERS_VALUE) {
+                await updateSpaceMutation({
+                    name: space.name,
+                    projectMemberAccessRole: SpaceMemberRole.VIEWER,
+                });
+            } else {
+                const role =
+                    space.access.find((a) => a.userUuid === uuid)?.role ??
+                    SpaceMemberRole.VIEWER;
+                await shareGroupSpaceMutation([uuid, role]);
+            }
         }
         for (const uuid of selectedItems.users) {
             // Preserve inherited role so direct access isn't a downgrade
@@ -418,9 +451,10 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
         setSelectedItems({ users: [], groups: [] });
     }, [
         selectedItems,
-        space.access,
+        space,
         shareGroupSpaceMutation,
         shareSpaceMutation,
+        updateSpaceMutation,
     ]);
 
     return (
