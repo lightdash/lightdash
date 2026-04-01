@@ -21,8 +21,12 @@ import {
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
     filterInTheCurrentDayTimezoneMocks,
+    filterInTheNextCompletedDayDstMocks,
     filterInTheNextCompletedDayTimezoneMocks,
+    filterInTheNextNonCompletedDayTimezoneMocks,
+    filterInThePastCompletedDayDstMocks,
     filterInThePastCompletedDayTimezoneMocks,
+    filterInThePastNonCompletedDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -716,6 +720,94 @@ describe('Filter SQL', () => {
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastCompletedDayDstMocks)(
+        'should handle DST spring forward for in the past completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextCompletedDayDstMocks)(
+        'should handle DST spring forward for in the next completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastNonCompletedDayTimezoneMocks)(
+        'should return in the past non-completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextNonCompletedDayTimezoneMocks)(
+        'should return in the next non-completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
                         },
                     },
                     adapterType.default,

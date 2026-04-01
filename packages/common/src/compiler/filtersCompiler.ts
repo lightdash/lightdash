@@ -339,6 +339,7 @@ export const renderDateFilterSql = (
                             effectiveStartOfWeek,
                             completedDate,
                         )
+                            .tz(timezone)
                             .subtract(filter.values?.[0], unitOfTime)
                             .utc()
                             .toDate(),
@@ -380,6 +381,7 @@ export const renderDateFilterSql = (
                         effectiveStartOfWeek,
                         fromDate,
                     )
+                        .tz(timezone)
                         .add(filter.values?.[0], unitOfTime)
                         .utc()
                         .toDate(),

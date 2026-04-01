@@ -614,6 +614,64 @@ export const filterInTheNextCompletedDayTimezoneMocks = [
     ],
 ];
 
+// DST spring forward: March 8, 2020 at 2:00 AM EST → 3:00 AM EDT (America/New_York)
+// System time: 09 Mar 2020 05:00:00 GMT (= 01:00 EDT, post-DST)
+// IN_THE_PAST 1 completed day crossing DST:
+// UTC:            start of day = 2020-03-09 00:00 UTC → from 2020-03-08 00:00, until 2020-03-09 00:00 (24h)
+// America/New_York: start of day = 2020-03-09 00:00 EDT = 04:00 UTC → from 2020-03-08 00:00 EST = 05:00 UTC, until 04:00 UTC (23h — DST spring forward)
+export const filterInThePastCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 00:00:00') AND (customers.created) < ('2020-03-09 00:00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 05:00:00') AND (customers.created) < ('2020-03-09 04:00:00'))",
+    ],
+];
+
+// System time: 07 Mar 2020 05:00:00 GMT (= 00:00 EST, pre-DST)
+// IN_THE_NEXT 1 completed day crossing DST:
+// UTC:            next day start = 2020-03-08 00:00 UTC → from 2020-03-08 00:00, until 2020-03-09 00:00 (24h)
+// America/New_York: next day start = 2020-03-08 00:00 EST = 05:00 UTC → from 05:00 UTC, until 2020-03-09 00:00 EDT = 04:00 UTC (23h — DST spring forward)
+export const filterInTheNextCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 00:00:00') AND (customers.created) < ('2020-03-09 00:00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 05:00:00') AND (customers.created) < ('2020-03-09 04:00:00'))",
+    ],
+];
+
+// System time: 04 Apr 2020 06:12:30 GMT
+// IN_THE_PAST 1 day (non-completed): from = .tz(tz).subtract(1, 'day'), until = .tz(tz) (now)
+// Both timezones produce the same result here because no DST transition occurs in this range
+export const filterInThePastNonCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))",
+    ],
+];
+
+// IN_THE_NEXT 1 day (non-completed): from = .tz(tz) (now), until = .tz(tz).add(1, 'day')
+// Both timezones produce the same result here because no DST transition occurs in this range
+export const filterInTheNextNonCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-05 06:12:30'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-05 06:12:30'))",
+    ],
+];
+
 export const filterInTheCurrentDayTimezoneMocks = [
     [
         'UTC',
