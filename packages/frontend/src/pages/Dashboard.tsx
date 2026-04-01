@@ -388,7 +388,7 @@ const Dashboard: FC = () => {
                 'fullscreenchange',
                 onFullscreenChange,
             );
-    });
+    }, [isFullScreenFeatureEnabled, isFullscreen, toggleFullscreen]);
 
     const handleParameterChange = useDashboardContext((c) => c.setParameter);
 

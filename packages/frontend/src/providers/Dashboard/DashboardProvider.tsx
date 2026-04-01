@@ -198,22 +198,32 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     >(dateZoom);
 
     // Allows users to disable date zoom on view mode,
-    // by default it is enabled
+    // by default it is enabled. Togglable in edit mode.
     const [isDateZoomDisabled, setIsDateZoomDisabled] =
         useState<boolean>(false);
+    const hasInitDateZoomDisabled = useRef(false);
     useEffect(() => {
+        if (hasInitDateZoomDisabled.current) return;
         if (dashboard?.config?.isDateZoomDisabled === true) {
             setIsDateZoomDisabled(true);
+            hasInitDateZoomDisabled.current = true;
+        } else if (dashboard) {
+            hasInitDateZoomDisabled.current = true;
         }
     }, [dashboard]);
 
     // Allows users to disable add filter button on view mode,
-    // by default it is enabled
+    // by default it is enabled. Togglable in edit mode.
     const [isAddFilterDisabled, setIsAddFilterDisabled] =
         useState<boolean>(false);
+    const hasInitAddFilterDisabled = useRef(false);
     useEffect(() => {
+        if (hasInitAddFilterDisabled.current) return;
         if (dashboard?.config?.isAddFilterDisabled === true) {
             setIsAddFilterDisabled(true);
+            hasInitAddFilterDisabled.current = true;
+        } else if (dashboard) {
+            hasInitAddFilterDisabled.current = true;
         }
     }, [dashboard]);
 
@@ -236,9 +246,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     );
     // parameters that are currently applied to the dashboard
     const [parameters, setParameters] = useState<DashboardParameters>({});
-    const [parametersHaveChanged, setParametersHaveChanged] =
-        useState<boolean>(false);
-
     // Pinned parameters state
     const [pinnedParameters, setPinnedParametersState] = useState<string[]>([]);
     const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
@@ -329,12 +336,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [schedulerParameters]);
 
-    // Set parametersHaveChanged to true if parameters have changed
-    useEffect(() => {
-        if (!isEqual(parameters, savedParameters)) {
-            setParametersHaveChanged(true);
-        }
-    }, [parameters, savedParameters]);
+    // Derived — no effect needed
+    const parametersHaveChanged = useMemo(
+        () => !isEqual(parameters, savedParameters),
+        [parameters, savedParameters],
+    );
 
     const setParameter = useCallback(
         (key: string, value: ParameterValue | null) => {
@@ -486,32 +492,37 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     // Update dashboard url date zoom change
     // Only sync URL in regular dashboards or 'direct' embed mode (not 'sdk' mode)
+    // Uses refs for search/pathname to avoid re-running when unrelated URL params change.
+    const searchRefForDateZoom = useRef(search);
+    searchRefForDateZoom.current = search;
+    const pathnameRef = useRef(pathname);
+    pathnameRef.current = pathname;
     useEffect(() => {
         if (embed.mode === 'sdk') {
             return;
         }
 
-        const currentParams = new URLSearchParams(search);
-        const newParams = new URLSearchParams(search);
+        const currentSearch = searchRefForDateZoom.current;
+        const currentParams = new URLSearchParams(currentSearch);
+        const newParams = new URLSearchParams(currentSearch);
         if (dateZoomGranularity === undefined) {
             newParams.delete('dateZoom');
         } else {
             newParams.set('dateZoom', dateZoomGranularity.toLowerCase());
         }
 
-        const currentSearch = currentParams.toString();
         const newSearch = newParams.toString();
 
-        if (currentSearch !== newSearch) {
+        if (currentParams.toString() !== newSearch) {
             void navigate(
                 {
-                    pathname,
-                    search: newParams.toString(),
+                    pathname: pathnameRef.current,
+                    search: newSearch,
                 },
                 { replace: true },
             );
         }
-    }, [dateZoomGranularity, search, navigate, pathname, embed.mode]);
+    }, [dateZoomGranularity, navigate, embed.mode]);
 
     const {
         overridesForSavedDashboardFilters,
@@ -656,81 +667,84 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // 2. Apply overrides for iframe embed or replace SDK filters in SDK mode
     // 3. Apply interactivity filtering (embedded dashboards only)
     //
-    // This happens on the first load when emptyFilters is the initial value of dashboardFilters
+    // This runs once when the dashboard first loads. A ref guard prevents
+    // re-running on subsequent filter/embed changes.
+    const hasInitFilters = useRef(false);
     useEffect(() => {
         const currentDashboard = dashboard || embedDashboard;
 
         if (!currentDashboard) return;
 
-        if (dashboardFilters === emptyFilters) {
-            let overrides = clone(overridesForSavedDashboardFilters);
+        // Always keep original filters in sync with the source dashboard
+        setOriginalDashboardFilters(currentDashboard.filters);
 
-            // Step 1: Start with base filters
-            let updatedDashboardFilters = clone(currentDashboard.filters);
+        // Only initialize filters once
+        if (hasInitFilters.current) return;
 
-            // Step 2: Apply SDK Filters
-            // For SDK mode, SDK filters replace embedded dashboard filters
-            const sdkFilters =
-                embed.mode === 'sdk' && embed.filters ? embed.filters : [];
-            if (sdkFilters.length > 0) {
-                // Wait for available filters query to finish (success or error)
-                // so we can build cross-explore tileTargets.
-                // If the query failed, filterableFieldsByTileUuid will be
-                // undefined and we gracefully fall back to tileTargets: {}
-                if (isLoadingDashboardFilters) return;
+        let overrides = clone(overridesForSavedDashboardFilters);
 
-                updatedDashboardFilters.dimensions = sdkFilters.map(
-                    (sdkFilter) =>
-                        convertSdkFilterToDashboardFilter(
-                            sdkFilter,
-                            filterableFieldsByTileUuid,
-                        ),
-                );
-            }
+        // Step 1: Start with base filters
+        let updatedDashboardFilters = clone(currentDashboard.filters);
 
-            // Apply overrides from URL
-            if (embed.mode === 'direct') {
-                // For direct mode, only read from URL if not SDK mode
-                if (hasSavedFiltersOverrides(overrides)) {
-                    updatedDashboardFilters = {
-                        ...updatedDashboardFilters,
-                        dimensions: applyDimensionOverrides(
-                            updatedDashboardFilters,
-                            overrides,
-                        ),
-                    };
-                    setHaveFiltersChanged(true);
-                } else {
-                    setHaveFiltersChanged(false);
-                }
-            } else {
-                if (overrides && overrides.dimensions.length > 0) {
-                    updatedDashboardFilters = {
-                        ...updatedDashboardFilters,
-                        dimensions: applyDimensionOverrides(
-                            updatedDashboardFilters,
-                            overrides,
-                        ),
-                    };
-                    setHaveFiltersChanged(true);
-                } else {
-                    setHaveFiltersChanged(false);
-                }
-            }
+        // Step 2: Apply SDK Filters
+        // For SDK mode, SDK filters replace embedded dashboard filters
+        const sdkFilters =
+            embed.mode === 'sdk' && embed.filters ? embed.filters : [];
+        if (sdkFilters.length > 0) {
+            // Wait for available filters query to finish (success or error)
+            // so we can build cross-explore tileTargets.
+            // If the query failed, filterableFieldsByTileUuid will be
+            // undefined and we gracefully fall back to tileTargets: {}
+            if (isLoadingDashboardFilters) return;
 
-            // Step 3: Apply interactivity filtering for embedded dashboards
-            updatedDashboardFilters = applyInteractivityFiltering(
-                updatedDashboardFilters,
+            updatedDashboardFilters.dimensions = sdkFilters.map((sdkFilter) =>
+                convertSdkFilterToDashboardFilter(
+                    sdkFilter,
+                    filterableFieldsByTileUuid,
+                ),
             );
-
-            setDashboardFilters(updatedDashboardFilters);
         }
 
-        setOriginalDashboardFilters(currentDashboard.filters);
+        // Apply overrides from URL
+        if (embed.mode === 'direct') {
+            // For direct mode, only read from URL if not SDK mode
+            if (hasSavedFiltersOverrides(overrides)) {
+                updatedDashboardFilters = {
+                    ...updatedDashboardFilters,
+                    dimensions: applyDimensionOverrides(
+                        updatedDashboardFilters,
+                        overrides,
+                    ),
+                };
+                setHaveFiltersChanged(true);
+            } else {
+                setHaveFiltersChanged(false);
+            }
+        } else {
+            if (overrides && overrides.dimensions.length > 0) {
+                updatedDashboardFilters = {
+                    ...updatedDashboardFilters,
+                    dimensions: applyDimensionOverrides(
+                        updatedDashboardFilters,
+                        overrides,
+                    ),
+                };
+                setHaveFiltersChanged(true);
+            } else {
+                setHaveFiltersChanged(false);
+            }
+        }
+
+        // Step 3: Apply interactivity filtering for embedded dashboards
+        updatedDashboardFilters = applyInteractivityFiltering(
+            updatedDashboardFilters,
+        );
+
+        setDashboardFilters(updatedDashboardFilters);
+        hasInitFilters.current = true;
     }, [
         dashboard,
         embedDashboard,
-        dashboardFilters,
         overridesForSavedDashboardFilters,
         embed,
         applyInteractivityFiltering,
