@@ -23,9 +23,11 @@ import {
     filterInTheCurrentDayTimezoneMocks,
     filterInTheNextCompletedDayDstMocks,
     filterInTheNextCompletedDayTimezoneMocks,
+    filterInTheNextNonCompletedDayDstMocks,
     filterInTheNextNonCompletedDayTimezoneMocks,
     filterInThePastCompletedDayDstMocks,
     filterInThePastCompletedDayTimezoneMocks,
+    filterInThePastNonCompletedDayDstMocks,
     filterInThePastNonCompletedDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
@@ -773,6 +775,50 @@ describe('Filter SQL', () => {
         'should return in the next non-completed day filter sql for timezone %s',
         (timezone, expected) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastNonCompletedDayDstMocks)(
+        'should handle DST spring forward for in the past non-completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextNonCompletedDayDstMocks)(
+        'should handle DST spring forward for in the next non-completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
             expect(
                 renderDateFilterSql(
                     DimensionSqlMock,

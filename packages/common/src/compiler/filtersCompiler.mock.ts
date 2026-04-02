@@ -672,6 +672,39 @@ export const filterInTheNextNonCompletedDayTimezoneMocks = [
     ],
 ];
 
+// DST spring forward: March 8, 2020 at 2:00 AM EST → 3:00 AM EDT (America/New_York)
+// System time: 09 Mar 2020 05:00:00 GMT (= 01:00 EDT, post-DST)
+// IN_THE_PAST 1 day (non-completed) crossing DST:
+// UTC:            from = subtract 1 day = 2020-03-08 05:00:00, until = 2020-03-09 05:00:00 (24h)
+// America/New_York: now = 01:00 EDT (UTC-4); subtract 1 day = 08 Mar 01:00 EST (UTC-5) = 06:00 UTC
+//   from = 2020-03-08 06:00:00, until = 2020-03-09 05:00:00 (23h — DST spring forward)
+export const filterInThePastNonCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 05:00:00') AND (customers.created) <= ('2020-03-09 05:00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 06:00:00') AND (customers.created) <= ('2020-03-09 05:00:00'))",
+    ],
+];
+
+// System time: 08 Mar 2020 06:00:00 GMT (= 01:00 EST, pre-DST)
+// IN_THE_NEXT 1 day (non-completed) crossing DST:
+// UTC:            from = 2020-03-08 06:00:00, until = add 1 day = 2020-03-09 06:00:00 (24h)
+// America/New_York: now = 01:00 EST (UTC-5); add 1 day = 09 Mar 01:00 EDT (UTC-4) = 05:00 UTC
+//   from = 2020-03-08 06:00:00, until = 2020-03-09 05:00:00 (23h — DST spring forward)
+export const filterInTheNextNonCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 06:00:00') AND (customers.created) <= ('2020-03-09 06:00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 06:00:00') AND (customers.created) <= ('2020-03-09 05:00:00'))",
+    ],
+];
+
 export const filterInTheCurrentDayTimezoneMocks = [
     [
         'UTC',
