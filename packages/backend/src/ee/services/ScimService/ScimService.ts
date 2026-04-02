@@ -128,6 +128,7 @@ export class ScimService extends BaseService {
                 subject('Organization', {
                     uuid: user.organizationUuid || '',
                     organizationUuid: user.organizationUuid || '',
+                    name: user.organizationName || '',
                 }),
             )
         ) {

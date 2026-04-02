@@ -65,8 +65,9 @@ export class PersonalAccessTokenService extends BaseService {
             auditedAbility.cannot(
                 'create',
                 subject('PersonalAccessToken', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
+                    name: data.description,
                 }),
             )
         ) {
@@ -125,7 +126,7 @@ export class PersonalAccessTokenService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('PersonalAccessToken', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                 }),
             )

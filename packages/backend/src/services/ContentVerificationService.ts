@@ -62,6 +62,7 @@ export class ContentVerificationService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
                     uuid: projectUuid,
+                    name: project.name,
                 }),
             )
         ) {

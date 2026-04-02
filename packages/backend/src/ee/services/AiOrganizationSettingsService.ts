@@ -48,7 +48,7 @@ export class AiOrganizationSettingsService extends BaseService {
             this.createAuditedAbility(user).cannot(
                 'manage',
                 subject('AiAgent', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                 }),
             )

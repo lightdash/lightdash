@@ -675,11 +675,12 @@ export class UnfurlService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    name,
                 }),
             )
         ) {
@@ -726,11 +727,12 @@ export class UnfurlService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    name: chart.name,
                 }),
             )
         ) {

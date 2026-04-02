@@ -73,7 +73,11 @@ export class PinningService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { ...project, uuid: project.projectUuid }),
+                subject('Project', {
+                    ...project,
+                    uuid: project.projectUuid,
+                    name: project.name,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -147,6 +151,7 @@ export class PinningService extends BaseService {
                 subject('PinnedItems', {
                     ...project,
                     uuid: project.projectUuid,
+                    name: project.name,
                 }),
             )
         ) {

@@ -112,6 +112,7 @@ export class SpaceService
                 user.userUuid,
                 space.uuid,
             );
+        // eslint-disable-next-line no-direct-ability-check -- internal test helper receives partial user type
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
 
@@ -198,7 +199,12 @@ export class SpaceService
         if (
             auditedAbility.cannot(
                 'create',
-                subject('Space', { uuid: '', organizationUuid, projectUuid }),
+                subject('Space', {
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: space.name,
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -614,7 +620,8 @@ export class SpaceService
             const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: space.name,
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),
@@ -693,7 +700,8 @@ export class SpaceService
                 auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
-                        uuid: '',
+                        uuid: '' /* TODO: pass resource uuid */,
+                        name: space.name,
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
                     }),
@@ -784,7 +792,8 @@ export class SpaceService
             auditedAbility.cannot(
                 'manage',
                 subject('PinnedItems', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: existingSpace.name,
                     projectUuid,
                     organizationUuid,
                 }),

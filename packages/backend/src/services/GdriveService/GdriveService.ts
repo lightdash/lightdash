@@ -73,9 +73,10 @@ export class GdriveService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {
@@ -86,9 +87,10 @@ export class GdriveService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('GoogleSheets', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {
@@ -102,9 +104,10 @@ export class GdriveService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {

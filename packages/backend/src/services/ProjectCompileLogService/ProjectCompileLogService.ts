@@ -93,7 +93,7 @@ export class ProjectCompileLogService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('JobStatus', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     jobUuid,
                     projectUuid,

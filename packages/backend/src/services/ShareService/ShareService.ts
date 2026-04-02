@@ -52,7 +52,7 @@ export class ShareService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('OrganizationMemberProfile', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: shareUrl.organizationUuid || '',
                 }),
             )

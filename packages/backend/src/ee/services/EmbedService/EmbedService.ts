@@ -153,7 +153,7 @@ export class EmbedService extends BaseService {
         { expiresIn, ...jwtData }: CreateEmbedJwt,
     ): Promise<EmbedUrl> {
         const { user } = account;
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -167,6 +167,7 @@ export class EmbedService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -198,7 +199,7 @@ export class EmbedService extends BaseService {
         user: LightdashSessionUser,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -214,6 +215,7 @@ export class EmbedService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -234,7 +236,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -250,6 +252,7 @@ export class EmbedService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -280,7 +283,7 @@ export class EmbedService extends BaseService {
         }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ) {
         const { user } = account;
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -294,6 +297,7 @@ export class EmbedService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -316,7 +320,7 @@ export class EmbedService extends BaseService {
         }: UpdateEmbed,
     ) {
         const { user } = account;
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
 
         await this.isFeatureEnabled({
@@ -332,6 +336,7 @@ export class EmbedService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {

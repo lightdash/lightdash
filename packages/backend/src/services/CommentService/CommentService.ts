@@ -163,7 +163,8 @@ export class CommentService extends BaseService {
             auditedAbility.cannot(
                 'create',
                 subject('DashboardComments', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: dashboard.name,
                     projectUuid: dashboard.projectUuid,
                     organizationUuid: dashboard.organizationUuid,
                 }),
@@ -232,7 +233,8 @@ export class CommentService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('DashboardComments', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: dashboard.name,
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
                 }),
@@ -250,7 +252,8 @@ export class CommentService extends BaseService {
         const canUserRemoveAnyComment = auditedAbility.can(
             'manage',
             subject('DashboardComments', {
-                uuid: '',
+                uuid: '' /* TODO: pass resource uuid */,
+                name: dashboard.name,
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
             }),
@@ -277,7 +280,8 @@ export class CommentService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DashboardComments', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: dashboard.name,
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
                 }),
@@ -329,7 +333,8 @@ export class CommentService extends BaseService {
         const canRemoveAnyComment = auditedAbility.can(
             'manage',
             subject('DashboardComments', {
-                uuid: '',
+                uuid: '' /* TODO: pass resource uuid */,
+                name: dashboard.name,
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
             }),
