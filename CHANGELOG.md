@@ -1,3 +1,15 @@
+# [0.2710.0](https://github.com/lightdash/lightdash/compare/0.2709.8...0.2710.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* restrict agent management endpoints in demo mode ([#21650](https://github.com/lightdash/lightdash/issues/21650)) ([fc2443a](https://github.com/lightdash/lightdash/commit/fc2443a6653c8c94bab8a704229037e14ac9943b))
+
+
+### Features
+
+* add 'My apps' settings page ([#21585](https://github.com/lightdash/lightdash/issues/21585)) ([b507000](https://github.com/lightdash/lightdash/commit/b507000f7ed638ef6090e130c3c485ed1eab27c4))
+
 ## [0.2709.8](https://github.com/lightdash/lightdash/compare/0.2709.7...0.2709.8) (2026-04-02)
 
 
