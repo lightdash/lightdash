@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import type { ApiAppVersionSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -28,7 +29,9 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useParams } from 'react-router';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
@@ -131,7 +134,7 @@ const AppGenerate: FC = () => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    // Fetch version history — polls every 2s while latest version is building
+    // Fetch version history (polling is handled by the Web Worker below)
     const {
         data: appData,
         fetchNextPage,
@@ -155,6 +158,27 @@ const AppGenerate: FC = () => {
         if (!isEditingDescription.current) setDraftDescription(appDescription);
     }, [appDescription]);
 
+    // Accumulate all versions ever seen in this session. Refetches may lose
+    // older versions when new ones shift pagination boundaries, but we keep
+    // everything that's been fetched at least once. Status updates are applied.
+    const versionCacheRef = useRef(new Map<number, ApiAppVersionSummary>());
+    const versionCacheAppRef = useRef(activeAppUuid);
+    const allVersions = useMemo(() => {
+        // Clear cache when switching to a different app
+        if (versionCacheAppRef.current !== activeAppUuid) {
+            versionCacheRef.current.clear();
+            versionCacheAppRef.current = activeAppUuid;
+        }
+        if (appData?.pages) {
+            for (const page of appData.pages) {
+                for (const v of page.versions) {
+                    versionCacheRef.current.set(v.version, v);
+                }
+            }
+        }
+        return Array.from(versionCacheRef.current.values());
+    }, [appData, activeAppUuid]);
+
     // Derive building state from the latest version in fetched data
     const latestBuildingVersion = useMemo(() => {
         if (!appData?.pages?.[0]) return null;
@@ -165,10 +189,16 @@ const AppGenerate: FC = () => {
     const isBuilding = latestBuildingVersion !== null;
     const isLoading = isGenerating || isIterating || isBuilding;
 
+    // OS notification when a build finishes (only fires when tab is in background)
+    const notifyBuildDone = useBuildNotification(appName, isLoading);
+
+    // Web Worker that polls the API while a version is building.
+    // Workers aren't throttled in background tabs, unlike main-thread timers.
+    useAppBuildPoller(projectUuid, activeAppUuid, isBuilding, notifyBuildDone);
+
     // Clear local messages once server data takes over (avoids duplicates).
     // Use the version count as dependency so this doesn't fire on every poll.
-    const serverVersionCount =
-        appData?.pages?.reduce((n, p) => n + p.versions.length, 0) ?? 0;
+    const serverVersionCount = allVersions.length;
     useEffect(() => {
         if (serverVersionCount > 0) {
             setLocalMessages([]);
@@ -177,9 +207,7 @@ const AppGenerate: FC = () => {
 
     // Convert fetched versions into chat messages (oldest first)
     const historyMessages = useMemo<ChatMessage[]>(() => {
-        if (!appData?.pages) return [];
-        const allVersions = appData.pages.flatMap((page) => page.versions);
-        // Versions come newest-first from API; reverse for chronological chat order
+        if (allVersions.length === 0) return [];
         const sorted = [...allVersions].sort((a, b) => a.version - b.version);
         return sorted.flatMap((v) => {
             const msgs: ChatMessage[] = [
@@ -197,7 +225,7 @@ const AppGenerate: FC = () => {
                         v.version === 1
                             ? 'Your app is ready!'
                             : `Version ${v.version} is ready!`,
-                    appUuid: appData.pages[0].appUuid,
+                    appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
             } else if (v.status === 'error') {
@@ -214,9 +242,9 @@ const AppGenerate: FC = () => {
             // it's shown as a live progress indicator below
             return msgs;
         });
-    }, [appData]);
+    }, [allVersions, activeAppUuid]);
 
-    // Merge: history messages first, then any new local messages from this session
+    // Merge: history messages first, then any optimistic local messages
     const messages = useMemo(
         () => [...historyMessages, ...localMessages],
         [historyMessages, localMessages],
@@ -225,12 +253,14 @@ const AppGenerate: FC = () => {
     // Stable reference for the preview — only updates when a new version
     // becomes ready, preventing iframe reloads during status polling.
     const latestReadyPreview = useMemo(() => {
-        if (!appData?.pages?.[0]) return null;
-        const allVersions = appData.pages.flatMap((p) => p.versions);
-        const ready = allVersions.find((v) => v.status === 'ready');
+        if (allVersions.length === 0 || !activeAppUuid) return null;
+        // Find the highest-numbered ready version
+        const ready = [...allVersions]
+            .sort((a, b) => b.version - a.version)
+            .find((v) => v.status === 'ready');
         if (!ready) return null;
-        return { appUuid: appData.pages[0].appUuid, version: ready.version };
-    }, [appData]);
+        return { appUuid: activeAppUuid, version: ready.version };
+    }, [allVersions, activeAppUuid]);
     const [previewApp, setPreviewApp] = useState(latestReadyPreview);
     useEffect(() => {
         if (
@@ -301,8 +331,7 @@ const AppGenerate: FC = () => {
                 // Set active app so polling starts immediately
                 setActiveAppUuid(data.appUuid);
                 // Invalidate so useGetApp refetches and picks up the new
-                // building version — otherwise stale cache shows "ready"
-                // and refetchInterval stays off.
+                // building version, which starts the Worker poll loop.
                 void queryClient.invalidateQueries({
                     queryKey: ['app', projectUuid, data.appUuid],
                 });
