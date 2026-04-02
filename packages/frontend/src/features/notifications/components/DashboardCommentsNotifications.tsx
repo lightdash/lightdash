@@ -30,7 +30,12 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
                 </Text>
             }
         >
-            <Text ta="right" mb="one" fw={500} className={classes.notificationTime}>
+            <Text
+                ta="right"
+                mb="one"
+                fw={500}
+                className={classes.notificationTime}
+            >
                 {date}
             </Text>
         </Tooltip>
