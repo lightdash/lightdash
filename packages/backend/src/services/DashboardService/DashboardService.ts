@@ -60,8 +60,7 @@ import {
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
-import { logAuditEvent } from '../../logging/winston';
+// CaslAuditWrapper is now used via this.createAuditedAbility() from BaseService
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
@@ -203,9 +202,7 @@ export class DashboardService
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid } = dashboard;
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -258,9 +255,7 @@ export class DashboardService
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid } = dashboard;
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -451,12 +446,13 @@ export class DashboardService
                 spaceUuids,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         return dashboards.filter((dashboard) => {
             const spaceContext = spaceContexts[dashboard.spaceUuid];
             if (!spaceContext) return false;
-            const hasAbility = user.ability.can(
+            const hasAbility = auditedAbility.can(
                 'view',
-                subject('Dashboard', spaceContext),
+                subject('Dashboard', { ...spaceContext, uuid: dashboard.uuid }),
             );
             return includePrivate
                 ? hasAbility
@@ -487,10 +483,7 @@ export class DashboardService
             access,
         };
 
-        // TODO: normally this would be pre-constructed (perhaps in the Service Repository or on the user object when we create the CASL type)
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError(
@@ -571,14 +564,16 @@ export class DashboardService
                 space.uuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Dashboard', {
                     organizationUuid: space.organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    uuid: '',
                 }),
             )
         ) {
@@ -632,7 +627,8 @@ export class DashboardService
             access,
         };
 
-        if (user.ability.cannot('create', subject('Dashboard', dashboard))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('create', subject('Dashboard', dashboard))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -791,9 +787,13 @@ export class DashboardService
                 user.userUuid,
                 existingDashboardDao.spaceUuid,
             );
-        const canUpdateDashboardInCurrentSpace = user.ability.can(
+        const auditedAbility = this.createAuditedAbility(user);
+        const canUpdateDashboardInCurrentSpace = auditedAbility.can(
             'update',
-            subject('Dashboard', currentSpace),
+            subject('Dashboard', {
+                ...currentSpace,
+                uuid: existingDashboardDao.uuid,
+            }),
         );
 
         if (!canUpdateDashboardInCurrentSpace) {
@@ -809,9 +809,12 @@ export class DashboardService
                         user.userUuid,
                         dashboard.spaceUuid,
                     );
-                const canUpdateDashboardInNewSpace = user.ability.can(
+                const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
-                    subject('Dashboard', newSpace),
+                    subject('Dashboard', {
+                        ...newSpace,
+                        uuid: existingDashboardDao.uuid,
+                    }),
                 );
                 if (!canUpdateDashboardInNewSpace) {
                     throw new ForbiddenError(
@@ -1008,17 +1011,25 @@ export class DashboardService
 
         const { projectUuid, organizationUuid, pinnedListUuid, spaceUuid } =
             existingDashboard;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('PinnedItems', { projectUuid, organizationUuid }),
+                subject('PinnedItems', {
+                    projectUuid,
+                    organizationUuid,
+                    uuid: existingDashboard.uuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
         if (
-            user.ability.cannot('view', subject('Dashboard', existingDashboard))
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', existingDashboard),
+            )
         ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
@@ -1068,6 +1079,7 @@ export class DashboardService
         projectUuid: string,
         dashboards: UpdateMultipleDashboards[],
     ): Promise<Dashboard[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         const userHasAccessToDashboards = await Promise.all(
             dashboards.map(async (dashboardToUpdate) => {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -1078,18 +1090,24 @@ export class DashboardService
                         user.userUuid,
                         dashboard.spaceUuid,
                     );
-                const canUpdateDashboardInCurrentSpace = user.ability.can(
+                const canUpdateDashboardInCurrentSpace = auditedAbility.can(
                     'update',
-                    subject('Dashboard', currentSpaceContext),
+                    subject('Dashboard', {
+                        ...currentSpaceContext,
+                        uuid: dashboard.uuid,
+                    }),
                 );
                 const newSpaceContext =
                     await this.spacePermissionService.getSpaceAccessContext(
                         user.userUuid,
                         dashboardToUpdate.spaceUuid,
                     );
-                const canUpdateDashboardInNewSpace = user.ability.can(
+                const canUpdateDashboardInNewSpace = auditedAbility.can(
                     'update',
-                    subject('Dashboard', newSpaceContext),
+                    subject('Dashboard', {
+                        ...newSpaceContext,
+                        uuid: dashboardToUpdate.uuid,
+                    }),
                 );
                 return (
                     canUpdateDashboardInCurrentSpace &&
@@ -1157,14 +1175,16 @@ export class DashboardService
                     user.userUuid,
                     spaceUuid,
                 );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        uuid: dashboardUuid,
                     }),
                 )
             ) {
@@ -1258,14 +1278,16 @@ export class DashboardService
                     user.userUuid,
                     dashboard.spaceUuid,
                 );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('Dashboard', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        uuid: dashboardUuid,
                     }),
                 )
             ) {
@@ -1302,12 +1324,14 @@ export class DashboardService
         );
 
         if (!options?.bypassPermissions) {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
+                        uuid: dashboardUuid,
                     }),
                 )
             ) {
@@ -1347,12 +1371,14 @@ export class DashboardService
                 dashboardUuid,
                 { deleted: true },
             );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
+                        uuid: dashboardUuid,
                     }),
                 )
             ) {
@@ -1483,18 +1509,20 @@ export class DashboardService
             access,
         };
         const { organizationUuid, projectUuid } = dashboard;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
+                    uuid: '',
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
-        if (user.ability.cannot('view', subject('Dashboard', dashboard))) {
+        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -1525,13 +1553,15 @@ export class DashboardService
                 dashboard.spaceUuid,
             );
 
-        const isActorAllowedToPerformAction = actor.user.ability.can(
+        const auditedAbility = this.createAuditedAbility(actor.user);
+        const isActorAllowedToPerformAction = auditedAbility.can(
             action,
             subject('Dashboard', {
-                organizationUuid: actor.user.organizationUuid,
+                organizationUuid: actor.user.organizationUuid || '',
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access,
+                uuid: dashboard.uuid,
             }),
         );
 
@@ -1548,17 +1578,16 @@ export class DashboardService
                     resource.spaceUuid,
                 );
 
-            const isActorAllowedToPerformActionInNewSpace =
-                actor.user.ability.can(
-                    action,
-                    subject('Dashboard', {
-                        organizationUuid: newSpace.organizationUuid,
-                        projectUuid: actor.projectUuid,
-                        inheritsFromOrgOrProject:
-                            newSpace.inheritsFromOrgOrProject,
-                        access: newSpace.access,
-                    }),
-                );
+            const isActorAllowedToPerformActionInNewSpace = auditedAbility.can(
+                action,
+                subject('Dashboard', {
+                    organizationUuid: newSpace.organizationUuid,
+                    projectUuid: actor.projectUuid,
+                    inheritsFromOrgOrProject: newSpace.inheritsFromOrgOrProject,
+                    access: newSpace.access,
+                    uuid: dashboard.uuid,
+                }),
+            );
 
             if (!isActorAllowedToPerformActionInNewSpace) {
                 throw new ForbiddenError(
@@ -1579,8 +1608,9 @@ export class DashboardService
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
@@ -1622,8 +1652,9 @@ export class DashboardService
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
                     ...dashboardDao,
@@ -1763,8 +1794,9 @@ export class DashboardService
                 user.userUuid,
                 dashboardDao.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Dashboard', {
                     ...dashboardDao,
