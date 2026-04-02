@@ -68,8 +68,14 @@ export class PinningService extends BaseService {
         projectUuid: string,
         pinnedListUuid: string,
     ): Promise<PinnedItems> {
+        const auditedAbility = this.createAuditedAbility(user);
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { ...project, uuid: project.projectUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -133,8 +139,17 @@ export class PinningService extends BaseService {
         pinnedListUuid: string,
         itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<PinnedItems> {
+        const auditedAbility = this.createAuditedAbility(user);
         const project = await this.projectModel.get(projectUuid);
-        if (user.ability.cannot('manage', subject('PinnedItems', project))) {
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('PinnedItems', {
+                    ...project,
+                    uuid: project.projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         if (project.pinnedListUuid !== pinnedListUuid) {
