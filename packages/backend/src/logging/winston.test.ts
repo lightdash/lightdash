@@ -135,14 +135,14 @@ describe('formatAuditResource', () => {
         ).toBe('Project in project proj-uuid');
     });
 
-    it('shows "in project" for Project type even when projectUuid is not set', () => {
+    it('shows Project with uuid when projectUuid is not set', () => {
         expect(
             formatAuditResource({
                 type: 'Project',
                 uuid: 'proj-uuid',
                 organizationUuid: 'org-uuid',
             }),
-        ).toBe('Project in organization org-uuid');
+        ).toBe('Project proj-uuid');
     });
 
     it('shows type with project context for permission-type subjects', () => {
