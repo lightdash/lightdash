@@ -1,3 +1,10 @@
+## [0.2720.1](https://github.com/lightdash/lightdash/compare/0.2720.0...0.2720.1) (2026-04-02)
+
+
+### Bug Fixes
+
+* revert PostHog recording pause on dashboards ([#21707](https://github.com/lightdash/lightdash/issues/21707)) ([d192fcb](https://github.com/lightdash/lightdash/commit/d192fcb7135a4e5606c0c89fd1893afeee71a7f4)), closes [#21696](https://github.com/lightdash/lightdash/issues/21696)
+
 # [0.2720.0](https://github.com/lightdash/lightdash/compare/0.2719.0...0.2720.0) (2026-04-02)
 
 
