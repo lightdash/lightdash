@@ -861,6 +861,8 @@ export class McpService extends BaseService {
                 const args = _args as { projectUuid?: string };
                 const { user } = this.getAccount(extra as McpProtocolContext);
 
+                await this.checkAiAgentsVisible(user);
+
                 this.trackToolCall(
                     extra as McpProtocolContext,
                     McpToolName.LIST_AGENTS,
@@ -912,6 +914,8 @@ export class McpService extends BaseService {
                 const { user, organizationUuid } = this.getAccount(
                     extra as McpProtocolContext,
                 );
+
+                await this.checkAiAgentsVisible(user);
 
                 this.trackToolCall(
                     extra as McpProtocolContext,
@@ -1052,6 +1056,8 @@ export class McpService extends BaseService {
                 const { user, organizationUuid } = this.getAccount(
                     extra as McpProtocolContext,
                 );
+
+                await this.checkAiAgentsVisible(user);
 
                 this.trackToolCall(
                     extra as McpProtocolContext,
@@ -2473,6 +2479,19 @@ export class McpService extends BaseService {
     public getLightdashVersion(context: McpProtocolContext): string {
         this.canAccessMcp(context);
         return VERSION;
+    }
+
+    private async checkAiAgentsVisible(user: SessionUser): Promise<void> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const settings =
+            await this.aiOrganizationSettingsService.getSettings(user);
+        if (!settings.aiAgentsVisible) {
+            throw new ForbiddenError(
+                'AI Agent features are disabled for this organization',
+            );
+        }
     }
 
     private trackToolCall(
