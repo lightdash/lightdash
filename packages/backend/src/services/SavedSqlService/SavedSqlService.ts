@@ -175,10 +175,14 @@ export class SavedSqlService
                   [spaceUuid],
               );
 
+        const auditedAbility = this.createAuditedAbility(actor.user);
         if (
-            actor.user.ability.cannot(
+            auditedAbility.cannot(
                 action,
-                subject('SavedChart', ctx[spaceUuid]),
+                subject('SavedChart', {
+                    ...ctx[spaceUuid],
+                    uuid: resource.savedSqlUuid ?? '',
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -188,9 +192,12 @@ export class SavedSqlService
 
         if (needsNewSpaceCheck) {
             if (
-                actor.user.ability.cannot(
+                auditedAbility.cannot(
                     action,
-                    subject('SavedChart', ctx[resource.spaceUuid!]),
+                    subject('SavedChart', {
+                        ...ctx[resource.spaceUuid!],
+                        uuid: resource.savedSqlUuid ?? '',
+                    }),
                 )
             ) {
                 throw new ForbiddenError(
@@ -255,10 +262,15 @@ export class SavedSqlService
     ): Promise<ApiCreateSqlChart['results']> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    uuid: '' /* TODO: pass resource uuid */,
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -314,10 +326,15 @@ export class SavedSqlService
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    uuid: savedSqlUuid,
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -445,18 +462,27 @@ export class SavedSqlService
         const { organizationUuid } = savedChart.organization;
 
         if (!options?.bypassPermissions) {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    subject('Project', {
+                        uuid: projectUuid,
+                        organizationUuid,
+                        projectUuid,
+                    }),
                 )
             ) {
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
-                subject('DeletedContent', { organizationUuid, projectUuid }),
+                subject('DeletedContent', {
+                    uuid: savedSqlUuid,
+                    organizationUuid,
+                    projectUuid,
+                }),
             );
 
             if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
@@ -492,18 +518,27 @@ export class SavedSqlService
             const { projectUuid } = savedChart.project;
             const { organizationUuid } = savedChart.organization;
 
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    subject('Project', {
+                        uuid: projectUuid,
+                        organizationUuid,
+                        projectUuid,
+                    }),
                 )
             ) {
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
-                subject('DeletedContent', { organizationUuid, projectUuid }),
+                subject('DeletedContent', {
+                    uuid: savedSqlUuid,
+                    organizationUuid,
+                    projectUuid,
+                }),
             );
 
             if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
@@ -524,14 +559,20 @@ export class SavedSqlService
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('Job', { organizationUuid, projectUuid }),
+                subject('Job', {
+                    uuid: '' /* TODO: pass resource uuid */,
+                    organizationUuid,
+                    projectUuid,
+                }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
                 }),
@@ -577,21 +618,29 @@ export class SavedSqlService
                 { user, projectUuid },
                 { savedSqlUuid: savedChart.savedSqlUuid },
             );
-        } else if (
+        } else {
             // If it's not a saved chart, check if the user has access to run a pivot query
-            user.ability.cannot(
-                'create',
-                subject('Job', { organizationUuid, projectUuid }),
-            ) ||
-            user.ability.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Job', {
+                        uuid: '' /* TODO: pass resource uuid */,
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                ) ||
+                auditedAbility.cannot(
+                    'manage',
+                    subject('SqlRunner', {
+                        uuid: '' /* TODO: pass resource uuid */,
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
         const jobId = await this.schedulerClient.runSqlPivotQuery({
             savedSqlUuid: savedChart?.savedSqlUuid,
@@ -722,10 +771,12 @@ export class SavedSqlService
         });
         const { organizationUuid } = sqlChart.organization;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ScheduledDeliveries', {
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
                 }),
@@ -748,10 +799,12 @@ export class SavedSqlService
         });
         const { organizationUuid } = sqlChart.organization;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ScheduledDeliveries', {
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
                 }),
