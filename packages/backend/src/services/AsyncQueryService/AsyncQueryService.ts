@@ -1539,7 +1539,7 @@ export class AsyncQueryService extends ProjectService {
                                   ? formatItemValue(
                                         field,
                                         row[c.reference],
-                                        false,
+                                        undefined,
                                     )
                                   : String(rawValue);
                               return {

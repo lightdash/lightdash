@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import {
     Compact,
     CustomFormatType,
@@ -16,8 +16,10 @@ import {
     applyDefaultFormat,
     convertCustomFormatToFormatExpression,
     currencies,
+    formatDate,
     formatItemValue,
     formatNumberValue,
+    formatTimestamp,
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
@@ -1593,7 +1595,7 @@ describe('Formatting', () => {
                     formatItemValue(
                         metricWithConditionalFormat,
                         1234.56,
-                        false,
+                        undefined,
                         parameters,
                     ),
                 ).toBe('$1,234.56');
@@ -1611,7 +1613,7 @@ describe('Formatting', () => {
                     formatItemValue(
                         metricWithConditionalFormat,
                         1234.56,
-                        false,
+                        undefined,
                         parameters,
                     ),
                 ).toBe('€1,234.56');
@@ -1625,15 +1627,25 @@ describe('Formatting', () => {
                 };
 
                 expect(
-                    formatItemValue(metricWithSimpleFormat, 1234.56, false, {
-                        symbol: '£',
-                    }),
+                    formatItemValue(
+                        metricWithSimpleFormat,
+                        1234.56,
+                        undefined,
+                        {
+                            symbol: '£',
+                        },
+                    ),
                 ).toBe('£1,234.56');
 
                 expect(
-                    formatItemValue(metricWithSimpleFormat, 1234.56, false, {
-                        symbol: '¥',
-                    }),
+                    formatItemValue(
+                        metricWithSimpleFormat,
+                        1234.56,
+                        undefined,
+                        {
+                            symbol: '¥',
+                        },
+                    ),
                 ).toBe('¥1,234.56');
             });
 
@@ -1649,7 +1661,7 @@ describe('Formatting', () => {
                     formatItemValue(
                         metricWithConditionalFormat,
                         1234.56,
-                        false,
+                        undefined,
                         undefined,
                     ),
                 ).toBe('1,234.56');
@@ -1666,7 +1678,7 @@ describe('Formatting', () => {
                     formatItemValue(
                         metricWithConditionalFormat,
                         1234.567,
-                        false,
+                        undefined,
                         { precision: 'high' },
                     ),
                 ).toBe('$1,234.57');
@@ -1675,7 +1687,7 @@ describe('Formatting', () => {
                     formatItemValue(
                         metricWithConditionalFormat,
                         1234.567,
-                        false,
+                        undefined,
                         { precision: 'low' },
                     ),
                 ).toBe('$1,235');
@@ -1695,15 +1707,20 @@ describe('Formatting', () => {
                 };
 
                 expect(
-                    formatItemValue(metricWithLdPrefix, 1234.56, false, {
+                    formatItemValue(metricWithLdPrefix, 1234.56, undefined, {
                         symbol: '$',
                     }),
                 ).toBe('$1,234.56');
 
                 expect(
-                    formatItemValue(metricWithLightdashPrefix, 1234.56, false, {
-                        symbol: '€',
-                    }),
+                    formatItemValue(
+                        metricWithLightdashPrefix,
+                        1234.56,
+                        undefined,
+                        {
+                            symbol: '€',
+                        },
+                    ),
                 ).toBe('€1,234.56');
             });
 
@@ -1715,22 +1732,79 @@ describe('Formatting', () => {
                 };
 
                 expect(
-                    formatItemValue(metricWithFormat, 1000.5, false, {
+                    formatItemValue(metricWithFormat, 1000.5, undefined, {
                         symbol: '$',
                     }),
                 ).toBe('$1,000.50');
 
                 expect(
-                    formatItemValue(metricWithFormat, 1000.5, false, {
+                    formatItemValue(metricWithFormat, 1000.5, undefined, {
                         symbol: '€',
                     }),
                 ).toBe('€1,000.50');
 
                 expect(
-                    formatItemValue(metricWithFormat, 1000.5, false, {
+                    formatItemValue(metricWithFormat, 1000.5, undefined, {
                         symbol: '£',
                     }),
                 ).toBe('£1,000.50');
+            });
+        });
+    });
+
+    describe('timezone-aware date formatting', () => {
+        // 2020-04-04 02:00 UTC = 2020-04-03 22:00 New York (EDT, UTC-4)
+        const utcTimestamp = '2020-04-04T02:00:00.000Z';
+
+        describe('formatDate', () => {
+            test('formats in UTC when timezone is UTC', () => {
+                expect(formatDate(utcTimestamp, TimeFrames.DAY, 'UTC')).toBe(
+                    '2020-04-04',
+                );
+            });
+
+            test('formats in specified timezone', () => {
+                expect(
+                    formatDate(
+                        utcTimestamp,
+                        TimeFrames.DAY,
+                        'America/New_York',
+                    ),
+                ).toBe('2020-04-03');
+            });
+
+            test('formats in process timezone when no timezone provided (flag off)', () => {
+                expect(formatDate(utcTimestamp, TimeFrames.DAY)).toBe(
+                    '2020-04-04',
+                );
+            });
+        });
+
+        describe('formatTimestamp', () => {
+            test('formats in UTC when timezone is UTC', () => {
+                expect(
+                    formatTimestamp(
+                        utcTimestamp,
+                        TimeFrames.MILLISECOND,
+                        'UTC',
+                    ),
+                ).toBe('2020-04-04, 02:00:00:000 (+00:00)');
+            });
+
+            test('formats in specified timezone', () => {
+                expect(
+                    formatTimestamp(
+                        utcTimestamp,
+                        TimeFrames.MILLISECOND,
+                        'America/New_York',
+                    ),
+                ).toBe('2020-04-03, 22:00:00:000 (-04:00)');
+            });
+
+            test('formats in process timezone when no timezone provided (flag off)', () => {
+                expect(
+                    formatTimestamp(utcTimestamp, TimeFrames.MILLISECOND),
+                ).toBe('2020-04-04, 02:00:00:000 (+00:00)');
             });
         });
     });

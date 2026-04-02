@@ -72,7 +72,7 @@ export const getCartesianAxisFormatterConfig = ({
     if (axisItem && (hasFormattingConfig || axisMinInterval)) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, true, parameters),
+                formatItemValue(axisItem, value, 'UTC', parameters),
         };
         axisConfig.axisPointer = {
             label: {
@@ -84,7 +84,7 @@ export const getCartesianAxisFormatterConfig = ({
                         ? formatItemValue(
                               axisItem,
                               value.value,
-                              true,
+                              'UTC',
                               parameters,
                           )
                         : undefined,
@@ -109,7 +109,7 @@ export const getCartesianAxisFormatterConfig = ({
                         ? formatItemValue(
                               axisItem,
                               value.value,
-                              true,
+                              'UTC',
                               parameters,
                           )
                         : undefined,
@@ -122,7 +122,7 @@ export const getCartesianAxisFormatterConfig = ({
     ) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, false, parameters),
+                formatItemValue(axisItem, value, undefined, parameters),
         };
         axisConfig.axisPointer = {
             label: {
@@ -134,7 +134,7 @@ export const getCartesianAxisFormatterConfig = ({
                         ? formatItemValue(
                               axisItem,
                               value.value,
-                              false,
+                              undefined,
                               parameters,
                           )
                         : undefined,
@@ -153,7 +153,7 @@ export const getCartesianAxisFormatterConfig = ({
             case TimeFrames.WEEK:
                 axisConfig.axisLabel = {
                     formatter: (value: AnyType) =>
-                        formatItemValue(axisItem, value, true, parameters),
+                        formatItemValue(axisItem, value, 'UTC', parameters),
                 };
 
                 axisConfig.axisPointer = {
@@ -166,7 +166,7 @@ export const getCartesianAxisFormatterConfig = ({
                                 ? formatItemValue(
                                       axisItem,
                                       value.value,
-                                      true,
+                                      'UTC',
                                       parameters,
                                   )
                                 : undefined,

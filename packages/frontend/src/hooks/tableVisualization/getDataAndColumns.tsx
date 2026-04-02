@@ -197,7 +197,7 @@ const getDataAndColumns = ({
                             ? formatItemValue(
                                   item,
                                   totals[itemId],
-                                  false,
+                                  undefined,
                                   parameters,
                               )
                             : null,
@@ -264,7 +264,7 @@ const getDataAndColumns = ({
                                     {formatItemValue(
                                         item,
                                         subtotalValue,
-                                        false,
+                                        undefined,
                                         parameters,
                                     )}
                                 </Text>
