@@ -62,6 +62,7 @@ import express from 'express';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import Logger from '../../logging/logger';
@@ -270,7 +271,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Created')
     @Post('/')
     @OperationId('createAgent')
@@ -290,7 +295,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{agentUuid}')
     @OperationId('updateAgent')
@@ -312,7 +321,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/{agentUuid}')
     @OperationId('deleteAgent')
@@ -785,7 +798,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/verified',
@@ -814,7 +831,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('201', 'Created')
     @Post('/{agentUuid}/evaluations')
     @OperationId('createEvaluation')
@@ -839,7 +860,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluations/{evalUuid}/run')
     @OperationId('runEvaluation')
@@ -975,7 +1000,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{agentUuid}/evaluations/{evalUuid}')
     @OperationId('updateEvaluation')
@@ -1003,7 +1032,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluations/{evalUuid}/append')
     @OperationId('appendToEvaluation')
@@ -1030,7 +1063,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/{agentUuid}/evaluations/{evalUuid}')
     @OperationId('deleteEvaluation')
@@ -1055,7 +1092,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/append-instruction')
     @OperationId('appendInstruction')
@@ -1083,7 +1124,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post(
         '/{agentUuid}/threads/{threadUuid}/messages/{promptUuid}/revert-change',
