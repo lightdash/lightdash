@@ -1,3 +1,15 @@
+# [0.2715.0](https://github.com/lightdash/lightdash/compare/0.2714.0...0.2715.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* DuckDB pre-agg failure exposes ERROR state to frontend before warehouse fallback completes ([#21661](https://github.com/lightdash/lightdash/issues/21661)) ([fa8ef77](https://github.com/lightdash/lightdash/commit/fa8ef77b0ed727754f3e718476f895a0bcc68133)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* audit logging foundation ([#21615](https://github.com/lightdash/lightdash/issues/21615)) ([8e7478c](https://github.com/lightdash/lightdash/commit/8e7478c8cf4b9f2faeaba9460989e7cf80d56792))
+
 # [0.2714.0](https://github.com/lightdash/lightdash/compare/0.2713.0...0.2714.0) (2026-04-02)
 
 
