@@ -169,7 +169,11 @@ export class AiAgentAdminController extends BaseController {
      * Update AI organization settings
      * @summary Update AI settings
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Updated AI organization settings')
     @Patch('/settings')
     @OperationId('upsertAiOrganizationSettings')
