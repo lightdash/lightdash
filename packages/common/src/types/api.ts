@@ -446,7 +446,6 @@ export type HealthState = {
             daysLimit: number;
         };
         disableSentryTracking: boolean;
-        disablePosthogRecording: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;

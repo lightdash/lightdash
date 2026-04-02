@@ -90,7 +90,6 @@ export const BaseResponse: HealthState = {
             daysLimit: 0,
         },
         disableSentryTracking: false,
-        disablePosthogRecording: false,
     },
     rudder: {
         dataPlaneUrl: '',
