@@ -437,8 +437,7 @@ export const CustomBinDimensionModal: FC<{
                             minimum: 1,
                             type: 'array',
                             inclusive: true,
-                            message:
-                                'Each group must have at least one value',
+                            message: 'Each group must have at least one value',
                             path: [
                                 'binConfig',
                                 'customGroups',
