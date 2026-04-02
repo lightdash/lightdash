@@ -39,7 +39,7 @@ export class SpacePermissionService extends BaseService {
      */
     async can(
         action: AbilityAction,
-        actor: Pick<SessionUser, 'ability' | 'userUuid'>,
+        actor: SessionUser,
         spaceUuids: string[] | string,
     ): Promise<boolean> {
         const spaceUuidsArray = Array.isArray(spaceUuids)
@@ -50,8 +50,9 @@ export class SpacePermissionService extends BaseService {
             userUuid: actor.userUuid,
         });
 
+        const auditedAbility = this.createAuditedAbility(actor);
         return Object.values(accessContext).every((access) =>
-            actor.ability.can(action, subject('Space', access)),
+            auditedAbility.can(action, subject('Space', access)),
         );
     }
 
@@ -64,16 +65,17 @@ export class SpacePermissionService extends BaseService {
      */
     async getAccessibleSpaceUuids(
         action: AbilityAction,
-        actor: Pick<SessionUser, 'ability' | 'userUuid'>,
+        actor: SessionUser,
         spaceUuids: string[],
     ): Promise<string[]> {
         const accessContext = await this.getSpacesCaslContext(spaceUuids, {
             userUuid: actor.userUuid,
         });
 
+        const auditedAbility = this.createAuditedAbility(actor);
         return Object.entries(accessContext)
             .filter(([_, access]) =>
-                actor.ability.can(action, subject('Space', access)),
+                auditedAbility.can(action, subject('Space', access)),
             )
             .map(([spaceUuid]) => spaceUuid);
     }
