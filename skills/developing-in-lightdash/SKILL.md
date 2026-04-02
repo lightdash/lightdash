@@ -218,15 +218,15 @@ The semantic layer defines your data model. See individual references for full c
 All charts share a common base structure:
 
 ```yaml
-contentType: chart              # Required: chart, dashboard, or sql_chart
 chartConfig:
-  type: <type>
   config: {}        # Type-specific — see individual references
+  type: <type>
+contentType: chart              # Required: chart, dashboard, or sql_chart
 dashboardSlug: my-dashboard  # Optional: scopes chart to dashboard (won't appear in space)
 metricQuery:
-  exploreName: my_explore     # Required: which explore to query
   dimensions:
     - my_explore_category
+  exploreName: my_explore     # Required: which explore to query
   filters: {}
   limit: 500
   metrics:

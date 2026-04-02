@@ -7,17 +7,17 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic Structure
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "big_number"
   config:
     label: "Total Revenue"
     selectedField: "orders_total_revenue"
     showBigNumberLabel: true
     style: "M"
+  type: "big_number"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions: []
+  exploreName: "orders"
   filters: []
   limit: 1
   metrics:
@@ -51,12 +51,7 @@ Changes the color of the big number text based on rules. Each rule has a `color`
 
 ```yaml
 chartConfig:
-  type: "big_number"
   config:
-    selectedField: "orders_total_revenue"
-    label: "Total Revenue"
-    style: "M"
-    showBigNumberLabel: true
     conditionalFormattings:
       # Turn red when revenue drops below 100,000
       - color: "#EF4444"
@@ -72,6 +67,11 @@ chartConfig:
           - id: "high-revenue"
             operator: "greaterThan"
             values: [1000000]
+    label: "Total Revenue"
+    selectedField: "orders_total_revenue"
+    showBigNumberLabel: true
+    style: "M"
+  type: "big_number"
 ```
 
 ### Rule Structure
@@ -101,9 +101,7 @@ Comparisons work by **comparing row 1 to row 2** in the query results. This requ
 3. **`limit: 2`** (or more) so a second row exists to compare against
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "big_number"
   config:
     comparisonFormat: "percentage"
     comparisonLabel: "vs. Previous Month"
@@ -112,17 +110,19 @@ chartConfig:
     showBigNumberLabel: true
     showComparison: true
     style: "M"
+  type: "big_number"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_created_month"           # 1. Time dimension
+  exploreName: "orders"
   filters: []
   limit: 2                             # 3. Two rows for comparison
   metrics:
     - "orders_total_revenue"
   sorts:
-    - fieldId: "orders_created_month"
-      descending: true                 # 2. Most recent first
+    - descending: true                 # 2. Most recent first
+      fieldId: "orders_created_month"
 name: "Monthly Revenue"
 slug: "monthly-revenue"
 spaceSlug: "sales"

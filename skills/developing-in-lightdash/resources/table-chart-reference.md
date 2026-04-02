@@ -9,9 +9,7 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic YAML Structure
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "table"
   config:
     columns:
       field_id_1:
@@ -21,10 +19,12 @@ chartConfig:
     conditionalFormattings: []
     hideRowNumbers: false
     showColumnCalculation: true
+  type: "table"
+contentType: chart
 metricQuery:
-  exploreName: "my_explore"
   dimensions:
     - field_id_1
+  exploreName: "my_explore"
   metrics:
     - metric_id_1
 name: "My Table Chart"
@@ -86,11 +86,11 @@ Conditional formatting highlights cells based on their values. Each rule consist
 This example demonstrates frozen columns, bar visualization, and conditional formatting:
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "table"
   config:
     columns:
+      orders_order_count:
+        name: "# Orders"
       orders_region:
         frozen: true
         name: "Region"
@@ -101,8 +101,6 @@ chartConfig:
         color: "#10B981"
         displayStyle: "bar"
         name: "Total Revenue"
-      orders_order_count:
-        name: "# Orders"
     conditionalFormattings:
       # Gradient based on revenue
       - applyTo: "cell"
@@ -127,11 +125,13 @@ chartConfig:
     hideRowNumbers: false
     showColumnCalculation: true
     showResultsTotal: true
+  type: "table"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - orders_region
     - orders_sales_rep
+  exploreName: "orders"
   metrics:
     - orders_total_revenue
     - orders_order_count
@@ -148,7 +148,6 @@ Compare values between fields to highlight over/under budget:
 
 ```yaml
 chartConfig:
-  type: "table"
   config:
     columns:
       orders_actual_spend:
@@ -157,16 +156,17 @@ chartConfig:
         visible: false  # Hide but use for comparison
 
     conditionalFormattings:
-      - target:
-          fieldId: "orders_actual_spend"
+      - applyTo: "cell"
         color: "#EF4444"
         rules:
-          - id: "over-budget"
+          - compareTarget:
+              fieldId: "orders_budget"
+            id: "over-budget"
             operator: "greaterThan"
             values: []
-            compareTarget:
-              fieldId: "orders_budget"
-        applyTo: "cell"
+        target:
+          fieldId: "orders_actual_spend"
+  type: "table"
 ```
 
 ## Pivot Tables
@@ -174,9 +174,7 @@ chartConfig:
 Pivot tables cross-tabulate dimensions and metrics. Add two or more dimensions to `metricQuery.dimensions`, then put the dimension you want as column headers into `pivotConfig.columns` (a **top-level** property, not inside `chartConfig`). Set `metricsAsRows: true` to transpose metrics into rows instead.
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "table"
   config:
     columns:
       orders_region:
@@ -184,14 +182,16 @@ chartConfig:
         name: "Region"
       orders_total_revenue:
         name: "Revenue"
+    # metricsAsRows: true        # uncomment to transpose metrics into rows
     showColumnCalculation: true  # totals row at bottom
     showRowCalculation: true     # totals column on right
-    # metricsAsRows: true        # uncomment to transpose metrics into rows
+  type: "table"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - orders_region
     - orders_product_category
+  exploreName: "orders"
   metrics:
     - orders_total_revenue
 name: "Revenue by Region × Category"

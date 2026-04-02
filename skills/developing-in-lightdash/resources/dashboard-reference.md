@@ -287,13 +287,13 @@ filters:
         fieldId: orders_created_at    # Default: for tiles using orders explore
         tableName: orders
       tileTargets:
-        sales-by-region:              # Tile slug - uses orders explore (matches default)
-          fieldId: orders_created_at
-          tableName: orders
         customer-metrics:             # Tile slug - uses customers explore (different field!)
           fieldId: customers_signup_date
           tableName: customers
         revenue-summary:              # Tile slug - uses orders explore
+          fieldId: orders_created_at
+          tableName: orders
+        sales-by-region:              # Tile slug - uses orders explore (matches default)
           fieldId: orders_created_at
           tableName: orders
       values: [30]

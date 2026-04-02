@@ -192,27 +192,27 @@ Add the PoP metric to `layout.yField` and create a separate series in `eChartsCo
 
 ```yaml
 chartConfig:
-  type: cartesian
   config:
+    eChartsConfig:
+      series:
+        - encode:
+            xRef:
+              field: orders_order_date_month
+            yRef:
+              field: orders_total_revenue
+          type: line
+        - encode:
+            xRef:
+              field: orders_order_date_month
+            yRef:
+              field: orders_total_revenue__pop__month_1__<hash>
+          type: line
     layout:
       xField: orders_order_date_month
       yField:
         - orders_total_revenue
         - orders_total_revenue__pop__month_1__<hash>
-    eChartsConfig:
-      series:
-        - type: line
-          encode:
-            xRef:
-              field: orders_order_date_month
-            yRef:
-              field: orders_total_revenue
-        - type: line
-          encode:
-            xRef:
-              field: orders_order_date_month
-            yRef:
-              field: orders_total_revenue__pop__month_1__<hash>
+  type: cartesian
 ```
 
 ### Big Number Charts

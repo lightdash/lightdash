@@ -29,11 +29,11 @@ Treemap charts are ideal for:
 
 ```yaml
 chartConfig:
-  type: treemap
   config:
     groupFieldIds:
       - category_field
     sizeMetricId: size_metric
+  type: treemap
 ```
 
 ## Key Properties
@@ -58,26 +58,26 @@ chartConfig:
 Show category and subcategory revenue with nested rectangles.
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: treemap
   config:
     groupFieldIds:
       - products_category
       - products_subcategory
     sizeMetricId: products_total_revenue
     visibleMin: 1000           # Hide rectangles smaller than $1000
+  type: treemap
+contentType: chart
 metricQuery:
-  exploreName: products
   dimensions:
     - products_category
     - products_subcategory
+  exploreName: products
   limit: 50
   metrics:
     - products_total_revenue
   sorts:
-    - fieldId: products_total_revenue
-      descending: true
+    - descending: true
+      fieldId: products_total_revenue
 name: "Category & Subcategory Revenue"
 slug: category-subcategory-revenue
 spaceSlug: sales
@@ -92,9 +92,7 @@ version: 1
 Size by revenue, color by profit margin to show profitability.
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: treemap
   config:
     colorMetricId: products_profit_margin
     endColor: "#22c55e"        # Green for high margin
@@ -102,17 +100,19 @@ chartConfig:
       - products_category
     sizeMetricId: products_total_revenue
     startColor: "#ef4444"      # Red for low margin
+  type: treemap
+contentType: chart
 metricQuery:
-  exploreName: products
   dimensions:
     - products_category
+  exploreName: products
   limit: 25
   metrics:
     - products_total_revenue
     - products_profit_margin
   sorts:
-    - fieldId: products_total_revenue
-      descending: true
+    - descending: true
+      fieldId: products_total_revenue
 name: "Revenue & Margin by Category"
 slug: revenue-margin-by-category
 spaceSlug: sales
