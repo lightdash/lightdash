@@ -250,20 +250,6 @@ const AppGenerate: FC = () => {
         scrollToBottom();
     }, [messages, isLoading, scrollToBottom]);
 
-    // Load more versions when scrolling to top
-    const handleChatScroll = useCallback(
-        (e: React.UIEvent<HTMLDivElement>) => {
-            if (
-                e.currentTarget.scrollTop === 0 &&
-                hasNextPage &&
-                !isFetchingNextPage
-            ) {
-                void fetchNextPage();
-            }
-        },
-        [hasNextPage, isFetchingNextPage, fetchNextPage],
-    );
-
     if (health.data && !health.data.dataApps.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
@@ -382,10 +368,7 @@ const AppGenerate: FC = () => {
                 {/* Chat Panel */}
                 <Panel defaultSize={30} minSize={20} maxSize={50}>
                     <Box className={classes.chatPanel}>
-                        <Box
-                            className={classes.chatMessages}
-                            onScroll={handleChatScroll}
-                        >
+                        <Box className={classes.chatMessages}>
                             {hasNextPage && (
                                 <Group
                                     gap="xs"
