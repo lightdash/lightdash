@@ -15,6 +15,7 @@ import cloneDeep from 'lodash/cloneDeep';
 import {
     Activity,
     memo,
+    startTransition,
     useCallback,
     useMemo,
     useRef,
@@ -44,7 +45,7 @@ import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
-import GridTile from './GridTile';
+import GridTile, { StagedGridTile } from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
     getReactGridLayoutConfig,
@@ -54,6 +55,7 @@ import {
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { useGridStyles } from './useGridStyles';
+import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -104,50 +106,53 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onEditTile,
         onAddTiles,
     }) => (
-        <div
-            key={tabUuid}
-            data-tab-uuid={tabUuid}
-            style={
-                isActive
-                    ? { position: 'relative' }
-                    : {
-                          visibility: 'hidden',
-                          position: 'absolute',
-                          width: '100%',
-                          pointerEvents: 'none',
-                      }
-            }
-        >
-            <ResponsiveGridLayout
-                {...gridProps}
-                className={locked ? 'locked' : ''}
-                containerPadding={GRID_CONTAINER_PADDING}
-                onDragStart={onDragStart}
-                onDragStop={onDragStop}
-                onResizeStart={onResizeStart}
-                onResizeStop={onResizeStop}
-                onBreakpointChange={onBreakpointChange}
-                onWidthChange={onWidthChange}
-                layouts={layouts}
+        <StagedMountProvider waveKey={tabUuid} totalTiles={tiles.length}>
+            <div
+                key={tabUuid}
+                data-tab-uuid={tabUuid}
+                style={
+                    isActive
+                        ? { position: 'relative' }
+                        : {
+                              visibility: 'hidden',
+                              position: 'absolute',
+                              width: '100%',
+                              pointerEvents: 'none',
+                          }
+                }
             >
-                {tiles.map((tile, idx) => (
-                    <div key={tile.uuid} data-tile-uuid={tile.uuid}>
-                        <TrackSection name={SectionName.DASHBOARD_TILE}>
-                            <GridTile
-                                locked={locked}
-                                index={idx}
-                                isEditMode={isEditMode}
-                                tile={tile}
-                                onDelete={onDeleteTile}
-                                onEdit={onEditTile}
-                                tabs={dashboardTabs}
-                                onAddTiles={onAddTiles}
-                            />
-                        </TrackSection>
-                    </div>
-                ))}
-            </ResponsiveGridLayout>
-        </div>
+                <ResponsiveGridLayout
+                    {...gridProps}
+                    className={locked ? 'locked' : ''}
+                    containerPadding={GRID_CONTAINER_PADDING}
+                    onDragStart={onDragStart}
+                    onDragStop={onDragStop}
+                    onResizeStart={onResizeStart}
+                    onResizeStop={onResizeStop}
+                    onBreakpointChange={onBreakpointChange}
+                    onWidthChange={onWidthChange}
+                    layouts={layouts}
+                >
+                    {tiles.map((tile, idx) => (
+                        <div key={tile.uuid} data-tile-uuid={tile.uuid}>
+                            <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                <StagedGridTile
+                                    stageIndex={idx}
+                                    locked={locked}
+                                    index={idx}
+                                    isEditMode={isEditMode}
+                                    tile={tile}
+                                    onDelete={onDeleteTile}
+                                    onEdit={onEditTile}
+                                    tabs={dashboardTabs}
+                                    onAddTiles={onAddTiles}
+                                />
+                            </TrackSection>
+                        </div>
+                    ))}
+                </ResponsiveGridLayout>
+            </div>
+        </StagedMountProvider>
     ),
     (prevProps, nextProps) => {
         // Always re-render the active tab (it needs layout updates during drag)
@@ -593,15 +598,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
 
         const newParams = new URLSearchParams(search);
-        void navigate(
-            {
-                pathname: isEditMode
-                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                search: newParams.toString(),
-            },
-            { replace: true },
-        );
+        startTransition(() => {
+            void navigate(
+                {
+                    pathname: isEditMode
+                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                    search: newParams.toString(),
+                },
+                { replace: true },
+            );
+        });
     };
 
     const maxTabsPerDashboard =
