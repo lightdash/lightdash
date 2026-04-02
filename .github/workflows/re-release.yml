@@ -1,0 +1,63 @@
+name: Re-release (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., 0.2711.0)'
+        required: true
+        type: string
+      run_docker:
+        description: 'Run Docker build & push'
+        type: boolean
+        default: true
+      run_cli:
+        description: 'Run CLI binary build'
+        type: boolean
+        default: false
+      publish_release:
+        description: 'Publish draft release after builds'
+        type: boolean
+        default: true
+
+jobs:
+  docker:
+    if: inputs.run_docker
+    uses: ./.github/workflows/_docker.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit
+
+  cli-binaries:
+    if: inputs.run_cli
+    uses: ./.github/workflows/_cli-binaries.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit
+
+  publish-release:
+    name: Publish Release
+    needs: [docker, cli-binaries]
+    if: |
+      inputs.publish_release &&
+      !failure() &&
+      !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ inputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
+
+  homebrew:
+    needs: [publish-release]
+    if: inputs.run_cli && needs.publish-release.result == 'success'
+    uses: ./.github/workflows/_homebrew.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets: inherit
