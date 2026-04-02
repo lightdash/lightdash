@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { BaseService } from '../../services/BaseService';
 import { AiAgentModel } from '../models/AiAgentModel';
 
 type AiAgentAdminServiceDependencies = {
@@ -18,22 +19,24 @@ type AiAgentAdminServiceDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
-export class AiAgentAdminService {
+export class AiAgentAdminService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
     constructor(dependencies: AiAgentAdminServiceDependencies) {
+        super({ serviceName: 'AiAgentAdminService' });
         this.aiAgentModel = dependencies.aiAgentModel;
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
-    private static checkOrganizationAdminAccess(user: SessionUser): void {
+    private checkOrganizationAdminAccess(user: SessionUser): void {
         if (
-            user.ability.cannot(
+            this.createAuditedAbility(user).cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: user.organizationUuid || '',
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
@@ -58,7 +61,7 @@ export class AiAgentAdminService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        AiAgentAdminService.checkOrganizationAdminAccess(user);
+        this.checkOrganizationAdminAccess(user);
 
         // TODO: Check if filter contains userUuid and check if they exist in the organization
         // TODO: Check if filter contains agentUuid and check if they exist in the organization
@@ -77,7 +80,7 @@ export class AiAgentAdminService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        AiAgentAdminService.checkOrganizationAdminAccess(user);
+        this.checkOrganizationAdminAccess(user);
         return this.aiAgentModel.findAllAgents({
             organizationUuid,
         });
@@ -104,7 +107,7 @@ export class AiAgentAdminService {
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        AiAgentAdminService.checkOrganizationAdminAccess(user);
+        this.checkOrganizationAdminAccess(user);
 
         const { analyticsEmbedSecret } = this.lightdashConfig;
 

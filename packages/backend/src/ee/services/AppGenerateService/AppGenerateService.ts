@@ -851,11 +851,13 @@ export class AppGenerateService extends BaseService {
         prompt: string,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
@@ -983,11 +985,13 @@ export class AppGenerateService extends BaseService {
         prompt: string,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
@@ -1042,12 +1046,14 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<void> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
+                    uuid: '' /* TODO: pass resource uuid */,
                 }),
             )
         ) {
@@ -1115,11 +1121,13 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
     }> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
@@ -1205,6 +1213,7 @@ export class AppGenerateService extends BaseService {
         };
     }> {
         this.assertDataAppsEnabled();
+        // eslint-disable-next-line no-direct-ability-check -- bare string subject, no resource context to audit
         if (user.ability.cannot('manage', 'DataApp')) {
             throw new ForbiddenError('Insufficient permissions');
         }
@@ -1236,12 +1245,14 @@ export class AppGenerateService extends BaseService {
         update: { name?: string; description?: string },
     ): Promise<{ appUuid: string; name: string; description: string }> {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
+                    uuid: appUuid,
                 }),
             )
         ) {
@@ -1376,11 +1387,13 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): string {
         this.assertDataAppsEnabled();
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
             )
