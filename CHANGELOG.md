@@ -1,3 +1,10 @@
+# [0.2719.0](https://github.com/lightdash/lightdash/compare/0.2718.0...0.2719.0) (2026-04-02)
+
+
+### Features
+
+* add env vars to disable Sentry tracing and PostHog recording on dashboards ([#21696](https://github.com/lightdash/lightdash/issues/21696)) ([a52a98b](https://github.com/lightdash/lightdash/commit/a52a98bd5ceab117ae5af05cde4ca564701aa958))
+
 # [0.2718.0](https://github.com/lightdash/lightdash/compare/0.2717.1...0.2718.0) (2026-04-02)
 
 
