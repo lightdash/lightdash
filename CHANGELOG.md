@@ -1,3 +1,16 @@
+# [0.2717.0](https://github.com/lightdash/lightdash/compare/0.2716.0...0.2717.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* add remountKey to SDK component keys for proper re-rendering ([#21687](https://github.com/lightdash/lightdash/issues/21687)) ([e5cfa0b](https://github.com/lightdash/lightdash/commit/e5cfa0be46873a49de2b43ff16e2bbcbde3074e7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add project name to `My apps` page ([#21690](https://github.com/lightdash/lightdash/issues/21690)) ([90193b1](https://github.com/lightdash/lightdash/commit/90193b1eafb35e1bf1c9cb172f18c0d222ab5174))
+* improve SDK test, add examples ([#21475](https://github.com/lightdash/lightdash/issues/21475)) ([4e2ccef](https://github.com/lightdash/lightdash/commit/4e2ccef889d94b219f5ccb171c9660e5233a06ef))
+
 # [0.2716.0](https://github.com/lightdash/lightdash/compare/0.2715.0...0.2716.0) (2026-04-02)
 
 
