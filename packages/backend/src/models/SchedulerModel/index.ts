@@ -63,6 +63,7 @@ import {
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
+import { deleteExpiredSoftDeletedRows } from '../SoftDeletableModel';
 
 type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
@@ -1027,23 +1028,6 @@ export class SchedulerModel {
         return this.getSchedulerAndTargets(scheduler.schedulerUuid);
     }
 
-    async permanentlyDeleteExpiredBatch(
-        retentionDays: number,
-        limit: number,
-    ): Promise<number> {
-        const subquery = this.database(SchedulerTableName)
-            .select('scheduler_uuid')
-            .whereNotNull('deleted_at')
-            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
-                retentionDays,
-            ])
-            .orderBy('deleted_at', 'asc')
-            .limit(limit);
-        return this.database(SchedulerTableName)
-            .whereIn('scheduler_uuid', subquery)
-            .delete();
-    }
-
     async deleteScheduler(schedulerUuid: string): Promise<void> {
         await this.database.transaction(async (trx) => {
             await trx(SchedulerTableName)
@@ -1066,6 +1050,21 @@ export class SchedulerModel {
             })
             .where('scheduler_uuid', schedulerUuid)
             .whereNull('deleted_at');
+    }
+
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        return deleteExpiredSoftDeletedRows(
+            this.database,
+            {
+                tableName: SchedulerTableName,
+                pkColumn: 'scheduler_uuid',
+            },
+            retentionDays,
+            limit,
+        );
     }
 
     async softDeleteByChartUuid(

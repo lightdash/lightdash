@@ -85,6 +85,10 @@ import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
 import { generateUniqueSlug } from '../utils/SlugUtils';
 import { ContentVerificationModel } from './ContentVerificationModel';
+import {
+    deleteExpiredSoftDeletedRows,
+    type SoftDeletableModel,
+} from './SoftDeletableModel';
 import { SpaceModel } from './SpaceModel';
 
 type DbSavedChartDetails = {
@@ -465,7 +469,7 @@ type VersionSummaryRow = {
     last_name: string | null;
 };
 
-export class SavedChartModel {
+export class SavedChartModel implements SoftDeletableModel<SavedChartDAO> {
     private database: Knex;
 
     private lightdashConfig: LightdashConfig;
@@ -780,23 +784,6 @@ export class SavedChartModel {
         return Promise.all(
             data.map(async (savedChart) => this.get(savedChart.uuid)),
         );
-    }
-
-    async permanentlyDeleteExpiredBatch(
-        retentionDays: number,
-        limit: number,
-    ): Promise<number> {
-        const subquery = this.database(SavedChartsTableName)
-            .select('saved_query_id')
-            .whereNotNull('deleted_at')
-            .andWhereRaw('deleted_at < NOW() - make_interval(days => ?)', [
-                retentionDays,
-            ])
-            .orderBy('deleted_at', 'asc')
-            .limit(limit);
-        return this.database(SavedChartsTableName)
-            .whereIn('saved_query_id', subquery)
-            .delete();
     }
 
     async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
@@ -2185,6 +2172,21 @@ export class SavedChartModel {
         if (updateCount !== 1) {
             throw new NotFoundError('Deleted chart not found');
         }
+    }
+
+    async permanentlyDeleteExpiredBatch(
+        retentionDays: number,
+        limit: number,
+    ): Promise<number> {
+        return deleteExpiredSoftDeletedRows(
+            this.database,
+            {
+                tableName: SavedChartsTableName,
+                pkColumn: 'saved_query_id',
+            },
+            retentionDays,
+            limit,
+        );
     }
 
     /**
