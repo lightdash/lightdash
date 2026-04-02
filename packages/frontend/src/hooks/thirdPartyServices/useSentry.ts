@@ -30,6 +30,7 @@ const SPOTLIGHT_DUMMY_DSN = 'https://0@o0.ingest.sentry.io/0';
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
     user: LightdashUser | undefined,
+    disableDashboardTracing?: boolean,
 ) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     useEffect(() => {
@@ -62,6 +63,20 @@ const useSentry = (
                 tracesSampler(samplingContext) {
                     if (sentrySpotlightEnabled) {
                         return 1.0;
+                    }
+
+                    // Skip tracing on dashboard pages — Sentry's timer
+                    // wrapping causes significant main thread blocking
+                    // when dashboards unmount/mount many tiles at once.
+                    // Controlled by LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING=true
+                    if (disableDashboardTracing) {
+                        const name =
+                            samplingContext.name ||
+                            samplingContext.transactionContext?.name ||
+                            window.location.pathname;
+                        if (name.includes('/dashboards/')) {
+                            return 0;
+                        }
                     }
 
                     if (samplingContext.parentSampled !== undefined) {
@@ -112,7 +127,13 @@ const useSentry = (
                 'organization.uuid': user.organizationUuid,
             });
         }
-    }, [isSentryLoaded, setIsSentryLoaded, sentryConfig, user]);
+    }, [
+        isSentryLoaded,
+        setIsSentryLoaded,
+        sentryConfig,
+        user,
+        disableDashboardTracing,
+    ]);
 
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid?: string;
