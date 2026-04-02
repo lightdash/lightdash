@@ -62,7 +62,7 @@ const Parameter: FC<Props> = ({
                 ) {
                     const date = parseDate(defaultVal, TimeFrames.DAY);
                     return date
-                        ? formatDate(date, TimeFrames.DAY, false)
+                        ? formatDate(date, TimeFrames.DAY, undefined)
                         : defaultVal;
                 }
                 if (Array.isArray(defaultVal)) {
@@ -75,7 +75,7 @@ const Parameter: FC<Props> = ({
 
         if (parameter.type === 'date' && typeof value === 'string') {
             const date = parseDate(value, TimeFrames.DAY);
-            return date ? formatDate(date, TimeFrames.DAY, false) : value;
+            return date ? formatDate(date, TimeFrames.DAY, undefined) : value;
         }
 
         if (Array.isArray(value)) {

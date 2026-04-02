@@ -48,7 +48,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             return formatItemValue(
                 itemsMap?.[metricId],
                 value,
-                false,
+                undefined,
                 parameters,
             );
         };

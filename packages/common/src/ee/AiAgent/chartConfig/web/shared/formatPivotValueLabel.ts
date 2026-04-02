@@ -19,7 +19,7 @@ export const formatPivotValueLabel = (
     const pivotValue = pivotReference.pivotValues[0].value;
 
     if (pivotField && isField(pivotField)) {
-        return formatItemValue(pivotField, pivotValue, false, undefined);
+        return formatItemValue(pivotField, pivotValue, undefined, undefined);
     }
 
     return friendlyName(String(pivotValue));

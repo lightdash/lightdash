@@ -81,7 +81,7 @@ export const formatCellContent = (
             item.format.includes('${lightdash.parameters'));
 
     if (hasParameterFormat && parameters) {
-        return formatItemValue(item, data.value.raw, false, parameters);
+        return formatItemValue(item, data.value.raw, undefined, parameters);
     }
 
     // Use backend-formatted value by default
@@ -577,7 +577,7 @@ export const useColumns = (): TableColumn[] => {
                         return formatItemValue(
                             currentItem,
                             cellValue.value.raw,
-                            false,
+                            undefined,
                             parameters,
                         );
                     },
@@ -586,7 +586,7 @@ export const useColumns = (): TableColumn[] => {
                             ? formatItemValue(
                                   item,
                                   totals[fieldId],
-                                  false,
+                                  undefined,
                                   parameters,
                               )
                             : null,
