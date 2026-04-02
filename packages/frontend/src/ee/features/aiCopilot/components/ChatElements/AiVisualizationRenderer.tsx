@@ -210,6 +210,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 }}
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
+                resolvedTimezone={
+                    queryExecutionHandle.data.query.resolvedTimezone
+                }
             >
                 <Stack gap="md" h="100%">
                     {headerContent && headerContent}

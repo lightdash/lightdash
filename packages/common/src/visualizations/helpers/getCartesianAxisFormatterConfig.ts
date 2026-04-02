@@ -27,6 +27,7 @@ export const getCartesianAxisFormatterConfig = ({
     defaultNameGap,
     show,
     parameters,
+    timezone,
 }: {
     axisItem: ItemsMap[string] | undefined;
     longestLabelWidth?: number;
@@ -34,6 +35,7 @@ export const getCartesianAxisFormatterConfig = ({
     defaultNameGap?: number;
     show?: boolean;
     parameters?: Record<string, unknown>;
+    timezone?: string;
 }) => {
     // Remove axis labels, lines, and ticks if the axis is not shown
     // This is done to prevent the grid from disappearing when the axis is not shown
@@ -72,7 +74,7 @@ export const getCartesianAxisFormatterConfig = ({
     if (axisItem && (hasFormattingConfig || axisMinInterval)) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, 'UTC', parameters),
+                formatItemValue(axisItem, value, timezone ?? 'UTC', parameters),
         };
         axisConfig.axisPointer = {
             label: {
@@ -84,7 +86,7 @@ export const getCartesianAxisFormatterConfig = ({
                         ? formatItemValue(
                               axisItem,
                               value.value,
-                              'UTC',
+                              timezone ?? 'UTC',
                               parameters,
                           )
                         : undefined,
@@ -109,7 +111,7 @@ export const getCartesianAxisFormatterConfig = ({
                         ? formatItemValue(
                               axisItem,
                               value.value,
-                              'UTC',
+                              timezone ?? 'UTC',
                               parameters,
                           )
                         : undefined,
@@ -153,7 +155,12 @@ export const getCartesianAxisFormatterConfig = ({
             case TimeFrames.WEEK:
                 axisConfig.axisLabel = {
                     formatter: (value: AnyType) =>
-                        formatItemValue(axisItem, value, 'UTC', parameters),
+                        formatItemValue(
+                            axisItem,
+                            value,
+                            timezone ?? 'UTC',
+                            parameters,
+                        ),
                 };
 
                 axisConfig.axisPointer = {
