@@ -277,7 +277,9 @@ const ValidDashboardChartTile: FC<{
         );
 
         const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-        const invalidateCache = useDashboardTileStatusContext((c) => c.invalidateCache);
+        const invalidateCache = useDashboardTileStatusContext(
+            (c) => c.invalidateCache,
+        );
         const dateZoomGranularity = useDashboardContext(
             (c) => c.dateZoomGranularity,
         );
