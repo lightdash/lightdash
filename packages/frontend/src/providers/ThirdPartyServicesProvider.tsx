@@ -135,20 +135,28 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
             apiBase={health.data?.intercom.apiBase || ''}
             autoBoot
         >
-            <PostHogProvider
-                apiKey={health.data?.posthog?.projectApiKey || ''}
-                options={{
-                    api_host: health.data?.posthog?.feApiHost,
-                    autocapture: false,
-                    capture_pageview: false,
-                }}
-            >
-                <PosthogIdentified>
+            {health.data?.posthog?.projectApiKey ? (
+                <PostHogProvider
+                    apiKey={health.data.posthog.projectApiKey}
+                    options={{
+                        api_host: health.data.posthog.feApiHost,
+                        autocapture: false,
+                        capture_pageview: false,
+                    }}
+                >
+                    <PosthogIdentified>
+                        <Intercom />
+                        <Clarity />
+                        {children}
+                    </PosthogIdentified>
+                </PostHogProvider>
+            ) : (
+                <>
                     <Intercom />
                     <Clarity />
                     {children}
-                </PosthogIdentified>
-            </PostHogProvider>
+                </>
+            )}
         </IntercomProvider>
     );
 };
