@@ -313,23 +313,19 @@ export class AppGenerateService extends BaseService {
         // Remove files that may have been created by a previous run with
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
-        // We chmod the prompt file instead of deleting it to preserve history.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml && chmod 666 /tmp/prompt.txt 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; true',
             { timeoutMs: 5_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
 
-        // Append the new prompt to the prompt file so that on resumed sandboxes
-        // Claude sees the full conversation history of user requests.
-        // We write to a temp file first (via SDK, no shell escaping needed),
-        // then append with shell to avoid permission issues on /tmp/prompt.txt.
-        await sandbox.files.write('/tmp/prompt-new.txt', `---\n${prompt}\n`);
-        await sandbox.commands.run(
-            'cat /tmp/prompt-new.txt >> /tmp/prompt.txt && rm -f /tmp/prompt-new.txt',
-            { timeoutMs: 5_000 },
-        );
+        // Write only the latest prompt — Claude is stateless between runs, but
+        // the sandbox filesystem preserves all code from previous iterations.
+        // Claude can read existing files to understand what was built so far,
+        // so replaying the full prompt history is unnecessary and makes
+        // responses overly verbose.
+        await sandbox.files.write('/tmp/prompt.txt', `${prompt}\n`);
 
         let tableCount = 0;
         let totalDimensions = 0;
