@@ -31,6 +31,7 @@ export type AuditableUser = Pick<
     | 'lastName'
     | 'organizationUuid'
     | 'role'
+    | 'impersonation'
 >;
 
 type AuditableCaslSubject = ForcedSubject<CaslSubjectNames> & {
@@ -93,6 +94,13 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         email?: string;
         role?: string;
         id: string;
+        impersonation?: {
+            adminUserUuid: string;
+            adminEmail: string;
+            adminFirstName: string;
+            adminLastName: string;
+            adminRole: string;
+        };
     };
 
     return {
@@ -105,6 +113,15 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         organizationRole: user.role || 'unknown',
         // TODO: Add group memberships
         groupMemberships: [],
+        ...(user.impersonation && {
+            impersonatedBy: {
+                uuid: user.impersonation.adminUserUuid,
+                email: user.impersonation.adminEmail,
+                firstName: user.impersonation.adminFirstName,
+                lastName: user.impersonation.adminLastName,
+                role: user.impersonation.adminRole,
+            },
+        }),
     };
 };
 
@@ -122,6 +139,15 @@ export const createActorFromUser = (user: AuditableUser): AuditActor => ({
     organizationRole: user.role || 'unknown',
     // TODO: Add group memberships
     groupMemberships: [],
+    ...(user.impersonation && {
+        impersonatedBy: {
+            uuid: user.impersonation.adminUserUuid,
+            email: user.impersonation.adminEmail,
+            firstName: user.impersonation.adminFirstName,
+            lastName: user.impersonation.adminLastName,
+            role: user.impersonation.adminRole,
+        },
+    }),
 });
 
 const createResourceFromSubject = (
