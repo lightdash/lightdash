@@ -23,6 +23,7 @@ import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
@@ -51,9 +52,10 @@ const getFormatterValue = (
     value: any,
     key: string,
     items: Array<Field | TableCalculation | CustomDimension>,
+    timezone?: string,
 ) => {
     const item = items.find((i) => getItemId(i) === key);
-    return formatItemValue(item, value, 'UTC');
+    return formatItemValue(item, value, timezone);
 };
 
 type DraggablePortalHandlerProps = {
@@ -94,6 +96,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     updateSeries,
     series,
 }) => {
+    const { resolvedTimezone } = useVisualizationContext();
     const [openSeriesId, setOpenSeriesId] = React.useState<
         string | undefined
     >();
@@ -308,6 +311,8 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                             value,
                                                             field,
                                                             items,
+                                                            resolvedTimezone ??
+                                                                undefined,
                                                         );
                                                     return acc
                                                         ? `${acc} - ${formattedValue}`

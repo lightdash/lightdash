@@ -88,6 +88,7 @@ export type VisualizationProviderProps = {
     isDashboard?: boolean;
     isEditMode?: boolean;
     dateZoom?: DateZoom;
+    resolvedTimezone?: string | null;
 };
 
 const VisualizationProvider: FC<
@@ -120,6 +121,7 @@ const VisualizationProvider: FC<
     isDashboard,
     isEditMode,
     dateZoom,
+    resolvedTimezone = null,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -364,6 +366,7 @@ const VisualizationProvider: FC<
         isDashboard,
         isEditMode,
         isTouchDevice,
+        resolvedTimezone,
     };
 
     switch (chartConfig.type) {
