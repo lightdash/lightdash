@@ -193,13 +193,11 @@ export const formatAuditResource = (resource: AuditResource): string => {
     if (resource.name) {
         return `${typePart} "${resource.name}"`;
     }
-    if (resource.uuid && resource.uuid === resource.projectUuid) {
-        return `${typePart} in project ${resource.projectUuid}`;
-    }
-    if (resource.uuid) {
+    if (resource.uuid && resource.uuid !== resource.projectUuid) {
         return `${typePart} ${resource.uuid}`;
     }
-    // Permission-type subjects (CustomSql, UnderlyingData, Explore, etc.) with no uuid/name
+    // Permission-type subjects (CustomSql, UnderlyingData, Explore, Project, etc.)
+    // with no meaningful unique identifier — fall back to project/org context
     if (resource.projectUuid) {
         return `${typePart} in project ${resource.projectUuid}`;
     }
