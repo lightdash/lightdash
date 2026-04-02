@@ -1,3 +1,17 @@
+# [0.2720.0](https://github.com/lightdash/lightdash/compare/0.2719.0...0.2720.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* bin custom dimension create button silently failing ([#21697](https://github.com/lightdash/lightdash/issues/21697)) ([c37577a](https://github.com/lightdash/lightdash/commit/c37577acd9aed0cf6a257673690ef9001f194779)), closes [#21695](https://github.com/lightdash/lightdash/issues/21695) [#21695](https://github.com/lightdash/lightdash/issues/21695)
+* clear session state when creating new data app from existing session ([#21702](https://github.com/lightdash/lightdash/issues/21702)) ([2ca5cc6](https://github.com/lightdash/lightdash/commit/2ca5cc6c3c2986fd2cbd893948d7bb989a927dfb))
+* format tooltip header for date dimensions with time intervals ([#21698](https://github.com/lightdash/lightdash/issues/21698)) ([32c33f0](https://github.com/lightdash/lightdash/commit/32c33f0fddcb820318ea812a0aaa4c36f4ad552a))
+
+
+### Features
+
+* improve audit log message readability ([#21700](https://github.com/lightdash/lightdash/issues/21700)) ([618e49a](https://github.com/lightdash/lightdash/commit/618e49a62e8851016eb1de0de7519bd649e64f5e))
+
 # [0.2719.0](https://github.com/lightdash/lightdash/compare/0.2718.0...0.2719.0) (2026-04-02)
 
 
