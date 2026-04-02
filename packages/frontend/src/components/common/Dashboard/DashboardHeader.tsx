@@ -351,6 +351,32 @@ const DashboardHeader = memo(
             >
                 <Group gap="xs" flex={1} wrap="nowrap">
                     <Title order={6}>{dashboard.name}</Title>
+                    <Popover
+                        withinPortal
+                        withArrow
+                        offset={{
+                            mainAxis: -2,
+                            crossAxis: 6,
+                        }}
+                    >
+                        <Popover.Target>
+                            <ActionIcon
+                                variant="subtle"
+                                size="md"
+                                radius="md"
+                                color="ldGray.6"
+                            >
+                                <MantineIcon icon={IconInfoCircle} />
+                            </ActionIcon>
+                        </Popover.Target>
+
+                        <Popover.Dropdown maw={500} p={0}>
+                            <DashboardInfoOverlay
+                                dashboard={dashboard}
+                                projectUuid={projectUuid}
+                            />
+                        </Popover.Dropdown>
+                    </Popover>
 
                     {isContentVerificationEnabled && isDashboardVerified && (
                         <Tooltip
@@ -385,40 +411,16 @@ const DashboardHeader = memo(
                                 });
                             }}
                         >
-                            {isDashboardFavorited ? (
-                                <IconStarFilled size={16} />
-                            ) : (
-                                <IconStar size={16} />
-                            )}
+                            <MantineIcon
+                                icon={
+                                    isDashboardFavorited
+                                        ? IconStarFilled
+                                        : IconStar
+                                }
+                                size={16}
+                            />
                         </ActionIcon>
                     )}
-
-                    <Popover
-                        withinPortal
-                        withArrow
-                        offset={{
-                            mainAxis: -2,
-                            crossAxis: 6,
-                        }}
-                    >
-                        <Popover.Target>
-                            <ActionIcon
-                                variant="subtle"
-                                size="md"
-                                radius="md"
-                                color="ldGray.6"
-                            >
-                                <MantineIcon icon={IconInfoCircle} />
-                            </ActionIcon>
-                        </Popover.Target>
-
-                        <Popover.Dropdown maw={500} p={0}>
-                            <DashboardInfoOverlay
-                                dashboard={dashboard}
-                                projectUuid={projectUuid}
-                            />
-                        </Popover.Dropdown>
-                    </Popover>
 
                     {isEditMode && userCanManageDashboard && (
                         <ActionIcon
