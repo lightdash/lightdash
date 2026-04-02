@@ -15,6 +15,7 @@ import {
     NumberInput,
     Select,
     Stack,
+    Switch,
     Text,
     TextInput,
     Tooltip,
@@ -36,7 +37,6 @@ import TimeZonePicker from '../../common/TimeZonePicker';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
-import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
@@ -490,7 +490,7 @@ const BigQueryForm: FC<{
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack mt={8}>
-                        <BooleanSwitch
+                        <Switch
                             name="warehouse.requireUserCredentials"
                             {...form.getInputProps(
                                 'warehouse.requireUserCredentials',
