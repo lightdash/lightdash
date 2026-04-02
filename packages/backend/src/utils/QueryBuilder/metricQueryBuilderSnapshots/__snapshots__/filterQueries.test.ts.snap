@@ -1,0 +1,321 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a dimension filter query with OR logic 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+  LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+WHERE
+  (
+    (("table2".dim2) IN (0))
+    OR (("table2".dim2) IS NOT NULL)
+  )
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a joined-dimension filter query 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+  LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+WHERE
+  ((("table2".dim2) IN (0)))
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a metric-filter query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  )
+SELECT
+  *
+FROM
+  metrics
+WHERE
+  ((("table1_metric1") IN (0)))
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a nested metric-filter query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  )
+SELECT
+  *
+FROM
+  metrics
+WHERE
+  (
+    (("table1_metric1") IS NOT NULL)
+    AND (
+      (("table1_metric1") IN (0))
+      OR (("table1_metric1") IN (1))
+    )
+  )
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a nested-filter query 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+  LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+WHERE
+  (
+    (
+      (("table2".dim2) IN (0))
+      OR (("table2".dim2) IN (1))
+    )
+    AND (("table2".dim2) IS NOT NULL)
+  )
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with a SQL filter using user attributes 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM
+  "db"."schema"."table1" AS "table1"
+WHERE
+  ('EU' = 'US')
+GROUP BY
+  1
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with a disabled dimension filter 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  )
+SELECT
+  *
+FROM
+  metrics
+WHERE
+  ((1 = 1))
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with a disabled joined-dimension metric filter 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      MAX("table2".dim2) AS "table1_metric_that_references_dim_from_table2"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  )
+SELECT
+  *
+FROM
+  metrics
+WHERE
+  ((1 = 1))
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with an empty dimension filter 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with an empty metric filter 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM
+  "db"."schema"."table1" AS "table1"
+GROUP BY
+  1
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with custom user-attribute filter values 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+WHERE
+  ((("table1".shared) IN ('EU')))
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with empty filter groups 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  )
+SELECT
+  *,
+  table1_dim1 + table1_metric1 AS "calc3"
+FROM
+  metrics
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with enabled and disabled filters 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+  LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+WHERE
+  (
+    (("table1".dim1) IN (1))
+    AND (1 = 1)
+  )
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a query with intrinsic user-attribute filter values 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1"
+FROM
+  "db"."schema"."table1" AS "table1"
+WHERE
+  ((("table1".shared) IN ('mock@lightdash.com')))
+GROUP BY
+  1
+ORDER BY
+  "table1_dim1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a required-filter query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    WHERE
+      (("table2".dim2) IN (10))
+    GROUP BY
+      1
+  )
+SELECT
+  *,
+  table1_dim1 + table1_metric1 AS "calc3"
+FROM
+  metrics
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: filter queries matches snapshot for a table-calculation filter query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  ),
+  table_calculations AS (
+    SELECT
+      *,
+      table1_dim1 + table1_metric1 AS "calc3"
+    FROM
+      metrics
+  )
+SELECT
+  *
+FROM
+  table_calculations
+WHERE
+  ((("calc3") IN ('my value')))
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;

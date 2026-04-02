@@ -1,0 +1,214 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query with dimensions 1`] = `
+"WITH
+  dd_orders_total_revenue AS (
+    SELECT
+      "orders_payment_method",
+      "orders_status",
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "orders_total_revenue"
+    FROM
+      (
+        SELECT
+          "orders".payment_method AS "orders_payment_method",
+          "orders".status AS "orders_status",
+          "orders".amount AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "orders".line_item_id,
+              "orders".payment_method,
+              "orders".status
+            ORDER BY
+              "orders".amount
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."orders" AS "orders"
+      ) __dd_sub
+    GROUP BY
+      1,
+      2
+  ),
+  dd_base AS (
+    SELECT
+      "orders".payment_method AS "orders_payment_method",
+      "orders".status AS "orders_status"
+    FROM
+      "db"."schema"."orders" AS "orders"
+    GROUP BY
+      1,
+      2
+  )
+SELECT
+  dd_base.*,
+  dd_orders_total_revenue."orders_total_revenue" AS "orders_total_revenue"
+FROM
+  dd_base
+  INNER JOIN dd_orders_total_revenue ON (
+    dd_base."orders_payment_method" = dd_orders_total_revenue."orders_payment_method"
+    OR (
+      dd_base."orders_payment_method" IS NULL
+      AND dd_orders_total_revenue."orders_payment_method" IS NULL
+    )
+  )
+  AND (
+    dd_base."orders_status" = dd_orders_total_revenue."orders_status"
+    OR (
+      dd_base."orders_status" IS NULL
+      AND dd_orders_total_revenue."orders_status" IS NULL
+    )
+  )
+ORDER BY
+  "orders_total_revenue" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for a sum-distinct query without dimensions 1`] = `
+"WITH
+  dd_orders_total_revenue AS (
+    SELECT
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "orders_total_revenue"
+    FROM
+      (
+        SELECT
+          "orders".amount AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "orders".line_item_id
+            ORDER BY
+              "orders".amount
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."orders" AS "orders"
+      ) __dd_sub
+  )
+SELECT
+  dd_orders_total_revenue."orders_total_revenue" AS "orders_total_revenue"
+FROM
+  dd_orders_total_revenue
+ORDER BY
+  "orders_total_revenue" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an average-distinct query with dimensions 1`] = `
+"WITH
+  dd_orders_avg_shipping_cost AS (
+    SELECT
+      "orders_payment_method",
+      CAST(
+        SUM(
+          CASE
+            WHEN __dd_rn = 1 THEN __dd_val
+            ELSE NULL
+          END
+        ) AS FLOAT
+      ) / CAST(
+        NULLIF(
+          COUNT(
+            CASE
+              WHEN __dd_rn = 1 THEN __dd_val
+            END
+          ),
+          0
+        ) AS FLOAT
+      ) AS "orders_avg_shipping_cost"
+    FROM
+      (
+        SELECT
+          "orders".payment_method AS "orders_payment_method",
+          "orders".shipping_cost AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "orders".line_item_id,
+              "orders".payment_method
+            ORDER BY
+              "orders".shipping_cost
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."orders" AS "orders"
+      ) __dd_sub
+    GROUP BY
+      1
+  ),
+  dd_base AS (
+    SELECT
+      "orders".payment_method AS "orders_payment_method"
+    FROM
+      "db"."schema"."orders" AS "orders"
+    GROUP BY
+      1
+  )
+SELECT
+  dd_base.*,
+  dd_orders_avg_shipping_cost."orders_avg_shipping_cost" AS "orders_avg_shipping_cost"
+FROM
+  dd_base
+  INNER JOIN dd_orders_avg_shipping_cost ON (
+    dd_base."orders_payment_method" = dd_orders_avg_shipping_cost."orders_payment_method"
+    OR (
+      dd_base."orders_payment_method" IS NULL
+      AND dd_orders_avg_shipping_cost."orders_payment_method" IS NULL
+    )
+  )
+ORDER BY
+  "orders_avg_shipping_cost" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: distinct queries matches snapshot for an average-distinct query without dimensions 1`] = `
+"WITH
+  dd_orders_avg_shipping_cost AS (
+    SELECT
+      CAST(
+        SUM(
+          CASE
+            WHEN __dd_rn = 1 THEN __dd_val
+            ELSE NULL
+          END
+        ) AS FLOAT
+      ) / CAST(
+        NULLIF(
+          COUNT(
+            CASE
+              WHEN __dd_rn = 1 THEN __dd_val
+            END
+          ),
+          0
+        ) AS FLOAT
+      ) AS "orders_avg_shipping_cost"
+    FROM
+      (
+        SELECT
+          "orders".shipping_cost AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "orders".line_item_id
+            ORDER BY
+              "orders".shipping_cost
+          ) AS __dd_rn
+        FROM
+          "db"."schema"."orders" AS "orders"
+      ) __dd_sub
+  )
+SELECT
+  dd_orders_avg_shipping_cost."orders_avg_shipping_cost" AS "orders_avg_shipping_cost"
+FROM
+  dd_orders_avg_shipping_cost
+ORDER BY
+  "orders_avg_shipping_cost" DESC
+LIMIT
+  10"
+`;

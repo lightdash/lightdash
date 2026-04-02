@@ -86,6 +86,7 @@
         "backend-fix-lint": "pnpm -F backend fix-lint",
         "backend-fix-format": "pnpm -F backend fix-format",
         "backend-test": "pnpm -F backend test",
+        "backend-test-metric-query-builder-snapshots:update": "pnpm -F backend test:snapshots:update",
         "backend-test-integration": "pnpm -F backend test:integration",
         "backend-test-sequential": "pnpm -F backend test-sequential",
         "backend-typecheck": "pnpm -F backend typecheck",
