@@ -1566,6 +1566,7 @@ const getEchartAxes = ({
     displayedRows,
     minsAndMaxes,
     parameters,
+    timezone,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1574,6 +1575,7 @@ const getEchartAxes = ({
     displayedRows?: ResultRow[];
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
+    timezone?: string;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1785,6 +1787,7 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone,
     });
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1805,6 +1808,7 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1824,6 +1828,7 @@ const getEchartAxes = ({
         defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
         show: showLeftYAxis,
         parameters,
+        timezone,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1843,6 +1848,7 @@ const getEchartAxes = ({
         defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
         show: showRightYAxis,
         parameters,
+        timezone,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2375,6 +2381,7 @@ const useEchartsCartesianConfig = (
         parameters,
         isTouchDevice,
         colorPalette,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -2535,6 +2542,7 @@ const useEchartsCartesianConfig = (
                     : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
+            timezone: resolvedTimezone ?? undefined,
         });
     }, [
         itemsMap,
@@ -2545,6 +2553,7 @@ const useEchartsCartesianConfig = (
         isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
+        resolvedTimezone,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -3104,6 +3113,7 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
+                timezone: resolvedTimezone ?? undefined,
             }),
         };
     }, [
@@ -3120,6 +3130,7 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
+        resolvedTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid

@@ -113,6 +113,7 @@ const MinimalExplorerContent = memo(() => {
                 savedChartUuid={savedChart.uuid}
                 colorPalette={savedChart.colorPalette}
                 parameters={query.data?.usedParametersValues}
+                resolvedTimezone={query.data?.resolvedTimezone ?? null}
                 containerWidth={containerWidth}
                 containerHeight={containerHeight}
             >

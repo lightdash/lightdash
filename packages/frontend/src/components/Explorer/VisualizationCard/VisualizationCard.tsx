@@ -292,6 +292,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 containerHeight={containerHeight}
                 isDashboard={false}
                 isEditMode={isEditMode}
+                resolvedTimezone={query.data?.resolvedTimezone ?? null}
             >
                 <CollapsableCard
                     title="Chart"
