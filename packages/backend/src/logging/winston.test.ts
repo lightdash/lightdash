@@ -228,7 +228,9 @@ describe('formatAuditMessage', () => {
                     projectUuid: 'proj-uuid',
                 },
             }),
-        ).toBe('john@company.com viewed Explore in project proj-uuid (allowed)');
+        ).toBe(
+            'john@company.com viewed Explore in project proj-uuid (allowed)',
+        );
     });
 
     it('formats service account event', () => {
@@ -266,8 +268,6 @@ describe('formatAuditMessage', () => {
                 },
                 action: 'view',
             }),
-        ).toBe(
-            'anonymous user viewed Dashboard "Sales Overview" (allowed)',
-        );
+        ).toBe('anonymous user viewed Dashboard "Sales Overview" (allowed)');
     });
 });
