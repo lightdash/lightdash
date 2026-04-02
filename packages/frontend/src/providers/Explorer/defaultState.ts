@@ -67,9 +67,9 @@ export const defaultState: ExplorerSliceState = {
     },
     queryExecution: defaultQueryExecution,
     preAggregate: {
-        matchResult: null,
-        preAggExploreName: null,
-        isEnabled: false,
-        cacheEnabled: true,
+        usePreAggregateCache: true,
+        check: {
+            status: 'idle',
+        },
     },
 };

@@ -238,19 +238,19 @@ const selectPreAggregate = createSelector(
     (explorer) => explorer.preAggregate,
 );
 
-export const selectPreAggregateMatchResult = createSelector(
+export const selectPreAggregateCheck = createSelector(
     [selectPreAggregate],
-    (preAggregate) => preAggregate.matchResult,
+    (preAggregate) => preAggregate.check,
 );
 
-export const selectPreAggEnabled = createSelector(
-    [selectPreAggregate],
-    (preAggregate) => preAggregate.isEnabled,
+export const selectPreAggVisible = createSelector(
+    [selectPreAggregateCheck],
+    (check) => check.status === 'error' || check.status === 'ready',
 );
 
 export const selectPreAggCacheEnabled = createSelector(
     [selectPreAggregate],
-    (preAggregate) => preAggregate.cacheEnabled,
+    (preAggregate) => preAggregate.usePreAggregateCache,
 );
 
 // Navigation context selectors
