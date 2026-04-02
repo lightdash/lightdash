@@ -1,3 +1,15 @@
+# [0.2713.0](https://github.com/lightdash/lightdash/compare/0.2712.0...0.2713.0) (2026-04-02)
+
+
+### Features
+
+* enhance MCP analyst prompt with field search and SQL guidance ([#21671](https://github.com/lightdash/lightdash/issues/21671)) ([9e026ac](https://github.com/lightdash/lightdash/commit/9e026acb660112ee6ed96b66396ed2b22ef0336b))
+
+
+### Performance Improvements
+
+* optimize ECharts rendering on dashboard tiles ([#21663](https://github.com/lightdash/lightdash/issues/21663)) ([27d58ca](https://github.com/lightdash/lightdash/commit/27d58ca7aab2991217611ee78dfe12cd998e8dc3))
+
 # [0.2712.0](https://github.com/lightdash/lightdash/compare/0.2711.0...0.2712.0) (2026-04-02)
 
 
