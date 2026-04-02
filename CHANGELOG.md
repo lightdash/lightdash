@@ -1,3 +1,10 @@
+## [0.2709.8](https://github.com/lightdash/lightdash/compare/0.2709.7...0.2709.8) (2026-04-02)
+
+
+### Performance Improvements
+
+* batch tile state updates with useReducer ([#21628](https://github.com/lightdash/lightdash/issues/21628)) ([d16f161](https://github.com/lightdash/lightdash/commit/d16f161cbc1f00f46ae0df11ff6fbf35765050bb))
+
 ## [0.2709.7](https://github.com/lightdash/lightdash/compare/0.2709.6...0.2709.7) (2026-04-02)
 
 
