@@ -1,3 +1,10 @@
+## [0.2717.1](https://github.com/lightdash/lightdash/compare/0.2717.0...0.2717.1) (2026-04-02)
+
+
+### Performance Improvements
+
+* defer chart rendering until tile is visible in viewport ([#21674](https://github.com/lightdash/lightdash/issues/21674)) ([abaa81f](https://github.com/lightdash/lightdash/commit/abaa81f28f918914134ba9c2c0b8eceeb92c94e8))
+
 # [0.2717.0](https://github.com/lightdash/lightdash/compare/0.2716.0...0.2717.0) (2026-04-02)
 
 

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/query-sdk",
-    "version": "0.2717.0",
+    "version": "0.2717.1",
     "private": false,
     "type": "module",
     "description": "SDK for building custom data apps against the Lightdash semantic layer",
