@@ -21,26 +21,26 @@ For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.
 ## Basic Structure
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       series:
-        - type: "bar"
-          encode:
+        - encode:
             xRef:
               field: "my_explore_category"
             yRef:
               field: "my_explore_total_sales"
+          type: "bar"
     layout:
       xField: "my_explore_category"
       yField:
         - "my_explore_total_sales"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "my_explore"
   dimensions:
     - "my_explore_category"
+  exploreName: "my_explore"
   filters: {}
   limit: 500
   metrics:
@@ -93,33 +93,33 @@ Optional properties:
 ### Bar Chart
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       series:
-        - type: "bar"
-          encode:
+        - encode:
             xRef:
               field: "orders_partner_name"
             yRef:
               field: "orders_total_sales"
+          type: "bar"
     layout:
       xField: "orders_partner_name"
       yField:
         - "orders_total_sales"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_partner_name"
+  exploreName: "orders"
   filters: {}
   limit: 10
   metrics:
     - "orders_total_sales"
   sorts:
-    - fieldId: "orders_total_sales"
-      descending: true
+    - descending: true
+      fieldId: "orders_total_sales"
 name: "Sales by Partner"
 slug: "sales-by-partner"
 spaceSlug: "sales"
@@ -132,38 +132,38 @@ version: 1
 Use `colorByCategory` to give each bar a distinct color based on its category value. This is preferable to adding a group-by/pivot dimension solely for coloring purposes.
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       series:
-        - type: "bar"
-          encode:
+        - encode:
             xRef:
               field: "orders_product_category"
             yRef:
               field: "orders_total_sales"
+          type: "bar"
     layout:
+      categoryColorOverrides:
+        "Clothing": "#37B24D"
+        "Electronics": "#4C6EF5"
+        "Home & Garden": "#F59F00"
+      colorByCategory: true
       xField: "orders_product_category"
       yField:
         - "orders_total_sales"
-      colorByCategory: true
-      categoryColorOverrides:
-        "Electronics": "#4C6EF5"
-        "Clothing": "#37B24D"
-        "Home & Garden": "#F59F00"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_product_category"
+  exploreName: "orders"
   filters: {}
   limit: 10
   metrics:
     - "orders_total_sales"
   sorts:
-    - fieldId: "orders_total_sales"
-      descending: true
+    - descending: true
+      fieldId: "orders_total_sales"
 name: "Sales by Category"
 slug: "sales-by-category"
 spaceSlug: "sales"
@@ -174,20 +174,18 @@ version: 1
 ### Line Chart with Trend
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       series:
-        - type: "line"
-          encode:
+        - encode:
             xRef:
               field: "orders_order_date_month"
             yRef:
               field: "orders_total_revenue"
           showSymbol: true
           smooth: true
+          type: "line"
       xAxis:
         - name: "Month"
       yAxis:
@@ -197,17 +195,19 @@ chartConfig:
       xField: "orders_order_date_month"
       yField:
         - "orders_total_revenue"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_order_date_month"
+  exploreName: "orders"
   filters: {}
   limit: 500
   metrics:
     - "orders_total_revenue"
   sorts:
-    - fieldId: "orders_order_date_month"
-      descending: false
+    - descending: false
+      fieldId: "orders_order_date_month"
 name: "Monthly Revenue Trend"
 slug: "monthly-revenue-trend"
 spaceSlug: "finance"
@@ -218,16 +218,13 @@ version: 1
 ### Stacked Area Chart
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       legend:
         show: true
       series:
-        - type: "line"
-          areaStyle: {}
+        - areaStyle: {}
           encode:
             xRef:
               field: "orders_order_date_month"
@@ -237,22 +234,25 @@ chartConfig:
                 - field: "orders_product_category"
                   value: "Electronics"
           stack: "total"
+          type: "line"
     layout:
       xField: "orders_order_date_month"
       yField:
         - "orders_total_revenue"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_order_date_month"
     - "orders_product_category"
+  exploreName: "orders"
   filters: {}
   limit: 500
   metrics:
     - "orders_total_revenue"
   sorts:
-    - fieldId: "orders_order_date_month"
-      descending: false
+    - descending: false
+      fieldId: "orders_order_date_month"
 name: "Revenue by Category"
 pivotConfig:
   columns:
@@ -266,18 +266,16 @@ version: 1
 ### Scatter Chart
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       series:
-        - type: "scatter"
-          encode:
+        - encode:
             xRef:
               field: "orders_basket_total"
             yRef:
               field: "orders_profit"
+          type: "scatter"
       xAxis:
         - name: "Order Value ($)"
       yAxis:
@@ -286,10 +284,12 @@ chartConfig:
       xField: "orders_basket_total"
       yField:
         - "orders_profit"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_order_id"
+  exploreName: "orders"
   filters: {}
   limit: 1000
   metrics:
@@ -306,28 +306,26 @@ version: 1
 ### Dual Y-Axis Chart
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "cartesian"
   config:
     eChartsConfig:
       series:
-        - type: "bar"
-          encode:
+        - encode:
             xRef:
               field: "orders_order_date_month"
             yRef:
               field: "orders_total_revenue"
           name: "Revenue"
+          type: "bar"
           yAxisIndex: 0
-        - type: "line"
-          encode:
+        - encode:
             xRef:
               field: "orders_order_date_month"
             yRef:
               field: "profit_margin"
           name: "Profit Margin"
           smooth: true
+          type: "line"
           yAxisIndex: 1
       yAxis:
         - name: "Revenue ($)"
@@ -337,20 +335,22 @@ chartConfig:
       yField:
         - "orders_total_revenue"
         - "profit_margin"
+  type: "cartesian"
+contentType: chart
 metricQuery:
-  exploreName: "orders"
   dimensions:
     - "orders_order_date_month"
+  exploreName: "orders"
   filters: {}
   limit: 500
   metrics:
     - "orders_total_revenue"
   sorts:
-    - fieldId: "orders_order_date_month"
-      descending: false
+    - descending: false
+      fieldId: "orders_order_date_month"
   tableCalculations:
-    - name: "profit_margin"
-      displayName: "Profit Margin %"
+    - displayName: "Profit Margin %"
+      name: "profit_margin"
       sql: "${orders.profit}/${orders.total_revenue} * 100"
 name: "Revenue & Profit Margin"
 slug: "revenue-profit-margin"
@@ -365,21 +365,28 @@ version: 1
 
    ```yaml
    # BAD — orders_status is queried but not used in the chart
+   chartConfig:
+     config:
+       layout:
+         xField: orders_order_date_month
+         yField:
+           - orders_total_revenue
+     type: cartesian
    metricQuery:
      dimensions:
        - orders_order_date_month
        - orders_status            # not on any axis or pivot!
      metrics:
        - orders_total_revenue
+
+   # GOOD — every dimension has a job
    chartConfig:
-     type: cartesian
      config:
        layout:
          xField: orders_order_date_month
          yField:
            - orders_total_revenue
-
-   # GOOD — every dimension has a job
+     type: cartesian
    metricQuery:
      dimensions:
        - orders_order_date_month
@@ -389,13 +396,6 @@ version: 1
    pivotConfig:
      columns:
        - orders_status          # used as pivot
-   chartConfig:
-     type: cartesian
-     config:
-       layout:
-         xField: orders_order_date_month
-         yField:
-           - orders_total_revenue
 
    # ALSO GOOD — just remove the dimension you don't need
    metricQuery:

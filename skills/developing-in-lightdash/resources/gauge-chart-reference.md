@@ -47,31 +47,31 @@ The gauge `config` object supports these key properties:
 Gauge with red/yellow/green performance zones:
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "gauge"
   config:
     customLabel: "CSAT Score"
     max: 10
     min: 0
     sections:
       # Red zone: 0-5 (poor)
-      - min: 0
+      - color: "#DC2626"
         max: 5
-        color: "#DC2626"
+        min: 0
       # Yellow zone: 5-7 (fair)
-      - min: 5
+      - color: "#FBBF24"
         max: 7
-        color: "#FBBF24"
+        min: 5
       # Green zone: 7-10 (excellent)
-      - min: 7
+      - color: "#10B981"
         max: 10
-        color: "#10B981"
+        min: 7
     selectedField: "customer_metrics_csat_score"
     showAxisLabels: true
+  type: "gauge"
+contentType: chart
 metricQuery:
-  exploreName: "customer_metrics"
   dimensions: []
+  exploreName: "customer_metrics"
   filters: []
   limit: 1
   metrics:
@@ -89,29 +89,29 @@ version: 1
 Progress gauge against a dynamic target:
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: "gauge"
   config:
     customPercentageLabel: "% Complete"
     maxFieldId: "project_metrics_total_tasks"
     min: 0
     sections:
-      - min: 0
+      - color: "#EF4444"
         max: 50
-        color: "#EF4444"
-      - min: 50
+        min: 0
+      - color: "#F59E0B"
         max: 75
-        color: "#F59E0B"
-      - min: 75
+        min: 50
+      - color: "#22C55E"
         max: 100
-        color: "#22C55E"
+        min: 75
     selectedField: "project_metrics_tasks_completed"
     showAxisLabels: true
     showPercentage: true
+  type: "gauge"
+contentType: chart
 metricQuery:
-  exploreName: "project_metrics"
   dimensions: []
+  exploreName: "project_metrics"
   filters: []
   limit: 1
   metrics:
@@ -131,30 +131,30 @@ version: 1
 
 ```yaml
 config:
-  selectedField: "kpi_current_value"
-  maxFieldId: "kpi_target_value"
-  showPercentage: true
   customPercentageLabel: "of Target"
+  maxFieldId: "kpi_target_value"
   sections:
-    - min: 0
+    - color: "#DC2626"  # Red: below target
       max: 80
-      color: "#DC2626"  # Red: below target
-    - min: 80
+      min: 0
+    - color: "#FBBF24"  # Yellow: approaching target
       max: 100
-      color: "#FBBF24"  # Yellow: approaching target
-    - min: 100
+      min: 80
+    - color: "#10B981"  # Green: exceeding target
       max: 120
-      color: "#10B981"  # Green: exceeding target
+      min: 100
+  selectedField: "kpi_current_value"
+  showPercentage: true
 ```
 
 ### Simple Progress Indicator
 
 ```yaml
 config:
-  selectedField: "completed_count"
   maxFieldId: "total_count"
-  showPercentage: true
+  selectedField: "completed_count"
   showAxisLabels: true
+  showPercentage: true
 ```
 
 ## Tips

@@ -30,44 +30,44 @@ Map charts visualize geographical data with three location types:
 **Scatter Maps** require latitude and longitude fields:
 ```yaml
 config:
-  locationType: "scatter"
   latitudeFieldId: "stores_latitude"
+  locationType: "scatter"
   longitudeFieldId: "stores_longitude"
-  valueFieldId: "metric_for_color"      # Optional
   sizeFieldId: "metric_for_bubble_size" # Optional
+  valueFieldId: "metric_for_color"      # Optional
 ```
 
 **Area Maps** match region names to GeoJSON:
 ```yaml
 config:
-  locationType: "area"
-  locationFieldId: "orders_state"
-  valueFieldId: "orders_total_sales"
   geoJsonPropertyKey: "name"
+  locationFieldId: "orders_state"
+  locationType: "area"
+  valueFieldId: "orders_total_sales"
 ```
 
 **Heatmaps** show point density:
 ```yaml
 config:
-  locationType: "heatmap"
-  latitudeFieldId: "events_latitude"
-  longitudeFieldId: "events_longitude"
-  valueFieldId: "metric_for_intensity"  # Optional
   heatmapConfig:
-    radius: 25          # Heat point size (1-50)
     blur: 15            # Blur amount (0-30)
     opacity: 0.6        # Overlay transparency (0.1-1)
+    radius: 25          # Heat point size (1-50)
+  latitudeFieldId: "events_latitude"
+  locationType: "heatmap"
+  longitudeFieldId: "events_longitude"
+  valueFieldId: "metric_for_intensity"  # Optional
 ```
 
 ### Custom GeoJSON (Area Maps)
 
 ```yaml
 config:
-  locationType: "area"
-  mapType: "custom"
   customGeoJsonUrl: "https://example.com/regions.geojson"
   geoJsonPropertyKey: "postal_code"   # Property in GeoJSON to match against
   locationFieldId: "orders_zip_code"  # Data field matching the GeoJSON property
+  locationType: "area"
+  mapType: "custom"
   valueFieldId: "orders_total_sales"
 ```
 
@@ -75,17 +75,17 @@ config:
 
 ```yaml
 config:
-  tileBackground: "light"       # none, openstreetmap, light, dark, satellite
-  showLegend: true
-  colorRange:
-    - "#fee2e2"                 # Low values (2-5 colors supported)
-    - "#dc2626"                 # High values
   backgroundColor: "#ffffff"
-  noDataColor: "#e5e7eb"        # For area maps — regions with no matching data
-  dataLayerOpacity: 0.8         # Opacity of the data layer (0-1)
   colorOverrides:               # Per-region color overrides (area maps)
     "California": "#ff0000"
     "Texas": "#00ff00"
+  colorRange:
+    - "#fee2e2"                 # Low values (2-5 colors supported)
+    - "#dc2626"                 # High values
+  dataLayerOpacity: 0.8         # Opacity of the data layer (0-1)
+  noDataColor: "#e5e7eb"        # For area maps — regions with no matching data
+  showLegend: true
+  tileBackground: "light"       # none, openstreetmap, light, dark, satellite
 ```
 
 ### Tooltip Settings
@@ -93,20 +93,20 @@ config:
 ```yaml
 config:
   fieldConfig:
-    stores_store_name:
-      visible: true
-      label: "Store"            # Custom label in tooltip
     stores_revenue:
       visible: false            # Hide from tooltip
+    stores_store_name:
+      label: "Store"            # Custom label in tooltip
+      visible: true
 ```
 
 ### View Settings
 
 ```yaml
 config:
-  defaultZoom: 4
   defaultCenterLat: 39.8283
   defaultCenterLon: -98.5795
+  defaultZoom: 4
   saveMapExtent: true
 ```
 
@@ -115,9 +115,7 @@ config:
 ### Example 1: Store Locations (Scatter Map)
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: map
   config:
     colorRange:
       - "#dbeafe"
@@ -134,11 +132,13 @@ chartConfig:
     showLegend: true
     sizeFieldId: "stores_total_revenue"
     tileBackground: "light"
+  type: map
+contentType: chart
 metricQuery:
-  exploreName: stores
   dimensions:
     - stores_store_name
     - stores_city
+  exploreName: stores
   limit: 500
   metrics:
     - stores_total_revenue
@@ -152,9 +152,7 @@ version: 1
 ### Example 2: Sales by State (Choropleth)
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: map
   config:
     colorRange:
       - "#f0f9ff"
@@ -167,10 +165,12 @@ chartConfig:
     showLegend: true
     tileBackground: "none"
     valueFieldId: "orders_total_sales"
+  type: map
+contentType: chart
 metricQuery:
-  exploreName: orders
   dimensions:
     - orders_state
+  exploreName: orders
   limit: 50
   metrics:
     - orders_total_sales
@@ -184,9 +184,7 @@ version: 1
 ### Example 3: Event Heatmap
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: map
   config:
     colorRange:
       - "#fef9c3"
@@ -204,11 +202,13 @@ chartConfig:
     longitudeFieldId: "events_longitude"
     showLegend: true
     tileBackground: "dark"
+  type: map
+contentType: chart
 metricQuery:
-  exploreName: events
   dimensions:
     - events_latitude
     - events_longitude
+  exploreName: events
   limit: 5000
   metrics: []
 name: "Event Density"
@@ -221,9 +221,7 @@ version: 1
 ### Example 4: Custom GeoJSON Regions
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: map
   config:
     colorRange:
       - "#e0f2fe"
@@ -237,10 +235,12 @@ chartConfig:
     showLegend: true
     tileBackground: "light"
     valueFieldId: "orders_total_sales"
+  type: map
+contentType: chart
 metricQuery:
-  exploreName: orders
   dimensions:
     - orders_zip_code
+  exploreName: orders
   limit: 500
   metrics:
     - orders_total_sales
