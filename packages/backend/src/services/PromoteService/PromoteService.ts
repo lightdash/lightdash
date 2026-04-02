@@ -354,20 +354,22 @@ export class PromoteService extends BaseService {
         };
     }
 
-    private static checkPromoteSpacePermissions(
+    private checkPromoteSpacePermissions(
         user: SessionUser,
         upstreamContent: Pick<
             UpstreamChart | UpstreamDashboard | UpstreamSqlChart,
             'space' | 'projectUuid' | 'spaceAccessContext'
         >,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = user;
         if (upstreamContent.space) {
             // If upstreamContent has a matching space, we check if we have access
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Space', {
+                        uuid: upstreamContent.space.uuid,
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
                         inheritsFromOrgOrProject:
@@ -384,9 +386,10 @@ export class PromoteService extends BaseService {
             }
         } // If upstreamContent has no space, we check if we have permissions to create new spaces
         else if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Space', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid: upstreamContent.projectUuid,
                 }),
@@ -398,20 +401,22 @@ export class PromoteService extends BaseService {
         }
     }
 
-    private static checkPromoteChartPermissions(
+    private checkPromoteChartPermissions(
         user: SessionUser,
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
         promotedDashboard?: PromotedDashboard,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = user;
         // Check permissions on `from project`
         if (promotedChart.space) {
             // Charts within space
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
+                        uuid: promotedChart.chart.uuid,
                         organizationUuid,
                         projectUuid: promotedChart.projectUuid,
                         inheritsFromOrgOrProject:
@@ -428,9 +433,10 @@ export class PromoteService extends BaseService {
                 );
         } // Charts within dashboard
         else if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('SavedChart', {
+                    uuid: promotedChart.chart.uuid,
                     organizationUuid,
                     projectUuid: promotedChart.projectUuid,
                 }),
@@ -448,9 +454,10 @@ export class PromoteService extends BaseService {
 
             if (upstreamChart.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('SavedChart', {
+                            uuid: upstreamChart.chart.uuid,
                             organizationUuid,
                             projectUuid: upstreamChart.projectUuid,
                             inheritsFromOrgOrProject:
@@ -468,9 +475,10 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
+                        uuid: upstreamChart.chart.uuid,
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                     }),
@@ -485,9 +493,10 @@ export class PromoteService extends BaseService {
         } else if (upstreamChart.space !== undefined) {
             // If upstreamContent has no matching chart, we check if we have access to create, if space already exists
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                         access: upstreamChart.spaceAccessContext?.access ?? [],
@@ -502,21 +511,23 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(user, upstreamChart);
+        this.checkPromoteSpacePermissions(user, upstreamChart);
     }
 
-    private static checkPromoteSqlChartPermissions(
+    private checkPromoteSqlChartPermissions(
         user: SessionUser,
         promotedSqlChart: PromotedSqlChart,
         upstreamSqlChart: UpstreamSqlChart,
         promotedDashboard?: PromotedDashboard,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = user;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('SavedChart', {
+                    uuid: promotedSqlChart.chart.savedSqlUuid,
                     organizationUuid,
                     projectUuid: promotedSqlChart.projectUuid,
                     inheritsFromOrgOrProject:
@@ -536,9 +547,10 @@ export class PromoteService extends BaseService {
         if (upstreamSqlChart.chart !== undefined) {
             if (upstreamSqlChart.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('SavedChart', {
+                            uuid: upstreamSqlChart.chart.savedSqlUuid,
                             organizationUuid,
                             projectUuid: upstreamSqlChart.projectUuid,
                             inheritsFromOrgOrProject:
@@ -557,9 +569,10 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
+                        uuid: upstreamSqlChart.chart.savedSqlUuid,
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                     }),
@@ -573,9 +586,10 @@ export class PromoteService extends BaseService {
             }
         } else if (upstreamSqlChart.space !== undefined) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                         access:
@@ -591,20 +605,22 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(user, upstreamSqlChart);
+        this.checkPromoteSpacePermissions(user, upstreamSqlChart);
     }
 
-    static checkPromoteDashboardPermissions(
+    checkPromoteDashboardPermissions(
         user: SessionUser,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         // Check permissions on `from project`
         const { organizationUuid } = user;
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('Dashboard', {
+                    uuid: promotedDashboard.dashboard.uuid,
                     organizationUuid,
                     projectUuid: promotedDashboard.projectUuid,
                     inheritsFromOrgOrProject:
@@ -624,9 +640,10 @@ export class PromoteService extends BaseService {
 
             if (upstreamDashboard.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('Dashboard', {
+                            uuid: upstreamDashboard.dashboard.uuid,
                             organizationUuid,
                             projectUuid: upstreamDashboard.projectUuid,
                             inheritsFromOrgOrProject:
@@ -643,9 +660,10 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('Dashboard', {
+                        uuid: upstreamDashboard.dashboard.uuid,
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                     }),
@@ -658,9 +676,10 @@ export class PromoteService extends BaseService {
         } else if (upstreamDashboard.space !== undefined) {
             // If upstreamContent has no matching dashboard, we check if we have access to create, if space already exists
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Dashboard', {
+                        uuid: '',
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                         access:
@@ -673,7 +692,7 @@ export class PromoteService extends BaseService {
                 );
             }
         }
-        PromoteService.checkPromoteSpacePermissions(user, upstreamDashboard);
+        this.checkPromoteSpacePermissions(user, upstreamDashboard);
     }
 
     private static isSpaceUpdated(
@@ -1027,7 +1046,7 @@ export class PromoteService extends BaseService {
             );
         }
         try {
-            PromoteService.checkPromoteChartPermissions(
+            this.checkPromoteChartPermissions(
                 user,
                 promotedChart,
                 upstreamChart,
@@ -1162,7 +1181,7 @@ export class PromoteService extends BaseService {
             );
 
         try {
-            PromoteService.checkPromoteSqlChartPermissions(
+            this.checkPromoteSqlChartPermissions(
                 user,
                 promotedSqlChart,
                 upstreamSqlChart,
@@ -2132,7 +2151,7 @@ export class PromoteService extends BaseService {
             );
 
         try {
-            PromoteService.checkPromoteDashboardPermissions(
+            this.checkPromoteDashboardPermissions(
                 user,
                 promotedDashboard,
                 upstreamDashboard,
@@ -2140,7 +2159,7 @@ export class PromoteService extends BaseService {
 
             // Check permissions for all chart tiles
             promotedCharts.forEach(({ promotedChart, upstreamChart }) =>
-                PromoteService.checkPromoteChartPermissions(
+                this.checkPromoteChartPermissions(
                     user,
                     promotedChart,
                     upstreamChart,
@@ -2149,7 +2168,7 @@ export class PromoteService extends BaseService {
             );
             promotedSqlCharts.forEach(
                 ({ promotedSqlChart, upstreamSqlChart }) =>
-                    PromoteService.checkPromoteSqlChartPermissions(
+                    this.checkPromoteSqlChartPermissions(
                         user,
                         promotedSqlChart,
                         upstreamSqlChart,

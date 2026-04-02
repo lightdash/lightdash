@@ -87,12 +87,14 @@ export class RenameService extends BaseService {
         projectUuid: string;
         chartUuid: string;
     }) {
+        const auditedAbility = this.createAuditedAbility(user);
         const chart = await this.savedChartModel.get(chartUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
+                    uuid: chart.projectUuid,
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                 }),
@@ -163,12 +165,14 @@ export class RenameService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
+                    uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
                 }),
@@ -309,13 +313,15 @@ export class RenameService extends BaseService {
         dashboardUuid: string;
         tableName?: string;
     }) {
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
+                    uuid: dashboard.projectUuid,
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
                 }),
@@ -412,12 +418,14 @@ export class RenameService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
+                    uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
                 }),
@@ -558,12 +566,14 @@ export class RenameService extends BaseService {
         projectUuid: string;
         context: RequestMethod;
     }) {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
+                    uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
                 }),

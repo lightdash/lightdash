@@ -61,13 +61,15 @@ export class SearchService extends BaseService {
         source: 'omnibar' | 'ai_search_box' = 'omnibar',
         filters?: SearchFilters,
     ): Promise<SearchResults> {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
+                    uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
                 }),
@@ -115,9 +117,10 @@ export class SearchService extends BaseService {
             return accessibleSpaceUuids.includes(spaceUuid);
         };
 
-        const hasExploreAccess = user.ability.can(
+        const hasExploreAccess = auditedAbility.can(
             'manage',
             subject('Explore', {
+                uuid: '',
                 organizationUuid,
                 projectUuid,
             }),
@@ -228,9 +231,10 @@ export class SearchService extends BaseService {
                 (_, index) => hasSqlChartAccess[index],
             ),
             spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
-            pages: user.ability.can(
+            pages: auditedAbility.can(
                 'view',
                 subject('Analytics', {
+                    uuid: '',
                     organizationUuid,
                 }),
             )
