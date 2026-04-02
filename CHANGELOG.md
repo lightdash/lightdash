@@ -1,3 +1,10 @@
+# [0.2718.0](https://github.com/lightdash/lightdash/compare/0.2717.1...0.2718.0) (2026-04-02)
+
+
+### Features
+
+* add project members access option frontend ([#21647](https://github.com/lightdash/lightdash/issues/21647)) ([a4c5df1](https://github.com/lightdash/lightdash/commit/a4c5df11cf7e55c06ab886323bec97b47117f10e))
+
 ## [0.2717.1](https://github.com/lightdash/lightdash/compare/0.2717.0...0.2717.1) (2026-04-02)
 
 
