@@ -100,6 +100,95 @@ export class SpacePermissionModel {
                                         );
                                     }
                                 }),
+                        )
+                        .union(
+                            // "All project members" — explicit project members
+                            this.database(SpaceTableName)
+                                .select({
+                                    userUuid: `${UserTableName}.user_uuid`,
+                                    spaceUuid: `${SpaceTableName}.space_uuid`,
+                                    groupUuid: this.database.raw(`NULL`),
+                                    role: `${SpaceTableName}.project_member_access_role`,
+                                    from: this.database.raw(
+                                        `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,
+                                    ),
+                                })
+                                .innerJoin(
+                                    ProjectMembershipsTableName,
+                                    `${ProjectMembershipsTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .innerJoin(
+                                    UserTableName,
+                                    `${ProjectMembershipsTableName}.user_id`,
+                                    `${UserTableName}.user_id`,
+                                )
+                                .whereIn(
+                                    `${SpaceTableName}.space_uuid`,
+                                    spaceUuids,
+                                )
+                                .whereNotNull(
+                                    `${SpaceTableName}.project_member_access_role`,
+                                )
+                                .whereNull(`${SpaceTableName}.deleted_at`)
+                                .modify((qb) => {
+                                    if (filters?.userUuid) {
+                                        void qb.where(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuid,
+                                        );
+                                    }
+                                }),
+                        )
+                        .union(
+                            // "All project members" — org members with project access
+                            // (org role above 'member' implies project access)
+                            this.database(SpaceTableName)
+                                .select({
+                                    userUuid: `${UserTableName}.user_uuid`,
+                                    spaceUuid: `${SpaceTableName}.space_uuid`,
+                                    groupUuid: this.database.raw(`NULL`),
+                                    role: `${SpaceTableName}.project_member_access_role`,
+                                    from: this.database.raw(
+                                        `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,
+                                    ),
+                                })
+                                .innerJoin(
+                                    ProjectTableName,
+                                    `${ProjectTableName}.project_id`,
+                                    `${SpaceTableName}.project_id`,
+                                )
+                                .innerJoin(
+                                    OrganizationMembershipsTableName,
+                                    `${OrganizationMembershipsTableName}.organization_id`,
+                                    `${ProjectTableName}.organization_id`,
+                                )
+                                .innerJoin(
+                                    UserTableName,
+                                    `${UserTableName}.user_id`,
+                                    `${OrganizationMembershipsTableName}.user_id`,
+                                )
+                                .whereIn(
+                                    `${SpaceTableName}.space_uuid`,
+                                    spaceUuids,
+                                )
+                                .whereNotNull(
+                                    `${SpaceTableName}.project_member_access_role`,
+                                )
+                                .whereNull(`${SpaceTableName}.deleted_at`)
+                                .where(
+                                    `${OrganizationMembershipsTableName}.role`,
+                                    '!=',
+                                    'member',
+                                )
+                                .modify((qb) => {
+                                    if (filters?.userUuid) {
+                                        void qb.where(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuid,
+                                        );
+                                    }
+                                }),
                         );
 
                 return spacesDirectAccess.reduce<

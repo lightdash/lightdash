@@ -13,6 +13,7 @@ export type DbSpace = {
     parent_space_uuid: string | null;
     path: string;
     inherit_parent_permissions: boolean;
+    project_member_access_role: string | null;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
     is_default_user_space: boolean;
@@ -31,7 +32,10 @@ export type CreateDbSpace = Pick<
 >;
 
 export type UpdateDbSpace = Partial<
-    Pick<DbSpace, 'name' | 'inherit_parent_permissions'>
+    Pick<
+        DbSpace,
+        'name' | 'inherit_parent_permissions' | 'project_member_access_role'
+    >
 >;
 
 export type SpaceTable = Knex.CompositeTableType<
