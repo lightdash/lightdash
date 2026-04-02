@@ -1,3 +1,10 @@
+## [0.2710.1](https://github.com/lightdash/lightdash/compare/0.2710.0...0.2710.1) (2026-04-02)
+
+
+### Performance Improvements
+
+* wrap DashboardHeader in React.memo ([#21635](https://github.com/lightdash/lightdash/issues/21635)) ([e3da3a0](https://github.com/lightdash/lightdash/commit/e3da3a00edb08607e7febdce3af1308d480b26af))
+
 # [0.2710.0](https://github.com/lightdash/lightdash/compare/0.2709.8...0.2710.0) (2026-04-02)
 
 
