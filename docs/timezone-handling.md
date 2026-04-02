@@ -1,306 +1,285 @@
-# Timezone Handling in Lightdash — Current State
+# Timezone Handling in Lightdash
 
-This document describes how timezone handling works in Lightdash today, covering the full path from warehouse query to user display.
-
----
-
-## Timezone Concepts
-
-There are six distinct timezone concepts in the codebase:
-
-| Concept | What it is | Current behavior |
-|---------|-----------|-----------------|
-| **Data timezone** | The timezone raw data was written in at the warehouse (e.g., NTZ columns in Snowflake) | Unknown to Lightdash — always assumed to be UTC |
-| **Session timezone** | The warehouse connection's timezone setting. Affects how the warehouse interprets ambiguous timestamps (NTZ) and displays LTZ values | Configurable via `dataTimezone` field on warehouse credentials when `EnableTimezoneSupport` flag is on. When set, the warehouse session timezone is changed to this value, which controls how the warehouse processes queries. When not set or flag is off, not explicitly set — warehouse uses its server default (typically UTC). |
-| **Project timezone** | Project-level setting in DB (`projects.query_timezone`). Intended to control filter boundaries, grouping, and display | Exists in DB but only affects 2 of 5 relative date filter operators |
-| **Chart timezone** | Per-chart override (`metricQuery.timezone`). Behind `EnableUserTimezones` feature flag | Stored but ignored during query compilation |
-| **Process timezone** | Node.js server's system timezone | `'UTC'` in production Docker containers (by convention) |
-| **Browser timezone** | End user's local machine timezone | Detected via `dayjs.tz.guess()`, not used for data display |
+This document describes how timezone handling works across the Lightdash stack: what the two timezone settings do, how they flow through SQL generation, where they're consistent, and where gaps remain.
 
 ---
 
-## Snowflake Timestamp Types
+## Why Two Timezone Settings?
 
-Snowflake has three timestamp types that behave differently with timezone operations. Lightdash wraps all three with the same `CONVERT_TIMEZONE('UTC', col)` call.
+Lightdash has two timezone settings that solve different problems at different layers:
 
-| Type | Stores TZ? | What's stored | How `CONVERT_TIMEZONE('UTC', col)` behaves | How session timezone affects it |
-|------|-----------|---------------|-------------------------------------------|-------------------------------|
-| **TIMESTAMP_NTZ** | No | Wall clock time, no TZ info | Interprets as session TZ (UTC), converts to UTC — **no-op** | If session were non-UTC, Snowflake would reinterpret the value |
-| **TIMESTAMP_LTZ** | Implicitly | Stored as UTC internally, displayed in session TZ | Converts from session TZ (UTC) to UTC — **no-op** | If session were non-UTC, display would shift |
-| **TIMESTAMP_TZ** | Yes (explicit offset) | Stored with offset, e.g. `09:00:00 +10:00` | Converts from stored offset to UTC — **actually works** | Not affected — stored offset takes precedence |
+| Setting              | Layer       | Question it answers                              | Where configured                         |
+| -------------------- | ----------- | ------------------------------------------------ | ---------------------------------------- |
+| **Data timezone**    | Warehouse   | "What timezone are my NTZ timestamps stored in?" | Warehouse connection → Advanced settings |
+| **Project timezone** | Application | "What timezone should my users see data in?"     | Project settings → Timezone              |
 
-When `dataTimezone` is not set, the session timezone defaults to UTC and `CONVERT_TIMEZONE('UTC', col)` is effectively a no-op for NTZ and LTZ. When `dataTimezone` is set (e.g., to `Pacific/Auckland`), Snowflake interprets NTZ values as being in that timezone, and `CONVERT_TIMEZONE('UTC', col)` performs a real conversion — shifting values to UTC. This is the primary use case for the `dataTimezone` setting.
+The `EnableTimezoneSupport` feature flag (`LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true`) gates the data timezone feature: the warehouse form UI field and the warehouse session setup. The project timezone setting is always available.
+
+### Data timezone (`dataTimezone`)
+
+Answers the question: "what timezone are my NTZ (no-timezone) timestamps stored in?" Sets the warehouse session timezone (e.g., `SET timezone TO 'America/Chicago'` on Postgres) so the warehouse correctly interprets ambiguous NTZ values.
+
+**Without it:** A stored value `2024-01-15 18:00:00` in an NTZ column is assumed to be UTC.
+**With it set to `America/Chicago`:** The warehouse knows it's 6pm Chicago time (= midnight UTC next day).
+
+For TZ columns (e.g., Postgres `timestamptz`, Snowflake `TIMESTAMP_TZ`), data timezone has no effect — these columns already store absolute instants. Gated behind `EnableTimezoneSupport` — when the flag is off, `dataTimezone` resolves to `undefined` and the warehouse session timezone is not explicitly set (preserving previous behavior).
+
+### Project timezone (`queryTimezone`)
+
+Controls where date boundaries fall for filters and grouping. When a user says "last 7 days," the project timezone determines what "today" means.
+
+**Without it:** "Today" = midnight UTC.
+**With it set to `America/New_York`:** "Today" = midnight Eastern time (= 4am or 5am UTC depending on DST).
+
+### How they combine
+
+```mermaid
+flowchart LR
+    subgraph Warehouse["Warehouse layer"]
+        NTZ["NTZ column: 18:00:00"]
+        SESSION["Session TZ: Chicago"]
+        NTZ -->|"interpreted via session"| ABSOLUTE["Absolute instant: Jan 16 00:00 UTC"]
+    end
+
+    subgraph Application["Application layer"]
+        USER["User says: 'last 7 days'"]
+        PROJ["Project TZ: New York"]
+        USER -->|"boundaries in NY time"| BOUNDARIES["Filter: >= Jan 9 05:00 UTC"]
+    end
+
+    ABSOLUTE -->|"compared against"| BOUNDARIES
+```
+
+Data timezone determines **what the data means**. Project timezone determines **what the user means**. Both convert to UTC for comparison.
 
 ---
 
-## Layer 1: Warehouse Session Setup
+## Current State
 
-### Snowflake
-**File:** `packages/warehouses/src/warehouseClients/SnowflakeWarehouseClient.ts`
+### SQL Pipeline
 
-When a Snowflake connection is opened, the client runs:
+A query touches timezone in three places: the SELECT (grouping), the WHERE (filtering), and the warehouse session.
+
+```mermaid
+flowchart TD
+    subgraph Compile["Query compilation (Node.js)"]
+        direction TB
+        A["Resolve project timezone<br/><code>metricQuery.timezone ?? project.queryTimezone ?? 'UTC'</code>"]
+        B["Build SELECT: DATE_TRUNC<br/>⚠️ No timezone awareness — always UTC"]
+        C["Build WHERE: filter boundaries<br/>⚠️ Only 2 of 5 relative operators use project TZ"]
+        A --> B
+        A --> C
+    end
+
+    subgraph Execute["Query execution (Warehouse)"]
+        direction TB
+        D["Set session timezone from dataTimezone<br/>(when EnableTimezoneSupport flag is on)"]
+        E["Execute SQL"]
+        D --> E
+    end
+
+    Compile --> Execute
+
+    subgraph Format["Result formatting (Node.js)"]
+        F["Format timestamps in UTC<br/>⚠️ No project timezone formatting"]
+    end
+
+    Execute --> Format
+```
+
+### SELECT — DATE_TRUNC grouping
+
+DATE_TRUNC is **not timezone-aware**. All warehouses generate raw truncation with no timezone parameter:
+
 ```sql
-ALTER SESSION SET TIMEZONE = 'UTC';
+-- Snowflake
+DATE_TRUNC('DAY', col)
+-- Postgres
+DATE_TRUNC('day', col)
+-- BigQuery
+DATE_TRUNC(col, DAY)
 ```
 
-The code accepts an `options.timezone` parameter. When `dataTimezone` is set on the warehouse credentials and the `EnableTimezoneSupport` flag is enabled, `AsyncQueryService` passes it via `executeAsyncQuery({ timezone: dataTimezone })`. The session timezone is then set to the configured value instead of UTC.
+Grouping boundaries are always in UTC. A row at March 1 02:00 UTC (= Feb 28 9pm New York) groups into March by UTC truncation, even if the project timezone is New York.
 
-### Postgres
-**File:** `packages/warehouses/src/warehouseClients/PostgresWarehouseClient.ts`
-
-Runs `SET timezone TO '<tz>'` when `options.timezone` is provided. Note: on Postgres this affects `timestamptz` column display/grouping but has no effect on `timestamp` (NTZ) columns. NTZ support on Postgres requires SQL-level `AT TIME ZONE` conversion (not yet implemented).
-
-### Databricks
-**File:** `packages/warehouses/src/warehouseClients/DatabricksWarehouseClient.ts`
-
-Runs `SET TIME ZONE '<tz>'` when `options.timezone` is provided.
-
-### DuckDB
-**File:** `packages/warehouses/src/warehouseClients/DuckdbWarehouseClient.ts`
-
-Runs `SET TimeZone = '<tz>'` when `options.timezone` is provided.
-
-### Trino / Athena
-**File:** `packages/warehouses/src/warehouseClients/TrinoWarehouseClient.ts`
-
-Runs `SET TIME ZONE '<tz>'` when `options.timezone` is provided.
-
-### ClickHouse
-**File:** `packages/warehouses/src/warehouseClients/ClickhouseWarehouseClient.ts`
-
-Sets `clickhouse_settings.timezone` on the query request when `options.timezone` is provided.
-
-### Other warehouses
-BigQuery, Redshift — no session timezone handling exists.
-
-### How `dataTimezone` flows
-**File:** `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
-
-The `dataTimezone` value is read from `warehouseClient.credentials.dataTimezone` and passed to `executeAsyncQuery()` via `runQueryAndTransformRows()`. The value is only passed when the `EnableTimezoneSupport` feature flag is enabled (config-only check, no PostHog). When the flag is off or `dataTimezone` is not set, no timezone is passed and warehouses use their server default.
-
----
-
-## Layer 2: SQL Generation — Timestamp Conversion
-
-### CONVERT_TIMEZONE wrapper (Snowflake only)
-**File:** `packages/common/src/compiler/translator.ts`
-
-When a dimension has type `TIMESTAMP`, the translator wraps it:
-```sql
-TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', <column>))
-```
-
-The `convertTimezone()` function accepts `default_source_tz` and `target_tz` parameters, but both are hardcoded to `'UTC'`:
-```typescript
-sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
-```
-
-The function has `// todo: implement target_tz` and `// todo: implement default_source_tz` comments.
-
-### `disableTimestampConversion` escape hatch
-**File:** `packages/common/src/types/projects.ts`
-
-A per-warehouse-connection boolean (`disableTimestampConversion`) can be set to skip the `convertTimezone()` call entirely. When `true`, TIMESTAMP dimensions use the raw column SQL with no wrapping. This is the main workaround for customers where the Snowflake conversion causes incorrect results (e.g., when all data is already in UTC and the conversion double-converts).
-
-**Per-warehouse behavior:**
-- **Snowflake**: `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` — the only warehouse with conversion
-- **All others** (BigQuery, Postgres, Redshift, Databricks, Trino, DuckDB, ClickHouse, Athena): return the raw column SQL with no conversion
-
-### DATE_TRUNC (time dimension grouping)
 **File:** `packages/common/src/utils/timeFrames.ts`
 
-When grouping by day/week/month/etc, each warehouse generates its own DATE_TRUNC variant:
-- Snowflake: `DATE_TRUNC('DAY', col)`
-- BigQuery: `DATE_TRUNC(col, DAY)`
-- Postgres: `DATE_TRUNC('day', col)`
+### WHERE — Filter boundaries
 
-**Timezone is never applied to DATE_TRUNC.** There is no wrapping like `DATE_TRUNC('DAY', CONVERT_TIMEZONE('America/New_York', col))`. Grouping boundaries are always in UTC.
+Filter boundaries are computed in Node.js. Only 2 of 5 relative date filter operators use the project timezone:
 
----
+| Operator             | Uses project timezone?                 |
+| -------------------- | -------------------------------------- |
+| `IN_THE_CURRENT`     | ✅ `.tz(timezone).startOf().utc()`     |
+| `NOT_IN_THE_CURRENT` | ✅                                     |
+| `IN_THE_PAST`        | ❌ Uses process TZ (UTC in production) |
+| `NOT_IN_THE_PAST`    | ❌                                     |
+| `IN_THE_NEXT`        | ❌                                     |
 
-## Layer 3: Filter Compilation
+Filter literals are formatted without timezone offset:
+
+```typescript
+const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
+  moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
+```
 
 **File:** `packages/common/src/compiler/filtersCompiler.ts`
 
-The `renderDateFilterSql()` function accepts a `timezone` parameter. However, only 2 of 5 relative date filter operators use it:
+### Session — Warehouse timezone
 
-### Uses timezone:
-- **`IN_THE_CURRENT`**: Uses `.tz(timezone).startOf(unitOfTime).utc()` to calculate boundaries in the project timezone, then converts to UTC for the WHERE clause
-- **`NOT_IN_THE_CURRENT`**: Same pattern
+Each warehouse client sets the session timezone from `dataTimezone` before executing the query, when the `EnableTimezoneSupport` flag is on.
 
-### Does NOT use timezone:
-- **`IN_THE_PAST`**: Uses `moment().startOf(unitOfTime)` — no `.tz()` call, uses process timezone (UTC in production)
-- **`NOT_IN_THE_PAST`**: Same — no timezone
-- **`IN_THE_NEXT`**: Same — no timezone
+**File:** `packages/warehouses/src/warehouseClients/` — per-client
 
-### How timezone is resolved
-**File:** `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
+| Warehouse    | Session command                     | Behavior when not set                   |
+| ------------ | ----------------------------------- | --------------------------------------- |
+| Snowflake    | `ALTER SESSION SET TIMEZONE = 'tz'` | Defaults to `'UTC'` (always set)        |
+| Postgres     | `SET timezone TO 'tz'`              | Not set (server default, typically UTC) |
+| Databricks   | `SET TIME ZONE 'tz'`                | Not set                                 |
+| Trino/Athena | `SET TIME ZONE 'tz'`                | Not set                                 |
+| DuckDB       | `SET TimeZone = 'tz'`               | Not set                                 |
+| ClickHouse   | `clickhouse_settings.timezone`      | Not set                                 |
+| BigQuery     | N/A                                 | No session timezone support             |
+| Redshift     | Inherits Postgres behavior          | Not set                                 |
 
-The timezone passed to filter compilation comes from `getQueryTimezoneForProject()`:
-```
-project.query_timezone → LIGHTDASH_QUERY_TIMEZONE env var → 'UTC'
-```
+### Result formatting
 
-The middle step (`LIGHTDASH_QUERY_TIMEZONE`) is parsed in `packages/backend/src/config/parseConfig.ts` and allows self-hosted deployments to set a server-wide default without configuring each project.
+`formatTimestamp` has no arbitrary timezone parameter — only a `convertToUTC` boolean. Results are always formatted in the process timezone (UTC in production). The API response includes no timezone metadata.
 
-`metricQuery.timezone` (the per-chart override) is NOT used — the service always resolves via the project setting.
-
-### Absolute date filters ignore timezone entirely
-
-Absolute filter operators (`EQUALS`, `NOT_EQUALS`, `GREATER_THAN`, `LESS_THAN`, `IN_BETWEEN`, etc.) pass the user's input value straight through `dateFormatter()` with no timezone conversion. If a user in New York enters "2024-03-28 09:00:00" in a filter, it goes into the SQL as `('2024-03-28 09:00:00')` — compared directly against UTC-stored data. The frontend also hardcodes a `Z` suffix when serializing Date objects in `packages/frontend/src/utils/dateFilter.ts`, forcing UTC interpretation regardless of user intent.
-
----
-
-## Layer 4: Query Execution
-
-**File:** `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts`
-
-When executing a query, `AsyncQueryService` checks the `EnableTimezoneSupport` feature flag and passes `dataTimezone` from the warehouse credentials:
-```typescript
-warehouseClient.executeAsyncQuery({
-    sql: query,
-    tags: queryTags,
-    timezone: dataTimezone, // from credentials, gated by EnableTimezoneSupport flag
-});
-```
-
-When `dataTimezone` is set and the flag is enabled, the warehouse client sets the session timezone before running the query. When not set or flag is off, no timezone is passed and the warehouse uses its server default (typically UTC).
-
----
-
-## Layer 5: Result Formatting (Backend)
-
-**File:** `packages/common/src/index.ts`
-
-`formatRow()` transforms each warehouse result row into a `ResultRow` with two values per cell:
-
-### Raw value (`formatRawValue`)
-```typescript
-// For timestamps: returns UTC ISO string
-dayjs(value).utc(true).format()  // e.g., "2024-01-15T14:30:00Z"
-
-// For non-timestamps: returns the raw value unchanged
-```
-
-### Formatted value (`formatItemValue`)
 **File:** `packages/common/src/utils/formatting.ts`
 
-For timestamps, calls `formatTimestamp()`:
-```typescript
-const momentDate = convertToUTC ? moment(value).utc() : moment(value);
-return momentDate.format('YYYY-MM-DD, HH:mm:ss:SSS (Z)');
-```
-
-`convertToUTC` is hardcoded to `false` when called from `formatRow()`, so formatting uses the **process timezone** (UTC in production containers).
-
-The function has no parameter for an arbitrary timezone — it can only do "as-is" or "convert to UTC".
-
 ---
 
-## Layer 6: API Response
+## Snowflake `convertTimezone` Asymmetry
 
-**File:** `packages/common/src/types/results.ts`
+This is the most important implementation detail for understanding timezone behavior differences across warehouses.
 
-The API returns `ResultRow` objects:
-```json
-{
-  "order_date": {
-    "value": {
-      "raw": "2024-01-15T14:30:00Z",
-      "formatted": "2024-01-15, 14:30:00:000 (+00:00)"
-    }
-  }
+**File:** `packages/common/src/compiler/translator.ts` — `convertTimezone()`
+
+When explores are compiled, every TIMESTAMP dimension gets wrapped by `convertTimezone()`:
+
+```typescript
+if (type === DimensionType.TIMESTAMP && !disableTimestampConversion) {
+  sql = convertTimezone(sql, 'UTC', 'UTC', targetWarehouse);
 }
 ```
 
-No timezone metadata is included in the response. The frontend doesn't know what timezone the data was formatted in.
+**Only Snowflake actually wraps the SQL.** All other warehouses return it unchanged:
 
----
+| Warehouse  | `compiledSql` for a timestamp dimension                    |
+| ---------- | ---------------------------------------------------------- |
+| Snowflake  | `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', "table"."col"))` |
+| All others | `"table"."col"`                                            |
 
-## Layer 7: Frontend Display
+The Snowflake wrapper converts from the session timezone to UTC, normalizing all timestamp values to UTC at the dimension level. This means:
 
-### Tables
-**File:** `packages/frontend/src/components/common/Table/ScrollableTable/BodyCell.tsx`
+- **Snowflake filter LHS** is UTC-normalized → comparing against UTC filter literals works correctly
+- **Other warehouses filter LHS** is the raw column → comparing against UTC filter literals works for TZ columns (absolute instants) but **not for NTZ columns with non-UTC data timezone**
 
-Table cells display the `formatted` value from the API response directly — no additional conversion.
+### Impact on filters
 
-### Chart tooltips
-**File:** `packages/common/src/visualizations/helpers/valueFormatter.ts`
+```mermaid
+flowchart LR
+    subgraph Snowflake
+        SF_COL["compiledSql:<br/>CONVERT_TIMEZONE('UTC', col)<br/><em>= UTC value</em>"]
+        SF_LIT["literal:<br/>'2024-01-16 00:00:00'<br/><em>= UTC value</em>"]
+        SF_COL --- SF_CMP["✅ Both UTC"]
+        SF_LIT --- SF_CMP
+    end
 
-Chart tooltips re-format using the `raw` value with `convertToUTC=true`:
-```typescript
-getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
+    subgraph Postgres["Postgres (NTZ + data TZ)"]
+        PG_COL["compiledSql:<br/>col<br/><em>= raw Chicago value</em>"]
+        PG_LIT["literal:<br/>'2024-01-16 00:00:00'<br/><em>= UTC value</em>"]
+        PG_COL --- PG_CMP["⚠️ Different timezones"]
+        PG_LIT --- PG_CMP
+    end
 ```
 
-This converts to UTC via `moment(value).utc()` before formatting.
+For Postgres timestamptz columns the bare literal is interpreted in the session timezone, which can shift the boundary incorrectly when data timezone is non-UTC. For NTZ columns, the comparison is raw — the literal is compared as-is regardless of session timezone.
 
-### Chart axes
-**File:** `packages/frontend/src/hooks/echarts/useEchartsCartesianConfig.ts`
+### Impact on DATE_TRUNC
 
-ECharts config hardcodes `useUTC: true`, forcing all time axes to display in UTC. Axis label formatting uses a mix of ECharts built-in formatting and callbacks that call `formatItemValue`.
-
----
-
-## Layer 8: Scheduled Deliveries
-
-**File:** `packages/backend/src/scheduler/SchedulerTask.ts`
-
-Scheduled deliveries (email, Slack) execute queries through the same `AsyncQueryService` pipeline. The scheduler has its own `timezone` field on the scheduler config, but this only controls **when** the cron job fires — not **how** the query runs.
-
-Query results in scheduled deliveries are formatted using the same `formatRow` path (process timezone / UTC).
+DATE_TRUNC is currently not timezone-aware, so the asymmetry doesn't affect grouping today. It will matter when timezone-aware DATE_TRUNC is implemented — the function will need to use `baseDimension.compiledSql` as input, which is already UTC-normalized on Snowflake but raw on other warehouses.
 
 ---
 
-## End-to-End Example
+## Current Gaps
 
-**Setup:** Project timezone = `America/New_York` (UTC-4 during EDT), Snowflake warehouse, user filters "In the current month" (March)
-
-1. **Session timezone**: `ALTER SESSION SET TIMEZONE = '<dataTimezone>'` if `dataTimezone` is set on credentials and `EnableTimezoneSupport` flag is on. Otherwise defaults to UTC.
-2. **CONVERT_TIMEZONE**: `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col))` — no-op when session timezone is UTC, but performs real conversion when `dataTimezone` is set to a non-UTC timezone
-3. **Filter compilation (IN_THE_CURRENT)**: Correctly uses project timezone — March 1 00:00 New York → March 1 04:00 UTC as filter boundary
-4. **DATE_TRUNC**: `DATE_TRUNC('MONTH', col)` — truncates in UTC, not New York time
-5. **Display formatting**: `moment(value).format(...)` — formats in process timezone (UTC)
-
-### The mismatch:
-The filter says "show me data from the current month in New York time" but DATE_TRUNC groups by "month in UTC". A row at March 1 02:00 UTC (= Feb 28 22:00 New York):
-- **Fails** the filter (it's before "current month" in New York, which starts at March 1 04:00 UTC)
-- **Groups** into March (DATE_TRUNC in UTC puts it in March)
-
-Filter boundaries and grouping boundaries disagree on what "the current month" means.
-
-### For IN_THE_PAST filters:
-If a user sets project timezone to New York and filters "in the last 7 days", the filter boundaries are calculated using `moment().startOf('day')` without `.tz('America/New_York')` — so they use process timezone (UTC), ignoring the project setting entirely.
+| Gap                                                          | Description                                                                                | Impact                                                                                                |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| **3 of 5 relative filter operators ignore project timezone** | `IN_THE_PAST`, `NOT_IN_THE_PAST`, `IN_THE_NEXT` use process TZ (UTC) instead of project TZ | "Last 7 days" means "last 7 days in UTC" even when project TZ is New York                             |
+| **`metricQuery.timezone` ignored in query compilation**      | Per-chart timezone override is stored but not used when resolving the query timezone       | Chart-level timezone picker has no effect on query results                                            |
+| **DATE_TRUNC is not timezone-aware**                         | Grouping boundaries are always UTC                                                         | A row at March 1 02:00 UTC (= Feb 28 9pm NY) groups into March, not February                          |
+| **Filter literals have no timezone offset**                  | Bare strings like `'2024-01-16 00:00:00'` are interpreted by the warehouse in session TZ   | When data TZ is non-UTC, Postgres timestamptz filter boundaries shift incorrectly                     |
+| **NTZ filter comparison on non-Snowflake**                   | Filter WHERE clause compares raw NTZ column against UTC literal                            | NTZ columns with non-UTC data timezone produce incorrect filter results on Postgres, Databricks, etc. |
+| **Result formatting is UTC-only**                            | `formatTimestamp` has no arbitrary timezone parameter                                      | Formatted values always show UTC regardless of project timezone                                       |
+| **No timezone metadata in API response**                     | The frontend doesn't know what timezone results are in                                     | No timezone indicator in the UI                                                                       |
+| **Scheduled deliveries use UTC**                             | Query formatting in email/Slack uses process timezone                                      | Scheduled reports don't match Explorer display                                                        |
+| **BigQuery/Redshift: no session timezone**                   | No session timezone support for these warehouses                                           | Data timezone setting has no effect                                                                   |
+| **`convertTimezone` is a stub**                              | Only Snowflake gets conversion; `source_tz` and `target_tz` params are unused              | Non-Snowflake warehouses have no compile-time timestamp normalization                                 |
 
 ---
 
-## Summary of Gaps
+## Vision
 
-| # | What | Expected behavior | Actual behavior |
-|---|------|-------------------|-----------------|
-| 1 | `IN_THE_PAST` / `NOT_IN_THE_PAST` / `IN_THE_NEXT` filters | Use project timezone for boundaries | Use process timezone (UTC) |
-| 2 | `metricQuery.timezone` | Override project timezone in query compilation | Ignored — only used for cache key generation |
-| 3 | DATE_TRUNC grouping | Respect project timezone for day/week/month boundaries | Always truncates in UTC |
-| 4 | Display formatting | Format timestamps in project timezone | Formats in process timezone (UTC) |
-| 5a | Session timezone from data timezone | Set from `dataTimezone` warehouse credential | ✅ **Addressed** — `dataTimezone` passed to warehouse session via `EnableTimezoneSupport` flag |
-| 5b | Project timezone in SQL generation | Use project timezone for DATE_TRUNC, `convertTimezone()`, and display | Not yet — requires SQL-level timezone conversion for DATE_TRUNC and `convertTimezone()` |
-| 6 | `CONVERT_TIMEZONE` target | Convert to project timezone | Hardcoded to UTC |
-| 7 | Non-Snowflake warehouses | Have timestamp conversion equivalent | No conversion at all |
-| 8 | API response | Include timezone metadata | No timezone info in response |
-| 9 | Scheduled deliveries | Use project timezone for query and formatting | Use UTC for everything |
-| 10 | NTZ data in non-UTC timezone | Interpret correctly via data timezone setting | ✅ **Addressed** — `dataTimezone` on warehouse credentials sets session timezone, which tells Snowflake how to interpret NTZ values. On Postgres, NTZ columns are unaffected by session timezone (requires SQL-level `AT TIME ZONE` conversion). |
-| 11 | Absolute date filter values | Interpreted in project/user timezone | Used as-is — compared against UTC data with no conversion |
-| 12 | `disableTimestampConversion` | Documented escape hatch with clear semantics | Undocumented boolean that silently skips all timestamp conversion |
-| 13 | Timezone picker coverage | Full IANA timezone list | ~28 predefined zones in `TimeZone` enum (`packages/common/src/types/timezone.ts`), though the API validates against the full IANA set |
+The goal is for both timezone settings to work consistently across all warehouses and all SQL layers:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    User's query                          │
+│  "Show me orders from last 7 days, grouped by day"       │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+              ┌────────▼────────┐
+              │ Project timezone │  "Last 7 days in New York"
+              │ (filter + group) │  → boundaries at midnight ET
+              └────────┬────────┘
+                       │
+              ┌────────▼────────┐
+              │  Data timezone   │  "My NTZ data is in Chicago"
+              │  (interpret raw) │  → session TZ = Chicago
+              └────────┬────────┘
+                       │
+              ┌────────▼────────┐
+              │   SQL execution  │  Everything compared in UTC:
+              │                  │  - Filter literals: UTC
+              │                  │  - Column values: normalized to UTC
+              │                  │  - DATE_TRUNC: in project TZ, result as UTC
+              └────────┬────────┘
+                       │
+              ┌────────▼────────┐
+              │ Result display   │  Formatted in project timezone
+              │                  │  with timezone indicator
+              └─────────────────┘
+```
+
+### What "fully working" means
+
+1. **Filters:** All relative operators compute boundaries in project TZ. Literals are unambiguously UTC. Comparison works for both TZ and NTZ columns on all warehouses.
+2. **DATE_TRUNC:** Groups at project TZ boundaries on all warehouses.
+3. **Display:** Formatted timestamps reflect the project timezone, with timezone indicator in the UI.
+4. **Scheduled deliveries:** Results match what the user sees in the Explorer.
+5. **NTZ normalization:** Filter WHERE clause normalizes NTZ columns to UTC (like DATE_TRUNC will) so UTC literals compare correctly.
+
+### Open design questions
+
+- **Should `convertTimezone` in translator.ts normalize all warehouses to UTC?** This would fix the NTZ filter issue at the source but has a large blast radius — it changes `compiledSql` for all timestamp dimensions on all warehouses.
+- **Or should the filter path normalize per-query?** Apply `::timestamptz` (or equivalent) to the filter column in MetricQueryBuilder when data timezone is set. Smaller blast radius but adds per-warehouse SQL to the filter path.
 
 ---
 
-## Implementation Considerations
+## File Reference
 
-Things to keep in mind when changing timezone handling in this codebase.
-
-| Concern | Details |
-|---------|---------|
-| Timestamp type safety | Snowflake errors on `TIMESTAMP_TZ` vs `TIMESTAMP_NTZ` comparisons. Any SQL conversion wrapping must produce consistent types on both sides of comparisons. |
-| Conversion performance | Wrapping every timestamp dimension with `CONVERT_TIMEZONE` can slow queries. Consider only converting fields used in filters or grouping, not all selected fields. The `disableTimestampConversion` / `convert_tz: false` escape hatch exists for individual dimensions. |
-| Category vs point-in-time display | Grouped data across timezones: categorical charts (pie, bar) should label the grouping bucket, time series charts should plot at the actual point in time. Be intentional about whether a date value is a category label or a position on a continuous axis. |
-| SQL vs in-memory date math | Filter boundaries can be computed in application code and passed as literals (easier to test and reason about) or via SQL truncation (may perform better on large datasets). Currently a mix of both — pick one approach and be consistent. |
+| Component               | File                                                                   |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `convertTimezone`       | `packages/common/src/compiler/translator.ts`                           |
+| Filter compilation      | `packages/common/src/compiler/filtersCompiler.ts`                      |
+| DATE_TRUNC              | `packages/common/src/utils/timeFrames.ts`                              |
+| Timezone resolution     | `packages/common/src/utils/resolveQueryTimezone.ts`                    |
+| MetricQueryBuilder      | `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`        |
+| AsyncQueryService       | `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts` |
+| Project timezone config | `packages/backend/src/services/ProjectService/ProjectService.ts`       |
+| Feature flags           | `packages/common/src/types/featureFlags.ts`                            |
+| Warehouse credentials   | `packages/common/src/types/projects.ts`                                |
+| Result formatting       | `packages/common/src/utils/formatting.ts`                              |
+| Warehouse clients       | `packages/warehouses/src/warehouseClients/`                            |
