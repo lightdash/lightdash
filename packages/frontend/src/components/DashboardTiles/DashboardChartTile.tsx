@@ -126,6 +126,7 @@ import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
@@ -265,18 +266,20 @@ const ValidDashboardChartTile: FC<{
         onSeriesContextMenu,
         setEchartsRef,
     }) => {
-        const addResultsCacheTime = useDashboardContext(
+        const addResultsCacheTime = useDashboardTileStatusContext(
             (c) => c.addResultsCacheTime,
         );
-        const addPreAggregateStatus = useDashboardContext(
+        const addPreAggregateStatus = useDashboardTileStatusContext(
             (c) => c.addPreAggregateStatus,
         );
-        const markTileScreenshotReady = useDashboardContext(
+        const markTileScreenshotReady = useDashboardTileStatusContext(
             (c) => c.markTileScreenshotReady,
         );
 
         const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-        const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+        const invalidateCache = useDashboardTileStatusContext(
+            (c) => c.invalidateCache,
+        );
         const dateZoomGranularity = useDashboardContext(
             (c) => c.dateZoomGranularity,
         );
@@ -429,7 +432,7 @@ const ValidDashboardChartTileMinimal: FC<{
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const markTileScreenshotReady = useDashboardContext(
+    const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
     );
 
@@ -704,7 +707,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             (c) => c.parameterDefinitions,
         );
 
-        const preAggregateStatuses = useDashboardContext(
+        const preAggregateStatuses = useDashboardTileStatusContext(
             (c) => c.preAggregateStatuses,
         );
         const tilePreAggStatus = preAggregateStatuses[tileUuid];
@@ -1948,7 +1951,7 @@ export const GenericDashboardChartTile: FC<
     }>();
     const { user } = useApp();
 
-    const markTileScreenshotErrored = useDashboardContext(
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
     useEffect(() => {

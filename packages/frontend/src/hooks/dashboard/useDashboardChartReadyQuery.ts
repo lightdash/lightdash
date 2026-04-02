@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
@@ -66,12 +67,17 @@ export const useDashboardChartReadyQuery = (
 ) => {
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+    const invalidateCache = useDashboardTileStatusContext(
+        (c) => c.invalidateCache,
+    );
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
     const addParameterReferences = useDashboardContext(
         (c) => c.addParameterReferences,
+    );
+    const markTileLoaded = useDashboardTileStatusContext(
+        (c) => c.markTileLoaded,
     );
     const tileParameterReferences = useDashboardContext(
         (c) => c.tileParameterReferences,
@@ -81,7 +87,7 @@ export const useDashboardChartReadyQuery = (
         [chartSort, tileUuid],
     );
     const granularity = useDashboardContext((c) => c.dateZoomGranularity);
-    const autoRefresh = useDashboardContext((c) => c.isAutoRefresh);
+    const autoRefresh = useDashboardTileStatusContext((c) => c.isAutoRefresh);
     const context =
         useSearchParams<QueryExecutionContext>('context') || undefined;
     const setChartsWithDateZoomApplied = useDashboardContext(
@@ -106,10 +112,10 @@ export const useDashboardChartReadyQuery = (
         chartQuery.data?.metricQuery?.exploreName,
     );
 
-    const addAvailableCustomGranularities = useDashboardContext(
+    const addAvailableCustomGranularities = useDashboardTileStatusContext(
         (c) => c.addAvailableCustomGranularities,
     );
-    const setTileHasTimestampDimension = useDashboardContext(
+    const setTileHasTimestampDimension = useDashboardTileStatusContext(
         (c) => c.setTileHasTimestampDimension,
     );
 
@@ -300,13 +306,16 @@ export const useDashboardChartReadyQuery = (
                 tileUuid,
                 queryResult.data.executeQueryResponse.parameterReferences,
             );
+            markTileLoaded(tileUuid);
         } else if (queryResult.error) {
             // On error, there are no references, but we count the tile as loaded
             addParameterReferences(tileUuid, []);
+            markTileLoaded(tileUuid);
         }
     }, [
         queryResult.data?.executeQueryResponse?.parameterReferences,
         addParameterReferences,
+        markTileLoaded,
         tileUuid,
         queryResult.error,
     ]);
