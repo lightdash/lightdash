@@ -54,6 +54,8 @@ export default function mockHealthResponse(
             versionHistory: {
                 daysLimit: 3,
             },
+            disableSentryTracking: false,
+            disablePosthogRecording: false,
         },
         pivotTable: {
             maxColumnLimit: 100,
