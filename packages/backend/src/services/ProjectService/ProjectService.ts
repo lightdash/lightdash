@@ -3727,6 +3727,18 @@ export class ProjectService extends BaseService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
+                // Resolve display timezone for formatting (gated by feature flag)
+                const { enabled: isTimezoneSupportEnabled } =
+                    await this.featureFlagModel.get({
+                        featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                    });
+                const displayTimezone = isTimezoneSupportEnabled
+                    ? resolveQueryTimezone(
+                          metricQuery,
+                          await this.getQueryTimezoneForProject(projectUuid),
+                      )
+                    : undefined;
+
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapSentryTransaction<ResultRow[]>(
                     'ProjectService.runQueryAndFormatRows.formatRows',
@@ -3752,11 +3764,18 @@ export class ProjectService extends BaseService {
                                                   workerData: {
                                                       rows,
                                                       itemMap: fields,
+                                                      timezone: displayTimezone,
                                                   },
                                               },
                                           ),
                                       )
-                                    : formatRows(rows, fields);
+                                    : formatRows(
+                                          rows,
+                                          fields,
+                                          undefined,
+                                          undefined,
+                                          displayTimezone,
+                                      );
                             },
                             'formatRows',
                             this.logger,
