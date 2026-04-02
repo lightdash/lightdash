@@ -200,6 +200,9 @@ export const formatAuditResource = (resource: AuditResource): string => {
     if (resource.projectUuid) {
         return `${typePart} in project ${resource.projectUuid}`;
     }
+    if (resource.organizationUuid) {
+        return `${typePart} in organization ${resource.organizationUuid}`;
+    }
     return typePart;
 };
 

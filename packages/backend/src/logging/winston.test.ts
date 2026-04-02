@@ -134,11 +134,20 @@ describe('formatAuditResource', () => {
         ).toBe('Explore in project proj-uuid');
     });
 
-    it('shows just type when no uuid, name, or project', () => {
+    it('shows type with org context when only org uuid is available', () => {
         expect(
             formatAuditResource({
                 type: 'CustomSql',
                 organizationUuid: 'org-uuid',
+            }),
+        ).toBe('CustomSql in organization org-uuid');
+    });
+
+    it('shows just type when no uuid, name, project, or org', () => {
+        expect(
+            formatAuditResource({
+                type: 'CustomSql',
+                organizationUuid: '',
             }),
         ).toBe('CustomSql');
     });
