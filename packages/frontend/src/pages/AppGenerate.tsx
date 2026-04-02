@@ -490,27 +490,6 @@ const AppGenerate: FC = () => {
                                                             {msg.content}
                                                         </Text>
                                                     )}
-                                                    {msg.appUuid &&
-                                                        msg.version && (
-                                                            <Text
-                                                                component={Link}
-                                                                to={`/projects/${projectUuid}/apps/${msg.appUuid}/versions/${msg.version}/preview`}
-                                                                target="_blank"
-                                                                size="xs"
-                                                                c="dimmed"
-                                                                td="underline"
-                                                                mt={4}
-                                                            >
-                                                                Open in new tab{' '}
-                                                                <IconExternalLink
-                                                                    size={12}
-                                                                    style={{
-                                                                        verticalAlign:
-                                                                            'middle',
-                                                                    }}
-                                                                />
-                                                            </Text>
-                                                        )}
                                                 </Box>
                                             </Box>
                                         ),
