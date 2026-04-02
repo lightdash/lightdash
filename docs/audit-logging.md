@@ -327,8 +327,8 @@ When a denied access attempt occurs (e.g., viewer trying to delete):
 ## ESLint Enforcement
 
 The custom ESLint rule `no-direct-ability-check` (loaded via `--rulesdir eslint-rules`) detects direct `.ability.can()` /
-`.ability.cannot()` usage in service files and flags them. It is currently set to **warning** during the migration period,
-and will be promoted to **error** once all services are migrated.
+`.ability.cannot()` usage in service files and flags them as **errors**. The build will fail if any new code uses direct
+ability checks without going through `createAuditedAbility()`.
 
 The rule catches patterns like:
 

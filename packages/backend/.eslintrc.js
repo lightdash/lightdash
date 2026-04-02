@@ -88,13 +88,17 @@ module.exports = {
             },
         },
         {
-            // Warn on direct ability checks in services - use createAuditedAbility() instead
+            // Enforce audited ability checks in services - use createAuditedAbility() instead
             files: [
                 'src/services/**/*.ts',
                 'src/ee/services/**/*.ts',
             ],
+            excludedFiles: [
+                // Standalone utility function, not a class method
+                'src/services/UserAttributesService/UserAttributeUtils.ts',
+            ],
             rules: {
-                'no-direct-ability-check': 'warn',
+                'no-direct-ability-check': 'error',
             },
         },
         {
