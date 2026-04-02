@@ -1,6 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
 import { PostHogProvider, usePostHog } from 'posthog-js/react';
-import { useCallback, useEffect, type FC } from 'react';
+import { type FC, useCallback, useEffect } from 'react';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
 import useSentry from '../hooks/thirdPartyServices/useSentry';
