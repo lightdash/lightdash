@@ -1,3 +1,15 @@
+## [0.2720.3](https://github.com/lightdash/lightdash/compare/0.2720.2...0.2720.3) (2026-04-02)
+
+
+### Bug Fixes
+
+* move dashboard info popover next to title and use MantineIcon for star ([#21710](https://github.com/lightdash/lightdash/issues/21710)) ([a5921fe](https://github.com/lightdash/lightdash/commit/a5921fe36e2d32d7e0ad79fdde94b178b4146872))
+
+
+### Reverts
+
+* revert posthog-js upgrade (1.364.6 → 1.166.1) ([#21709](https://github.com/lightdash/lightdash/issues/21709)) ([ec5beb4](https://github.com/lightdash/lightdash/commit/ec5beb48b23915cfaa96e71369dd0d3a6e954ede))
+
 ## [0.2720.2](https://github.com/lightdash/lightdash/compare/0.2720.1...0.2720.2) (2026-04-02)
 
 
