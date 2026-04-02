@@ -6,7 +6,12 @@ import {
     type TooltipComponentFormatterCallback,
 } from 'echarts';
 import { toNumber } from 'lodash';
-import { isField, isTableCalculation, type ItemsMap } from '../../types/field';
+import {
+    isField,
+    isTableCalculation,
+    isTimeBasedDimension,
+    type ItemsMap,
+} from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
 import {
@@ -1311,7 +1316,7 @@ export const buildCartesianTooltipFormatter =
             const hasFormat = isField(field)
                 ? field.format !== undefined
                 : false;
-            if (hasFormat) {
+            if (hasFormat || isTimeBasedDimension(field)) {
                 // Use raw value from data object for the specific dimensionId
                 // Don't use axisValue directly as it may be from a different axis
                 // (e.g., in flipped charts, axisValue might be "Phillip" but dimensionId is the date field)
