@@ -193,7 +193,11 @@ export const formatAuditResource = (resource: AuditResource): string => {
     if (resource.name) {
         return `${typePart} "${resource.name}"`;
     }
-    if (resource.uuid && resource.uuid !== resource.projectUuid) {
+    if (
+        resource.uuid &&
+        (resource.uuid !== resource.projectUuid ||
+            resource.type === 'Project')
+    ) {
         return `${typePart} ${resource.uuid}`;
     }
     // Permission-type subjects (CustomSql, UnderlyingData, Explore, Project, etc.)

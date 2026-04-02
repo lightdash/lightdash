@@ -124,7 +124,7 @@ describe('formatAuditResource', () => {
         ).toBe('Dashboard dash-uuid');
     });
 
-    it('shows "in project" when uuid equals projectUuid', () => {
+    it('shows Project uuid even when uuid equals projectUuid', () => {
         expect(
             formatAuditResource({
                 type: 'Project',
@@ -132,7 +132,7 @@ describe('formatAuditResource', () => {
                 organizationUuid: 'org-uuid',
                 projectUuid: 'proj-uuid',
             }),
-        ).toBe('Project in project proj-uuid');
+        ).toBe('Project proj-uuid');
     });
 
     it('shows Project with uuid when projectUuid is not set', () => {
