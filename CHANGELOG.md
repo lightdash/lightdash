@@ -1,3 +1,10 @@
+## [0.2710.2](https://github.com/lightdash/lightdash/compare/0.2710.1...0.2710.2) (2026-04-02)
+
+
+### Performance Improvements
+
+* wrap inactive dashboard tabs with React Activity for deferred rendering ([#21629](https://github.com/lightdash/lightdash/issues/21629)) ([e9bdba2](https://github.com/lightdash/lightdash/commit/e9bdba2187c08f62e517e1f5584470089b069614))
+
 ## [0.2710.1](https://github.com/lightdash/lightdash/compare/0.2710.0...0.2710.1) (2026-04-02)
 
 
