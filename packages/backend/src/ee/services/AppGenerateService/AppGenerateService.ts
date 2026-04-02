@@ -379,6 +379,20 @@ export class AppGenerateService extends BaseService {
         return tools.length > 0 ? tools.join(', ') : undefined;
     }
 
+    /**
+     * Parse a stream-json `result` event and return the final response text.
+     */
+    private static parseClaudeResultText(line: string): string | undefined {
+        let event: Record<string, unknown>;
+        try {
+            event = JSON.parse(line);
+        } catch {
+            return undefined;
+        }
+        if (event.type !== 'result') return undefined;
+        return typeof event.result === 'string' ? event.result : undefined;
+    }
+
     private static readonly CODING_PHRASES = [
         'Shipping BI like we ship code',
         'Turning your metrics into pixels',
@@ -427,10 +441,11 @@ export class AppGenerateService extends BaseService {
         sandbox: Sandbox,
         appUuid: string,
         version: number,
-    ): Promise<number> {
+    ): Promise<{ durationMs: number; responseText: string | null }> {
         const start = performance.now();
         let stdoutBuffer = '';
         let toolCallCount = 0;
+        let responseText: string | null = null;
 
         const result = await sandbox.commands.run(
             `cat /tmp/prompt.txt | claude -p ` +
@@ -471,6 +486,12 @@ export class AppGenerateService extends BaseService {
                                         );
                                     });
                             }
+
+                            const resultText =
+                                AppGenerateService.parseClaudeResultText(line);
+                            if (resultText) {
+                                responseText = resultText;
+                            }
                         }
                     }
                 },
@@ -494,7 +515,7 @@ export class AppGenerateService extends BaseService {
                 `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
             );
         }
-        return durationMs;
+        return { durationMs, responseText };
     }
 
     private async runBuild(sandbox: Sandbox, appUuid: string): Promise<number> {
@@ -704,17 +725,21 @@ export class AppGenerateService extends BaseService {
             return;
         }
 
+        let responseText: string | null = null;
+
         try {
             await this.appModel.updateStatusMessage(
                 appUuid,
                 version,
                 AppGenerateService.randomCodingPhrase(),
             );
-            durations.generateMs = await this.runClaudeGeneration(
+            const generation = await this.runClaudeGeneration(
                 sandbox,
                 appUuid,
                 version,
             );
+            durations.generateMs = generation.durationMs;
+            responseText = generation.responseText;
         } catch (error) {
             const totalMs = AppGenerateService.elapsed(overallStart);
             this.logger.error(
@@ -787,6 +812,8 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 'ready',
+                null,
+                responseText,
             );
             durations.dbMs = AppGenerateService.elapsed(dbStart);
             if (!updated) {
