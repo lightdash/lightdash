@@ -1192,6 +1192,7 @@ export class AppGenerateService extends BaseService {
             name: string;
             description: string;
             projectUuid: string;
+            projectName: string;
             createdAt: Date;
             lastVersionNumber: number | null;
             lastVersionStatus: string | null;
@@ -1219,6 +1220,7 @@ export class AppGenerateService extends BaseService {
                 name: row.app.name,
                 description: row.app.description,
                 projectUuid: row.app.project_uuid,
+                projectName: row.projectName,
                 createdAt: row.app.created_at,
                 lastVersionNumber: row.lastVersion?.version ?? null,
                 lastVersionStatus: row.lastVersion?.status ?? null,

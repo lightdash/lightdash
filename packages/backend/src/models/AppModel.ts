@@ -11,6 +11,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../database/entities/apps';
+import { ProjectTableName } from '../database/entities/projects';
 import KnexPaginate from '../database/pagination';
 
 type AppModelArguments = {
@@ -229,6 +230,7 @@ export class AppModel {
         KnexPaginatedData<
             {
                 app: DbApp;
+                projectName: string;
                 lastVersion: Pick<DbAppVersion, 'version' | 'status'> | null;
             }[]
         >
@@ -247,10 +249,16 @@ export class AppModel {
                     `${AppVersionsTableName}.app_id`,
                 ).andOn('lv.version', `${AppVersionsTableName}.version`);
             })
+            .innerJoin(
+                ProjectTableName,
+                `${AppsTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             .select(
                 `${AppsTableName}.*`,
+                `${ProjectTableName}.name as project_name`,
                 `${AppVersionsTableName}.version as last_version`,
                 `${AppVersionsTableName}.status as last_version_status`,
             )
@@ -259,6 +267,7 @@ export class AppModel {
         const result = await KnexPaginate.paginate(query, paginateArgs);
 
         type RowWithVersion = DbApp & {
+            project_name: string;
             last_version: number | null;
             last_version_status: string | null;
         };
@@ -266,15 +275,23 @@ export class AppModel {
         const rows = result.data as unknown as RowWithVersion[];
 
         return {
-            data: rows.map(({ last_version, last_version_status, ...app }) => ({
-                app,
-                lastVersion: last_version
-                    ? {
-                          version: last_version,
-                          status: last_version_status as AppVersionStatus,
-                      }
-                    : null,
-            })),
+            data: rows.map(
+                ({
+                    project_name,
+                    last_version,
+                    last_version_status,
+                    ...app
+                }) => ({
+                    app,
+                    projectName: project_name,
+                    lastVersion: last_version
+                        ? {
+                              version: last_version,
+                              status: last_version_status as AppVersionStatus,
+                          }
+                        : null,
+                }),
+            ),
             pagination: result.pagination,
         };
     }

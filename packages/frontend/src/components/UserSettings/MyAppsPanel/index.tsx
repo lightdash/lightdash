@@ -8,7 +8,15 @@ import {
     Stack,
     Text,
 } from '@mantine-8/core';
-import { IconDots, IconExternalLink, IconPencil } from '@tabler/icons-react';
+import {
+    IconClock,
+    IconDots,
+    IconExternalLink,
+    IconLayoutDashboard,
+    IconPencil,
+    IconRadar,
+    IconTextCaption,
+} from '@tabler/icons-react';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -17,6 +25,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
+import MantineIcon from '../../common/MantineIcon';
 
 const statusColor = (status: string | null) => {
     switch (status) {
@@ -71,6 +80,12 @@ const MyAppsPanel: FC = () => {
                 header: 'Name',
                 enableSorting: false,
                 size: 200,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" fw={500} truncate="end">
                         {row.original.name ||
@@ -79,10 +94,36 @@ const MyAppsPanel: FC = () => {
                 ),
             },
             {
+                accessorKey: 'projectName',
+                header: 'Project',
+                enableSorting: false,
+                size: 150,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon
+                            icon={IconLayoutDashboard}
+                            color="ldGray.6"
+                        />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => (
+                    <Text fz="sm" c="ldGray.7">
+                        {row.original.projectName}
+                    </Text>
+                ),
+            },
+            {
                 accessorKey: 'lastVersionStatus',
                 header: 'Status',
                 enableSorting: false,
                 size: 100,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconRadar} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
                 Cell: ({ row }) => {
                     const { lastVersionStatus, lastVersionNumber } =
                         row.original;
@@ -109,6 +150,12 @@ const MyAppsPanel: FC = () => {
                 header: 'Created',
                 enableSorting: false,
                 size: 120,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconClock} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
                 Cell: ({ row }) => (
                     <Text fz="sm" c="ldGray.7">
                         {new Date(row.original.createdAt).toLocaleDateString()}
