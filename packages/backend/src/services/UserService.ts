@@ -2468,11 +2468,35 @@ export class UserService extends BaseService {
             }) => void;
         },
     ): Promise<void> {
+        const adminActor = createActorFromUser(adminUser);
+
         if (!(await this.isImpersonationEnabled(adminUser))) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: adminActor,
+                    action: 'impersonation_start',
+                    resourceType: 'User',
+                    resourceUuid: targetUserUuid,
+                    organizationUuid: adminUser.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'User impersonation is not enabled',
+                }),
+            );
             throw new ForbiddenError('User impersonation is not enabled');
         }
 
         if (!isSessionAuth) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: adminActor,
+                    action: 'impersonation_start',
+                    resourceType: 'User',
+                    resourceUuid: targetUserUuid,
+                    organizationUuid: adminUser.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'Impersonation requires session authentication',
+                }),
+            );
             throw new ForbiddenError(
                 'Impersonation requires session authentication',
             );
@@ -2480,6 +2504,17 @@ export class UserService extends BaseService {
 
         // Prevent recursive impersonation
         if (getImpersonation()) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: adminActor,
+                    action: 'impersonation_start',
+                    resourceType: 'User',
+                    resourceUuid: targetUserUuid,
+                    organizationUuid: adminUser.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'Already impersonating another user',
+                }),
+            );
             throw new ForbiddenError(
                 'Cannot start impersonation while already impersonating',
             );
@@ -2487,6 +2522,17 @@ export class UserService extends BaseService {
 
         // Prevent self-impersonation
         if (adminUser.userUuid === targetUserUuid) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: adminActor,
+                    action: 'impersonation_start',
+                    resourceType: 'User',
+                    resourceUuid: targetUserUuid,
+                    organizationUuid: adminUser.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'Cannot impersonate yourself',
+                }),
+            );
             throw new ParameterError('Cannot impersonate yourself');
         }
 
@@ -2504,6 +2550,17 @@ export class UserService extends BaseService {
                 }),
             )
         ) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: adminActor,
+                    action: 'impersonation_start',
+                    resourceType: 'User',
+                    resourceUuid: targetUserUuid,
+                    organizationUuid: adminUser.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'Insufficient permissions to impersonate user',
+                }),
+            );
             throw new ForbiddenError(
                 "You don't have permissions to impersonate this user",
             );
@@ -2529,6 +2586,17 @@ export class UserService extends BaseService {
                 organizationUuid: adminUser.organizationUuid!,
             },
         });
+
+        logAuditEvent(
+            createAuthAuditEvent({
+                actor: adminActor,
+                action: 'impersonation_start',
+                resourceType: 'User',
+                resourceUuid: targetUserUuid,
+                organizationUuid: adminUser.organizationUuid || 'unknown',
+                status: 'allowed',
+            }),
+        );
     }
 
     async stopImpersonation({
@@ -2565,5 +2633,16 @@ export class UserService extends BaseService {
                 organizationUuid: adminUser.organizationUuid!,
             },
         });
+
+        logAuditEvent(
+            createAuthAuditEvent({
+                actor: createActorFromUser(adminUser),
+                action: 'impersonation_stop',
+                resourceType: 'User',
+                resourceUuid: targetUserUuid,
+                organizationUuid: adminUser.organizationUuid || 'unknown',
+                status: 'allowed',
+            }),
+        );
     }
 }
