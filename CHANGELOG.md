@@ -1,3 +1,15 @@
+# [0.2716.0](https://github.com/lightdash/lightdash/compare/0.2715.0...0.2716.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* stop concatenating app generation prompt ([#21676](https://github.com/lightdash/lightdash/issues/21676)) ([e72bd21](https://github.com/lightdash/lightdash/commit/e72bd212dc91f7cf183e4e391becf139943b2c7e))
+
+
+### Features
+
+* surface Claude's text response in app generation chat ([#21675](https://github.com/lightdash/lightdash/issues/21675)) ([ef09e71](https://github.com/lightdash/lightdash/commit/ef09e71668935898371ca13b829d0a157e446cc8))
+
 # [0.2715.0](https://github.com/lightdash/lightdash/compare/0.2714.0...0.2715.0) (2026-04-02)
 
 
