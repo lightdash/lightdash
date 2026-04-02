@@ -105,7 +105,6 @@ export const lightdashConfigMock: LightdashConfig = {
         maxTabsPerDashboard: 20,
         versionHistory: { daysLimit: 0 },
         disableSentryTracking: false,
-        disablePosthogRecording: false,
     },
     database: {
         connectionUri: undefined,

@@ -1046,7 +1046,6 @@ export type LightdashConfig = {
             daysLimit: number;
         };
         disableSentryTracking: boolean;
-        disablePosthogRecording: boolean;
     };
     // This is the override color palette for the organization
     // TODO: allow override for dark theme
@@ -1964,9 +1963,6 @@ export const parseConfig = (): LightdashConfig => {
             },
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
-                'true',
-            disablePosthogRecording:
-                process.env.LIGHTDASH_DASHBOARD_DISABLE_POSTHOG_RECORDING ===
                 'true',
         },
         pivotTable: {

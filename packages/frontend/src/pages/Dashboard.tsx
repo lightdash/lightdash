@@ -29,7 +29,6 @@ import {
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { usePausePosthogRecordingOnDashboard } from '../hooks/thirdPartyServices/usePausePosthogRecordingOnDashboard';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
@@ -40,8 +39,6 @@ import useFullscreen from '../providers/Fullscreen/useFullscreen';
 import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
-    usePausePosthogRecordingOnDashboard();
-
     const navigate = useNavigate();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
