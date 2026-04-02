@@ -301,7 +301,7 @@ const usePieChartConfig: PieChartConfigFn = (
                         formatted: formatItemValue(
                             selectedMetric,
                             value,
-                            false,
+                            undefined,
                             parameters,
                         ),
                         raw: value,

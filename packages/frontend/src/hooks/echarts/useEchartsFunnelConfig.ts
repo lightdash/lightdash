@@ -45,7 +45,7 @@ const getValueAndPercentage = ({
     maxValue: number;
     parameters?: Record<string, unknown>;
 }) => {
-    const formattedValue = formatItemValue(field, value, false, parameters);
+    const formattedValue = formatItemValue(field, value, undefined, parameters);
 
     const percentOfMax = round((Number(value) / maxValue) * 100, 2);
     return { formattedValue, percentOfMax };

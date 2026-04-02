@@ -195,7 +195,7 @@ const useEchartsPieConfig = (
                     const formattedValue = formatItemValue(
                         selectedMetric,
                         value,
-                        false,
+                        undefined,
                         parameters,
                     );
 

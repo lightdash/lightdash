@@ -362,7 +362,7 @@ const getHeader = (
     const rawAxisValue = firstParam?.axisValue;
     if (rawAxisValue !== undefined && rawAxisValue !== null) {
         if (itemsMap && xFieldId) {
-            return getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
+            return getFormattedValue(rawAxisValue, xFieldId, itemsMap, 'UTC');
         }
         return String(rawAxisValue);
     }
@@ -374,7 +374,7 @@ const getHeader = (
         if (xValue !== undefined && xValue !== null) {
             // Use getFormattedValue for consistent formatting with axis labels
             if (itemsMap && xFieldId) {
-                return getFormattedValue(xValue, xFieldId, itemsMap, true);
+                return getFormattedValue(xValue, xFieldId, itemsMap, 'UTC');
             }
             return String(xValue);
         }
@@ -1306,7 +1306,7 @@ export const buildCartesianTooltipFormatter =
                 const headerText = formatItemValue(
                     field,
                     header,
-                    false,
+                    undefined,
                     parameters,
                 );
                 return `${formatTooltipHeader(

@@ -746,6 +746,7 @@ export function formatRow(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow {
     const resultRow: ResultRow = {};
     const columnNames = Object.keys(row || {});
@@ -758,7 +759,7 @@ export function formatRow(
         resultRow[columnName] = {
             value: {
                 raw: formatRawValue(item, value),
-                formatted: formatItemValue(item, value, false, parameters),
+                formatted: formatItemValue(item, value, timezone, parameters),
             },
         };
     }
@@ -771,9 +772,10 @@ export function formatRows(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow[] {
     return rows.map((row) =>
-        formatRow(row, itemsMap, pivotValuesColumns, parameters),
+        formatRow(row, itemsMap, pivotValuesColumns, parameters, timezone),
     );
 }
 

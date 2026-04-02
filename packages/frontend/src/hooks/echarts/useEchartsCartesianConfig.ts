@@ -696,7 +696,7 @@ const seriesValueFormatter = (
         return value;
     }
     if (isTableCalculation(item)) {
-        return formatItemValue(item, value, false, parameters);
+        return formatItemValue(item, value, undefined, parameters);
     } else {
         const defaultFormatOptions = getCustomFormatFromLegacy({
             format: item.format,
