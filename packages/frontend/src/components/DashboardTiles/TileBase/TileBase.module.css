@@ -123,4 +123,9 @@
     z-index: calc(
         var(--dashboard-tabs-zindex) + 1 - (var(--tabs-stuck, 0) * 2)
     );
+
+    &[data-hidden='true'] {
+        visibility: hidden;
+        pointer-events: none;
+    }
 }

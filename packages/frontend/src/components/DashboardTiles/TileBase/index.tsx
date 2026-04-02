@@ -105,9 +105,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     return (
         <div ref={containerRef} className={styles.tileWrapper}>
-            {containerHovered && isEditMode && !minimal && (
+            {isEditMode && !minimal && (
                 <Paper
                     className={styles.dragHandleIcon}
+                    data-hidden={!containerHovered}
                     pos="absolute"
                     shadow="sm"
                     top={-6}
@@ -119,154 +120,158 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 </Paper>
             )}
 
-            {((containerHovered && !titleHovered && !chartHovered) ||
-                isMenuOpen ||
-                lockHeaderVisibility) &&
-                hasHeaderContent && (
-                    <Paper
-                        p={5}
-                        className={clsx('non-draggable', styles.tileTooltip)}
-                        shadow="sm"
-                        pos="absolute"
-                        top={-6}
-                        right={-2}
-                    >
-                        <Group gap={5} wrap="nowrap">
-                            {titleLeftIcon}
+            {hasHeaderContent && (
+                <Paper
+                    p={5}
+                    className={clsx('non-draggable', styles.tileTooltip)}
+                    data-hidden={
+                        !(
+                            (containerHovered &&
+                                !titleHovered &&
+                                !chartHovered) ||
+                            isMenuOpen ||
+                            lockHeaderVisibility
+                        )
+                    }
+                    shadow="sm"
+                    pos="absolute"
+                    top={-6}
+                    right={-2}
+                >
+                    <Group gap={5} wrap="nowrap">
+                        {titleLeftIcon}
 
-                            {visibleHeaderElement && (
-                                <Group gap="xs" className="non-draggable">
-                                    {visibleHeaderElement}
-                                </Group>
-                            )}
+                        {visibleHeaderElement && (
+                            <Group gap="xs" className="non-draggable">
+                                {visibleHeaderElement}
+                            </Group>
+                        )}
 
-                            {extraHeaderElement}
+                        {extraHeaderElement}
 
-                            {isVerified && (
-                                <Tooltip
-                                    label={
-                                        verification?.verifiedBy
-                                            ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
-                                            : 'Verified'
-                                    }
-                                    withArrow
-                                    withinPortal
-                                >
-                                    <IconCircleCheckFilled
-                                        size={14}
-                                        style={{
-                                            flexShrink: 0,
-                                            color: 'var(--mantine-color-green-6)',
-                                        }}
-                                    />
-                                </Tooltip>
-                            )}
+                        {isVerified && (
+                            <Tooltip
+                                label={
+                                    verification?.verifiedBy
+                                        ? `Verified by ${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`
+                                        : 'Verified'
+                                }
+                                withArrow
+                                withinPortal
+                            >
+                                <IconCircleCheckFilled
+                                    size={14}
+                                    style={{
+                                        flexShrink: 0,
+                                        color: 'var(--mantine-color-green-6)',
+                                    }}
+                                />
+                            </Tooltip>
+                        )}
 
-                            {hasMenuContent && (
-                                <Menu
-                                    withArrow
-                                    withinPortal
-                                    shadow="md"
-                                    position="bottom-end"
-                                    offset={4}
-                                    arrowOffset={10}
-                                    opened={isMenuOpen}
-                                    onOpen={() => toggleMenu(true)}
-                                    onClose={() => toggleMenu(false)}
-                                >
-                                    <Menu.Dropdown>
-                                        {extraMenuItems}
-                                        {isEditMode && extraMenuItems && (
+                        {hasMenuContent && (
+                            <Menu
+                                withArrow
+                                withinPortal
+                                shadow="md"
+                                position="bottom-end"
+                                offset={4}
+                                arrowOffset={10}
+                                opened={isMenuOpen}
+                                onOpen={() => toggleMenu(true)}
+                                onClose={() => toggleMenu(false)}
+                            >
+                                <Menu.Dropdown>
+                                    {extraMenuItems}
+                                    {isEditMode && extraMenuItems && (
+                                        <Menu.Divider />
+                                    )}
+                                    {isEditMode && (
+                                        <>
+                                            <Box>
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconEdit}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsEditingTileContent(
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    Edit tile content
+                                                </Menu.Item>
+                                            </Box>
+                                            {tabs && tabs.length > 1 && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconArrowAutofitContent
+                                                            }
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsMovingTabs(true)
+                                                    }
+                                                >
+                                                    Move to another tab
+                                                </Menu.Item>
+                                            )}
                                             <Menu.Divider />
-                                        )}
-                                        {isEditMode && (
-                                            <>
-                                                <Box>
-                                                    <Menu.Item
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={IconEdit}
-                                                            />
-                                                        }
-                                                        onClick={() =>
-                                                            setIsEditingTileContent(
-                                                                true,
-                                                            )
-                                                        }
-                                                    >
-                                                        Edit tile content
-                                                    </Menu.Item>
-                                                </Box>
-                                                {tabs && tabs.length > 1 && (
-                                                    <Menu.Item
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconArrowAutofitContent
-                                                                }
-                                                            />
-                                                        }
-                                                        onClick={() =>
-                                                            setIsMovingTabs(
-                                                                true,
-                                                            )
-                                                        }
-                                                    >
-                                                        Move to another tab
-                                                    </Menu.Item>
-                                                )}
-                                                <Menu.Divider />
-                                                {belongsToDashboard ? (
-                                                    <Menu.Item
-                                                        color="red"
-                                                        onClick={() =>
-                                                            setIsDeletingChartThatBelongsToDashboard(
-                                                                true,
-                                                            )
-                                                        }
-                                                    >
-                                                        Delete chart
-                                                    </Menu.Item>
-                                                ) : (
-                                                    <Menu.Item
-                                                        color="red"
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={IconTrash}
-                                                            />
-                                                        }
-                                                        onClick={() =>
-                                                            onDelete(tile)
-                                                        }
-                                                    >
-                                                        Remove tile
-                                                    </Menu.Item>
-                                                )}
-                                            </>
-                                        )}
-                                    </Menu.Dropdown>
+                                            {belongsToDashboard ? (
+                                                <Menu.Item
+                                                    color="red"
+                                                    onClick={() =>
+                                                        setIsDeletingChartThatBelongsToDashboard(
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    Delete chart
+                                                </Menu.Item>
+                                            ) : (
+                                                <Menu.Item
+                                                    color="red"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconTrash}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        onDelete(tile)
+                                                    }
+                                                >
+                                                    Remove tile
+                                                </Menu.Item>
+                                            )}
+                                        </>
+                                    )}
+                                </Menu.Dropdown>
 
-                                    <Menu.Target>
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="subtle"
-                                            color="gray"
-                                            style={{
-                                                position: 'relative',
-                                                zIndex: 1,
-                                            }}
-                                        >
-                                            <MantineIcon
-                                                data-testid="tile-icon-more"
-                                                icon={IconDots}
-                                            />
-                                        </ActionIcon>
-                                    </Menu.Target>
-                                </Menu>
-                            )}
-                        </Group>
-                    </Paper>
-                )}
+                                <Menu.Target>
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        style={{
+                                            position: 'relative',
+                                            zIndex: 1,
+                                        }}
+                                    >
+                                        <MantineIcon
+                                            data-testid="tile-icon-more"
+                                            icon={IconDots}
+                                        />
+                                    </ActionIcon>
+                                </Menu.Target>
+                            </Menu>
+                        )}
+                    </Group>
+                </Paper>
+            )}
 
             <Card
                 className={styles.tileCard}
