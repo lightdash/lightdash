@@ -2138,6 +2138,14 @@ export class AsyncQueryService extends ProjectService {
             this.logger.error(
                 `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
             );
+
+            // Override clients are used for fallback attempts such as DuckDB
+            // pre-aggregate execution. Keep the query history row non-terminal
+            // so polling clients can receive the warehouse retry result.
+            if (warehouseClientOverride) {
+                throw e;
+            }
+
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.error',
@@ -2168,12 +2176,6 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryTags.query_context || 'unknown',
             );
-
-            // Re-throw when using an override client (e.g. DuckDB pre-agg)
-            // so the caller can fall back to the warehouse path
-            if (warehouseClientOverride) {
-                throw e;
-            }
         }
 
         try {
