@@ -5,7 +5,7 @@ import {
     type Dashboard as IDashboard,
 } from '@lightdash/common';
 import { Box, Skeleton } from '@mantine-8/core';
-import { memo, type FC } from 'react';
+import { memo, useEffect, type FC } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
@@ -75,6 +75,14 @@ export const StagedGridTile: FC<
     React.ComponentProps<typeof GridTile> & { stageIndex: number }
 > = memo(({ stageIndex, ...props }) => {
     const { isReady } = useStagedMount(stageIndex);
+
+    useEffect(() => {
+        if (isReady) {
+            console.log(
+                `[StagedMount] Tile ${stageIndex} (${props.tile.uuid.slice(0, 8)}…) mounted`,
+            );
+        }
+    }, [isReady, stageIndex, props.tile.uuid]);
 
     if (!isReady) {
         return <Skeleton h="100%" w="100%" radius="sm" />;

@@ -33,12 +33,34 @@ export const StagedMountProvider: FC<StagedMountProviderProps> = ({
         // Reset cascade on wave key change
         setRevealedCount(0);
 
+        const startTime = performance.now();
+        performance.mark(`staged-mount-start-${waveKey}`);
+        console.log(
+            `[StagedMount] 🚀 Starting cascade for tab ${waveKey} (${totalTiles} tiles, batch size ${STAGED_MOUNT_BATCH_SIZE})`,
+        );
+
         let count = 0;
+        let frame = 0;
         const advance = () => {
             count += STAGED_MOUNT_BATCH_SIZE;
+            frame++;
+            const elapsed = (performance.now() - startTime).toFixed(1);
+            console.log(
+                `[StagedMount] Frame ${frame}: revealing tiles ${count - STAGED_MOUNT_BATCH_SIZE}-${Math.min(count, totalTiles) - 1} (${elapsed}ms elapsed)`,
+            );
             setRevealedCount(count);
             if (count < totalTiles) {
                 rafRef.current = requestAnimationFrame(advance);
+            } else {
+                performance.mark(`staged-mount-end-${waveKey}`);
+                performance.measure(
+                    `staged-mount-${waveKey}`,
+                    `staged-mount-start-${waveKey}`,
+                    `staged-mount-end-${waveKey}`,
+                );
+                console.log(
+                    `[StagedMount] ✅ Cascade complete: ${totalTiles} tiles in ${frame} frames (${elapsed}ms)`,
+                );
             }
         };
 
