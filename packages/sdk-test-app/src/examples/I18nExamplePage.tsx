@@ -1,5 +1,5 @@
 import Lightdash from '@lightdash/sdk';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SavedChart } from '../../../common/src';
 import { ExampleLayout } from '../components/ExampleLayout';
@@ -35,6 +35,10 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
     const [chartUuidOrSlug, setChartUuidOrSlug] = useState<string>(
         localStorage.getItem(CHART_ID_STORAGE_KEY) || '',
     );
+
+    useEffect(() => {
+        setSavedChart(null);
+    }, [embedConfig.remountKey]);
 
     const controls = (
         <div style={controlsStyle}>
@@ -95,6 +99,7 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
                         <div style={chartContainerStyle}>
                             {savedChart ? (
                                 <Lightdash.Explore
+                                    key={`${embedConfig.remountKey}:${savedChart.uuid}`}
                                     instanceUrl={embedConfig.instanceUrl}
                                     token={embedConfig.token}
                                     exploreId={savedChart.tableName}
@@ -102,7 +107,7 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
                                 />
                             ) : (
                                 <Lightdash.Dashboard
-                                    key={i18n.language}
+                                    key={`${embedConfig.remountKey}:${i18n.language}`}
                                     instanceUrl={embedConfig.instanceUrl}
                                     token={embedConfig.token}
                                     styles={{
@@ -177,6 +182,7 @@ export function I18nExamplePage({ embedConfig }: I18nExamplePageProps) {
                         <div style={singleChartContainerStyle}>
                             {chartUuidOrSlug ? (
                                 <Lightdash.Chart
+                                    key={`${embedConfig.remountKey}:${chartUuidOrSlug}`}
                                     instanceUrl={embedConfig.instanceUrl}
                                     token={embedConfig.token}
                                     styles={{

@@ -103,7 +103,7 @@ export function FiltersExamplePage({ embedConfig }: FiltersExamplePageProps) {
                         </p>
                         <div style={dashboardContainerStyle}>
                             <Lightdash.Dashboard
-                                key={JSON.stringify(dashboardFilters)}
+                                key={`${embedConfig.remountKey}:${JSON.stringify(dashboardFilters)}`}
                                 instanceUrl={embedConfig.instanceUrl}
                                 token={embedConfig.token}
                                 filters={dashboardFilters}
