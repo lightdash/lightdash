@@ -636,6 +636,7 @@ type ApiExecuteAsyncQueryResultsCommon = {
     cacheMetadata: CacheMetadata;
     parameterReferences: string[]; // params needed for query to run
     usedParametersValues: ParametersValuesMap; // params values used
+    resolvedTimezone: string | null; // resolved display timezone, null for SQL queries
 };
 
 export type ApiExecuteAsyncMetricQueryResults =

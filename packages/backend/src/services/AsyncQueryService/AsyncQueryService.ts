@@ -2552,7 +2552,10 @@ export class AsyncQueryService extends ProjectService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const resolvedTimezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+        );
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -2560,7 +2563,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone,
+            timezone: resolvedTimezone,
             dateZoom,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
@@ -2610,7 +2613,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
-            timezone,
+            resolvedTimezone,
         };
     }
 
@@ -2649,7 +2652,7 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     pivotConfiguration,
                     parameters,
-                    timezone: resolvedTimezone,
+                    timezone,
                     routingTarget,
                     preAggregationRoute,
                     userAccessControls,
@@ -2764,11 +2767,15 @@ export class AsyncQueryService extends ProjectService {
 
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
+                    // Use the resolved timezone (not metricQuery.timezone) because the
+                    // resolved value includes project and config fallbacks. Two queries with
+                    // the same SQL but different resolved timezones produce different results
+                    // (e.g., timezone-aware DATE_TRUNC, filter boundaries) and must not share a cache entry.
                     const cacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
                             sql: query,
-                            timezone: metricQuery.timezone,
+                            timezone,
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
@@ -2925,7 +2932,7 @@ export class AsyncQueryService extends ProjectService {
                             projectUuid,
                             warehouseQuery: query,
                             metricQuery,
-                            timezone: resolvedTimezone ?? 'UTC',
+                            timezone: timezone ?? 'UTC',
                             dateZoom,
                             parameters,
                             routingTarget: routingTarget ?? 'warehouse',
@@ -3260,7 +3267,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
-            timezone,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3313,7 +3320,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
-                timezone,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3336,6 +3343,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -3506,6 +3514,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3554,6 +3563,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3576,6 +3586,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -3803,6 +3814,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3853,6 +3865,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3876,6 +3889,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             dateZoomApplied,
+            resolvedTimezone,
         };
     }
 
@@ -4105,6 +4119,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -4130,6 +4145,7 @@ export class AsyncQueryService extends ProjectService {
                     sql,
                     originalColumns: undefined,
                     missingParameterReferences,
+                    timezone: resolvedTimezone,
                 },
                 requestParameters,
             );
@@ -4142,6 +4158,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -4224,6 +4241,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
@@ -4571,6 +4589,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
@@ -4672,6 +4691,7 @@ export class AsyncQueryService extends ProjectService {
             },
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
