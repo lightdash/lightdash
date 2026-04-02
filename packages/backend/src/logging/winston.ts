@@ -11,7 +11,7 @@ import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
 import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
-import { AuditLogEvent } from './auditLog';
+import { AuditActor, AuditLogEvent, AuditResource } from './auditLog';
 
 const levels = {
     error: 0,
@@ -147,14 +147,82 @@ export const winstonLogger = winston.createLogger({
     transports,
 });
 
+const PAST_TENSE_ACTIONS: Record<string, string> = {
+    view: 'viewed',
+    create: 'created',
+    update: 'updated',
+    delete: 'deleted',
+    manage: 'managed',
+    run: 'ran',
+    login: 'logged in',
+    logout: 'logged out',
+    promote: 'promoted',
+};
+
+export const formatAuditAction = (action: string): string =>
+    PAST_TENSE_ACTIONS[action] ?? action;
+
+export const formatAuditActor = (actor: AuditActor): string => {
+    if (actor.type === 'anonymous') {
+        return 'anonymous user';
+    }
+    if (actor.type === 'service-account') {
+        if ('email' in actor && actor.email) {
+            return `service-account "${actor.email}"`;
+        }
+        return `service-account ${actor.uuid}`;
+    }
+    // session, pat, oauth
+    if ('email' in actor && actor.email) {
+        return actor.email;
+    }
+    if (
+        'firstName' in actor &&
+        actor.firstName &&
+        'lastName' in actor &&
+        actor.lastName
+    ) {
+        return `${actor.firstName} ${actor.lastName}`;
+    }
+    return actor.uuid;
+};
+
+export const formatAuditResource = (resource: AuditResource): string => {
+    const typePart = resource.type;
+
+    if (resource.name) {
+        return `${typePart} "${resource.name}"`;
+    }
+    if (
+        resource.uuid &&
+        (resource.uuid !== resource.projectUuid || resource.type === 'Project')
+    ) {
+        return `${typePart} ${resource.uuid}`;
+    }
+    // Permission-type subjects (CustomSql, UnderlyingData, Explore, Project, etc.)
+    // with no meaningful unique identifier — fall back to project/org context
+    if (resource.projectUuid) {
+        return `${typePart} in project ${resource.projectUuid}`;
+    }
+    if (resource.organizationUuid) {
+        return `${typePart} in organization ${resource.organizationUuid}`;
+    }
+    return typePart;
+};
+
+export const formatAuditMessage = (event: AuditLogEvent): string => {
+    const actor = formatAuditActor(event.actor);
+    const action = formatAuditAction(event.action);
+    const resource = formatAuditResource(event.resource);
+    const status = `(${event.status})`;
+    const reason = event.reason ? ` - ${event.reason}` : '';
+    return `${actor} ${action} ${resource} ${status}${reason}`;
+};
+
 export const logAuditEvent = (event: AuditLogEvent): void => {
     winstonLogger.log({
         level: 'audit',
-        message: `${event.action} ${event.resource.type}${
-            event.resource.uuid ? ` ${event.resource.uuid}` : ''
-        } by ${event.actor.uuid} (${event.status})${
-            event.reason ? ` - ${event.reason}` : ''
-        }`,
+        message: formatAuditMessage(event),
         ...event,
     });
 };
