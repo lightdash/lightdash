@@ -79,6 +79,17 @@ const MyAppsPanel: FC = () => {
                 ),
             },
             {
+                accessorKey: 'projectName',
+                header: 'Project',
+                enableSorting: false,
+                size: 150,
+                Cell: ({ row }) => (
+                    <Text fz="sm" c="ldGray.7">
+                        {row.original.projectName}
+                    </Text>
+                ),
+            },
+            {
                 accessorKey: 'lastVersionStatus',
                 header: 'Status',
                 enableSorting: false,

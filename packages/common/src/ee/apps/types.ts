@@ -44,6 +44,7 @@ export type ApiAppSummary = {
     name: string;
     description: string;
     projectUuid: string;
+    projectName: string;
     createdAt: Date;
     lastVersionNumber: number | null;
     lastVersionStatus: string | null;
