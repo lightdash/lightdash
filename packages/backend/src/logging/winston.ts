@@ -193,6 +193,9 @@ export const formatAuditResource = (resource: AuditResource): string => {
     if (resource.name) {
         return `${typePart} "${resource.name}"`;
     }
+    if (resource.uuid && resource.uuid === resource.projectUuid) {
+        return `${typePart} in project ${resource.projectUuid}`;
+    }
     if (resource.uuid) {
         return `${typePart} ${resource.uuid}`;
     }

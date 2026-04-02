@@ -124,6 +124,17 @@ describe('formatAuditResource', () => {
         ).toBe('Dashboard dash-uuid');
     });
 
+    it('shows "in project" when uuid equals projectUuid', () => {
+        expect(
+            formatAuditResource({
+                type: 'Project',
+                uuid: 'proj-uuid',
+                organizationUuid: 'org-uuid',
+                projectUuid: 'proj-uuid',
+            }),
+        ).toBe('Project in project proj-uuid');
+    });
+
     it('shows type with project context for permission-type subjects', () => {
         expect(
             formatAuditResource({
