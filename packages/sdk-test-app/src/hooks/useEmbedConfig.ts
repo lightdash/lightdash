@@ -129,6 +129,8 @@ export function useEmbedConfig() {
         localStorage.removeItem(EMBED_URL_STORAGE_KEY);
     };
 
+    const remountKey = `${instanceUrl ?? 'no-instance'}:${token ?? 'no-token'}`;
+
     return {
         applyDraftUrl,
         clearEmbedUrl,
@@ -137,6 +139,7 @@ export function useEmbedConfig() {
         instanceUrl,
         isConfigOpen,
         parsedJwt,
+        remountKey,
         setDraftUrl,
         setIsConfigOpen,
         token,
