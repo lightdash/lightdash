@@ -57,7 +57,10 @@ import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
+import { createAuthAuditEvent, createUnknownActor } from '../logging/auditLog';
+import { createActorFromUser } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
+import { logAuditEvent } from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -636,6 +639,16 @@ export class UserService extends BaseService {
             this.logger.info(
                 `Login method ${openIdUser.openId.issuerType} not allowed for email ${openIdUser.openId.email}`,
             );
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createUnknownActor(openIdUser.openId.email),
+                    action: 'login',
+                    resourceType: 'Session',
+                    organizationUuid: 'unknown',
+                    status: 'denied',
+                    reason: `Login method ${openIdUser.openId.issuerType} not allowed for email domain`,
+                }),
+            );
             throw new ForbiddenError(
                 `User with email ${openIdUser.openId.email} is not allowed to login with ${openIdUser.openId.issuerType}`,
             );
@@ -650,6 +663,18 @@ export class UserService extends BaseService {
             if (!openIdSession.isActive) {
                 this.logger.info(
                     `User ${openIdSession.userUuid} account is deactivated`,
+                );
+                logAuditEvent(
+                    createAuthAuditEvent({
+                        actor: createActorFromUser(openIdSession),
+                        action: 'login',
+                        resourceType: 'Session',
+                        resourceUuid: openIdSession.userUuid,
+                        organizationUuid:
+                            openIdSession.organizationUuid || 'unknown',
+                        status: 'denied',
+                        reason: 'Account deactivated',
+                    }),
                 );
                 throw new DeactivatedAccountError();
             }
@@ -696,6 +721,16 @@ export class UserService extends BaseService {
                     loginProvider: openIdUser.openId.issuerType,
                 },
             });
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createActorFromUser(loginUser),
+                    action: 'login',
+                    resourceType: 'Session',
+                    resourceUuid: loginUser.userUuid,
+                    organizationUuid: loginUser.organizationUuid || 'unknown',
+                    status: 'allowed',
+                }),
+            );
 
             if (
                 this.lightdashConfig.groups.enabled === true &&
@@ -1106,10 +1141,22 @@ export class UserService extends BaseService {
         email: string,
         password: string,
     ): Promise<LightdashUser> {
+        const unknownActor = createUnknownActor(email);
+
         if (
             (await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL)) ===
             false
         ) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: unknownActor,
+                    action: 'login',
+                    resourceType: 'Session',
+                    organizationUuid: 'unknown',
+                    status: 'denied',
+                    reason: 'Login method not allowed for email domain',
+                }),
+            );
             throw new ForbiddenError(
                 `User with email ${email} is not allowed to login with password`,
             );
@@ -1117,6 +1164,16 @@ export class UserService extends BaseService {
 
         try {
             if (this.lightdashConfig.auth.disablePasswordAuthentication) {
+                logAuditEvent(
+                    createAuthAuditEvent({
+                        actor: unknownActor,
+                        action: 'login',
+                        resourceType: 'Session',
+                        organizationUuid: 'unknown',
+                        status: 'denied',
+                        reason: 'Password authentication disabled',
+                    }),
+                );
                 throw new ForbiddenError(
                     'Password credentials are not allowed',
                 );
@@ -1128,6 +1185,17 @@ export class UserService extends BaseService {
                 password,
             );
             if (!user.isActive) {
+                logAuditEvent(
+                    createAuthAuditEvent({
+                        actor: createActorFromUser(user),
+                        action: 'login',
+                        resourceType: 'Session',
+                        resourceUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid || 'unknown',
+                        status: 'denied',
+                        reason: 'Account deactivated',
+                    }),
+                );
                 throw new DeactivatedAccountError();
             }
             const userOrganization = this.loginToOrganization(
@@ -1146,9 +1214,29 @@ export class UserService extends BaseService {
                     loginProvider: 'password',
                 },
             });
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createActorFromUser(user),
+                    action: 'login',
+                    resourceType: 'Session',
+                    resourceUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid || 'unknown',
+                    status: 'allowed',
+                }),
+            );
             return user;
         } catch (e) {
             if (e instanceof NotFoundError) {
+                logAuditEvent(
+                    createAuthAuditEvent({
+                        actor: unknownActor,
+                        action: 'login',
+                        resourceType: 'Session',
+                        organizationUuid: 'unknown',
+                        status: 'denied',
+                        reason: 'Invalid credentials',
+                    }),
+                );
                 throw new AuthorizationError(
                     'Email and password not recognized',
                 );
@@ -1352,13 +1440,45 @@ export class UserService extends BaseService {
         const results =
             await this.userModel.findSessionUserByPersonalAccessToken(token);
         if (results === undefined) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createUnknownActor(),
+                    action: 'login',
+                    resourceType: 'PersonalAccessToken',
+                    organizationUuid: 'unknown',
+                    status: 'denied',
+                    reason: 'Token not recognized',
+                }),
+            );
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
         if (!user.isActive) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createActorFromUser(user),
+                    action: 'login',
+                    resourceType: 'PersonalAccessToken',
+                    resourceUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'Account deactivated',
+                }),
+            );
             throw new DeactivatedAccountError();
         }
         if (user.ability.cannot('view', subject('PersonalAccessToken', {}))) {
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createActorFromUser(user),
+                    action: 'login',
+                    resourceType: 'PersonalAccessToken',
+                    resourceUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'No permission to use personal access tokens',
+                }),
+            );
             throw new ForbiddenError(
                 'You do not have permission to login with personal access tokens',
             );
@@ -1379,6 +1499,17 @@ export class UserService extends BaseService {
                     personalAccessToken.uuid,
                 );
             }
+            logAuditEvent(
+                createAuthAuditEvent({
+                    actor: createActorFromUser(user),
+                    action: 'login',
+                    resourceType: 'PersonalAccessToken',
+                    resourceUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid || 'unknown',
+                    status: 'denied',
+                    reason: 'Token expired',
+                }),
+            );
             throw new AuthorizationError();
         }
         // Update last used date (throttled to once per minute)

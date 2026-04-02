@@ -21,7 +21,10 @@ import {
     getDatabricksStrategyName,
 } from '../controllers/authentication/strategies/databricksStrategy';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
+import { createAuthAuditEvent } from '../logging/auditLog';
+import { createActorFromUser } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
+import { logAuditEvent } from '../logging/winston';
 import { UserModel } from '../models/UserModel';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -458,6 +461,7 @@ apiV1Router.get(
 );
 
 apiV1Router.get('/logout', (req, res, next) => {
+    const { user } = req;
     req.logout((err) => {
         if (err) {
             return next(err);
@@ -466,6 +470,23 @@ apiV1Router.get('/logout', (req, res, next) => {
             if (err2) {
                 next(err2);
             } else {
+                if (user) {
+                    logAuditEvent(
+                        createAuthAuditEvent({
+                            actor: createActorFromUser(user),
+                            action: 'logout',
+                            resourceType: 'Session',
+                            resourceUuid: user.userUuid,
+                            organizationUuid:
+                                user.organizationUuid || 'unknown',
+                            status: 'allowed',
+                            context: {
+                                ip: req.ip,
+                                userAgent: req.headers['user-agent'],
+                            },
+                        }),
+                    );
+                }
                 res.json({
                     status: 'ok',
                 });

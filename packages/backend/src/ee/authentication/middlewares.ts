@@ -11,7 +11,12 @@ import {
 import { RequestHandler } from 'express';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import {
+    createAuthAuditEvent,
+    createUnknownActor,
+} from '../../logging/auditLog';
 import Logger from '../../logging/logger';
+import { logAuditEvent } from '../../logging/winston';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
@@ -167,6 +172,16 @@ export const authenticateServiceAccount: RequestHandler = async (
 
         next();
     } catch (error) {
+        logAuditEvent(
+            createAuthAuditEvent({
+                actor: createUnknownActor(),
+                action: 'login',
+                resourceType: 'ServiceAccount',
+                organizationUuid: 'unknown',
+                status: 'denied',
+                reason: getErrorMessage(error),
+            }),
+        );
         next(new AuthorizationError(getErrorMessage(error)));
     }
 };
