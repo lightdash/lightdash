@@ -370,6 +370,7 @@ export class PromoteService extends BaseService {
                     'manage',
                     subject('Space', {
                         uuid: upstreamContent.space.uuid,
+                        name: upstreamContent.space.name,
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
                         inheritsFromOrgOrProject:
@@ -389,7 +390,7 @@ export class PromoteService extends BaseService {
             auditedAbility.cannot(
                 'create',
                 subject('Space', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid: upstreamContent.projectUuid,
                 }),
@@ -417,6 +418,7 @@ export class PromoteService extends BaseService {
                     'promote',
                     subject('SavedChart', {
                         uuid: promotedChart.chart.uuid,
+                        name: promotedChart.chart.name,
                         organizationUuid,
                         projectUuid: promotedChart.projectUuid,
                         inheritsFromOrgOrProject:
@@ -437,6 +439,7 @@ export class PromoteService extends BaseService {
                 'promote',
                 subject('SavedChart', {
                     uuid: promotedChart.chart.uuid,
+                    name: promotedChart.chart.name,
                     organizationUuid,
                     projectUuid: promotedChart.projectUuid,
                 }),
@@ -458,6 +461,7 @@ export class PromoteService extends BaseService {
                         'promote',
                         subject('SavedChart', {
                             uuid: upstreamChart.chart.uuid,
+                            name: upstreamChart.chart.name,
                             organizationUuid,
                             projectUuid: upstreamChart.projectUuid,
                             inheritsFromOrgOrProject:
@@ -479,6 +483,7 @@ export class PromoteService extends BaseService {
                     'promote',
                     subject('SavedChart', {
                         uuid: upstreamChart.chart.uuid,
+                        name: upstreamChart.chart.name,
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                     }),
@@ -496,7 +501,7 @@ export class PromoteService extends BaseService {
                 auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
-                        uuid: '',
+                        uuid: '' /* TODO: pass resource uuid */,
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                         access: upstreamChart.spaceAccessContext?.access ?? [],
@@ -528,6 +533,7 @@ export class PromoteService extends BaseService {
                 'promote',
                 subject('SavedChart', {
                     uuid: promotedSqlChart.chart.savedSqlUuid,
+                    name: promotedSqlChart.chart.name,
                     organizationUuid,
                     projectUuid: promotedSqlChart.projectUuid,
                     inheritsFromOrgOrProject:
@@ -551,6 +557,7 @@ export class PromoteService extends BaseService {
                         'promote',
                         subject('SavedChart', {
                             uuid: upstreamSqlChart.chart.savedSqlUuid,
+                            name: upstreamSqlChart.chart.name,
                             organizationUuid,
                             projectUuid: upstreamSqlChart.projectUuid,
                             inheritsFromOrgOrProject:
@@ -573,6 +580,7 @@ export class PromoteService extends BaseService {
                     'promote',
                     subject('SavedChart', {
                         uuid: upstreamSqlChart.chart.savedSqlUuid,
+                        name: upstreamSqlChart.chart.name,
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                     }),
@@ -589,7 +597,7 @@ export class PromoteService extends BaseService {
                 auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
-                        uuid: '',
+                        uuid: '' /* TODO: pass resource uuid */,
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                         access:
@@ -621,6 +629,7 @@ export class PromoteService extends BaseService {
                 'promote',
                 subject('Dashboard', {
                     uuid: promotedDashboard.dashboard.uuid,
+                    name: promotedDashboard.dashboard.name,
                     organizationUuid,
                     projectUuid: promotedDashboard.projectUuid,
                     inheritsFromOrgOrProject:
@@ -644,6 +653,7 @@ export class PromoteService extends BaseService {
                         'promote',
                         subject('Dashboard', {
                             uuid: upstreamDashboard.dashboard.uuid,
+                            name: upstreamDashboard.dashboard.name,
                             organizationUuid,
                             projectUuid: upstreamDashboard.projectUuid,
                             inheritsFromOrgOrProject:
@@ -664,6 +674,7 @@ export class PromoteService extends BaseService {
                     'promote',
                     subject('Dashboard', {
                         uuid: upstreamDashboard.dashboard.uuid,
+                        name: upstreamDashboard.dashboard.name,
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                     }),
@@ -679,7 +690,7 @@ export class PromoteService extends BaseService {
                 auditedAbility.cannot(
                     'manage',
                     subject('Dashboard', {
-                        uuid: '',
+                        uuid: '' /* TODO: pass resource uuid */,
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                         access:

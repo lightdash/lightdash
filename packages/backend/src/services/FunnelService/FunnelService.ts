@@ -74,16 +74,17 @@ export class FunnelService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
 
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('SqlRunner', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {

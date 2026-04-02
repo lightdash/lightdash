@@ -856,7 +856,7 @@ export class AppGenerateService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
@@ -990,7 +990,7 @@ export class AppGenerateService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
@@ -1126,7 +1126,7 @@ export class AppGenerateService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),
@@ -1392,7 +1392,7 @@ export class AppGenerateService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                     projectUuid,
                 }),

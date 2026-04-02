@@ -381,6 +381,7 @@ export class UserService extends BaseService {
                     subject('OrganizationMemberProfile', {
                         uuid: userUuidToDelete,
                         organizationUuid: userToDelete.organizationUuid,
+                        name: `${userToDelete.firstName} ${userToDelete.lastName}`,
                     }),
                 )
             ) {
@@ -434,7 +435,7 @@ export class UserService extends BaseService {
             auditedAbility.cannot(
                 'create',
                 subject('InviteLink', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: organizationUuid || '',
                 }),
             )
@@ -465,7 +466,7 @@ export class UserService extends BaseService {
         const userRole = auditedAbility.can(
             'manage',
             subject('OrganizationMemberProfile', {
-                uuid: '',
+                uuid: '' /* TODO: pass resource uuid */,
                 organizationUuid,
             }),
         )
@@ -539,7 +540,7 @@ export class UserService extends BaseService {
             auditedAbility.cannot(
                 'delete',
                 subject('InviteLink', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: organizationUuid || '',
                 }),
             )
@@ -1004,6 +1005,7 @@ export class UserService extends BaseService {
                     subject('Organization', {
                         uuid: user.organizationUuid,
                         organizationUuid: user.organizationUuid,
+                        name: user.organizationName,
                     }),
                 )
             ) {
@@ -1378,7 +1380,7 @@ export class UserService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('PersonalAccessToken', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid || '',
                 }),
             )
@@ -1654,7 +1656,7 @@ export class UserService extends BaseService {
                     auditedAbility.cannot(
                         'manage',
                         subject('SavedChart', {
-                            uuid: '',
+                            uuid: '' /* TODO: pass resource uuid */,
                             projectUuid: project.projectUuid,
                             organizationUuid:
                                 sessionUser.organizationUuid || '',
@@ -1671,7 +1673,7 @@ export class UserService extends BaseService {
                     auditedAbility.cannot(
                         'manage',
                         subject('Explore', {
-                            uuid: '',
+                            uuid: '' /* TODO: pass resource uuid */,
                             projectUuid: project.projectUuid,
                             organizationUuid:
                                 sessionUser.organizationUuid || '',
@@ -1746,6 +1748,7 @@ export class UserService extends BaseService {
                     uuid: requestUser.userUuid,
                     organizationUuid: requestUser.organizationUuid || '',
                     isActive: requestUser.isActive,
+                    name: `${requestUser.firstName} ${requestUser.lastName}`,
                 }),
             )
         ) {
@@ -2413,6 +2416,7 @@ export class UserService extends BaseService {
                     uuid: targetUserUuid,
                     organizationUuid: targetUser.organizationUuid || '',
                     isActive: targetUser.isActive,
+                    name: `${targetUser.firstName} ${targetUser.lastName}`,
                 }),
             )
         ) {

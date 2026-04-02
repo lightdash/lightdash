@@ -44,7 +44,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     }
 
     private canManage(account: Account) {
-        const { organizationUuid } = account.organization;
+        const { organizationUuid, name } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('User must be in an organization');
         }
@@ -53,8 +53,9 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('OrganizationWarehouseCredentials', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
+                    name,
                 }),
             )
         ) {
@@ -82,7 +83,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     async getAllSummaries(
         account: Account,
     ): Promise<OrganizationWarehouseCredentialsSummary[]> {
-        const { organizationUuid } = account.organization;
+        const { organizationUuid, name } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('User must be in an organization');
         }
@@ -92,8 +93,9 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('OrganizationWarehouseCredentials', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
+                    name,
                 }),
             )
         ) {

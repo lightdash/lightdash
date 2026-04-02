@@ -102,6 +102,7 @@ export class RolesService extends BaseService {
                 subject('Organization', {
                     uuid: organizationUuid,
                     organizationUuid,
+                    name: account.organization?.name,
                 }),
             )
         ) {
@@ -123,6 +124,7 @@ export class RolesService extends BaseService {
                     uuid: project.projectUuid,
                     organizationUuid,
                     projectUuid: project.projectUuid,
+                    name: project.name,
                 }),
             ),
         );
@@ -151,6 +153,7 @@ export class RolesService extends BaseService {
                 subject('Organization', {
                     uuid: organizationUuid,
                     organizationUuid,
+                    name: account.organization?.name,
                 }),
             )
         ) {
@@ -197,6 +200,7 @@ export class RolesService extends BaseService {
                         uuid: projectUuid,
                         organizationUuid: project.organizationUuid,
                         projectUuid,
+                        name: project.name,
                     }),
                 )
             ) {

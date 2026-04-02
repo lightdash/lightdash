@@ -39,7 +39,7 @@ export class ChangesetService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid,
                     organizationUuid: user.organizationUuid || '',
                 }),
@@ -65,7 +65,7 @@ export class ChangesetService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid,
                     organizationUuid: user.organizationUuid || '',
                 }),
@@ -89,7 +89,7 @@ export class ChangesetService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid,
                     organizationUuid: user.organizationUuid || '',
                 }),
@@ -141,7 +141,7 @@ export class ChangesetService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid,
                     organizationUuid: user.organizationUuid || '',
                 }),

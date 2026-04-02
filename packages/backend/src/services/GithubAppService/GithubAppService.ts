@@ -336,7 +336,7 @@ export class GithubAppService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('GitIntegration', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid,
                 }),
             )

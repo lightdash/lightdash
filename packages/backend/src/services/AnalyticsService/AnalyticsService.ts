@@ -54,15 +54,17 @@ export class AnalyticsService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid, name } =
+            await this.projectModel.get(projectUuid);
 
         if (
             auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -93,14 +95,16 @@ export class AnalyticsService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid, name } =
+            await this.projectModel.get(projectUuid);
         if (
             auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -145,15 +149,17 @@ export class AnalyticsService extends BaseService {
         account: Account,
     ): Promise<UnusedContent> {
         const auditedAbility = this.createAuditedAbility(account);
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid, name } =
+            await this.projectModel.get(projectUuid);
 
         if (
             auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {

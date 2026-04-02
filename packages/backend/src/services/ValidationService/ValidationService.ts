@@ -1270,7 +1270,7 @@ export class ValidationService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: validation.projectUuid,
                 }),
@@ -1327,7 +1327,8 @@ export class ValidationService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: chart.name,
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     inheritsFromOrgOrProject,
@@ -1410,7 +1411,8 @@ export class ValidationService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                    name: dashboard.name,
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
                     inheritsFromOrgOrProject,

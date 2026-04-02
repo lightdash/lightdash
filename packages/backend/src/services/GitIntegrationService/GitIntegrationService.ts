@@ -591,7 +591,7 @@ Affected charts:
             auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -945,7 +945,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1019,7 +1019,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1066,7 +1066,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
@@ -1235,7 +1235,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1285,7 +1285,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -1376,7 +1376,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
@@ -1476,7 +1476,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
@@ -1528,7 +1528,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
@@ -1600,7 +1600,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,

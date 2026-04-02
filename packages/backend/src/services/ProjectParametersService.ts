@@ -49,7 +49,7 @@ export class ProjectParametersService extends BaseService {
         },
     ) {
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
 
         if (
@@ -59,6 +59,7 @@ export class ProjectParametersService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {

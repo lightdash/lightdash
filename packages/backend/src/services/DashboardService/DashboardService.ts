@@ -573,7 +573,7 @@ export class DashboardService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                 }),
             )
         ) {
@@ -1516,7 +1516,7 @@ export class DashboardService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                 }),
             )
         ) {

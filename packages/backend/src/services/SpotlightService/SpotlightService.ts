@@ -45,9 +45,10 @@ export class SpotlightService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {
@@ -70,9 +71,10 @@ export class SpotlightService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('SpotlightTableConfig', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {
@@ -103,9 +105,10 @@ export class SpotlightService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {

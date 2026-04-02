@@ -62,7 +62,7 @@ export class SearchService extends BaseService {
         filters?: SearchFilters,
     ): Promise<SearchResults> {
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name } =
             await this.projectModel.getSummary(projectUuid);
 
         if (
@@ -72,6 +72,7 @@ export class SearchService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name,
                 }),
             )
         ) {
@@ -120,9 +121,10 @@ export class SearchService extends BaseService {
         const hasExploreAccess = auditedAbility.can(
             'manage',
             subject('Explore', {
-                uuid: '',
+                uuid: '' /* TODO: pass resource uuid */,
                 organizationUuid,
                 projectUuid,
+                name,
             }),
         );
 
@@ -234,8 +236,9 @@ export class SearchService extends BaseService {
             pages: auditedAbility.can(
                 'view',
                 subject('Analytics', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid,
+                    name,
                 }),
             )
                 ? results.pages

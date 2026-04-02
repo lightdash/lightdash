@@ -108,6 +108,7 @@ export class ContentService extends BaseService {
                         uuid: project.projectUuid,
                         organizationUuid,
                         projectUuid: project.projectUuid,
+                        name: project.name,
                     }),
                 ),
             )
@@ -204,7 +205,7 @@ export class ContentService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -213,6 +214,7 @@ export class ContentService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -299,7 +301,7 @@ export class ContentService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -308,6 +310,7 @@ export class ContentService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -401,7 +404,7 @@ export class ContentService extends BaseService {
         const isAdmin = auditedAbility.can(
             'manage',
             subject('DeletedContent', {
-                uuid: '',
+                uuid: '' /* TODO: pass resource uuid */,
                 organizationUuid,
                 projectUuid,
             }),
@@ -440,7 +443,7 @@ export class ContentService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -449,6 +452,7 @@ export class ContentService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -490,7 +494,7 @@ export class ContentService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -499,6 +503,7 @@ export class ContentService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {

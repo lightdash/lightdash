@@ -71,11 +71,12 @@ export class DeployService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DeployProject', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
+                    name: project.name,
                 }),
             )
         ) {

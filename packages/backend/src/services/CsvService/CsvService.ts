@@ -613,9 +613,10 @@ export class CsvService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    name: dashboard.name,
                 }),
             )
         ) {

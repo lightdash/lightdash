@@ -97,6 +97,7 @@ export class RenameService extends BaseService {
                     uuid: chart.projectUuid,
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
+                    name: chart.name,
                 }),
             )
         ) {
@@ -166,7 +167,7 @@ export class RenameService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -175,6 +176,7 @@ export class RenameService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -324,6 +326,7 @@ export class RenameService extends BaseService {
                     uuid: dashboard.projectUuid,
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    name: dashboard.name,
                 }),
             )
         ) {
@@ -419,7 +422,7 @@ export class RenameService extends BaseService {
         }
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -428,6 +431,7 @@ export class RenameService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -567,7 +571,7 @@ export class RenameService extends BaseService {
         context: RequestMethod;
     }) {
         const auditedAbility = this.createAuditedAbility(user);
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
         if (
             auditedAbility.cannot(
@@ -576,6 +580,7 @@ export class RenameService extends BaseService {
                     uuid: projectUuid,
                     organizationUuid,
                     projectUuid,
+                    name: projectName,
                 }),
             )
         ) {

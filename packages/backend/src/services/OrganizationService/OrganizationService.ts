@@ -176,6 +176,7 @@ export class OrganizationService extends BaseService {
                 subject('Organization', {
                     organizationUuid,
                     uuid: organizationUuid,
+                    name: organization.name,
                 }),
             )
         ) {
@@ -270,6 +271,7 @@ export class OrganizationService extends BaseService {
                 subject('OrganizationMemberProfile', {
                     ...member,
                     uuid: member.userUuid,
+                    name: `${member.firstName} ${member.lastName}`,
                 }),
             ),
         );
@@ -329,6 +331,7 @@ export class OrganizationService extends BaseService {
                     organizationUuid,
                     projectUuid: project.projectUuid,
                     uuid: project.projectUuid,
+                    name: project.name,
                 }),
             ),
         );
@@ -384,6 +387,7 @@ export class OrganizationService extends BaseService {
                 subject('OrganizationMemberProfile', {
                     ...member,
                     uuid: member.userUuid,
+                    name: `${member.firstName} ${member.lastName}`,
                 }),
             )
         ) {
@@ -422,6 +426,7 @@ export class OrganizationService extends BaseService {
                 subject('OrganizationMemberProfile', {
                     ...member,
                     uuid: member.userUuid,
+                    name: `${member.firstName} ${member.lastName}`,
                 }),
             )
         ) {

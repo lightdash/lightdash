@@ -652,13 +652,16 @@ export class McpService extends BaseService {
                         ),
                 );
 
+                const auditedAbility = this.createAuditedAbility(user);
                 const projectList = allProjects
                     .filter((project) =>
-                        user.ability.can(
+                        auditedAbility.can(
                             'view',
                             subject('Project', {
                                 organizationUuid,
                                 projectUuid: project.projectUuid,
+                                uuid: project.projectUuid,
+                                name: project.name,
                             }),
                         ),
                     )
@@ -727,6 +730,7 @@ export class McpService extends BaseService {
                             uuid: args.projectUuid,
                             projectUuid: args.projectUuid,
                             organizationUuid: project.organizationUuid,
+                            name: project.name,
                         }),
                     )
                 ) {
@@ -1933,6 +1937,7 @@ export class McpService extends BaseService {
                     uuid: projectUuid,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -2036,6 +2041,7 @@ export class McpService extends BaseService {
                     uuid: projectUuid,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -2113,6 +2119,7 @@ export class McpService extends BaseService {
                     uuid: projectUuid,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -2183,6 +2190,7 @@ export class McpService extends BaseService {
                     uuid: projectUuid,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -2246,6 +2254,7 @@ export class McpService extends BaseService {
                     uuid: projectUuid,
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {

@@ -574,6 +574,7 @@ export class CoderService extends BaseService {
                     uuid: project.projectUuid,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -615,9 +616,10 @@ export class CoderService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -754,9 +756,10 @@ export class CoderService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -891,9 +894,10 @@ export class CoderService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -1013,9 +1017,10 @@ export class CoderService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -1218,9 +1223,10 @@ export class CoderService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -1506,9 +1512,10 @@ export class CoderService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
-                    uuid: '',
+                    uuid: '' /* TODO: pass resource uuid */,
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    name: project.name,
                 }),
             )
         ) {
