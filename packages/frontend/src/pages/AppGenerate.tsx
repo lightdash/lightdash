@@ -17,6 +17,7 @@ import {
     IconSparkles,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
+import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import {
     useCallback,
     useEffect,
@@ -222,9 +223,10 @@ const AppGenerate: FC = () => {
                 msgs.push({
                     role: 'assistant',
                     content:
-                        v.version === 1
+                        v.statusMessage ??
+                        (v.version === 1
                             ? 'Your app is ready!'
-                            : `Version ${v.version} is ready!`,
+                            : `Version ${v.version} is ready!`),
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
@@ -476,16 +478,18 @@ const AppGenerate: FC = () => {
                                                         classes.assistantBubble
                                                     }
                                                 >
-                                                    <Text
-                                                        size="sm"
-                                                        c={
-                                                            msg.appUuid
-                                                                ? undefined
-                                                                : 'red'
-                                                        }
-                                                    >
-                                                        {msg.content}
-                                                    </Text>
+                                                    {msg.appUuid ? (
+                                                        <ReactMarkdownPreview
+                                                            source={msg.content}
+                                                            className={
+                                                                classes.markdown
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <Text size="sm" c="red">
+                                                            {msg.content}
+                                                        </Text>
+                                                    )}
                                                     {msg.appUuid &&
                                                         msg.version && (
                                                             <Text
