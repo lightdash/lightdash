@@ -39,10 +39,7 @@ import {
     UserAttributeValueMap,
 } from '@lightdash/common';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import {
-    McpServer,
-    ResourceTemplate,
-} from '@modelcontextprotocol/sdk/server/mcp.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
     ServerNotification,
@@ -1574,91 +1571,6 @@ export class McpService extends BaseService {
                                 type: 'text' as const,
                                 text: promptText,
                             },
-                        },
-                    ],
-                };
-            },
-        );
-
-        this.mcpServer.registerResource(
-            'agent-context',
-            new ResourceTemplate('lightdash://agents/{agentUuid}/context', {
-                list: async (
-                    extra: RequestHandlerExtra<
-                        ServerRequest,
-                        ServerNotification
-                    >,
-                ) => {
-                    const context = extra as McpProtocolContext;
-                    const { user } = this.getAccount(context);
-
-                    try {
-                        const agents =
-                            await this.aiAgentService.listAgents(user);
-                        return {
-                            resources: agents.map((agent) => ({
-                                uri: `lightdash://agents/${agent.uuid}/context`,
-                                name: agent.name,
-                                title: `${agent.name} — Agent Context`,
-                                description:
-                                    agent.description ??
-                                    `Context for agent ${agent.name}`,
-                                mimeType: 'application/json',
-                            })),
-                        };
-                    } catch {
-                        return { resources: [] };
-                    }
-                },
-            }),
-            {
-                title: 'AI Agent Context',
-                description:
-                    'AI agent context including instructions, available explores, verified questions, and tags. Load this resource to get domain-specific guidance for querying data through this agent.',
-                mimeType: 'application/json',
-            },
-            async (
-                uri: URL,
-                variables: Record<string, string | string[]>,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
-                const context = extra as McpProtocolContext;
-                const { user } = this.getAccount(context);
-
-                const agentUuid = Array.isArray(variables.agentUuid)
-                    ? variables.agentUuid[0]
-                    : variables.agentUuid;
-                if (!agentUuid) {
-                    throw new ParameterError('agentUuid is required');
-                }
-
-                const agent = await this.aiAgentService.getAgent(
-                    user,
-                    agentUuid,
-                    undefined,
-                    { includeSummaryContext: true },
-                );
-
-                return {
-                    contents: [
-                        {
-                            uri: uri.href,
-                            mimeType: 'application/json',
-                            text: JSON.stringify(
-                                {
-                                    agentUuid: agent.uuid,
-                                    agentName: agent.name,
-                                    agentDescription: agent.description,
-                                    agentTags: agent.tags,
-                                    agentProjectUuid: agent.projectUuid,
-                                    instruction: agent.context.instruction,
-                                    explores: agent.context.explores,
-                                    verifiedQuestions:
-                                        agent.context.verifiedQuestions,
-                                },
-                                null,
-                                2,
-                            ),
                         },
                     ],
                 };
