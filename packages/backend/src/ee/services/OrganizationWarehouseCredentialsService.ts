@@ -43,16 +43,17 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         this.userModel = userModel;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private canManage(account: Account) {
         const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('User must be in an organization');
         }
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('OrganizationWarehouseCredentials', {
+                    uuid: '',
                     organizationUuid,
                 }),
             )
@@ -86,10 +87,12 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
             throw new ForbiddenError('User must be in an organization');
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('OrganizationWarehouseCredentials', {
+                    uuid: '',
                     organizationUuid,
                 }),
             )

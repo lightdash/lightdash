@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { BaseService } from '../../services/BaseService';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 
@@ -20,7 +21,7 @@ type AiOrganizationSettingsServiceDependencies = {
     lightdashConfig: LightdashConfig;
 };
 
-export class AiOrganizationSettingsService {
+export class AiOrganizationSettingsService extends BaseService {
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
     private readonly organizationModel: OrganizationModel;
@@ -33,6 +34,7 @@ export class AiOrganizationSettingsService {
     private static readonly TRIAL_START_DATE = new Date('2025-10-13T00:00:00Z');
 
     constructor(dependencies: AiOrganizationSettingsServiceDependencies) {
+        super({ serviceName: 'AiOrganizationSettingsService' });
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.organizationModel = dependencies.organizationModel;
@@ -41,12 +43,13 @@ export class AiOrganizationSettingsService {
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
-    private static checkManageAiAgentAccess(user: SessionUser): void {
+    private checkManageAiAgentAccess(user: SessionUser): void {
         if (
-            user.ability.cannot(
+            this.createAuditedAbility(user).cannot(
                 'manage',
                 subject('AiAgent', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
@@ -145,7 +148,7 @@ export class AiOrganizationSettingsService {
             throw new ForbiddenError('User must belong to an organization');
         }
 
-        AiOrganizationSettingsService.checkManageAiAgentAccess(user);
+        this.checkManageAiAgentAccess(user);
 
         return this.aiOrganizationSettingsModel.upsert(
             user.organizationUuid,

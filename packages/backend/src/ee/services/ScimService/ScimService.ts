@@ -120,12 +120,14 @@ export class ScimService extends BaseService {
         this.openIdIdentityModel = openIdIdentityModel;
     }
 
-    private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
+    private throwForbiddenErrorOnNoPermission(user: SessionUser) {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    uuid: user.organizationUuid || '',
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
