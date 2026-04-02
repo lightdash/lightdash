@@ -1,3 +1,10 @@
+## [0.2709.7](https://github.com/lightdash/lightdash/compare/0.2709.6...0.2709.7) (2026-04-02)
+
+
+### Bug Fixes
+
+* use backend to check pre aggregate availability in explores ([#21593](https://github.com/lightdash/lightdash/issues/21593)) ([b92ca9b](https://github.com/lightdash/lightdash/commit/b92ca9ba4aff0b1ffdb81442f6c8ae048f315021))
+
 ## [0.2709.6](https://github.com/lightdash/lightdash/compare/0.2709.5...0.2709.6) (2026-04-01)
 
 
