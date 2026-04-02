@@ -2,11 +2,11 @@ name: Release to DockerHub, GCP, Homebrew
 
 on:
   release:
-    types: [published]
+    types: [created]
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -303,9 +303,34 @@ jobs:
             security delete-keychain "$KEYCHAIN_PATH" || true
           fi
 
+  # ============================================================================
+  # Job 3: Publish the draft release after all assets are uploaded
+  # ============================================================================
+  publish-release:
+    name: Publish Release
+    needs:
+      - build-and-push-images
+      - build-macos-binaries
+      - check-cli-changes
+    if: always() && !failure() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.event.release.tag_name }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
+
+  # ============================================================================
+  # Job 4: Update Homebrew formula (after release is published)
+  # ============================================================================
   update-homebrew-formula:
     name: Update Homebrew Formula
-    needs: build-macos-binaries
+    needs: publish-release
     runs-on: depot-ubuntu-24.04-4
     steps:
       - name: Checkout Homebrew tap
