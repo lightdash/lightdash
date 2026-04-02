@@ -45,10 +45,15 @@ export class ProjectCompileLogService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    uuid: projectUuid,
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -75,14 +80,20 @@ export class ProjectCompileLogService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    uuid: projectUuid,
+                    organizationUuid,
+                    projectUuid,
+                }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('JobStatus', {
+                    uuid: '',
                     organizationUuid,
                     jobUuid,
                     projectUuid,

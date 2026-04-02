@@ -64,12 +64,14 @@ export class DeployService extends BaseService {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         // manage:DeployProject for non-preview projects (restrictable via custom roles)
         // manage:DeployProject@self for preview projects created by the user
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DeployProject', {
+                    uuid: '',
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                     type: project.type,
