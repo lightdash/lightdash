@@ -1,3 +1,10 @@
+# [0.2714.0](https://github.com/lightdash/lightdash/compare/0.2713.0...0.2714.0) (2026-04-02)
+
+
+### Features
+
+* add hidden option to dashboard filters interactivity in embed ([#21672](https://github.com/lightdash/lightdash/issues/21672)) ([8b94ca0](https://github.com/lightdash/lightdash/commit/8b94ca08d2617abfff9856d883d7926149a1ba67)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2713.0](https://github.com/lightdash/lightdash/compare/0.2712.0...0.2713.0) (2026-04-02)
 
 
