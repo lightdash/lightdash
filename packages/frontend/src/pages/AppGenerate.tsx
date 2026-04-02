@@ -112,9 +112,17 @@ const AppGenerate: FC = () => {
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
         urlAppUuid,
     );
-    // Sync from URL when navigating (e.g. browser back/forward)
+    // Sync from URL when navigating (e.g. browser back/forward).
+    // When navigating to "new app" mode, clear all session state.
     useEffect(() => {
         setActiveAppUuid(urlAppUuid);
+        if (!urlAppUuid) {
+            setPrompt('');
+            setLocalMessages([]);
+            setPreviewApp(null);
+            versionCacheRef.current.clear();
+            versionCacheAppRef.current = undefined;
+        }
     }, [urlAppUuid]);
     const {
         mutate: generateMutate,
