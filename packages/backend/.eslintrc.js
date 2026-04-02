@@ -88,13 +88,25 @@ module.exports = {
             },
         },
         {
-            // Warn on direct ability checks in services - use createAuditedAbility() instead
+            // Enforce audited ability checks in services - use createAuditedAbility() instead
             files: [
                 'src/services/**/*.ts',
                 'src/ee/services/**/*.ts',
             ],
+            excludedFiles: [
+                // Static methods that cannot access this.createAuditedAbility()
+                'src/services/PromoteService/PromoteService.ts',
+                // Standalone utility function, not a class method
+                'src/services/UserAttributesService/UserAttributeUtils.ts',
+                // Receives partial user type (Pick<SessionUser, ...>)
+                'src/services/SpaceService/SpacePermissionService.ts',
+                // Do not extend BaseService
+                'src/ee/services/AiAgentService/AiAgentService.ts',
+                'src/ee/services/AiOrganizationSettingsService.ts',
+                'src/ee/services/AiAgentAdminService.ts',
+            ],
             rules: {
-                'no-direct-ability-check': 'warn',
+                'no-direct-ability-check': 'error',
             },
         },
         {
