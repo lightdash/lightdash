@@ -1,3 +1,10 @@
+## [0.2720.2](https://github.com/lightdash/lightdash/compare/0.2720.1...0.2720.2) (2026-04-02)
+
+
+### Bug Fixes
+
+* use Mantine v6 Switch for BigQuery requireUserCredentials field ([#21703](https://github.com/lightdash/lightdash/issues/21703)) ([6dec285](https://github.com/lightdash/lightdash/commit/6dec2858d3f3cb435c49ead5aadb6287fc0d8f97))
+
 ## [0.2720.1](https://github.com/lightdash/lightdash/compare/0.2720.0...0.2720.1) (2026-04-02)
 
 
