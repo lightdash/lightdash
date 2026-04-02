@@ -224,33 +224,15 @@ DATE_TRUNC is currently not timezone-aware, so the asymmetry doesn't affect grou
 
 The goal is for both timezone settings to work consistently across all warehouses and all SQL layers:
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    User's query                          │
-│  "Show me orders from last 7 days, grouped by day"       │
-└──────────────────────┬──────────────────────────────────┘
-                       │
-              ┌────────▼────────┐
-              │ Project timezone │  "Last 7 days in New York"
-              │ (filter + group) │  → boundaries at midnight ET
-              └────────┬────────┘
-                       │
-              ┌────────▼────────┐
-              │  Data timezone   │  "My NTZ data is in Chicago"
-              │  (interpret raw) │  → session TZ = Chicago
-              └────────┬────────┘
-                       │
-              ┌────────▼────────┐
-              │   SQL execution  │  Everything compared in UTC:
-              │                  │  - Filter literals: UTC
-              │                  │  - Column values: normalized to UTC
-              │                  │  - DATE_TRUNC: in project TZ, result as UTC
-              └────────┬────────┘
-                       │
-              ┌────────▼────────┐
-              │ Result display   │  Formatted in project timezone
-              │                  │  with timezone indicator
-              └─────────────────┘
+```mermaid
+flowchart TD
+    QUERY["User's query<br/><em>Show me orders from last 7 days, grouped by day</em>"]
+    PROJECT["Project timezone (filter + group)<br/>Last 7 days in New York → boundaries at midnight ET"]
+    DATA["Data timezone (interpret raw)<br/>My NTZ data is in Chicago → session TZ = Chicago"]
+    SQL["SQL execution<br/>Everything compared in UTC:<br/>filter literals, column values, DATE_TRUNC"]
+    DISPLAY["Result display<br/>Formatted in project timezone with timezone indicator"]
+
+    QUERY --> PROJECT --> DATA --> SQL --> DISPLAY
 ```
 
 ### What "fully working" means
