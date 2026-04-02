@@ -746,11 +746,25 @@ export class AsyncQueryService extends ProjectService {
             totalRowCount,
         });
 
+        // Resolve display timezone for result formatting (gated by feature flag)
+        const { enabled: isTimezoneSupportEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            });
+        const displayTimezone = isTimezoneSupportEnabled
+            ? resolveQueryTimezone(
+                  queryHistory.metricQuery,
+                  await this.getQueryTimezoneForProject(projectUuid),
+              )
+            : undefined;
+
         const formatter = (row: Record<string, unknown>) =>
             formatRow(
                 row,
                 queryHistory.fields,
                 queryHistory.pivotValuesColumns,
+                undefined, // parameters
+                displayTimezone,
             );
 
         const {
@@ -1427,6 +1441,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         itemsMap,
         dataTimezone,
+        displayTimezone,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1435,6 +1450,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
         dataTimezone?: string;
+        displayTimezone?: string;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1539,7 +1555,7 @@ export class AsyncQueryService extends ProjectService {
                                   ? formatItemValue(
                                         field,
                                         row[c.reference],
-                                        undefined,
+                                        displayTimezone,
                                     )
                                   : String(rawValue);
                               return {
@@ -1926,6 +1942,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         originalColumns,
         queryCreatedAt,
+        timezone: resolvedTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
     }: RunAsyncWarehouseQueryArgs & {
@@ -2004,6 +2021,9 @@ export class AsyncQueryService extends ProjectService {
                 });
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
+                : undefined;
+            const displayTimezone = isTimezoneSupportEnabled
+                ? resolvedTimezone
                 : undefined;
 
             const t0 = Date.now();
@@ -2107,6 +2127,7 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         itemsMap: fieldsMap,
                         dataTimezone: resolvedDataTimezone,
+                        displayTimezone,
                     }),
             );
 
@@ -3151,6 +3172,7 @@ export class AsyncQueryService extends ProjectService {
                         cacheKey,
                         originalColumns,
                         queryCreatedAt,
+                        timezone,
                     };
 
                     if (executionPlan.target === 'pre_aggregate') {
