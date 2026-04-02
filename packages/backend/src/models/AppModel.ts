@@ -1,4 +1,8 @@
-import { NotFoundError } from '@lightdash/common';
+import {
+    NotFoundError,
+    type KnexPaginateArgs,
+    type KnexPaginatedData,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     AppsTableName,
@@ -7,6 +11,7 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../database/entities/apps';
+import KnexPaginate from '../database/pagination';
 
 type AppModelArguments = {
     database: Knex;
@@ -215,6 +220,63 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    async listMyApps(
+        userUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<
+        KnexPaginatedData<
+            {
+                app: DbApp;
+                lastVersion: Pick<DbAppVersion, 'version' | 'status'> | null;
+            }[]
+        >
+    > {
+        const latestVersions = this.database(AppVersionsTableName)
+            .select('app_id')
+            .max('version as version')
+            .groupBy('app_id')
+            .as('lv');
+
+        const query = this.database(AppsTableName)
+            .leftJoin(latestVersions, `${AppsTableName}.app_id`, 'lv.app_id')
+            .leftJoin(AppVersionsTableName, function joinVersions() {
+                this.on(
+                    `${AppsTableName}.app_id`,
+                    `${AppVersionsTableName}.app_id`,
+                ).andOn('lv.version', `${AppVersionsTableName}.version`);
+            })
+            .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select(
+                `${AppsTableName}.*`,
+                `${AppVersionsTableName}.version as last_version`,
+                `${AppVersionsTableName}.status as last_version_status`,
+            )
+            .orderBy(`${AppsTableName}.created_at`, 'desc');
+
+        const result = await KnexPaginate.paginate(query, paginateArgs);
+
+        type RowWithVersion = DbApp & {
+            last_version: number | null;
+            last_version_status: string | null;
+        };
+
+        const rows = result.data as unknown as RowWithVersion[];
+
+        return {
+            data: rows.map(({ last_version, last_version_status, ...app }) => ({
+                app,
+                lastVersion: last_version
+                    ? {
+                          version: last_version,
+                          status: last_version_status as AppVersionStatus,
+                      }
+                    : null,
+            })),
+            pagination: result.pagination,
+        };
     }
 
     async updateSandboxId(

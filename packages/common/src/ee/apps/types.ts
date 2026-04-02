@@ -1,4 +1,5 @@
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
+import { type KnexPaginateArgs } from '../../types/knex-paginate';
 
 export type ApiGenerateAppResponse = ApiSuccess<{
     appUuid: string;
@@ -37,3 +38,21 @@ export type ApiUpdateAppResponse = ApiSuccess<{
 }>;
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
+
+export type ApiAppSummary = {
+    appUuid: string;
+    name: string;
+    description: string;
+    projectUuid: string;
+    createdAt: Date;
+    lastVersionNumber: number | null;
+    lastVersionStatus: string | null;
+};
+
+export type ApiMyAppsResponse = ApiSuccess<{
+    data: ApiAppSummary[];
+    pagination?: KnexPaginateArgs & {
+        totalPageCount: number;
+        totalResults: number;
+    };
+}>;

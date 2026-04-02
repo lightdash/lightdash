@@ -1160,6 +1160,50 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    async listMyApps(
+        user: SessionUser,
+        paginateArgs?: { page: number; pageSize: number },
+    ): Promise<{
+        data: {
+            appUuid: string;
+            name: string;
+            description: string;
+            projectUuid: string;
+            createdAt: Date;
+            lastVersionNumber: number | null;
+            lastVersionStatus: string | null;
+        }[];
+        pagination?: {
+            page: number;
+            pageSize: number;
+            totalPageCount: number;
+            totalResults: number;
+        };
+    }> {
+        this.assertDataAppsEnabled();
+        if (user.ability.cannot('manage', 'DataApp')) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+
+        const result = await this.appModel.listMyApps(
+            user.userUuid,
+            paginateArgs,
+        );
+
+        return {
+            data: result.data.map((row) => ({
+                appUuid: row.app.app_id,
+                name: row.app.name,
+                description: row.app.description,
+                projectUuid: row.app.project_uuid,
+                createdAt: row.app.created_at,
+                lastVersionNumber: row.lastVersion?.version ?? null,
+                lastVersionStatus: row.lastVersion?.status ?? null,
+            })),
+            pagination: result.pagination,
+        };
+    }
+
     async updateApp(
         user: SessionUser,
         projectUuid: string,

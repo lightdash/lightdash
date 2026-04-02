@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconBolt,
     IconBrain,
     IconBrowser,
@@ -58,6 +59,7 @@ import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrgani
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
+import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
@@ -247,6 +249,22 @@ const Settings: FC = () => {
                             <Title order={4}>My scheduled deliveries</Title>
                         </SettingsGridCard>
                         <UserScheduledDeliveriesPanel />
+                    </Stack>
+                ),
+            });
+        }
+        if (
+            health?.dataApps?.enabled &&
+            user?.ability.can('manage', 'DataApp')
+        ) {
+            allowedRoutes.push({
+                path: '/myApps',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>My apps</Title>
+                        </SettingsGridCard>
+                        <MyAppsPanel />
                     </Stack>
                 ),
             });
@@ -466,6 +484,7 @@ const Settings: FC = () => {
         health?.hasSlack,
         health?.hasGithub,
         health?.hasGitlab,
+        health?.dataApps?.enabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -487,6 +506,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/userScheduledDeliveries',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/myApps',
                 },
                 location.pathname,
             ) &&
@@ -629,6 +654,19 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+                                {health?.dataApps?.enabled &&
+                                    user.ability.can('manage', 'DataApp') && (
+                                        <RouterNavLink
+                                            label="My apps"
+                                            exact
+                                            to="/generalSettings/myApps"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconAppWindow}
+                                                />
+                                            }
+                                        />
+                                    )}
                                 {user.ability.can(
                                     'manage',
                                     'PersonalAccessToken',
