@@ -6,11 +6,11 @@ import {
 
 export type DashboardTileStatusContextType = {
     oldestCacheTime: Date | undefined;
-    addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
+    addResultsCacheTime: (cacheMetadata?: CacheMetadata) => void;
     preAggregateStatuses: Record<string, TilePreAggregateStatus>;
     addPreAggregateStatus: (
         tileUuid: string,
-        cacheMetadata: CacheMetadata,
+        cacheMetadata?: CacheMetadata,
     ) => void;
     invalidateCache: boolean | undefined;
     isAutoRefresh: boolean;
