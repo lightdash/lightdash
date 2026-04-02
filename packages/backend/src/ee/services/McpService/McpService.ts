@@ -691,7 +691,7 @@ export class McpService extends BaseService {
                     tags: z.array(z.string()).optional(),
                 },
                 annotations: {
-                    readOnlyHint: false,
+                    readOnlyHint: true,
                     destructiveHint: false,
                     idempotentHint: true,
                 },
@@ -901,7 +901,7 @@ export class McpService extends BaseService {
                     agentUuid: z.string(),
                 },
                 annotations: {
-                    readOnlyHint: false,
+                    readOnlyHint: true,
                     destructiveHint: false,
                     idempotentHint: true,
                 },
@@ -984,7 +984,7 @@ export class McpService extends BaseService {
                     "Clear the active AI agent from context. After clearing, tool calls will no longer be scoped to a specific agent's explores, tags, or instructions. The active project is preserved.",
                 inputSchema: {},
                 annotations: {
-                    readOnlyHint: false,
+                    readOnlyHint: true,
                     destructiveHint: false,
                     idempotentHint: true,
                 },
