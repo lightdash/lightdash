@@ -1,3 +1,16 @@
+# [0.2712.0](https://github.com/lightdash/lightdash/compare/0.2711.0...0.2712.0) (2026-04-02)
+
+
+### Bug Fixes
+
+* remove `handleChatScroll` in AppGenerate page ([#21667](https://github.com/lightdash/lightdash/issues/21667)) ([4e3d7ea](https://github.com/lightdash/lightdash/commit/4e3d7eaa4d595cd3dbbb1fddb79a9f5c430ce60a))
+
+
+### Features
+
+* add AI agents visibility check to MCP agent tools ([#21662](https://github.com/lightdash/lightdash/issues/21662)) ([5ea37af](https://github.com/lightdash/lightdash/commit/5ea37afe3a11d3b80c19095ee5024fade3118485))
+* add OS notification when app finished building ([#21666](https://github.com/lightdash/lightdash/issues/21666)) ([9ace364](https://github.com/lightdash/lightdash/commit/9ace3642b8ef6ea5274674b7a365a27e398f47a6))
+
 # [0.2711.0](https://github.com/lightdash/lightdash/compare/0.2710.2...0.2711.0) (2026-04-02)
 
 
