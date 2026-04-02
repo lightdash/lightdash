@@ -1,3 +1,10 @@
+# [0.2711.0](https://github.com/lightdash/lightdash/compare/0.2710.2...0.2711.0) (2026-04-02)
+
+
+### Features
+
+* return resolved timezone in query execution responses ([#21660](https://github.com/lightdash/lightdash/issues/21660)) ([c40ea2e](https://github.com/lightdash/lightdash/commit/c40ea2e6e1001e171d823948c10498a8c6e470bc))
+
 ## [0.2710.2](https://github.com/lightdash/lightdash/compare/0.2710.1...0.2710.2) (2026-04-02)
 
 
