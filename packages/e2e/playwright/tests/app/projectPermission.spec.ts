@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 import { loginWithPermissions } from '../../helpers';
 
 // todo: move to api tests (or remove if already addressed in api tests)

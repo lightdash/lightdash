@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 // todo: combine into 1 test
 test.describe('Dashboard List', () => {
@@ -15,9 +15,7 @@ test.describe('Dashboard List', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/home`);
         await page.getByRole('button', { name: 'Browse' }).click();
         await page.getByRole('menuitem', { name: 'All dashboards' }).click();
-        await page
-            .getByRole('button', { name: 'Create dashboard' })
-            .click();
+        await page.getByRole('button', { name: 'Create dashboard' }).click();
 
         await page
             .getByLabel('Name your dashboard *')
@@ -64,9 +62,7 @@ test.describe('Dashboard List', () => {
             .locator('button')
             .click();
         // click on delete
-        await page
-            .getByRole('menuitem', { name: 'Delete dashboard' })
-            .click();
+        await page.getByRole('menuitem', { name: 'Delete dashboard' }).click();
         // click on delete in the popup
         await page.getByRole('button', { name: 'Delete' }).click();
         // We technically should look for one, but we don't reset the DB before tests

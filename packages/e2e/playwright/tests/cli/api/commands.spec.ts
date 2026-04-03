@@ -1,6 +1,6 @@
-import { test, expect } from '../../../fixtures';
-import { getApiToken } from '../../../helpers';
 import { execSync } from 'child_process';
+import { expect, test } from '../../../fixtures';
+import { getApiToken } from '../../../helpers';
 
 const cliCommand = 'lightdash';
 const lightdashUrl = process.env.BASE_URL || 'http://localhost:3000';
@@ -32,7 +32,9 @@ function exec(
 test.describe('help', () => {
     test('Should test lightdash command help', async () => {
         const result = exec(`${cliCommand} help`);
-        expect(result.stdout).toContain('Developer tools for dbt and Lightdash.');
+        expect(result.stdout).toContain(
+            'Developer tools for dbt and Lightdash.',
+        );
     });
 });
 

@@ -1,4 +1,9 @@
-import { test as base, expect, type Page, type Browser } from '@playwright/test';
+import {
+    test as base,
+    type Browser,
+    expect,
+    type Page,
+} from '@playwright/test';
 
 const BLOCKED_HOSTS = [
     '*.rudderlabs.com',
@@ -28,7 +33,11 @@ async function createAuthenticatedPage(
     // Block third-party hosts (equivalent to Cypress blockHosts)
     await context.route('**/*', (route) => {
         const url = new URL(route.request().url());
-        if (BLOCKED_HOSTS.some((pattern) => hostMatchesPattern(url.hostname, pattern))) {
+        if (
+            BLOCKED_HOSTS.some((pattern) =>
+                hostMatchesPattern(url.hostname, pattern),
+            )
+        ) {
             return route.abort();
         }
         return route.continue();

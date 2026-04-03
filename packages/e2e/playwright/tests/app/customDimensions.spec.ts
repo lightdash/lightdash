@@ -1,6 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
-import { scrollTreeToItem, getMonacoEditorText } from '../../helpers';
+import { expect, test } from '../../fixtures';
+import { getMonacoEditorText, scrollTreeToItem } from '../../helpers';
 
 // todo: move to unit tests
 test.describe.skip('Custom dimensions', () => {
@@ -12,11 +12,17 @@ test.describe.skip('Custom dimensions', () => {
         await page.locator('span.mantine-NavLink-rightSection').nth(1).click();
         await page.getByText('Add custom dimensions').click();
 
-        await page.getByPlaceholder('Enter custom dimension label').fill(
-            'amount range',
-        );
-        await page.locator('.mantine-NumberInput-wrapper').locator('input').clear();
-        await page.locator('.mantine-NumberInput-wrapper').locator('input').fill('5');
+        await page
+            .getByPlaceholder('Enter custom dimension label')
+            .fill('amount range');
+        await page
+            .locator('.mantine-NumberInput-wrapper')
+            .locator('input')
+            .clear();
+        await page
+            .locator('.mantine-NumberInput-wrapper')
+            .locator('input')
+            .fill('5');
 
         await page.getByText('Create').click();
 
@@ -49,18 +55,23 @@ test.describe.skip('Custom dimensions', () => {
             `GROUP BY 1`,
         ];
         const text = await getMonacoEditorText(page);
+        // eslint-disable-next-line no-restricted-syntax
         for (const line of sqlLines) {
             expect(text).toContain(line);
         }
     });
 
-    test('I can create a custom SQL dimension number', async ({ adminPage: page }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
+    test('I can create a custom SQL dimension number', async ({
+        adminPage: page,
+    }) => {
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/payments`,
+        );
         await page.getByText('Add').click();
 
-        await page.getByPlaceholder('Enter custom dimension label').fill(
-            'random number',
-        );
+        await page
+            .getByPlaceholder('Enter custom dimension label')
+            .fill('random number');
         await page.locator('#ace-editor').fill(`random() + 1`);
         await page.locator(`.mantine-Select-input[value='String']`).click();
         await page.getByText('Number').click();
@@ -84,21 +95,26 @@ test.describe.skip('Custom dimensions', () => {
             `ORDER BY "payments_total_revenue" DESC`,
         ];
         const text = await getMonacoEditorText(page);
+        // eslint-disable-next-line no-restricted-syntax
         for (const line of sqlLines) {
             expect(text).toContain(line);
         }
     });
 
-    test('I can create a custom SQL dimension string', async ({ adminPage: page }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
+    test('I can create a custom SQL dimension string', async ({
+        adminPage: page,
+    }) => {
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/payments`,
+        );
         await page.getByText('Add').click();
 
-        await page.getByPlaceholder('Enter custom dimension label').fill(
-            'payment method',
-        );
-        await page.locator('#ace-editor').fill(
-            `'payment_' || \${payments.payment_method}`,
-        );
+        await page
+            .getByPlaceholder('Enter custom dimension label')
+            .fill('payment method');
+        await page
+            .locator('#ace-editor')
+            .fill(`'payment_' || \${payments.payment_method}`);
         // Defaults to string
         await page.getByText('Create').click();
         await expect(page.locator('#ace-editor')).toHaveCount(0);
@@ -124,21 +140,24 @@ test.describe.skip('Custom dimensions', () => {
             `ORDER BY "payments_total_revenue" DESC`,
         ];
         const text = await getMonacoEditorText(page);
+        // eslint-disable-next-line no-restricted-syntax
         for (const line of sqlLines) {
             expect(text).toContain(line);
         }
     });
 
-    test('I can create a custom metric from a custom dimension', async ({ adminPage: page }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
+    test('I can create a custom metric from a custom dimension', async ({
+        adminPage: page,
+    }) => {
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/payments`,
+        );
         await page.getByText('Add').click();
 
-        await page.getByPlaceholder('Enter custom dimension label').fill(
-            'discounted amount',
-        );
-        await page.locator('#ace-editor').fill(
-            `(\${orders.amount}) / 10`,
-        );
+        await page
+            .getByPlaceholder('Enter custom dimension label')
+            .fill('discounted amount');
+        await page.locator('#ace-editor').fill(`(\${orders.amount}) / 10`);
         await page.locator(`.mantine-Select-input[value='String']`).click();
         await page.getByText('Number').click();
         await page.getByText('Create').click();
@@ -150,7 +169,9 @@ test.describe.skip('Custom dimensions', () => {
 
         // Select dimension
         await scrollTreeToItem(page, 'Payment method');
-        const treeContainer = page.getByTestId('virtualized-tree-scroll-container');
+        const treeContainer = page.getByTestId(
+            'virtualized-tree-scroll-container',
+        );
         await treeContainer.getByText('Payment method').click();
 
         // Select metric
@@ -178,6 +199,7 @@ test.describe.skip('Custom dimensions', () => {
             `ORDER BY "payments_payment_method"`,
         ];
         const text = await getMonacoEditorText(page);
+        // eslint-disable-next-line no-restricted-syntax
         for (const line of sqlLines) {
             expect(text).toContain(line);
         }

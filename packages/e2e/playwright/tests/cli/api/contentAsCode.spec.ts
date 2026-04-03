@@ -1,6 +1,6 @@
-import { test, expect } from '../../../fixtures';
-import { getApiToken } from '../../../helpers';
 import { execSync } from 'child_process';
+import { expect, test } from '../../../fixtures';
+import { getApiToken } from '../../../helpers';
 
 const lightdashDir = './lightdash';
 const lightdashUrl = process.env.BASE_URL || 'http://localhost:3000';
@@ -95,7 +95,9 @@ test.describe('Content as Code CLI', () => {
         const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
         const updateSedDescription = `s/description: .*/description: Updated description from CLI test ${date1MinuteAgo}/`;
         // Update the chart description
-        const sedResult = exec(`sed -i "" "${updateSedDescription}" ${chartFilePath}`);
+        const sedResult = exec(
+            `sed -i "" "${updateSedDescription}" ${chartFilePath}`,
+        );
         expect(sedResult.code).toBe(0);
 
         // Backdate downloadedAt in the metadata file to trigger the upload.
@@ -118,7 +120,9 @@ test.describe('Content as Code CLI', () => {
         // Changing the slug means there's no metadata entry for it,
         // so needsUpdating defaults to true and the upload triggers a create.
         const updateSedSlug = `s/slug: .*/slug: jaffle-dashboard-${new Date().getTime()}/`;
-        const sedResult = exec(`sed -i "" "${updateSedSlug}" ${dashboardFilePath}`);
+        const sedResult = exec(
+            `sed -i "" "${updateSedSlug}" ${dashboardFilePath}`,
+        );
         expect(sedResult.code).toBe(0);
 
         const uploadResult = exec('lightdash upload --verbose');

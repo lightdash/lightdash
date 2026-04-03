@@ -1,6 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
 import type { APIRequestContext } from '@playwright/test';
+import { expect, test } from '../../fixtures';
 
 const apiUrl = '/api/v2';
 
@@ -26,10 +26,12 @@ async function runMetricQuery(
 
     // Poll until results are ready
     const maxAttempts = 50;
-    for (let i = 0; i < maxAttempts; i++) {
+    for (let i = 0; i < maxAttempts; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
         const resultResponse = await request.get(
             `${apiUrl}/projects/${projectUuid}/query/${queryUuid}`,
         );
+        // eslint-disable-next-line no-await-in-loop
         const resultBody = await resultResponse.json();
 
         if (resultBody.results.error) {
@@ -39,6 +41,7 @@ async function runMetricQuery(
             return resultBody.results.rows;
         }
         // Wait briefly before polling again
+        // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await new Promise((resolve) => setTimeout(resolve, 200));
     }
     throw new Error('Query timed out');
@@ -109,10 +112,7 @@ test.describe('average_distinct fanout deduplication', () => {
         expect(customersRows).toHaveLength(1);
 
         const customersDedupedAvg = Number(
-            getRawValue(
-                customersRows[0],
-                'customers_avg_order_amount_deduped',
-            ),
+            getRawValue(customersRows[0], 'customers_avg_order_amount_deduped'),
         );
 
         // Both should produce the same average (within floating point tolerance)
@@ -161,10 +161,7 @@ test.describe('average_distinct fanout deduplication', () => {
             customersQuery,
         );
         expect(rows).toHaveLength(1);
-        const raw = getRawValue(
-            rows[0],
-            'customers_avg_order_amount_deduped',
-        );
+        const raw = getRawValue(rows[0], 'customers_avg_order_amount_deduped');
         expect(raw).toBeNull();
     });
 });

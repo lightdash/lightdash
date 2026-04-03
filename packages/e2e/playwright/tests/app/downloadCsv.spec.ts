@@ -1,10 +1,12 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 import { scrollTreeToItem } from '../../helpers';
 
 // todo: remove
 test.describe.skip('Download CSV on Dashboards', () => {
-    test('Should download a CSV from dashboard', async ({ adminPage: page }) => {
+    test('Should download a CSV from dashboard', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`, {
             timeout: 60000,
         });
@@ -25,7 +27,9 @@ test.describe.skip('Download CSV on Dashboards', () => {
         await page.getByTestId('tile-icon-more').click();
         await page.getByRole('button', { name: 'Download data' }).click();
 
-        await expect(page.getByTestId('chart-export-results-button')).toBeVisible();
+        await expect(
+            page.getByTestId('chart-export-results-button'),
+        ).toBeVisible();
 
         // Click export results button and wait for download to schedule
         const schedulePromise = page.waitForResponse(
@@ -57,7 +61,9 @@ test.describe.skip('Download CSV on Dashboards', () => {
 });
 
 test.describe('Download CSV on Explore', () => {
-    test('Should download CSV from results on Explore', async ({ adminPage: page }) => {
+    test('Should download CSV from results on Explore', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`, {
             timeout: 60000,
         });
@@ -91,8 +97,12 @@ test.describe('Download CSV on Explore', () => {
         await page.getByTestId('export-csv-button').click();
 
         // Wait for popover to open and ensure download button is ready
-        await expect(page.getByTestId('chart-export-results-button')).toBeVisible();
-        await expect(page.getByTestId('chart-export-results-button')).toBeEnabled();
+        await expect(
+            page.getByTestId('chart-export-results-button'),
+        ).toBeVisible();
+        await expect(
+            page.getByTestId('chart-export-results-button'),
+        ).toBeEnabled();
 
         // Set up response listener and click
         const schedulePromise = page.waitForResponse(
@@ -124,7 +134,9 @@ test.describe('Download CSV on Explore', () => {
     });
 
     // todo: remove
-    test.skip('Should download CSV from table chart on Explore', async ({ adminPage: page }) => {
+    test.skip('Should download CSV from table chart on Explore', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`, {
             timeout: 60000,
         });

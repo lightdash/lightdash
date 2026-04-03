@@ -1,6 +1,6 @@
 import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL } from '@lightdash/common';
-import { test, expect } from '../../../fixtures';
 import type { APIRequestContext } from '@playwright/test';
+import { expect, test } from '../../../fixtures';
 
 async function resetUserName(request: APIRequestContext) {
     await request.patch('api/v1/user/me', {

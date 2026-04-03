@@ -1,13 +1,15 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
-import { scrollTreeToItem, getMonacoEditorText } from '../../helpers';
+import { expect, test } from '../../fixtures';
+import { getMonacoEditorText, scrollTreeToItem } from '../../helpers';
 
 test.describe.skip('Table calculations', () => {
     // todo: move to unit test
     test.skip('I can create a quick table calculation (rank in column)', async ({
         adminPage: page,
     }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/payments`,
+        );
 
         // Select metrics and dimensions
         await scrollTreeToItem(page, 'Payment method');
@@ -16,7 +18,11 @@ test.describe.skip('Table calculations', () => {
         await page.getByText('Total revenue').click();
 
         // Select quick calculation
-        await page.locator('thead').locator('.mantine-ActionIcon-root').nth(1).click();
+        await page
+            .locator('thead')
+            .locator('.mantine-ActionIcon-root')
+            .nth(1)
+            .click();
         await page.getByText('Rank in column').click();
 
         // Show SQL
@@ -28,6 +34,7 @@ test.describe.skip('Table calculations', () => {
             `FROM metrics`,
         ];
         const text = await getMonacoEditorText(page);
+        // eslint-disable-next-line no-restricted-syntax
         for (const line of sqlLines) {
             expect(text).toContain(line);
         }
@@ -37,7 +44,9 @@ test.describe.skip('Table calculations', () => {
     test.skip('I can create a quick table calculation (running total)', async ({
         adminPage: page,
     }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/payments`);
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/payments`,
+        );
 
         // Select metrics and dimensions
         await scrollTreeToItem(page, 'Payment method');
@@ -46,7 +55,11 @@ test.describe.skip('Table calculations', () => {
         await page.getByText('Total revenue').click();
 
         // Select quick calculation
-        await page.locator('thead').locator('.mantine-ActionIcon-root').nth(1).click();
+        await page
+            .locator('thead')
+            .locator('.mantine-ActionIcon-root')
+            .nth(1)
+            .click();
         await page.getByText('Running total').click();
 
         // Show SQL
@@ -59,6 +72,7 @@ test.describe.skip('Table calculations', () => {
             `FROM metrics`,
         ];
         const text = await getMonacoEditorText(page);
+        // eslint-disable-next-line no-restricted-syntax
         for (const line of sqlLines) {
             expect(text).toContain(line);
         }
@@ -78,13 +92,17 @@ test.describe.skip('Table calculations', () => {
 
         await page.getByText('Table calculation').click();
 
-        await page.locator('#ace-editor').fill(
-            `'rank_' || RANK() OVER(ORDER BY \${orders.total_order_amount} ASC)`,
-        );
+        await page
+            .locator('#ace-editor')
+            .fill(
+                `'rank_' || RANK() OVER(ORDER BY \${orders.total_order_amount} ASC)`,
+            );
         await page.locator(`.mantine-Select-input[value='number']`).click();
         await page.getByText('string').click();
 
-        await page.getByPlaceholder('E.g. Cumulative order count').fill('Ranking');
+        await page
+            .getByPlaceholder('E.g. Cumulative order count')
+            .fill('Ranking');
         await page.locator('form').getByText('Create').click({ force: true });
 
         // Run query
@@ -130,11 +148,15 @@ test.describe.skip('Table calculations', () => {
 
         await page.getByText('Table calculation').click();
 
-        await page.locator('#ace-editor').fill(
-            `RANK() OVER(ORDER BY \${orders.total_order_amount} ASC) * 100`,
-        );
+        await page
+            .locator('#ace-editor')
+            .fill(
+                `RANK() OVER(ORDER BY \${orders.total_order_amount} ASC) * 100`,
+            );
 
-        await page.getByPlaceholder('E.g. Cumulative order count').fill('Ranking');
+        await page
+            .getByPlaceholder('E.g. Cumulative order count')
+            .fill('Ranking');
         // Defaults to number
         await page.locator('form').getByText('Create').click({ force: true });
 

@@ -1,5 +1,5 @@
-import { test, expect } from '../../../fixtures';
 import { execSync } from 'child_process';
+import { expect, test } from '../../../fixtures';
 
 const projectDir = '../../examples/full-jaffle-shop-demo/dbt';
 const profilesDir = '../../examples/full-jaffle-shop-demo/profiles';

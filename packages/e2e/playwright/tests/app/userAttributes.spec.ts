@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 const apiUrl = '/api/v1';
 
@@ -34,11 +34,10 @@ test.describe('User attributes sql_filter', () => {
 
         await expect(page.getByText('Error loading results')).toBeVisible();
 
-        await expect(
-            page.getByText(
-                'Missing user attribute "customer_id": "customer_id = ${ld.attr.customer_id}"',
-            ),
-        ).toBeVisible();
+        // eslint-disable-next-line no-template-curly-in-string
+        const expectedMessage =
+            'Missing user attribute "customer_id": "customer_id = ${ld.attr.customer_id}"';
+        await expect(page.getByText(expectedMessage)).toBeVisible();
     });
 
     test('Create user attribute', async ({ adminPage: page }) => {
@@ -91,7 +90,9 @@ test.describe('User attributes sql_filter', () => {
 
         // run query
         await page.getByRole('button', { name: 'Run query' }).click();
-        await expect(page.getByText('Christina')).toBeVisible({ timeout: 30000 });
+        await expect(page.getByText('Christina')).toBeVisible({
+            timeout: 30000,
+        });
     });
 });
 
@@ -130,9 +131,7 @@ test.describe('User attributes dimension required_attribute', () => {
         }
     });
 
-    test('Should not see last_name dimension', async ({
-        adminPage: page,
-    }) => {
+    test('Should not see last_name dimension', async ({ adminPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         await page.getByPlaceholder('Search tables').fill('Users');
@@ -153,9 +152,7 @@ test.describe('User attributes dimension required_attribute', () => {
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 
-    test('Should see last_name attribute', async ({
-        adminPage: page,
-    }) => {
+    test('Should see last_name attribute', async ({ adminPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         await page.getByPlaceholder('Search tables').fill('Users');
@@ -179,9 +176,7 @@ test.describe('User attributes dimension required_attribute', () => {
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 
-    test('Should not see last_name dimension', async ({
-        adminPage: page,
-    }) => {
+    test('Should not see last_name dimension', async ({ adminPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         await page.getByPlaceholder('Search tables').fill('Users');
