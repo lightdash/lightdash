@@ -8,7 +8,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Group, Tabs, Tooltip } from '@mantine-8/core';
+import { Button, Group, Progress, Tabs, Tooltip } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -52,12 +52,36 @@ import {
     getResponsiveGridLayoutProps,
     GRID_CONTAINER_PADDING,
 } from './gridUtils';
+import { useStagedMountProgress } from './stagedMountContext';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { useGridStyles } from './useGridStyles';
 import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+/** Thin progress bar that shows while the stagger cascade reveals tiles. */
+const StagedMountProgressBar: FC = () => {
+    const { isComplete, progress } = useStagedMountProgress();
+    if (isComplete) return null;
+    return (
+        <Progress
+            value={progress * 100}
+            size={3}
+            color="blue"
+            radius={0}
+            transitionDuration={200}
+            animated
+            style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 10,
+            }}
+        />
+    );
+};
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -110,6 +134,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onAddTiles,
     }) => (
         <StagedMountProvider waveKey={waveKey} totalTiles={tiles.length}>
+            <StagedMountProgressBar />
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}
@@ -236,7 +261,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
-    const [isTabSwitching, startTabTransition] = useTransition();
+    const [, startTabTransition] = useTransition();
 
     const keepTabsInMemory = useClientFeatureFlag(
         FeatureFlags.DashboardTabsInMemory,
@@ -1044,22 +1069,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         ]
                                             .filter(Boolean)
                                             .join(' ')}
-                                        style={{
-                                            ...(showGridLines
+                                        style={
+                                            showGridLines
                                                 ? gridLineStyles
-                                                : undefined),
-                                            ...(isTabSwitching
-                                                ? {
-                                                      opacity: 0.7,
-                                                      pointerEvents: 'none',
-                                                      transition:
-                                                          'opacity 100ms ease-out',
-                                                  }
-                                                : {
-                                                      transition:
-                                                          'opacity 150ms ease-in',
-                                                  }),
-                                        }}
+                                                : undefined
+                                        }
                                     >
                                         {tabsEnabled
                                             ? dashboardTabs

@@ -53,7 +53,7 @@ export const StagedMountProvider: FC<StagedMountProviderProps> = ({
     }, [waveKey, totalTiles]);
 
     return (
-        <StagedMountContext.Provider value={{ revealedCount }}>
+        <StagedMountContext.Provider value={{ revealedCount, totalTiles }}>
             {children}
         </StagedMountContext.Provider>
     );

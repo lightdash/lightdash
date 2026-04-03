@@ -10,10 +10,12 @@ export const STAGED_MOUNT_BATCH_SIZE = 1;
 
 type StagedMountContextValue = {
     revealedCount: number;
+    totalTiles: number;
 };
 
 export const StagedMountContext = createContext<StagedMountContextValue>({
     revealedCount: Infinity,
+    totalTiles: 0,
 });
 
 /**
@@ -23,4 +25,18 @@ export const StagedMountContext = createContext<StagedMountContextValue>({
 export const useStagedMount = (tileIndex: number): { isReady: boolean } => {
     const { revealedCount } = useContext(StagedMountContext);
     return { isReady: tileIndex < revealedCount };
+};
+
+/**
+ * Returns progress of the staged mount cascade (0 to 1).
+ * Use this to drive a loading indicator at the tab/panel level.
+ */
+export const useStagedMountProgress = (): {
+    isComplete: boolean;
+    progress: number;
+} => {
+    const { revealedCount, totalTiles } = useContext(StagedMountContext);
+    if (totalTiles === 0) return { isComplete: true, progress: 1 };
+    const progress = Math.min(revealedCount / totalTiles, 1);
+    return { isComplete: progress >= 1, progress };
 };
