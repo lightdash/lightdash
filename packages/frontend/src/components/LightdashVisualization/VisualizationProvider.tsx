@@ -201,6 +201,16 @@ const VisualizationProvider: FC<
      * On charts, these are computed from the chartConfig
      * Colors are pre-calculated per-series, and re-calculated when series change.
      */
+    const effectivePalette = useMemo(
+        () =>
+            chartConfig?.type === ChartType.CARTESIAN &&
+            chartConfig.config?.eChartsConfig?.colors &&
+            chartConfig.config.eChartsConfig.colors.length > 0
+                ? chartConfig.config.eChartsConfig.colors
+                : colorPalette,
+        [chartConfig, colorPalette],
+    );
+
     const fallbackColors = useMemo<Record<string, string>>(() => {
         if (!chartConfig?.config || chartConfig.type !== ChartType.CARTESIAN) {
             return {};
@@ -217,10 +227,13 @@ const VisualizationProvider: FC<
 
         return Object.fromEntries(
             sortedSeriesIdentifiers.map((identifier, i) => {
-                return [identifier, colorPalette[i % colorPalette.length]];
+                return [
+                    identifier,
+                    effectivePalette[i % effectivePalette.length],
+                ];
             }),
         );
-    }, [chartConfig, colorPalette, computedSeries]);
+    }, [chartConfig, effectivePalette, computedSeries]);
 
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {

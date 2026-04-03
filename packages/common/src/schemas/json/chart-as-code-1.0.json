@@ -2030,6 +2030,13 @@
                     "format": "double",
                     "type": "number"
                 },
+                "colors": {
+                    "description": "Chart-level color palette. Overrides the organization color palette for this chart.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
                 "grid": {
                     "$ref": "#/$defs/EchartsGrid",
                     "description": "Grid (chart area) configuration"
