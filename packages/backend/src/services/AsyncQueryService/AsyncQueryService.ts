@@ -747,10 +747,10 @@ export class AsyncQueryService extends ProjectService {
         });
 
         // Resolve display timezone for result formatting (gated by feature flag)
-        const { enabled: isTimezoneSupportEnabled } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.EnableTimezoneSupport,
-            });
+        const isTimezoneSupportEnabled = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         const displayTimezone = isTimezoneSupportEnabled
             ? resolveQueryTimezone(
                   queryHistory.metricQuery,
