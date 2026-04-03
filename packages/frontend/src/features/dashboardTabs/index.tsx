@@ -15,11 +15,11 @@ import cloneDeep from 'lodash/cloneDeep';
 import {
     Activity,
     memo,
-    startTransition,
     useCallback,
     useMemo,
     useRef,
     useState,
+    useTransition,
     type FC,
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -236,6 +236,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
+    const [isTabSwitching, startTabTransition] = useTransition();
 
     const keepTabsInMemory = useClientFeatureFlag(
         FeatureFlags.DashboardTabsInMemory,
@@ -617,7 +618,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
 
         const newParams = new URLSearchParams(search);
-        startTransition(() => {
+        startTabTransition(() => {
             void navigate(
                 {
                     pathname: isEditMode
@@ -1043,11 +1044,22 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         ]
                                             .filter(Boolean)
                                             .join(' ')}
-                                        style={
-                                            showGridLines
+                                        style={{
+                                            ...(showGridLines
                                                 ? gridLineStyles
-                                                : undefined
-                                        }
+                                                : undefined),
+                                            ...(isTabSwitching
+                                                ? {
+                                                      opacity: 0.7,
+                                                      pointerEvents: 'none',
+                                                      transition:
+                                                          'opacity 100ms ease-out',
+                                                  }
+                                                : {
+                                                      transition:
+                                                          'opacity 150ms ease-in',
+                                                  }),
+                                        }}
                                     >
                                         {tabsEnabled
                                             ? dashboardTabs
