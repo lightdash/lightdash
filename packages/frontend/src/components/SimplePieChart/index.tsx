@@ -2,7 +2,15 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChartPieOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
@@ -107,6 +115,15 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
             close();
         }, [close]);
 
+        const onEvents = useMemo(
+            () => ({
+                click: handleOpenContextMenu,
+                oncontextmenu: handleOpenContextMenu,
+                legendselectchanged: onLegendChange,
+            }),
+            [handleOpenContextMenu, onLegendChange],
+        );
+
         if (isLoading) return <LoadingChart />;
         if (!pieChartOptions) return <EmptyChart />;
 
@@ -132,11 +149,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                     option={pieChartOptions.eChartsOption}
                     notMerge
                     {...props}
-                    onEvents={{
-                        click: handleOpenContextMenu,
-                        oncontextmenu: handleOpenContextMenu,
-                        legendselectchanged: onLegendChange,
-                    }}
+                    onEvents={onEvents}
                 />
 
                 {shouldShowMenu && (

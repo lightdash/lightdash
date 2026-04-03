@@ -448,6 +448,26 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             resolvedEChartsOptions?.tooltip,
         ]);
 
+        // Memoize onEvents to prevent echarts-for-react from disposing and
+        // re-creating the entire ECharts instance on every render. The library
+        // deep-compares onEvents via fast-deep-equal, which always returns false
+        // for function values, triggering a full dispose+init cycle.
+        const onEvents = useMemo(
+            () => ({
+                contextmenu: onChartContextMenu,
+                click: onChartContextMenu,
+                mouseover: handleOnMouseOver,
+                mouseout: handleOnMouseOut,
+                legendselectchanged: onLegendChange,
+            }),
+            [
+                onChartContextMenu,
+                handleOnMouseOver,
+                handleOnMouseOut,
+                onLegendChange,
+            ],
+        );
+
         if (resultsData?.error) return <EmptyChart />;
         if (isLoading) return <LoadingChart />;
         if (!eChartsOptions) return <EmptyChart />;
@@ -473,13 +493,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 notMerge
                 lazyUpdate={props.isInDashboard}
                 opts={opts}
-                onEvents={{
-                    contextmenu: onChartContextMenu,
-                    click: onChartContextMenu,
-                    mouseover: handleOnMouseOver,
-                    mouseout: handleOnMouseOut,
-                    legendselectchanged: onLegendChange,
-                }}
+                onEvents={onEvents}
                 {...props}
             />
         );
