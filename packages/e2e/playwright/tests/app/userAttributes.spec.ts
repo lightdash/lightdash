@@ -34,8 +34,8 @@ test.describe('User attributes sql_filter', () => {
 
         await expect(page.getByText('Error loading results')).toBeVisible();
 
-        // eslint-disable-next-line no-template-curly-in-string
         const expectedMessage =
+            // eslint-disable-next-line no-template-curly-in-string
             'Missing user attribute "customer_id": "customer_id = ${ld.attr.customer_id}"';
         await expect(page.getByText(expectedMessage)).toBeVisible();
     });

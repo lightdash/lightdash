@@ -1,6 +1,6 @@
 name: Setup Node, PNPM, and Playwright
 
-description: Sets up Node.js, PNPM, and Playwright browsers.
+description: Sets up Node.js, PNPM, and Playwright.
 
 runs:
     using: 'composite'
@@ -19,9 +19,4 @@ runs:
 
         - name: Install Dependencies
           run: pnpm install --frozen-lockfile --prefer-offline
-          shell: bash
-
-        - name: Install Playwright Browsers
-          run: pnpm exec playwright install --with-deps chromium
-          working-directory: packages/e2e
           shell: bash
