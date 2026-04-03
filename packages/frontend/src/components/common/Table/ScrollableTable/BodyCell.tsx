@@ -5,12 +5,7 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import {
-    getHotkeyHandler,
-    useClipboard,
-    useDisclosure,
-    useTimeout,
-} from '@mantine/hooks';
+import { getHotkeyHandler, useClipboard } from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
 import {
     useCallback,
@@ -42,6 +37,35 @@ interface CommonBodyCellProps {
     minimal?: boolean;
 }
 
+/**
+ * Expensive interactive hooks (clipboard, hotkeys, toaster) that only
+ * mount when a cell's context menu is open. Only ONE cell at a time.
+ */
+const ActiveCellInteractions: FC<{
+    displayValue: unknown;
+    onCopyingChange: (copying: boolean) => void;
+}> = ({ displayValue, onCopyingChange }) => {
+    const { showToastSuccess } = useToaster();
+    const { copy } = useClipboard();
+
+    const handleCopy = useCallback(() => {
+        copy(displayValue);
+        showToastSuccess({ title: 'Copied to clipboard!' });
+        onCopyingChange(true);
+        setTimeout(() => onCopyingChange(false), 300);
+    }, [displayValue, copy, showToastSuccess, onCopyingChange]);
+
+    useEffect(() => {
+        const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
+        document.body.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.body.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [handleCopy]);
+
+    return null;
+};
+
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     cell,
     children,
@@ -58,22 +82,18 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     minimal = false,
 }) => {
     const elementRef = useRef<HTMLTableCellElement>(null);
-    const { showToastSuccess } = useToaster();
-    const { copy } = useClipboard();
 
     const [isCopying, setCopying] = useState(false);
-    const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
-    const [isTooltipOpen, { open: openTooltip, close: closeTooltip }] =
-        useDisclosure(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [elementBounds, setElementBounds] = useState<DOMRect | null>(null);
+
+    // Tooltip state via refs — no re-render on hover, only when tooltip shows
+    const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
     const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
 
-    const { start: startTooltipTimer, clear: clearTooltipTimer } = useTimeout(
-        openTooltip,
-        500,
-    );
     const item = cell.column.columnDef.meta?.item;
     const hasUrls = isField(item) && item.urls ? item.urls.length > 0 : false;
 
@@ -84,21 +104,27 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         elementRef.current &&
         !shouldRenderMenu;
 
-    // Calculate bounds when menu/tooltip opens, not during every render
+    // Calculate bounds when menu/tooltip opens
     useEffect(() => {
         if ((shouldRenderMenu || shouldRenderTooltip) && elementRef.current) {
             setElementBounds(elementRef.current.getBoundingClientRect());
         } else if (!isMenuOpen && !isTooltipOpen) {
-            // Clear bounds when closed to free memory
             setElementBounds(null);
         }
     }, [shouldRenderMenu, shouldRenderTooltip, isMenuOpen, isTooltipOpen]);
 
+    // Clean up tooltip timer on unmount
+    useEffect(() => {
+        return () => {
+            if (tooltipTimerRef.current) {
+                clearTimeout(tooltipTimerRef.current);
+            }
+        };
+    }, []);
+
     const displayValue = useMemo(() => {
         if (!hasData) return null;
-
         const cellValue = cell.getValue();
-
         if (isResultValue(cellValue)) {
             return cellValue.value.formatted;
         } else if (isRawResultRow(cellValue)) {
@@ -108,31 +134,29 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         }
     }, [hasData, cell]);
 
-    const handleCopy = useCallback(() => {
-        if (!isMenuOpen) return;
+    const toggleMenu = useCallback(() => {
+        setIsMenuOpen((prev) => !prev);
+    }, []);
 
-        copy(displayValue);
-        showToastSuccess({ title: 'Copied to clipboard!' });
+    // Plain setTimeout for tooltip delay — no useTimeout hook needed.
+    // Only creates a timer when the user actually hovers, not on mount.
+    const handleMouseEnter = canHaveTooltip
+        ? () => {
+              tooltipTimerRef.current = setTimeout(() => {
+                  setIsTooltipOpen(true);
+              }, 500);
+          }
+        : undefined;
 
-        setCopying((copyingState) => {
-            if (!copyingState) {
-                setTimeout(() => setCopying(false), 300);
-            }
-            return true;
-        });
-    }, [isMenuOpen, displayValue, copy, showToastSuccess]);
-
-    useEffect(() => {
-        const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
-
-        if (isMenuOpen) {
-            document.body.addEventListener('keydown', handleKeyDown);
-        }
-
-        return () => {
-            document.body.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isMenuOpen, handleCopy]);
+    const handleMouseLeave = canHaveTooltip
+        ? () => {
+              if (tooltipTimerRef.current) {
+                  clearTimeout(tooltipTimerRef.current);
+                  tooltipTimerRef.current = null;
+              }
+              setIsTooltipOpen(false);
+          }
+        : undefined;
 
     return (
         <>
@@ -156,26 +180,25 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     displayValue.includes('\n')
                 }
                 onClick={canHaveMenu ? toggleMenu : undefined}
-                onMouseEnter={canHaveTooltip ? startTooltipTimer : undefined}
-                onMouseLeave={
-                    canHaveTooltip
-                        ? () => {
-                              clearTooltipTimer();
-                              closeTooltip();
-                          }
-                        : undefined
-                }
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
             >
                 <span>{children}</span>
             </Td>
 
             {shouldRenderMenu ? (
-                <CellMenu
-                    cell={cell as Cell<ResultRow, ResultRow[0]>}
-                    menuItems={cellContextMenu}
-                    elementBounds={elementBounds}
-                    onClose={toggleMenu}
-                />
+                <>
+                    <ActiveCellInteractions
+                        displayValue={displayValue}
+                        onCopyingChange={setCopying}
+                    />
+                    <CellMenu
+                        cell={cell as Cell<ResultRow, ResultRow[0]>}
+                        menuItems={cellContextMenu}
+                        elementBounds={elementBounds}
+                        onClose={toggleMenu}
+                    />
+                </>
             ) : null}
 
             {shouldRenderTooltip ? (
