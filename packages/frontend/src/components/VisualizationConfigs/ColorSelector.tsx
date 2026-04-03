@@ -16,6 +16,7 @@ interface Props {
     defaultColor?: string;
     swatches: string[];
     onColorChange?: (newColor: string) => void;
+    readOnly?: boolean;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
     withAlpha?: boolean;
 }
@@ -25,20 +26,22 @@ const ColorSelector: FC<Props> = ({
     defaultColor = 'rgba(0,0,0,.1)',
     swatches,
     onColorChange,
+    readOnly = false,
     colorSwatchProps,
     withAlpha = false,
 }) => {
     const isValidHexColor = color && isHexCodeColor(color);
+    const isInteractive = Boolean(onColorChange) && !readOnly;
 
-    return (
-        <Popover withinPortal shadow="md" withArrow disabled={!onColorChange}>
+    return isInteractive ? (
+        <Popover withinPortal shadow="md" withArrow>
             <Popover.Target>
                 <ColorSwatch
                     size={20}
                     color={isValidHexColor ? color : defaultColor}
                     {...colorSwatchProps}
                     sx={{
-                        cursor: onColorChange ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         transition: 'opacity 100ms ease',
                         '&:hover': { opacity: 0.8 },
                         ...(typeof colorSwatchProps?.sx === 'object' &&
@@ -93,6 +96,19 @@ const ColorSelector: FC<Props> = ({
                 </Stack>
             </Popover.Dropdown>
         </Popover>
+    ) : (
+        <ColorSwatch
+            size={20}
+            color={isValidHexColor ? color : defaultColor}
+            {...colorSwatchProps}
+            sx={{
+                cursor: 'default',
+                ...(typeof colorSwatchProps?.sx === 'object' &&
+                !Array.isArray(colorSwatchProps.sx)
+                    ? colorSwatchProps.sx
+                    : {}),
+            }}
+        />
     );
 };
 
