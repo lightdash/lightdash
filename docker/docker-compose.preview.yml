@@ -23,6 +23,14 @@ services:
         ports:
             - '3000'
 
+    nats:
+        image: nats:2.11-alpine
+        command: ['-js']
+        restart: always
+        ports:
+            - '4222'
+            - '8222'
+
     lightdash-preview:
         build:
             target: pr-runner
@@ -31,6 +39,7 @@ services:
         depends_on:
             - db-preview
             - headless-browser
+            - nats
         healthcheck:
             interval: 10s
             timeout: 5s
