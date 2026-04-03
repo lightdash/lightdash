@@ -27,7 +27,7 @@ import {
     type FC,
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Link, Navigate, useParams } from 'react-router';
+import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -104,6 +104,7 @@ const AppGenerate: FC = () => {
         projectUuid: string;
         appUuid: string;
     }>();
+    const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [prompt, setPrompt] = useState('');
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
@@ -333,10 +334,9 @@ const AppGenerate: FC = () => {
                 });
                 // Update URL so the session is resumable
                 if (!urlAppUuid) {
-                    window.history.replaceState(
-                        null,
-                        '',
+                    void navigate(
                         `/projects/${projectUuid}/apps/${data.appUuid}`,
+                        { replace: true },
                     );
                 }
             },
