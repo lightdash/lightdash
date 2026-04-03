@@ -1,0 +1,24 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: date zoom queries matches snapshot for a date-zoom query with raw-date filtering 1`] = `
+"SELECT
+  DATE_TRUNC('month', "orders".created_at) AS "orders_created_at",
+  COUNT("orders".order_id) AS "orders_order_count"
+FROM
+  "db"."schema"."orders" AS "orders"
+WHERE
+  (
+    (
+      (
+        ("orders".created_at) >= ('2024-09-01')
+        AND ("orders".created_at) <= ('2024-09-04')
+      )
+    )
+  )
+GROUP BY
+  1
+ORDER BY
+  "orders_created_at"
+LIMIT
+  10"
+`;

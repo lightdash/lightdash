@@ -1,0 +1,207 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a dependent total-calculation query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  ),
+  column_totals AS (
+    SELECT
+      MAX("table1".number_column) AS "table1_metric1__total"
+    FROM
+      "db"."schema"."table1" AS "table1"
+  ),
+  with_totals AS (
+    SELECT
+      metrics.*,
+      column_totals."table1_metric1__total"
+    FROM
+      metrics
+      CROSS JOIN column_totals
+  ),
+  tc_pct_total AS (
+    SELECT
+      *,
+      "table1_metric1" / "table1_metric1__total" AS "pct_total"
+    FROM
+      with_totals
+  ),
+  tc_double_pct AS (
+    SELECT
+      *,
+      "pct_total" * 2 AS "double_pct"
+    FROM
+      tc_pct_total
+  )
+SELECT
+  *
+FROM
+  tc_double_pct
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a pivoted totals query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  ),
+  column_totals AS (
+    SELECT
+      MAX("table1".number_column) AS "table1_metric1__total"
+    FROM
+      "db"."schema"."table1" AS "table1"
+  ),
+  row_totals AS (
+    SELECT
+      "table1_dim1",
+      SUM("table1_metric1") AS "table1_metric1__row_total"
+    FROM
+      metrics
+    GROUP BY
+      1
+  ),
+  with_totals AS (
+    SELECT
+      metrics.*,
+      column_totals."table1_metric1__total",
+      row_totals."table1_metric1__row_total"
+    FROM
+      metrics
+      CROSS JOIN column_totals
+      LEFT JOIN row_totals ON (
+        metrics."table1_dim1" = row_totals."table1_dim1"
+        OR (
+          metrics."table1_dim1" IS NULL
+          AND row_totals."table1_dim1" IS NULL
+        )
+      )
+  )
+SELECT
+  *,
+  "table1_metric1" / "table1_metric1__total" AS "pct_total",
+  "table1_metric1" / "table1_metric1__row_total" AS "pct_row"
+FROM
+  with_totals
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a row-total query using pivot dimensions 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  ),
+  row_totals AS (
+    SELECT
+      "table1_dim1",
+      SUM("table1_metric1") AS "table1_metric1__row_total"
+    FROM
+      metrics
+    GROUP BY
+      1
+  ),
+  with_totals AS (
+    SELECT
+      metrics.*,
+      row_totals."table1_metric1__row_total"
+    FROM
+      metrics
+      LEFT JOIN row_totals ON (
+        metrics."table1_dim1" = row_totals."table1_dim1"
+        OR (
+          metrics."table1_dim1" IS NULL
+          AND row_totals."table1_dim1" IS NULL
+        )
+      )
+  )
+SELECT
+  *,
+  "table1_metric1" / "table1_metric1__row_total" AS "pct_of_row"
+FROM
+  with_totals
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for a row-total query without pivot metadata 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  )
+SELECT
+  *,
+  "table1_metric1" / "table1_metric1" AS "pct_of_row"
+FROM
+  metrics
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: totals queries matches snapshot for an average-metric total query 1`] = `
+"WITH
+  metrics AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      AVG("table1".number_column) AS "table1_avg_metric"
+    FROM
+      "db"."schema"."table1" AS "table1"
+    GROUP BY
+      1
+  ),
+  column_totals AS (
+    SELECT
+      AVG("table1".number_column) AS "table1_avg_metric__total"
+    FROM
+      "db"."schema"."table1" AS "table1"
+  ),
+  with_totals AS (
+    SELECT
+      metrics.*,
+      column_totals."table1_avg_metric__total"
+    FROM
+      metrics
+      CROSS JOIN column_totals
+  )
+SELECT
+  *,
+  "table1_avg_metric" / "table1_avg_metric__total" AS "pct_of_total"
+FROM
+  with_totals
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;

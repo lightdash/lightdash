@@ -22,6 +22,7 @@
         "test-sequential": "TZ=UTC LANG=en_US.UTF-8 NODE_ENV=test jest --config jest.config.js --runInBand",
         "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
         "test:dev:nowatch": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged",
+        "test:snapshots:update": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.js src/utils/QueryBuilder/metricQueryBuilderSnapshots -u",
         "test:integration": "vitest run --config vitest.config.integration.ts",
         "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --rulesdir eslint-rules",
@@ -195,6 +196,7 @@
         "jest-fetch-mock": "3.0.3",
         "knex-mock-client": "1.11.0",
         "nodemon": "3.1.9",
+        "sql-formatter": "15.4.2",
         "ts-node": "10.9.2",
         "typescript": "6.0.0-beta"
     }
