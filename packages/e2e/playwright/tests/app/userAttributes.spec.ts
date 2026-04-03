@@ -131,7 +131,9 @@ test.describe('User attributes dimension required_attribute', () => {
         }
     });
 
-    test('Should not see last_name dimension', async ({ adminPage: page }) => {
+    test('Should not see last_name dimension before attribute is set', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         await page.getByPlaceholder('Search tables').fill('Users');
@@ -176,7 +178,9 @@ test.describe('User attributes dimension required_attribute', () => {
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 
-    test('Should not see last_name dimension', async ({ adminPage: page }) => {
+    test('Should not see last_name dimension after attribute is changed', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         await page.getByPlaceholder('Search tables').fill('Users');
