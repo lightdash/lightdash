@@ -53,27 +53,12 @@ import {
     getResponsiveGridLayoutProps,
     GRID_CONTAINER_PADDING,
 } from './gridUtils';
-import { useStagedMountProgress } from './stagedMountContext';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { useGridStyles } from './useGridStyles';
 import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
-
-/** Narrow progress bar that fills as tiles cascade in. */
-const StagedMountIndicator: FC = () => {
-    const { isComplete, progress } = useStagedMountProgress();
-    if (isComplete) return null;
-    return (
-        <div className={styles.cascadeProgressTrack}>
-            <div
-                className={styles.cascadeProgressFill}
-                style={{ width: `${progress * 100}%` }}
-            />
-        </div>
-    );
-};
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -126,7 +111,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onAddTiles,
     }) => (
         <StagedMountProvider waveKey={waveKey} totalTiles={tiles.length}>
-            <StagedMountIndicator />
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}
