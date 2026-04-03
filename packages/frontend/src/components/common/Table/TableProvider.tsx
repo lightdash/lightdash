@@ -3,6 +3,7 @@ import {
     getExpandedRowModel,
     useReactTable,
     type ColumnOrderState,
+    type ExpandedState,
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
@@ -46,6 +47,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
     hideRowNumbers,
     showColumnCalculation,
     showSubtotals,
+    showSubtotalsExpanded,
     children,
     ...rest
 }) => {
@@ -60,6 +62,9 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         minMaxMap,
     } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
+    const [expanded, setExpanded] = useState<ExpandedState>(
+        showSubtotals && showSubtotalsExpanded ? true : {},
+    );
     const [columnVisibility, setColumnVisibility] = useState({});
     const [isInfiniteScrollEnabled, setIsInfiniteScrollEnabled] = useState(
         !pagination?.show || !!pagination?.defaultScroll,
@@ -164,11 +169,16 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         return data.slice(start, end);
     }, [data, paginationState]);
 
+    useEffect(() => {
+        setExpanded(showSubtotals && showSubtotalsExpanded ? true : {});
+    }, [showSubtotals, showSubtotalsExpanded]);
+
     const table = useReactTable({
         data: isInfiniteScrollEnabled ? data : pageRows,
         columns: visibleColumns,
         state: {
             grouping,
+            expanded,
             columnVisibility,
             columnOrder: tempColumnOrder,
             columnPinning: {
@@ -192,6 +202,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         pageCount: Math.ceil(totalRowsCount / paginationState.pageSize),
         onPaginationChange: setPagination,
         onGroupingChange: setGrouping,
+        onExpandedChange: setExpanded,
         groupedColumnMode: false,
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
