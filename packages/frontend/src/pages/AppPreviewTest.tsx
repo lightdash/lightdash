@@ -3,6 +3,7 @@ import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import { Navigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import { useGetApp } from '../features/apps/hooks/useGetApp';
 import useHealth from '../hooks/health/useHealth';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
@@ -18,15 +19,28 @@ export default function AppPreviewTest() {
         version: string;
     }>();
 
-    const version = versionParam ? Number(versionParam) : undefined;
+    const explicitVersion = versionParam ? Number(versionParam) : undefined;
+
     const health = useHealth();
     const { user } = useApp();
     const ability = useAbilityContext();
 
+    // When no version in URL, fetch app to find the latest ready version
+    const appQuery = useGetApp(
+        explicitVersion ? undefined : projectUuid,
+        explicitVersion ? undefined : appUuid,
+    );
+
+    const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
+        (v) => v.status === 'ready',
+    )?.version;
+
+    const version = explicitVersion ?? latestReadyVersion;
+
     const {
         data: token,
-        isLoading,
-        error,
+        isLoading: isTokenLoading,
+        error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
     if (health.data && !health.data.dataApps.enabled) {
@@ -45,8 +59,23 @@ export default function AppPreviewTest() {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
-    if (!projectUuid || !appUuid || !version) {
+    if (!projectUuid || !appUuid) {
         return <div>Missing route params</div>;
+    }
+
+    const isAppLoading = !explicitVersion && appQuery.isLoading;
+    const appError = !explicitVersion ? appQuery.error : null;
+    const isLoading = isAppLoading || (version !== undefined && isTokenLoading);
+    const error = appError ?? tokenError;
+
+    if (!explicitVersion && !appQuery.isLoading && !latestReadyVersion) {
+        return (
+            <Stack align="center" justify="center" h="calc(100vh - 50px)">
+                <Text c="red" size="sm">
+                    No ready version found for this app
+                </Text>
+            </Stack>
+        );
     }
 
     const baseUrl = window.location.origin;

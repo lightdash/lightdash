@@ -653,7 +653,7 @@ const AppGenerate: FC = () => {
                                 {previewApp && (
                                     <ActionIcon
                                         component={Link}
-                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/versions/${previewApp.version}/preview`}
+                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
                                         target="_blank"
                                         variant="subtle"
                                         size="sm"
