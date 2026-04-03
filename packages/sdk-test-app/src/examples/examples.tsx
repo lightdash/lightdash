@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
+import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 
 export type ExampleDefinition = {
     component: ComponentType<{ embedConfig: EmbedConfigState }>;
@@ -30,6 +31,16 @@ export const examples: ExampleDefinition[] = [
             'A host-app select drives an SDK dashboard filter for customer first name.',
         sourcePath: 'packages/sdk-test-app/src/examples/FiltersExamplePage.tsx',
         component: FiltersExamplePage,
+    },
+    {
+        slug: 'palette-uuid',
+        path: '/examples/palette-uuid',
+        title: 'Palette overrides demo',
+        description:
+            'A dashboard example that pins chart colors to a specific org palette UUID.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/PaletteUuidExamplePage.tsx',
+        component: PaletteUuidExamplePage,
     },
     // Future examples:
     // {
