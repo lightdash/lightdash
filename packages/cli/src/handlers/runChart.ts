@@ -127,7 +127,7 @@ export const runChartHandler = async (
         throw new Error(`Unexpected query status: ${result.status}`);
     }
 
-    const durationMs = result.initialQueryExecutionMs;
+    const durationMs = result.metadata.performance.initialQueryExecutionMs;
     const durationStr = durationMs ? ` (${durationMs}ms)` : '';
 
     if (options.output) {

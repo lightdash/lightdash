@@ -1484,7 +1484,11 @@ describe('AsyncQueryService', () => {
             expect(result).toEqual(
                 expect.objectContaining({
                     totalResults: 10,
-                    initialQueryExecutionMs: 1500,
+                    metadata: expect.objectContaining({
+                        performance: expect.objectContaining({
+                            initialQueryExecutionMs: 1500,
+                        }),
+                    }),
                 }),
             );
 
