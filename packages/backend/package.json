@@ -38,7 +38,7 @@
         "migrate-or-rollback-database:dev": "tsx src/migrateOrRollbackDatabase.ts",
         "seed": "knex seed:run --knexfile src/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/knexfile.js",
-        "reseed-encrypted-credentials": "tsx src/scripts/reseed-encrypted-credentials.ts",
+        "reseed-encrypted-credentials": "tsx --tsconfig tsconfig.scripts.json src/scripts/reseed-encrypted-credentials.ts",
         "rollback-last": "knex migrate:down --knexfile src/knexfile.ts",
         "rollback-all": "knex migrate:rollback --all --knexfile src/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/knexfile.js",
