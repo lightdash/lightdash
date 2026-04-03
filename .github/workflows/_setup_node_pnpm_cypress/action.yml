@@ -1,6 +1,6 @@
-name: Setup Node, PNPM, and Cypress
+name: Setup Node, PNPM, and Playwright
 
-description: Sets up Node.js, PNPM, and Cypress.
+description: Sets up Node.js, PNPM, and Playwright browsers.
 
 runs:
     using: 'composite'
@@ -21,7 +21,7 @@ runs:
           run: pnpm install --frozen-lockfile --prefer-offline
           shell: bash
 
-        - name: Install Cypress
-          run: pnpm exec cypress install
+        - name: Install Playwright Browsers
+          run: pnpm exec playwright install --with-deps chromium
           working-directory: packages/e2e
           shell: bash
