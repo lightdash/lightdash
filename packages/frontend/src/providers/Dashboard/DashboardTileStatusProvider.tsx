@@ -49,7 +49,12 @@ const DashboardTileStatusProvider: React.FC<
     const [loadedTiles, setLoadedTiles] = useState<Set<string>>(new Set());
 
     const markTileLoaded = useCallback((tileUuid: string) => {
-        setLoadedTiles((prev) => new Set(prev).add(tileUuid));
+        setLoadedTiles((prev) => {
+            if (prev.has(tileUuid)) return prev;
+            const next = new Set(prev);
+            next.add(tileUuid);
+            return next;
+        });
     }, []);
 
     // Determine if all chart tiles have loaded
@@ -123,11 +128,21 @@ const DashboardTileStatusProvider: React.FC<
     >(new Set());
 
     const markTileScreenshotReady = useCallback((tileUuid: string) => {
-        setScreenshotReadyTiles((prev) => new Set(prev).add(tileUuid));
+        setScreenshotReadyTiles((prev) => {
+            if (prev.has(tileUuid)) return prev;
+            const next = new Set(prev);
+            next.add(tileUuid);
+            return next;
+        });
     }, []);
 
     const markTileScreenshotErrored = useCallback((tileUuid: string) => {
-        setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
+        setScreenshotErroredTiles((prev) => {
+            if (prev.has(tileUuid)) return prev;
+            const next = new Set(prev);
+            next.add(tileUuid);
+            return next;
+        });
     }, []);
 
     const expectedScreenshotTileUuids = useMemo(() => {
@@ -238,10 +253,13 @@ const DashboardTileStatusProvider: React.FC<
 
     const updateSqlChartTilesMetadata = useCallback(
         (tileUuid: string, metadata: SqlChartTileMetadata) => {
-            setSqlChartTilesMetadata((prev) => ({
-                ...prev,
-                [tileUuid]: metadata,
-            }));
+            setSqlChartTilesMetadata((prev) => {
+                if (prev[tileUuid] === metadata) return prev;
+                return {
+                    ...prev,
+                    [tileUuid]: metadata,
+                };
+            });
         },
         [],
     );
@@ -249,9 +267,8 @@ const DashboardTileStatusProvider: React.FC<
     const addPreAggregateStatus = useCallback(
         (tileUuid: string, cacheMetadata?: CacheMetadata) => {
             const preAggregate = cacheMetadata?.preAggregate ?? null;
-            setPreAggregateStatuses((prev) => ({
-                ...prev,
-                [tileUuid]: {
+            setPreAggregateStatuses((prev) => {
+                const nextStatus = {
                     tileUuid,
                     tileName: tileNamesById[tileUuid] ?? tileUuid,
                     hit: preAggregate?.hit ?? false,
@@ -259,8 +276,28 @@ const DashboardTileStatusProvider: React.FC<
                     reason: preAggregate?.reason ?? null,
                     hasPreAggregateMetadata: preAggregate !== null,
                     tabUuid: tileTabsById[tileUuid],
-                },
-            }));
+                };
+
+                const currentStatus = prev[tileUuid];
+                if (
+                    currentStatus &&
+                    currentStatus.tileName === nextStatus.tileName &&
+                    currentStatus.hit === nextStatus.hit &&
+                    currentStatus.preAggregateName ===
+                        nextStatus.preAggregateName &&
+                    currentStatus.reason === nextStatus.reason &&
+                    currentStatus.hasPreAggregateMetadata ===
+                        nextStatus.hasPreAggregateMetadata &&
+                    currentStatus.tabUuid === nextStatus.tabUuid
+                ) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    [tileUuid]: nextStatus,
+                };
+            });
         },
         [tileNamesById, tileTabsById],
     );
