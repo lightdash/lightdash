@@ -6,7 +6,14 @@
                     "type": "object",
                     "properties": {
                         "meta": {
-                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                            "oneOf": [
+                                {
+                                    "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         }
                     }
                 }
@@ -18,7 +25,14 @@
                     "type": "object",
                     "properties": {
                         "meta": {
-                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
+                            "oneOf": [
+                                {
+                                    "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashColumnMetadata"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         }
                     }
                 }
@@ -42,7 +56,14 @@
                         },
 
                         "meta": {
-                            "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                            "oneOf": [
+                                {
+                                    "$ref": "https://schemas.lightdash.com/lightdash/metadata.json#/definitions/LightdashModelMetadata"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ]
                         },
                         "config": {
                             "$ref": "#/definitions/LightdashNodeConfig"
