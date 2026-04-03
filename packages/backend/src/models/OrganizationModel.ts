@@ -410,6 +410,20 @@ export class OrganizationModel {
         );
     }
 
+    async findColorPalette(
+        organizationUuid: string,
+        colorPaletteUuid: string,
+    ): Promise<OrganizationColorPalette | undefined> {
+        const palette = await this.database(OrganizationColorPaletteTableName)
+            .where('organization_uuid', organizationUuid)
+            .andWhere('color_palette_uuid', colorPaletteUuid)
+            .first();
+
+        return palette
+            ? OrganizationModel.mapDBColorPalette(palette)
+            : undefined;
+    }
+
     async updateColorPalette(
         organizationUuid: string,
         colorPaletteUuid: string,

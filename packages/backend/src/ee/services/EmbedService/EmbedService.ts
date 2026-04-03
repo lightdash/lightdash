@@ -10,7 +10,6 @@ import {
     CompiledDimension,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
-    Dashboard,
     DashboardAvailableFilters,
     DashboardDAO,
     DashboardFilters,
@@ -19,6 +18,7 @@ import {
     DecodedEmbed,
     Embed,
     EmbedContent,
+    EmbedDashboard,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
@@ -461,9 +461,14 @@ export class EmbedService extends BaseService {
     async getDashboard(
         projectUuid: string,
         account: AnonymousAccount,
-        // TODO: WHY IS THIS OPTIONAL??
-        checkPermissions: boolean = true,
-    ): Promise<Dashboard & InteractivityOptions> {
+        {
+            paletteUuid,
+            checkPermissions = true,
+        }: {
+            paletteUuid?: string;
+            checkPermissions?: boolean;
+        } = {},
+    ): Promise<EmbedDashboard> {
         const { data: decodedToken, source: embedToken } =
             account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
@@ -507,6 +512,12 @@ export class EmbedService extends BaseService {
             canExportPagePdf,
             canDateZoom,
         } = decodedToken.content;
+        const selectedPalette = paletteUuid
+            ? await this.organizationModel.findColorPalette(
+                  dashboard.organizationUuid,
+                  paletteUuid,
+              )
+            : null;
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',
@@ -548,6 +559,7 @@ export class EmbedService extends BaseService {
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom,
+            selectedPalette,
         };
     }
 

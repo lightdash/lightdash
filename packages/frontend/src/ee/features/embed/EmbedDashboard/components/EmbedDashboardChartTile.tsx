@@ -12,6 +12,8 @@ import useEmbed from '../../../../providers/Embed/useEmbed';
 type Props = ComponentProps<typeof DashboardChartTile> & {
     projectUuid: string;
     dashboardSlug: string;
+    paletteColors?: string[];
+    paletteDarkColors?: string[] | null;
     locked: boolean;
     tileIndex: number;
 };
@@ -19,6 +21,8 @@ type Props = ComponentProps<typeof DashboardChartTile> & {
 const EmbedDashboardChartTile: FC<Props> = ({
     projectUuid,
     dashboardSlug,
+    paletteColors,
+    paletteDarkColors,
     locked,
     canExportCsv,
     canExportImages,
@@ -119,6 +123,8 @@ const EmbedDashboardChartTile: FC<Props> = ({
             dashboardChartReadyQuery={dashboardChartReadyQuery}
             error={error}
             onExplore={onExplore}
+            colorPaletteOverride={paletteColors}
+            darkColorPaletteOverride={paletteDarkColors}
         />
     );
 };

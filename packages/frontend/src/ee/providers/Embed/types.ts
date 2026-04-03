@@ -19,6 +19,8 @@ export interface EmbedContext {
     filters?: SdkFilter[];
     // The project UUID of the project the JWT user is embedded in
     projectUuid?: string;
+    // An optional org palette override for SDK dashboards
+    paletteUuid?: string;
     // Powers localization of the dashboard
     languageMap?: LanguageMap;
     // The function to call when the user clicks "Explore from here"

@@ -538,7 +538,7 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getColorPalettes(req.user!),
+                .getColorPalettes(req.account!),
         };
     }
 

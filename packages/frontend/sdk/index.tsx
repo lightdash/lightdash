@@ -28,7 +28,7 @@ const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 
-type Props = {
+type BaseProps = {
     instanceUrl: string;
     token: Promise<string> | string;
     styles?: {
@@ -38,6 +38,10 @@ type Props = {
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
     onExplore?: (options: { chart: SavedChart }) => void;
+};
+
+type DashboardProps = BaseProps & {
+    paletteUuid?: string;
 };
 
 const decodeJWT = (token: string) => {
@@ -126,13 +130,14 @@ const SdkProviders: FC<
     );
 };
 
-const Dashboard: FC<Props> = ({
+const Dashboard: FC<DashboardProps> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
     filters,
     contentOverrides,
     onExplore,
+    paletteUuid,
 }) => {
     const [token, setToken] = useState<string | null>(null);
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
@@ -179,6 +184,7 @@ const Dashboard: FC<Props> = ({
                 embedToken={token}
                 projectUuid={projectUuid}
                 filters={filters}
+                paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
                 onExplore={onExplore}
             >
@@ -196,7 +202,7 @@ const Dashboard: FC<Props> = ({
     );
 };
 
-const Explore: FC<Props & { exploreId: string; savedChart: SavedChart }> = ({
+const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
@@ -270,7 +276,7 @@ const Explore: FC<Props & { exploreId: string; savedChart: SavedChart }> = ({
     );
 };
 
-const Chart: FC<Omit<Props, 'filters' | 'onExplore'> & { id: string }> = ({
+const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
