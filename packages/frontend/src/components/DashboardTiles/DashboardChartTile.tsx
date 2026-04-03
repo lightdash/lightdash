@@ -401,6 +401,10 @@ const ValidDashboardChartTile: FC<{
                 containerHeight={containerHeight}
                 isDashboard
                 dateZoom={{ granularity: dateZoomGranularity }}
+                resolvedTimezone={
+                    dashboardChartReadyQuery.executeQueryResponse
+                        .resolvedTimezone
+                }
             >
                 <LightdashVisualization
                     ref={measureRef}
@@ -546,6 +550,9 @@ const ValidDashboardChartTileMinimal: FC<{
             containerHeight={containerHeight}
             isDashboard
             dateZoom={{ granularity: dateZoomGranularity }}
+            resolvedTimezone={
+                dashboardChartReadyQuery.executeQueryResponse.resolvedTimezone
+            }
         >
             <LightdashVisualization
                 ref={measureRef}

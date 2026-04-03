@@ -106,6 +106,7 @@ export const getPlottedData = (
 export const getPivotedDataFromPivotDetails = (
     resultsData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
+    timezone?: string,
 ): {
     pivotValuesMap: PivotValueMap;
     rowKeyMap: RowKeyMap;
@@ -137,7 +138,11 @@ export const getPivotedDataFromPivotDetails = (
                     ...acc[value.referenceField],
                     [String(value.value)]: {
                         raw: value.value,
-                        formatted: formatItemValue(field, value.value),
+                        formatted: formatItemValue(
+                            field,
+                            value.value,
+                            timezone,
+                        ),
                     },
                 };
             });

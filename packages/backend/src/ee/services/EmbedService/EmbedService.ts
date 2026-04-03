@@ -23,6 +23,7 @@ import {
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
     ExploreError,
+    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -1197,6 +1198,12 @@ export class EmbedService extends BaseService {
             combinedParameters,
         });
 
+        const { enabled: isTimezoneSupportEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            });
+        const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
+
         return {
             appliedDashboardFilters: undefined,
             chart: {
@@ -1205,7 +1212,13 @@ export class EmbedService extends BaseService {
                 access: [],
             },
             explore,
-            rows: formatRows(rows, fields),
+            rows: formatRows(
+                rows,
+                fields,
+                undefined,
+                undefined,
+                displayTimezone,
+            ),
             cacheMetadata,
             metricQuery: metricQueryWithDashboardOverrides,
             fields,

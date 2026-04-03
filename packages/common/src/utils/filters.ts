@@ -302,9 +302,8 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                               fieldTimeInterval === TimeFrames.QUARTER
                                   ? undefined
                                   : fieldTimeInterval, // Use the field's time interval if it has one
-                              false,
                           )
-                        : formatDate(defaultDate, undefined, false);
+                        : formatDate(defaultDate);
 
                     filterRuleDefaults.values = [dateValue];
                 }

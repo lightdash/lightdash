@@ -714,8 +714,15 @@ export function formatRawValue(
             field.type === DimensionType.TIMESTAMP);
 
     if (isTimestamp && value !== null) {
-        // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
-        return dayjs(value).utc(true).format();
+        const d = dayjs(value).utc(true);
+        // For DATE types, the time component is a timezone offset artifact from
+        // timezone-aware DATE_TRUNC (e.g. 11:00 UTC = midnight in UTC-11).
+        // Normalize to midnight UTC so echarts, pivot keys, and category axes
+        // all work without per-consumer timezone workarounds.
+        if (isField(field) && field.type === DimensionType.DATE) {
+            return d.startOf('day').format();
+        }
+        return d.format();
     }
 
     return value;
@@ -746,6 +753,7 @@ export function formatRow(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow {
     const resultRow: ResultRow = {};
     const columnNames = Object.keys(row || {});
@@ -758,7 +766,7 @@ export function formatRow(
         resultRow[columnName] = {
             value: {
                 raw: formatRawValue(item, value),
-                formatted: formatItemValue(item, value, false, parameters),
+                formatted: formatItemValue(item, value, timezone, parameters),
             },
         };
     }
@@ -771,9 +779,10 @@ export function formatRows(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow[] {
     return rows.map((row) =>
-        formatRow(row, itemsMap, pivotValuesColumns, parameters),
+        formatRow(row, itemsMap, pivotValuesColumns, parameters, timezone),
     );
 }
 

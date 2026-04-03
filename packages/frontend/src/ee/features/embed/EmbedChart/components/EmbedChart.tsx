@@ -51,6 +51,7 @@ const MinimalChartContent = memo(() => {
             savedChartUuid={savedChart.uuid}
             colorPalette={savedChart.colorPalette}
             parameters={query.data?.usedParametersValues}
+            resolvedTimezone={query.data?.resolvedTimezone ?? null}
         >
             <Box mih="inherit" h="100%">
                 <LightdashVisualization

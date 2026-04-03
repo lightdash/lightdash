@@ -124,7 +124,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                         const formattedValue = formatItemValue(
                             metricField,
                             params.value,
-                            false,
+                            undefined,
                             parameters,
                         );
                         const source = stripStepSuffix(params.data.source);

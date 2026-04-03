@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import moment, { type MomentInput } from 'moment';
+import dayjsTimezone from 'dayjs/plugin/timezone';
+import moment, { type MomentInput } from 'moment-timezone';
 import {
     format as formatWithExpression,
     isDateFormat,
@@ -42,7 +42,7 @@ import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import { getItemType, isNumericItem } from './item';
 
-dayjs.extend(timezone);
+dayjs.extend(dayjsTimezone);
 
 export const currencies = [
     'USD',
@@ -134,9 +134,13 @@ export const isMomentInput = (value: unknown): value is MomentInput =>
 export function formatDate(
     date: MomentInput,
     timeInterval: TimeFrames = TimeFrames.DAY,
-    convertToUTC: boolean = false,
+    timezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    // DATE values are already the correct date — timezone-aware DATE_TRUNC
+    // truncated in the project timezone at the SQL level, and formatRawValue
+    // normalized to midnight UTC. Just format as UTC to avoid browser timezone
+    // shifts. (TIMESTAMP values use formatTimestamp which does the tz conversion.)
+    const momentDate = timezone ? moment.utc(date) : moment(date);
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -148,9 +152,11 @@ export function formatDate(
 export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
-    convertToUTC: boolean = false,
+    timezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+    const momentDate = timezone
+        ? moment.utc(value).tz(timezone)
+        : moment(value);
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -487,7 +493,7 @@ export function applyCustomFormat(
             format.type,
         )
     ) {
-        return formatTimestamp(value, undefined, false);
+        return formatTimestamp(value);
     }
 
     if (valueIsNaN(value) || value === null) {
@@ -513,9 +519,9 @@ export function applyCustomFormat(
 
             return `${currencyFormatted}${compactSuffix}`;
         case CustomFormatType.DATE:
-            return formatDate(value, format?.timeInterval, false);
+            return formatDate(value, format?.timeInterval);
         case CustomFormatType.TIMESTAMP:
-            return formatTimestamp(value, format?.timeInterval, false);
+            return formatTimestamp(value, format?.timeInterval);
         case CustomFormatType.NUMBER:
             const prefix = format.prefix || '';
             const suffix = format.suffix || '';
@@ -770,7 +776,7 @@ export function formatItemValue(
         | CustomDimension
         | undefined,
     value: unknown,
-    convertToUTC?: boolean,
+    timezone?: string,
     parameters?: Record<string, unknown>,
 ): string {
     if (value === null) return '∅';
@@ -837,7 +843,7 @@ export function formatItemValue(
                         ? formatDate(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
-                              convertToUTC,
+                              timezone,
                           )
                         : 'NaT';
                 case DimensionType.TIMESTAMP:
@@ -847,7 +853,7 @@ export function formatItemValue(
                         ? formatTimestamp(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
-                              convertToUTC,
+                              timezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
@@ -856,7 +862,7 @@ export function formatItemValue(
                         return formatTimestamp(
                             value,
                             isDimension(item) ? item.timeInterval : undefined,
-                            convertToUTC,
+                            timezone,
                         );
                     }
                     break;
