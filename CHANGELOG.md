@@ -1,3 +1,10 @@
+# [0.2722.0](https://github.com/lightdash/lightdash/compare/0.2721.2...0.2722.0) (2026-04-03)
+
+
+### Features
+
+* add MetricQueryBuilder snapshot tests with SQL formatting ([#21659](https://github.com/lightdash/lightdash/issues/21659)) ([a998e93](https://github.com/lightdash/lightdash/commit/a998e93f24326ef581dd64df9327a85a824f3438))
+
 ## [0.2721.2](https://github.com/lightdash/lightdash/compare/0.2721.1...0.2721.2) (2026-04-03)
 
 
