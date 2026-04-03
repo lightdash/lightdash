@@ -6,6 +6,7 @@ import {
     getItemId,
     getReadableTextColor,
     isNumericItem,
+    type RawResultRow,
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
@@ -18,10 +19,19 @@ import {
     Tooltip,
     useMantineColorScheme,
 } from '@mantine/core';
+import { getHotkeyHandler, useClipboard } from '@mantine/hooks';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { flexRender, type Row } from '@tanstack/react-table';
+import { flexRender, type Cell, type Row } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import React, { useCallback, useEffect, useMemo, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import {
     getColorFromRange,
     transformColorsForDarkMode,
@@ -38,6 +48,21 @@ import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
 import { countSubRows } from '../utils';
 import BodyCell from './BodyCell';
+import CellMenu from './CellMenu';
+import CellTooltip from './CellTooltip';
+
+type ActiveMenuState = {
+    cellId: string;
+    cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
+    bounds: DOMRect;
+    displayValue: string | RawResultRow | null;
+};
+
+type ActiveTooltipState = {
+    cellId: string;
+    bounds: DOMRect;
+    label: string;
+};
 
 export const VirtualizedArea: FC<{ cellCount: number; padding: number }> = ({
     cellCount,
@@ -66,6 +91,18 @@ interface TableRowProps {
     conditionalFormattings: TableContext['conditionalFormattings'];
     minMaxMap: TableContext['minMaxMap'];
     minimal?: boolean;
+    activeMenuCellId: string | null;
+    onMenuToggle: (
+        cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>,
+        elementBounds: DOMRect,
+        displayValue: string | RawResultRow | null,
+    ) => void;
+    onTooltipShow: (
+        cellId: string,
+        label: string,
+        elementBounds: DOMRect,
+    ) => void;
+    onTooltipHide: (cellId: string) => void;
 }
 
 const TableRow: FC<TableRowProps> = ({
@@ -77,6 +114,10 @@ const TableRow: FC<TableRowProps> = ({
     conditionalFormattings,
     minMaxMap,
     minimal = false,
+    activeMenuCellId,
+    onMenuToggle,
+    onTooltipShow,
+    onTooltipHide,
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const rowFields = useMemo(
@@ -179,6 +220,7 @@ const TableRow: FC<TableRowProps> = ({
                         className={meta?.className}
                         index={index}
                         cell={cell}
+                        isSelected={activeMenuCellId === cell.id}
                         isNumericItem={
                             isNumericItem(meta?.item) &&
                             !(
@@ -196,6 +238,9 @@ const TableRow: FC<TableRowProps> = ({
                             SMALL_TEXT_LENGTH
                         }
                         tooltipContent={tooltipContent}
+                        onMenuToggle={onMenuToggle}
+                        onTooltipShow={onTooltipShow}
+                        onTooltipHide={onTooltipHide}
                     >
                         {cell.getIsGrouped() ? (
                             <Group spacing="xxs">
@@ -275,7 +320,13 @@ const VirtualizedTableBody: FC<{
         isFetchingRows,
         fetchMoreRows,
     } = useTableContext();
+    const { showToastSuccess } = useToaster();
+    const { copy } = useClipboard();
     const { rows } = table.getRowModel();
+    const [activeMenu, setActiveMenu] = useState<ActiveMenuState | null>(null);
+    const [activeTooltip, setActiveTooltip] =
+        useState<ActiveTooltipState | null>(null);
+    const tooltipTimerRef = useRef<number | null>(null);
 
     const rowVirtualizer = useVirtualizer({
         getScrollElement: () => tableContainerRef.current,
@@ -283,6 +334,38 @@ const VirtualizedTableBody: FC<{
         estimateSize: (_index) => ROW_HEIGHT_PX,
         overscan: 25,
     });
+
+    useEffect(() => {
+        if (!activeMenu) return;
+
+        const handleKeyDown = getHotkeyHandler([
+            [
+                'mod+C',
+                () => {
+                    copy(
+                        typeof activeMenu.displayValue === 'string'
+                            ? activeMenu.displayValue
+                            : JSON.stringify(activeMenu.displayValue),
+                    );
+                    showToastSuccess({ title: 'Copied to clipboard!' });
+                },
+            ],
+        ]);
+
+        document.body.addEventListener('keydown', handleKeyDown);
+
+        return () => {
+            document.body.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [activeMenu, copy, showToastSuccess]);
+
+    useEffect(() => {
+        return () => {
+            if (tooltipTimerRef.current !== null) {
+                window.clearTimeout(tooltipTimerRef.current);
+            }
+        };
+    }, []);
 
     useEffect(() => {
         const scrollElement = rowVirtualizer.scrollElement;
@@ -317,6 +400,68 @@ const VirtualizedTableBody: FC<{
             rowVirtualizer.measureElement(node);
         },
         [rowVirtualizer],
+    );
+
+    const clearTooltipTimer = useCallback(() => {
+        if (tooltipTimerRef.current !== null) {
+            window.clearTimeout(tooltipTimerRef.current);
+            tooltipTimerRef.current = null;
+        }
+    }, []);
+
+    const handleMenuToggle = useCallback(
+        (
+            cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>,
+            bounds: DOMRect,
+            displayValue: string | RawResultRow | null,
+        ) => {
+            clearTooltipTimer();
+            setActiveTooltip(null);
+            setActiveMenu((current) =>
+                current?.cellId === cell.id
+                    ? null
+                    : {
+                          cellId: cell.id,
+                          cell,
+                          bounds,
+                          displayValue,
+                      },
+            );
+        },
+        [clearTooltipTimer],
+    );
+
+    const handleTooltipShow = useCallback(
+        (cellId: string, label: string, bounds: DOMRect) => {
+            if (activeMenu) return;
+
+            clearTooltipTimer();
+            tooltipTimerRef.current = window.setTimeout(() => {
+                setActiveTooltip((current) =>
+                    current?.cellId === cellId &&
+                    current.label === label &&
+                    current.bounds.x === bounds.x &&
+                    current.bounds.y === bounds.y
+                        ? current
+                        : {
+                              cellId,
+                              label,
+                              bounds,
+                          },
+                );
+            }, 500);
+        },
+        [activeMenu, clearTooltipTimer],
+    );
+
+    const handleTooltipHide = useCallback(
+        (cellId: string) => {
+            clearTooltipTimer();
+            setActiveTooltip((current) =>
+                current?.cellId === cellId ? null : current,
+            );
+        },
+        [clearTooltipTimer],
     );
 
     const skeletonRows = useMemo(() => {
@@ -403,6 +548,10 @@ const VirtualizedTableBody: FC<{
                               cellContextMenu={cellContextMenu}
                               conditionalFormattings={conditionalFormattings}
                               minMaxMap={minMaxMap}
+                              activeMenuCellId={activeMenu?.cellId ?? null}
+                              onMenuToggle={handleMenuToggle}
+                              onTooltipShow={handleTooltipShow}
+                              onTooltipHide={handleTooltipHide}
                           />
                       );
                   })}
@@ -413,6 +562,23 @@ const VirtualizedTableBody: FC<{
                     padding={paddingBottom}
                 />
             )}
+
+            {activeMenu && cellContextMenu ? (
+                <CellMenu
+                    cell={activeMenu.cell as Cell<ResultRow, ResultRow[0]>}
+                    menuItems={cellContextMenu}
+                    elementBounds={activeMenu.bounds}
+                    onClose={() => setActiveMenu(null)}
+                />
+            ) : null}
+
+            {activeTooltip && !activeMenu ? (
+                <CellTooltip
+                    position="top"
+                    label={activeTooltip.label}
+                    elementBounds={activeTooltip.bounds}
+                />
+            ) : null}
         </tbody>
     );
 };
