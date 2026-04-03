@@ -119,9 +119,10 @@ const TabGridPanel = memo<TabGridPanelProps>(
                         ? { position: 'relative' }
                         : {
                               contentVisibility: 'hidden',
-                              position: 'absolute',
+                              containIntrinsicSize: 'auto 1px auto 1px',
+                              position: 'absolute' as const,
                               width: '100%',
-                              pointerEvents: 'none',
+                              pointerEvents: 'none' as const,
                           }
                 }
             >
@@ -590,11 +591,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     const panel = child as HTMLElement;
                     if (panel.dataset.tabUuid === tab.uuid) {
                         panel.style.contentVisibility = '';
+                        panel.style.containIntrinsicSize = '';
                         panel.style.position = 'relative';
                         panel.style.width = '';
                         panel.style.pointerEvents = '';
                     } else {
                         panel.style.contentVisibility = 'hidden';
+                        panel.style.containIntrinsicSize = 'auto 1px auto 1px';
                         panel.style.position = 'absolute';
                         panel.style.width = '100%';
                         panel.style.pointerEvents = 'none';
