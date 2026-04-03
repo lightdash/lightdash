@@ -1,3 +1,10 @@
+## [0.2720.5](https://github.com/lightdash/lightdash/compare/0.2720.4...0.2720.5) (2026-04-03)
+
+
+### Bug Fixes
+
+* use React Router navigate instead of replaceState for app generation ([#21719](https://github.com/lightdash/lightdash/issues/21719)) ([bd57247](https://github.com/lightdash/lightdash/commit/bd57247355a3247bd1502ea5424eb573951e4b4e))
+
 ## [0.2720.4](https://github.com/lightdash/lightdash/compare/0.2720.3...0.2720.4) (2026-04-03)
 
 
