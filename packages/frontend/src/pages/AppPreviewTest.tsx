@@ -63,8 +63,9 @@ export default function AppPreviewTest() {
         return <div>Missing route params</div>;
     }
 
-    const isLoading = appQuery.isLoading || isTokenLoading;
-    const error = appQuery.error ?? tokenError;
+    const isLoading =
+        (!explicitVersion && appQuery.isLoading) || isTokenLoading;
+    const error = (!explicitVersion && appQuery.error) || tokenError;
 
     if (!explicitVersion && !appQuery.isLoading && !latestReadyVersion) {
         return (
