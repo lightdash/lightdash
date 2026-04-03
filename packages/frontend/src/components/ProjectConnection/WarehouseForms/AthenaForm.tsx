@@ -1,8 +1,4 @@
-import {
-    AthenaAuthenticationType,
-    FeatureFlags,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     NumberInput,
@@ -14,8 +10,6 @@ import {
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
@@ -49,10 +43,6 @@ const AthenaForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.ATHENA;
     const form = useFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
 
     const warehouse = form.values.warehouse;
 
@@ -255,21 +245,6 @@ const AthenaForm: FC<{
                             disabled={disabled}
                         />
 
-                        {isTimezoneSupportEnabled && (
-                            <TimeZonePicker
-                                size="sm"
-                                maw="100%"
-                                label="Data timezone"
-                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
-                                searchable
-                                clearable
-                                placeholder="Not set (uses warehouse default)"
-                                disabled={disabled}
-                                {...form.getInputProps(
-                                    'warehouse.dataTimezone',
-                                )}
-                            />
-                        )}
                         <StartOfWeekSelect disabled={disabled} />
                     </Stack>
                 </FormSection>
