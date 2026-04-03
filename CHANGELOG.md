@@ -1,3 +1,10 @@
+# [0.2724.0](https://github.com/lightdash/lightdash/compare/0.2723.1...0.2724.0) (2026-04-03)
+
+
+### Features
+
+* add stable preview link for latest ready app version ([#21731](https://github.com/lightdash/lightdash/issues/21731)) ([c6d4f59](https://github.com/lightdash/lightdash/commit/c6d4f591c28befd1ee3d664dd0bc4fcc2624bb96))
+
 ## [0.2723.1](https://github.com/lightdash/lightdash/compare/0.2723.0...0.2723.1) (2026-04-03)
 
 
