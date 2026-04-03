@@ -1,3 +1,10 @@
+## [0.2720.4](https://github.com/lightdash/lightdash/compare/0.2720.3...0.2720.4) (2026-04-03)
+
+
+### Bug Fixes
+
+* resume Claude session when iterating on app ([#21714](https://github.com/lightdash/lightdash/issues/21714)) ([98bf689](https://github.com/lightdash/lightdash/commit/98bf6892afda470b282f81f5cd6fc8caa96ee251))
+
 ## [0.2720.3](https://github.com/lightdash/lightdash/compare/0.2720.2...0.2720.3) (2026-04-02)
 
 
