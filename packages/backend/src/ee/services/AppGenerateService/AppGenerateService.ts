@@ -459,7 +459,7 @@ export class AppGenerateService extends BaseService {
             `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                 `--model sonnet ` +
                 `--verbose --output-format stream-json ` +
-                `--allowedTools "Read,Write,Edit,Glob,Grep" ` +
+                `--allowedTools "Read(/app/**),Read(/tmp/dbt-repo/**),Write(/app/src/**),Edit(/app/src/**),Glob(/app/**),Glob(/tmp/dbt-repo/**),Grep(/app/**),Grep(/tmp/dbt-repo/**)" ` +
                 `--append-system-prompt-file /app/skill.md`,
             {
                 cwd: '/app',
