@@ -50,7 +50,6 @@ import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
-    IconClock,
     IconCopy,
     IconFilter,
     IconFolders,
@@ -149,6 +148,7 @@ import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
+import TileExecutionInfo from './TileExecutionInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
 interface ExportGoogleSheetProps {
@@ -584,11 +584,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const { data: account } = useAccount();
         const { organizationUuid } = account?.organization || {};
 
-        const { data: showExecutionTimeFlag } = useServerFeatureFlag(
-            FeatureFlags.ShowExecutionTime,
-        );
-        const showExecutionTime = showExecutionTimeFlag?.enabled;
-
         const {
             tile: {
                 uuid: tileUuid,
@@ -612,6 +607,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const {
             executeQueryResponse: {
                 appliedDashboardFilters,
+                cacheMetadata,
                 metricQuery,
                 usedParametersValues,
             },
@@ -619,7 +615,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             explore,
         } = dashboardChartReadyQuery;
 
-        const { totalResults, initialQueryExecutionMs } = resultsData;
+        const { totalResults, metadata } = resultsData;
+        const performance = metadata?.performance;
 
         const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
         const projectUuid = useProjectUuid();
@@ -678,7 +675,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             dashboardChartReadyQuery.executeQueryResponse
                                 .queryUuid,
                         warehouseExecutionTimeMs:
-                            resultsData.initialQueryExecutionMs,
+                            performance?.initialQueryExecutionMs ?? undefined,
                         totalTimeMs: resultsData.totalClientFetchTimeMs,
                         totalResults: resultsData.totalResults || 0,
                         loadedRows: resultsData.rows.length,
@@ -692,6 +689,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             dashboardUuid,
             dashboardChartReadyQuery,
             resultsData,
+            performance,
             track,
             account?.user,
             chart.organizationUuid,
@@ -1264,47 +1262,14 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         </HoverCard.Target>
                                     </HoverCard>
                                 )}
-                            {showExecutionTime &&
-                                initialQueryExecutionMs !== undefined &&
-                                resultsData.totalClientFetchTimeMs !==
-                                    undefined && (
-                                    <HoverCard
-                                        withArrow
-                                        withinPortal
-                                        shadow="md"
-                                        position="bottom-end"
-                                        offset={4}
-                                        arrowOffset={10}
-                                    >
-                                        <HoverCard.Dropdown>
-                                            <Text
-                                                size="xs"
-                                                color="ldGray.6"
-                                                fw={600}
-                                            >
-                                                Warehouse execution time:{' '}
-                                                {initialQueryExecutionMs}
-                                                ms
-                                            </Text>
-                                            <Text
-                                                size="xs"
-                                                color="ldGray.6"
-                                                fw={600}
-                                            >
-                                                Total time:{' '}
-                                                {
-                                                    resultsData.totalClientFetchTimeMs
-                                                }
-                                                ms
-                                            </Text>
-                                        </HoverCard.Dropdown>
-                                        <HoverCard.Target>
-                                            <ActionIcon size="sm">
-                                                <MantineIcon icon={IconClock} />
-                                            </ActionIcon>
-                                        </HoverCard.Target>
-                                    </HoverCard>
-                                )}
+                            <TileExecutionInfo
+                                cacheMetadata={cacheMetadata}
+                                performance={performance}
+                                totalClientFetchTimeMs={
+                                    resultsData.totalClientFetchTimeMs
+                                }
+                                totalResults={totalResults}
+                            />
                         </>
                     }
                     titleLeftIcon={

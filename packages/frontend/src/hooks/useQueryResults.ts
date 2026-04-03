@@ -286,11 +286,7 @@ const getResultsPage = async (
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
-        | 'queryUuid'
-        | 'totalResults'
-        | 'initialQueryExecutionMs'
-        | 'pivotDetails'
-        | 'columns'
+        'queryUuid' | 'totalResults' | 'metadata' | 'pivotDetails' | 'columns'
     >
 > & {
     projectUuid?: string;
@@ -546,7 +542,7 @@ export const useInfiniteQueryResults = (
 
         return (
             totalPagesFetchTime +
-            (fetchedPages[0]?.initialQueryExecutionMs ?? 0) // Add the time it took to execute the initial query
+            (fetchedPages[0]?.metadata.performance.initialQueryExecutionMs ?? 0) // Add the time it took to execute the initial query
         );
     }, [fetchAll, fetchedPages]);
 
@@ -560,7 +556,7 @@ export const useInfiniteQueryResults = (
             queryUuid,
             queryStatus: dependenciesChanged ? undefined : nextPageData?.status, // show latest status
             totalResults: fetchedPages[0]?.totalResults,
-            initialQueryExecutionMs: fetchedPages[0]?.initialQueryExecutionMs,
+            metadata: fetchedPages[0]?.metadata,
             pivotDetails: fetchedPages[0]?.pivotDetails,
             columns: fetchedPages[0]?.columns,
             hasFetchedAllRows,

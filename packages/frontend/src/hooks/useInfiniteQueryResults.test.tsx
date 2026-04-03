@@ -64,8 +64,13 @@ function makeReadyPage(
         rows: Array.from({ length: rowCount }, (_, i) => ({
             [`col`]: { value: { raw: `row-${page}-${i}`, formatted: '' } },
         })),
-        initialQueryExecutionMs: 100,
-        resultsPageExecutionMs: 50,
+        metadata: {
+            performance: {
+                initialQueryExecutionMs: 100,
+                resultsPageExecutionMs: 50,
+                queueTimeMs: null,
+            },
+        },
         pivotDetails: null,
         totalResults: opts?.totalResults ?? rowCount,
     };
