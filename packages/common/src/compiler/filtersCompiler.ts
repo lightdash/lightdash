@@ -54,10 +54,11 @@ const getDefaultStartOfWeek = (
 };
 
 // NOTE: This function requires a complete date as input.
-// The +00 suffix ensures the warehouse interprets the literal as UTC
-// regardless of session timezone (which may be set via dataTimezone).
+// The Z format token appends the UTC offset (e.g. +00:00), ensuring the
+// warehouse interprets the literal as UTC regardless of session timezone
+// (which may be set via dataTimezone).
 const formatTimestampAsUTC = (date: Date): string =>
-    moment(date).utc().format('YYYY-MM-DD HH:mm:ss+00');
+    moment(date).utc().format('YYYY-MM-DD HH:mm:ssZ');
 
 /**
  * Cast a date/timestamp string to warehouse-specific SQL literal.

@@ -88,7 +88,7 @@ import {
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
-    moment(date).format('YYYY-MM-DD HH:mm:ss+00');
+    moment(date).format('YYYY-MM-DD HH:mm:ssZ');
 
 describe('Filter SQL', () => {
     beforeAll(() => {
