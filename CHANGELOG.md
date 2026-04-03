@@ -1,3 +1,10 @@
+## [0.2724.2](https://github.com/lightdash/lightdash/compare/0.2724.1...0.2724.2) (2026-04-03)
+
+
+### Bug Fixes
+
+* harden sandbox security ([#21739](https://github.com/lightdash/lightdash/issues/21739)) ([ecbf278](https://github.com/lightdash/lightdash/commit/ecbf278d4181be9982c319fc9c5cc4ebcdca12a5))
+
 ## [0.2724.1](https://github.com/lightdash/lightdash/compare/0.2724.0...0.2724.1) (2026-04-03)
 
 
