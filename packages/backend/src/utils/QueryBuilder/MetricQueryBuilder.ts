@@ -569,12 +569,12 @@ export class MetricQueryBuilder {
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
-        // Only apply timezone-aware DATE_TRUNC when the feature is enabled,
-        // timezone is non-UTC, and the dimension has a time interval
+        // Only apply timezone-aware DATE_TRUNC when the feature is enabled
+        // and the dimension has a truncatable time interval
         if (
             !useTimezoneAwareDateTrunc ||
             !dimension.timeInterval ||
-            timezone === 'UTC'
+            dimension.timeInterval === TimeFrames.RAW
         ) {
             return dimension.compiledSql;
         }
