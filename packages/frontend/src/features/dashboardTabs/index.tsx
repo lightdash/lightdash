@@ -117,7 +117,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
                     isActive
                         ? { position: 'relative' }
                         : {
-                              visibility: 'hidden',
+                              contentVisibility: 'hidden',
                               position: 'absolute',
                               width: '100%',
                               pointerEvents: 'none',
@@ -584,12 +584,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 for (const child of container.children) {
                     const panel = child as HTMLElement;
                     if (panel.dataset.tabUuid === tab.uuid) {
-                        panel.style.visibility = '';
+                        panel.style.contentVisibility = '';
                         panel.style.position = 'relative';
                         panel.style.width = '';
                         panel.style.pointerEvents = '';
                     } else {
-                        panel.style.visibility = 'hidden';
+                        panel.style.contentVisibility = 'hidden';
                         panel.style.position = 'absolute';
                         panel.style.width = '100%';
                         panel.style.pointerEvents = 'none';

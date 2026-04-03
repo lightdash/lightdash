@@ -366,7 +366,7 @@ const PivotTable: FC<PivotTableProps> = ({
         getScrollElement: () => containerRef.current,
         count: rows.length,
         estimateSize: () => CELL_HEIGHT,
-        overscan: 5,
+        overscan: 25,
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
 
