@@ -281,7 +281,7 @@ const VirtualizedTableBody: FC<{
         getScrollElement: () => tableContainerRef.current,
         count: rows.length,
         estimateSize: (_index) => ROW_HEIGHT_PX,
-        overscan: 25,
+        overscan: 5,
     });
 
     useEffect(() => {

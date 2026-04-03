@@ -2,9 +2,11 @@ import { createContext, useContext } from 'react';
 
 /**
  * Number of tiles to reveal per animation frame.
- * 3 tiles x ~50ms each = ~150ms per frame, keeping interactions responsive.
+ * Using 1 tile per frame ensures each tile gets its own paint cycle,
+ * which is critical for heavy tiles like 10k-row tables that can
+ * block the main thread for hundreds of milliseconds.
  */
-export const STAGED_MOUNT_BATCH_SIZE = 3;
+export const STAGED_MOUNT_BATCH_SIZE = 1;
 
 type StagedMountContextValue = {
     revealedCount: number;
