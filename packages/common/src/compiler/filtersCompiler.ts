@@ -54,10 +54,15 @@ const getDefaultStartOfWeek = (
 };
 
 // NOTE: This function requires a complete date as input.
-// It produces a timezoneless string which is implied to be in UTC.
-// We could probably have it be a string WITH a timezone in the future.
-// Calling .utc() here makes it safe to drop the tz.
-const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
+// The Z format token appends the UTC offset (e.g. +00:00), ensuring the
+// warehouse interprets the literal as UTC regardless of session timezone
+// (which may be set via dataTimezone).
+const formatTimestampAsUTC = (date: Date): string =>
+    moment(date).utc().format('YYYY-MM-DD HH:mm:ssZ');
+
+// ClickHouse's date_time_input_format may be set to 'basic', which cannot
+// parse timezone offsets like +00:00. The value is already computed as UTC.
+const formatTimestampAsUTCNoOffset = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
 /**
@@ -629,7 +634,9 @@ export const renderFilterRuleSql = (
                 escapedFilterRule,
                 adapterType,
                 timezone,
-                formatTimestampAsUTCWithNoTimezone,
+                adapterType === SupportedDbtAdapter.CLICKHOUSE
+                    ? formatTimestampAsUTCNoOffset
+                    : formatTimestampAsUTC,
                 startOfWeek,
             );
         }
