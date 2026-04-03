@@ -60,9 +60,8 @@ const getDefaultStartOfWeek = (
 const formatTimestampAsUTC = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ssZ');
 
-// ClickHouse's default date_time_input_format ('basic') cannot parse timezone
-// offsets like +00:00. Since ClickHouse doesn't support session timezone via
-// dataTimezone anyway, we can safely omit the offset — the value is already UTC.
+// ClickHouse's date_time_input_format may be set to 'basic', which cannot
+// parse timezone offsets like +00:00. The value is already computed as UTC.
 const formatTimestampAsUTCNoOffset = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
