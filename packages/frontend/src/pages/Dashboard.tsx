@@ -117,12 +117,6 @@ const Dashboard: FC = () => {
             isAddFilterDisabled
         );
     }, [dashboard, isAddFilterDisabled]);
-    const oldestCacheTime = useDashboardTileStatusContext(
-        (c) => c.oldestCacheTime,
-    );
-    const preAggregateStatuses = useDashboardTileStatusContext(
-        (c) => c.preAggregateStatuses,
-    );
     const dashboardParameters = useDashboardContext(
         (c) => c.dashboardParameters,
     );
@@ -692,9 +686,6 @@ const Dashboard: FC = () => {
         organizationUuid: organization?.organizationUuid,
         isEditMode,
         isSaving,
-        oldestCacheTime,
-        preAggregateStatuses,
-        allTilesLoaded: areAllChartsLoaded,
         isFullscreen,
         activeTabUuid: activeTab?.uuid,
         dashboardTabs,
