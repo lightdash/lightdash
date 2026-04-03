@@ -1,7 +1,7 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../../fixtures';
-import { getApiToken } from '../../../helpers';
 import { execSync } from 'child_process';
+import { expect, test } from '../../../fixtures';
+import { getApiToken } from '../../../helpers';
 
 const cliCommand = 'lightdash';
 const projectDir = '../../examples/full-jaffle-shop-demo/dbt';

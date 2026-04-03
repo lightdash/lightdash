@@ -1,4 +1,3 @@
-import { test as setup, expect } from '@playwright/test';
 import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
@@ -9,6 +8,7 @@ import {
     SEED_ORG_2_ADMIN_EMAIL,
     SEED_ORG_2_ADMIN_PASSWORD,
 } from '@lightdash/common';
+import { expect, test as setup } from '@playwright/test';
 
 const authDir = 'playwright/.auth';
 

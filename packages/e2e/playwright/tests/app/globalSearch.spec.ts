@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 test.describe('Global search', () => {
     test('Should search all result types', async ({ adminPage: page }) => {
@@ -15,17 +15,13 @@ test.describe('Global search', () => {
             > | null = null;
             if (!hasPerformedSearch) {
                 SEARCHED_QUERIES.add(query);
-                searchResponsePromise = page.waitForResponse(
-                    (resp) => resp.url().includes('/search/'),
+                searchResponsePromise = page.waitForResponse((resp) =>
+                    resp.url().includes('/search/'),
                 );
             }
 
-            await page
-                .getByPlaceholder(/Search Jaffle shop/i)
-                .clear();
-            await page
-                .getByPlaceholder(/Search Jaffle shop/i)
-                .fill(query);
+            await page.getByPlaceholder(/Search Jaffle shop/i).clear();
+            await page.getByPlaceholder(/Search Jaffle shop/i).fill(query);
 
             if (searchResponsePromise) {
                 await searchResponsePromise;
@@ -47,9 +43,7 @@ test.describe('Global search', () => {
             .getByRole('menuitem', { name: 'Jaffle shop' })
             .click();
         await expect(page).toHaveURL(
-            new RegExp(
-                `/projects/${SEED_PROJECT.project_uuid}/spaces/`,
-            ),
+            new RegExp(`/projects/${SEED_PROJECT.project_uuid}/spaces/`),
         );
         await expect(page.getByText('Spaces')).toBeVisible();
 
@@ -66,9 +60,7 @@ test.describe('Global search', () => {
             .first()
             .click();
         await expect(page).toHaveURL(
-            new RegExp(
-                `/projects/${SEED_PROJECT.project_uuid}/dashboards/`,
-            ),
+            new RegExp(`/projects/${SEED_PROJECT.project_uuid}/dashboards/`),
         );
         await expect(page.getByText('Jaffle dashboard')).toBeVisible();
 
@@ -87,9 +79,7 @@ test.describe('Global search', () => {
             })
             .click();
         await expect(page).toHaveURL(
-            new RegExp(
-                `/projects/${SEED_PROJECT.project_uuid}/saved/`,
-            ),
+            new RegExp(`/projects/${SEED_PROJECT.project_uuid}/saved/`),
         );
 
         //  wait for table to render

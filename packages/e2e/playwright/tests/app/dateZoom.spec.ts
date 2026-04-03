@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 const apiUrl = '/api/v1';
 

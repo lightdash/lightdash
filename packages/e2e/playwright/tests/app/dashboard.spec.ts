@@ -1,11 +1,9 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 test.describe('Dashboard', () => {
     test('Should see dashboard', async ({ adminPage: page }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
@@ -33,9 +31,7 @@ test.describe('Dashboard', () => {
 
         await expect(page.locator('.echarts-for-react')).toHaveCount(3); // Charts
 
-        await expect(
-            grid.getByText('Payments total revenue'),
-        ).toBeVisible(); // BigNumber chart
+        await expect(grid.getByText('Payments total revenue')).toBeVisible(); // BigNumber chart
         await expect(grid.locator('thead th')).toHaveCount(6); // Table chart
     });
 
@@ -43,9 +39,7 @@ test.describe('Dashboard', () => {
     test.skip('Should use dashboard filters, should clear them for new dashboards', async ({
         adminPage: page,
     }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
@@ -63,9 +57,7 @@ test.describe('Dashboard', () => {
         await page.getByText('Add filter').click();
 
         await page.getByTestId('FilterConfiguration/FieldSelect').click();
-        await page
-            .getByTestId('FilterConfiguration/FieldSelectSearch')
-            .click();
+        await page.getByTestId('FilterConfiguration/FieldSelectSearch').click();
         await page
             .getByTestId('FilterConfiguration/FieldSelectSearch')
             .fill('payment');
@@ -119,9 +111,7 @@ test.describe('Dashboard', () => {
     test('views underlying data with dimensions and metrics', async ({
         adminPage: page,
     }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
@@ -163,9 +153,7 @@ test.describe('Dashboard', () => {
     test('Should create dashboard with saved chart + charts within dashboard + filters + tile targets', async ({
         adminPage: page,
     }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         await page
             .getByText('Create dashboard', { exact: false })
@@ -175,20 +163,16 @@ test.describe('Dashboard', () => {
             .fill('Title');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByText('Next').click();
-        await page.getByText('Create', { exact: true }).click({ timeout: 10000 });
+        await page
+            .getByText('Create', { exact: true })
+            .click({ timeout: 10000 });
 
         // Add Saved Chart
-        await page
-            .getByRole('button', { name: 'Add tile' })
-            .first()
-            .click();
+        await page.getByRole('button', { name: 'Add tile' }).first().click();
         await page
             .getByRole('menuitem', { name: 'Saved chart' })
             .click({ force: true });
-        await page
-            .getByRole('dialog')
-            .getByPlaceholder('Search...')
-            .click();
+        await page.getByRole('dialog').getByPlaceholder('Search...').click();
         // search
         await page
             .getByRole('dialog')
@@ -205,23 +189,16 @@ test.describe('Dashboard', () => {
             .click(); // Close dropdown
         await page.getByText('Add').click();
         await expect(
-            page.getByText(
-                'How much revenue do we have per payment method?',
-            ),
+            page.getByText('How much revenue do we have per payment method?'),
         ).toBeVisible();
 
         // Create chart within dashboard
-        await page
-            .getByRole('button', { name: 'Add tile' })
-            .first()
-            .click();
+        await page.getByRole('button', { name: 'Add tile' }).first().click();
         await page
             .getByRole('menuitem', { name: /New chart/ })
             .click({ force: true });
         await expect(
-            page.getByText(
-                'You are creating this chart from within "Title"',
-            ),
+            page.getByText('You are creating this chart from within "Title"'),
         ).toBeVisible();
         await page.getByText('Payments').click();
         await page.getByText('Payment method').click();
@@ -229,9 +206,7 @@ test.describe('Dashboard', () => {
         await page.getByText('Save chart').click();
         await page
             .getByTestId('ChartCreateModal/NameInput')
-            .fill(
-                `What's the number of unique payments per payment method?`,
-            );
+            .fill(`What's the number of unique payments per payment method?`);
         await page.getByText('Save').click();
         await expect(
             page.getByText(
@@ -245,9 +220,7 @@ test.describe('Dashboard', () => {
         // Add filter Payment method is credit_card and apply
         await page.getByText('Add filter').click();
         await page.getByTestId('FilterConfiguration/FieldSelect').click();
-        await page
-            .getByTestId('FilterConfiguration/FieldSelectSearch')
-            .click();
+        await page.getByTestId('FilterConfiguration/FieldSelectSearch').click();
         await page
             .getByTestId('FilterConfiguration/FieldSelectSearch')
             .fill('payment');
@@ -258,9 +231,7 @@ test.describe('Dashboard', () => {
             )
             .click();
         // using force click here because this is a mantine switch and the actual checkbox is hidden
-        await page
-            .getByLabel('Provide default value')
-            .click({ force: true });
+        await page.getByLabel('Provide default value').click({ force: true });
         await page
             .getByPlaceholder('Start typing to filter results')
             .fill('credit_card');
@@ -280,17 +251,12 @@ test.describe('Dashboard', () => {
         await page.getByLabel('Edit dashboard').click();
 
         // Create another chart within dashboard
-        await page
-            .getByRole('button', { name: 'Add tile' })
-            .first()
-            .click();
+        await page.getByRole('button', { name: 'Add tile' }).first().click();
         await page
             .getByRole('menuitem', { name: /New chart/ })
             .click({ force: true });
         await expect(
-            page.getByText(
-                'You are creating this chart from within "Title"',
-            ),
+            page.getByText('You are creating this chart from within "Title"'),
         ).toBeVisible();
         await page.getByText('Payments').click();
         await page.getByText('Payment method').click();
@@ -325,7 +291,8 @@ test.describe('Dashboard', () => {
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
         );
         const count = await checkboxBodies.count();
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < count; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(
                 checkboxBodies.nth(i).locator('input[checked]'),
             ).toHaveCount(1);
@@ -343,9 +310,9 @@ test.describe('Dashboard', () => {
             .click({ force: true });
 
         // Saved chart should have no filter applied
-        await expect(
-            page.locator('.react-grid-item').first(),
-        ).toContainText('bank_transfer');
+        await expect(page.locator('.react-grid-item').first()).toContainText(
+            'bank_transfer',
+        );
         await expect(page.getByText('bank_transfer')).toHaveCount(1);
 
         // Save dashboard so that the filter target change persists across navigations
@@ -356,17 +323,12 @@ test.describe('Dashboard', () => {
         await page.getByLabel('Edit dashboard').click();
 
         // Create new chart within dashboard, but reference another explore
-        await page
-            .getByRole('button', { name: 'Add tile' })
-            .first()
-            .click();
+        await page.getByRole('button', { name: 'Add tile' }).first().click();
         await page
             .getByRole('menuitem', { name: /New chart/ })
             .click({ force: true });
         await expect(
-            page.getByText(
-                'You are creating this chart from within "Title"',
-            ),
+            page.getByText('You are creating this chart from within "Title"'),
         ).toBeVisible();
         await page.getByText('staging').click();
         await page.getByText('Stg payments').click();
@@ -412,15 +374,12 @@ test.describe('Dashboard', () => {
             .click({ force: true });
 
         // Saved chart should have the filter applied and only see credit_card bar
-        await expect(
-            page.locator('.react-grid-item').last(),
-        ).not.toContainText('bank_transfer');
+        await expect(page.locator('.react-grid-item').last()).not.toContainText(
+            'bank_transfer',
+        );
 
         // Add Markdown tile
-        await page
-            .getByRole('button', { name: 'Add tile' })
-            .first()
-            .click();
+        await page.getByRole('button', { name: 'Add tile' }).first().click();
         await page
             .getByRole('menuitem', { name: 'Markdown' })
             .click({ force: true });
@@ -444,9 +403,7 @@ test.describe('Dashboard', () => {
     test.skip('Should preview a dashboard image export', async ({
         adminPage: page,
     }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/dashboards`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
         // create dashboard with title small
         await page.getByText('Create dashboard').click();
         await page.getByLabel('Name your dashboard *').fill('Small');
@@ -457,9 +414,7 @@ test.describe('Dashboard', () => {
         await page.getByText('Add tile').click();
         await page.getByText('New chart').click();
         await expect(
-            page.getByText(
-                'You are creating this chart from within "Small"',
-            ),
+            page.getByText('You are creating this chart from within "Small"'),
         ).toBeVisible();
         await page.getByText('Payments').click();
         await page.getByText('Payment method').click();
@@ -467,9 +422,7 @@ test.describe('Dashboard', () => {
         await page.getByText('Save chart').click();
         await page
             .getByTestId('ChartCreateModal/NameInput')
-            .fill(
-                `What's the number of unique payments per payment method?`,
-            );
+            .fill(`What's the number of unique payments per payment method?`);
         await page.getByText('Save').click();
 
         await page.getByText('Save changes').click();
@@ -533,9 +486,7 @@ test.describe('Dashboard', () => {
         await page.getByText('Add filter').click();
 
         await page.getByTestId('FilterConfiguration/FieldSelect').click();
-        await page
-            .getByTestId('FilterConfiguration/FieldSelectSearch')
-            .click();
+        await page.getByTestId('FilterConfiguration/FieldSelectSearch').click();
         await page
             .getByTestId('FilterConfiguration/FieldSelectSearch')
             .fill('payment');
@@ -576,9 +527,7 @@ test.describe('Dashboard', () => {
         const slug = 'jaffle-dashboard';
 
         // Test API endpoint with slug
-        const response = await page.request.get(
-            `/api/v1/dashboards/${slug}`,
-        );
+        const response = await page.request.get(`/api/v1/dashboards/${slug}`);
         const body = await response.json();
         expect(response.status()).toBe(200);
         expect(body).toHaveProperty('status', 'ok');
@@ -597,8 +546,6 @@ test.describe('Dashboard', () => {
         );
 
         // Should show an error message
-        await expect(
-            page.getByText('Dashboard not found'),
-        ).toBeVisible();
+        await expect(page.getByText('Dashboard not found')).toBeVisible();
     });
 });
