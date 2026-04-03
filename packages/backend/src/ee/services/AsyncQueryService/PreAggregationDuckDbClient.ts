@@ -31,6 +31,7 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { wrapSentryTransaction } from '../../../utils';
 import { PivotQueryBuilder } from '../../../utils/QueryBuilder/PivotQueryBuilder';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
+import { transpileExploreSqlFilters } from '../../preAggregates/sqlTranspiler';
 import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,
@@ -326,18 +327,20 @@ export class PreAggregationDuckDbClient {
             );
         }
 
+        // Transpile sql_filter expressions from source warehouse dialect to DuckDB
+        const transpiledTables =
+            await transpileExploreSqlFilters(preAggExplore);
+
         const patchedPreAggExplore = {
             ...preAggExplore,
             tables: Object.fromEntries(
-                Object.entries(preAggExplore.tables).map(
-                    ([tableName, table]) => [
-                        tableName,
-                        {
-                            ...table,
-                            sqlTable,
-                        },
-                    ],
-                ),
+                Object.entries(transpiledTables).map(([tableName, table]) => [
+                    tableName,
+                    {
+                        ...table,
+                        sqlTable,
+                    },
+                ]),
             ),
         };
 
