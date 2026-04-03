@@ -252,7 +252,11 @@ export class AppGenerateService extends BaseService {
         anthropicApiKey: string,
         s3Client: S3Client,
         bucket: string,
-    ): Promise<{ sandbox: Sandbox; durations: Record<string, number> }> {
+    ): Promise<{
+        sandbox: Sandbox;
+        wasResumed: boolean;
+        durations: Record<string, number>;
+    }> {
         const durations: Record<string, number> = {};
 
         // Try to resume existing sandbox
@@ -264,7 +268,11 @@ export class AppGenerateService extends BaseService {
                     e2bApiKey,
                 );
                 durations.resumeMs = result.durationMs;
-                return { sandbox: result.sandbox, durations };
+                return {
+                    sandbox: result.sandbox,
+                    wasResumed: true,
+                    durations,
+                };
             } catch (error) {
                 this.logger.warn(
                     `App ${appUuid}: sandbox resume failed, falling back to new sandbox: ${getErrorMessage(error)}`,
@@ -295,7 +303,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        return { sandbox: createResult.sandbox, durations };
+        return { sandbox: createResult.sandbox, wasResumed: false, durations };
     }
 
     private async writeCatalogAndPrompt(
@@ -441,14 +449,20 @@ export class AppGenerateService extends BaseService {
         sandbox: Sandbox,
         appUuid: string,
         version: number,
+        continueSession: boolean,
     ): Promise<{ durationMs: number; responseText: string | null }> {
         const start = performance.now();
         let stdoutBuffer = '';
         let toolCallCount = 0;
         let responseText: string | null = null;
 
+        // When the sandbox was resumed from a previous iteration, use
+        // --continue so Claude has the full conversation history of what
+        // it built before. For fresh sandboxes, start a new session.
+        const sessionFlags = continueSession ? '--continue -p' : '-p';
+
         const result = await sandbox.commands.run(
-            `cat /tmp/prompt.txt | claude -p ` +
+            `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                 `--model sonnet ` +
                 `--verbose --output-format stream-json ` +
                 `--allowedTools "Read,Write,Edit,Glob,Grep" ` +
@@ -680,6 +694,7 @@ export class AppGenerateService extends BaseService {
                 bucket,
                 durations,
                 overallStart,
+                false, // fresh sandbox — no previous session to continue
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
@@ -696,6 +711,7 @@ export class AppGenerateService extends BaseService {
         bucket: string,
         extraDurations: Record<string, number>,
         overallStart: number,
+        continueSession: boolean,
     ): Promise<void> {
         const durations: Record<string, number> = { ...extraDurations };
 
@@ -737,6 +753,7 @@ export class AppGenerateService extends BaseService {
                 sandbox,
                 appUuid,
                 version,
+                continueSession,
             );
             durations.generateMs = generation.durationMs;
             responseText = generation.responseText;
@@ -937,6 +954,7 @@ export class AppGenerateService extends BaseService {
         );
 
         let sandbox: Sandbox;
+        let wasResumed = false;
         try {
             const acquired = await this.acquireSandbox(
                 app,
@@ -948,6 +966,7 @@ export class AppGenerateService extends BaseService {
                 bucket,
             );
             sandbox = acquired.sandbox;
+            wasResumed = acquired.wasResumed;
             Object.assign(durations, acquired.durations);
         } catch (error) {
             await this.markError(
@@ -970,6 +989,7 @@ export class AppGenerateService extends BaseService {
                 bucket,
                 durations,
                 overallStart,
+                wasResumed, // continue Claude session if sandbox was resumed
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
