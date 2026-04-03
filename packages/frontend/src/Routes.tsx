@@ -352,6 +352,10 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         element: <AppPreviewTest />,
     },
     {
+        path: 'apps/:appUuid/preview',
+        element: <AppPreviewTest />,
+    },
+    {
         path: 'user-activity',
         element: (
             <TrackPage name={PageName.USER_ACTIVITY}>

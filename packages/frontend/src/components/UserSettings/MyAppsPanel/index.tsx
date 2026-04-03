@@ -190,7 +190,7 @@ const MyAppsPanel: FC = () => {
                                 {hasReadyVersion && (
                                     <Menu.Item
                                         component={Link}
-                                        to={`/projects/${app.projectUuid}/apps/${app.appUuid}/versions/${latestVersion}/preview`}
+                                        to={`/projects/${app.projectUuid}/apps/${app.appUuid}/preview`}
                                         target="_blank"
                                         leftSection={
                                             <IconExternalLink size={14} />
