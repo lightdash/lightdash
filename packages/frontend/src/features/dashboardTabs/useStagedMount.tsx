@@ -34,6 +34,9 @@ export const StagedMountProvider: FC<StagedMountProviderProps> = ({
     const [revealedCount, setRevealedCount] = useState(0);
     const rafRef = useRef<number | null>(null);
     const countRef = useRef(0);
+    // Ref so the rAF callback can read the latest value without stale closure
+    const isActiveRef = useRef(isActive);
+    isActiveRef.current = isActive;
 
     useEffect(() => {
         // Reset cascade on wave key change
@@ -48,7 +51,7 @@ export const StagedMountProvider: FC<StagedMountProviderProps> = ({
         const advance = () => {
             countRef.current += STAGED_MOUNT_BATCH_SIZE;
             setRevealedCount(countRef.current);
-            if (countRef.current < totalTiles) {
+            if (countRef.current < totalTiles && isActiveRef.current) {
                 rafRef.current = requestAnimationFrame(advance);
             }
         };
