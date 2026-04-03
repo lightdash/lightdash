@@ -1,3 +1,10 @@
+## [0.2721.2](https://github.com/lightdash/lightdash/compare/0.2721.1...0.2721.2) (2026-04-03)
+
+
+### Bug Fixes
+
+* apply project timezone to all relative date filters ([#21637](https://github.com/lightdash/lightdash/issues/21637)) ([2ec01c2](https://github.com/lightdash/lightdash/commit/2ec01c2a1645dba78eae0743cf88c94bcb9ee9ac))
+
 ## [0.2721.1](https://github.com/lightdash/lightdash/compare/0.2721.0...0.2721.1) (2026-04-03)
 
 
