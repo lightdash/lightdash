@@ -60,11 +60,16 @@ import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-/** Slim loading bar that slides across the top while tiles cascade in. */
-const StagedMountProgressBar: FC = () => {
+/** Subtle overlay + shimmer line while tiles cascade in. */
+const StagedMountOverlay: FC = () => {
     const { isComplete } = useStagedMountProgress();
     if (isComplete) return null;
-    return <div className={styles.cascadeLoadingBar} />;
+    return (
+        <>
+            <div className={styles.cascadeOverlay} />
+            <div className={styles.cascadeLoadingBar} />
+        </>
+    );
 };
 
 type TabGridPanelProps = {
@@ -118,7 +123,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onAddTiles,
     }) => (
         <StagedMountProvider waveKey={waveKey} totalTiles={tiles.length}>
-            <StagedMountProgressBar />
+            <StagedMountOverlay />
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}
