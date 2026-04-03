@@ -1,4 +1,7 @@
 import {
+    SEED_ORG_1_ADMIN_EMAIL,
+    SEED_ORG_1_ADMIN_PASSWORD,
+    SEED_PROJECT,
     type CreateChartInSpace,
     type CreateEmbedJwt,
     type CreatePersonalAccessToken,
@@ -6,9 +9,6 @@ import {
     type DashboardBasicDetails,
     type OrganizationProject,
     type SavedChart,
-    SEED_ORG_1_ADMIN_EMAIL,
-    SEED_ORG_1_ADMIN_PASSWORD,
-    SEED_PROJECT,
 } from '@lightdash/common';
 import type { APIRequestContext } from '@playwright/test';
 import { expect } from '@playwright/test';

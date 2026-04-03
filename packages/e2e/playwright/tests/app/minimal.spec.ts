@@ -9,8 +9,8 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
         const body = await response.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const savedChart = body.results.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any) =>
                 s.name === 'How much revenue do we have per payment method?',
         );
@@ -29,8 +29,8 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
         const body = await response.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const savedChart = body.results.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any) =>
                 s.name === 'Which customers have not recently ordered an item?',
         );
@@ -51,8 +51,8 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
         const body = await response.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const savedChart = body.results.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any) => s.name === `What's our total revenue to date?`,
         );
 
@@ -71,8 +71,8 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
         );
         const body = await response.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const dashboard = body.results.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s: any) => s.name === `Jaffle dashboard`,
         );
 

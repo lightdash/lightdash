@@ -112,8 +112,8 @@ test.describe('Space', () => {
         );
         expect(spacesResponse.status()).toBe(200);
         const spacesBody = await spacesResponse.json();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const privateSpace = spacesBody.results.find(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (space: any) =>
                 space.name.toLowerCase().startsWith('private space') &&
                 space.chartCount !== '0' &&

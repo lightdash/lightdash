@@ -1,7 +1,7 @@
 import {
     test as base,
-    type Browser,
     expect,
+    type Browser,
     type Page,
 } from '@playwright/test';
 

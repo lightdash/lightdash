@@ -32,6 +32,7 @@ function getLocalTime(datetime: string) {
 
 test.describe('Date tests', () => {
     // todo: delete
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     test.skip('Check current timezone', async ({ adminPage: _page }) => {
         const now = new Date('1 January, 2000'); // set specific date to avoid daylight savings
         const timezone = process.env.TZ;
