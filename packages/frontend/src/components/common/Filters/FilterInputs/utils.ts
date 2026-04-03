@@ -21,8 +21,10 @@ import {
     type CustomSqlDimension,
     type DashboardFilterableField,
     type Field,
+    type FilterableField,
     type FilterableItem,
     type TableCalculation,
+    TimeFrames,
 } from '@lightdash/common';
 import isEmpty from 'lodash/isEmpty';
 import uniq from 'lodash/uniq';
@@ -51,6 +53,10 @@ const timeFilterOptions: Array<{
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
         FilterOperator.NOT_IN_THE_CURRENT,
+        FilterOperator.YEAR_TO_DATE,
+        FilterOperator.QUARTER_TO_DATE,
+        FilterOperator.MONTH_TO_DATE,
+        FilterOperator.WEEK_TO_DATE,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
@@ -59,8 +65,37 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
 ];
 
+const toDateOperators = new Set<FilterOperator>([
+    FilterOperator.YEAR_TO_DATE,
+    FilterOperator.QUARTER_TO_DATE,
+    FilterOperator.MONTH_TO_DATE,
+    FilterOperator.WEEK_TO_DATE,
+]);
+
+/**
+ * Time intervals that are too coarse for to-date operators.
+ * e.g. DATE_TRUNC(date, YEAR) returns 2026-01-01 — day-of-year is always 1,
+ * so "year to date" would incorrectly match all records.
+ */
+const coarseTimeIntervals = new Set<TimeFrames>([
+    TimeFrames.YEAR,
+    TimeFrames.QUARTER,
+    TimeFrames.MONTH,
+    TimeFrames.WEEK,
+]);
+
+const supportsToDateOperators = (
+    field: FilterableField | undefined,
+): boolean => {
+    if (!field) return true;
+    if (!isDimension(field)) return true;
+    if (!field.timeInterval) return true;
+    return !coarseTimeIntervals.has(field.timeInterval);
+};
+
 export const getFilterOperatorOptions = (
     filterType: FilterType,
+    field?: FilterableField,
 ): Array<{ value: FilterOperator; label: string }> => {
     switch (filterType) {
         case FilterType.STRING:
@@ -88,6 +123,11 @@ export const getFilterOperatorOptions = (
                 FilterOperator.NOT_IN_BETWEEN,
             ]);
         case FilterType.DATE:
+            if (!supportsToDateOperators(field)) {
+                return timeFilterOptions.filter(
+                    (opt) => !toDateOperators.has(opt.value),
+                );
+            }
             return timeFilterOptions;
         case FilterType.BOOLEAN:
             return getFilterOptions([
@@ -195,6 +235,14 @@ const getValueAsString = (
                             }
                         })
                         .join(', ');
+                case FilterOperator.YEAR_TO_DATE:
+                    return 'year to date';
+                case FilterOperator.QUARTER_TO_DATE:
+                    return 'quarter to date';
+                case FilterOperator.MONTH_TO_DATE:
+                    return 'month to date';
+                case FilterOperator.WEEK_TO_DATE:
+                    return 'week to date';
                 case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:

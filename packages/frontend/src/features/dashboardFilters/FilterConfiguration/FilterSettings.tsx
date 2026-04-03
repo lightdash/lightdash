@@ -24,6 +24,7 @@ import {
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
+import { filterOperatorDescription } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -54,8 +55,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterOperatorOptions = useMemo(
-        () => getFilterOperatorOptions(filterType),
-        [filterType],
+        () => getFilterOperatorOptions(filterType, field),
+        [filterType, field],
     );
 
     // Set default label when using revert (undo) button
@@ -133,6 +134,24 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     onDropdownClose={popoverProps?.onClose}
                     onChange={handleChangeFilterOperator}
                     value={filterRule.operator}
+                    itemComponent={({ label, value, ...others }) => {
+                        const description =
+                            filterOperatorDescription[value as FilterOperator];
+                        if (description) {
+                            return (
+                                <Tooltip
+                                    label={description}
+                                    position="right"
+                                    multiline
+                                    maw={300}
+                                    withinPortal
+                                >
+                                    <div {...others}>{label}</div>
+                                </Tooltip>
+                            );
+                        }
+                        return <div {...others}>{label}</div>;
+                    }}
                     rightSectionWidth={140}
                     rightSectionProps={{
                         style: {

@@ -475,6 +475,10 @@ export const hasMatchingConditionalRules = (
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
+                case FilterOperator.YEAR_TO_DATE:
+                case FilterOperator.QUARTER_TO_DATE:
+                case FilterOperator.MONTH_TO_DATE:
+                case FilterOperator.WEEK_TO_DATE:
                     throw new NotImplementedError(
                         `Conditional formatting with ${rule.operator} is not implemented`,
                     );
