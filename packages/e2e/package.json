@@ -5,22 +5,21 @@
     "license": "MIT",
     "main": "index.js",
     "scripts": {
-        "cypress:open": "cypress open --e2e",
-        "cypress:open:native": "RUNTIME=native cypress open --e2e",
-        "cypress:run": "cypress run",
+        "test": "playwright test",
+        "test:headed": "playwright test --headed",
+        "test:ui": "playwright test --ui",
+        "test:debug": "playwright test --debug",
+        "test:report": "playwright show-report",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
-        "lint": "pnpm run linter ./cypress",
-        "fix-lint": "pnpm run linter ./cypress --fix",
-        "format": "oxfmt ./cypress --check",
-        "fix-format": "oxfmt ./cypress"
+        "lint": "pnpm run linter ./playwright",
+        "fix-lint": "pnpm run linter ./playwright --fix",
+        "format": "oxfmt ./playwright --check",
+        "fix-format": "oxfmt ./playwright"
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "@testing-library/cypress": "10.0.3",
-        "cypress": "14.3.2",
-        "cypress-file-upload": "5.0.8",
-        "cypress-split": "1.24.28",
+        "@playwright/test": "1.52.0",
         "dayjs": "1.11.10",
         "js-yaml": "4.1.1"
     },

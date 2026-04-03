@@ -8,12 +8,12 @@ preview:
 
 cli:
   - "packages/cli/**/*"
-  - "packages/e2e/cypress/cli/**/*"
+  - "packages/e2e/playwright/tests/cli/**/*"
   - "packages/common/**/*"
 
 frontend:
   - "packages/frontend/**/*"
-  - "packages/e2e/cypress/e2e/app/**/*"
+  - "packages/e2e/playwright/tests/app/**/*"
   - "packages/common/**/*"
 
 backend:

@@ -15,6 +15,9 @@ node_modules/
 /packages/e2e/cypress/videos/**/*
 /packages/e2e/cypress/downloads/**/*
 /packages/e2e/cypress/artifacts/**/*
+/packages/e2e/playwright/.auth/*.json
+/packages/e2e/test-results/
+/packages/e2e/playwright-report/
 # Content as code e2e tests
 packages/e2e/lightdash
 
