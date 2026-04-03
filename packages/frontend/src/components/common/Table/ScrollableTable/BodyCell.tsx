@@ -5,27 +5,11 @@ import {
     type RawResultRow,
     type ResultRow,
 } from '@lightdash/common';
-import {
-    getHotkeyHandler,
-    useClipboard,
-    useDisclosure,
-    useTimeout,
-} from '@mantine/hooks';
 import { type Cell } from '@tanstack/react-table';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { useMemo, type FC } from 'react';
 import { type CSSProperties } from 'styled-components';
-import useToaster from '../../../../hooks/toaster/useToaster';
 import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
-import CellMenu from './CellMenu';
-import CellTooltip from './CellTooltip';
 
 interface CommonBodyCellProps {
     cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>;
@@ -40,6 +24,18 @@ interface CommonBodyCellProps {
     isLargeText?: boolean;
     tooltipContent?: string;
     minimal?: boolean;
+    isSelected?: boolean;
+    onMenuToggle?: (
+        cell: Cell<ResultRow, unknown> | Cell<RawResultRow, unknown>,
+        elementBounds: DOMRect,
+        displayValue: string | RawResultRow | null,
+    ) => void;
+    onTooltipShow?: (
+        cellId: string,
+        label: string,
+        elementBounds: DOMRect,
+    ) => void;
+    onTooltipHide?: (cellId: string) => void;
 }
 
 const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
@@ -56,45 +52,17 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
     style,
     tooltipContent,
     minimal = false,
+    isSelected = false,
+    onMenuToggle,
+    onTooltipShow,
+    onTooltipHide,
 }) => {
-    const elementRef = useRef<HTMLTableCellElement>(null);
-    const { showToastSuccess } = useToaster();
-    const { copy } = useClipboard();
-
-    const [isCopying, setCopying] = useState(false);
-    const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
-    const [isTooltipOpen, { open: openTooltip, close: closeTooltip }] =
-        useDisclosure(false);
-    const [elementBounds, setElementBounds] = useState<DOMRect | null>(null);
-
     const canHaveMenu = !!cellContextMenu && hasData;
     const canHaveTooltip = !!tooltipContent && !minimal;
-
-    const { start: startTooltipTimer, clear: clearTooltipTimer } = useTimeout(
-        openTooltip,
-        500,
-    );
     const item = cell.column.columnDef.meta?.item;
     const hasUrls = isField(item) && item.urls ? item.urls.length > 0 : false;
 
-    const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
-    const shouldRenderTooltip =
-        canHaveTooltip &&
-        isTooltipOpen &&
-        elementRef.current &&
-        !shouldRenderMenu;
-
-    // Calculate bounds when menu/tooltip opens, not during every render
-    useEffect(() => {
-        if ((shouldRenderMenu || shouldRenderTooltip) && elementRef.current) {
-            setElementBounds(elementRef.current.getBoundingClientRect());
-        } else if (!isMenuOpen && !isTooltipOpen) {
-            // Clear bounds when closed to free memory
-            setElementBounds(null);
-        }
-    }, [shouldRenderMenu, shouldRenderTooltip, isMenuOpen, isTooltipOpen]);
-
-    const displayValue = useMemo(() => {
+    const displayValue = useMemo<string | RawResultRow | null>(() => {
         if (!hasData) return null;
 
         const cellValue = cell.getValue();
@@ -102,90 +70,60 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         if (isResultValue(cellValue)) {
             return cellValue.value.formatted;
         } else if (isRawResultRow(cellValue)) {
-            return cellValue;
+            return cellValue as RawResultRow;
         } else {
             return null;
         }
     }, [hasData, cell]);
 
-    const handleCopy = useCallback(() => {
-        if (!isMenuOpen) return;
-
-        copy(displayValue);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-
-        setCopying((copyingState) => {
-            if (!copyingState) {
-                setTimeout(() => setCopying(false), 300);
-            }
-            return true;
-        });
-    }, [isMenuOpen, displayValue, copy, showToastSuccess]);
-
-    useEffect(() => {
-        const handleKeyDown = getHotkeyHandler([['mod+C', handleCopy]]);
-
-        if (isMenuOpen) {
-            document.body.addEventListener('keydown', handleKeyDown);
-        }
-
-        return () => {
-            document.body.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isMenuOpen, handleCopy]);
-
     return (
-        <>
-            <Td
-                ref={elementRef}
-                className={className}
-                style={style}
-                $rowIndex={index}
-                $isSelected={isMenuOpen}
-                $isLargeText={isLargeText}
-                $isMinimal={minimal}
-                $isInteractive={canHaveMenu || canHaveTooltip}
-                $isCopying={isCopying}
-                $backgroundColor={backgroundColor}
-                $fontColor={fontColor}
-                $hasData={hasData}
-                $isNaN={!hasData || !isNumericItem}
-                $hasUrls={hasUrls}
-                $hasNewlines={
-                    typeof displayValue === 'string' &&
-                    displayValue.includes('\n')
-                }
-                onClick={canHaveMenu ? toggleMenu : undefined}
-                onMouseEnter={canHaveTooltip ? startTooltipTimer : undefined}
-                onMouseLeave={
-                    canHaveTooltip
-                        ? () => {
-                              clearTooltipTimer();
-                              closeTooltip();
-                          }
-                        : undefined
-                }
-            >
-                <span>{children}</span>
-            </Td>
-
-            {shouldRenderMenu ? (
-                <CellMenu
-                    cell={cell as Cell<ResultRow, ResultRow[0]>}
-                    menuItems={cellContextMenu}
-                    elementBounds={elementBounds}
-                    onClose={toggleMenu}
-                />
-            ) : null}
-
-            {shouldRenderTooltip ? (
-                <CellTooltip
-                    position="top"
-                    label={tooltipContent}
-                    elementBounds={elementBounds}
-                />
-            ) : null}
-        </>
+        <Td
+            className={className}
+            style={style}
+            $rowIndex={index}
+            $isSelected={isSelected}
+            $isLargeText={isLargeText}
+            $isMinimal={minimal}
+            $isInteractive={canHaveMenu || canHaveTooltip}
+            $isCopying={false}
+            $backgroundColor={backgroundColor}
+            $fontColor={fontColor}
+            $hasData={hasData}
+            $isNaN={!hasData || !isNumericItem}
+            $hasUrls={hasUrls}
+            $hasNewlines={
+                typeof displayValue === 'string' && displayValue.includes('\n')
+            }
+            onClick={
+                canHaveMenu
+                    ? (e) =>
+                          onMenuToggle?.(
+                              cell,
+                              e.currentTarget.getBoundingClientRect(),
+                              displayValue,
+                          )
+                    : undefined
+            }
+            onMouseEnter={
+                canHaveTooltip
+                    ? (e) =>
+                          onTooltipShow?.(
+                              cell.id,
+                              tooltipContent,
+                              e.currentTarget.getBoundingClientRect(),
+                          )
+                    : undefined
+            }
+            onMouseLeave={
+                canHaveTooltip
+                    ? () => {
+                          onTooltipHide?.(cell.id);
+                      }
+                    : undefined
+            }
+        >
+            <span>{children}</span>
+        </Td>
     );
 };
 
