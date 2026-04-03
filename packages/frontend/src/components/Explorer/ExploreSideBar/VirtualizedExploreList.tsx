@@ -284,7 +284,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         >
             <div
                 style={{
-                    height: virtualizer.getTotalSize(),
+                    height: virtualizer.getTotalSize() + 16,
                     position: 'relative',
                 }}
             >
