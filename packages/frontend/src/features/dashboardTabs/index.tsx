@@ -8,7 +8,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Group, Progress, Tabs, Tooltip } from '@mantine-8/core';
+import { Button, Group, Tabs, Tooltip } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -60,27 +60,11 @@ import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-/** Thin progress bar that shows while the stagger cascade reveals tiles. */
+/** Slim loading bar that slides across the top while tiles cascade in. */
 const StagedMountProgressBar: FC = () => {
-    const { isComplete, progress } = useStagedMountProgress();
+    const { isComplete } = useStagedMountProgress();
     if (isComplete) return null;
-    return (
-        <Progress
-            value={progress * 100}
-            size={3}
-            color="blue"
-            radius={0}
-            transitionDuration={200}
-            animated
-            style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 10,
-            }}
-        />
-    );
+    return <div className={styles.cascadeLoadingBar} />;
 };
 
 type TabGridPanelProps = {
