@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import type { EmbedContent, OssEmbed } from '../../types/auth';
+import type { Dashboard } from '../../types/dashboard';
+import type { OrganizationColorPalette } from '../../types/organization';
 import assertUnreachable from '../../utils/assertUnreachable';
 
 /** @deprecated Use OssEmbed instead */
@@ -23,6 +25,10 @@ export type UpdateEmbed = {
     // TODO: Make these required in Settings UI PR
     chartUuids?: string[];
     allowAllCharts?: boolean;
+};
+
+export type GetEmbedDashboardRequest = {
+    paletteUuid?: string;
 };
 
 export enum FilterInteractivityValues {
@@ -69,6 +75,16 @@ export const InteractivityOptionsSchema = z.object({
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
+
+export type EmbedSelectedColorPalette = Pick<
+    OrganizationColorPalette,
+    'colors' | 'darkColors'
+>;
+
+export type EmbedDashboard = Dashboard &
+    InteractivityOptions & {
+        selectedPalette?: EmbedSelectedColorPalette | null;
+    };
 
 export const ChartInteractivityOptionsSchema = z.object({
     scopes: z.array(z.string()).optional(),

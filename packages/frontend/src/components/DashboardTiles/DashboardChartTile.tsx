@@ -72,6 +72,7 @@ import React, {
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { type EChartsReact } from '../EChartsReactWrapper';
+import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
 
 type ClientSideError = {
     error: {
@@ -252,6 +253,8 @@ const ValidDashboardChartTile: FC<{
     resultsData: InfiniteQueryResults;
     isTitleHidden?: boolean;
     project: string;
+    colorPaletteOverride?: string[];
+    darkColorPaletteOverride?: string[] | null;
     onSeriesContextMenu?: (
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
@@ -263,6 +266,8 @@ const ValidDashboardChartTile: FC<{
         isTitleHidden = false,
         dashboardChartReadyQuery,
         resultsData,
+        colorPaletteOverride,
+        darkColorPaletteOverride,
         onSeriesContextMenu,
         setEchartsRef,
     }) => {
@@ -348,12 +353,18 @@ const ValidDashboardChartTile: FC<{
         );
 
         const colorPalette = useMemo(() => {
-            if (colorScheme === 'dark' && org?.chartDarkColors) {
-                return org.chartDarkColors;
-            }
-            return org?.chartColors ?? chart.colorPalette;
+            return getDashboardChartColorPalette({
+                colorScheme,
+                chartColorPalette: chart.colorPalette,
+                selectedPaletteColors: colorPaletteOverride,
+                selectedPaletteDarkColors: darkColorPaletteOverride,
+                orgColorPalette: org?.chartColors,
+                orgDarkColorPalette: org?.chartDarkColors,
+            });
         }, [
             colorScheme,
+            colorPaletteOverride,
+            darkColorPaletteOverride,
             org?.chartColors,
             org?.chartDarkColors,
             chart.colorPalette,
@@ -409,6 +420,8 @@ const ValidDashboardChartTileMinimal: FC<{
     title: string;
     chart: SavedChart;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
+    colorPaletteOverride?: string[];
+    darkColorPaletteOverride?: string[] | null;
     onSeriesContextMenu?: (
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
@@ -420,6 +433,8 @@ const ValidDashboardChartTileMinimal: FC<{
     chart,
     dashboardChartReadyQuery,
     resultsData,
+    colorPaletteOverride,
+    darkColorPaletteOverride,
     isTitleHidden = false,
     onSeriesContextMenu,
     setEchartsRef,
@@ -483,12 +498,18 @@ const ValidDashboardChartTileMinimal: FC<{
     );
 
     const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && org?.chartDarkColors) {
-            return org.chartDarkColors;
-        }
-        return org?.chartColors ?? chart.colorPalette;
+        return getDashboardChartColorPalette({
+            colorScheme,
+            chartColorPalette: chart.colorPalette,
+            selectedPaletteColors: colorPaletteOverride,
+            selectedPaletteDarkColors: darkColorPaletteOverride,
+            orgColorPalette: org?.chartColors,
+            orgDarkColorPalette: org?.chartDarkColors,
+        });
     }, [
         colorScheme,
+        colorPaletteOverride,
+        darkColorPaletteOverride,
         org?.chartColors,
         org?.chartDarkColors,
         chart.colorPalette,
@@ -550,6 +571,8 @@ interface DashboardChartTileMainProps extends Pick<
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
     onExplore?: (options: { chart: SavedChart }) => void;
+    colorPaletteOverride?: string[];
+    darkColorPaletteOverride?: string[] | null;
 }
 
 const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
@@ -579,6 +602,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             dashboardChartReadyQuery,
             resultsData,
             isEditMode,
+        } = props;
+        const {
+            colorPaletteOverride: _colorPaletteOverride,
+            darkColorPaletteOverride: _darkColorPaletteOverride,
+            ...tileBaseProps
         } = props;
 
         const {
@@ -1484,7 +1512,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         chart.chartConfig.type === ChartType.TABLE ||
                         chart.chartConfig.type === ChartType.MAP
                     }
-                    {...props}
+                    {...tileBaseProps}
                 >
                     <>
                         <Menu
@@ -1559,6 +1587,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             resultsData={resultsData}
                             project={chart.projectUuid}
                             isTitleHidden={hideTitle}
+                            colorPaletteOverride={props.colorPaletteOverride}
+                            darkColorPaletteOverride={
+                                props.darkColorPaletteOverride
+                            }
                             onSeriesContextMenu={onSeriesContextMenu}
                             setEchartsRef={setEchartRef}
                         />
@@ -1643,6 +1675,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         canExportCsv,
         canExportImages,
         onExplore,
+        colorPaletteOverride,
+        darkColorPaletteOverride,
+    } = props;
+    const {
+        colorPaletteOverride: _colorPaletteOverride,
+        darkColorPaletteOverride: _darkColorPaletteOverride,
+        ...tileBaseProps
     } = props;
 
     const {
@@ -1822,7 +1861,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     chart.chartConfig.type === ChartType.TABLE ||
                     chart.chartConfig.type === ChartType.MAP
                 }
-                {...props}
+                {...tileBaseProps}
             >
                 <>
                     <Menu
@@ -1872,6 +1911,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         isTitleHidden={hideTitle}
                         chart={chart}
                         dashboardChartReadyQuery={dashboardChartReadyQuery}
+                        colorPaletteOverride={colorPaletteOverride}
+                        darkColorPaletteOverride={darkColorPaletteOverride}
                         onSeriesContextMenu={onSeriesContextMenu}
                         resultsData={resultsData}
                         title={title || chart.name}
@@ -1943,6 +1984,8 @@ export const GenericDashboardChartTile: FC<
     canExportCsv = false,
     canExportImages = false,
     onExplore,
+    colorPaletteOverride,
+    darkColorPaletteOverride,
     ...rest
 }) => {
     const { projectUuid } = useParams<{
@@ -2059,6 +2102,8 @@ export const GenericDashboardChartTile: FC<
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
                     onExplore={onExplore}
+                    colorPaletteOverride={colorPaletteOverride}
+                    darkColorPaletteOverride={darkColorPaletteOverride}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -2068,6 +2113,8 @@ export const GenericDashboardChartTile: FC<
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     onExplore={onExplore}
+                    colorPaletteOverride={colorPaletteOverride}
+                    darkColorPaletteOverride={darkColorPaletteOverride}
                 />
             )}
             <UnderlyingDataModal />

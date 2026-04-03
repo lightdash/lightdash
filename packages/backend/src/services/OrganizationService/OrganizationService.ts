@@ -681,13 +681,15 @@ export class OrganizationService extends BaseService {
     }
 
     async getColorPalettes(
-        user: SessionUser,
+        account: Account,
     ): Promise<OrganizationColorPaletteWithIsActive[]> {
-        if (!user.organizationUuid) {
+        const { organizationUuid } = account.organization;
+
+        if (!organizationUuid) {
             throw new NotFoundError('Organization not found');
         }
 
-        return this.organizationModel.getColorPalettes(user.organizationUuid);
+        return this.organizationModel.getColorPalettes(organizationUuid);
     }
 
     async updateColorPalette(

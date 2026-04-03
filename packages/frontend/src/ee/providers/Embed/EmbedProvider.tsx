@@ -40,6 +40,7 @@ type Props = {
     embedToken?: string;
     filters?: SdkFilter[];
     projectUuid?: string;
+    paletteUuid?: string;
     contentOverrides?: LanguageMap;
     embedHeaders?: Record<string, string>;
     onExplore?: (options: { chart: SavedChart }) => void;
@@ -53,6 +54,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     embedToken: encodedToken,
     filters,
     projectUuid: projectUuidFromProps,
+    paletteUuid,
     contentOverrides,
     onExplore,
     onBackToDashboard,
@@ -122,6 +124,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             filters,
             t: (input: string) => get(contentOverrides, input),
             projectUuid: embed?.projectUuid || projectUuid,
+            paletteUuid,
             languageMap: contentOverrides,
             onExplore,
             savedChart,
@@ -137,6 +140,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         embedToken,
         filters,
         projectUuid,
+        paletteUuid,
         contentOverrides,
         onExplore,
         savedChart,
