@@ -460,6 +460,30 @@ describe('findMatch', () => {
         expect(result.hit).toBe(true);
     });
 
+    it('allows pre-aggregate match when base table has sqlWhere (transpiled at query time)', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+        explore.tables.orders.sqlWhere = "status != 'deleted'";
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result.hit).toBe(true);
+    });
+
     it('returns custom_dimension_present when custom dimensions exist', () => {
         const explore = {
             ...baseExplore(),
