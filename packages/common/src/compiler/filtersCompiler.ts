@@ -54,11 +54,10 @@ const getDefaultStartOfWeek = (
 };
 
 // NOTE: This function requires a complete date as input.
-// It produces a timezoneless string which is implied to be in UTC.
-// We could probably have it be a string WITH a timezone in the future.
-// Calling .utc() here makes it safe to drop the tz.
-const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
-    moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
+// The +00 suffix ensures the warehouse interprets the literal as UTC
+// regardless of session timezone (which may be set via dataTimezone).
+const formatTimestampAsUTC = (date: Date): string =>
+    moment(date).utc().format('YYYY-MM-DD HH:mm:ss+00');
 
 /**
  * Cast a date/timestamp string to warehouse-specific SQL literal.
@@ -629,7 +628,7 @@ export const renderFilterRuleSql = (
                 escapedFilterRule,
                 adapterType,
                 timezone,
-                formatTimestampAsUTCWithNoTimezone,
+                formatTimestampAsUTC,
                 startOfWeek,
             );
         }
