@@ -68,7 +68,7 @@ import { useContentVerificationEnabled } from '../../../hooks/useContentVerifica
 import { useProject } from '../../../hooks/useProject';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
-import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
@@ -97,9 +97,6 @@ type DashboardHeaderProps = {
     isSaving: boolean;
     isFullScreenFeatureEnabled?: boolean;
     isFullscreen: boolean;
-    oldestCacheTime?: Date;
-    preAggregateStatuses?: Record<string, TilePreAggregateStatus>;
-    allTilesLoaded?: boolean;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
     dashboardTiles?: Dashboard['tiles'];
@@ -129,9 +126,6 @@ const DashboardHeader = memo(
         onSwitchTab,
         isFullScreenFeatureEnabled,
         isFullscreen,
-        oldestCacheTime,
-        preAggregateStatuses,
-        allTilesLoaded,
         activeTabUuid,
         dashboardTabs,
         dashboardTiles,
@@ -153,6 +147,15 @@ const DashboardHeader = memo(
         );
         const isDashboardSummariesEnabled = useClientFeatureFlag(
             'ai-dashboard-summary' as FeatureFlags,
+        );
+        const oldestCacheTime = useDashboardTileStatusContext(
+            (c) => c.oldestCacheTime,
+        );
+        const preAggregateStatuses = useDashboardTileStatusContext(
+            (c) => c.preAggregateStatuses,
+        );
+        const allTilesLoaded = useDashboardTileStatusContext(
+            (c) => c.areAllChartsLoaded,
         );
 
         const { search, pathname } = useLocation();

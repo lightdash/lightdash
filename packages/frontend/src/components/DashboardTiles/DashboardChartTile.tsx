@@ -735,10 +735,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             (c) => c.parameterDefinitions,
         );
 
-        const preAggregateStatuses = useDashboardTileStatusContext(
-            (c) => c.preAggregateStatuses,
+        const tilePreAggStatus = useDashboardTileStatusContext(
+            (c) => c.preAggregateStatuses[tileUuid],
         );
-        const tilePreAggStatus = preAggregateStatuses[tileUuid];
         const tilePreAggregateName =
             tilePreAggStatus?.hit && tilePreAggStatus.preAggregateName
                 ? tilePreAggStatus.preAggregateName
