@@ -1,3 +1,13 @@
+## [0.2724.3](https://github.com/lightdash/lightdash/compare/0.2724.2...0.2724.3) (2026-04-03)
+
+
+### Bug Fixes
+
+* hide data timezone setting for BigQuery and Athena ([#21741](https://github.com/lightdash/lightdash/issues/21741)) ([6c88630](https://github.com/lightdash/lightdash/commit/6c886308fe28d350ce4a89a8b0f4f38e774e93e1))
+* include UTC offset in filter timestamp literals ([#21670](https://github.com/lightdash/lightdash/issues/21670)) ([36cd40c](https://github.com/lightdash/lightdash/commit/36cd40ca95f87427c03d34fb169e89fde9e997c8)), closes [#21638](https://github.com/lightdash/lightdash/issues/21638)
+* use absolute path prefix in --allowedTools for sandbox Claude CLI ([#21747](https://github.com/lightdash/lightdash/issues/21747)) ([fe4bd95](https://github.com/lightdash/lightdash/commit/fe4bd959ad3fbd4869182bb326ff6bff9ed589c9))
+* use session_timezone instead of timezone for ClickHouse ([#21742](https://github.com/lightdash/lightdash/issues/21742)) ([abcc4ac](https://github.com/lightdash/lightdash/commit/abcc4ac4c912f3916b7b1dd97f0b5f5bf2de6c27))
+
 ## [0.2724.2](https://github.com/lightdash/lightdash/compare/0.2724.1...0.2724.2) (2026-04-03)
 
 
