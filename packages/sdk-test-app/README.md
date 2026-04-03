@@ -48,6 +48,25 @@ Once the app is running in your browser:
 4. The app will automatically extract the `instanceUrl` and `token` from the provided URL to render the embedded components.
 5. Open an example from the home page.
 
+The examples currently include:
+
+- `I18n demo`
+- `Filters demo`
+- `Palette UUID demo`
+
+The palette demo uses a select with three stable options:
+
+- `Default dashboard colors`
+- `Customer Segments Sunrise` (`53eac606-b655-4edc-a9e9-a702e2c68f63`)
+- `Customer Segments Aurora` (`0150adb1-6aba-45b8-b8e6-1e24f6d6164c`)
+
+In a real customer integration, palette UUIDs should come from:
+
+- `Settings → Appearance`, using the `Copy UUID` action on a palette
+- `GET /api/v1/org/color-palettes`, if your host app wants to load the choices dynamically
+
+The local development environment includes two stable example UUIDs so the demo remains reproducible.
+
 ## Generating a Demo Embed URL
 
 The test app includes a helper script that signs a JWT with the project embedding secret and prints a ready-to-paste `VITE_EMBED_URL`.
