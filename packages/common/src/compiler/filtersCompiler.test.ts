@@ -59,10 +59,12 @@ import {
     InTheLast1YearFilterSQL,
     InTheNextFilterBase,
     InThePastFilterBase,
+    MonthToDateFilterBase,
     NumberDimensionMock,
     NumberFilterBase,
     NumberFilterBaseWithMultiValues,
     NumberOperatorsWithMultipleValues,
+    QuarterToDateFilterBase,
     stringFilterDimension,
     stringFilterRuleMocks,
     TrinoExpectedInTheCurrentFilterSQL,
@@ -85,6 +87,8 @@ import {
     TrinoInTheLast1MonthFilterSQL,
     TrinoInTheLast1WeekFilterSQL,
     TrinoInTheLast1YearFilterSQL,
+    WeekToDateFilterBase,
+    YearToDateFilterBase,
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
@@ -643,6 +647,86 @@ describe('Filter SQL', () => {
                 formatTimestamp,
             ),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
+    });
+
+    // To-date filter tests (system time: 04 Apr 2020 06:12:30 GMT)
+    // April 4 2020: dayOfYear=95, dayOfMonth=4, dayInQuarter=3 (Apr1->Apr4), Saturday (dayInWeek=5 with Monday start)
+    test('should return year to date filter sql', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
+    });
+
+    test('should return year to date filter sql for bigquery', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DAYOFYEAR FROM ${DimensionSqlMock}) <= 95)`);
+    });
+
+    test('should return month to date filter sql', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                MonthToDateFilterBase,
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
+    });
+
+    test('should return quarter to date filter sql', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                QuarterToDateFilterBase,
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('QUARTER', ${DimensionSqlMock})) <= 3)`,
+        );
+    });
+
+    test('should return quarter to date filter sql for trino', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                QuarterToDateFilterBase,
+                adapterType.trino,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(DATE_DIFF('day', DATE_TRUNC('quarter', ${DimensionSqlMock}), ${DimensionSqlMock}) <= 3)`,
+        );
+    });
+
+    test('should return week to date filter sql (monday start)', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 5)`,
+        );
     });
 
     test.each(filterInTheCurrentDayTimezoneMocks)(

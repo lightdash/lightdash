@@ -411,6 +411,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     }}
                 />
             );
+        case FilterOperator.YEAR_TO_DATE:
+        case FilterOperator.QUARTER_TO_DATE:
+        case FilterOperator.MONTH_TO_DATE:
+        case FilterOperator.WEEK_TO_DATE:
+            return null;
         default: {
             return <DefaultFilterInputs {...props} />;
         }

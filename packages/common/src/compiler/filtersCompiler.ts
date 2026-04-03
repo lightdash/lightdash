@@ -461,6 +461,77 @@ export const renderDateFilterSql = (
 
             return `(NOT ((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate}))`;
         }
+        case FilterOperator.YEAR_TO_DATE: {
+            const today =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const dayOfYear = today.dayOfYear(); // 1-366
+            switch (adapterType) {
+                case SupportedDbtAdapter.BIGQUERY:
+                    return `(EXTRACT(DAYOFYEAR FROM ${dimensionSql}) <= ${dayOfYear})`;
+                case SupportedDbtAdapter.CLICKHOUSE:
+                    return `(toDayOfYear(${dimensionSql}) <= ${dayOfYear})`;
+                default:
+                    // PostgreSQL, Snowflake, Redshift, DuckDB, Trino, Athena, Databricks
+                    return `(EXTRACT(DOY FROM ${dimensionSql}) <= ${dayOfYear})`;
+            }
+        }
+        case FilterOperator.MONTH_TO_DATE: {
+            const today =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const dayOfMonth = today.date(); // 1-31
+            switch (adapterType) {
+                case SupportedDbtAdapter.CLICKHOUSE:
+                    return `(toDayOfMonth(${dimensionSql}) <= ${dayOfMonth})`;
+                default:
+                    // EXTRACT(DAY FROM ...) works for PG, Snowflake, Redshift, DuckDB, BigQuery, Trino, Databricks
+                    return `(EXTRACT(DAY FROM ${dimensionSql}) <= ${dayOfMonth})`;
+            }
+        }
+        case FilterOperator.QUARTER_TO_DATE: {
+            const today =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const quarterStart = today.clone().startOf('quarter');
+            const dayInQuarter = today.diff(quarterStart, 'days'); // 0-indexed
+            switch (adapterType) {
+                case SupportedDbtAdapter.BIGQUERY:
+                    return `(DATE_DIFF(${dimensionSql}, DATE_TRUNC(${dimensionSql}, QUARTER), DAY) <= ${dayInQuarter})`;
+                case SupportedDbtAdapter.CLICKHOUSE:
+                    return `(dateDiff('day', toStartOfQuarter(${dimensionSql}), ${dimensionSql}) <= ${dayInQuarter})`;
+                case SupportedDbtAdapter.TRINO:
+                case SupportedDbtAdapter.ATHENA:
+                    return `(DATE_DIFF('day', DATE_TRUNC('quarter', ${dimensionSql}), ${dimensionSql}) <= ${dayInQuarter})`;
+                default:
+                    // PostgreSQL, Snowflake, Redshift, DuckDB, Databricks
+                    // EXTRACT(DAY FROM interval) extracts the day count from a timestamp subtraction
+                    return `(EXTRACT(DAY FROM ${dimensionSql} - DATE_TRUNC('QUARTER', ${dimensionSql})) <= ${dayInQuarter})`;
+            }
+        }
+        case FilterOperator.WEEK_TO_DATE: {
+            const today =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const weekStart = today.clone().startOf('week');
+            const dayInWeek = today.diff(weekStart, 'days'); // 0-indexed from week start
+            switch (adapterType) {
+                case SupportedDbtAdapter.BIGQUERY:
+                    return `(DATE_DIFF(${dimensionSql}, DATE_TRUNC(${dimensionSql}, WEEK(${effectiveStartOfWeek === WeekDay.SUNDAY ? 'SUNDAY' : 'MONDAY'})), DAY) <= ${dayInWeek})`;
+                case SupportedDbtAdapter.CLICKHOUSE:
+                    return `(dateDiff('day', toStartOfWeek(${dimensionSql}, ${effectiveStartOfWeek === WeekDay.SUNDAY ? '0' : '1'}), ${dimensionSql}) <= ${dayInWeek})`;
+                case SupportedDbtAdapter.TRINO:
+                case SupportedDbtAdapter.ATHENA:
+                    return `(DATE_DIFF('day', DATE_TRUNC('week', ${dimensionSql}), ${dimensionSql}) <= ${dayInWeek})`;
+                default:
+                    // PostgreSQL, Snowflake, Redshift, DuckDB, Databricks
+                    return `(EXTRACT(DAY FROM ${dimensionSql} - DATE_TRUNC('WEEK', ${dimensionSql})) <= ${dayInWeek})`;
+            }
+        }
         case FilterOperator.IN_BETWEEN: {
             const startDate = dateFormatter(filter.values?.[0]);
             const endDate = dateFormatter(filter.values?.[1]);

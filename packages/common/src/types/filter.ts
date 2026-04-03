@@ -28,6 +28,10 @@ export enum FilterOperator {
     NOT_IN_THE_CURRENT = 'notInTheCurrent',
     IN_BETWEEN = 'inBetween',
     NOT_IN_BETWEEN = 'notInBetween',
+    YEAR_TO_DATE = 'yearToDate',
+    QUARTER_TO_DATE = 'quarterToDate',
+    MONTH_TO_DATE = 'monthToDate',
+    WEEK_TO_DATE = 'weekToDate',
 }
 
 export type BaseFilterRule<O = FilterOperator, V = unknown> = {

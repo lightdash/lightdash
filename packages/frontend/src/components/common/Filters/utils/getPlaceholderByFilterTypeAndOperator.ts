@@ -48,6 +48,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
+                case FilterOperator.YEAR_TO_DATE:
+                case FilterOperator.QUARTER_TO_DATE:
+                case FilterOperator.MONTH_TO_DATE:
+                case FilterOperator.WEEK_TO_DATE:
                     // This can happen if a filter was added using an old table calculation without type, as we default to number
                     console.warn(
                         `Unexpected operator ${type} for number filter type. If you are using a table calculation, please update its result type to string.`,
@@ -81,6 +85,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                 case FilterOperator.NOT_IN_BETWEEN:
+                case FilterOperator.YEAR_TO_DATE:
+                case FilterOperator.QUARTER_TO_DATE:
+                case FilterOperator.MONTH_TO_DATE:
+                case FilterOperator.WEEK_TO_DATE:
                     throw new NotImplementedError(
                         `Filter type ${type} with operator ${operator} is not implemented`,
                     );
@@ -108,6 +116,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.NULL:
                 case FilterOperator.NOT_NULL:
+                case FilterOperator.YEAR_TO_DATE:
+                case FilterOperator.QUARTER_TO_DATE:
+                case FilterOperator.MONTH_TO_DATE:
+                case FilterOperator.WEEK_TO_DATE:
                     return '';
                 case FilterOperator.STARTS_WITH:
                 case FilterOperator.ENDS_WITH:
@@ -143,6 +155,10 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 case FilterOperator.NOT_IN_THE_CURRENT:
                 case FilterOperator.IN_BETWEEN:
                 case FilterOperator.NOT_IN_BETWEEN:
+                case FilterOperator.YEAR_TO_DATE:
+                case FilterOperator.QUARTER_TO_DATE:
+                case FilterOperator.MONTH_TO_DATE:
+                case FilterOperator.WEEK_TO_DATE:
                     throw new NotImplementedError(
                         `Filter type ${type} with operator ${operator} is not implemented`,
                     );
