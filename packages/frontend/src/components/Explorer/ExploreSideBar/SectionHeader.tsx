@@ -24,7 +24,7 @@ const SectionHeader: FC<SectionHeaderProps> = ({
                 <MantineIcon
                     icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size={12}
-                    c="ldGray.6"
+                    color="ldGray.6"
                 />
             }
             label={
