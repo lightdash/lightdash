@@ -1,3 +1,10 @@
+## [0.2723.1](https://github.com/lightdash/lightdash/compare/0.2723.0...0.2723.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* prevent ECharts dispose/rebuild on dashboard tab switch ([#21724](https://github.com/lightdash/lightdash/issues/21724)) ([248314b](https://github.com/lightdash/lightdash/commit/248314be790aa2c70988ec7e1ad697b0ff37c4db))
+
 # [0.2723.0](https://github.com/lightdash/lightdash/compare/0.2722.0...0.2723.0) (2026-04-03)
 
 
