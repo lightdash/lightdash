@@ -78,7 +78,7 @@
         "d3-time": "3.1.0",
         "date-fns": "4.1.0",
         "dayjs": "1.11.10",
-        "dompurify": "3.2.5",
+        "dompurify": "3.3.2",
         "echarts": "5.6.0",
         "echarts-6": "npm:echarts@6.0.0",
         "echarts-for-react": "3.0.2",
