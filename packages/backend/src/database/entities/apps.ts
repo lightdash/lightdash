@@ -1,4 +1,12 @@
+import { type AppVersionStatus } from '@lightdash/common';
 import { type Knex } from 'knex';
+
+export {
+    APP_VERSION_STAGE_ORDER,
+    APP_VERSION_TERMINAL_STATUSES,
+    isAppVersionInProgress,
+    type AppVersionStatus,
+} from '@lightdash/common';
 
 export const AppsTableName = 'apps';
 export const AppVersionsTableName = 'app_versions';
@@ -37,8 +45,6 @@ export type AppsTable = Knex.CompositeTableType<
         >
     >
 >;
-
-export type AppVersionStatus = 'building' | 'ready' | 'error';
 
 export type DbAppVersion = {
     app_version_id: string;

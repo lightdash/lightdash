@@ -1,6 +1,7 @@
 import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
+    type AppImageAttachment,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
     type SlackPromptJobPayload,
@@ -34,11 +35,21 @@ import {
     type SqlRunnerPivotQueryPayload,
 } from './sqlRunner';
 
+export type AppGeneratePipelineJobPayload = TraceTaskBase & {
+    appUuid: string;
+    version: number;
+    prompt: string;
+    image?: AppImageAttachment;
+    isIteration: boolean;
+};
+
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
     EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
+    APP_GENERATE_PIPELINE: 'appGeneratePipeline',
+    SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -118,6 +129,8 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
+    [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
+    [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
 }
 
 export interface EETaskPayloadMap {
@@ -125,6 +138,8 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
+    [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
+    [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
 }
 
 export type SchedulerTaskName =

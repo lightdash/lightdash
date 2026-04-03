@@ -76,12 +76,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            appGenerateService: ({ context, models }) =>
+            appGenerateService: ({ context, models, clients }) =>
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
                     catalogModel: models.getCatalogModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -488,6 +490,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getPreAggregateMaterializationService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
+                appGenerateService:
+                    context.serviceRepository.getAppGenerateService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

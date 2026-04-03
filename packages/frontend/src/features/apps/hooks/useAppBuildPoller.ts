@@ -1,9 +1,13 @@
+import { APP_VERSION_TERMINAL_STATUSES } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
 // Inline Web Worker that polls the API in the background.
 // Dedicated Workers continue running even when the parent tab is throttled/frozen.
+// Terminal statuses are interpolated at module load from the shared constant
+// so the worker string stays in sync with backend logic.
 const WORKER_CODE = `
+const TERMINAL_STATUSES = ${JSON.stringify([...APP_VERSION_TERMINAL_STATUSES])};
 let active = true;
 self.onmessage = (e) => {
     if (e.data.type === 'start') pollLoop(e.data.url, e.data.interval);
@@ -17,7 +21,7 @@ async function pollLoop(url, interval) {
                 const data = await res.json();
                 self.postMessage({ type: 'data', results: data.results });
                 const latest = data.results && data.results.versions && data.results.versions[0];
-                if (latest && latest.status !== 'building') {
+                if (latest && TERMINAL_STATUSES.includes(latest.status)) {
                     active = false;
                     return;
                 }
@@ -74,7 +78,12 @@ export function useAppBuildPoller(
                 );
 
                 const latest = e.data.results.versions?.[0];
-                if (latest && latest.status !== 'building') {
+                if (
+                    latest &&
+                    (
+                        APP_VERSION_TERMINAL_STATUSES as readonly string[]
+                    ).includes(latest.status)
+                ) {
                     onDoneRef.current(
                         latest.version as number,
                         latest.status as string,

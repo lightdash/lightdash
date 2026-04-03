@@ -5,8 +5,10 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    APP_VERSION_TERMINAL_STATUSES,
     AppsTableName,
     AppVersionsTableName,
+    isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
     type DbAppVersion,
@@ -60,16 +62,16 @@ export class AppModel {
                 status,
                 error: error ?? null,
                 status_message: statusMessage ?? null,
-                status_updated_at: new Date(),
+                status_updated_at: this.database.fn.now() as unknown as Date,
             });
     }
 
     /**
-     * Update version status only if it is currently 'building'.
+     * Update version status only if it is currently in progress.
      * Returns true if the update was applied, false if the version was
      * already in a terminal state (e.g. cancelled by the user).
      */
-    async updateVersionStatusIfBuilding(
+    async updateVersionStatusIfInProgress(
         appId: string,
         version: number,
         status: AppVersionStatus,
@@ -77,12 +79,13 @@ export class AppModel {
         statusMessage?: string | null,
     ): Promise<boolean> {
         const updatedRows = await this.database(AppVersionsTableName)
-            .where({ app_id: appId, version, status: 'building' })
+            .where({ app_id: appId, version })
+            .whereNotIn('status', [...APP_VERSION_TERMINAL_STATUSES])
             .update({
                 status,
                 error: error ?? null,
                 status_message: statusMessage ?? null,
-                status_updated_at: new Date(),
+                status_updated_at: this.database.fn.now() as unknown as Date,
             });
         return updatedRows > 0;
     }
@@ -96,8 +99,24 @@ export class AppModel {
             .where({ app_id: appId, version })
             .update({
                 status_message: statusMessage,
-                status_updated_at: new Date(),
+                status_updated_at: this.database.fn.now() as unknown as Date,
             });
+    }
+
+    async getVersionStatus(
+        appId: string,
+        version: number,
+    ): Promise<AppVersionStatus> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .select('status')
+            .first();
+        if (!row) {
+            throw new NotFoundError(
+                `App version not found: ${appId} v${version}`,
+            );
+        }
+        return row.status;
     }
 
     async getApp(appId: string, projectUuid: string): Promise<DbApp> {
@@ -311,5 +330,32 @@ export class AppModel {
         await this.database(AppsTableName)
             .where({ app_id: appId })
             .update({ sandbox_id: sandboxId });
+    }
+
+    /**
+     * Release graphile locks on appGeneratePipeline jobs whose corresponding
+     * app_version has not advanced within `threshold` — the previous worker
+     * is presumed dead. Released jobs are picked up on the next poll and
+     * resumed from their last completed stage.
+     *
+     * Returns the number of jobs released.
+     */
+    async releaseStaleLocks(
+        terminalStatuses: readonly string[],
+        threshold: string,
+    ): Promise<number> {
+        const result = await this.database.raw<{ rowCount: number }>(
+            `UPDATE graphile_worker.jobs j
+             SET locked_at = NULL, locked_by = NULL, run_at = now()
+             FROM app_versions v
+             WHERE j.task_identifier = 'appGeneratePipeline'
+               AND j.locked_at IS NOT NULL
+               AND v.app_id = (j.payload->>'appUuid')::uuid
+               AND v.version = (j.payload->>'version')::int
+               AND v.status <> ALL(?::text[])
+               AND v.status_updated_at < now() - ?::interval`,
+            [[...terminalStatuses], threshold],
+        );
+        return result.rowCount ?? 0;
     }
 }
