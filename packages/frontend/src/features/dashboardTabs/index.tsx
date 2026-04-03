@@ -110,7 +110,11 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onEditTile,
         onAddTiles,
     }) => (
-        <StagedMountProvider waveKey={waveKey} totalTiles={tiles.length}>
+        <StagedMountProvider
+            waveKey={waveKey}
+            totalTiles={tiles.length}
+            isActive={isActive}
+        >
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}

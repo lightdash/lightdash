@@ -15,42 +15,54 @@ type StagedMountProviderProps = PropsWithChildren<{
     totalTiles: number;
     /** Unique key that resets the cascade (typically the active tab UUID). */
     waveKey: string;
+    /** Whether this tab is currently active. Pauses the cascade when false. */
+    isActive: boolean;
 }>;
 
 /**
  * Drives a progressive cascade that reveals tiles in batches.
  * Resets whenever `waveKey` changes (e.g. tab switch).
+ * Pauses the rAF loop when the tab is inactive so hidden tabs
+ * don't waste CPU rendering tiles nobody can see.
  */
 export const StagedMountProvider: FC<StagedMountProviderProps> = ({
     totalTiles,
     waveKey,
+    isActive,
     children,
 }) => {
     const [revealedCount, setRevealedCount] = useState(0);
     const rafRef = useRef<number | null>(null);
+    const countRef = useRef(0);
 
     useEffect(() => {
         // Reset cascade on wave key change
         setRevealedCount(0);
+        countRef.current = 0;
+    }, [waveKey]);
 
-        let count = 0;
+    useEffect(() => {
+        // Only run the cascade when active and not yet complete
+        if (!isActive || countRef.current >= totalTiles) return;
+
         const advance = () => {
-            count += STAGED_MOUNT_BATCH_SIZE;
-            setRevealedCount(count);
-            if (count < totalTiles) {
+            countRef.current += STAGED_MOUNT_BATCH_SIZE;
+            setRevealedCount(countRef.current);
+            if (countRef.current < totalTiles) {
                 rafRef.current = requestAnimationFrame(advance);
             }
         };
 
-        // Start cascade on next frame so the skeleton grid paints first
+        // Start/resume cascade on next frame
         rafRef.current = requestAnimationFrame(advance);
 
         return () => {
             if (rafRef.current !== null) {
                 cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
             }
         };
-    }, [waveKey, totalTiles]);
+    }, [waveKey, isActive, totalTiles]);
 
     return (
         <StagedMountContext.Provider value={{ revealedCount }}>
