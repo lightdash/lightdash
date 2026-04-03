@@ -61,6 +61,8 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 type TabGridPanelProps = {
     tabUuid: string;
+    /** Key that resets the stagger cascade (changes on each tab activation). */
+    waveKey: string;
     tiles: DashboardTile[];
     layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
     isActive: boolean;
@@ -89,6 +91,7 @@ type TabGridPanelProps = {
 const TabGridPanel = memo<TabGridPanelProps>(
     ({
         tabUuid,
+        waveKey,
         tiles,
         layouts,
         isActive,
@@ -106,7 +109,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onEditTile,
         onAddTiles,
     }) => (
-        <StagedMountProvider waveKey={tabUuid} totalTiles={tiles.length}>
+        <StagedMountProvider waveKey={waveKey} totalTiles={tiles.length}>
             <div
                 key={tabUuid}
                 data-tab-uuid={tabUuid}
@@ -155,13 +158,12 @@ const TabGridPanel = memo<TabGridPanelProps>(
         </StagedMountProvider>
     ),
     (prevProps, nextProps) => {
-        // Always re-render the active tab (it needs layout updates during drag)
-        if (nextProps.isActive) return false;
-
-        // For inactive tabs, skip re-render unless something structural changed
+        // Re-render when becoming active/inactive (visibility toggle)
         if (prevProps.isActive !== nextProps.isActive) return false;
         if (prevProps.isEditMode !== nextProps.isEditMode) return false;
         if (prevProps.locked !== nextProps.locked) return false;
+        // Re-render when wave key changes (stagger cascade reset)
+        if (prevProps.waveKey !== nextProps.waveKey) return false;
         if (prevProps.tiles.length !== nextProps.tiles.length) return false;
 
         // Check if tile identities changed (added/removed/reordered)
@@ -170,7 +172,12 @@ const TabGridPanel = memo<TabGridPanelProps>(
                 return false;
         }
 
-        // Tile positions changed but this tab is hidden — skip re-render
+        // For the active tab during drag/resize, layouts change frequently.
+        // Re-render only when layouts reference changes.
+        if (nextProps.isActive && prevProps.layouts !== nextProps.layouts)
+            return false;
+
+        // No meaningful changes — skip re-render
         return true;
     },
 );
@@ -348,6 +355,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     }
     const visitedTabs = visitedTabsRef.current;
+
+    // Track how many times each tab has been activated so we can reset
+    // the stagger cascade on re-entry (keepTabsInMemory mode).
+    const tabActivationCountRef = useRef(new Map<string, number>());
+    const prevActiveTabRef = useRef<string | undefined>(undefined);
+    if (activeTab && activeTab.uuid !== prevActiveTabRef.current) {
+        prevActiveTabRef.current = activeTab.uuid;
+        const prev = tabActivationCountRef.current.get(activeTab.uuid) ?? 0;
+        tabActivationCountRef.current.set(activeTab.uuid, prev + 1);
+    }
+    const activeTabWaveCount =
+        tabActivationCountRef.current.get(activeTab?.uuid ?? '') ?? 0;
 
     // Group tiles by their tab UUID for per-tab grid rendering.
     // Only used when tabs are enabled. Tiles with stale/missing tab
@@ -1049,6 +1068,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                           <TabGridPanel
                                                               key={tab.uuid}
                                                               tabUuid={tab.uuid}
+                                                              waveKey={
+                                                                  activeTab?.uuid ===
+                                                                  tab.uuid
+                                                                      ? `${tab.uuid}-${activeTabWaveCount}`
+                                                                      : tab.uuid
+                                                              }
                                                               tiles={
                                                                   tilesByTab.get(
                                                                       tab.uuid,
