@@ -1,0 +1,103 @@
+name: Docker Build & Push
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+env:
+  REGISTRY_IMAGE: lightdash/lightdash
+
+jobs:
+  build-and-push-images:
+    name: Build and Push Images
+    runs-on: depot-ubuntu-24.04-4
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ inputs.tag }}
+
+      - name: Set version and timestamp
+        id: version
+        run: |
+          VERSION="${{ inputs.tag }}"
+          TIMESTAMP=$(date +%Y.%m.%d-%H.%M.%S)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          echo "Timestamp: $TIMESTAMP"
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY_IMAGE }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ inputs.tag }}
+            type=raw,value=latest
+
+      - name: Set up Depot CLI
+        uses: depot/setup-action@v1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v3'
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS_IMAGE_DEPLOY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v3'
+        with:
+          version: '>= 381.0.0'
+
+      - name: Configure Docker authentication for GCP regions
+        run: |
+          gcloud auth configure-docker us-docker.pkg.dev
+          gcloud auth configure-docker europe-docker.pkg.dev
+          gcloud auth configure-docker europe-west2-docker.pkg.dev
+
+      - name: Build and push to Docker Hub and GCP
+        id: build-and-push
+        uses: depot/build-push-action@v1
+        with:
+          project: bgbbt3d0kc # depot project id
+          token: ${{ secrets.DEPOT_PROJECT_TOKEN }}
+          file: dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            lightdash/lightdash:${{ steps.version.outputs.version }}
+            lightdash/lightdash:latest
+            us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}-commercial
+            us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
+            us-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
+            europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}-commercial
+            europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
+            europe-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
+            europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.version }}-commercial
+            europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:beta
+            europe-west2-docker.pkg.dev/lightdash-containers/lightdash/lightdash:${{ steps.version.outputs.timestamp }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            SENTRY_ORG=lightdash
+            SENTRY_RELEASE_VERSION=${{ steps.version.outputs.version }}
+            SENTRY_FRONTEND_PROJECT=lightdash-frontend
+            SENTRY_BACKEND_PROJECT=lightdash-backend
+            SENTRY_ENVIRONMENT=cloud_beta

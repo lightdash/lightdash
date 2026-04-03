@@ -1,0 +1,109 @@
+name: Homebrew Formula Update
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        type: string
+
+jobs:
+  update-homebrew-formula:
+    name: Update Homebrew Formula
+    runs-on: depot-ubuntu-24.04-4
+    steps:
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v6
+        with:
+          repository: lightdash/homebrew-lightdash
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          path: homebrew-tap
+
+      - name: Get release info and update formula
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"  # Remove 'v' prefix if present
+
+          echo "Updating Homebrew formula for version $VERSION"
+
+          # Download the checksums file from the release
+          gh release download "$TAG" \
+            --repo lightdash/lightdash \
+            --pattern "checksums-macos-sha256.txt" \
+            --dir .
+
+          # Extract SHA256 checksums
+          ARM64_SHA=$(grep "macos-arm64" checksums-macos-sha256.txt | awk '{print $1}')
+          X64_SHA=$(grep "macos-x64" checksums-macos-sha256.txt | awk '{print $1}')
+
+          if [ -z "$ARM64_SHA" ] || [ -z "$X64_SHA" ]; then
+            echo "Error: Failed to extract SHA256 checksums"
+            exit 1
+          fi
+
+          echo "ARM64 SHA: $ARM64_SHA"
+          echo "X64 SHA: $X64_SHA"
+
+          # Update the formula
+          FORMULA_PATH="homebrew-tap/Formula/lightdash.rb"
+
+          # Export for Ruby script
+          export VERSION TAG ARM64_SHA X64_SHA
+
+          ruby -i -pe '
+            version = ENV["VERSION"]
+            tag = ENV["TAG"]
+            arm64_sha = ENV["ARM64_SHA"]
+            x64_sha = ENV["X64_SHA"]
+
+            # Update version line
+            if /^\s*version\s+"/
+              gsub(/version\s+"[^"]+"/, "version \"#{version}\"")
+            end
+
+            # Update ARM64 URL (in on_arm block)
+            if /on_arm/ .. /end/ and /url\s+".*macos-arm64/
+              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-macos-arm64.tar.gz\"")
+            end
+
+            # Update ARM64 SHA (line after ARM64 URL)
+            if $_.include?("macos-arm64")
+              @next_sha_is_arm64 = true
+            elsif @next_sha_is_arm64 and /sha256/
+              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{arm64_sha}\"")
+              @next_sha_is_arm64 = false
+            end
+
+            # Update x64 URL (in on_intel block)
+            if /on_intel/ .. /end/ and /url\s+".*macos-x64/
+              gsub(/url\s+"[^"]+"/, "url \"https://github.com/lightdash/lightdash/releases/download/#{tag}/lightdash-cli-#{tag}-macos-x64.tar.gz\"")
+            end
+
+            # Update x64 SHA (line after x64 URL)
+            if $_.include?("macos-x64") and @next_sha_is_x64 = true
+            elsif @next_sha_is_x64 and /sha256/
+              gsub(/sha256\s+"[^"]+"/, "sha256 \"#{x64_sha}\"")
+              @next_sha_is_x64 = false
+            end
+          ' "$FORMULA_PATH"
+
+          echo "Updated formula:"
+          cat "$FORMULA_PATH"
+
+      - name: Commit and push changes
+        working-directory: homebrew-tap
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add Formula/lightdash.rb
+          git commit -m "Update lightdash to $VERSION"
+          git push origin main

@@ -33,6 +33,9 @@ jobs:
     permissions:
       contents: read
       id-token: write  # Required for OIDC authentication with npm
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -67,3 +70,95 @@ jobs:
             @semantic-release/exec@6
             @semantic-release/git@10
             @semantic-release/github@8
+
+  # ============================================================================
+  # Post-release: Docker images, CLI binaries, publish, Homebrew
+  # Only runs when semantic-release created a new release (draft)
+  # ============================================================================
+
+  docker:
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
+    uses: ./.github/workflows/_docker.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets: inherit
+
+  check-cli-changes:
+    name: Check if CLI files changed
+    needs: release
+    if: needs.release.outputs.new_release_published == 'true'
+    runs-on: depot-ubuntu-24.04-4
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.release.outputs.tag }}
+
+      - name: Check for CLI-related changes
+        id: check
+        run: |
+          CURRENT_TAG="${{ needs.release.outputs.tag }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
+
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
+            echo "No previous tag found, building binaries"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Comparing $PREVIOUS_TAG to $CURRENT_TAG"
+
+          # Check if the CLI or its runtime dependencies changed
+          CHANGED_FILES=$(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" | grep -E '^(packages/cli/|packages/common/|packages/warehouses/|package.json|pnpm-lock.yaml|pnpm-workspace.yaml)' || true)
+
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "CLI files changed:"
+            echo "$CHANGED_FILES"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "No CLI files changed, skipping build"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+  cli-binaries:
+    needs: [release, check-cli-changes]
+    if: needs.check-cli-changes.outputs.should_build == 'true'
+    uses: ./.github/workflows/_cli-binaries.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets: inherit
+
+  publish-release:
+    name: Publish Release
+    needs: [release, docker, cli-binaries, check-cli-changes]
+    if: |
+      always() &&
+      needs.docker.result == 'success' &&
+      (needs.cli-binaries.result == 'success' || needs.cli-binaries.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        # Uses CI_GITHUB_TOKEN (PAT) so that publishing fires the
+        # release:published event for downstream integrations.
+        # GITHUB_TOKEN would not trigger other workflows.
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ needs.release.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --draft=false
+
+  homebrew:
+    needs: [release, publish-release, check-cli-changes]
+    if: |
+      needs.check-cli-changes.outputs.should_build == 'true' &&
+      needs.publish-release.result == 'success'
+    uses: ./.github/workflows/_homebrew.yml
+    with:
+      tag: ${{ needs.release.outputs.tag }}
+    secrets: inherit

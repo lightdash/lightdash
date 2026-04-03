@@ -1,0 +1,145 @@
+name: CLI Binary Build
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-binaries:
+    name: Build macOS CLI Binaries
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v5
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: ${{ runner.os }}-node-modules-cli-binaries-v2-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        # Force reinstall so pnpm includes optional DuckDB native bindings
+        # needed to build both macOS pkg targets from a single runner.
+        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force
+
+      - name: Cache common build
+        id: cache-common
+        uses: actions/cache@v5
+        with:
+          path: packages/common/dist
+          key: ${{ runner.os }}-common-build-${{ hashFiles('packages/common/src/**', 'packages/common/tsconfig*.json') }}
+
+      - name: Build common package
+        if: steps.cache-common.outputs.cache-hit != 'true'
+        run: pnpm common-build
+
+      - name: Cache warehouses build
+        id: cache-warehouses
+        uses: actions/cache@v5
+        with:
+          path: packages/warehouses/dist
+          key: ${{ runner.os }}-warehouses-build-${{ hashFiles('packages/warehouses/src/**', 'packages/warehouses/tsconfig*.json', 'packages/common/src/**') }}
+
+      - name: Build warehouses package
+        if: steps.cache-warehouses.outputs.cache-hit != 'true'
+        run: pnpm warehouses-build
+
+      - name: Build CLI package
+        working-directory: packages/cli
+        run: pnpm build
+
+      - name: Import Code Signing Certificate
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Create a temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          CERTIFICATE_PATH=$RUNNER_TEMP/certificate.p12
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          # Set key partition list
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Add to search list
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+
+          # Clean up certificate file
+          rm -f "$CERTIFICATE_PATH"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
+      - name: Store Notarization Credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          xcrun notarytool store-credentials "notary-profile" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD"
+
+      - name: Build, Sign and Notarize macOS Binaries
+        working-directory: packages/cli
+        env:
+          DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          NOTARY_KEYCHAIN_PROFILE: "notary-profile"
+        run: |
+          ./scripts/build-binaries.sh --sign --archive --mac-only
+
+      - name: Upload Binaries to Release
+        working-directory: packages/cli
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag }}"
+
+          echo "Uploading binaries to release $TAG..."
+
+          # Upload archives and checksums
+          gh release upload "$TAG" \
+            lightdash-cli-*.tar.gz \
+            checksums-macos-sha256.txt \
+            --clobber
+
+      - name: Clean up keychain
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
