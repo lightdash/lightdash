@@ -16,6 +16,7 @@ import {
     Activity,
     memo,
     useCallback,
+    useEffect,
     useMemo,
     useRef,
     useState,
@@ -375,15 +376,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     // Track how many times each tab has been activated so we can reset
     // the stagger cascade on re-entry (keepTabsInMemory mode).
+    // Mutation is in useEffect (not render) to avoid concurrent mode issues
+    // where abandoned/retried renders would increment the counter multiple times.
     const tabActivationCountRef = useRef(new Map<string, number>());
-    const prevActiveTabRef = useRef<string | undefined>(undefined);
-    if (activeTab && activeTab.uuid !== prevActiveTabRef.current) {
-        prevActiveTabRef.current = activeTab.uuid;
-        const prev = tabActivationCountRef.current.get(activeTab.uuid) ?? 0;
-        tabActivationCountRef.current.set(activeTab.uuid, prev + 1);
-    }
-    const activeTabWaveCount =
-        tabActivationCountRef.current.get(activeTab?.uuid ?? '') ?? 0;
+    const [activeTabWaveCount, setActiveTabWaveCount] = useState(0);
+    useEffect(() => {
+        if (activeTab) {
+            const prev = tabActivationCountRef.current.get(activeTab.uuid) ?? 0;
+            const next = prev + 1;
+            tabActivationCountRef.current.set(activeTab.uuid, next);
+            setActiveTabWaveCount(next);
+        }
+    }, [activeTab?.uuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Group tiles by their tab UUID for per-tab grid rendering.
     // Only used when tabs are enabled. Tiles with stale/missing tab
