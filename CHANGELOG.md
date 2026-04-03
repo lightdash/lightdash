@@ -1,3 +1,10 @@
+## [0.2721.1](https://github.com/lightdash/lightdash/compare/0.2721.0...0.2721.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* preserve custom dateZoom URL param until charts finish loading ([#21721](https://github.com/lightdash/lightdash/issues/21721)) ([069b256](https://github.com/lightdash/lightdash/commit/069b256a3c530e30bbbd12debae64d63599d95dc))
+
 # [0.2721.0](https://github.com/lightdash/lightdash/compare/0.2720.5...0.2721.0) (2026-04-03)
 
 
