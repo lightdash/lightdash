@@ -1,3 +1,10 @@
+## [0.2724.1](https://github.com/lightdash/lightdash/compare/0.2724.0...0.2724.1) (2026-04-03)
+
+
+### Bug Fixes
+
+* update tsconfig for reseed-encrypted-credentials script ([#21737](https://github.com/lightdash/lightdash/issues/21737)) ([326c835](https://github.com/lightdash/lightdash/commit/326c8359434beede778f3408390e8bddf07de147))
+
 # [0.2724.0](https://github.com/lightdash/lightdash/compare/0.2723.1...0.2724.0) (2026-04-03)
 
 
