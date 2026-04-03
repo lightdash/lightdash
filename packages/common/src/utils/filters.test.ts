@@ -15,6 +15,7 @@ import {
     addFilterRule,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    getDashboardFilterRulesForTileAndTables,
     isFilterRuleInQuery,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
@@ -1026,6 +1027,155 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
         );
 
         // Verify filter-3 is not included (isSqlColumn is true but fieldId doesn't match)
+        expect(result).toHaveLength(0);
+    });
+});
+
+describe('getDashboardFilterRulesForTileAndTables', () => {
+    const tileUuid = 'tile-1';
+
+    const makeFilter = (
+        id: string,
+        tableName: string,
+        fieldId: string,
+        tileTargets?: DashboardFilterRule['tileTargets'],
+    ): DashboardFilterRule => ({
+        id,
+        label: undefined,
+        target: { fieldId, tableName },
+        operator: FilterOperator.EQUALS,
+        values: ['test'],
+        tileTargets,
+    });
+
+    test('auto-applied filter passes when table exists in explore', () => {
+        const rules = [makeFilter('f1', 'orders', 'orders_date')];
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['orders', 'customers'],
+            rules,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].target.fieldId).toBe('orders_date');
+    });
+
+    test('auto-applied filter is dropped when table does not exist in explore', () => {
+        const rules = [makeFilter('f1', 'orders', 'orders_date')];
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['payments', 'customers'],
+            rules,
+        );
+        expect(result).toHaveLength(0);
+    });
+
+    test('explicitly mapped filter is kept even when source table is not in explore (cross-explore)', () => {
+        const rules = [
+            makeFilter('f1', 'orders', 'orders_date', {
+                [tileUuid]: {
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            }),
+        ];
+        // The target explore does NOT have the 'orders' table,
+        // but the filter is explicitly mapped to this tile.
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['payments', 'customers'],
+            rules,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].target.fieldId).toBe('orders_date');
+    });
+
+    test('explicitly mapped filter with remapped field is kept for cross-explore', () => {
+        const rules = [
+            makeFilter('f1', 'orders', 'orders_customer_id', {
+                [tileUuid]: {
+                    fieldId: 'payments_customer_id',
+                    tableName: 'payments',
+                },
+            }),
+        ];
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['payments'],
+            rules,
+        );
+        expect(result).toHaveLength(1);
+        // Target should be remapped to the tile-specific field
+        expect(result[0].target.fieldId).toBe('payments_customer_id');
+        expect(result[0].target.tableName).toBe('payments');
+    });
+
+    test('explicitly excluded tile (tileTargets = false) drops the filter', () => {
+        const rules = [
+            makeFilter('f1', 'orders', 'orders_date', {
+                [tileUuid]: false,
+            }),
+        ];
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['orders'],
+            rules,
+        );
+        expect(result).toHaveLength(0);
+    });
+
+    test('disabled filter is always dropped', () => {
+        const rules: DashboardFilterRule[] = [
+            {
+                ...makeFilter('f1', 'orders', 'orders_date', {
+                    [tileUuid]: {
+                        fieldId: 'orders_date',
+                        tableName: 'orders',
+                    },
+                }),
+                disabled: true,
+            },
+        ];
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['orders'],
+            rules,
+        );
+        expect(result).toHaveLength(0);
+    });
+
+    test('filter for different tile auto-applies with table check', () => {
+        const rules = [
+            makeFilter('f1', 'orders', 'orders_date', {
+                'other-tile': {
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            }),
+        ];
+        // This tile is NOT in tileTargets, so auto-apply with table check
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['orders'],
+            rules,
+        );
+        expect(result).toHaveLength(1);
+    });
+
+    test('filter for different tile auto-apply fails when table not in explore', () => {
+        const rules = [
+            makeFilter('f1', 'orders', 'orders_date', {
+                'other-tile': {
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            }),
+        ];
+        // This tile is NOT in tileTargets, auto-apply, table check fails
+        const result = getDashboardFilterRulesForTileAndTables(
+            tileUuid,
+            ['payments'],
+            rules,
+        );
         expect(result).toHaveLength(0);
     });
 });

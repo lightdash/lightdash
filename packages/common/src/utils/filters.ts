@@ -28,6 +28,7 @@ import {
     FilterOperator,
     FilterType,
     isAndFilterGroup,
+    isDashboardFieldTarget,
     isFilterGroup,
     isFilterRule,
     isJoinModelRequiredFilter,
@@ -815,11 +816,25 @@ export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
     tables: string[],
     rules: DashboardFilterRule[],
-): DashboardFilterRule[] =>
-    getDashboardFilterRulesForTables(
-        tables,
-        getDashboardFilterRulesForTile(tileUuid, rules),
-    );
+): DashboardFilterRule[] => {
+    const tileFilteredRules = getDashboardFilterRulesForTile(tileUuid, rules);
+
+    return tileFilteredRules.filter((rule) => {
+        // If this filter was explicitly mapped to this tile via tileTargets,
+        // trust that mapping and skip the table name check. This supports
+        // cross-explore scenarios where the filter's source table may not
+        // exist in the target tile's explore, but the user has intentionally
+        // configured the mapping.
+        const tileConfig = rule.tileTargets?.[tileUuid];
+        if (isDashboardFieldTarget(tileConfig)) {
+            return true;
+        }
+
+        // For auto-applied filters (no explicit tileTargets mapping),
+        // verify the filter's table exists in the tile's explore.
+        return tables.includes(rule.target.tableName);
+    });
+};
 
 export const getDashboardFiltersForTileAndTables = (
     tileUuid: string,
