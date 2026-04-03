@@ -315,10 +315,26 @@ const FilterConfiguration: FC<Props> = ({
                     if (!draftState || !selectedField) return;
                     targetTileUuids.forEach((tileUuid) => {
                         if (!draftState.tileTargets) return;
-                        draftState.tileTargets[tileUuid] = {
-                            fieldId: getItemId(selectedField),
-                            tableName: selectedField.table,
-                        };
+                        // Find the best matching field in the target tile's
+                        // available filters. This correctly maps cross-explore
+                        // tiles to their own field (e.g. table_b.some_id)
+                        // rather than using the source field (table_a.some_id).
+                        const tileField = getDefaultField(
+                            availableTileFilters[tileUuid] ?? [],
+                            selectedField,
+                        );
+                        if (tileField) {
+                            draftState.tileTargets[tileUuid] = {
+                                fieldId: getItemId(tileField),
+                                tableName: tileField.table,
+                            };
+                        } else {
+                            // Fallback to source field if no match found
+                            draftState.tileTargets[tileUuid] = {
+                                fieldId: getItemId(selectedField),
+                                tableName: selectedField.table,
+                            };
+                        }
                     });
                     return draftState;
                 });
