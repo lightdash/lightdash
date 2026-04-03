@@ -266,7 +266,7 @@ const VisualizationProvider: FC<
      * Gets a shared color for a given series.
      */
     const getSeriesColor = useCallback(
-        (seriesLike: SeriesLike) => {
+        (seriesLike: SeriesLike, index?: number) => {
             if (seriesLike.color) return seriesLike.color;
 
             // Check if color is stored in metadata
@@ -305,18 +305,27 @@ const VisualizationProvider: FC<
             /**
              * If this series is grouped, figure out a shared color assignment from the series;
              * otherwise, pick a series color from the palette based on its order.
+             * If the fallback lookup fails (e.g. pivot-expanded series not in fallbackColors),
+             * fall back to index-based palette assignment to avoid all series sharing one color.
              */
-            return isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled
-                ? calculateSeriesColorAssignment(seriesLike)
-                : fallbackColors[
-                      // Note: we don't use getSeriesId since we may not be dealing with a Series type here
-                      calculateSeriesLikeIdentifier(seriesLike).join('|')
-                  ];
+            if (isGroupedSeries(seriesLike) && isCalculateSeriesColorEnabled) {
+                return calculateSeriesColorAssignment(seriesLike);
+            }
+            const paletteColor =
+                fallbackColors[
+                    // Note: we don't use getSeriesId since we may not be dealing with a Series type here
+                    calculateSeriesLikeIdentifier(seriesLike).join('|')
+                ];
+            if (paletteColor !== undefined) return paletteColor;
+
+            // Fallback for pivot-expanded series whose identifiers are not in fallbackColors
+            return colorPalette[(index ?? 0) % colorPalette.length];
         },
 
         [
             calculateSeriesColorAssignment,
             fallbackColors,
+            colorPalette,
             chartConfig,
             itemsMap,
             isCalculateSeriesColorEnabled,
