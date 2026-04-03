@@ -1,5 +1,5 @@
 import { SCREENSHOT_READY_INDICATOR_ID, SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 const apiUrl = '/api/v1';
 
@@ -9,6 +9,7 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
         const body = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const savedChart = body.results.find(
             (s: any) =>
                 s.name === 'How much revenue do we have per payment method?',
@@ -28,10 +29,10 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
         const body = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const savedChart = body.results.find(
             (s: any) =>
-                s.name ===
-                'Which customers have not recently ordered an item?',
+                s.name === 'Which customers have not recently ordered an item?',
         );
 
         await page.goto(
@@ -50,6 +51,7 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
         const body = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const savedChart = body.results.find(
             (s: any) => s.name === `What's our total revenue to date?`,
         );
@@ -69,6 +71,7 @@ test.describe('Minimal pages', () => {
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
         );
         const body = await response.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const dashboard = body.results.find(
             (s: any) => s.name === `Jaffle dashboard`,
         );
@@ -108,8 +111,7 @@ test.describe('Minimal pages', () => {
     }) => {
         // Uses hardcoded dashboard from seed: 08_scheduled_delivery_edge_cases_dashboard.ts
         // Contains: 1 bar chart, 1 orphan tile, 1 empty results table, 1 table with invalid metric
-        const edgeCasesDashboardUuid =
-            '4f34f5a2-93df-4e5b-a6f1-b6167b19a8ba';
+        const edgeCasesDashboardUuid = '4f34f5a2-93df-4e5b-a6f1-b6167b19a8ba';
 
         await page.goto(
             `/minimal/projects/${SEED_PROJECT.project_uuid}/dashboards/${edgeCasesDashboardUuid}`,

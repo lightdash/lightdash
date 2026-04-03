@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-syntax */
 import { SEED_PROJECT, SPACE_TREE_1, SPACE_TREE_2 } from '@lightdash/common';
 import type { Page } from '@playwright/test';
-import { test, expect } from '../../fixtures';
-import { scrollTreeToItem, loginWithPermissions } from '../../helpers';
+import { expect, test } from '../../fixtures';
+import { loginWithPermissions, scrollTreeToItem } from '../../helpers';
 
 const apiUrl = '/api/v1';
 
@@ -71,9 +71,7 @@ test.describe('Space', () => {
             .getByRole('button', { name: 'Save' })
             .click();
 
-        await expect(
-            page.getByText('Success! Chart was saved.'),
-        ).toBeVisible();
+        await expect(page.getByText('Success! Chart was saved.')).toBeVisible();
 
         // Go back to space using breadcrumbs
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
@@ -114,6 +112,7 @@ test.describe('Space', () => {
         );
         expect(spacesResponse.status()).toBe(200);
         const spacesBody = await spacesResponse.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const privateSpace = spacesBody.results.find(
             (space: any) =>
                 space.name.toLowerCase().startsWith('private space') &&
@@ -150,9 +149,7 @@ test.describe('Space', () => {
         });
         expect(loginResp.status()).toBe(200);
 
-        await editorPage.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/home`,
-        );
+        await editorPage.goto(`/projects/${SEED_PROJECT.project_uuid}/home`);
         // Select role
         await editorPage.getByPlaceholder('Select your role').click();
         await editorPage.getByText('Product').click();
@@ -160,42 +157,32 @@ test.describe('Space', () => {
 
         // Don't show private spaces in navbar
         await editorPage.getByText('Browse').click();
-        await expect(
-            editorPage.getByText('Private space'),
-        ).toHaveCount(0);
+        await expect(editorPage.getByText('Private space')).toHaveCount(0);
 
         // Don't show private spaces in spaces page
         await editorPage.getByText('All Spaces').click();
         await expect(
             editorPage.getByText(JAFFLE_SHOP_SPACE_NAME),
         ).toBeVisible();
-        await expect(
-            editorPage.getByText('Private space'),
-        ).toHaveCount(0);
+        await expect(editorPage.getByText('Private space')).toHaveCount(0);
 
         // Navigate to private space and make sure we get a forbidden error
         await editorPage.goto(
             `/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpace.uuid}`,
         );
-        await expect(
-            editorPage.getByText('You need access'),
-        ).toBeVisible();
+        await expect(editorPage.getByText('You need access')).toBeVisible();
 
         // Navigate to private chart and make sure we get a forbidden error
         await editorPage.goto(
             `/projects/${SEED_PROJECT.project_uuid}/saved/${privateChart.uuid}`,
         );
-        await expect(
-            editorPage.getByText('You need access'),
-        ).toBeVisible();
+        await expect(editorPage.getByText('You need access')).toBeVisible();
 
         // Navigate to private dashboard and make sure we get a forbidden error
         await editorPage.goto(
             `/projects/${SEED_PROJECT.project_uuid}/dashboards/${privateDashboard.uuid}`,
         );
-        await expect(
-            editorPage.getByText('You need access'),
-        ).toBeVisible();
+        await expect(editorPage.getByText('You need access')).toBeVisible();
 
         await context.close();
     });
@@ -211,6 +198,7 @@ test.describe('Admin access to spaces', () => {
             JAFFLE_SHOP_SPACE_NAME,
             ...TREE_1_ROOT_SPACE_NAMES,
         ]) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
     });
@@ -227,6 +215,7 @@ test.describe('Admin access to spaces', () => {
             ...TREE_1_ROOT_SPACE_NAMES,
             ...TREE_2_ROOT_SPACE_NAMES,
         ]) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
     });
@@ -254,6 +243,7 @@ test.describe('Admin access to spaces', () => {
 
         await page.getByTestId('DashboardCreateModal/Next').click();
         for (const spaceName of TREE_1_ROOT_SPACE_NAMES) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
 
@@ -263,6 +253,7 @@ test.describe('Admin access to spaces', () => {
             ...TREE_1_ROOT_SPACE_NAMES,
             ...TREE_2_ROOT_SPACE_NAMES,
         ]) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
 
@@ -285,6 +276,7 @@ test.describe('Editor access to spaces', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
         for (const spaceName of EDITOR_ROOT_SPACE_NAMES) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
 
@@ -312,6 +304,7 @@ test.describe('Editor access to spaces', () => {
 
         await page.getByTestId('DashboardCreateModal/Next').click();
         for (const spaceName of EDITOR_ROOT_SPACE_NAMES) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
 
@@ -321,10 +314,7 @@ test.describe('Editor access to spaces', () => {
 });
 
 test.describe('Viewer access to spaces', () => {
-    const VIEWER_ROOT_SPACE_NAMES = [
-        JAFFLE_SHOP_SPACE_NAME,
-        'Parent Space 1',
-    ];
+    const VIEWER_ROOT_SPACE_NAMES = [JAFFLE_SHOP_SPACE_NAME, 'Parent Space 1'];
 
     test('can see all public spaces and private spaces w/ access', async ({
         viewerPage: page,
@@ -332,6 +322,7 @@ test.describe('Viewer access to spaces', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
         for (const spaceName of VIEWER_ROOT_SPACE_NAMES) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(page.getByText(spaceName)).toBeVisible();
         }
 
@@ -364,9 +355,7 @@ test.describe('Editor can create content', () => {
         await page.getByRole('button', { name: 'Create' }).click();
         await expect(page.getByText(spaceName)).toBeVisible();
 
-        await page
-            .getByTestId(`ResourceViewActionMenu/${spaceName}`)
-            .click();
+        await page.getByTestId(`ResourceViewActionMenu/${spaceName}`).click();
         await page.getByText('Delete space').click();
         await page.getByPlaceholder('Space name').fill(spaceName);
         await page.getByRole('button', { name: 'Delete' }).click();
@@ -374,9 +363,7 @@ test.describe('Editor can create content', () => {
         await expect(page.getByText(spaceName)).toHaveCount(0);
     });
 
-    test('can create/delete a new dashboard', async ({
-        editorPage: page,
-    }) => {
+    test('can create/delete a new dashboard', async ({ editorPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
         await page.getByText('Parent Space 1').click();
         await page.getByText('Child Space 1.1').click();
@@ -385,9 +372,7 @@ test.describe('Editor can create content', () => {
 
         await page.getByTestId('Space/AddButton').click();
         await page.getByText('Create new dashboard').click();
-        await page
-            .getByPlaceholder('eg. KPI Dashboard')
-            .fill(dashboardName);
+        await page.getByPlaceholder('eg. KPI Dashboard').fill(dashboardName);
         await page.getByTestId('DashboardCreateModal/Next').click();
         await page.getByRole('button', { name: 'Create' }).click();
         await page.waitForTimeout(1500);

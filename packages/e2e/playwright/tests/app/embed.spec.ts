@@ -1,9 +1,9 @@
 import {
-    type CreateEmbedJwt,
     FilterInteractivityValues,
     SEED_PROJECT,
+    type CreateEmbedJwt,
 } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 import { logout } from '../../helpers';
 
 const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
@@ -31,13 +31,10 @@ const getEmbedUrl = async (
     request: import('@playwright/test').APIRequestContext,
     body: CreateEmbedJwt,
 ) => {
-    const response = await request.post(
-        `${EMBED_API_PREFIX}/get-embed-url`,
-        {
-            headers: { 'Content-type': 'application/json' },
-            data: body,
-        },
-    );
+    const response = await request.post(`${EMBED_API_PREFIX}/get-embed-url`, {
+        headers: { 'Content-type': 'application/json' },
+        data: body,
+    });
     return response;
 };
 
@@ -59,10 +56,9 @@ test.describe('Embedded dashboard', () => {
         const dashboardUuid = dashboardsBody.results.data[0]?.uuid;
 
         // First we need to whitelist the dashboard in the embed config
-        const updateResp = await updateEmbedConfigDashboards(
-            page.request,
-            [dashboardUuid],
-        );
+        const updateResp = await updateEmbedConfigDashboards(page.request, [
+            dashboardUuid,
+        ]);
         expect(updateResp.status()).toBe(200);
 
         const resp = await getEmbedUrl(page.request, {
@@ -118,9 +114,7 @@ test.describe('Embedded dashboard', () => {
         ).toBeVisible();
 
         // Check export options
-        await page
-            .getByText(`What's the average spend per customer?`)
-            .hover();
+        await page.getByText(`What's the average spend per customer?`).hover();
         await page.getByTestId('tile-icon-more').click();
         await expect(page.getByText('Download data')).toBeVisible();
         await expect(page.getByText('Export image')).toBeVisible();
@@ -138,10 +132,9 @@ test.describe('Embedded dashboard', () => {
         const dashboardUuid = dashboardsBody.results.data[0]?.uuid;
 
         // First we need to whitelist the dashboard in the embed config
-        const updateResp = await updateEmbedConfigDashboards(
-            page.request,
-            [dashboardUuid],
-        );
+        const updateResp = await updateEmbedConfigDashboards(page.request, [
+            dashboardUuid,
+        ]);
         expect(updateResp.status()).toBe(200);
 
         const resp = await getEmbedUrl(page.request, {
@@ -220,10 +213,9 @@ test.describe('Embedded dashboard', () => {
         const dashboardsBody = await dashboardsResp.json();
         const dashboardUuid = dashboardsBody.results.data[0]?.uuid;
 
-        const updateResp = await updateEmbedConfigDashboards(
-            page.request,
-            [dashboardUuid],
-        );
+        const updateResp = await updateEmbedConfigDashboards(page.request, [
+            dashboardUuid,
+        ]);
         expect(updateResp.status()).toBe(200);
 
         const resp = await getEmbedUrl(page.request, {
@@ -251,7 +243,9 @@ test.describe('Embedded dashboard', () => {
         const dialog = page.getByRole('dialog');
         await dialog.locator('input[value="True"]').click();
         await dialog.getByText('False').click();
-        await dialog.getByRole('button', { name: 'Apply' }).click({ force: true });
+        await dialog
+            .getByRole('button', { name: 'Apply' })
+            .click({ force: true });
 
         // Verify URL contains filters param
         await expect(page).toHaveURL(/\?filters=/);
@@ -272,10 +266,9 @@ test.describe('Embedded dashboard', () => {
         const dashboardsBody = await dashboardsResp.json();
         const dashboardUuid = dashboardsBody.results.data[0]?.uuid;
 
-        const updateResp = await updateEmbedConfigDashboards(
-            page.request,
-            [dashboardUuid],
-        );
+        const updateResp = await updateEmbedConfigDashboards(page.request, [
+            dashboardUuid,
+        ]);
         expect(updateResp.status()).toBe(200);
 
         const resp = await getEmbedUrl(page.request, {
@@ -309,10 +302,7 @@ test.describe('Embedded dashboard', () => {
         };
 
         const embedUrl = new URL(respBody.results.url);
-        embedUrl.searchParams.set(
-            'filters',
-            JSON.stringify(filterOverride),
-        );
+        embedUrl.searchParams.set('filters', JSON.stringify(filterOverride));
 
         // Visit embed URL with filter override
         await page.goto(embedUrl.toString());
@@ -338,10 +328,9 @@ test.describe('Embedded dashboard', () => {
         const dashboardsBody = await dashboardsResp.json();
         const dashboardUuid = dashboardsBody.results.data[0]?.uuid;
 
-        const updateResp = await updateEmbedConfigDashboards(
-            page.request,
-            [dashboardUuid],
-        );
+        const updateResp = await updateEmbedConfigDashboards(page.request, [
+            dashboardUuid,
+        ]);
         expect(updateResp.status()).toBe(200);
 
         const resp = await getEmbedUrl(page.request, {

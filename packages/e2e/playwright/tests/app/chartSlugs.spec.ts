@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 test.describe.skip('Chart Slugs', () => {
     // TODO: remove
@@ -13,8 +13,7 @@ test.describe.skip('Chart Slugs', () => {
         await page
             .locator('a')
             .filter({
-                hasText:
-                    'How much revenue do we have per payment method?',
+                hasText: 'How much revenue do we have per payment method?',
             })
             .click();
 
@@ -26,15 +25,11 @@ test.describe.skip('Chart Slugs', () => {
 
         // Now navigate to the chart using slug
         const slug = 'how-much-revenue-do-we-have-per-payment-method';
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`);
 
         // Verify the chart loads correctly
         await expect(
-            page.getByText(
-                'How much revenue do we have per payment method?',
-            ),
+            page.getByText('How much revenue do we have per payment method?'),
         ).toBeVisible();
 
         await expect(page.getByText('Loading chart')).toHaveCount(0);
@@ -51,9 +46,7 @@ test.describe.skip('Chart Slugs', () => {
         adminPage: page,
     }) => {
         const slug = 'how-much-revenue-do-we-have-per-payment-method';
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`);
 
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 
@@ -96,9 +89,7 @@ test.describe.skip('Chart Slugs', () => {
         );
 
         // Should show an error message (either "Chart not found" or similar)
-        await expect(
-            page.getByText(/not found|does not exist/i),
-        ).toBeVisible();
+        await expect(page.getByText(/not found|does not exist/i)).toBeVisible();
     });
 
     // todo: remove
@@ -106,9 +97,7 @@ test.describe.skip('Chart Slugs', () => {
         adminPage: page,
     }) => {
         const slug = 'how-much-revenue-do-we-have-per-payment-method';
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`);
 
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 

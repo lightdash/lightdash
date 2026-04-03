@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import type { Page } from '@playwright/test';
 
 /**

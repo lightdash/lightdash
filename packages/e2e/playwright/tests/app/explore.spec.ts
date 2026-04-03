@@ -1,5 +1,5 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 import { scrollTreeToItem } from '../../helpers';
 
 test.describe('Explore', () => {
@@ -38,9 +38,10 @@ test.describe('Explore', () => {
         await expect(page.getByText('Loading results')).toHaveCount(0);
 
         // check that first row in first column is 'Aaron'
-        await expect(
-            page.locator('table').locator('td').nth(1),
-        ).toContainText('Aaron', { timeout: 10000 });
+        await expect(page.locator('table').locator('td').nth(1)).toContainText(
+            'Aaron',
+            { timeout: 10000 },
+        );
     });
 
     // todo: combine tests
@@ -64,9 +65,7 @@ test.describe('Explore', () => {
         await page.getByTestId('ChartCreateModal/NameInput').fill('My chart');
         await page.getByText('Next').click();
         await page.getByText('Save').click();
-        await expect(
-            page.getByText('Success! Chart was saved.'),
-        ).toBeVisible();
+        await expect(page.getByText('Success! Chart was saved.')).toBeVisible();
 
         // FIXME disabling save changes button is currently broken...
         // await expect(page.getByText('Save changes').locator('..')).toBeDisabled();
@@ -76,14 +75,18 @@ test.describe('Explore', () => {
 
         await page.getByText('Edit chart').locator('..').click();
         await page.waitForTimeout(500); // Wait for edit mode to fully load
-        await expect(page.getByText('Configure', { exact: false })).toBeVisible({
-            timeout: 10000,
-        });
+        await expect(page.getByText('Configure', { exact: false })).toBeVisible(
+            {
+                timeout: 10000,
+            },
+        );
         await page.getByText('Configure').click();
         await page.waitForTimeout(300); // Wait for configure panel to open
-        await expect(page.getByText('Bar chart', { exact: false })).toBeVisible({
-            timeout: 10000,
-        });
+        await expect(page.getByText('Bar chart', { exact: false })).toBeVisible(
+            {
+                timeout: 10000,
+            },
+        );
         await page.getByText('Bar chart').click(); // Change chart type
         await page.getByText('Horizontal bar chart').click();
 
@@ -97,9 +100,7 @@ test.describe('Explore', () => {
 
     // todo: combine tests
     test('Should change chart config type', async ({ adminPage: page }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/tables/orders`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
@@ -116,9 +117,7 @@ test.describe('Explore', () => {
             page.locator('th').filter({ hasText: 'Order Customer First name' }),
         ).toBeVisible();
         await expect(
-            page
-                .locator('th')
-                .filter({ hasText: 'Orders Unique order count' }),
+            page.locator('th').filter({ hasText: 'Orders Unique order count' }),
         ).toBeVisible();
 
         // run query
@@ -174,9 +173,7 @@ test.describe('Explore', () => {
     test.skip('Keeps chart config after updating table calculation', async ({
         adminPage: page,
     }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/tables/orders`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
@@ -209,7 +206,9 @@ test.describe('Explore', () => {
         await page.waitForTimeout(100);
         await page.locator('div.ace_content').click();
         // eslint-disable-next-line no-template-curly-in-string
-        await page.locator('div.ace_content').type('${orders.unique_order_count}');
+        await page
+            .locator('div.ace_content')
+            .type('${orders.unique_order_count}');
         await page.getByTestId('table-calculation-save-button').first().click();
 
         // run query
@@ -266,9 +265,7 @@ test.describe('Explore', () => {
     test.skip('Should change chart config layout', async ({
         adminPage: page,
     }) => {
-        await page.goto(
-            `/projects/${SEED_PROJECT.project_uuid}/tables/orders`,
-        );
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
         await scrollTreeToItem(page, 'Order Customer');
@@ -281,9 +278,9 @@ test.describe('Explore', () => {
         // run query
         await page.getByRole('button', { name: 'Run query' }).click();
 
-        expect(
-            await page.locator('g').locator('text').count(),
-        ).toBeLessThan(30); // without labels
+        expect(await page.locator('g').locator('text').count()).toBeLessThan(
+            30,
+        ); // without labels
 
         await page.getByText('Configure').click();
         await page.getByText('Series').click();
@@ -294,19 +291,15 @@ test.describe('Explore', () => {
             .click();
         await page.locator('.mantine-Select-item').getByText('Top').click();
 
-        expect(
-            await page.locator('g').locator('text').count(),
-        ).toBeGreaterThan(30); // with labels
+        expect(await page.locator('g').locator('text').count()).toBeGreaterThan(
+            30,
+        ); // with labels
     });
 
     // todo: move to unit test
     test.describe.skip('Sort', () => {
-        test('should sort multisort results', async ({
-            adminPage: page,
-        }) => {
-            await page.goto(
-                `/projects/${SEED_PROJECT.project_uuid}/tables`,
-            );
+        test('should sort multisort results', async ({ adminPage: page }) => {
+            await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
             await page.getByText('Orders').click();
             await expect(page.getByText('Dimensions')).toBeVisible();
@@ -318,14 +311,10 @@ test.describe('Explore', () => {
             await page.getByText('Unique order count').click();
 
             // run query
-            await page
-                .getByRole('button', { name: 'Run query' })
-                .click();
+            await page.getByRole('button', { name: 'Run query' }).click();
 
             // wait for query to finish
-            await expect(
-                page.getByText('Loading results'),
-            ).toHaveCount(0);
+            await expect(page.getByText('Loading results')).toHaveCount(0);
 
             // open column menu
             await page
@@ -334,9 +323,7 @@ test.describe('Explore', () => {
                 .locator('button')
                 .click();
             // sort `Orders Unique order count` by ascending
-            await page
-                .getByRole('menuitem', { name: 'Sort 1-9' })
-                .click();
+            await page.getByRole('menuitem', { name: 'Sort 1-9' }).click();
 
             await expect(
                 page
@@ -352,9 +339,7 @@ test.describe('Explore', () => {
                 .locator('button')
                 .click();
             // sort `Order Customer First name` by ascending
-            await page
-                .getByRole('menuitem', { name: 'Sort Z-A' })
-                .click();
+            await page.getByRole('menuitem', { name: 'Sort Z-A' }).click();
 
             await expect(
                 page
@@ -365,9 +350,7 @@ test.describe('Explore', () => {
             ).toBeVisible();
 
             // wait for query to finish
-            await expect(
-                page.getByText('Loading results'),
-            ).toHaveCount(0);
+            await expect(page.getByText('Loading results')).toHaveCount(0);
 
             // Add multi sort via popover
             await page
@@ -375,9 +358,7 @@ test.describe('Explore', () => {
                 .filter({ hasText: 'Sorted by' })
                 .locator('..')
                 .click();
-            await page
-                .getByRole('button', { name: 'Add sort' })
-                .click();
+            await page.getByRole('button', { name: 'Add sort' }).click();
             await page.getByPlaceholder('Add sort field').click();
 
             // click on Unique order count to add it to the sort
@@ -396,9 +377,7 @@ test.describe('Explore', () => {
             ).toBeVisible();
 
             // wait for query to finish
-            await expect(
-                page.getByText('Loading results'),
-            ).toHaveCount(0);
+            await expect(page.getByText('Loading results')).toHaveCount(0);
         });
     });
 
@@ -427,20 +406,16 @@ test.describe('Explore', () => {
                         .click();
 
                     // wait for the chart to finish loading
-                    await expect(
-                        page.getByText('Loading chart'),
-                    ).toHaveCount(0);
+                    await expect(page.getByText('Loading chart')).toHaveCount(
+                        0,
+                    );
 
                     // open chart menu and change chart type to Table
                     await page
                         .getByRole('button', { name: 'Configure' })
                         .click();
-                    await page
-                        .getByTestId('VisualizationCardOptions')
-                        .click();
-                    await page
-                        .getByRole('menuitem', { name: 'Table' })
-                        .click();
+                    await page.getByTestId('VisualizationCardOptions').click();
+                    await page.getByRole('menuitem', { name: 'Table' }).click();
 
                     // check that chart table headers are correct (table names hidden by default)
                     await expect(
@@ -450,12 +425,9 @@ test.describe('Explore', () => {
                             .filter({ hasText: 'First name' }),
                     ).toBeVisible();
                     await expect(
-                        page
-                            .getByTestId('visualization')
-                            .locator('th')
-                            .filter({
-                                hasText: 'Order Customer First name',
-                            }),
+                        page.getByTestId('visualization').locator('th').filter({
+                            hasText: 'Order Customer First name',
+                        }),
                     ).toHaveCount(0);
 
                     await page
@@ -464,12 +436,9 @@ test.describe('Explore', () => {
 
                     // check that chart table headers show table names after toggle
                     await expect(
-                        page
-                            .getByTestId('visualization')
-                            .locator('th')
-                            .filter({
-                                hasText: 'Order Customer First name',
-                            }),
+                        page.getByTestId('visualization').locator('th').filter({
+                            hasText: 'Order Customer First name',
+                        }),
                     ).toBeVisible();
                 });
 
@@ -494,20 +463,16 @@ test.describe('Explore', () => {
                         .click();
 
                     // wait for the chart to finish loading
-                    await expect(
-                        page.getByText('Loading chart'),
-                    ).toHaveCount(0);
+                    await expect(page.getByText('Loading chart')).toHaveCount(
+                        0,
+                    );
 
                     // open chart menu and change chart type to Table
                     await page
                         .getByRole('button', { name: 'Configure' })
                         .click();
-                    await page
-                        .getByTestId('VisualizationCardOptions')
-                        .click();
-                    await page
-                        .getByRole('menuitem', { name: 'Table' })
-                        .click();
+                    await page.getByTestId('VisualizationCardOptions').click();
+                    await page.getByRole('menuitem', { name: 'Table' }).click();
 
                     // check that chart table headers are correct (table names hidden by default)
                     await expect(
@@ -519,15 +484,11 @@ test.describe('Explore', () => {
                     ).toBeVisible();
 
                     // open configuration and add custom header
-                    await page
-                        .getByPlaceholder('First name')
-                        .focus();
+                    await page.getByPlaceholder('First name').focus();
                     await page
                         .getByPlaceholder('First name')
                         .fill('Overridden header');
-                    await page
-                        .getByPlaceholder('First name')
-                        .blur();
+                    await page.getByPlaceholder('First name').blur();
 
                     // check that chart table headers are overridden
                     await expect(
@@ -634,9 +595,7 @@ test.describe('Explore', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should add a custom dimension', async ({
-        adminPage: page,
-    }) => {
+    test.skip('Should add a custom dimension', async ({ adminPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 

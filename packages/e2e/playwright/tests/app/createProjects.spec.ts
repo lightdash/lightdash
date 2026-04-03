@@ -3,9 +3,9 @@ import {
     ResultRow,
     SEED_PROJECT,
 } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
-import { selectMantine, deleteProjectsByName } from '../../helpers';
-import type { Page, APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { expect, test } from '../../fixtures';
+import { deleteProjectsByName, selectMantine } from '../../helpers';
 
 const warehouseConfig = {
     postgresSQL: {
@@ -90,9 +90,7 @@ const configureBigqueryWarehouse = async (
     page: Page,
     config: (typeof warehouseConfig)['bigQuery'],
 ) => {
-    await page
-        .locator('input[name="warehouse.project"]')
-        .fill(config.project);
+    await page.locator('input[name="warehouse.project"]').fill(config.project);
     await page
         .locator('input[name="warehouse.location"]')
         .fill(config.location);
@@ -102,9 +100,7 @@ const configureBigqueryWarehouse = async (
     // DBT
     await selectMantine(page, 'dbt.type', 'dbt local server');
     await page.locator('input[name="dbt.target"]').fill('test');
-    await page
-        .locator('input[name="warehouse.dataset"]')
-        .fill(config.dataset);
+    await page.locator('input[name="warehouse.dataset"]').fill(config.dataset);
 };
 
 const configureTrinoWarehouse = async (
@@ -132,9 +128,7 @@ const configureTrinoWarehouse = async (
     // DBT
     await selectMantine(page, 'dbt.type', 'dbt local server');
     await page.locator('input[name="dbt.target"]').fill('test');
-    await page
-        .locator('input[name="warehouse.schema"]')
-        .fill(config.schema);
+    await page.locator('input[name="warehouse.schema"]').fill(config.schema);
 };
 
 const configureDatabricksWarehouse = async (
@@ -154,18 +148,14 @@ const configureDatabricksWarehouse = async (
     // DBT
     await selectMantine(page, 'dbt.type', 'dbt local server');
     await page.locator('input[name="dbt.target"]').fill('test');
-    await page
-        .locator('input[name="warehouse.database"]')
-        .fill(config.schema);
+    await page.locator('input[name="warehouse.database"]').fill(config.schema);
 };
 
 const configureSnowflakeWarehouse = async (
     page: Page,
     config: (typeof warehouseConfig)['snowflake'],
 ) => {
-    await page
-        .locator('input[name="warehouse.account"]')
-        .fill(config.account);
+    await page.locator('input[name="warehouse.account"]').fill(config.account);
     await page.locator('input[name="warehouse.user"]').fill(config.user);
 
     await selectMantine(page, 'warehouse.authenticationType', 'Password');
@@ -184,9 +174,7 @@ const configureSnowflakeWarehouse = async (
     // DBT
     await selectMantine(page, 'dbt.type', 'dbt local server');
     await page.locator('input[name="dbt.target"]').fill('test');
-    await page
-        .locator('input[name="warehouse.schema"]')
-        .fill(config.schema);
+    await page.locator('input[name="warehouse.schema"]').fill(config.schema);
 };
 
 const testCompile = async (page: Page): Promise<string> => {
@@ -258,9 +246,7 @@ const testFilterStringEscaping = async (
     );
     const body = await response.json();
     expect(response.status()).toBe(200);
-    expect(body.results.rows[0].customers_first_name.value.raw).toBe(
-        "Quo'te",
-    );
+    expect(body.results.rows[0].customers_first_name.value.raw).toBe("Quo'te");
 };
 
 const defaultRowValues = [
@@ -406,10 +392,7 @@ const createCustomDimensionChart = async (
                 tableName: 'payments',
                 metricQuery: {
                     exploreName: 'payments',
-                    dimensions: [
-                        'payments_payment_method',
-                        'amount_range',
-                    ],
+                    dimensions: ['payments_payment_method', 'amount_range'],
                     metrics: ['orders_total_order_amount'],
                     filters: {},
                     sorts: [
@@ -536,9 +519,7 @@ test.describe('Create projects', () => {
             .click();
     });
 
-    test('Should create a Postgres project', async ({
-        adminPage: page,
-    }) => {
+    test('Should create a Postgres project', async ({ adminPage: page }) => {
         await page.goto(`/createProject`);
 
         await page
@@ -549,13 +530,9 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page
-            .getByRole('button', { name: "I've defined them!" })
-            .click();
+        await page.getByRole('button', { name: "I've defined them!" }).click();
 
-        await page
-            .locator('[name="name"]')
-            .clear();
+        await page.locator('[name="name"]').clear();
         await page
             .locator('[name="name"]')
             .fill(warehouseConfig.postgresSQL.name);
@@ -579,16 +556,10 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page
-            .getByRole('button', { name: "I've defined them!" })
-            .click();
+        await page.getByRole('button', { name: "I've defined them!" }).click();
 
-        await page
-            .locator('[name="name"]')
-            .clear();
-        await page
-            .locator('[name="name"]')
-            .fill(warehouseConfig.redshift.name);
+        await page.locator('[name="name"]').clear();
+        await page.locator('[name="name"]').fill(warehouseConfig.redshift.name);
         await configurePostgresWarehouse(page, warehouseConfig.redshift);
 
         const projectUuid = await testCompile(page);
@@ -600,9 +571,7 @@ test.describe('Create projects', () => {
         await testCustomDimensions(page, projectUuid);
     });
 
-    test('Should create a Bigquery project', async ({
-        adminPage: page,
-    }) => {
+    test('Should create a Bigquery project', async ({ adminPage: page }) => {
         await page.goto(`/createProject`);
 
         await page
@@ -613,16 +582,10 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page
-            .getByRole('button', { name: "I've defined them!" })
-            .click();
+        await page.getByRole('button', { name: "I've defined them!" }).click();
 
-        await page
-            .locator('[name="name"]')
-            .clear();
-        await page
-            .locator('[name="name"]')
-            .fill(warehouseConfig.bigQuery.name);
+        await page.locator('[name="name"]').clear();
+        await page.locator('[name="name"]').fill(warehouseConfig.bigQuery.name);
         await configureBigqueryWarehouse(page, warehouseConfig.bigQuery);
 
         const projectUuid = await testCompile(page);
@@ -661,9 +624,7 @@ test.describe('Create projects', () => {
     });
 
     // note: we don't have a staging environment for Trino atm
-    test.skip('Should create a Trino project', async ({
-        adminPage: page,
-    }) => {
+    test.skip('Should create a Trino project', async ({ adminPage: page }) => {
         await page.goto(`/createProject`);
 
         await page
@@ -674,16 +635,10 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page
-            .getByRole('button', { name: "I've defined them!" })
-            .click();
+        await page.getByRole('button', { name: "I've defined them!" }).click();
 
-        await page
-            .locator('[name="name"]')
-            .clear();
-        await page
-            .locator('[name="name"]')
-            .fill(warehouseConfig.trino.name);
+        await page.locator('[name="name"]').clear();
+        await page.locator('[name="name"]').fill(warehouseConfig.trino.name);
         await configureTrinoWarehouse(page, warehouseConfig.trino);
 
         const projectUuid = await testCompile(page);
@@ -735,20 +690,13 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page
-            .getByRole('button', { name: "I've defined them!" })
-            .click();
+        await page.getByRole('button', { name: "I've defined them!" }).click();
 
-        await page
-            .locator('[name="name"]')
-            .clear();
+        await page.locator('[name="name"]').clear();
         await page
             .locator('[name="name"]')
             .fill(warehouseConfig.databricks.name);
-        await configureDatabricksWarehouse(
-            page,
-            warehouseConfig.databricks,
-        );
+        await configureDatabricksWarehouse(page, warehouseConfig.databricks);
 
         const projectUuid = await testCompile(page);
         await testFilterStringEscaping(page.request, projectUuid);
@@ -786,9 +734,7 @@ test.describe('Create projects', () => {
         await testCustomDimensions(page, projectUuid);
     });
 
-    test('Should create a Snowflake project', async ({
-        adminPage: page,
-    }) => {
+    test('Should create a Snowflake project', async ({ adminPage: page }) => {
         await page.goto(`/createProject`);
 
         await page
@@ -799,13 +745,9 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page
-            .getByRole('button', { name: "I've defined them!" })
-            .click();
+        await page.getByRole('button', { name: "I've defined them!" }).click();
 
-        await page
-            .locator('[name="name"]')
-            .clear();
+        await page.locator('[name="name"]').clear();
         await page
             .locator('[name="name"]')
             .fill(warehouseConfig.snowflake.name);

@@ -11,6 +11,7 @@ export async function getMonacoEditorText(page: Page): Promise<string> {
     await expect(page.locator('.monaco-editor')).toBeVisible();
 
     const sqlRunnerText = await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const win = window as any;
         if (!win.monaco) {
             throw new Error('Monaco editor not found on window');
@@ -37,47 +38,45 @@ export async function scrollTreeToItem(
     const container = page.getByTestId('virtualized-tree-scroll-container');
     await expect(container).toBeVisible({ timeout: 10000 });
 
-    const found = await container.evaluate(
-        (el, text) => {
-            const maxScroll = el.scrollHeight;
-            const viewportHeight = el.clientHeight;
-            el.scrollTop = 0;
+    const found = await container.evaluate((el, text) => {
+        const maxScroll = el.scrollHeight;
+        const viewportHeight = el.clientHeight;
+        // eslint-disable-next-line no-param-reassign
+        el.scrollTop = 0;
 
-            // Try to find the item by scrolling incrementally
-            let scrollPosition = 0;
-            while (scrollPosition < maxScroll) {
-                el.scrollTop = scrollPosition;
-                const elements = Array.from(el.querySelectorAll('*'));
-                const match = elements.find((element) => {
-                    const elementText = element.textContent?.trim() || '';
-                    const childTexts = Array.from(element.children)
-                        .map((child) => child.textContent?.trim() || '')
-                        .join('');
-                    const ownText = elementText
-                        .replace(childTexts, '')
-                        .trim();
+        // Try to find the item by scrolling incrementally
+        let scrollPosition = 0;
+        while (scrollPosition < maxScroll) {
+            // eslint-disable-next-line no-param-reassign
+            el.scrollTop = scrollPosition;
+            const elements = Array.from(el.querySelectorAll('*'));
+            const match = elements.find((element) => {
+                const elementText = element.textContent?.trim() || '';
+                const childTexts = Array.from(element.children)
+                    .map((child) => child.textContent?.trim() || '')
+                    .join('');
+                const ownText = elementText.replace(childTexts, '').trim();
 
-                    return (
-                        elementText === text ||
-                        ownText === text ||
-                        (elementText.includes(text) &&
-                            element.children.length === 0)
-                    );
-                });
+                return (
+                    elementText === text ||
+                    ownText === text ||
+                    (elementText.includes(text) &&
+                        element.children.length === 0)
+                );
+            });
 
-                if (match) {
-                    return true;
-                }
-
-                scrollPosition += viewportHeight * 0.5;
+            if (match) {
+                return true;
             }
 
-            // Final check at bottom
-            el.scrollTop = maxScroll;
-            return false;
-        },
-        itemText,
-    );
+            scrollPosition += viewportHeight * 0.5;
+        }
+
+        // Final check at bottom
+        // eslint-disable-next-line no-param-reassign
+        el.scrollTop = maxScroll;
+        return false;
+    }, itemText);
 
     if (!found) {
         // Fall back to looking for the text directly

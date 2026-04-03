@@ -1,5 +1,5 @@
 import { ChartKind, SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 test.describe('SQL Runner (new)', () => {
     let schema: string;
@@ -14,7 +14,7 @@ test.describe('SQL Runner (new)', () => {
             `/api/v1/projects/${SEED_PROJECT.project_uuid}/sqlRunner/tables`,
         );
         const body = await response.json();
-        schema = Object.keys(body.results)[0];
+        [schema] = Object.keys(body.results);
     });
 
     // todo: move to unit test
@@ -54,9 +54,7 @@ test.describe('SQL Runner (new)', () => {
         await expect(firstRow.locator('td').nth(2)).toContainText(
             '2023-03-15T00:00:00.000Z',
         );
-        await expect(firstRow.locator('td').nth(3)).toContainText(
-            'returned',
-        );
+        await expect(firstRow.locator('td').nth(3)).toContainText('returned');
 
         // Verify that the query is saved in the draft history
         await page
@@ -72,9 +70,9 @@ test.describe('SQL Runner (new)', () => {
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         await page.getByText('Run query').click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('customer_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'customer_id',
+        );
     });
 
     // todo: remove
@@ -93,9 +91,9 @@ test.describe('SQL Runner (new)', () => {
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         await page.getByText('Run query').click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('customer_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'customer_id',
+        );
 
         // Verify that the chart is ready to be configured
         await page.getByLabel('Chart').click();
@@ -113,9 +111,7 @@ test.describe('SQL Runner (new)', () => {
         ).toBeVisible();
 
         // Add a new series
-        await page
-            .locator('button[data-testid="add-y-axis-field"]')
-            .click();
+        await page.locator('button[data-testid="add-y-axis-field"]').click();
         await expect(
             page
                 .locator('.echarts-for-react')
@@ -143,15 +139,11 @@ test.describe('SQL Runner (new)', () => {
         ).toBeVisible();
 
         // Verify that the chart is not displayed when the configuration is incomplete
-        await page
-            .locator('button[data-testid="remove-x-axis-field"]')
-            .click();
+        await page.locator('button[data-testid="remove-x-axis-field"]').click();
         await expect(
             page.getByText('Incomplete chart configuration'),
         ).toBeVisible();
-        await expect(
-            page.getByText("You're missing an X axis"),
-        ).toBeVisible();
+        await expect(page.getByText("You're missing an X axis")).toBeVisible();
     });
 
     // todo: move to unit test
@@ -170,9 +162,9 @@ test.describe('SQL Runner (new)', () => {
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         await page.getByText('Run query').click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('customer_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'customer_id',
+        );
 
         // Verify that the chart is ready to be configured
         await page.getByLabel('Chart').click();
@@ -193,9 +185,9 @@ test.describe('SQL Runner (new)', () => {
         await page
             .locator(`button[data-testid="visualization-${ChartKind.TABLE}"]`)
             .click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('customer_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'customer_id',
+        );
 
         // Verify that the line chart is displayed
         await page
@@ -239,9 +231,9 @@ test.describe('SQL Runner (new)', () => {
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         await page.getByText('Run query').click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('customer_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'customer_id',
+        );
 
         // View chart
         await page.getByLabel('Chart').click();
@@ -260,9 +252,7 @@ test.describe('SQL Runner (new)', () => {
             .click();
 
         // Verify that the chart is in view mode
-        await expect(
-            page.getByText('Customers table SQL chart'),
-        ).toBeVisible();
+        await expect(page.getByText('Customers table SQL chart')).toBeVisible();
         await expect(
             page.locator(
                 `div[data-testid="chart-view-${ChartKind.VERTICAL_BAR}"]`,
@@ -283,26 +273,20 @@ test.describe('SQL Runner (new)', () => {
 
         await page.getByLabel('SQL').click();
         await expect(page.locator('.monaco-editor')).toBeVisible();
-        await page
-            .locator('.monaco-editor')
-            .click();
+        await page.locator('.monaco-editor').click();
         await page.keyboard.press('Meta+a');
         await page.keyboard.press('Backspace');
-        await page.keyboard.type(
-            `SELECT * FROM "${schema}"."jaffle"."orders"`,
-        );
+        await page.keyboard.type(`SELECT * FROM "${schema}"."jaffle"."orders"`);
         await page.waitForTimeout(1000);
         await page.getByText('Run query').click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('order_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'order_id',
+        );
 
         // Verify that there are errors to be fixed and fix them
         await page.getByLabel('Chart').click();
         await expect(
-            page.getByText(
-                'Column "created" does not exist. Choose another',
-            ),
+            page.getByText('Column "created" does not exist. Choose another'),
         ).toBeVisible();
         await page.getByText('Save').click();
         await page
@@ -364,9 +348,9 @@ test.describe('SQL Runner (new)', () => {
             `SELECT * FROM "${schema}"."jaffle"."customers"`,
         );
         await page.getByText('Run query').click();
-        await expect(
-            page.locator('table thead th').nth(0),
-        ).toContainText('customer_id');
+        await expect(page.locator('table thead th').nth(0)).toContainText(
+            'customer_id',
+        );
 
         // Verify that the chart is ready to be configured
         await page.getByLabel('Chart').click();
@@ -382,7 +366,7 @@ test.describe('SQL Runner (new)', () => {
         await page.route(
             '**/api/v1/projects/*/sqlRunner/runPivotQuery',
             (route) => {
-                pivotQueryCount++;
+                pivotQueryCount += 1;
                 return route.continue();
             },
         );

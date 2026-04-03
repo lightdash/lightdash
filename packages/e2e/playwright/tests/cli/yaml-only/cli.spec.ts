@@ -5,9 +5,9 @@
  * that define models using Lightdash YAML format instead of dbt.
  */
 
-import { test, expect } from '../../../fixtures';
-import { getApiToken } from '../../../helpers';
 import { execSync } from 'child_process';
+import { expect, test } from '../../../fixtures';
+import { getApiToken } from '../../../helpers';
 
 const cliCommand = 'lightdash';
 const projectDir = '../../examples/snowflake-template';

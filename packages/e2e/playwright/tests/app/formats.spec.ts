@@ -1,9 +1,11 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 
 test.describe.skip('Explore', () => {
     // todo: move to unit test
-    test.skip('Should query in explore with formats and rounds', async ({ adminPage: page }) => {
+    test.skip('Should query in explore with formats and rounds', async ({
+        adminPage: page,
+    }) => {
         const urlParam = {
             tableName: 'events',
             metricQuery: {
@@ -100,7 +102,8 @@ test.describe.skip('Explore', () => {
             'In mi',
             'In percent',
         ];
-        for (let i = 0; i < headers.length; i++) {
+        for (let i = 0; i < headers.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(
                 page.locator(`thead > tr > :nth-child(${i + 2})`),
             ).toContainText(headers[i]);
@@ -116,7 +119,8 @@ test.describe.skip('Explore', () => {
             '1,999,000 mi',
             '199,900,000%',
         ];
-        for (let i = 0; i < body.length; i++) {
+        for (let i = 0; i < body.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
             await expect(
                 page.locator(`tbody > tr > :nth-child(${i + 2})`),
             ).toContainText(body[i]);

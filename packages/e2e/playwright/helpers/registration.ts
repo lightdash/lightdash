@@ -1,9 +1,9 @@
-import type { APIRequestContext, Page, Browser } from '@playwright/test';
-import { expect } from '@playwright/test';
 import {
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
+import type { APIRequestContext, Browser, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 
 /**
  * Register a new user with a unique email.
@@ -48,9 +48,7 @@ export async function registerWithCode(
  * Verify email with passcode.
  * Equivalent to cy.verifyEmail()
  */
-export async function verifyEmail(
-    request: APIRequestContext,
-): Promise<void> {
+export async function verifyEmail(request: APIRequestContext): Promise<void> {
     const response = await request.get(
         'api/v1/user/me/email/status?passcode=000000',
         { headers: { 'Content-type': 'application/json' } },
@@ -101,9 +99,7 @@ export async function addProjectPermission(
  * Logout the current session.
  * Equivalent to cy.logout()
  */
-export async function logout(
-    request: APIRequestContext,
-): Promise<void> {
+export async function logout(request: APIRequestContext): Promise<void> {
     await request.get('api/v1/logout');
 }
 
@@ -134,7 +130,9 @@ export async function loginWithPermissions(
 
     const inviteCode = await invite(request, email, orgRole);
 
+    // eslint-disable-next-line no-restricted-syntax
     for (const projectPermission of projectPermissions) {
+        // eslint-disable-next-line no-await-in-loop
         await addProjectPermission(
             request,
             email,
@@ -165,7 +163,6 @@ export async function loginWithEmail(
     expect(loginResponse.status()).toBe(200);
 
     // Create a new context and save the state
-    const tempStatePath = `playwright/.auth/temp-${Date.now()}.json`;
     const context = await browser.newContext();
     const page = await context.newPage();
 

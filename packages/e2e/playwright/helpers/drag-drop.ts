@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
@@ -56,9 +57,7 @@ export async function dragAndDrop(
     // Verify the drag was successful if we have a draggable ID
     if (draggableId) {
         await expect(
-            dropElement.locator(
-                `[data-rfd-draggable-id="${draggableId}"]`,
-            ),
+            dropElement.locator(`[data-rfd-draggable-id="${draggableId}"]`),
         ).toBeVisible();
     }
 }

@@ -1,6 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
 import dayjs from 'dayjs';
-import { test, expect } from '../../fixtures';
+import { expect, test } from '../../fixtures';
 import { getMonacoEditorText } from '../../helpers';
 
 function leadingZero(value: string | number) {
@@ -32,7 +32,7 @@ function getLocalTime(datetime: string) {
 
 test.describe('Date tests', () => {
     // todo: delete
-    test.skip('Check current timezone', async ({ adminPage: page }) => {
+    test.skip('Check current timezone', async ({ adminPage: _page }) => {
         const now = new Date('1 January, 2000'); // set specific date to avoid daylight savings
         const timezone = process.env.TZ;
         const offset = now.getTimezoneOffset();
@@ -74,7 +74,9 @@ test.describe('Date tests', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should get right month on filtered chart', async ({ adminPage: page }) => {
+    test.skip('Should get right month on filtered chart', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/saved`);
 
         // find with search input "how many"
@@ -83,9 +85,15 @@ test.describe('Date tests', () => {
 
         await page.getByTestId('Filters-card-expand').click();
         await expect(page.getByText('Loading chart')).toHaveCount(0);
-        await expect(page.locator('tbody td').filter({ hasText: '2024-06' })).toBeVisible();
-        await expect(page.locator('tbody td').filter({ hasText: '$843.10' })).toBeVisible();
-        await expect(page.locator('tbody td').filter({ hasText: '26' })).toBeVisible();
+        await expect(
+            page.locator('tbody td').filter({ hasText: '2024-06' }),
+        ).toBeVisible();
+        await expect(
+            page.locator('tbody td').filter({ hasText: '$843.10' }),
+        ).toBeVisible();
+        await expect(
+            page.locator('tbody td').filter({ hasText: '26' }),
+        ).toBeVisible();
 
         await page.getByTestId('Chart-card-expand').click(); // Collapse charts
         await page.getByTestId('SQL-card-expand').click();
@@ -98,7 +106,9 @@ test.describe('Date tests', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should use dashboard month filter', async ({ adminPage: page }) => {
+    test.skip('Should use dashboard month filter', async ({
+        adminPage: page,
+    }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wait for the dashboard to load
@@ -122,7 +132,10 @@ test.describe('Date tests', () => {
         // Add filter
         await page.getByText('Add filter').click();
         await page.getByTestId('FilterConfiguration/FieldSelect').click();
-        await page.getByTestId('FilterConfiguration/FieldSelect').locator('input').fill('order date month');
+        await page
+            .getByTestId('FilterConfiguration/FieldSelect')
+            .locator('input')
+            .fill('order date month');
         await page.keyboard.press('ArrowDown');
         await page.keyboard.press('Enter');
 
@@ -165,16 +178,24 @@ test.describe('Date tests', () => {
         const timezone = process.env.TZ;
         switch (timezone) {
             case 'UTC':
-                await expect(page.getByText('2020-08-11 22:58:00')).toBeVisible(); // Filter in localtime
+                await expect(
+                    page.getByText('2020-08-11 22:58:00'),
+                ).toBeVisible(); // Filter in localtime
                 break;
             case 'Europe/Madrid':
-                await expect(page.getByText('2020-08-12 00:58:00')).toBeVisible(); // Filter in localtime
+                await expect(
+                    page.getByText('2020-08-12 00:58:00'),
+                ).toBeVisible(); // Filter in localtime
                 break;
             case 'America/New_York':
-                await expect(page.getByText('2020-08-11 18:58:00')).toBeVisible(); // Filter in localtime
+                await expect(
+                    page.getByText('2020-08-11 18:58:00'),
+                ).toBeVisible(); // Filter in localtime
                 break;
             case 'Asia/Tokyo':
-                await expect(page.getByText('2020-08-12 07:58:00')).toBeVisible(); // Filter in localtime
+                await expect(
+                    page.getByText('2020-08-12 07:58:00'),
+                ).toBeVisible(); // Filter in localtime
                 break;
             default:
                 throw new Error(
@@ -189,7 +210,9 @@ test.describe('Date tests', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should filter by date on results table', async ({ adminPage: page }) => {
+    test.skip('Should filter by date on results table', async ({
+        adminPage: page,
+    }) => {
         // This test should not be timezone sensitive
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;
         await page.goto(
@@ -205,9 +228,13 @@ test.describe('Date tests', () => {
 
         await page.getByRole('button', { name: 'Run query' }).click();
         // Filter by year
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)')
+            .click();
         await page.getByText('Filter by 2025').click();
-        await expect(page.locator('.mantine-YearPickerInput-input').getByText('2025')).toBeVisible();
+        await expect(
+            page.locator('.mantine-YearPickerInput-input').getByText('2025'),
+        ).toBeVisible();
 
         const textAfterYear = await getMonacoEditorText(page);
         expect(textAfterYear).toContain(
@@ -215,19 +242,29 @@ test.describe('Date tests', () => {
         );
 
         // Filter by month
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)')
+            .click();
         await page.getByText('Filter by 2025-06').click();
 
-        await expect(page.locator('.mantine-MonthPickerInput-input').getByText('June 2025')).toBeVisible();
+        await expect(
+            page
+                .locator('.mantine-MonthPickerInput-input')
+                .getByText('June 2025'),
+        ).toBeVisible();
         const textAfterMonth = await getMonacoEditorText(page);
         expect(textAfterMonth).toContain(
             `(DATE_TRUNC('MONTH', "orders".order_date)) = ('2025-06-01')`,
         );
 
         // Filter by week
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)')
+            .click();
         await page.getByText('Filter by 2025-06-09').click();
-        await expect(page.locator('.mantine-DateInput-input')).toHaveValue('June 9, 2025');
+        await expect(page.locator('.mantine-DateInput-input')).toHaveValue(
+            'June 9, 2025',
+        );
 
         const textAfterWeek = await getMonacoEditorText(page);
         expect(textAfterWeek).toContain(
@@ -235,9 +272,13 @@ test.describe('Date tests', () => {
         );
 
         // Filter by day
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)')
+            .click();
         await page.getByText('Filter by 2025-06-15').click();
-        await expect(page.locator('.mantine-DateInput-input')).toHaveValue('June 9, 2025');
+        await expect(page.locator('.mantine-DateInput-input')).toHaveValue(
+            'June 9, 2025',
+        );
         const textAfterDay = await getMonacoEditorText(page);
         expect(textAfterDay).toContain(
             `(DATE_TRUNC('DAY', "orders".order_date)) = ('2025-06-15')`,
@@ -245,7 +286,9 @@ test.describe('Date tests', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should filter by datetimes on results table', async ({ adminPage: page }) => {
+    test.skip('Should filter by datetimes on results table', async ({
+        adminPage: page,
+    }) => {
         const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"dimensions"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]%2C"metrics"%3A[]%2C"filters"%3A{}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A1%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_timestamp_tz_millisecond"]}%2C"eChartsConfig"%3A{"series"%3A[{"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_timestamp_tz_millisecond"}}%2C"type"%3A"bar"}]}}}}`;
         await page.goto(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
@@ -260,55 +303,79 @@ test.describe('Date tests', () => {
         await page.getByRole('button', { name: 'Run query' }).click();
 
         // Filter by raw
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)').click();
-        await page.getByText('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
-        await expect(page.locator('.mantine-DateTimePicker-input').getByText(
-            getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
-        )).toBeVisible();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(2)')
+            .click();
+        await page
+            .getByText('Filter by 2020-08-11, 23:44:00:000 (+00:00)')
+            .click(); // Server Timezone sensitive
+        await expect(
+            page.locator('.mantine-DateTimePicker-input').getByText(
+                getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
+            ),
+        ).toBeVisible();
         const textAfterRaw = await getMonacoEditorText(page);
         expect(textAfterRaw).toContain(
             `("events".timestamp_tz) = ('2020-08-11 23:44:00')`,
         );
 
         // Filter by Millisecond
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)').click();
-        await page.getByText('Filter by 2020-08-11, 23:44:00:000 (+00:00)').click(); // Server Timezone sensitive
-        await expect(page.locator('.mantine-DateTimePicker-input').getByText(
-            getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
-        )).toBeVisible();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(3)')
+            .click();
+        await page
+            .getByText('Filter by 2020-08-11, 23:44:00:000 (+00:00)')
+            .click(); // Server Timezone sensitive
+        await expect(
+            page.locator('.mantine-DateTimePicker-input').getByText(
+                getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
+            ),
+        ).toBeVisible();
         const textAfterMs = await getMonacoEditorText(page);
         expect(textAfterMs).toContain(
             `(DATE_TRUNC('MILLISECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
         ); // Known Millisecond limitation
 
         // Filter by Second
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(4)')
+            .click();
         await page.getByText('Filter by 2020-08-11, 23:44:00 (+00:00)').click(); // Server Timezone sensitive
-        await expect(page.locator('.mantine-DateTimePicker-input').getByText(
-            getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
-        )).toBeVisible();
+        await expect(
+            page.locator('.mantine-DateTimePicker-input').getByText(
+                getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
+            ),
+        ).toBeVisible();
         const textAfterSecond = await getMonacoEditorText(page);
         expect(textAfterSecond).toContain(
             `(DATE_TRUNC('SECOND', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
         );
 
         // Filter by Minute
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)')
+            .click();
         await page.getByText('Filter by 2020-08-11, 23:44 (+00:00)').click(); // Server Timezone sensitive
-        await expect(page.locator('.mantine-DateTimePicker-input').getByText(
-            getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
-        )).toBeVisible();
+        await expect(
+            page.locator('.mantine-DateTimePicker-input').getByText(
+                getLocalTime('2020-08-11 23:44:00'), // Timezone sensitive
+            ),
+        ).toBeVisible();
         const textAfterMinute = await getMonacoEditorText(page);
         expect(textAfterMinute).toContain(
             `(DATE_TRUNC('MINUTE', "events".timestamp_tz)) = ('2020-08-11 23:44:00')`,
         );
 
         // Filter by Hour
-        await page.locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(6)').click();
+        await page
+            .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(6)')
+            .click();
         await page.getByText('Filter by 2020-08-11, 23 (+00:00)').click(); // Server Timezone sensitive
-        await expect(page.locator('.mantine-DateTimePicker-input').getByText(
-            getLocalTime('2020-08-11 23:00:00'), // Timezone sensitive
-        )).toBeVisible();
+        await expect(
+            page.locator('.mantine-DateTimePicker-input').getByText(
+                getLocalTime('2020-08-11 23:00:00'), // Timezone sensitive
+            ),
+        ).toBeVisible();
         const textAfterHour = await getMonacoEditorText(page);
         expect(textAfterHour).toContain(
             `(DATE_TRUNC('HOUR', "events".timestamp_tz)) = ('2020-08-11 23:00:00')`,
@@ -321,7 +388,9 @@ test.describe('Date tests', () => {
 
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
         await expect(page.getByText('No data available')).toBeVisible();
-        await expect(page.getByText('Pick a metric & select its dimensions')).toBeVisible();
+        await expect(
+            page.getByText('Pick a metric & select its dimensions'),
+        ).toBeVisible();
         await expect(page.getByText('Filters')).toBeVisible();
 
         // Filter by year
@@ -331,8 +400,13 @@ test.describe('Date tests', () => {
         await page.keyboard.press('ArrowDown');
         await page.keyboard.press('Enter');
 
-        await page.getByRole('button', { name: String(new Date().getFullYear()) }).click();
-        await page.getByRole('dialog').getByRole('button', { name: '2024' }).click();
+        await page
+            .getByRole('button', { name: String(new Date().getFullYear()) })
+            .click();
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: '2024' })
+            .click();
 
         await page.getByTestId('SQL-card-expand').click();
         const textAfterYear = await getMonacoEditorText(page);
@@ -341,7 +415,10 @@ test.describe('Date tests', () => {
         );
 
         await page.getByRole('button', { name: '2024' }).click();
-        await page.getByRole('dialog').getByRole('button', { name: '2025' }).click();
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: '2025' })
+            .click();
         const textAfterYear2 = await getMonacoEditorText(page);
         expect(textAfterYear2).toContain(
             `(DATE_TRUNC('YEAR', "customers".created)) = ('2025-01-01')`,
@@ -355,9 +432,13 @@ test.describe('Date tests', () => {
         await page.keyboard.press('ArrowDown');
         await page.keyboard.press('Enter');
 
-        await page.getByRole('button', { name: dayjs().format('MMMM YYYY') }).click();
+        await page
+            .getByRole('button', { name: dayjs().format('MMMM YYYY') })
+            .click();
         const dialog = page.getByRole('dialog');
-        await dialog.getByRole('button', { name: dayjs().format('YYYY') }).click();
+        await dialog
+            .getByRole('button', { name: dayjs().format('YYYY') })
+            .click();
         await dialog.getByRole('button', { name: '2024' }).click();
         await dialog.getByRole('button', { name: 'Aug' }).click();
 
@@ -381,18 +462,26 @@ test.describe('Date tests', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should keep value when changing date operator', async ({ adminPage: page }) => {
+    test.skip('Should keep value when changing date operator', async ({
+        adminPage: page,
+    }) => {
         const todayDate = new Date();
 
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/customers`);
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/customers`,
+        );
 
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
         await expect(page.getByText('No data available')).toBeVisible(); // Chart panel is opened by default but it takes some time to open it
         await page.getByTestId('Chart-card-expand').click(); // Close chart
-        await expect(page.getByText('Pick a metric & select its dimensions')).toBeVisible();
+        await expect(
+            page.getByText('Pick a metric & select its dimensions'),
+        ).toBeVisible();
 
         await expect(page.getByText('Search Jaffle shop')).toBeVisible(); // Wait until it finishes loading the nav bar
-        await expect(page.getByRole('button', { name: 'Save chart' })).toBeDisabled(); // Wait until it finishes loading the button
+        await expect(
+            page.getByRole('button', { name: 'Save chart' }),
+        ).toBeDisabled(); // Wait until it finishes loading the button
         await expect(page.getByText('Filters')).toBeVisible();
 
         await page.getByRole('button', { name: 'Run query' }).click();
@@ -414,7 +503,10 @@ test.describe('Date tests', () => {
         );
 
         // Change date operator
-        await page.locator('[role="combobox"]').locator('input[value="is"]').click();
+        await page
+            .locator('[role="combobox"]')
+            .locator('input[value="is"]')
+            .click();
         await page.getByRole('option', { name: 'is not' }).click();
         await expect(
             page.locator('[role="combobox"]').locator('input[value="is"]'),
@@ -436,7 +528,9 @@ test.describe('Date tests', () => {
     });
 
     // todo: move to unit test
-    test.skip('Should filter by date on dimension', async ({ adminPage: page }) => {
+    test.skip('Should filter by date on dimension', async ({
+        adminPage: page,
+    }) => {
         const now = dayjs();
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;
         await page.goto(
@@ -459,11 +553,16 @@ test.describe('Date tests', () => {
 
         // Filter by year
         await page.getByTestId('Filters-card-expand').click();
-        await page.getByTestId('tree-single-node-Year').locator('button').click();
+        await page
+            .getByTestId('tree-single-node-Year')
+            .locator('button')
+            .click();
 
         await page.getByRole('menuitem', { name: 'Add filter' }).click();
 
-        await expect(page.getByRole('button', { name: now.format('YYYY') })).toBeVisible();
+        await expect(
+            page.getByRole('button', { name: now.format('YYYY') }),
+        ).toBeVisible();
         await page.getByTestId('SQL-card-expand').click();
 
         const textAfterYear = await getMonacoEditorText(page);
@@ -473,10 +572,15 @@ test.describe('Date tests', () => {
         await page.getByTestId('delete-filter-rule-button').click();
 
         // Filter by month
-        await page.getByTestId('tree-single-node-Month').getByRole('button').click();
+        await page
+            .getByTestId('tree-single-node-Month')
+            .getByRole('button')
+            .click();
         await page.getByRole('menuitem', { name: 'Add filter' }).click();
 
-        await expect(page.getByRole('button', { name: now.format('MMMM YYYY') })).toBeVisible();
+        await expect(
+            page.getByRole('button', { name: now.format('MMMM YYYY') }),
+        ).toBeVisible();
         const textAfterMonth = await getMonacoEditorText(page);
         expect(textAfterMonth).toContain(
             `(DATE_TRUNC('MONTH', "orders".order_date)) = ('${now.format('YYYY')}-${now.format('MM')}-01')`,
@@ -492,7 +596,10 @@ test.describe('Date tests', () => {
         }
 
         const weekDate = startOfTheWeek();
-        await page.getByTestId('tree-single-node-Week').getByRole('button').click();
+        await page
+            .getByTestId('tree-single-node-Week')
+            .getByRole('button')
+            .click();
         await page.getByRole('menuitem', { name: 'Add filter' }).click();
 
         await expect(page.locator('.mantine-DateInput-root input')).toHaveValue(
@@ -506,7 +613,10 @@ test.describe('Date tests', () => {
         await page.getByTestId('delete-filter-rule-button').click();
 
         // Filter by day
-        await page.getByTestId('tree-single-node-Day').getByRole('button').click();
+        await page
+            .getByTestId('tree-single-node-Day')
+            .getByRole('button')
+            .click();
         await page.getByRole('menuitem', { name: 'Add filter' }).click();
 
         const todayDate = now.toDate();
@@ -522,7 +632,9 @@ test.describe('Date tests', () => {
         await page.getByTestId('delete-filter-rule-button').click();
     });
 
-    test.skip('Should filter by datetime on dimension', async ({ adminPage: page }) => {
+    test.skip('Should filter by datetime on dimension', async ({
+        adminPage: page,
+    }) => {
         const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"dimensions"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]%2C"metrics"%3A[]%2C"filters"%3A{}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A1%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_timestamp_tz_millisecond"]}%2C"eChartsConfig"%3A{"series"%3A[{"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_timestamp_tz_millisecond"}}%2C"type"%3A"bar"}]}}}}`;
         await page.goto(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
@@ -536,7 +648,9 @@ test.describe('Date tests', () => {
         const checkDatetime = async (sqlFilter: string) => {
             const now = dayjs();
             const aSecondBefore = dayjs().subtract(1, 'seconds'); // Fix millisecond race condition
-            const dateString = await page.locator('.mantine-DateTimePicker-input input').inputValue();
+            const dateString = await page
+                .locator('.mantine-DateTimePicker-input input')
+                .inputValue();
             const inputDatetimeFormat = 'YYYY-MM-DD, HH:mm:ss:000';
             const expectedDatetimes = [
                 now.format(inputDatetimeFormat),
@@ -554,35 +668,45 @@ test.describe('Date tests', () => {
 
         // Filter by raw
         await page.locator('span:has-text("Raw") ~ div').click();
-        await page.locator('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        await page
+            .locator('.bp4-menu > :nth-child(1) > .bp4-menu-item')
+            .click();
         await expect(page.locator('.bp4-date-input input')).toBeVisible();
         await checkDatetime('"events".timestamp_tz');
         await page.getByTestId('delete-filter-rule-button').click();
 
         // Filter by millisecond
         await page.locator('span:has-text("Millisecond") ~ div').click();
-        await page.locator('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        await page
+            .locator('.bp4-menu > :nth-child(1) > .bp4-menu-item')
+            .click();
         await expect(page.locator('.bp4-date-input input')).toBeVisible();
         await checkDatetime(`DATE_TRUNC('MILLISECOND', "events".timestamp_tz)`);
         await page.getByTestId('delete-filter-rule-button').click();
 
         // Filter by second
         await page.locator('span:has-text("Second") ~ div').click();
-        await page.locator('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        await page
+            .locator('.bp4-menu > :nth-child(1) > .bp4-menu-item')
+            .click();
         await expect(page.locator('.bp4-date-input input')).toBeVisible();
         await checkDatetime(`DATE_TRUNC('SECOND', "events".timestamp_tz)`);
         await page.getByTestId('delete-filter-rule-button').click();
 
         // Filter by minute
         await page.locator('span:has-text("Minute") ~ div').click();
-        await page.locator('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        await page
+            .locator('.bp4-menu > :nth-child(1) > .bp4-menu-item')
+            .click();
         await expect(page.locator('.bp4-date-input input')).toBeVisible();
         await checkDatetime(`DATE_TRUNC('MINUTE', "events".timestamp_tz)`);
         await page.getByTestId('delete-filter-rule-button').click();
 
         // Filter by hour
         await page.locator('span:has-text("Hour") ~ div').click();
-        await page.locator('.bp4-menu > :nth-child(1) > .bp4-menu-item').click();
+        await page
+            .locator('.bp4-menu > :nth-child(1) > .bp4-menu-item')
+            .click();
         await expect(page.locator('.bp4-date-input input')).toBeVisible();
         await checkDatetime(`DATE_TRUNC('HOUR', "events".timestamp_tz)`);
         await page.getByTestId('delete-filter-rule-button').click();

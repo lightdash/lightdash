@@ -1,6 +1,6 @@
 import { SEED_PROJECT } from '@lightdash/common';
-import { test, expect } from '../../fixtures';
 import type { APIRequestContext } from '@playwright/test';
+import { expect, test } from '../../fixtures';
 
 const apiUrl = '/api/v2';
 
@@ -24,10 +24,12 @@ async function runMetricQuery(
 
     // Poll until results are ready
     const maxAttempts = 50;
-    for (let i = 0; i < maxAttempts; i++) {
+    for (let i = 0; i < maxAttempts; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
         const resultResponse = await request.get(
             `${apiUrl}/projects/${projectUuid}/query/${queryUuid}`,
         );
+        // eslint-disable-next-line no-await-in-loop
         const resultBody = await resultResponse.json();
 
         if (resultBody.results.error) {
@@ -36,6 +38,7 @@ async function runMetricQuery(
         if (resultBody.results.status === 'ready') {
             return resultBody.results.rows;
         }
+        // eslint-disable-next-line no-await-in-loop, no-promise-executor-return
         await new Promise((resolve) => setTimeout(resolve, 200));
     }
     throw new Error('Query timed out');
@@ -158,6 +161,7 @@ test.describe('SQL fanout deduplication', () => {
 
         // Build lookup: payment_method -> total_revenue
         const expectedByMethod: Record<string, number> = {};
+        // eslint-disable-next-line no-restricted-syntax
         for (const row of paymentsRows) {
             const method = String(row.payments_payment_method);
             expectedByMethod[method] = Number(row.payments_total_revenue);
@@ -170,10 +174,9 @@ test.describe('SQL fanout deduplication', () => {
         );
         expect(wideTableRows.length).toBe(paymentsRows.length);
 
+        // eslint-disable-next-line no-restricted-syntax
         for (const row of wideTableRows) {
-            const method = String(
-                row.customer_order_payments_payment_method,
-            );
+            const method = String(row.customer_order_payments_payment_method);
             const deduped = Number(
                 row.customer_order_payments_total_payment_amount_deduped,
             );
