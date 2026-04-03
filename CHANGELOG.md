@@ -1,3 +1,18 @@
+# [0.2723.0](https://github.com/lightdash/lightdash/compare/0.2722.0...0.2723.0) (2026-04-03)
+
+
+### Bug Fixes
+
+* separate bar chart conditional formatting color picker ([#21713](https://github.com/lightdash/lightdash/issues/21713)) ([66977a0](https://github.com/lightdash/lightdash/commit/66977a0f3aac9a6a49869ff3f835bfa40995b3c8))
+
+
+### Features
+
+* add color palette override support to embedded dashboards ([#21717](https://github.com/lightdash/lightdash/issues/21717)) ([57bcfe2](https://github.com/lightdash/lightdash/commit/57bcfe26f6c58e564e4bedc01acc5ea1795c39f1))
+* add copy UUID functionality to palette menu ([#21716](https://github.com/lightdash/lightdash/issues/21716)) ([a66effe](https://github.com/lightdash/lightdash/commit/a66effe6596ce0d667e5b29788d320d20f1c2383)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add organization color palette development seeds ([#21715](https://github.com/lightdash/lightdash/issues/21715)) ([b9df6ee](https://github.com/lightdash/lightdash/commit/b9df6ee1500705ff82b0dd3c98ccc0833a20041d))
+* add palette UUID demo to SDK test app ([#21718](https://github.com/lightdash/lightdash/issues/21718)) ([6be6952](https://github.com/lightdash/lightdash/commit/6be6952b01a9b4f40d13c5c25238d1917a7579d4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2722.0](https://github.com/lightdash/lightdash/compare/0.2721.2...0.2722.0) (2026-04-03)
 
 
