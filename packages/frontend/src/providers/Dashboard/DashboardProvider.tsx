@@ -918,10 +918,14 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     // Reset dateZoomGranularity if it's not in the allowed list.
     // Falls back to the validated default state (not the raw config value,
     // which may reference a stale custom granularity).
+    // Only validates standard granularities here — custom granularities
+    // are validated by DashboardGranularitySync once all charts have loaded
+    // and the full set of available custom granularities is known.
     useEffect(() => {
         if (
             dateZoomGranularity &&
             dateZoomGranularities.length > 0 &&
+            isStandardDateGranularity(dateZoomGranularity) &&
             !dateZoomGranularities.includes(dateZoomGranularity)
         ) {
             setDateZoomGranularity(defaultDateZoomGranularity ?? undefined);
@@ -1454,14 +1458,28 @@ const DashboardGranularitySync: React.FC = () => {
         (c) => c.setDefaultDateZoomGranularity,
     );
 
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const dateZoomGranularityRef = useRef(dateZoomGranularity);
+    dateZoomGranularityRef.current = dateZoomGranularity;
+
+    const setDateZoomGranularity = useDashboardContext(
+        (c) => c.setDateZoomGranularity,
+    );
+
     // Once all charts have loaded, clean up stale granularities:
     // - Custom granularities no longer provided by any explore
     // - Sub-day granularities when no TIMESTAMP dimensions exist
+    // Also resets the active dateZoomGranularity if it's a stale custom value
+    // (custom granularities are not validated earlier to avoid a race condition
+    // where the URL param is cleared before charts finish loading).
     useEffect(() => {
         if (!areAllChartsLoaded) return;
 
         const currentGranularities = dateZoomGranularitiesRef.current;
         const currentDefault = defaultDateZoomGranularityRef.current;
+        const currentGranularity = dateZoomGranularityRef.current;
 
         const availableCustomGranularityKeys = new Set(
             Object.keys(availableCustomGranularities),
@@ -1488,12 +1506,22 @@ const DashboardGranularitySync: React.FC = () => {
         if (currentDefault && !isAvailable(currentDefault)) {
             setDefaultDateZoomGranularity(undefined);
         }
+
+        // Reset active dateZoomGranularity if it's a stale custom granularity
+        if (
+            currentGranularity &&
+            !isStandardDateGranularity(currentGranularity) &&
+            !isAvailable(currentGranularity)
+        ) {
+            setDateZoomGranularity(currentDefault ?? undefined);
+        }
     }, [
         areAllChartsLoaded,
         availableCustomGranularities,
         dashboardHasTimestampDimension,
         setDateZoomGranularities,
         setDefaultDateZoomGranularity,
+        setDateZoomGranularity,
     ]);
 
     return null;
