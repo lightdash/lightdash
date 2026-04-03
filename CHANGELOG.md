@@ -1,3 +1,10 @@
+# [0.2721.0](https://github.com/lightdash/lightdash/compare/0.2720.5...0.2721.0) (2026-04-03)
+
+
+### Features
+
+* cascade tile rendering on dashboard tab switch ([#21708](https://github.com/lightdash/lightdash/issues/21708)) ([97f3c70](https://github.com/lightdash/lightdash/commit/97f3c70fb18c8fef771217cdf04e46f96fc613f2))
+
 ## [0.2720.5](https://github.com/lightdash/lightdash/compare/0.2720.4...0.2720.5) (2026-04-03)
 
 
