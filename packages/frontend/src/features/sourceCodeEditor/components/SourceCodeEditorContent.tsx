@@ -202,21 +202,18 @@ const SourceCodeEditorContent: FC = () => {
         }
     }, [rootDirectory, currentBranch, currentFilePath, urlFile, urlExplore]);
 
-    // Update editor content when file loads
+    // Update editor content when file loads, reset when not available
     useEffect(() => {
         if (fileData?.type === 'file') {
             setEditorContent(fileData.content);
             setOriginalContent(fileData.content);
             setOriginalSha(fileData.sha);
+        } else {
+            setEditorContent('');
+            setOriginalContent('');
+            setOriginalSha(null);
         }
     }, [fileData]);
-
-    // Reset editor when file path changes
-    useEffect(() => {
-        setEditorContent('');
-        setOriginalContent('');
-        setOriginalSha(null);
-    }, [currentFilePath, currentBranch]);
 
     // Auto-save unsaved content to local storage for crash recovery
     useEffect(() => {
