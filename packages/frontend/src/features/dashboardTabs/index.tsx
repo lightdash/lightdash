@@ -60,11 +60,18 @@ import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-/** Shimmer line while tiles cascade in. */
+/** Narrow progress bar that fills as tiles cascade in. */
 const StagedMountIndicator: FC = () => {
-    const { isComplete } = useStagedMountProgress();
+    const { isComplete, progress } = useStagedMountProgress();
     if (isComplete) return null;
-    return <div className={styles.cascadeLoadingBar} />;
+    return (
+        <div className={styles.cascadeProgressTrack}>
+            <div
+                className={styles.cascadeProgressFill}
+                style={{ width: `${progress * 100}%` }}
+            />
+        </div>
+    );
 };
 
 type TabGridPanelProps = {
