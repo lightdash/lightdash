@@ -136,7 +136,11 @@ export function formatDate(
     timeInterval: TimeFrames = TimeFrames.DAY,
     timezone?: string,
 ): string {
-    const momentDate = timezone ? moment.utc(date).tz(timezone) : moment(date);
+    // DATE values are already the correct date — timezone-aware DATE_TRUNC
+    // truncated in the project timezone at the SQL level, and formatRawValue
+    // normalized to midnight UTC. Just format as UTC to avoid browser timezone
+    // shifts. (TIMESTAMP values use formatTimestamp which does the tz conversion.)
+    const momentDate = timezone ? moment.utc(date) : moment(date);
 
     if (!momentDate.isValid()) {
         return 'NaT';
