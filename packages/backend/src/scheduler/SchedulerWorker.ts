@@ -127,6 +127,16 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
+    /**
+     * Reschedule long-running resumable jobs with a short delay so a new
+     * worker picks them up after this pod is fully dead. Override in
+     * subclass to specify which tasks are resumable.
+     */
+    // eslint-disable-next-line class-methods-use-this
+    async releaseResumableJobs(): Promise<void> {
+        // No-op in base class
+    }
+
     protected getTaskList(): Partial<TypedTaskList> {
         return Object.fromEntries(
             Object.entries(this.getFullTaskList()).filter(

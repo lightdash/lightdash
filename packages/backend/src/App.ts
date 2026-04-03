@@ -887,7 +887,9 @@ export default class App {
         this.prometheusMetrics.stop();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
-                await this.schedulerWorker.runner.stop();
+                const stopPromise = this.schedulerWorker.runner.stop();
+                await this.schedulerWorker.releaseResumableJobs();
+                await stopPromise;
                 Logger.info('Stopped scheduler worker');
             } catch (e) {
                 Logger.error('Error stopping scheduler worker', e);

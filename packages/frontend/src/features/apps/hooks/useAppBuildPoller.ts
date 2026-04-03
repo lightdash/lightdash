@@ -17,7 +17,7 @@ async function pollLoop(url, interval) {
                 const data = await res.json();
                 self.postMessage({ type: 'data', results: data.results });
                 const latest = data.results && data.results.versions && data.results.versions[0];
-                if (latest && latest.status !== 'building') {
+                if (latest && (latest.status === 'ready' || latest.status === 'error')) {
                     active = false;
                     return;
                 }
@@ -74,7 +74,10 @@ export function useAppBuildPoller(
                 );
 
                 const latest = e.data.results.versions?.[0];
-                if (latest && latest.status !== 'building') {
+                if (
+                    latest &&
+                    (latest.status === 'ready' || latest.status === 'error')
+                ) {
                     onDoneRef.current(
                         latest.version as number,
                         latest.status as string,

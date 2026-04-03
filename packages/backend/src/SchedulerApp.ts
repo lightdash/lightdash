@@ -236,9 +236,16 @@ export default class SchedulerApp {
             onSignal: async () => {
                 Logger.info('Stopping Prometheus metrics');
                 this.prometheusMetrics.stop();
-                if (worker && worker.runner) {
-                    Logger.info('Stopping scheduler worker');
-                    await worker?.runner?.stop();
+                if (worker) {
+                    if (worker.runner) {
+                        Logger.info('Stopping scheduler worker');
+                        // Fire stop first to prevent picking up new jobs,
+                        // then release resumable jobs while stop waits for
+                        // current jobs to finish.
+                        const stopPromise = worker.runner.stop();
+                        await worker.releaseResumableJobs();
+                        await stopPromise;
+                    }
                 }
             },
             onShutdown: async () => {

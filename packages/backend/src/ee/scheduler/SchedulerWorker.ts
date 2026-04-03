@@ -5,19 +5,23 @@ import {
     SCHEDULER_TASKS,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
 import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 
-const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
 type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
     aiAgentService: AiAgentService;
     embedService: EmbedService;
+    appGenerateService: AppGenerateService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -25,10 +29,32 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly embedService: EmbedService;
 
+    protected readonly appGenerateService: AppGenerateService;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
         this.embedService = args.embedService;
+        this.appGenerateService = args.appGenerateService;
+    }
+
+    async releaseResumableJobs(): Promise<void> {
+        const utils = await this.schedulerClient.graphileUtils;
+        await utils.withPgClient(async (pgClient) => {
+            const result = await pgClient.query(
+                `UPDATE graphile_worker.jobs
+                 SET locked_at = NULL,
+                     locked_by = NULL,
+                     run_at = now() + interval '1 minute'
+                 WHERE task_identifier = 'appGeneratePipeline'
+                   AND locked_at IS NOT NULL`,
+            );
+            if (result.rowCount && result.rowCount > 0) {
+                Logger.info(
+                    `Rescheduled ${result.rowCount} appGeneratePipeline job(s) for retry in 1 minute`,
+                );
+            }
+        });
     }
 
     protected getTaskList(): Partial<TypedEETaskList> {
@@ -102,6 +128,32 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 evalRunResultUuid: payload.evalRunResultUuid,
                             },
                         });
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.appGenerateService.runPipeline(payload);
+                        },
+                    ),
+                    helpers.job,
+                    APP_GENERATE_TIMEOUT_MS,
+                    async (_job, e) => {
+                        await this.appGenerateService.markError(
+                            payload.appUuid,
+                            payload.version,
+                            e,
+                            'Build timed out. Please try again.',
+                        );
                     },
                 );
             },

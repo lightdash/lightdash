@@ -38,7 +38,22 @@ export type AppsTable = Knex.CompositeTableType<
     >
 >;
 
-export type AppVersionStatus = 'building' | 'ready' | 'error';
+/**
+ * Pipeline stages double as the version status. The frontend treats
+ * anything other than 'ready' or 'error' as "in progress".
+ */
+export type AppVersionStatus =
+    | 'pending'
+    | 'sandbox'
+    | 'catalog'
+    | 'generating'
+    | 'building'
+    | 'packaging'
+    | 'ready'
+    | 'error';
+
+export const isAppVersionInProgress = (status: AppVersionStatus): boolean =>
+    status !== 'ready' && status !== 'error';
 
 export type DbAppVersion = {
     app_version_id: string;

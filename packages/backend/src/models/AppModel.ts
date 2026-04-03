@@ -7,6 +7,7 @@ import { Knex } from 'knex';
 import {
     AppsTableName,
     AppVersionsTableName,
+    isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
     type DbAppVersion,
@@ -65,11 +66,11 @@ export class AppModel {
     }
 
     /**
-     * Update version status only if it is currently 'building'.
+     * Update version status only if it is currently in progress.
      * Returns true if the update was applied, false if the version was
      * already in a terminal state (e.g. cancelled by the user).
      */
-    async updateVersionStatusIfBuilding(
+    async updateVersionStatusIfInProgress(
         appId: string,
         version: number,
         status: AppVersionStatus,
@@ -77,7 +78,8 @@ export class AppModel {
         statusMessage?: string | null,
     ): Promise<boolean> {
         const updatedRows = await this.database(AppVersionsTableName)
-            .where({ app_id: appId, version, status: 'building' })
+            .where({ app_id: appId, version })
+            .whereNotIn('status', ['ready', 'error'])
             .update({
                 status,
                 error: error ?? null,
@@ -98,6 +100,22 @@ export class AppModel {
                 status_message: statusMessage,
                 status_updated_at: new Date(),
             });
+    }
+
+    async getVersionStatus(
+        appId: string,
+        version: number,
+    ): Promise<AppVersionStatus> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .select('status')
+            .first();
+        if (!row) {
+            throw new NotFoundError(
+                `App version not found: ${appId} v${version}`,
+            );
+        }
+        return row.status;
     }
 
     async getApp(appId: string, projectUuid: string): Promise<DbApp> {
