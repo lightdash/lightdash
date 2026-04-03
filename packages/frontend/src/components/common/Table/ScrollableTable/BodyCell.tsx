@@ -134,9 +134,8 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         }
     }, [hasData, cell]);
 
-    const toggleMenu = useCallback(() => {
-        setIsMenuOpen((prev) => !prev);
-    }, []);
+    const openMenu = useCallback(() => setIsMenuOpen(true), []);
+    const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
     // Plain setTimeout for tooltip delay — no useTimeout hook needed.
     // Only creates a timer when the user actually hovers, not on mount.
@@ -179,7 +178,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     typeof displayValue === 'string' &&
                     displayValue.includes('\n')
                 }
-                onClick={canHaveMenu ? toggleMenu : undefined}
+                onClick={canHaveMenu ? openMenu : undefined}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
@@ -196,7 +195,7 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         cell={cell as Cell<ResultRow, ResultRow[0]>}
                         menuItems={cellContextMenu}
                         elementBounds={elementBounds}
-                        onClose={toggleMenu}
+                        onClose={closeMenu}
                     />
                 </>
             ) : null}
