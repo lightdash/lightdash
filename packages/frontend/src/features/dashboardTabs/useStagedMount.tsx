@@ -13,7 +13,7 @@ import {
 type StagedMountProviderProps = PropsWithChildren<{
     /** Total number of tiles on this tab. Used to stop the rAF loop. */
     totalTiles: number;
-    /** Unique key that resets the cascade (typically the active tab UUID). */
+    /** Stable key that resets the cascade when the mounted tab panel changes. */
     waveKey: string;
     /** Whether this tab is currently active. Pauses the cascade when false. */
     isActive: boolean;
@@ -21,7 +21,8 @@ type StagedMountProviderProps = PropsWithChildren<{
 
 /**
  * Drives a progressive cascade that reveals tiles in batches.
- * Resets whenever `waveKey` changes (e.g. tab switch).
+ * Resets whenever `waveKey` changes (for example, when a tab panel mounts
+ * for the first time or is replaced entirely).
  * Pauses the rAF loop when the tab is inactive so hidden tabs
  * don't waste CPU rendering tiles nobody can see.
  */

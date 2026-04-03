@@ -8,7 +8,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Group, Tabs, Tooltip } from '@mantine-8/core';
+import { Button, Group, Skeleton, Tabs, Tooltip } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -60,9 +60,72 @@ import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+const TransitionGridSkeleton: FC<{
+    layouts: Layout[];
+    cols: number;
+    rowHeight: number;
+    margin: [number, number];
+}> = memo(({ layouts, cols, rowHeight, margin }) => {
+    if (layouts.length === 0) {
+        return (
+            <div className={styles.transitionSkeletonOverlay}>
+                <div className={styles.transitionSkeletonFallback}>
+                    <Skeleton h={120} radius="md" />
+                    <Skeleton h={180} radius="md" />
+                    <Skeleton h={140} radius="md" />
+                </div>
+            </div>
+        );
+    }
+
+    const roundedLayouts = layouts.map((layout) => ({
+        ...layout,
+        x: Math.max(0, Math.round(layout.x)),
+        y: Math.max(0, Math.round(layout.y)),
+        w: Math.max(1, Math.round(layout.w)),
+        h: Math.max(1, Math.round(layout.h)),
+    }));
+
+    const maxBottom = Math.max(
+        ...roundedLayouts.map((layout) => layout.y + layout.h),
+    );
+    const skeletonHeight =
+        maxBottom * rowHeight + Math.max(0, maxBottom - 1) * margin[1];
+
+    return (
+        <div
+            className={styles.transitionSkeletonOverlay}
+            style={{ minHeight: skeletonHeight }}
+        >
+            <div
+                className={styles.transitionSkeletonGrid}
+                style={{
+                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                    gridAutoRows: `${rowHeight}px`,
+                    columnGap: margin[0],
+                    rowGap: margin[1],
+                    minHeight: skeletonHeight,
+                }}
+            >
+                {roundedLayouts.map((layout) => (
+                    <Skeleton
+                        key={layout.i}
+                        radius="md"
+                        className={styles.transitionSkeletonTile}
+                        style={{
+                            gridColumn: `${layout.x + 1} / span ${layout.w}`,
+                            gridRow: `${layout.y + 1} / span ${layout.h}`,
+                        }}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+});
+
 type TabGridPanelProps = {
     tabUuid: string;
-    /** Key that resets the stagger cascade (changes on each tab activation). */
+    /** Stable key that identifies this tab's staged mount lifecycle. */
     waveKey: string;
     tiles: DashboardTile[];
     layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
@@ -168,7 +231,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         if (prevProps.isActive !== nextProps.isActive) return false;
         if (prevProps.isEditMode !== nextProps.isEditMode) return false;
         if (prevProps.locked !== nextProps.locked) return false;
-        // Re-render when wave key changes (stagger cascade reset)
+        // Re-render when the staged mount identity changes
         if (prevProps.waveKey !== nextProps.waveKey) return false;
         if (prevProps.tiles.length !== nextProps.tiles.length) return false;
 
@@ -242,7 +305,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
-    const [, startTabTransition] = useTransition();
+    const [isTabTransitionPending, startTabTransition] = useTransition();
 
     const keepTabsInMemory = useClientFeatureFlag(
         FeatureFlags.DashboardTabsInMemory,
@@ -340,6 +403,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [tabToDuplicate, setTabToDuplicate] = useState<DashboardTab | null>(
         null,
     );
+    const [pendingTabUuid, setPendingTabUuid] = useState<string | null>(null);
 
     const defaultTab = dashboardTabs?.[0];
     // Context: We don't want to show the "tabs mode" if there is only one tab in state
@@ -363,20 +427,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     }
     const visitedTabs = visitedTabsRef.current;
 
-    // Track how many times each tab has been activated so we can reset
-    // the stagger cascade on re-entry (keepTabsInMemory mode).
-    // Mutation is in useEffect (not render) to avoid concurrent mode issues
-    // where abandoned/retried renders would increment the counter multiple times.
-    const tabActivationCountRef = useRef(new Map<string, number>());
-    const [activeTabWaveCount, setActiveTabWaveCount] = useState(0);
     useEffect(() => {
-        if (activeTab) {
-            const prev = tabActivationCountRef.current.get(activeTab.uuid) ?? 0;
-            const next = prev + 1;
-            tabActivationCountRef.current.set(activeTab.uuid, next);
-            setActiveTabWaveCount(next);
+        if (pendingTabUuid && activeTab?.uuid === pendingTabUuid) {
+            setPendingTabUuid(null);
         }
-    }, [activeTab?.uuid]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activeTab?.uuid, pendingTabUuid]);
 
     // Group tiles by their tab UUID for per-tab grid rendering.
     // Only used when tabs are enabled. Tiles with stale/missing tab
@@ -436,6 +491,24 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
         return map;
     }, [tilesByTab, isEditMode, gridProps]);
+
+    const currentBreakpoint = (() => {
+        if (currentCols === gridProps.cols.sm) return 'sm';
+        if (currentCols === gridProps.cols.md) return 'md';
+        return 'lg';
+    })();
+
+    const pendingTabLayouts = useMemo(() => {
+        if (!pendingTabUuid) return [];
+        return layoutsByTab.get(pendingTabUuid)?.[currentBreakpoint] ?? [];
+    }, [currentBreakpoint, layoutsByTab, pendingTabUuid]);
+
+    const showTabTransitionSkeleton =
+        !!pendingTabUuid &&
+        pendingTabUuid !== activeTab?.uuid &&
+        (!keepTabsInMemory ||
+            !visitedTabs.has(pendingTabUuid) ||
+            isTabTransitionPending);
 
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(
@@ -585,6 +658,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const handleChangeTab = (tab: DashboardTab) => {
+        if (tab.uuid === activeTab?.uuid) return;
+
+        setPendingTabUuid(tab.uuid);
+
         // When tabs are kept in memory, instantly toggle visibility via DOM
         // manipulation for a snappier UX. When disabled, React handles
         // the mount/unmount so DOM tweaks are unnecessary.
@@ -1080,12 +1157,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                           <TabGridPanel
                                                               key={tab.uuid}
                                                               tabUuid={tab.uuid}
-                                                              waveKey={
-                                                                  activeTab?.uuid ===
-                                                                  tab.uuid
-                                                                      ? `${tab.uuid}-${activeTabWaveCount}`
-                                                                      : tab.uuid
-                                                              }
+                                                              waveKey={tab.uuid}
                                                               tiles={
                                                                   tilesByTab.get(
                                                                       tab.uuid,
@@ -1225,6 +1297,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                       )}
                                                   </ResponsiveGridLayout>
                                               )}
+                                        {showTabTransitionSkeleton && (
+                                            <TransitionGridSkeleton
+                                                layouts={pendingTabLayouts}
+                                                cols={
+                                                    gridProps.cols[
+                                                        currentBreakpoint
+                                                    ]
+                                                }
+                                                rowHeight={gridProps.rowHeight}
+                                                margin={gridProps.margin}
+                                            />
+                                        )}
                                     </div>
                                 </Group>
                                 <LockedDashboardModal
