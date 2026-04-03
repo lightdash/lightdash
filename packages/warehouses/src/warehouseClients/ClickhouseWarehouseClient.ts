@@ -1,4 +1,9 @@
-import { createClient, Row, type ClickHouseClient } from '@clickhouse/client';
+import {
+    createClient,
+    Row,
+    type ClickHouseClient,
+    type ClickHouseSettings,
+} from '@clickhouse/client';
 import {
     AnyType,
     CreateClickhouseCredentials,
@@ -235,9 +240,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     ): Promise<void> {
         try {
             // Build clickhouse_settings with optional timezone and log_comment for query tags
-            const clickhouseSettings: Record<string, string> = {};
+            const clickhouseSettings: ClickHouseSettings = {};
             if (options?.timezone) {
-                clickhouseSettings.timezone = options.timezone;
+                clickhouseSettings.session_timezone = options.timezone;
             }
             if (options?.tags) {
                 // Use native log_comment setting - persists in system.query_log
