@@ -766,9 +766,21 @@ export class AsyncQueryService extends ProjectService {
             page,
             nextPage,
             previousPage,
-            initialQueryExecutionMs:
-                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
-            resultsPageExecutionMs: roundedDurationMs,
+            metadata: {
+                performance: {
+                    initialQueryExecutionMs:
+                        queryHistory.warehouseExecutionTimeMs ?? null,
+                    resultsPageExecutionMs: roundedDurationMs,
+                    queueTimeMs:
+                        this.lightdashConfig.natsWorker.enabled &&
+                        queryHistory.processingStartedAt
+                            ? Math.round(
+                                  queryHistory.processingStartedAt.getTime() -
+                                      queryHistory.createdAt.getTime(),
+                              )
+                            : null,
+                },
+            },
             status,
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),

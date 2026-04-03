@@ -18710,6 +18710,7 @@
                     "renameResources",
                     "materializePreAggregate",
                     "cleanQueryHistory",
+                    "cleanSoftDeletedContent",
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
                     "generateSlackChannelSyncJobs",
@@ -27279,6 +27280,29 @@
             "ResultRow": {
                 "$ref": "#/components/schemas/Record_string._value-ResultValue__"
             },
+            "QueryResultsMetadata": {
+                "properties": {
+                    "queueTimeMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "resultsPageExecutionMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "initialQueryExecutionMs": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "queueTimeMs",
+                    "resultsPageExecutionMs",
+                    "initialQueryExecutionMs"
+                ],
+                "type": "object"
+            },
             "QueryHistoryStatus.READY": {
                 "enum": ["ready"],
                 "type": "string"
@@ -27380,13 +27404,8 @@
                             "status": {
                                 "$ref": "#/components/schemas/QueryHistoryStatus.READY"
                             },
-                            "resultsPageExecutionMs": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "initialQueryExecutionMs": {
-                                "type": "number",
-                                "format": "double"
+                            "metadata": {
+                                "$ref": "#/components/schemas/QueryResultsMetadata"
                             },
                             "rows": {
                                 "items": {
@@ -27404,8 +27423,7 @@
                         "required": [
                             "pivotDetails",
                             "status",
-                            "resultsPageExecutionMs",
-                            "initialQueryExecutionMs",
+                            "metadata",
                             "rows",
                             "columns",
                             "queryUuid"

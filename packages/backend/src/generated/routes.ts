@@ -17613,6 +17613,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['renameResources'] },
                 { dataType: 'enum', enums: ['materializePreAggregate'] },
                 { dataType: 'enum', enums: ['cleanQueryHistory'] },
+                { dataType: 'enum', enums: ['cleanSoftDeletedContent'] },
                 { dataType: 'enum', enums: ['downloadAsyncQueryResults'] },
                 { dataType: 'enum', enums: ['syncSlackChannels'] },
                 { dataType: 'enum', enums: ['generateSlackChannelSyncJobs'] },
@@ -26106,6 +26107,26 @@ const models: TsoaRoute.Models = {
         type: { ref: 'Record_string._value-ResultValue__', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    QueryResultsMetadata: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                queueTimeMs: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                resultsPageExecutionMs: { dataType: 'double', required: true },
+                initialQueryExecutionMs: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'QueryHistoryStatus.READY': {
         dataType: 'refEnum',
         enums: ['ready'],
@@ -26237,12 +26258,8 @@ const models: TsoaRoute.Models = {
                             ref: 'QueryHistoryStatus.READY',
                             required: true,
                         },
-                        resultsPageExecutionMs: {
-                            dataType: 'double',
-                            required: true,
-                        },
-                        initialQueryExecutionMs: {
-                            dataType: 'double',
+                        metadata: {
+                            ref: 'QueryResultsMetadata',
                             required: true,
                         },
                         rows: {
