@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@lightdash/common": ["../common/src/index.ts"],
+            "@lightdash/common/*": ["../common/src/*"],
+            "@lightdash/warehouses": ["../warehouses/src/index.ts"],
+            "@lightdash/warehouses/*": ["../warehouses/src/*"]
+        }
+    }
+}
