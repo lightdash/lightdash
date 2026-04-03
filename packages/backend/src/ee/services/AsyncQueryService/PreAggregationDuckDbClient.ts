@@ -66,6 +66,7 @@ export type ResolvePreAggregationDuckDbArgs = {
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls: UserAccessControls;
     availableParameterDefinitions: ParameterDefinitions;
+    useTimezoneAwareDateTrunc?: boolean;
 };
 
 export type PreAggregationDuckDbResolution =
@@ -365,6 +366,7 @@ export class PreAggregationDuckDbClient {
                     availableParameterDefinitions:
                         args.availableParameterDefinitions,
                     pivotConfiguration: args.pivotConfiguration,
+                    useTimezoneAwareDateTrunc: args.useTimezoneAwareDateTrunc,
                 }),
         );
 

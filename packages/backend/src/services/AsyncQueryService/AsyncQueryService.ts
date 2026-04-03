@@ -1554,6 +1554,7 @@ export class AsyncQueryService extends ProjectService {
         userAccessControls,
         availableParameterDefinitions,
         queryUuid,
+        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         warehouseQuery: string;
@@ -1569,6 +1570,7 @@ export class AsyncQueryService extends ProjectService {
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
         queryUuid: string;
+        useTimezoneAwareDateTrunc?: boolean;
     }): Promise<AsyncQueryExecutionPlan> {
         if (routingTarget === 'materialization') {
             return { target: 'materialization', warehouseQuery };
@@ -1593,6 +1595,7 @@ export class AsyncQueryService extends ProjectService {
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
             },
         });
 
@@ -2559,6 +2562,9 @@ export class AsyncQueryService extends ProjectService {
             projectTimezone,
         );
 
+        const useTimezoneAwareDateTrunc =
+            await this.isTimezoneAwareDateTruncEnabled();
+
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
@@ -2572,6 +2578,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             pivotConfiguration,
             pivotDimensions: metricQuery.pivotDimensions,
+            useTimezoneAwareDateTrunc,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -2928,6 +2935,9 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
+                    const useTimezoneAwareDateTrunc =
+                        await this.isTimezoneAwareDateTruncEnabled();
+
                     const resolveStart = Date.now();
                     const executionPlan =
                         await this.resolveAsyncQueryExecutionPlan({
@@ -2945,6 +2955,7 @@ export class AsyncQueryService extends ProjectService {
                             userAccessControls,
                             availableParameterDefinitions,
                             queryUuid: queryHistoryUuid,
+                            useTimezoneAwareDateTrunc,
                         });
                     const resolveMs = Date.now() - resolveStart;
 
