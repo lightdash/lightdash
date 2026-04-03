@@ -681,11 +681,11 @@ export const filterInTheNextNonCompletedDayTimezoneMocks = [
 export const filterInThePastNonCompletedDayDstMocks = [
     [
         'UTC',
-        "((customers.created) >= ('2020-03-08 05:00:00') AND (customers.created) <= ('2020-03-09 05:00:00'))",
+        "((customers.created) >= ('2020-03-08 05:00:00+00') AND (customers.created) <= ('2020-03-09 05:00:00+00'))",
     ],
     [
         'America/New_York',
-        "((customers.created) >= ('2020-03-08 06:00:00') AND (customers.created) <= ('2020-03-09 05:00:00'))",
+        "((customers.created) >= ('2020-03-08 06:00:00+00') AND (customers.created) <= ('2020-03-09 05:00:00+00'))",
     ],
 ];
 
@@ -697,11 +697,11 @@ export const filterInThePastNonCompletedDayDstMocks = [
 export const filterInTheNextNonCompletedDayDstMocks = [
     [
         'UTC',
-        "((customers.created) >= ('2020-03-08 06:00:00') AND (customers.created) <= ('2020-03-09 06:00:00'))",
+        "((customers.created) >= ('2020-03-08 06:00:00+00') AND (customers.created) <= ('2020-03-09 06:00:00+00'))",
     ],
     [
         'America/New_York',
-        "((customers.created) >= ('2020-03-08 06:00:00') AND (customers.created) <= ('2020-03-09 05:00:00'))",
+        "((customers.created) >= ('2020-03-08 06:00:00+00') AND (customers.created) <= ('2020-03-09 05:00:00+00'))",
     ],
 ];
 
