@@ -4,8 +4,24 @@ seeds:
   - name: raw_timezone_test
     config:
       column_types:
-        event_timestamp: "{{ 'timestamp_tz' if target.type == 'snowflake' else 'timestamptz' }}"
-        event_timestamp_ntz: "{{ 'timestamp_ntz' if target.type == 'snowflake' else 'timestamp' }}"
+        event_timestamp: >-
+          {%- if target.type == 'snowflake' -%}
+            timestamp_tz
+          {%- elif target.type == 'clickhouse' -%}
+            DateTime64(3, 'UTC')
+          {%- elif target.type in ['databricks', 'spark', 'bigquery'] -%}
+            timestamp
+          {%- else -%}
+            timestamptz
+          {%- endif -%}
+        event_timestamp_ntz: >-
+          {%- if target.type == 'snowflake' -%}
+            timestamp_ntz
+          {%- elif target.type == 'clickhouse' -%}
+            DateTime64(3)
+          {%- else -%}
+            timestamp
+          {%- endif -%}
   - name: raw_events
     config:
       column_types:
@@ -66,11 +82,11 @@ seeds:
         event_id: integer
         user_id: integer
         event_timestamp: timestamp
-        event_properties: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb'] else 'jsonb') }}"
+        event_properties: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb', 'clickhouse'] else 'jsonb') }}"
   - name: raw_plan
     config:
       column_types:
-        metadata: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb'] else 'jsonb') }}"
+        metadata: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb', 'clickhouse'] else 'jsonb') }}"
   - name: raw_buildings
     config:
       column_types:
