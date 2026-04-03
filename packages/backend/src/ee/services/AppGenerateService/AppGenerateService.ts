@@ -145,13 +145,11 @@ export class AppGenerateService extends BaseService {
     private async createSandbox(
         appUuid: string,
         e2bApiKey: string,
-        anthropicApiKey: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
         const sandbox = await Sandbox.create('lightdash-data-app', {
             timeoutMs: 60 * 60 * 1000,
             apiKey: e2bApiKey,
-            envs: { ANTHROPIC_API_KEY: anthropicApiKey },
             lifecycle: { onTimeout: 'pause' },
         });
         const durationMs = AppGenerateService.elapsed(start);
@@ -249,7 +247,6 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         newVersion: number,
         e2bApiKey: string,
-        anthropicApiKey: string,
         s3Client: S3Client,
         bucket: string,
     ): Promise<{
@@ -281,11 +278,7 @@ export class AppGenerateService extends BaseService {
         }
 
         // Fallback: create new sandbox and restore source from latest ready version
-        const createResult = await this.createSandbox(
-            appUuid,
-            e2bApiKey,
-            anthropicApiKey,
-        );
+        const createResult = await this.createSandbox(appUuid, e2bApiKey);
         durations.sandboxMs = createResult.durationMs;
         await this.appModel.updateSandboxId(
             appUuid,
@@ -450,6 +443,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         continueSession: boolean,
+        anthropicApiKey: string,
     ): Promise<{ durationMs: number; responseText: string | null }> {
         const start = performance.now();
         let stdoutBuffer = '';
@@ -470,6 +464,7 @@ export class AppGenerateService extends BaseService {
             {
                 cwd: '/app',
                 timeoutMs: 55 * 60 * 1000,
+                envs: { ANTHROPIC_API_KEY: anthropicApiKey },
                 onStdout: (chunk) => {
                     stdoutBuffer += chunk;
                     const lines = stdoutBuffer.split('\n');
@@ -665,11 +660,7 @@ export class AppGenerateService extends BaseService {
 
         let sandbox: Sandbox;
         try {
-            const result = await this.createSandbox(
-                appUuid,
-                e2bApiKey,
-                anthropicApiKey,
-            );
+            const result = await this.createSandbox(appUuid, e2bApiKey);
             sandbox = result.sandbox;
             durations.sandboxMs = result.durationMs;
             await this.appModel.updateSandboxId(appUuid, sandbox.sandboxId);
@@ -695,6 +686,7 @@ export class AppGenerateService extends BaseService {
                 durations,
                 overallStart,
                 false, // fresh sandbox — no previous session to continue
+                anthropicApiKey,
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
@@ -712,6 +704,7 @@ export class AppGenerateService extends BaseService {
         extraDurations: Record<string, number>,
         overallStart: number,
         continueSession: boolean,
+        anthropicApiKey: string,
     ): Promise<void> {
         const durations: Record<string, number> = { ...extraDurations };
 
@@ -754,6 +747,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 continueSession,
+                anthropicApiKey,
             );
             durations.generateMs = generation.durationMs;
             responseText = generation.responseText;
@@ -961,7 +955,6 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 newVersion,
                 e2bApiKey,
-                anthropicApiKey,
                 s3Client,
                 bucket,
             );
@@ -990,6 +983,7 @@ export class AppGenerateService extends BaseService {
                 durations,
                 overallStart,
                 wasResumed, // continue Claude session if sandbox was resumed
+                anthropicApiKey,
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
