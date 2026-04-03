@@ -205,9 +205,9 @@ test.describe('Explore', () => {
         // Ensure focus moves to ace editor before typing
         await page.waitForTimeout(100);
         await page.locator('div.ace_content').click();
-        // eslint-disable-next-line no-template-curly-in-string
         await page
             .locator('div.ace_content')
+            // eslint-disable-next-line no-template-curly-in-string
             .type('${orders.unique_order_count}');
         await page.getByTestId('table-calculation-save-button').first().click();
 

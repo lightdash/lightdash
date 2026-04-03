@@ -1,6 +1,6 @@
 name: Setup Node, PNPM, and Playwright
 
-description: Sets up Node.js, PNPM, and Playwright browsers.
+description: Sets up Node.js, PNPM, and Playwright.
 
 runs:
     using: 'composite'
