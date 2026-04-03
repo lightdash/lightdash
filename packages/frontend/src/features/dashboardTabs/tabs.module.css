@@ -133,21 +133,6 @@
     }
 }
 
-/* Light overlay while tiles cascade in */
-.cascadeOverlay {
-    position: absolute;
-    inset: 0;
-    z-index: 9;
-    pointer-events: none;
-
-    @mixin light {
-        background: rgba(255, 255, 255, 0.4);
-    }
-    @mixin dark {
-        background: rgba(0, 0, 0, 0.15);
-    }
-}
-
 /* Subtle shimmer line while tiles cascade in */
 .cascadeLoadingBar {
     position: absolute;
