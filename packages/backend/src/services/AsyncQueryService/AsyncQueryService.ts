@@ -2526,6 +2526,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         pivotConfiguration,
         userAttributeOverrides,
+        preloadedUserAccessControls,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2538,11 +2539,12 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        preloadedUserAccessControls: UserAccessControls;
     }) {
         assertIsAccountWithOrg(account);
 
         const { userAttributes: dbUserAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
+            preloadedUserAccessControls;
         const userAttributes = userAttributeOverrides
             ? { ...dbUserAttributes, ...userAttributeOverrides }
             : dbUserAttributes;
@@ -3229,12 +3231,13 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQueryStart = Date.now();
 
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            metricQuery.exploreName,
-            organizationUuid,
-        );
+        const { explore, userAccessControls: preloadedUserAccessControls } =
+            await this.getExploreWithUserAccessControls(
+                account,
+                projectUuid,
+                metricQuery.exploreName,
+                organizationUuid,
+            );
         const getExploreMs = Date.now() - metricQueryStart;
 
         const whCredStart = Date.now();
@@ -3280,6 +3283,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
             userAttributeOverrides,
+            preloadedUserAccessControls,
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -3464,12 +3468,13 @@ export class AsyncQueryService extends ProjectService {
             query_context: context,
         };
 
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            savedChartTableName,
-            savedChartOrganizationUuid,
-        );
+        const { explore, userAccessControls: preloadedUserAccessControls } =
+            await this.getExploreWithUserAccessControls(
+                account,
+                projectUuid,
+                savedChartTableName,
+                savedChartOrganizationUuid,
+            );
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -3525,6 +3530,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            preloadedUserAccessControls,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3666,9 +3672,9 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        const [space, explore] = await Promise.all([
+        const [space, { explore, userAccessControls }] = await Promise.all([
             this.spaceModel.getSpaceSummary(savedChart.spaceUuid),
-            this.getExplore(
+            this.getExploreWithUserAccessControls(
                 account,
                 projectUuid,
                 savedChart.tableName,
@@ -3814,7 +3820,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
-            userAccessControls,
+            userAccessControls: queryUserAccessControls,
             availableParameterDefinitions,
             resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
@@ -3826,6 +3832,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            preloadedUserAccessControls: userAccessControls,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3872,7 +3879,7 @@ export class AsyncQueryService extends ProjectService {
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
-                    userAccessControls,
+                    userAccessControls: queryUserAccessControls,
                     availableParameterDefinitions,
                 }),
             },
@@ -3943,12 +3950,13 @@ export class AsyncQueryService extends ProjectService {
 
         const { exploreName } = metricQuery;
 
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            exploreName,
-            organizationUuid,
-        );
+        const { explore, userAccessControls: preloadedUserAccessControls } =
+            await this.getExploreWithUserAccessControls(
+                account,
+                projectUuid,
+                exploreName,
+                organizationUuid,
+            );
 
         // Combine parameters early so we can filter dimensions by parameter availability
         const combinedParameters = await this.combineParameters(
@@ -4130,6 +4138,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            preloadedUserAccessControls,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
