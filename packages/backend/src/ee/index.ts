@@ -463,6 +463,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 preAggregateModel: context.models.getPreAggregateModel(),
                 preAggregateMaterializationService:
                     context.serviceRepository.getPreAggregateMaterializationService(),
+                spaceService: context.serviceRepository.getSpaceService(),
+                savedChartService:
+                    context.serviceRepository.getSavedChartService(),
+                savedSqlService: context.serviceRepository.getSavedSqlService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

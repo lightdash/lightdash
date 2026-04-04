@@ -77,9 +77,12 @@ import { BaseService } from '../BaseService';
 import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
-import type {
-    SoftDeletableService,
-    SoftDeleteOptions,
+import {
+    batchDeleteExpired,
+    type CleanupConfig,
+    type CleanupResult,
+    type SoftDeletableService,
+    type SoftDeleteOptions,
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
@@ -1387,6 +1390,13 @@ export class DashboardService
         }
 
         await this.dashboardModel.permanentDelete(dashboardUuid);
+    }
+
+    async permanentDeleteExpired(
+        retentionDays: number,
+        config: CleanupConfig,
+    ): Promise<CleanupResult> {
+        return batchDeleteExpired(this.dashboardModel, retentionDays, config);
     }
 
     async getSchedulers(
