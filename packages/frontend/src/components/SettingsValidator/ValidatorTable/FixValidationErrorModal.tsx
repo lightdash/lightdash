@@ -287,23 +287,17 @@ export const FixValidationErrorModal: FC<Props> = ({
                                 </Text>
                             )}
                             <Select
-                                searchValue={search}
-                                onSearchChange={setSearch}
-                                renderOption={({ option }) => (
-                                    <Highlight
-                                        highlight={search}
-                                        {...option}
-                                        fz="sm"
-                                        color="yellow"
-                                    >
-                                        {option.label}
-                                    </Highlight>
-                                )}
-                                data={explores?.map((e) => e.name) || []}
+                                data={
+                                    explores
+                                        ?.map((e) => e.name)
+                                        .sort((a, b) => a.localeCompare(b)) ??
+                                    []
+                                }
                                 required
                                 searchable
+                                nothingFoundMessage="No models found"
                                 label="New model"
-                                placeholder={`Select a model to rename to`}
+                                placeholder="Select a model to rename to"
                                 onChange={(e) => {
                                     if (e) setNewName(e);
                                 }}
