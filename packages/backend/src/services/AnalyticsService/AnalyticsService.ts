@@ -53,12 +53,14 @@ export class AnalyticsService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid,
                 }),
@@ -90,11 +92,13 @@ export class AnalyticsService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } = await this.projectModel.get(projectUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid,
                 }),
@@ -140,12 +144,14 @@ export class AnalyticsService extends BaseService {
         projectUuid: string,
         account: Account,
     ): Promise<UnusedContent> {
+        const auditedAbility = this.createAuditedAbility(account);
         const { organizationUuid } = await this.projectModel.get(projectUuid);
 
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid,
                 }),

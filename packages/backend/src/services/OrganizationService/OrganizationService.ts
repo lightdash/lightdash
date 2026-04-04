@@ -169,10 +169,14 @@ export class OrganizationService extends BaseService {
 
     async delete(organizationUuid: string, user: SessionUser): Promise<void> {
         const organization = await this.organizationModel.get(organizationUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'delete',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', {
+                    organizationUuid,
+                    uuid: organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -229,10 +233,14 @@ export class OrganizationService extends BaseService {
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', { organizationUuid }),
+                subject('OrganizationMemberProfile', {
+                    organizationUuid: organizationUuid || '',
+                    uuid: organizationUuid || '',
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -257,9 +265,12 @@ export class OrganizationService extends BaseService {
               });
 
         let members = organizationMembers.filter((member) =>
-            user.ability.can(
+            auditedAbility.can(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    uuid: member.userUuid,
+                }),
             ),
         );
 
@@ -310,12 +321,14 @@ export class OrganizationService extends BaseService {
                 this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
 
+        const auditedAbility = this.createAuditedAbility(account);
         return projects.filter((project) =>
-            account.user.ability.can(
+            auditedAbility.can(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid: project.projectUuid,
+                    uuid: project.projectUuid,
                 }),
             ),
         );
@@ -347,9 +360,16 @@ export class OrganizationService extends BaseService {
         memberUuid: string,
     ): Promise<OrganizationMemberProfile> {
         const { organizationUuid } = user;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             organizationUuid === undefined ||
-            user.ability.cannot('view', 'OrganizationMemberProfile')
+            auditedAbility.cannot(
+                'view',
+                subject('OrganizationMemberProfile', {
+                    organizationUuid: organizationUuid || '',
+                    uuid: organizationUuid || '',
+                }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -359,9 +379,12 @@ export class OrganizationService extends BaseService {
                 memberUuid,
             );
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    uuid: member.userUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -374,9 +397,16 @@ export class OrganizationService extends BaseService {
         email: string,
     ): Promise<OrganizationMemberProfile> {
         const { organizationUuid } = user;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             organizationUuid === undefined ||
-            user.ability.cannot('view', 'OrganizationMemberProfile')
+            auditedAbility.cannot(
+                'view',
+                subject('OrganizationMemberProfile', {
+                    organizationUuid: organizationUuid || '',
+                    uuid: organizationUuid || '',
+                }),
+            )
         ) {
             throw new ForbiddenError();
         }
@@ -387,9 +417,12 @@ export class OrganizationService extends BaseService {
             );
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    uuid: member.userUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -406,10 +439,14 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const { organizationUuid } = authenticatedUser;
+        const auditedAbility = this.createAuditedAbility(authenticatedUser);
         if (
-            authenticatedUser.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('OrganizationMemberProfile', { organizationUuid }),
+                subject('OrganizationMemberProfile', {
+                    organizationUuid: organizationUuid || '',
+                    uuid: organizationUuid || '',
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -483,10 +520,14 @@ export class OrganizationService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', {
+                    organizationUuid,
+                    uuid: organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -569,12 +610,14 @@ export class OrganizationService extends BaseService {
         actor: SessionUser,
         createGroup: CreateGroup,
     ): Promise<GroupWithMembers> {
+        const auditedAbility = this.createAuditedAbility(actor);
         if (
             actor.organizationUuid === undefined ||
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Group', {
                     organizationUuid: actor.organizationUuid,
+                    uuid: actor.organizationUuid,
                 }),
             )
         ) {
@@ -621,8 +664,9 @@ export class OrganizationService extends BaseService {
             paginateArgs,
         );
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const allowedGroups = groups.filter((group) =>
-            actor.ability.can('view', subject('Group', group)),
+            auditedAbility.can('view', subject('Group', group)),
         );
 
         if (includeMembers === undefined) {
@@ -655,12 +699,14 @@ export class OrganizationService extends BaseService {
         user: SessionUser,
         data: CreateColorPalette,
     ): Promise<OrganizationColorPalette> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             !user.organizationUuid ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    uuid: user.organizationUuid,
                 }),
             )
         ) {
@@ -697,12 +743,14 @@ export class OrganizationService extends BaseService {
         colorPaletteUuid: string,
         data: UpdateColorPalette,
     ): Promise<OrganizationColorPalette> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             !user.organizationUuid ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    uuid: user.organizationUuid,
                 }),
             )
         ) {
@@ -726,12 +774,14 @@ export class OrganizationService extends BaseService {
         user: SessionUser,
         colorPaletteUuid: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             !user.organizationUuid ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    uuid: user.organizationUuid,
                 }),
             )
         ) {
@@ -748,12 +798,14 @@ export class OrganizationService extends BaseService {
         user: SessionUser,
         colorPaletteUuid: string,
     ): Promise<OrganizationColorPalette> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             !user.organizationUuid ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    uuid: user.organizationUuid,
                 }),
             )
         ) {
@@ -770,10 +822,14 @@ export class OrganizationService extends BaseService {
 
     async getImpersonationEnabled(user: SessionUser): Promise<boolean> {
         const { organizationUuid } = user;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', {
+                    organizationUuid: organizationUuid || '',
+                    uuid: organizationUuid || '',
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -796,10 +852,14 @@ export class OrganizationService extends BaseService {
         enabled: boolean,
     ): Promise<void> {
         const { organizationUuid } = user;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', {
+                    organizationUuid: organizationUuid || '',
+                    uuid: organizationUuid || '',
+                }),
             )
         ) {
             throw new ForbiddenError();

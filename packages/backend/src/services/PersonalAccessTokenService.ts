@@ -60,7 +60,16 @@ export class PersonalAccessTokenService extends BaseService {
         data: CreatePersonalAccessToken,
         method: RequestMethod,
     ): Promise<PersonalAccessTokenWithToken> {
-        if (user.ability.cannot('create', subject('PersonalAccessToken', {}))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('PersonalAccessToken', {
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to create a personal access token',
             );
@@ -86,7 +95,16 @@ export class PersonalAccessTokenService extends BaseService {
         user: SessionUser,
         personalAccessTokenUuid: string,
     ): Promise<void> {
-        if (user.ability.cannot('delete', subject('PersonalAccessToken', {}))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'delete',
+                subject('PersonalAccessToken', {
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to delete a personal access token',
             );
@@ -102,7 +120,16 @@ export class PersonalAccessTokenService extends BaseService {
     async getAllPersonalAccessTokens(
         user: SessionUser,
     ): Promise<PersonalAccessToken[]> {
-        if (user.ability.cannot('view', subject('PersonalAccessToken', {}))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('PersonalAccessToken', {
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to view personal access tokens',
             );
@@ -115,7 +142,16 @@ export class PersonalAccessTokenService extends BaseService {
         personalAccessTokenUuid: string,
         data: { expiresAt: Date },
     ): Promise<PersonalAccessTokenWithToken> {
-        if (user.ability.cannot('update', subject('PersonalAccessToken', {}))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('PersonalAccessToken', {
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to rotate a personal access token',
             );
