@@ -142,6 +142,60 @@ tableName: "orders"
 version: 1
 ```
 
+## Pivoted Tables
+
+Pivoting transforms dimension values into column headers. For example, instead of a "status" column with rows for each value, each status becomes its own column.
+
+**Important:** `pivotConfig` is a top-level property (sibling of `chartConfig`), not nested inside it. All fields — including pivoted dimensions — must have entries in `chartConfig.config.columns` with `visible: true` for the table to render correctly with proper scrollbars and column behavior.
+
+### Pivot Configuration
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `pivotConfig.columns` | string[] | Dimension field IDs to pivot into column headers |
+
+### Example: Pivoted Table
+
+Revenue by region, pivoted by product category so each category becomes a column:
+
+```yaml
+contentType: chart
+chartConfig:
+  type: "table"
+  config:
+    columns:
+      orders_region:
+        visible: true
+        name: "Region"
+        frozen: true
+      orders_product_category:
+        visible: true
+      orders_total_revenue:
+        visible: true
+        name: "Revenue"
+    hideRowNumbers: false
+    showColumnCalculation: true
+metricQuery:
+  exploreName: "orders"
+  dimensions:
+    - orders_region
+    - orders_product_category
+  metrics:
+    - orders_total_revenue
+  sorts:
+    - fieldId: "orders_region"
+      descending: false
+  limit: 500
+name: "Revenue by Region and Category"
+pivotConfig:
+  columns:
+    - "orders_product_category"
+slug: "revenue-by-region-category"
+spaceSlug: "sales"
+tableName: "orders"
+version: 1
+```
+
 ## Example: Field-to-Field Comparison
 
 Compare values between fields to highlight over/under budget:
