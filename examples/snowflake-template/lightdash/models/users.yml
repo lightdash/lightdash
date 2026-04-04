@@ -3,7 +3,7 @@ type: model
 name: users
 
 # Table definition
-sql_from: 'DB.SCHEMA.USERS'
+sql_from: 'SNOWFLAKE_DATABASE_STAGING.DBT_DEMO.USERS'
 
 # Metric definitions
 # For more configuration see: https://docs.lightdash.com/references/metrics
@@ -16,12 +16,12 @@ metrics:
 # Dimension definitions
 # For more configuration see: https://docs.lightdash.com/references/dimensions
 dimensions:
-  - name: subscription_type
-    sql: ${TABLE}.SUBSCRIPTION
+  - name: job_title
+    sql: ${TABLE}.JOB_TITLE
     type: string
 
-  - name: signed_up_at
-    sql: ${TABLE}.SIGNED_UP
+  - name: first_logged_in_at
+    sql: ${TABLE}.FIRST_LOGGED_IN_AT
     type: date
     time_intervals:
       - DAY
