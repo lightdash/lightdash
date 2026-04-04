@@ -157,6 +157,7 @@ export const buildPopAdditionalMetric = ({
         | 'round'
         | 'compact'
         | 'format'
+        | 'formatOptions'
     >;
     timeDimensionId: string;
     granularity: TimeFrames;
@@ -186,6 +187,7 @@ export const buildPopAdditionalMetric = ({
         round: metric.round,
         compact: metric.compact,
         format: metric.format,
+        formatOptions: metric.formatOptions,
         generationType: 'periodOverPeriod',
         baseMetricId,
         timeDimensionId,
