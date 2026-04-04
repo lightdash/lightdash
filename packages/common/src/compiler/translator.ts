@@ -95,6 +95,7 @@ const convertTimezone = (
         case SupportedDbtAdapter.DUCKDB:
             return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
             return timestampSql;
         // Athena uses Trino SQL, timestamps return in server timezone
         case SupportedDbtAdapter.TRINO:
