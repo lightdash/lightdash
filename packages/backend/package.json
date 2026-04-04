@@ -69,7 +69,7 @@
         "@octokit/auth-token": "4.0.0",
         "@octokit/core": "5.2.0",
         "@octokit/request": "8.4.1",
-        "@octokit/rest": "20.1.1",
+        "@octokit/rest": "21.0.0",
         "@openrouter/ai-sdk-provider": "1.5.4",
         "@rudderstack/rudder-sdk-node": "2.1.1",
         "@sentry/core": "9.31.0",
