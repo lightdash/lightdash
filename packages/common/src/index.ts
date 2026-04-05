@@ -219,6 +219,7 @@ export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
 export * from './utils/time';
 export * from './utils/timeFrames';
+export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';

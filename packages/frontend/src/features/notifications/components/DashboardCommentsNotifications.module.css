@@ -1,0 +1,13 @@
+.notificationTime {
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-7)
+    );
+}
+
+.notificationMessage {
+    color: light-dark(
+        var(--mantine-color-ldGray-7),
+        var(--mantine-color-ldGray-7)
+    );
+}

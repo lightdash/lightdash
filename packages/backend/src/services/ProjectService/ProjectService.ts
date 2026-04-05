@@ -117,6 +117,9 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PreAggregateCheckResult,
+    PreAggregateMatchMiss,
+    PreAggregateMissReason,
     preAggregateUtils,
     Project,
     ProjectCatalog,
@@ -132,6 +135,7 @@ import {
     replaceDimensionInExplore,
     RequestMethod,
     resolveBaseDimension,
+    resolveQueryTimezone,
     resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
@@ -208,6 +212,7 @@ import { normalizeDatabricksHostLenient } from '../../controllers/authentication
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
@@ -1198,6 +1203,12 @@ export class ProjectService extends BaseService {
                     secretAccessKey: '',
                 };
             }
+            case WarehouseTypes.DUCKDB: {
+                return {
+                    ...credentials,
+                    token: '',
+                };
+            }
 
             default:
                 return assertUnreachable(
@@ -1418,6 +1429,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -1563,6 +1575,26 @@ export class ProjectService extends BaseService {
                             trigger: 'compile',
                         }),
                     ),
+                );
+
+                const { schedulerTimezone } = await this.projectModel.get(
+                    args.projectUuid,
+                );
+
+                await this.schedulerClient.schedulePreAggregateCronJobs(
+                    materializableDefinitions
+                        .filter((definition) => definition.refreshCron !== null)
+                        .map((definition) => ({
+                            organizationUuid: args.organizationUuid,
+                            projectUuid: args.projectUuid,
+                            createdByUserUuid: args.userUuid,
+                            preAggregateDefinitionUuid:
+                                definition.preAggregateDefinitionUuid,
+                            refreshCron: definition.refreshCron!,
+                            schedulerTimezone,
+                            preAggExploreName: undefined,
+                        })),
+                    new Date(),
                 );
             }
         } catch (error) {
@@ -1821,6 +1853,7 @@ export class ProjectService extends BaseService {
                     case WarehouseTypes.TRINO:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.DUCKDB:
                         break;
                     default:
                         assertUnreachable(
@@ -2150,11 +2183,17 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // TODO: Do not hardcode CLI information here
+        const exploresWithPreAggregates = enhanceExploresForPreAggregates({
+            explores,
+            enabled: this.lightdashConfig.preAggregates.enabled,
+        });
+
         await this.saveExploresToCacheAndIndexCatalog(
             user.userUuid,
             projectUuid,
-            explores,
+            exploresWithPreAggregates,
+
+            // TODO: Do not hardcode CLI information here
             'cli_deploy',
             null,
             'cli',
@@ -3121,7 +3160,9 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -3163,6 +3204,103 @@ export class ProjectService extends BaseService {
             // Include pivot query if pivot configuration was provided
             ...(pivotQuery && { pivotQuery }),
         };
+    }
+
+    async checkPreAggregateMatch(args: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        metricQuery: MetricQuery;
+        usePreAggregateCache: boolean;
+    }): Promise<PreAggregateCheckResult> {
+        if (!this.lightdashConfig.preAggregates.enabled) {
+            throw new ForbiddenError('Pre-aggregates are not enabled');
+        }
+
+        const { account, projectUuid, exploreName, metricQuery } = args;
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const sourceExplore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+        );
+
+        const matchResult = preAggregateUtils.findMatch(
+            metricQuery,
+            sourceExplore,
+        );
+
+        const isUserBypass = args.usePreAggregateCache === false;
+        if (isUserBypass || !matchResult.hit) {
+            const miss =
+                isUserBypass && matchResult.hit
+                    ? ({
+                          reason: PreAggregateMissReason.USER_BYPASS,
+                          preAggregateName: matchResult.preAggregateName,
+                      } satisfies PreAggregateMatchMiss)
+                    : matchResult.miss;
+
+            if (!miss) {
+                throw new UnexpectedServerError(
+                    'Pre-aggregate miss metadata is missing',
+                );
+            }
+
+            return {
+                hit: false,
+                reason: miss,
+            };
+        }
+
+        const preAggExploreName = getPreAggregateExploreName(
+            sourceExplore.name,
+            matchResult.preAggregateName,
+        );
+        try {
+            await this.getExplore(account, projectUuid, preAggExploreName);
+            return {
+                hit: true,
+                preAggregateName: matchResult.preAggregateName,
+                preAggregateExploreName: preAggExploreName,
+            };
+        } catch (error) {
+            this.logger.error(
+                `Failed to resolve pre-aggregate explore "${preAggExploreName}", falling back to source explore`,
+                {
+                    projectUuid,
+                    sourceExploreName: sourceExplore.name,
+                    preAggregateName: matchResult.preAggregateName,
+                    preAggExploreName,
+                    error: getErrorMessage(error),
+                },
+            );
+            Sentry.captureException(error, {
+                tags: {
+                    projectUuid,
+                    sourceExploreName: sourceExplore.name,
+                    preAggregateName: matchResult.preAggregateName,
+                },
+                extra: { preAggExploreName },
+            });
+            return {
+                hit: false,
+                reason: {
+                    reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR,
+                },
+            };
+        }
     }
 
     async runUnderlyingDataQuery(
@@ -3890,8 +4028,12 @@ export class ProjectService extends BaseService {
                     const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
-                    const timezone =
+                    const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
+                    const timezone = resolveQueryTimezone(
+                        metricQueryWithLimit,
+                        projectTimezone,
+                    );
 
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
@@ -4525,7 +4667,9 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,
@@ -5502,6 +5646,8 @@ export class ProjectService extends BaseService {
                 return credentials.catalog;
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
+            case WarehouseTypes.DUCKDB:
+                return credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
@@ -6690,7 +6836,9 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         try {
             const { query } = await ProjectService._getCalculateTotalQuery(
@@ -6756,7 +6904,9 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         try {
             const { query, totalQuery } =

@@ -202,6 +202,56 @@ export class SlackController extends BaseController {
     }
 
     /**
+     * Get a Slack unfurl preview image via redirect to a fresh signed URL.
+     * Falls back to a placeholder image if the preview is not found.
+     * @summary Get Slack preview
+     */
+    @SuccessResponse('302', 'Redirect')
+    @Get('/preview/{id}')
+    @OperationId('getSlackPreview')
+    async getPreview(
+        @Path() id: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
+        const NANOID_REGEX = /^[\w-]{21}$/;
+
+        this.setHeader('Cache-Control', 'no-store');
+        this.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+        if (!NANOID_REGEX.test(id)) {
+            await SlackController.sendPlaceholder(req.res!);
+            return;
+        }
+
+        try {
+            const signedUrl = await this.services
+                .getUnfurlService()
+                .getPreviewSignedUrl(id);
+
+            this.setStatus(302);
+            this.setHeader('Location', signedUrl);
+        } catch (e) {
+            await SlackController.sendPlaceholder(req.res!);
+        }
+    }
+
+    private static sendPlaceholder(res: express.Response): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const placeholderPath = path.resolve(
+                __dirname,
+                '../services/UnfurlService/assets/slack-unfurl-placeholder.png',
+            );
+            res.status(200);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+            const stream = fs.createReadStream(placeholderPath);
+            stream.on('error', reject);
+            stream.pipe(res).on('finish', resolve);
+        });
+    }
+
+    /**
      * Delete the Slack installation for the organization
      * @summary Delete Slack installation
      */

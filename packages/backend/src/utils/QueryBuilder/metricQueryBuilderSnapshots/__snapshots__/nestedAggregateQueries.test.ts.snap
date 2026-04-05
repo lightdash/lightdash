@@ -1,0 +1,303 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a fanout-protected nested-aggregate query 1`] = `
+"WITH
+  cte_keys_my_table AS (
+    SELECT DISTINCT
+      "fanout_users".title AS "fanout_users_title",
+      "my_table".id AS "pk_id"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+      LEFT OUTER JOIN "db"."schema"."fanout_users" AS "fanout_users" ON ("my_table".id) = ("fanout_users".account_id)
+  ),
+  cte_metrics_my_table AS (
+    SELECT
+      cte_keys_my_table."fanout_users_title",
+      COUNT("my_table".id) AS "my_table_count_records"
+    FROM
+      cte_keys_my_table
+      LEFT JOIN "db"."schema"."my_table" AS "my_table" ON cte_keys_my_table."pk_id" = "my_table".id
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      "fanout_users".title AS "fanout_users_title"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+      LEFT OUTER JOIN "db"."schema"."fanout_users" AS "fanout_users" ON ("my_table".id) = ("fanout_users".account_id)
+    GROUP BY
+      1
+  ),
+  nested_agg AS (
+    SELECT
+      "fanout_users".title AS "fanout_users_title",
+      MAX("my_table".value) AS "my_table_max_value"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+      LEFT OUTER JOIN "db"."schema"."fanout_users" AS "fanout_users" ON ("my_table".id) = ("fanout_users".account_id)
+    GROUP BY
+      1
+  ),
+  nested_agg_results AS (
+    SELECT
+      nested_agg."fanout_users_title",
+      sum(nested_agg."my_table_max_value") AS "my_table_sum_of_max"
+    FROM
+      nested_agg
+    GROUP BY
+      nested_agg."fanout_users_title",
+      nested_agg."my_table_max_value"
+  ),
+  na_base AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_my_table."my_table_count_records" AS "my_table_count_records"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_my_table ON (
+        cte_unaffected."fanout_users_title" = cte_metrics_my_table."fanout_users_title"
+        OR (
+          cte_unaffected."fanout_users_title" IS NULL
+          AND cte_metrics_my_table."fanout_users_title" IS NULL
+        )
+      )
+  )
+SELECT
+  na_base.*,
+  nested_agg_results."my_table_sum_of_max"
+FROM
+  na_base
+  INNER JOIN nested_agg_results ON (
+    na_base."fanout_users_title" = nested_agg_results."fanout_users_title"
+    OR (
+      na_base."fanout_users_title" IS NULL
+      AND nested_agg_results."fanout_users_title" IS NULL
+    )
+  )
+ORDER BY
+  "my_table_sum_of_max" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a max-by query with raw helper metrics 1`] = `
+"WITH
+  nested_agg AS (
+    SELECT
+      "my_table".category AS "my_table_category"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  ),
+  nested_agg_mixed AS (
+    SELECT
+      "my_table".category AS "my_table_category",
+      max_by (("my_table".value), ("my_table".updated_on)) AS "my_table_max_by_of_raw"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+      INNER JOIN nested_agg ON (
+        "my_table".category = nested_agg."my_table_category"
+        OR (
+          "my_table".category IS NULL
+          AND nested_agg."my_table_category" IS NULL
+        )
+      )
+    GROUP BY
+      1
+  ),
+  na_base AS (
+    SELECT
+      "my_table".category AS "my_table_category"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  )
+SELECT
+  na_base.*,
+  nested_agg_mixed."my_table_max_by_of_raw"
+FROM
+  na_base
+  INNER JOIN nested_agg_mixed ON (
+    na_base."my_table_category" = nested_agg_mixed."my_table_category"
+    OR (
+      na_base."my_table_category" IS NULL
+      AND nested_agg_mixed."my_table_category" IS NULL
+    )
+  )
+ORDER BY
+  "my_table_max_by_of_raw" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a mixed raw-and-aggregate nested query 1`] = `
+"WITH
+  nested_agg AS (
+    SELECT
+      "my_table".category AS "my_table_category",
+      MAX("my_table".value) AS "my_table_max_value"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  ),
+  nested_agg_mixed AS (
+    SELECT
+      "my_table".category AS "my_table_category",
+      (
+        ARRAY_AGG(
+          ("my_table".value)
+          ORDER BY
+            nested_agg."my_table_max_value" DESC
+        )
+      ) [1] AS "my_table_mixed_raw_agg_repro"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+      INNER JOIN nested_agg ON (
+        "my_table".category = nested_agg."my_table_category"
+        OR (
+          "my_table".category IS NULL
+          AND nested_agg."my_table_category" IS NULL
+        )
+      )
+    GROUP BY
+      1
+  ),
+  na_base AS (
+    SELECT
+      "my_table".category AS "my_table_category"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  )
+SELECT
+  na_base.*,
+  nested_agg_mixed."my_table_mixed_raw_agg_repro"
+FROM
+  na_base
+  INNER JOIN nested_agg_mixed ON (
+    na_base."my_table_category" = nested_agg_mixed."my_table_category"
+    OR (
+      na_base."my_table_category" IS NULL
+      AND nested_agg_mixed."my_table_category" IS NULL
+    )
+  )
+ORDER BY
+  "my_table_mixed_raw_agg_repro" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a nested-aggregate query with dimensions 1`] = `
+"WITH
+  nested_agg AS (
+    SELECT
+      "my_table".category AS "my_table_category",
+      MAX("my_table".value) AS "my_table_max_value"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  ),
+  nested_agg_results AS (
+    SELECT
+      nested_agg."my_table_category",
+      sum(nested_agg."my_table_max_value") AS "my_table_sum_of_max"
+    FROM
+      nested_agg
+    GROUP BY
+      nested_agg."my_table_category",
+      nested_agg."my_table_max_value"
+  ),
+  na_base AS (
+    SELECT
+      "my_table".category AS "my_table_category"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  )
+SELECT
+  na_base.*,
+  nested_agg_results."my_table_sum_of_max"
+FROM
+  na_base
+  INNER JOIN nested_agg_results ON (
+    na_base."my_table_category" = nested_agg_results."my_table_category"
+    OR (
+      na_base."my_table_category" IS NULL
+      AND nested_agg_results."my_table_category" IS NULL
+    )
+  )
+ORDER BY
+  "my_table_sum_of_max" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: nested aggregate queries matches snapshot for a transitive nested-aggregate query 1`] = `
+"WITH
+  nested_agg AS (
+    SELECT
+      "my_table".category AS "my_table_category",
+      COUNT("my_table".id) AS "my_table_count_records",
+      MAX("my_table".value) AS "my_table_max_value"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  ),
+  nested_agg_results AS (
+    SELECT
+      nested_agg."my_table_category",
+      SUM(
+        CASE
+          WHEN nested_agg."my_table_max_value" > 100 THEN 1
+          ELSE 0
+        END
+      ) AS "my_table_sum_case_of_max",
+      (
+        SUM(
+          CASE
+            WHEN nested_agg."my_table_max_value" > 100 THEN 1
+            ELSE 0
+          END
+        )
+      ) / NULLIF(nested_agg."my_table_count_records", 0) AS "my_table_ratio_of_sum_case"
+    FROM
+      nested_agg
+    GROUP BY
+      nested_agg."my_table_category",
+      nested_agg."my_table_count_records",
+      nested_agg."my_table_max_value"
+  ),
+  na_base AS (
+    SELECT
+      "my_table".category AS "my_table_category"
+    FROM
+      "db"."schema"."my_table" AS "my_table"
+    GROUP BY
+      1
+  )
+SELECT
+  na_base.*,
+  nested_agg_results."my_table_sum_case_of_max",
+  nested_agg_results."my_table_ratio_of_sum_case"
+FROM
+  na_base
+  INNER JOIN nested_agg_results ON (
+    na_base."my_table_category" = nested_agg_results."my_table_category"
+    OR (
+      na_base."my_table_category" IS NULL
+      AND nested_agg_results."my_table_category" IS NULL
+    )
+  )
+ORDER BY
+  "my_table_ratio_of_sum_case" DESC
+LIMIT
+  10"
+`;

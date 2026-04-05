@@ -5,9 +5,16 @@
         "target": "ESNext",
         "lib": ["dom", "dom.iterable", "esnext"],
         "module": "ESNext",
+        "baseUrl": ".",
         "ignoreDeprecations": "6.0",
         "moduleResolution": "node10",
         "jsx": "react-jsx",
+        "paths": {
+            "@lightdash/common": ["../common/src/index.ts"],
+            "@lightdash/common/*": ["../common/src/*"],
+            "@lightdash/sdk": ["../frontend/sdk/index.tsx"],
+            "@lightdash/sdk/sdk.css": ["../frontend/sdk/dist/sdk.css"]
+        },
         "types": [
             "vite/client",
             "./vite-env.d.ts"

@@ -2,8 +2,7 @@ import {
     derivePivotConfigurationFromChart,
     FeatureFlags,
     getFieldsFromMetricQuery,
-    getPreAggregateExploreName,
-    preAggregateUtils,
+    assertUnreachable,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
 import { useEffect, useMemo } from 'react';
@@ -28,6 +27,8 @@ import {
 import useHealth from './health/useHealth';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
+import { usePreAggregateCheck } from './usePreAggregateCheck';
+import { useProjectUuid } from './useProjectUuid';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
@@ -77,46 +78,104 @@ export const useExplorerQueryEffects = ({
     const savedChart = useExplorerSelector(selectSavedChart);
     const isSavedChart = !!savedChart;
 
-    // Pre-aggregate match: computed here (once), dispatched to Redux for all consumers
+    // Pre-aggregate preview: checked on backend and dispatched to Redux for all consumers
     const { data: health } = useHealth();
-    const isPreAggEnabled = !!health?.preAggregates?.enabled;
+    const isPreAggregateFeatureEnabled = health?.preAggregates?.enabled;
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
+    const projectUuid = useProjectUuid();
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
-    const matchResult = useMemo(() => {
-        if (!isPreAggEnabled || !explore || !metricQuery) return null;
+    const hasSelectedFields =
+        metricQuery.dimensions.length > 0 ||
+        metricQuery.metrics.length > 0 ||
+        metricQuery.tableCalculations.length > 0;
+
+    const hasConfiguredPreAggregates =
+        !!explore?.preAggregates && explore.preAggregates.length > 0;
+    const isPreAggregateSupported =
+        isPreAggregateFeatureEnabled === true && hasConfiguredPreAggregates;
+
+    const unavailableReason = useMemo<
+        'feature_disabled' | 'no_configured_pre_aggregates' | null
+    >(() => {
+        if (isPreAggregateFeatureEnabled === false) {
+            return 'feature_disabled';
+        }
+
         if (
-            metricQuery.dimensions.length === 0 &&
-            metricQuery.metrics.length === 0
-        )
-            return null;
-        const rawResult = preAggregateUtils.findMatch(metricQuery, explore);
-        return preAggregateUtils.applyUserBypass(rawResult, preAggCacheEnabled);
-    }, [isPreAggEnabled, explore, metricQuery, preAggCacheEnabled]);
+            isPreAggregateFeatureEnabled === true &&
+            explore &&
+            !hasConfiguredPreAggregates
+        ) {
+            return 'no_configured_pre_aggregates';
+        }
 
-    const preAggExploreName = useMemo(() => {
-        if (!matchResult?.hit || !tableName) return null;
-        return getPreAggregateExploreName(
-            tableName,
-            matchResult.preAggregateName,
-        );
-    }, [matchResult, tableName]);
+        return null;
+    }, [hasConfiguredPreAggregates, explore, isPreAggregateFeatureEnabled]);
 
-    const hasPreAggregates =
-        isPreAggEnabled &&
-        !!explore?.preAggregates &&
-        explore.preAggregates.length > 0;
+    const preAggregateCheckQuery = usePreAggregateCheck({
+        projectUuid,
+        exploreName: tableName,
+        metricQuery,
+        usePreAggregateCache: preAggCacheEnabled,
+        enabled: isPreAggregateSupported && hasSelectedFields,
+    });
+
+    const preAggregateCheck = useMemo(() => {
+        if (unavailableReason) {
+            return {
+                status: 'unavailable' as const,
+                reason: unavailableReason,
+            };
+        }
+
+        if (isPreAggregateFeatureEnabled === undefined || !explore) {
+            return {
+                status: 'loading' as const,
+            };
+        }
+
+        if (!hasSelectedFields) {
+            return {
+                status: 'idle' as const,
+            };
+        }
+
+        switch (preAggregateCheckQuery.status) {
+            case 'error':
+                return {
+                    status: 'error' as const,
+                    message:
+                        preAggregateCheckQuery.error.error.message ||
+                        'Failed to evaluate pre-aggregate match',
+                };
+            case 'loading':
+                return {
+                    status: 'loading' as const,
+                };
+            case 'success':
+                return {
+                    status: 'ready' as const,
+                    result: preAggregateCheckQuery.data,
+                };
+            default:
+                return assertUnreachable(
+                    preAggregateCheckQuery,
+                    'Unknown query status',
+                );
+        }
+    }, [
+        explore,
+        hasSelectedFields,
+        isPreAggregateFeatureEnabled,
+        unavailableReason,
+        preAggregateCheckQuery,
+    ]);
 
     useEffect(() => {
-        dispatch(
-            explorerActions.setPreAggregateState({
-                matchResult,
-                preAggExploreName,
-                isEnabled: hasPreAggregates,
-            }),
-        );
-    }, [matchResult, preAggExploreName, hasPreAggregates, dispatch]);
+        dispatch(explorerActions.setPreAggregateCheck(preAggregateCheck));
+    }, [preAggregateCheck, dispatch]);
 
     // Check if we need unpivoted data for results table
     const needsUnpivotedData = useMemo(() => {

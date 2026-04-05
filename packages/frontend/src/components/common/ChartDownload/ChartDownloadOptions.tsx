@@ -27,7 +27,7 @@ import {
 } from './chartDownloadUtils';
 
 type DownloadOptions = {
-    getChartInstance: () => EChartsInstance | undefined;
+    getChartInstance: () => EChartsInstance;
     chartName?: string;
     unavailableOptions?: DownloadType[];
 };

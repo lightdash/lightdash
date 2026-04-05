@@ -21,6 +21,14 @@ import {
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
     filterInTheCurrentDayTimezoneMocks,
+    filterInTheNextCompletedDayDstMocks,
+    filterInTheNextCompletedDayTimezoneMocks,
+    filterInTheNextNonCompletedDayDstMocks,
+    filterInTheNextNonCompletedDayTimezoneMocks,
+    filterInThePastCompletedDayDstMocks,
+    filterInThePastCompletedDayTimezoneMocks,
+    filterInThePastNonCompletedDayDstMocks,
+    filterInThePastNonCompletedDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -80,7 +88,7 @@ import {
 } from './filtersCompiler.mock';
 
 const formatTimestamp = (date: Date): string =>
-    moment(date).format('YYYY-MM-DD HH:mm:ss');
+    moment(date).format('YYYY-MM-DD HH:mm:ssZ');
 
 describe('Filter SQL', () => {
     beforeAll(() => {
@@ -645,6 +653,182 @@ describe('Filter SQL', () => {
                 renderDateFilterSql(
                     DimensionSqlMock,
                     InTheCurrentFilterBase,
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastCompletedDayTimezoneMocks)(
+        'should return in the past completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextCompletedDayTimezoneMocks)(
+        'should return in the next completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastCompletedDayDstMocks)(
+        'should handle DST spring forward for in the past completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextCompletedDayDstMocks)(
+        'should handle DST spring forward for in the next completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: true,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastNonCompletedDayTimezoneMocks)(
+        'should return in the past non-completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextNonCompletedDayTimezoneMocks)(
+        'should return in the next non-completed day filter sql for timezone %s',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInThePastNonCompletedDayDstMocks)(
+        'should handle DST spring forward for in the past non-completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InThePastFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
+                    adapterType.default,
+                    timezone,
+                    formatTimestamp,
+                ),
+            ).toStrictEqual(expected);
+        },
+    );
+
+    test.each(filterInTheNextNonCompletedDayDstMocks)(
+        'should handle DST spring forward for in the next non-completed day filter (timezone %s)',
+        (timezone, expected) => {
+            jest.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
+            expect(
+                renderDateFilterSql(
+                    DimensionSqlMock,
+                    {
+                        ...InTheNextFilterBase,
+                        settings: {
+                            unitOfTime: UnitOfTime.days,
+                            completed: false,
+                        },
+                    },
                     adapterType.default,
                     timezone,
                     formatTimestamp,

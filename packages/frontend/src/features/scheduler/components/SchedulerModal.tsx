@@ -1,5 +1,4 @@
 import {
-    type ApiDashboardPaginatedSchedulersResponse,
     type ApiError,
     type ApiSavedChartPaginatedSchedulersResponse,
     type ItemsMap,
@@ -38,8 +37,7 @@ const SchedulersModal: FC<
         isThresholdAlert?: boolean;
         itemsMap?: ItemsMap;
         schedulersQuery: UseInfiniteQueryResult<
-            | ApiSavedChartPaginatedSchedulersResponse['results']
-            | ApiDashboardPaginatedSchedulersResponse['results'],
+            ApiSavedChartPaginatedSchedulersResponse['results'],
             ApiError
         >;
         /** If provided, opens directly in edit mode for this scheduler */

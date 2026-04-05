@@ -16,11 +16,11 @@
     },
     "dependencies": {
         "@lightdash/common": "workspace:*",
-        "js-yaml": "^4.1.1"
+        "js-yaml": "4.1.1"
     },
     "devDependencies": {
-        "@types/js-yaml": "^4.0.9",
+        "@types/js-yaml": "4.0.9",
         "typescript": "6.0.0-beta",
-        "vitest": "^3.0.5"
+        "vitest": "3.2.4"
     }
 }

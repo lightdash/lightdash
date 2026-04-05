@@ -73,12 +73,15 @@ export const useCreateColorPalette = () => {
     });
 };
 
-export const useColorPalettes = () => {
+export const useColorPalettes = ({
+    enabled = true,
+}: { enabled?: boolean } = {}) => {
     return useQuery<
         ApiColorPalettesResponse['results'],
         ApiError,
         ApiColorPalettesResponse['results']
     >({
+        enabled,
         queryKey: ['color_palettes'],
         queryFn: getColorPalettesApi,
         select: (data) =>

@@ -1,0 +1,216 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a cross-table metric query 1`] = `
+"WITH
+  cte_keys_customers AS (
+    SELECT DISTINCT
+      "customers".customer_id AS "pk_customer_id"
+    FROM
+      customers AS "customers"
+      LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+  ),
+  cte_metrics_customers AS (
+    SELECT
+      COUNT("customers".customer_id) AS "customers_total_customers"
+    FROM
+      cte_keys_customers
+      LEFT JOIN customers AS "customers" ON cte_keys_customers."pk_customer_id" = "customers".customer_id
+  ),
+  cte_unaffected AS (
+    SELECT
+      SUM("orders".amount) AS "orders_total_order_amount"
+    FROM
+      customers AS "customers"
+      LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+  )
+SELECT
+  cte_unaffected.*,
+  cte_unaffected."orders_total_order_amount" / cte_metrics_customers."customers_total_customers" AS "orders_revenue_per_customer"
+FROM
+  cte_unaffected
+  CROSS JOIN cte_metrics_customers
+LIMIT
+  100"
+`;
+
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a fanout-protected metric query 1`] = `
+"WITH
+  cte_keys_table2 AS (
+    SELECT DISTINCT
+      "table1".dim1 AS "table1_dim1",
+      "table2".dim2 AS "pk_dim2"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  ),
+  cte_metrics_table2 AS (
+    SELECT
+      cte_keys_table2."table1_dim1",
+      SUM("table2".number_column) AS "table2_metric3"
+    FROM
+      cte_keys_table2
+      LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    GROUP BY
+      1
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_table2 ON (
+        cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1"
+        OR (
+          cte_unaffected."table1_dim1" IS NULL
+          AND cte_metrics_table2."table1_dim1" IS NULL
+        )
+      )
+  )
+SELECT
+  *,
+  table1_dim1 + table2_metric2 AS "calc3"
+FROM
+  metrics
+ORDER BY
+  "table2_metric2" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a fanout-protected metric query without dimensions 1`] = `
+"WITH
+  cte_keys_table2 AS (
+    SELECT DISTINCT
+      "table2".dim2 AS "pk_dim2"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  ),
+  cte_metrics_table2 AS (
+    SELECT
+      SUM("table2".number_column) AS "table2_metric3"
+    FROM
+      cte_keys_table2
+      LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+  ),
+  cte_unaffected AS (
+    SELECT
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM
+      cte_unaffected
+      CROSS JOIN cte_metrics_table2
+  )
+SELECT
+  *,
+  table1_dim1 + table2_metric2 AS "calc3"
+FROM
+  metrics
+ORDER BY
+  "table2_metric2" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a filter-only fanout metric query 1`] = `
+"WITH
+  cte_keys_table2 AS (
+    SELECT DISTINCT
+      "table1".dim1 AS "table1_dim1",
+      "table2".dim2 AS "pk_dim2"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+  ),
+  cte_metrics_table2 AS (
+    SELECT
+      cte_keys_table2."table1_dim1",
+      SUM("table2".number_column) AS "table2_metric3"
+    FROM
+      cte_keys_table2
+      LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+    GROUP BY
+      1
+  ),
+  cte_unaffected AS (
+    SELECT
+      "table1".dim1 AS "table1_dim1",
+      MAX("table1".number_column) AS "table1_metric1"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    GROUP BY
+      1
+  ),
+  metrics AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_table2."table2_metric3" AS "table2_metric3"
+    FROM
+      cte_unaffected
+      INNER JOIN cte_metrics_table2 ON (
+        cte_unaffected."table1_dim1" = cte_metrics_table2."table1_dim1"
+        OR (
+          cte_unaffected."table1_dim1" IS NULL
+          AND cte_metrics_table2."table1_dim1" IS NULL
+        )
+      )
+  )
+SELECT
+  "table1_dim1",
+  "table1_metric1"
+FROM
+  metrics
+WHERE
+  ((("table2_metric3") > (100)))
+ORDER BY
+  "table1_metric1" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a filter-only fanout query without selected dimensions 1`] = `
+"WITH
+  cte_keys_table2 AS (
+    SELECT DISTINCT
+      "table2".dim2 AS "pk_dim2"
+    FROM
+      "db"."schema"."table1" AS "table1"
+      LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    WHERE
+      ((("table1".dim1) IN (2025)))
+  ),
+  cte_metrics_table2 AS (
+    SELECT
+      SUM("table2".number_column) AS "table2_metric3"
+    FROM
+      cte_keys_table2
+      LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+  )
+SELECT
+  cte_metrics_table2."table2_metric3" AS "table2_metric3"
+FROM
+  cte_metrics_table2
+ORDER BY
+  "table2_metric3" DESC
+LIMIT
+  500"
+`;

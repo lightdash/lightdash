@@ -89,6 +89,7 @@ export const BaseResponse: HealthState = {
         versionHistory: {
             daysLimit: 0,
         },
+        disableSentryTracking: false,
     },
     rudder: {
         dataPlaneUrl: '',

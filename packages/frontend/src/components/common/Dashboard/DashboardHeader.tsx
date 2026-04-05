@@ -45,7 +45,7 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
@@ -118,526 +118,461 @@ type DashboardHeaderProps = {
     className?: string;
 };
 
-const DashboardHeader = ({
-    dashboard,
-    organizationUuid,
-    hasDashboardChanged,
-    isEditMode,
-    isSaving,
-    isMovingDashboardToSpace,
-    onSwitchTab,
-    isFullScreenFeatureEnabled,
-    isFullscreen,
-    oldestCacheTime,
-    preAggregateStatuses,
-    allTilesLoaded,
-    activeTabUuid,
-    dashboardTabs,
-    dashboardTiles,
-    onAddTiles,
-    onCancel,
-    onSaveDashboard,
-    onDelete,
-    onDuplicate,
-    onMoveToSpace,
-    onExport,
-    onToggleFullscreen,
-    setAddingTab,
-    onEditClicked,
-    className,
-}: DashboardHeaderProps) => {
-    const performanceWarning = useDashboardPerformanceWarning(
-        dashboardTiles,
+const DashboardHeader = memo(
+    ({
+        dashboard,
+        organizationUuid,
+        hasDashboardChanged,
+        isEditMode,
+        isSaving,
+        isMovingDashboardToSpace,
+        onSwitchTab,
+        isFullScreenFeatureEnabled,
+        isFullscreen,
+        oldestCacheTime,
+        preAggregateStatuses,
+        allTilesLoaded,
+        activeTabUuid,
         dashboardTabs,
-    );
-    const isDashboardSummariesEnabled = useClientFeatureFlag(
-        'ai-dashboard-summary' as FeatureFlags,
-    );
-
-    const { search, pathname } = useLocation();
-    const navigate = useNavigate();
-    const { projectUuid, dashboardUuid } = useParams<{
-        projectUuid: string;
-        dashboardUuid: string;
-        organizationUuid: string;
-    }>();
-
-    const { data: project } = useProject(projectUuid);
-
-    const { track } = useTracking();
-    const [isUpdating, setIsUpdating] = useState(false);
-    const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
-    const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
-        useToggle(false);
-    const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
-        useDisclosure(false);
-    const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
-    const [isPreAggRefreshOpen, preAggRefreshHandlers] = useDisclosure(false);
-
-    const uniquePreAggregateNames = useMemo(() => {
-        if (!preAggregateStatuses) return [];
-        return [
-            ...new Set(
-                Object.values(preAggregateStatuses)
-                    .filter((s) => s.hit && s.preAggregateName !== null)
-                    .map((s) => s.preAggregateName as string),
-            ),
-        ];
-    }, [preAggregateStatuses]);
-    const handleEditClick = () => {
-        setIsUpdating(true);
-        track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
-    };
-    const { mutate: promoteDashboard } = usePromoteDashboardMutation();
-    const {
-        mutate: getPromoteDashboardDiff,
-        data: promoteDashboardDiff,
-        reset: resetPromoteDashboardDiff,
-        isLoading: promoteDashboardDiffLoading,
-    } = usePromoteDashboardDiffMutation();
-
-    // Capture scheduler UUID from URL for deep linking to edit mode
-    const [initialSchedulerUuid, setInitialSchedulerUuid] = useState<
-        string | undefined
-    >(() => getSchedulerUuidFromUrlParams(search) ?? undefined);
-
-    const hasProcessedUrlParams = useRef(false);
-    useEffect(() => {
-        if (hasProcessedUrlParams.current) return;
-
-        const schedulerUuidFromUrlParams =
-            getSchedulerUuidFromUrlParams(search);
-
-        if (!schedulerUuidFromUrlParams) {
-            return;
-        }
-
-        hasProcessedUrlParams.current = true;
-        toggleScheduledDeliveriesModal(true);
-
-        // Clear URL params to prevent modal from reopening on close
-        const newParams = new URLSearchParams(search);
-        newParams.delete('scheduler_uuid');
-        void navigate(
-            { pathname, search: newParams.toString() },
-            { replace: true },
+        dashboardTiles,
+        onAddTiles,
+        onCancel,
+        onSaveDashboard,
+        onDelete,
+        onDuplicate,
+        onMoveToSpace,
+        onExport,
+        onToggleFullscreen,
+        setAddingTab,
+        onEditClicked,
+        className,
+    }: DashboardHeaderProps) => {
+        const performanceWarning = useDashboardPerformanceWarning(
+            dashboardTiles,
+            dashboardTabs,
         );
-    }, [search, pathname, navigate, toggleScheduledDeliveriesModal]);
+        const isDashboardSummariesEnabled = useClientFeatureFlag(
+            'ai-dashboard-summary' as FeatureFlags,
+        );
 
-    // Clear initial UUID when modal is closed so reopening shows the list
-    const wasScheduledDeliveriesModalOpen = useRef(false);
-    useEffect(() => {
-        // Only clear when transitioning from open to closed, not on initial render
-        if (
-            wasScheduledDeliveriesModalOpen.current &&
-            !isScheduledDeliveriesModalOpen
-        ) {
-            setInitialSchedulerUuid(undefined);
-        }
-        wasScheduledDeliveriesModalOpen.current =
-            isScheduledDeliveriesModalOpen;
-    }, [isScheduledDeliveriesModalOpen]);
+        const { search, pathname } = useLocation();
+        const navigate = useNavigate();
+        const { projectUuid, dashboardUuid } = useParams<{
+            projectUuid: string;
+            dashboardUuid: string;
+            organizationUuid: string;
+        }>();
 
-    const isPinned = useMemo(() => {
-        return Boolean(dashboard?.pinnedListUuid);
-    }, [dashboard?.pinnedListUuid]);
-    const { mutate: toggleDashboardPinning } = useDashboardPinningMutation();
-    const onDashboardPinning = useCallback(() => {
-        if (!dashboardUuid) return;
-        toggleDashboardPinning({ uuid: dashboardUuid });
-    }, [dashboardUuid, toggleDashboardPinning]);
+        const { data: project } = useProject(projectUuid);
 
-    const { data: favorites } = useFavorites(projectUuid);
-    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
-    const isDashboardFavorited = useMemo(
-        () => favorites?.some((f) => f.data.uuid === dashboardUuid) ?? false,
-        [favorites, dashboardUuid],
-    );
+        const { track } = useTracking();
+        const [isUpdating, setIsUpdating] = useState(false);
+        const [isCreatingNewSpace, setIsCreatingNewSpace] = useState(false);
+        const [isScheduledDeliveriesModalOpen, toggleScheduledDeliveriesModal] =
+            useToggle(false);
+        const [isTransferToSpaceModalOpen, transferToSpaceModalHandlers] =
+            useDisclosure(false);
+        const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+        const [isPreAggRefreshOpen, preAggRefreshHandlers] =
+            useDisclosure(false);
 
-    const { user, health } = useApp();
-    const preAggregatesEnabled = health.data?.preAggregates.enabled ?? false;
-    const userCanManageDashboard = user.data?.ability.can(
-        'manage',
-        subject('Dashboard', dashboard),
-    );
-    const userCanRefreshPreAggregates =
-        user.data?.ability.can(
-            'create',
-            subject('Job', { organizationUuid, projectUuid }),
-        ) && user.data?.ability.can('manage', 'CompileProject');
-    const userCanCreateDeliveries = user.data?.ability?.can(
-        'create',
-        subject('ScheduledDeliveries', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
+        const uniquePreAggregateNames = useMemo(() => {
+            if (!preAggregateStatuses) return [];
+            return [
+                ...new Set(
+                    Object.values(preAggregateStatuses)
+                        .filter((s) => s.hit && s.preAggregateName !== null)
+                        .map((s) => s.preAggregateName as string),
+                ),
+            ];
+        }, [preAggregateStatuses]);
+        const handleEditClick = () => {
+            setIsUpdating(true);
+            track({ name: EventName.UPDATE_DASHBOARD_NAME_CLICKED });
+        };
+        const { mutate: promoteDashboard } = usePromoteDashboardMutation();
+        const {
+            mutate: getPromoteDashboardDiff,
+            data: promoteDashboardDiff,
+            reset: resetPromoteDashboardDiff,
+            isLoading: promoteDashboardDiffLoading,
+        } = usePromoteDashboardDiffMutation();
 
-    const userCanExportData = user.data?.ability.can(
-        'manage',
-        subject('ExportCsv', { organizationUuid, projectUuid }),
-    );
+        // Capture scheduler UUID from URL for deep linking to edit mode
+        const [initialSchedulerUuid, setInitialSchedulerUuid] = useState<
+            string | undefined
+        >(() => getSchedulerUuidFromUrlParams(search) ?? undefined);
 
-    const userCanPinDashboard = user.data?.ability.can(
-        'manage',
-        subject('PinnedItems', {
-            organizationUuid,
-            projectUuid,
-        }),
-    );
+        const hasProcessedUrlParams = useRef(false);
+        useEffect(() => {
+            if (hasProcessedUrlParams.current) return;
 
-    const userCanPromoteDashboard = user.data?.ability?.can(
-        'promote',
-        subject('Dashboard', {
-            organizationUuid,
-            projectUuid,
-            access: dashboard.access,
-        }),
-    );
+            const schedulerUuidFromUrlParams =
+                getSchedulerUuidFromUrlParams(search);
 
-    const isContentVerificationEnabled = useContentVerificationEnabled();
+            if (!schedulerUuidFromUrlParams) {
+                return;
+            }
 
-    const canManageContentVerification =
-        user.data?.ability?.can(
+            hasProcessedUrlParams.current = true;
+            toggleScheduledDeliveriesModal(true);
+
+            // Clear URL params to prevent modal from reopening on close
+            const newParams = new URLSearchParams(search);
+            newParams.delete('scheduler_uuid');
+            void navigate(
+                { pathname, search: newParams.toString() },
+                { replace: true },
+            );
+        }, [search, pathname, navigate, toggleScheduledDeliveriesModal]);
+
+        // Clear initial UUID when modal is closed so reopening shows the list
+        const wasScheduledDeliveriesModalOpen = useRef(false);
+        useEffect(() => {
+            // Only clear when transitioning from open to closed, not on initial render
+            if (
+                wasScheduledDeliveriesModalOpen.current &&
+                !isScheduledDeliveriesModalOpen
+            ) {
+                setInitialSchedulerUuid(undefined);
+            }
+            wasScheduledDeliveriesModalOpen.current =
+                isScheduledDeliveriesModalOpen;
+        }, [isScheduledDeliveriesModalOpen]);
+
+        const isPinned = useMemo(() => {
+            return Boolean(dashboard?.pinnedListUuid);
+        }, [dashboard?.pinnedListUuid]);
+        const { mutate: toggleDashboardPinning } =
+            useDashboardPinningMutation();
+        const onDashboardPinning = useCallback(() => {
+            if (!dashboardUuid) return;
+            toggleDashboardPinning({ uuid: dashboardUuid });
+        }, [dashboardUuid, toggleDashboardPinning]);
+
+        const { data: favorites } = useFavorites(projectUuid);
+        const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+        const isDashboardFavorited = useMemo(
+            () =>
+                favorites?.some((f) => f.data.uuid === dashboardUuid) ?? false,
+            [favorites, dashboardUuid],
+        );
+
+        const { user, health } = useApp();
+        const preAggregatesEnabled =
+            health.data?.preAggregates.enabled ?? false;
+        const userCanManageDashboard = user.data?.ability.can(
             'manage',
-            subject('ContentVerification', {
+            subject('Dashboard', dashboard),
+        );
+        const userCanRefreshPreAggregates =
+            user.data?.ability.can(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) && user.data?.ability.can('manage', 'CompileProject');
+        const userCanCreateDeliveries = user.data?.ability?.can(
+            'create',
+            subject('ScheduledDeliveries', {
                 organizationUuid: user.data?.organizationUuid,
                 projectUuid,
             }),
-        ) === true;
+        );
 
-    const { mutate: verifyDashboard } = useVerifyDashboardMutation();
-    const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
-    const isDashboardVerified = !!dashboard?.verification;
+        const userCanExportData = user.data?.ability.can(
+            'manage',
+            subject('ExportCsv', { organizationUuid, projectUuid }),
+        );
 
-    const handleDashboardRefreshUpdateEvent = useCallback(
-        (intervalMin?: number) => {
-            track({
-                name: EventName.DASHBOARD_AUTO_REFRESH_UPDATED,
-                properties: {
-                    userId: user.data?.userUuid,
-                    dashboardId: dashboardUuid,
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    frequency: intervalMin ? `${intervalMin} minutes` : 'off',
-                },
-            });
-        },
-        [
-            dashboardUuid,
-            organizationUuid,
-            projectUuid,
-            track,
-            user.data?.userUuid,
-        ],
-    );
+        const userCanPinDashboard = user.data?.ability.can(
+            'manage',
+            subject('PinnedItems', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
 
-    return (
-        <PageHeader
-            cardProps={{
-                px: 'xl',
-                py: 0,
-                h: DASHBOARD_HEADER_HEIGHT,
-                style: { zIndex: DASHBOARD_HEADER_ZINDEX },
-                className,
-            }}
-        >
-            <Group gap="xs" flex={1} wrap="nowrap">
-                <Title order={6}>{dashboard.name}</Title>
+        const userCanPromoteDashboard = user.data?.ability?.can(
+            'promote',
+            subject('Dashboard', {
+                organizationUuid,
+                projectUuid,
+                access: dashboard.access,
+            }),
+        );
 
-                {isContentVerificationEnabled && isDashboardVerified && (
-                    <Tooltip
-                        label={
-                            dashboard?.verification?.verifiedBy
-                                ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
-                                : 'Verified'
-                        }
-                        withArrow
+        const isContentVerificationEnabled = useContentVerificationEnabled();
+
+        const canManageContentVerification =
+            user.data?.ability?.can(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid: user.data?.organizationUuid,
+                    projectUuid,
+                }),
+            ) === true;
+
+        const { mutate: verifyDashboard } = useVerifyDashboardMutation();
+        const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
+        const isDashboardVerified = !!dashboard?.verification;
+
+        const handleDashboardRefreshUpdateEvent = useCallback(
+            (intervalMin?: number) => {
+                track({
+                    name: EventName.DASHBOARD_AUTO_REFRESH_UPDATED,
+                    properties: {
+                        userId: user.data?.userUuid,
+                        dashboardId: dashboardUuid,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        frequency: intervalMin
+                            ? `${intervalMin} minutes`
+                            : 'off',
+                    },
+                });
+            },
+            [
+                dashboardUuid,
+                organizationUuid,
+                projectUuid,
+                track,
+                user.data?.userUuid,
+            ],
+        );
+
+        return (
+            <PageHeader
+                cardProps={{
+                    px: 'xl',
+                    py: 0,
+                    h: DASHBOARD_HEADER_HEIGHT,
+                    style: { zIndex: DASHBOARD_HEADER_ZINDEX },
+                    className,
+                }}
+            >
+                <Group gap="xs" flex={1} wrap="nowrap">
+                    <Title order={6}>{dashboard.name}</Title>
+                    <Popover
                         withinPortal
-                        zIndex={10000}
-                    >
-                        <IconCircleCheckFilled
-                            size={16}
-                            style={{
-                                color: 'var(--mantine-color-green-6)',
-                            }}
-                        />
-                    </Tooltip>
-                )}
-
-                {dashboardUuid && (
-                    <ActionIcon
-                        variant="subtle"
-                        size="md"
-                        radius="md"
-                        color={isDashboardFavorited ? 'orange' : 'ldGray.6'}
-                        onClick={() => {
-                            toggleFavorite({
-                                contentType: ContentType.DASHBOARD,
-                                contentUuid: dashboardUuid,
-                            });
+                        withArrow
+                        offset={{
+                            mainAxis: -2,
+                            crossAxis: 6,
                         }}
                     >
-                        {isDashboardFavorited ? (
-                            <IconStarFilled size={16} />
-                        ) : (
-                            <IconStar size={16} />
-                        )}
-                    </ActionIcon>
-                )}
-
-                <Popover
-                    withinPortal
-                    withArrow
-                    offset={{
-                        mainAxis: -2,
-                        crossAxis: 6,
-                    }}
-                >
-                    <Popover.Target>
-                        <ActionIcon
-                            variant="subtle"
-                            size="md"
-                            radius="md"
-                            color="ldGray.6"
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Popover.Target>
-
-                    <Popover.Dropdown maw={500} p={0}>
-                        <DashboardInfoOverlay
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                        />
-                    </Popover.Dropdown>
-                </Popover>
-
-                {isEditMode && userCanManageDashboard && (
-                    <ActionIcon
-                        variant="subtle"
-                        size="md"
-                        color="ldGray.6"
-                        radius="md"
-                        disabled={isSaving}
-                        onClick={handleEditClick}
-                    >
-                        <MantineIcon
-                            icon={IconPencil}
-                            size={14}
-                            strokeWidth={2.25}
-                        />
-                    </ActionIcon>
-                )}
-
-                {isUpdating && dashboardUuid && (
-                    <DashboardUpdateModal
-                        uuid={dashboardUuid}
-                        opened={isUpdating}
-                        onClose={() => setIsUpdating(false)}
-                        onConfirm={() => setIsUpdating(false)}
-                    />
-                )}
-
-                {isTransferToSpaceModalOpen && projectUuid && (
-                    <TransferItemsModal
-                        projectUuid={projectUuid}
-                        opened={isTransferToSpaceModalOpen}
-                        onClose={transferToSpaceModalHandlers.close}
-                        items={[
-                            {
-                                data: dashboard,
-                                type: ResourceViewItemType.DASHBOARD,
-                            },
-                        ]}
-                        isLoading={isMovingDashboardToSpace}
-                        onConfirm={async (spaceUuid) => {
-                            if (!spaceUuid) {
-                                throw new Error(
-                                    'Space UUID is required to move a dashboard',
-                                );
-                            }
-                            await onMoveToSpace(spaceUuid);
-                            transferToSpaceModalHandlers.close();
-                        }}
-                    />
-                )}
-            </Group>
-
-            {userCanManageDashboard && isEditMode ? (
-                <Group gap="xs">
-                    {performanceWarning.hasWarning && (
-                        <Tooltip
-                            label={
-                                <Box>
-                                    <Text size="sm" fw={500} mb={6}>
-                                        Speed up this dashboard
-                                    </Text>
-                                    <Text size="xs">
-                                        With{' '}
-                                        {performanceWarning.totalChartCount}{' '}
-                                        charts, load times can be slower
-                                        depending on the user's machine.{' '}
-                                        {performanceWarning.totalTabs <= 1
-                                            ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
-                                            : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
-                                    </Text>
-                                </Box>
-                            }
-                            withinPortal
-                            position="bottom"
-                            multiline
-                            maw={320}
-                            openDelay={200}
-                            transitionProps={{
-                                transition: 'fade',
-                                duration: 150,
-                            }}
-                        >
+                        <Popover.Target>
                             <ActionIcon
                                 variant="subtle"
                                 size="md"
                                 radius="md"
-                                color="orange.6"
+                                color="ldGray.6"
                             >
-                                <MantineIcon icon={IconAlertTriangle} />
+                                <MantineIcon icon={IconInfoCircle} />
                             </ActionIcon>
-                        </Tooltip>
-                    )}
+                        </Popover.Target>
 
-                    <AddTileButton
-                        onAddTiles={onAddTiles}
-                        disabled={isSaving}
-                        setAddingTab={setAddingTab}
-                        activeTabUuid={activeTabUuid}
-                        dashboardTabs={dashboardTabs}
-                        radius="md"
-                    />
-
-                    <Tooltip
-                        fz="xs"
-                        withinPortal
-                        position="bottom"
-                        label="No changes to save"
-                        disabled={hasDashboardChanged}
-                        openDelay={200}
-                        transitionProps={{ transition: 'fade', duration: 150 }}
-                    >
-                        <Box>
-                            <Button
-                                size="xs"
-                                disabled={!hasDashboardChanged}
-                                loading={isSaving}
-                                onClick={onSaveDashboard}
-                                color="green.7"
-                            >
-                                Save changes
-                            </Button>
-                        </Box>
-                    </Tooltip>
-                    <Button
-                        variant="default"
-                        size="xs"
-                        disabled={isSaving}
-                        onClick={onCancel}
-                    >
-                        Cancel
-                    </Button>
-                </Group>
-            ) : (
-                <Group gap="sm">
-                    {isDashboardSummariesEnabled &&
-                        projectUuid &&
-                        dashboardUuid && (
-                            <AIDashboardSummary
+                        <Popover.Dropdown maw={500} p={0}>
+                            <DashboardInfoOverlay
+                                dashboard={dashboard}
                                 projectUuid={projectUuid}
-                                dashboardUuid={dashboardUuid}
-                                dashboardVersionId={
-                                    dashboard.dashboardVersionId
-                                }
                             />
-                        )}
+                        </Popover.Dropdown>
+                    </Popover>
 
-                    {!!userCanManageDashboard && !isFullscreen && (
+                    {isContentVerificationEnabled && isDashboardVerified && (
                         <Tooltip
-                            label="Edit dashboard"
+                            label={
+                                dashboard?.verification?.verifiedBy
+                                    ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
+                                    : 'Verified'
+                            }
+                            withArrow
                             withinPortal
-                            position="bottom"
-                            openDelay={200}
-                            transitionProps={{
-                                transition: 'fade',
-                                duration: 150,
-                            }}
+                            zIndex={10000}
                         >
-                            <ActionIcon
-                                aria-label="Edit dashboard"
-                                radius="md"
-                                onClick={onEditClicked}
-                                bg="foreground"
-                                c="background"
-                                size="md"
-                            >
-                                <MantineIcon
-                                    icon={IconPencil}
-                                    color="background"
-                                    size="md"
-                                />
-                            </ActionIcon>
+                            <IconCircleCheckFilled
+                                size={16}
+                                style={{
+                                    color: 'var(--mantine-color-green-6)',
+                                }}
+                            />
                         </Tooltip>
                     )}
 
-                    {(userCanExportData ||
-                        (!isEditMode &&
-                            document.fullscreenEnabled &&
-                            isFullScreenFeatureEnabled) ||
-                        !isFullscreen) && <Divider orientation="vertical" />}
-
-                    {oldestCacheTime && (
-                        <Tooltip
-                            label={`Dashboard uses cached data from ${dayjs(
-                                oldestCacheTime,
-                            ).format('MMM D, YYYY h:mm A')}`}
-                            withinPortal
-                            position="bottom"
-                            openDelay={200}
-                            transitionProps={{
-                                transition: 'fade',
-                                duration: 150,
+                    {dashboardUuid && (
+                        <ActionIcon
+                            variant="subtle"
+                            size="md"
+                            radius="md"
+                            color={isDashboardFavorited ? 'orange' : 'ldGray.6'}
+                            onClick={() => {
+                                toggleFavorite({
+                                    contentType: ContentType.DASHBOARD,
+                                    contentUuid: dashboardUuid,
+                                });
                             }}
                         >
-                            <UnstyledButton>
-                                <Group gap={6}>
-                                    <MantineIcon
-                                        icon={IconDatabase}
-                                        size="sm"
-                                        color="ldGray.6"
-                                    />
-
-                                    <Text fz={11} c="dimmed">
-                                        {dayjs(oldestCacheTime).format(
-                                            'MMM D, h:mm A',
-                                        )}
-                                    </Text>
-                                </Group>
-                            </UnstyledButton>
-                        </Tooltip>
+                            <MantineIcon
+                                icon={
+                                    isDashboardFavorited
+                                        ? IconStarFilled
+                                        : IconStar
+                                }
+                                size={16}
+                            />
+                        </ActionIcon>
                     )}
 
-                    {userCanExportData && (
-                        <DashboardRefreshButton
-                            onIntervalChange={handleDashboardRefreshUpdateEvent}
+                    {isEditMode && userCanManageDashboard && (
+                        <ActionIcon
+                            variant="subtle"
+                            size="md"
+                            color="ldGray.6"
+                            radius="md"
+                            disabled={isSaving}
+                            onClick={handleEditClick}
+                        >
+                            <MantineIcon
+                                icon={IconPencil}
+                                size={14}
+                                strokeWidth={2.25}
+                            />
+                        </ActionIcon>
+                    )}
+
+                    {isUpdating && dashboardUuid && (
+                        <DashboardUpdateModal
+                            uuid={dashboardUuid}
+                            opened={isUpdating}
+                            onClose={() => setIsUpdating(false)}
+                            onConfirm={() => setIsUpdating(false)}
                         />
                     )}
 
-                    {!isEditMode &&
-                        document.fullscreenEnabled &&
-                        isFullScreenFeatureEnabled && (
+                    {isTransferToSpaceModalOpen && projectUuid && (
+                        <TransferItemsModal
+                            projectUuid={projectUuid}
+                            opened={isTransferToSpaceModalOpen}
+                            onClose={transferToSpaceModalHandlers.close}
+                            items={[
+                                {
+                                    data: dashboard,
+                                    type: ResourceViewItemType.DASHBOARD,
+                                },
+                            ]}
+                            isLoading={isMovingDashboardToSpace}
+                            onConfirm={(spaceUuid) => {
+                                if (!spaceUuid) {
+                                    throw new Error(
+                                        'Space UUID is required to move a dashboard',
+                                    );
+                                }
+                                onMoveToSpace(spaceUuid);
+                                transferToSpaceModalHandlers.close();
+                            }}
+                        />
+                    )}
+                </Group>
+
+                {userCanManageDashboard && isEditMode ? (
+                    <Group gap="xs">
+                        {performanceWarning.hasWarning && (
                             <Tooltip
                                 label={
-                                    isFullscreen
-                                        ? 'Exit Fullscreen Mode'
-                                        : 'Enter Fullscreen Mode'
+                                    <Box>
+                                        <Text size="sm" fw={500} mb={6}>
+                                            Speed up this dashboard
+                                        </Text>
+                                        <Text size="xs">
+                                            With{' '}
+                                            {performanceWarning.totalChartCount}{' '}
+                                            charts, load times can be slower
+                                            depending on the user's machine.{' '}
+                                            {performanceWarning.totalTabs <= 1
+                                                ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
+                                                : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
+                                        </Text>
+                                    </Box>
                                 }
+                                withinPortal
+                                position="bottom"
+                                multiline
+                                maw={320}
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
+                            >
+                                <ActionIcon
+                                    variant="subtle"
+                                    size="md"
+                                    radius="md"
+                                    color="orange.6"
+                                >
+                                    <MantineIcon icon={IconAlertTriangle} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+
+                        <AddTileButton
+                            onAddTiles={onAddTiles}
+                            disabled={isSaving}
+                            setAddingTab={setAddingTab}
+                            activeTabUuid={activeTabUuid}
+                            dashboardTabs={dashboardTabs}
+                            radius="md"
+                        />
+
+                        <Tooltip
+                            fz="xs"
+                            withinPortal
+                            position="bottom"
+                            label="No changes to save"
+                            disabled={hasDashboardChanged}
+                            openDelay={200}
+                            transitionProps={{
+                                transition: 'fade',
+                                duration: 150,
+                            }}
+                        >
+                            <Box>
+                                <Button
+                                    size="xs"
+                                    disabled={!hasDashboardChanged}
+                                    loading={isSaving}
+                                    onClick={onSaveDashboard}
+                                    color="green.7"
+                                >
+                                    Save changes
+                                </Button>
+                            </Box>
+                        </Tooltip>
+                        <Button
+                            variant="default"
+                            size="xs"
+                            disabled={isSaving}
+                            onClick={onCancel}
+                        >
+                            Cancel
+                        </Button>
+                    </Group>
+                ) : (
+                    <Group gap="sm">
+                        {isDashboardSummariesEnabled &&
+                            projectUuid &&
+                            dashboardUuid && (
+                                <AIDashboardSummary
+                                    projectUuid={projectUuid}
+                                    dashboardUuid={dashboardUuid}
+                                    dashboardVersionId={
+                                        dashboard.dashboardVersionId
+                                    }
+                                />
+                            )}
+
+                        {!!userCanManageDashboard && !isFullscreen && (
+                            <Tooltip
+                                label="Edit dashboard"
                                 withinPortal
                                 position="bottom"
                                 openDelay={200}
@@ -647,353 +582,455 @@ const DashboardHeader = ({
                                 }}
                             >
                                 <ActionIcon
-                                    variant="default"
-                                    size="md"
+                                    aria-label="Edit dashboard"
                                     radius="md"
-                                    onClick={onToggleFullscreen}
+                                    onClick={onEditClicked}
+                                    bg="foreground"
+                                    c="background"
+                                    size="md"
                                 >
                                     <MantineIcon
-                                        icon={
-                                            isFullscreen
-                                                ? IconMinimize
-                                                : IconMaximize
-                                        }
+                                        icon={IconPencil}
+                                        color="background"
                                         size="md"
                                     />
                                 </ActionIcon>
                             </Tooltip>
                         )}
 
-                    {userCanExportData && !isFullscreen && (
-                        <ShareLinkButton
-                            url={`${window.location.href}`}
-                            label="Copy link to the dashboard"
-                        />
-                    )}
+                        {(userCanExportData ||
+                            (!isEditMode &&
+                                document.fullscreenEnabled &&
+                                isFullScreenFeatureEnabled) ||
+                            !isFullscreen) && (
+                            <Divider orientation="vertical" />
+                        )}
 
-                    {!isFullscreen && (
-                        <Menu
-                            data-testid="dashboard-header-menu"
-                            position="bottom"
-                            withArrow
-                            withinPortal
-                            shadow="md"
-                            disabled={
-                                !userCanManageDashboard && !userCanExportData
-                            }
-                        >
-                            <Menu.Target>
-                                <Box
-                                    className={headerClasses.menuTargetWrapper}
+                        {oldestCacheTime && (
+                            <Tooltip
+                                label={`Dashboard uses cached data from ${dayjs(
+                                    oldestCacheTime,
+                                ).format('MMM D, YYYY h:mm A')}`}
+                                withinPortal
+                                position="bottom"
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
+                            >
+                                <UnstyledButton>
+                                    <Group gap={6}>
+                                        <MantineIcon
+                                            icon={IconDatabase}
+                                            size="sm"
+                                            color="ldGray.6"
+                                        />
+
+                                        <Text fz={11} c="dimmed">
+                                            {dayjs(oldestCacheTime).format(
+                                                'MMM D, h:mm A',
+                                            )}
+                                        </Text>
+                                    </Group>
+                                </UnstyledButton>
+                            </Tooltip>
+                        )}
+
+                        {userCanExportData && (
+                            <DashboardRefreshButton
+                                onIntervalChange={
+                                    handleDashboardRefreshUpdateEvent
+                                }
+                            />
+                        )}
+
+                        {!isEditMode &&
+                            document.fullscreenEnabled &&
+                            isFullScreenFeatureEnabled && (
+                                <Tooltip
+                                    label={
+                                        isFullscreen
+                                            ? 'Exit Fullscreen Mode'
+                                            : 'Enter Fullscreen Mode'
+                                    }
+                                    withinPortal
+                                    position="bottom"
+                                    openDelay={200}
+                                    transitionProps={{
+                                        transition: 'fade',
+                                        duration: 150,
+                                    }}
                                 >
-                                    {preAggregatesEnabled && (
-                                        <Box
-                                            className={
-                                                headerClasses.zapIndicator
-                                            }
-                                            data-settled={
-                                                allTilesLoaded || undefined
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={IconBolt}
-                                                size={9}
-                                            />
-                                        </Box>
-                                    )}
                                     <ActionIcon
                                         variant="default"
                                         size="md"
                                         radius="md"
+                                        onClick={onToggleFullscreen}
                                     >
-                                        <MantineIcon icon={IconDots} />
+                                        <MantineIcon
+                                            icon={
+                                                isFullscreen
+                                                    ? IconMinimize
+                                                    : IconMaximize
+                                            }
+                                            size="md"
+                                        />
                                     </ActionIcon>
-                                </Box>
-                            </Menu.Target>
+                                </Tooltip>
+                            )}
 
-                            <Menu.Dropdown>
-                                {!!userCanManageDashboard && (
-                                    <>
-                                        {preAggregatesEnabled &&
-                                            preAggregateStatuses &&
-                                            Object.keys(preAggregateStatuses)
-                                                .length > 0 && (
-                                                <>
-                                                    <Menu.Item
-                                                        leftSection={
-                                                            <MantineIcon
-                                                                icon={IconBolt}
-                                                            />
-                                                        }
-                                                        onClick={
-                                                            preAggAuditHandlers.open
-                                                        }
-                                                    >
-                                                        Pre-aggregation audit
-                                                    </Menu.Item>
-                                                    {userCanRefreshPreAggregates &&
-                                                        uniquePreAggregateNames.length >
-                                                            0 && (
-                                                            <Menu.Item
-                                                                leftSection={
-                                                                    <MantineIcon
-                                                                        icon={
-                                                                            IconRefreshDot
-                                                                        }
-                                                                    />
-                                                                }
-                                                                onClick={
-                                                                    preAggRefreshHandlers.open
-                                                                }
-                                                            >
-                                                                Rebuild
-                                                                pre-aggregates
-                                                            </Menu.Item>
-                                                        )}
-                                                    <Menu.Divider />
-                                                </>
-                                            )}
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCopy} />
-                                            }
-                                            onClick={onDuplicate}
-                                        >
-                                            Duplicate
-                                        </Menu.Item>
+                        {userCanExportData && !isFullscreen && (
+                            <ShareLinkButton
+                                url={`${window.location.href}`}
+                                label="Copy link to the dashboard"
+                            />
+                        )}
 
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconFolderSymlink}
-                                                />
-                                            }
-                                            onClick={
-                                                transferToSpaceModalHandlers.open
-                                            }
-                                        >
-                                            Move dashboard
-                                        </Menu.Item>
-                                    </>
-                                )}
-
-                                {userCanPinDashboard && (
-                                    <Menu.Item
-                                        component="button"
-                                        role="menuitem"
-                                        leftSection={
-                                            isPinned ? (
-                                                <MantineIcon
-                                                    icon={IconPinnedOff}
-                                                />
-                                            ) : (
-                                                <MantineIcon icon={IconPin} />
-                                            )
+                        {!isFullscreen && (
+                            <Menu
+                                data-testid="dashboard-header-menu"
+                                position="bottom"
+                                withArrow
+                                withinPortal
+                                shadow="md"
+                                disabled={
+                                    !userCanManageDashboard &&
+                                    !userCanExportData
+                                }
+                            >
+                                <Menu.Target>
+                                    <Box
+                                        className={
+                                            headerClasses.menuTargetWrapper
                                         }
-                                        onClick={onDashboardPinning}
                                     >
-                                        {isPinned
-                                            ? 'Unpin from homepage'
-                                            : 'Pin to homepage'}
-                                    </Menu.Item>
-                                )}
-
-                                {!!userCanCreateDeliveries && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconSend} />
-                                        }
-                                        onClick={() => {
-                                            toggleScheduledDeliveriesModal(
-                                                true,
-                                            );
-                                        }}
-                                    >
-                                        Scheduled deliveries
-                                    </Menu.Item>
-                                )}
-
-                                {userCanPromoteDashboard && dashboardUuid && (
-                                    <Tooltip
-                                        label="You must enable first an upstream project in settings > Data ops"
-                                        disabled={
-                                            project?.upstreamProjectUuid !==
-                                            undefined
-                                        }
-                                        withinPortal
-                                    >
-                                        <div>
-                                            <Menu.Item
-                                                disabled={
-                                                    project?.upstreamProjectUuid ===
-                                                    undefined
+                                        {preAggregatesEnabled && (
+                                            <Box
+                                                className={
+                                                    headerClasses.zapIndicator
                                                 }
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconDatabaseExport
-                                                        }
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    getPromoteDashboardDiff(
-                                                        dashboardUuid,
-                                                    )
+                                                data-settled={
+                                                    allTilesLoaded || undefined
                                                 }
                                             >
-                                                Promote dashboard
+                                                <MantineIcon
+                                                    icon={IconBolt}
+                                                    size={9}
+                                                />
+                                            </Box>
+                                        )}
+                                        <ActionIcon
+                                            variant="default"
+                                            size="md"
+                                            radius="md"
+                                        >
+                                            <MantineIcon icon={IconDots} />
+                                        </ActionIcon>
+                                    </Box>
+                                </Menu.Target>
+
+                                <Menu.Dropdown>
+                                    {!!userCanManageDashboard && (
+                                        <>
+                                            {preAggregatesEnabled &&
+                                                preAggregateStatuses &&
+                                                Object.keys(
+                                                    preAggregateStatuses,
+                                                ).length > 0 && (
+                                                    <>
+                                                        <Menu.Item
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconBolt
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={
+                                                                preAggAuditHandlers.open
+                                                            }
+                                                        >
+                                                            Pre-aggregation
+                                                            audit
+                                                        </Menu.Item>
+                                                        {userCanRefreshPreAggregates &&
+                                                            uniquePreAggregateNames.length >
+                                                                0 && (
+                                                                <Menu.Item
+                                                                    leftSection={
+                                                                        <MantineIcon
+                                                                            icon={
+                                                                                IconRefreshDot
+                                                                            }
+                                                                        />
+                                                                    }
+                                                                    onClick={
+                                                                        preAggRefreshHandlers.open
+                                                                    }
+                                                                >
+                                                                    Rebuild
+                                                                    pre-aggregates
+                                                                </Menu.Item>
+                                                            )}
+                                                        <Menu.Divider />
+                                                    </>
+                                                )}
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCopy}
+                                                    />
+                                                }
+                                                onClick={onDuplicate}
+                                            >
+                                                Duplicate
                                             </Menu.Item>
-                                        </div>
-                                    </Tooltip>
-                                )}
 
-                                {userCanManageDashboard && dashboardUuid && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconHistory} />
-                                        }
-                                        onClick={() =>
-                                            navigate(
-                                                `/projects/${projectUuid}/dashboards/${dashboardUuid}/history`,
-                                            )
-                                        }
-                                    >
-                                        Version history
-                                    </Menu.Item>
-                                )}
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconFolderSymlink}
+                                                    />
+                                                }
+                                                onClick={
+                                                    transferToSpaceModalHandlers.open
+                                                }
+                                            >
+                                                Move dashboard
+                                            </Menu.Item>
+                                        </>
+                                    )}
 
-                                {isContentVerificationEnabled &&
-                                    canManageContentVerification &&
-                                    dashboardUuid && (
+                                    {userCanPinDashboard && (
                                         <Menu.Item
+                                            component="button"
+                                            role="menuitem"
                                             leftSection={
-                                                isDashboardVerified ? (
-                                                    <IconCircleCheckFilled
-                                                        size={16}
-                                                        style={{
-                                                            color: 'var(--mantine-color-green-6)',
-                                                        }}
+                                                isPinned ? (
+                                                    <MantineIcon
+                                                        icon={IconPinnedOff}
                                                     />
                                                 ) : (
                                                     <MantineIcon
-                                                        icon={IconCircleCheck}
+                                                        icon={IconPin}
                                                     />
                                                 )
                                             }
-                                            onClick={() => {
-                                                if (isDashboardVerified) {
-                                                    unverifyDashboard(
-                                                        dashboardUuid,
-                                                    );
-                                                } else {
-                                                    verifyDashboard(
-                                                        dashboardUuid,
-                                                    );
-                                                }
-                                            }}
+                                            onClick={onDashboardPinning}
                                         >
-                                            {isDashboardVerified
-                                                ? 'Remove verification'
-                                                : 'Verify dashboard'}
+                                            {isPinned
+                                                ? 'Unpin from homepage'
+                                                : 'Pin to homepage'}
                                         </Menu.Item>
                                     )}
 
-                                {(userCanExportData ||
-                                    userCanManageDashboard) && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconUpload} />
-                                        }
-                                        onClick={onExport}
-                                    >
-                                        Export dashboard
-                                    </Menu.Item>
-                                )}
+                                    {!!userCanCreateDeliveries && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconSend} />
+                                            }
+                                            onClick={() => {
+                                                toggleScheduledDeliveriesModal(
+                                                    true,
+                                                );
+                                            }}
+                                        >
+                                            Scheduled deliveries
+                                        </Menu.Item>
+                                    )}
 
-                                {userCanManageDashboard && (
-                                    <>
-                                        <Menu.Divider />
+                                    {userCanPromoteDashboard &&
+                                        dashboardUuid && (
+                                            <Tooltip
+                                                label="You must enable first an upstream project in settings > Data ops"
+                                                disabled={
+                                                    project?.upstreamProjectUuid !==
+                                                    undefined
+                                                }
+                                                withinPortal
+                                            >
+                                                <div>
+                                                    <Menu.Item
+                                                        disabled={
+                                                            project?.upstreamProjectUuid ===
+                                                            undefined
+                                                        }
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconDatabaseExport
+                                                                }
+                                                            />
+                                                        }
+                                                        onClick={() =>
+                                                            getPromoteDashboardDiff(
+                                                                dashboardUuid,
+                                                            )
+                                                        }
+                                                    >
+                                                        Promote dashboard
+                                                    </Menu.Item>
+                                                </div>
+                                            </Tooltip>
+                                        )}
+
+                                    {userCanManageDashboard &&
+                                        dashboardUuid && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconHistory}
+                                                    />
+                                                }
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/projects/${projectUuid}/dashboards/${dashboardUuid}/history`,
+                                                    )
+                                                }
+                                            >
+                                                Version history
+                                            </Menu.Item>
+                                        )}
+
+                                    {isContentVerificationEnabled &&
+                                        canManageContentVerification &&
+                                        dashboardUuid && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    isDashboardVerified ? (
+                                                        <IconCircleCheckFilled
+                                                            size={16}
+                                                            style={{
+                                                                color: 'var(--mantine-color-green-6)',
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconCircleCheck
+                                                            }
+                                                        />
+                                                    )
+                                                }
+                                                onClick={() => {
+                                                    if (isDashboardVerified) {
+                                                        unverifyDashboard(
+                                                            dashboardUuid,
+                                                        );
+                                                    } else {
+                                                        verifyDashboard(
+                                                            dashboardUuid,
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                {isDashboardVerified
+                                                    ? 'Remove verification'
+                                                    : 'Verify dashboard'}
+                                            </Menu.Item>
+                                        )}
+
+                                    {(userCanExportData ||
+                                        userCanManageDashboard) && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
-                                                    icon={IconTrash}
-                                                    color="red"
+                                                    icon={IconUpload}
                                                 />
                                             }
-                                            onClick={onDelete}
-                                            color="red"
+                                            onClick={onExport}
                                         >
-                                            Delete
+                                            Export dashboard
                                         </Menu.Item>
-                                    </>
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
-                    )}
+                                    )}
 
-                    {isCreatingNewSpace && projectUuid && (
-                        <SpaceActionModal
-                            projectUuid={projectUuid}
-                            actionType={ActionType.CREATE}
-                            title="Create new space"
-                            confirmButtonLabel="Create"
-                            icon={IconFolderPlus}
-                            onClose={() => setIsCreatingNewSpace(false)}
-                            parentSpaceUuid={null}
-                            onSubmitForm={(space) => {
-                                if (space) onMoveToSpace(space.uuid);
-                            }}
-                        />
-                    )}
-                    {isScheduledDeliveriesModalOpen && dashboardUuid && (
-                        <DashboardSchedulersModal
-                            dashboardUuid={dashboardUuid}
-                            name={dashboard.name}
-                            isOpen={isScheduledDeliveriesModalOpen}
-                            onClose={() =>
-                                toggleScheduledDeliveriesModal(false)
-                            }
-                            initialSchedulerUuid={initialSchedulerUuid}
-                        />
-                    )}
-                    {(promoteDashboardDiff || promoteDashboardDiffLoading) &&
-                        dashboardUuid && (
-                            <PromotionConfirmDialog
-                                type="dashboard"
-                                resourceName={dashboard.name}
-                                promotionChanges={promoteDashboardDiff}
-                                onClose={() => {
-                                    resetPromoteDashboardDiff();
-                                }}
-                                onConfirm={() => {
-                                    promoteDashboard(dashboardUuid);
+                                    {userCanManageDashboard && (
+                                        <>
+                                            <Menu.Divider />
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                        color="red"
+                                                    />
+                                                }
+                                                onClick={onDelete}
+                                                color="red"
+                                            >
+                                                Delete
+                                            </Menu.Item>
+                                        </>
+                                    )}
+                                </Menu.Dropdown>
+                            </Menu>
+                        )}
+
+                        {isCreatingNewSpace && projectUuid && (
+                            <SpaceActionModal
+                                projectUuid={projectUuid}
+                                actionType={ActionType.CREATE}
+                                title="Create new space"
+                                confirmButtonLabel="Create"
+                                icon={IconFolderPlus}
+                                onClose={() => setIsCreatingNewSpace(false)}
+                                parentSpaceUuid={null}
+                                onSubmitForm={(space) => {
+                                    if (space) onMoveToSpace(space.uuid);
                                 }}
                             />
                         )}
-                </Group>
-            )}
-            {preAggregatesEnabled && preAggregateStatuses && (
-                <PreAggregateAuditDrawer
-                    opened={isPreAggAuditOpen}
-                    onClose={preAggAuditHandlers.close}
-                    statuses={preAggregateStatuses}
-                    activeTabUuid={activeTabUuid}
-                    dashboardTabs={dashboardTabs ?? []}
-                    onSwitchTab={(tab) => onSwitchTab?.(tab)}
-                />
-            )}
-            {preAggregatesEnabled &&
-                projectUuid &&
-                uniquePreAggregateNames.length > 0 && (
-                    <DashboardPreAggRefreshModal
-                        opened={isPreAggRefreshOpen}
-                        onClose={preAggRefreshHandlers.close}
-                        projectUuid={projectUuid}
-                        preAggregateNames={uniquePreAggregateNames}
+                        {isScheduledDeliveriesModalOpen && dashboardUuid && (
+                            <DashboardSchedulersModal
+                                dashboardUuid={dashboardUuid}
+                                name={dashboard.name}
+                                isOpen={isScheduledDeliveriesModalOpen}
+                                onClose={() =>
+                                    toggleScheduledDeliveriesModal(false)
+                                }
+                                initialSchedulerUuid={initialSchedulerUuid}
+                            />
+                        )}
+                        {(promoteDashboardDiff ||
+                            promoteDashboardDiffLoading) &&
+                            dashboardUuid && (
+                                <PromotionConfirmDialog
+                                    type="dashboard"
+                                    resourceName={dashboard.name}
+                                    promotionChanges={promoteDashboardDiff}
+                                    onClose={() => {
+                                        resetPromoteDashboardDiff();
+                                    }}
+                                    onConfirm={() => {
+                                        promoteDashboard(dashboardUuid);
+                                    }}
+                                />
+                            )}
+                    </Group>
+                )}
+                {preAggregatesEnabled && preAggregateStatuses && (
+                    <PreAggregateAuditDrawer
+                        opened={isPreAggAuditOpen}
+                        onClose={preAggAuditHandlers.close}
+                        statuses={preAggregateStatuses}
+                        activeTabUuid={activeTabUuid}
+                        dashboardTabs={dashboardTabs ?? []}
+                        onSwitchTab={(tab) => onSwitchTab?.(tab)}
                     />
                 )}
-        </PageHeader>
-    );
-};
+                {preAggregatesEnabled &&
+                    projectUuid &&
+                    uniquePreAggregateNames.length > 0 && (
+                        <DashboardPreAggRefreshModal
+                            opened={isPreAggRefreshOpen}
+                            onClose={preAggRefreshHandlers.close}
+                            projectUuid={projectUuid}
+                            preAggregateNames={uniquePreAggregateNames}
+                        />
+                    )}
+            </PageHeader>
+        );
+    },
+);
 
 export default DashboardHeader;

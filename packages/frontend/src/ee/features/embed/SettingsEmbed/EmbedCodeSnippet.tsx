@@ -257,6 +257,7 @@ const data = {
         dashboardFiltersInteractivity: {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
             allowedFilters: {{dashboardFiltersInteractivityAllowedFilters}},
+            hidden: {{dashboardFiltersInteractivityHidden}},
         },
         parameterInteractivity: {
             enabled: {{canChangeParameters}},
@@ -293,6 +294,7 @@ data = {
         "dashboardFiltersInteractivity": {
             "enabled": "{{dashboardFiltersInteractivityEnabled}}",
             "allowedFilters": {{dashboardFiltersInteractivityAllowedFilters}},
+            "hidden": {{dashboardFiltersInteractivityHidden}},
         },
         "parameterInteractivity": {
             "enabled": {{canChangeParameters}},
@@ -339,6 +341,7 @@ func main() {
             DashboardFiltersInteractivity struct {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
+                Hidden bool \`json:"hidden"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -367,6 +370,7 @@ func main() {
             DashboardFiltersInteractivity struct {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
+                Hidden bool \`json:"hidden"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -384,9 +388,11 @@ func main() {
             DashboardFiltersInteractivity: struct {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
+                Hidden bool \`json:"hidden"\`
             }{
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
                 AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFilters}}},
+                Hidden: {{dashboardFiltersInteractivityHidden}},
             },
             ParameterInteractivity: struct {
                 Enabled bool \`json:"enabled"\`
@@ -562,6 +568,7 @@ const data = {
         dashboardFiltersInteractivity: {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
             allowedFilters: {{dashboardFiltersInteractivityAllowedFilters}},
+            hidden: {{dashboardFiltersInteractivityHidden}},
         },
         parameterInteractivity: {
             enabled: {{canChangeParameters}},
@@ -597,6 +604,7 @@ data = {
         "dashboardFiltersInteractivity": {
             "enabled": "{{dashboardFiltersInteractivityEnabled}}",
             "allowedFilters": {{dashboardFiltersInteractivityAllowedFilters}},
+            "hidden": {{dashboardFiltersInteractivityHidden}},
         },
         "parameterInteractivity": {
             "enabled": {{canChangeParameters}},
@@ -641,6 +649,7 @@ func main() {
             DashboardFiltersInteractivity struct {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
+                Hidden bool \`json:"hidden"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -668,6 +677,7 @@ func main() {
             DashboardFiltersInteractivity struct {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
+                Hidden bool \`json:"hidden"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -685,9 +695,11 @@ func main() {
             DashboardFiltersInteractivity: struct {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
+                Hidden bool \`json:"hidden"\`
             }{
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
                 AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFilters}}},
+                Hidden: {{dashboardFiltersInteractivityHidden}},
             },
             ParameterInteractivity: struct {
                 Enabled bool \`json:"enabled"\`
@@ -815,6 +827,14 @@ const getBackendCodeSnippet = (
                         language,
                         data.content.dashboardFiltersInteractivity
                             ?.allowedFilters,
+                    ),
+                )
+                .replace(
+                    '{{dashboardFiltersInteractivityHidden}}',
+                    languageBoolean(
+                        language,
+                        data.content.dashboardFiltersInteractivity?.hidden ??
+                            false,
                     ),
                 )
                 .replace(

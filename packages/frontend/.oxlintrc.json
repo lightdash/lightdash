@@ -1,0 +1,177 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["oxlint:recommended"],
+  "options": {
+    "typeAware": true
+  },
+  "ignorePatterns": ["**/*.css"],
+  "plugins": ["typescript", "react", "jsx-a11y", "import"],
+  "jsPlugins": [
+    "eslint-plugin-jest-dom",
+    "eslint-plugin-lodash"
+  ],
+  "rules": {
+    /* ── eslint core (from root + frontend + airbnb) ──────────────── */
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "none",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "no-restricted-globals": [
+      "error",
+      "addEventListener", "blur", "close", "closed", "confirm",
+      "defaultStatus", "defaultstatus", "event", "external", "find",
+      "focus", "frameElement", "frames", "history", "innerHeight",
+      "innerWidth", "length", "location", "locationbar", "menubar",
+      "moveBy", "moveTo", "name", "onblur", "onerror", "onfocus",
+      "onload", "onresize", "onunload", "open", "opener", "opera",
+      "outerHeight", "outerWidth", "pageXOffset", "pageYOffset",
+      "parent", "print", "removeEventListener", "resizeBy", "resizeTo",
+      "screen", "screenLeft", "screenTop", "screenX", "screenY",
+      "scroll", "scrollbars", "scrollBy", "scrollTo", "scrollX",
+      "scrollY", "self", "status", "statusbar", "stop", "toolbar", "top"
+    ],
+    "no-void": ["error", { "allowAsStatement": true }],
+    /* rules from oxlint:recommended not in original ESLint config — enable incrementally */
+    "no-extra-boolean-cast": "off",
+    "no-useless-escape": "off",
+    "no-empty-pattern": "off",
+    "no-unsafe-optional-chaining": "off",
+    "no-duplicate-case": "off",
+    "prefer-const": "off",
+    "prefer-spread": "off",
+    "eqeqeq": "off",
+    "no-throw-literal": "off",
+
+    /* ── @typescript-eslint ───────────────────────────────────────── */
+    "@typescript-eslint/no-floating-promises": ["error", { "ignoreVoid": true, "ignoreIIFE": true }],
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "variable",
+        "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+        "leadingUnderscore": "allow"
+      }
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "destructuredArrayIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrors": "none",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "@typescript-eslint/consistent-type-imports": [
+      "error",
+      {
+        "prefer": "type-imports",
+        "fixStyle": "inline-type-imports"
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-empty-interface": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-wrapper-object-types": "off",
+    /* type-aware rules from oxlint:recommended — too noisy to fix now, enable incrementally */
+    "@typescript-eslint/restrict-template-expressions": "off",
+    "@typescript-eslint/no-base-to-string": "off",
+    "@typescript-eslint/unbound-method": "off",
+
+    /* ── react (plugin:react/recommended equivalents) ─────────────── */
+    "react/jsx-key": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-undef": "error",
+    "react/no-children-prop": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-unknown-property": "error",
+    "react/require-render-return": "error",
+    "react/void-dom-elements-no-children": "error",
+    "react/forward-ref-uses-ref": "off",
+    /* explicitly off per frontend eslint config */
+    "react/display-name": "off",
+    "react/no-unescaped-entities": "off",
+    "react/react-in-jsx-scope": "off",
+
+    /* ── react-hooks (plugin:react-hooks/recommended) ─────────────── */
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+
+    /* ── react-refresh (native oxlint equivalent) ─────────────────── */
+    "react/only-export-components": "error",
+
+    /* ── jsx-a11y (plugin:jsx-a11y/recommended equivalents) ───────── */
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/anchor-has-content": "error",
+    "jsx-a11y/anchor-is-valid": "error",
+    "jsx-a11y/aria-activedescendant-has-tabindex": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-proptypes": "error",
+    "jsx-a11y/aria-role": "error",
+    "jsx-a11y/aria-unsupported-elements": "error",
+    "jsx-a11y/autocomplete-valid": "error",
+    "jsx-a11y/heading-has-content": "error",
+    "jsx-a11y/html-has-lang": "error",
+    "jsx-a11y/iframe-has-title": "error",
+    "jsx-a11y/img-redundant-alt": "error",
+    "jsx-a11y/label-has-associated-control": "error",
+    "jsx-a11y/media-has-caption": "error",
+    "jsx-a11y/mouse-events-have-key-events": "error",
+    "jsx-a11y/no-access-key": "error",
+    "jsx-a11y/no-aria-hidden-on-focusable": "error",
+    "jsx-a11y/no-distracting-elements": "error",
+    "jsx-a11y/no-noninteractive-tabindex": "error",
+    "jsx-a11y/no-redundant-roles": "error",
+    "jsx-a11y/role-has-required-aria-props": "error",
+    "jsx-a11y/role-supports-aria-props": "error",
+    "jsx-a11y/scope": "error",
+    "jsx-a11y/tabindex-no-positive": "error",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    /* explicitly off per frontend eslint config */
+    "jsx-a11y/click-events-have-key-events": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+
+    /* ── import (plugin:import/recommended equivalents) ────────────── */
+    "import/default": "error",
+    "import/namespace": "error",
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off",
+
+    /* ── jest-dom (via jsPlugin) ──────────────────────────────────── */
+    "jest-dom/prefer-checked": "error",
+    "jest-dom/prefer-enabled-disabled": "error",
+    "jest-dom/prefer-required": "error",
+    "jest-dom/prefer-to-have-attribute": "error",
+
+/* ── lodash (via jsPlugin) ────────────────────────────────────── */
+    "lodash/import-scope": ["error", "method"]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.stories.tsx", "**/*.stories.ts"],
+      "rules": {
+        "react-hooks/rules-of-hooks": "off",
+        "react-hooks/exhaustive-deps": "off",
+        "react/only-export-components": "off"
+      }
+    }
+  ]
+}

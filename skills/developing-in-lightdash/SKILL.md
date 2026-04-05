@@ -37,6 +37,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Guessing filter values** | Case mismatches (`'Payment'` vs `'payment'`) cause charts to silently return no data | Always run `lightdash sql "SELECT DISTINCT column FROM table LIMIT 50" -o values.csv` and use exact values |
 | **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows old title — `title` and `chartName` are independent overrides that do NOT auto-update | Download the dashboard, find tiles with matching `chartSlug`, update `title` and `chartName` to match |
 | **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config. For cartesian: `layout.xField`, `layout.yField`, or `pivotConfig.columns` |
+| **Unsorted YAML keys** | `lightdash upload` warns "unsorted YAML keys" and diffs become noisy | Always sort keys alphabetically at every nesting level — the CLI writes with `sortKeys: true` |
 | **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 
@@ -217,15 +218,15 @@ The semantic layer defines your data model. See individual references for full c
 All charts share a common base structure:
 
 ```yaml
-contentType: chart              # Required: chart, dashboard, or sql_chart
 chartConfig:
-  type: <type>
   config: {}        # Type-specific — see individual references
+  type: <type>
+contentType: chart              # Required: chart, dashboard, or sql_chart
 dashboardSlug: my-dashboard  # Optional: scopes chart to dashboard (won't appear in space)
 metricQuery:
-  exploreName: my_explore     # Required: which explore to query
   dimensions:
     - my_explore_category
+  exploreName: my_explore     # Required: which explore to query
   filters: {}
   limit: 500
   metrics:
@@ -239,6 +240,8 @@ tableConfig:
 tableName: my_explore           # Required: top-level explore/table name
 version: 1
 ```
+
+**Key ordering:** All YAML keys must be sorted alphabetically at every nesting level. The CLI writes files with `sortKeys: true` and warns on upload if keys are unsorted. When writing or editing YAML by hand, keep keys in alphabetical order to avoid warnings and noisy diffs.
 
 **Chart scoping:** Use `spaceSlug` only for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard (it won't appear in the space).
 

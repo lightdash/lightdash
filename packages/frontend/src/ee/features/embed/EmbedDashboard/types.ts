@@ -4,5 +4,5 @@ export type SdkFilter = {
     model: string;
     field: string;
     operator: `${FilterOperator}`;
-    value: unknown | unknown[];
+    value: unknown;
 };

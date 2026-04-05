@@ -91,7 +91,7 @@ export const AiChartQuickOptions = ({
             close();
             return;
         }
-        void savePromptQuery({ savedQueryUuid: savedData.uuid });
+        savePromptQuery({ savedQueryUuid: savedData.uuid });
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&

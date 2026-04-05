@@ -58,6 +58,7 @@ export enum PreAggregateMissReason {
     CUSTOM_METRIC_PRESENT = 'custom_metric_present',
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
     USER_BYPASS = 'user_bypass',
+    EXPLORE_RESOLUTION_ERROR = 'explore_resolution_error',
 }
 
 export type PreAggregateMatchMiss =
@@ -103,6 +104,20 @@ export type PreAggregateMatchMiss =
     | {
           reason: PreAggregateMissReason.USER_BYPASS;
           preAggregateName: string;
+      }
+    | {
+          reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR;
+      };
+
+export type PreAggregateCheckResult =
+    | {
+          hit: true;
+          preAggregateName: string;
+          preAggregateExploreName: string;
+      }
+    | {
+          hit: false;
+          reason: PreAggregateMatchMiss;
       };
 
 export type PreAggregateDefinition = {
@@ -159,6 +174,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]:
         'Table calculation present',
     [PreAggregateMissReason.USER_BYPASS]: 'Bypassed by user',
+    [PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR]:
+        'Materialized explore not found',
 };
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;
@@ -283,4 +300,9 @@ export type ApiPreAggregateStatsResults = {
 export type ApiGetPreAggregateStatsResponse = {
     status: 'ok';
     results: KnexPaginatedData<ApiPreAggregateStatsResults>;
+};
+
+export type ApiPreAggregateCheckResponse = {
+    status: 'ok';
+    results: PreAggregateCheckResult;
 };

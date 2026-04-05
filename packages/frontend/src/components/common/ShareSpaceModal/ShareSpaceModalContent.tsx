@@ -41,6 +41,7 @@ import {
     useAddSpaceShareMutation,
     useDeleteSpaceGroupAccessMutation,
     useDeleteSpaceShareMutation,
+    useUpdateMutation,
 } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
@@ -239,6 +240,24 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
         projectUuid,
         space.uuid,
     );
+    const { mutateAsync: updateSpaceMutation } = useUpdateMutation(
+        projectUuid,
+        space.uuid,
+    );
+
+    // Synthetic group entry for "All project members" when the space has it enabled
+    const PROJECT_MEMBERS_GROUP_UUID = '__all_project_members__';
+    const effectiveGroupsAccess: SpaceGroup[] = useMemo(() => {
+        const groups = [...space.groupsAccess];
+        if (space.projectMemberAccessRole) {
+            groups.unshift({
+                groupUuid: PROJECT_MEMBERS_GROUP_UUID,
+                groupName: 'All project members',
+                spaceRole: space.projectMemberAccessRole,
+            });
+        }
+        return groups;
+    }, [space.groupsAccess, space.projectMemberAccessRole]);
 
     const handleAccessChange = useCallback(
         (action: UserAccessAction, sharedUser: SpaceShare) => {
@@ -266,6 +285,24 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
 
     const handleGroupAccessChange = useCallback(
         (action: UserAccessAction, group: SpaceGroup) => {
+            // Handle "All project members" synthetic group via space update
+            if (group.groupUuid === PROJECT_MEMBERS_GROUP_UUID) {
+                if (action === UserAccessAction.DELETE) {
+                    void updateSpaceMutation({
+                        name: space.name,
+                        projectMemberAccessRole: null,
+                    });
+                } else {
+                    void updateSpaceMutation({
+                        name: space.name,
+                        projectMemberAccessRole:
+                            (action as unknown as SpaceMemberRole) ||
+                            SpaceMemberRole.VIEWER,
+                    });
+                }
+                return;
+            }
+
             if (action === UserAccessAction.DELETE) {
                 unshareGroupMutation(group.groupUuid);
             } else {
@@ -285,11 +322,18 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                 ]);
             }
         },
-        [unshareGroupMutation, shareGroupMutation, showToastError],
+        [
+            unshareGroupMutation,
+            shareGroupMutation,
+            showToastError,
+            updateSpaceMutation,
+            space.name,
+        ],
     );
 
     const accessByType = useSpaceAccessByType(space);
-    const manageCount = accessByType.direct.length + space.groupsAccess.length;
+    const manageCount =
+        accessByType.direct.length + effectiveGroupsAccess.length;
 
     const auditUsers = useMemo<AuditUser[]>(() => {
         const result: AuditUser[] = [];
@@ -447,7 +491,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                     />
 
                                     {accessByType.direct.length >= 5 &&
-                                        space.groupsAccess.length === 0 &&
+                                        effectiveGroupsAccess.length === 0 &&
                                         !isGroupsHintDismissed && (
                                             <Callout
                                                 variant="info"
@@ -476,7 +520,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                             </Callout>
                                         )}
 
-                                    {space.groupsAccess.length > 0 && (
+                                    {effectiveGroupsAccess.length > 0 && (
                                         <Stack gap="xs">
                                             <Text fw={400} c="ldGray.6" fz="sm">
                                                 Groups
@@ -486,7 +530,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                     space.inheritParentPermissions
                                                 }
                                                 groupsAccess={
-                                                    space.groupsAccess
+                                                    effectiveGroupsAccess
                                                 }
                                                 onAccessChange={
                                                     handleGroupAccessChange
@@ -502,7 +546,7 @@ const ShareSpaceModalContent: FC<ShareSpaceProps> = ({
                                                 gap={6}
                                                 wrap="nowrap"
                                                 mt={
-                                                    space.groupsAccess.length >
+                                                    effectiveGroupsAccess.length >
                                                     0
                                                         ? 'sm'
                                                         : undefined

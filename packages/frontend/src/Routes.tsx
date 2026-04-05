@@ -344,7 +344,15 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         element: <AppGenerate />,
     },
     {
+        path: 'apps/:appUuid',
+        element: <AppGenerate />,
+    },
+    {
         path: 'apps/:appUuid/versions/:version/preview',
+        element: <AppPreviewTest />,
+    },
+    {
+        path: 'apps/:appUuid/preview',
         element: <AppPreviewTest />,
     },
     {

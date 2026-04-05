@@ -24,7 +24,9 @@ import type {
     ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
+    ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiMyAppsResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
@@ -148,6 +150,7 @@ import { type PivotConfiguration } from './pivot';
 import type {
     ApiGetPreAggregateMaterializationsResponse,
     ApiGetPreAggregateStatsResponse,
+    ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
 import {
@@ -442,6 +445,7 @@ export type HealthState = {
         versionHistory: {
             daysLimit: number;
         };
+        disableSentryTracking: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -633,6 +637,7 @@ type ApiExecuteAsyncQueryResultsCommon = {
     cacheMetadata: CacheMetadata;
     parameterReferences: string[]; // params needed for query to run
     usedParametersValues: ParametersValuesMap; // params values used
+    resolvedTimezone: string | null; // resolved display timezone, null for SQL queries
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
@@ -975,6 +980,7 @@ type ApiResults =
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
+    | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
@@ -983,6 +989,8 @@ type ApiResults =
     | OAuthClientSummary
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
+    | ApiGetAppResponse['results']
+    | ApiMyAppsResponse['results']
     | ApiPreviewTokenResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

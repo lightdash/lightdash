@@ -11,16 +11,19 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
     IconEdit,
+    IconCopy,
     IconInfoCircle,
     IconMoon,
     IconSun,
     IconTrash,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useCallback, useState, type FC } from 'react';
 import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganizationAppearance';
+import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
 import { DeletePaletteModal } from './DeletePaletteModal';
 import { EditPaletteModal } from './EditPaletteModal';
@@ -42,11 +45,18 @@ export const PaletteItem: FC<PaletteItemProps> = ({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const deleteColorPalette = useDeleteColorPalette();
+    const clipboard = useClipboard({ timeout: 1000 });
+    const { showToastSuccess } = useToaster();
 
     const handleDeletePalette = () => {
         deleteColorPalette.mutate(palette.colorPaletteUuid);
         setIsDeleteModalOpen(false);
     };
+
+    const handleCopyUuid = useCallback(() => {
+        clipboard.copy(palette.colorPaletteUuid);
+        showToastSuccess({ title: 'Palette UUID copied to clipboard' });
+    }, [clipboard, showToastSuccess, palette.colorPaletteUuid]);
 
     const hasDarkColors =
         palette.darkColors !== null && palette.darkColors !== undefined;
@@ -165,13 +175,23 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                             disabled={readOnly}
                         >
                             <Menu.Target>
-                                <ActionIcon size="xs" disabled={readOnly}>
+                                <ActionIcon
+                                    size="xs"
+                                    aria-label="Palette actions"
+                                >
                                     <MantineIcon icon={IconDotsVertical} />
                                 </ActionIcon>
                             </Menu.Target>
 
                             <Menu.Dropdown>
                                 <Menu.Item
+                                    icon={<MantineIcon icon={IconCopy} />}
+                                    onClick={handleCopyUuid}
+                                >
+                                    Copy UUID
+                                </Menu.Item>
+                                <Menu.Item
+                                    disabled={readOnly}
                                     icon={<MantineIcon icon={IconEdit} />}
                                     onClick={() => setIsEditModalOpen(true)}
                                 >
@@ -180,7 +200,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 <Menu.Item
                                     icon={<MantineIcon icon={IconTrash} />}
                                     onClick={() => setIsDeleteModalOpen(true)}
-                                    disabled={isActive}
+                                    disabled={isActive || readOnly}
                                     color="red"
                                 >
                                     Delete palette

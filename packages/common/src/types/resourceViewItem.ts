@@ -209,6 +209,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     pinnedListUuid: content.pinnedList?.uuid || null,
                     pinnedListOrder: content.pinnedList?.order || null,
                     userAccess: undefined, // This property is not needed for the resource view item
+                    projectMemberAccessRole: null,
                     parentSpaceUuid: content.parentSpaceUuid,
                     path: content.path,
                 }),

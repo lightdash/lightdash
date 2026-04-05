@@ -48,6 +48,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     type DownloadAsyncQueryResultsPayload,
+    type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
     type SchedulerIndexCatalogJobPayload,
 } from '@lightdash/common';
@@ -69,6 +70,14 @@ type SchedulerClientArguments = {
 };
 
 const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
+
+type SchedulablePreAggregate = Omit<
+    PreAggregateSchedulerDetails,
+    'preAggExploreName'
+> & {
+    createdByUserUuid: string;
+    preAggExploreName?: string;
+};
 
 export const getDailyDatesFromCron = (
     {
@@ -277,6 +286,84 @@ export class SchedulerClient {
             id: r.id,
             date: r.run_at,
         }));
+    }
+
+    async deleteScheduledPreAggregateCronJobsForDefinition(
+        preAggregateDefinitionUuid: string,
+    ): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        const jobsToDelete = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                `
+                    select id
+                    from graphile_worker.jobs
+                    where key like $1
+                      and locked_by is null
+                `,
+                [`preagg:${preAggregateDefinitionUuid}:cron:%`],
+            ),
+        );
+
+        const jobIdsToDelete = jobsToDelete.rows.map((r) => r.id as string);
+
+        if (jobIdsToDelete.length === 0) {
+            return;
+        }
+
+        Logger.info(
+            `Deleting ${jobIdsToDelete.length} scheduled pre-aggregate cron job(s)`,
+            {
+                preAggregateDefinitionUuid,
+            },
+        );
+
+        await graphileClient.completeJobs(jobIdsToDelete);
+    }
+
+    async schedulePreAggregateCronJobs(
+        definitions: SchedulablePreAggregate[],
+        startingDateTime: Date,
+        includeStartingDateTime: boolean = false,
+    ): Promise<
+        {
+            jobId: string;
+            runAt: Date;
+            definition: SchedulablePreAggregate;
+        }[]
+    > {
+        const materializationJobs = definitions.flatMap((definition) =>
+            getDailyDatesFromCron(
+                {
+                    cron: definition.refreshCron,
+                    timezone: definition.schedulerTimezone,
+                },
+                startingDateTime,
+            )
+                .filter((runAt) =>
+                    includeStartingDateTime
+                        ? runAt.getTime() >= startingDateTime.getTime()
+                        : runAt.getTime() > startingDateTime.getTime(),
+                )
+                .map((runAt) =>
+                    this.materializePreAggregate(
+                        {
+                            organizationUuid: definition.organizationUuid,
+                            projectUuid: definition.projectUuid,
+                            userUuid: definition.createdByUserUuid,
+                            preAggregateDefinitionUuid:
+                                definition.preAggregateDefinitionUuid,
+                            trigger: 'cron',
+                        },
+                        runAt,
+                    ).then(({ jobId }) => ({
+                        jobId,
+                        runAt,
+                        definition,
+                    })),
+                ),
+        );
+
+        return Promise.all(materializationJobs);
     }
 
     async getQueueSize(): Promise<number> {
@@ -1162,7 +1249,10 @@ export class SchedulerClient {
     ) {
         const graphileClient = await this.graphileUtils;
 
-        const jobKey = `preagg:${payload.preAggregateDefinitionUuid}`;
+        const jobKey =
+            payload.trigger === 'cron'
+                ? `preagg:${payload.preAggregateDefinitionUuid}:cron:${scheduledAt.getTime()}`
+                : `preagg:${payload.preAggregateDefinitionUuid}:${payload.trigger}`;
 
         const jobId = await SchedulerClient.addJob(
             graphileClient,

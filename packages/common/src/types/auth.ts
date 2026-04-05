@@ -11,6 +11,7 @@ import {
     type IntrinsicUserAttributes,
     type LightdashSessionUser,
     type LightdashUser,
+    type SessionUser,
 } from './user';
 import { type UserAttributeValueMap } from './userAttributes';
 
@@ -205,6 +206,12 @@ export function assertSessionAuth(
             `${account?.authentication.type} Account is not session auth`,
         );
     }
+}
+
+export function isAccount(
+    accountOrUser: Account | SessionUser,
+): accountOrUser is Account {
+    return 'authentication' in accountOrUser;
 }
 
 export function isJwtUser(account?: Account): account is AnonymousAccount {

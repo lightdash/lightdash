@@ -34,6 +34,7 @@ import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
 import useFullscreen from '../providers/Fullscreen/useFullscreen';
 import '../styles/react-grid.css';
 
@@ -86,7 +87,9 @@ const Dashboard: FC = () => {
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
-    const areAllChartsLoaded = useDashboardContext((c) => c.areAllChartsLoaded);
+    const areAllChartsLoaded = useDashboardTileStatusContext(
+        (c) => c.areAllChartsLoaded,
+    );
     const missingRequiredParameters = useDashboardContext(
         (c) => c.missingRequiredParameters,
     );
@@ -114,8 +117,10 @@ const Dashboard: FC = () => {
             isAddFilterDisabled
         );
     }, [dashboard, isAddFilterDisabled]);
-    const oldestCacheTime = useDashboardContext((c) => c.oldestCacheTime);
-    const preAggregateStatuses = useDashboardContext(
+    const oldestCacheTime = useDashboardTileStatusContext(
+        (c) => c.oldestCacheTime,
+    );
+    const preAggregateStatuses = useDashboardTileStatusContext(
         (c) => c.preAggregateStatuses,
     );
     const dashboardParameters = useDashboardContext(

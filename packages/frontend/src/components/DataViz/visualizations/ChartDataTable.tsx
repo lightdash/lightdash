@@ -60,7 +60,10 @@ export const ChartDataTable = ({
                 overflow: 'auto',
                 fontFeatureSettings: "'tnum'",
                 flexGrow: 1,
-                ...flexProps?.sx,
+                ...(typeof flexProps?.sx === 'object' &&
+                !Array.isArray(flexProps.sx)
+                    ? flexProps.sx
+                    : {}),
             }}
             className="sentry-block ph-no-capture"
             data-testid="chart-data-table"
@@ -158,9 +161,8 @@ export const ChartDataTable = ({
                                 {rowModelRows[index]
                                     .getVisibleCells()
                                     .map((cell) => {
-                                        const cellValue = cell.getValue() as
-                                            | RawResultRow[0]
-                                            | undefined;
+                                        const cellValue =
+                                            cell.getValue() as RawResultRow[0];
 
                                         return (
                                             <BodyCell

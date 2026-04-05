@@ -9,6 +9,12 @@ import {
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
 import {
+    AppsTable,
+    AppsTableName,
+    AppVersionsTable,
+    AppVersionsTableName,
+} from '../database/entities/apps';
+import {
     CatalogTable,
     CatalogTableName,
     CatalogTagsTable,
@@ -70,6 +76,12 @@ import {
     EmailOneTimePasscodeTable,
 } from '../database/entities/emailOneTimePasscodes';
 import { EmailTable, EmailTableName } from '../database/entities/emails';
+import {
+    FeatureFlagOverridesTable,
+    FeatureFlagOverridesTableName,
+    FeatureFlagsTable,
+    FeatureFlagsTableName,
+} from '../database/entities/featureFlags';
 import {
     GithubAppInstallationTable,
     GithubAppInstallationTableName,
@@ -357,6 +369,8 @@ declare module 'knex/types/tables' {
         [OrganizationTableName]: OrganizationTable;
         [UserTableName]: UserTable;
         [EmailTableName]: EmailTable;
+        [FeatureFlagsTableName]: FeatureFlagsTable;
+        [FeatureFlagOverridesTableName]: FeatureFlagOverridesTable;
         [SessionTableName]: SessionTable;
         [WarehouseCredentialTableName]: WarehouseCredentialTable;
         [UserWarehouseCredentialsTableName]: UserWarehouseCredentialsTable;
@@ -475,5 +489,7 @@ declare module 'knex/types/tables' {
         [ChangesTableName]: ChangesTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentVerificationTableName]: ContentVerificationTable;
+        [AppsTableName]: AppsTable;
+        [AppVersionsTableName]: AppVersionsTable;
     }
 }

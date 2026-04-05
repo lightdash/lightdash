@@ -13,10 +13,14 @@ import {
     Group,
     SegmentedControl,
     Stack,
+    Switch,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
 import {
     useDashboardQuery,
@@ -103,9 +107,11 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
         ({
             enabled: newEnabledValue,
             allowedFilters: newAllowedFilters,
+            hidden: newHiddenValue,
         }: {
             enabled?: FilterInteractivityValues;
             allowedFilters?: string[];
+            hidden?: boolean;
         }) => {
             const enabled = getFilterInteractivityValue(
                 newEnabledValue ?? interactivityOptions.enabled,
@@ -132,11 +138,13 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
             onInteractivityOptionsChange({
                 enabled,
                 allowedFilters,
+                hidden: newHiddenValue ?? interactivityOptions.hidden ?? false,
             });
         },
         [
             interactivityOptions.enabled,
             interactivityOptions.allowedFilters,
+            interactivityOptions.hidden,
             onInteractivityOptionsChange,
         ],
     );
@@ -180,6 +188,35 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                     size="xs"
                 />
             </Group>
+            <Switch
+                size="sm"
+                checked={interactivityOptions.hidden ?? false}
+                disabled={
+                    getFilterInteractivityValue(
+                        interactivityOptions.enabled,
+                    ) === FilterInteractivityValues.none
+                }
+                label={
+                    <Group gap="xs">
+                        <Text inherit>Hide filters</Text>
+                        <Tooltip
+                            label="Hide filters from the embed UI while still applying them. Useful when building custom filter controls with the React SDK."
+                            withArrow
+                            withinPortal
+                            multiline
+                            maw="300px"
+                            position="right"
+                        >
+                            <MantineIcon icon={IconInfoCircle} size="sm" />
+                        </Tooltip>
+                    </Group>
+                }
+                onChange={(event) => {
+                    setInteractivityOptions({
+                        hidden: event.currentTarget.checked,
+                    });
+                }}
+            />
             {interactivityOptions.enabled ===
                 FilterInteractivityValues.some && (
                 <Checkbox.Group

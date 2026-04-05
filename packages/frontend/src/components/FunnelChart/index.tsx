@@ -3,7 +3,15 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconFilterOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
@@ -114,6 +122,15 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             close();
         }, [close]);
 
+        const onEvents = useMemo(
+            () => ({
+                click: handleOpenContextMenu,
+                oncontextmenu: handleOpenContextMenu,
+                legendselectchanged: onLegendChange,
+            }),
+            [handleOpenContextMenu, onLegendChange],
+        );
+
         if (isLoading) return <LoadingChart />;
         if (!funnelChartOptions) return <EmptyChart />;
 
@@ -139,11 +156,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                     option={funnelChartOptions}
                     notMerge
                     {...props}
-                    onEvents={{
-                        click: handleOpenContextMenu,
-                        oncontextmenu: handleOpenContextMenu,
-                        legendselectchanged: onLegendChange,
-                    }}
+                    onEvents={onEvents}
                 />
 
                 {shouldShowMenu && (

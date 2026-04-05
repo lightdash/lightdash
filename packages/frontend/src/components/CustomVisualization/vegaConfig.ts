@@ -26,4 +26,4 @@ export const vegaStyleConfig = {
         titleFontSize: 12,
         titleFontWeight: 500,
     },
-} as const;
+};

@@ -73,6 +73,13 @@
     line-height: 1.5;
 }
 
+.markdown {
+    background-color: transparent !important;
+    font-size: var(--mantine-font-size-sm) !important;
+    line-height: 1.5 !important;
+    font-family: inherit !important;
+}
+
 .chatInputArea {
     flex-shrink: 0;
     padding: var(--mantine-spacing-sm);
@@ -212,6 +219,14 @@
         background-color: var(--mantine-color-dark-7);
         border-color: var(--mantine-color-ldDark-4);
     }
+}
+
+.previewHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    flex: 1;
 }
 
 .previewContent {

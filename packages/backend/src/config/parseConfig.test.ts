@@ -235,6 +235,18 @@ test('Should include secret in output', () => {
     expect(parseConfig().lightdashSecret).toEqual('so very secret');
 });
 
+test('Should parse bedrock inference profile prefix from env', () => {
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'ap-northeast-1';
+    process.env.BEDROCK_INFERENCE_PROFILE_PREFIX = 'jp';
+
+    expect(parseConfig().ai.copilot.providers.bedrock).toMatchObject({
+        apiKey: 'test-bedrock-key',
+        region: 'ap-northeast-1',
+        inferenceProfilePrefix: 'jp',
+    });
+});
+
 test('Should parse valid integer', () => {
     process.env.MY_NUMBER = '100';
     expect(getIntegerFromEnvironmentVariable('MY_NUMBER')).toEqual(100);

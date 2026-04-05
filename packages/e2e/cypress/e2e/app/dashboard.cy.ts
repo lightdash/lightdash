@@ -23,6 +23,10 @@ describe('Dashboard', () => {
         cy.findAllByText('No chart available').should('have.length', 0);
         cy.findAllByText('No data available').should('have.length', 0);
 
+        // Scroll down to trigger deferred chart rendering for below-fold tiles
+        cy.get('.react-grid-layout').scrollIntoView({ duration: 500 });
+        cy.window().scrollTo('bottom', { duration: 500 });
+
         cy.get('.echarts-for-react').should('have.length', 3); // Charts
 
         cy.get('.react-grid-layout').within(() => {

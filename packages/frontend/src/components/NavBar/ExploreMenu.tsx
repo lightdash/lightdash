@@ -116,20 +116,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             icon={IconLayoutDashboard}
                             data-testid="ExploreMenu/NewDashboardButton"
                         />
-                        <Can
-                            I="create"
-                            this={subject('Space', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <LargeMenuItem
-                                title="Space"
-                                description="Organize your saved charts and dashboards."
-                                onClick={() => setIsCreateSpaceOpen(true)}
-                                icon={IconFolder}
-                            />
-                        </Can>
+
                         {health.data?.dataApps.enabled && (
                             <Can
                                 I="manage"
@@ -145,9 +132,25 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
                                     icon={IconAppWindow}
+                                    isBeta
                                 />
                             </Can>
                         )}
+
+                        <Can
+                            I="create"
+                            this={subject('Space', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Space"
+                                description="Organize your saved charts and dashboards."
+                                onClick={() => setIsCreateSpaceOpen(true)}
+                                icon={IconFolder}
+                            />
+                        </Can>
                     </Menu.Dropdown>
                 </Menu>
             </Can>

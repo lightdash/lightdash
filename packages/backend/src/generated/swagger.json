@@ -2385,6 +2385,26 @@
                 ],
                 "type": "object"
             },
+            "Pick_OrganizationColorPalette.colors-or-darkColors_": {
+                "properties": {
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "darkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    }
+                },
+                "required": ["colors", "darkColors"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "ApiEmbedDashboardResponse": {
                 "properties": {
                     "results": {
@@ -2394,11 +2414,40 @@
                             },
                             {
                                 "properties": {
+                                    "selectedPalette": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/Pick_OrganizationColorPalette.colors-or-darkColors_"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    },
+                                    "canViewUnderlyingData": {
+                                        "type": "boolean"
+                                    },
+                                    "canExplore": {
+                                        "type": "boolean"
+                                    },
+                                    "canDateZoom": {
+                                        "type": "boolean"
+                                    },
+                                    "canExportPagePdf": {
+                                        "type": "boolean"
+                                    },
                                     "canExportImages": {
                                         "type": "boolean"
                                     },
                                     "canExportCsv": {
                                         "type": "boolean"
+                                    },
+                                    "parameterInteractivity": {
+                                        "properties": {
+                                            "enabled": {
+                                                "type": "boolean"
+                                            }
+                                        },
+                                        "required": ["enabled"],
+                                        "type": "object"
                                     },
                                     "dashboardFiltersInteractivity": {
                                         "properties": {
@@ -2438,6 +2487,14 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "GetEmbedDashboardRequest": {
+                "properties": {
+                    "paletteUuid": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "Record_string.number-Array_": {
@@ -7210,6 +7267,10 @@
                 "enum": ["user_bypass"],
                 "type": "string"
             },
+            "PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR": {
+                "enum": ["explore_resolution_error"],
+                "type": "string"
+            },
             "PreAggregateMatchMiss": {
                 "anyOf": [
                     {
@@ -7345,6 +7406,15 @@
                             }
                         },
                         "required": ["preAggregateName", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR"
+                            }
+                        },
+                        "required": ["reason"],
                         "type": "object"
                     }
                 ]
@@ -7553,6 +7623,10 @@
             },
             "ApiExecuteAsyncQueryResultsCommon": {
                 "properties": {
+                    "resolvedTimezone": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "usedParametersValues": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
                     },
@@ -7570,6 +7644,7 @@
                     }
                 },
                 "required": [
+                    "resolvedTimezone",
                     "usedParametersValues",
                     "parameterReferences",
                     "cacheMetadata",
@@ -7935,6 +8010,123 @@
                 "required": ["prompt"],
                 "type": "object"
             },
+            "ApiAppVersionSummary": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "statusMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "createdAt",
+                    "statusMessage",
+                    "status",
+                    "prompt",
+                    "version"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "hasMore": {
+                                "type": "boolean"
+                            },
+                            "versions": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiAppVersionSummary"
+                                },
+                                "type": "array"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "hasMore",
+                            "versions",
+                            "description",
+                            "name",
+                            "appUuid"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGetAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+            },
+            "ApiCancelAppVersionResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "ApiSuccess__appUuid-string--name-string--description-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "description": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["description", "name", "appUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpdateAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string__"
+            },
+            "ApiUpdateAppRequest": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "ApiSuccess__token-string__": {
                 "properties": {
                     "results": {
@@ -7957,6 +8149,113 @@
             },
             "ApiPreviewTokenResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__token-string__"
+            },
+            "ApiAppSummary": {
+                "properties": {
+                    "lastVersionStatus": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastVersionNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "appUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "lastVersionStatus",
+                    "lastVersionNumber",
+                    "createdAt",
+                    "projectName",
+                    "projectUuid",
+                    "description",
+                    "name",
+                    "appUuid"
+                ],
+                "type": "object"
+            },
+            "KnexPaginateArgs": {
+                "properties": {
+                    "page": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "pageSize": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["page", "pageSize"],
+                "type": "object"
+            },
+            "ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "pagination": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/KnexPaginateArgs"
+                                    },
+                                    {
+                                        "properties": {
+                                            "totalResults": {
+                                                "type": "number",
+                                                "format": "double"
+                                            },
+                                            "totalPageCount": {
+                                                "type": "number",
+                                                "format": "double"
+                                            }
+                                        },
+                                        "required": [
+                                            "totalResults",
+                                            "totalPageCount"
+                                        ],
+                                        "type": "object"
+                                    }
+                                ]
+                            },
+                            "data": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ApiAppSummary"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["data"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiMyAppsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__data-ApiAppSummary-Array--pagination_63_-KnexPaginateArgs-and-_totalPageCount-number--totalResults-number___"
             },
             "DashboardSummaryTone": {
                 "enum": ["friendly", "formal", "direct", "enthusiastic"],
@@ -8815,20 +9114,6 @@
                 ],
                 "type": "object"
             },
-            "KnexPaginateArgs": {
-                "properties": {
-                    "page": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "pageSize": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["page", "pageSize"],
-                "type": "object"
-            },
             "KnexPaginatedData_AiAgentVerifiedArtifact-Array_": {
                 "properties": {
                     "pagination": {
@@ -9445,6 +9730,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -11300,7 +11598,8 @@
                     "databricks",
                     "trino",
                     "clickhouse",
-                    "athena"
+                    "athena",
+                    "duckdb"
                 ],
                 "type": "string"
             },
@@ -11369,6 +11668,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
                     },
@@ -11429,6 +11731,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "timeoutSeconds": {
                         "type": "number",
@@ -11511,6 +11816,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "timeoutSeconds": {
                         "type": "number",
@@ -11604,6 +11912,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "timeoutSeconds": {
                         "type": "number",
                         "format": "double"
@@ -11674,6 +11985,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "catalog": {
                         "type": "string"
                     },
@@ -11733,6 +12047,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "host": {
                         "type": "string"
                     },
@@ -11790,6 +12107,9 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "timeoutSeconds": {
                         "type": "number",
@@ -11854,6 +12174,9 @@
                         ],
                         "nullable": true
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "region": {
                         "type": "string"
                     },
@@ -11894,6 +12217,51 @@
             "AthenaCredentials": {
                 "$ref": "#/components/schemas/Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_"
             },
+            "WarehouseTypes.DUCKDB": {
+                "enum": ["duckdb"],
+                "type": "string"
+            },
+            "Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "database", "schema"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.Exclude_keyofCreateDuckdbCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "DuckdbCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateDuckdbCredentials.SensitiveCredentialsFieldNames_"
+            },
             "WarehouseCredentials": {
                 "anyOf": [
                     {
@@ -11919,6 +12287,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/AthenaCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbCredentials"
                     }
                 ]
             },
@@ -12076,6 +12447,9 @@
                                 "type": "number",
                                 "format": "double"
                             },
+                            "dataTimezone": {
+                                "type": "string"
+                            },
                             "startOfWeek": {
                                 "allOf": [
                                     {
@@ -12140,6 +12514,9 @@
             "CreateBigqueryCredentials": {
                 "properties": {
                     "executionProject": {
+                        "type": "string"
+                    },
+                    "dataTimezone": {
                         "type": "string"
                     },
                     "startOfWeek": {
@@ -12238,6 +12615,9 @@
                                 "type": "number",
                                 "format": "double"
                             },
+                            "dataTimezone": {
+                                "type": "string"
+                            },
                             "startOfWeek": {
                                 "allOf": [
                                     {
@@ -12316,6 +12696,9 @@
                     },
                     "quotedIdentifiersIgnoreCase": {
                         "type": "boolean"
+                    },
+                    "dataTimezone": {
+                        "type": "string"
                     },
                     "startOfWeek": {
                         "allOf": [
@@ -12408,6 +12791,9 @@
                         },
                         "type": "array"
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12458,6 +12844,9 @@
             },
             "CreateTrinoCredentials": {
                 "properties": {
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12516,6 +12905,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12562,6 +12954,9 @@
             },
             "CreateAthenaCredentials": {
                 "properties": {
+                    "dataTimezone": {
+                        "type": "string"
+                    },
                     "startOfWeek": {
                         "allOf": [
                             {
@@ -12627,6 +13022,42 @@
                 ],
                 "type": "object"
             },
+            "CreateDuckdbCredentials": {
+                "properties": {
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["token", "schema", "database", "type"],
+                "type": "object"
+            },
             "CreateWarehouseCredentials": {
                 "anyOf": [
                     {
@@ -12652,6 +13083,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateAthenaCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateDuckdbCredentials"
                     }
                 ]
             },
@@ -13858,6 +14292,16 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateDuckdbCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "ProjectType": {
                 "enum": ["DEFAULT", "PREVIEW"],
                 "type": "string"
@@ -13900,6 +14344,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type_"
                             }
                         ]
                     },
@@ -14087,6 +14534,19 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateDuckdbCredentials.type-or-token_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DUCKDB"
+                    },
+                    "token": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "token"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "UpsertUserWarehouseCredentials": {
                 "properties": {
                     "credentials": {
@@ -14121,6 +14581,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId-or-secretAccessKey_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type-or-token_"
                             }
                         ]
                     },
@@ -15896,7 +16359,7 @@
                 "enum": ["no changes", "create", "update", "delete"],
                 "type": "string"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-projectMemberAccessRole-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -15912,6 +16375,14 @@
                     },
                     "inheritParentPermissions": {
                         "type": "boolean"
+                    },
+                    "projectMemberAccessRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SpaceMemberRole"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "pinnedListUuid": {
                         "type": "string",
@@ -15939,6 +16410,7 @@
                     "organizationUuid",
                     "uuid",
                     "inheritParentPermissions",
+                    "projectMemberAccessRole",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -15951,7 +16423,7 @@
             "SpaceSummaryBase": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-inheritParentPermissions-or-projectMemberAccessRole-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
                     },
                     {
                         "properties": {
@@ -17747,6 +18219,14 @@
                     "path": {
                         "type": "string"
                     },
+                    "projectMemberAccessRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SpaceMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
@@ -17814,6 +18294,7 @@
                 },
                 "required": [
                     "path",
+                    "projectMemberAccessRole",
                     "inheritParentPermissions",
                     "parentSpaceUuid",
                     "childSpaces",
@@ -17985,6 +18466,15 @@
             },
             "UpdateSpace": {
                 "properties": {
+                    "projectMemberAccessRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SpaceMemberRole"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "When set, all project members get this role on the space"
+                    },
                     "inheritParentPermissions": {
                         "type": "boolean"
                     },
@@ -24978,6 +25468,59 @@
             "ApiExploreResults": {
                 "$ref": "#/components/schemas/Omit_Explore.unfilteredTables_"
             },
+            "PreAggregateCheckResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "preAggregateExploreName": {
+                                "type": "string"
+                            },
+                            "preAggregateName": {
+                                "type": "string"
+                            },
+                            "hit": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "preAggregateExploreName",
+                            "preAggregateName",
+                            "hit"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMatchMiss"
+                            },
+                            "hit": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "hit"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiPreAggregateCheckResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PreAggregateCheckResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiPromoteDashboardResponse": {
                 "properties": {
                     "results": {
@@ -29158,7 +29701,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2693.0",
+        "version": "0.2724.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35010,6 +35553,40 @@
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v1/slack/preview/{id}": {
+            "get": {
+                "operationId": "getSlackPreview",
+                "responses": {
+                    "302": {
+                        "description": "Redirect"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get a Slack unfurl preview image via redirect to a fresh signed URL.\nFalls back to a placeholder image if the preview is not found.",
+                "summary": "Get Slack preview",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/slack/install": {
@@ -43326,6 +43903,77 @@
                                             },
                                             "parameters": {
                                                 "$ref": "#/components/schemas/ParametersValuesMap"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/explores/{exploreId}/preAggregateCheck": {
+            "post": {
+                "operationId": "CheckPreAggregate",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPreAggregateCheckResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Check pre-aggregate availability for a metric query",
+                "summary": "Check pre-aggregate",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "exploreId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/MetricQuery"
+                                    },
+                                    {
+                                        "properties": {
+                                            "usePreAggregateCache": {
+                                                "type": "boolean"
                                             }
                                         },
                                         "type": "object"

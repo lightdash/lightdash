@@ -6,6 +6,8 @@ export interface McpContext {
     projectUuid: string;
     projectName: string;
     tags: string[] | null;
+    agentUuid: string | null;
+    agentName: string | null;
 }
 
 export interface McpContextRow {

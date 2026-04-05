@@ -82,7 +82,7 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
 
     const handleRunEvaluation = () => {
         if (evalUuid) {
-            void runEvaluationMutation.mutate(evalUuid);
+            runEvaluationMutation.mutate(evalUuid);
         }
     };
 

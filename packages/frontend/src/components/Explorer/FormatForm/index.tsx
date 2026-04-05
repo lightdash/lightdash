@@ -25,7 +25,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { NumberInput } from '@mantine/core';
-import { type GetInputProps } from '@mantine/form/lib/types';
+import { type UseFormReturnType } from '@mantine/form';
 import {
     IconCalendar,
     IconClockHour4,
@@ -39,7 +39,7 @@ import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 type Props = {
     formatInputProps: (
         path: keyof CustomFormat,
-    ) => ReturnType<GetInputProps<CustomFormat>>;
+    ) => ReturnType<UseFormReturnType<CustomFormat>['getInputProps']>;
     format: CustomFormat;
     setFormatFieldValue: (
         path: keyof CustomFormat,

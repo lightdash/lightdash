@@ -824,6 +824,8 @@ const getBedrockConfig = () => {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
             region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -838,6 +840,8 @@ const getBedrockConfig = () => {
             secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
             sessionToken: process.env.BEDROCK_SESSION_TOKEN,
             region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1024,10 +1028,12 @@ export type LightdashConfig = {
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
+        enableTimezoneSupport: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
     };
+    enableImprovedExcelDates: boolean;
     chart: {
         versionHistory: {
             daysLimit: number;
@@ -1039,6 +1045,7 @@ export type LightdashConfig = {
         versionHistory: {
             daysLimit: number;
         };
+        disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
     // TODO: allow override for dark theme
@@ -1265,6 +1272,7 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     appRuntime: AppRuntimeConfig;
+    enabledFeatureFlags: Set<string>;
 };
 
 export type SlackConfig = {
@@ -1926,6 +1934,9 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
                   'true'
                 : false,
+            enableTimezoneSupport: process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT
+                ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
+                : undefined,
         },
         chart: {
             versionHistory: {
@@ -1950,6 +1961,9 @@ export const parseConfig = (): LightdashConfig => {
                         'LIGHTDASH_DASHBOARD_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
+            disableSentryTracking:
+                process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
+                'true',
         },
         pivotTable: {
             maxColumnLimit:
@@ -1957,6 +1971,8 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
                 ) || 200,
         },
+        enableImprovedExcelDates:
+            process.env.LIGHTDASH_ENABLE_IMPROVED_EXCEL_DATES === 'true',
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
@@ -2272,5 +2288,11 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
+        enabledFeatureFlags: new Set(
+            (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+        ),
     };
 };

@@ -23,6 +23,7 @@ import {
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
+    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -58,6 +59,7 @@ import {
     PivotConfiguration,
     QueryExecutionContext,
     QueryHistoryStatus,
+    resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
     S3Error,
@@ -1324,6 +1326,7 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
+        dataTimezone,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1331,6 +1334,7 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
+        dataTimezone?: string;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1502,6 +1506,7 @@ export class AsyncQueryService extends ProjectService {
                     {
                         sql: query,
                         tags: queryTags,
+                        timezone: dataTimezone,
                     },
                     write ? writeAndTransformRowsIfPivot : undefined,
                 ),
@@ -1881,16 +1886,18 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
+            const { enabled: isTimezoneSupportEnabled } =
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                });
+            const resolvedDataTimezone = isTimezoneSupportEnabled
+                ? warehouseClient.credentials.dataTimezone
+                : undefined;
+
             const t0 = Date.now();
 
             this.logger.info(
                 `Running query ${queryUuid} source=${executionSource}`,
-            );
-
-            const fileName =
-                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
-            const resultsStorageClient = this.getResultsStorageClientForContext(
-                queryTags.query_context,
             );
 
             // Create upload stream for storing results
@@ -1898,6 +1905,16 @@ export class AsyncQueryService extends ProjectService {
                 this.lightdashConfig.preAggregates.parquetEnabled &&
                 queryTags.query_context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+
+            const fileName = QueryHistoryModel.createUniqueResultsFileName(
+                cacheKey,
+                {
+                    sqlSafe: isParquetMaterialization,
+                },
+            );
+            const resultsStorageClient = this.getResultsStorageClientForContext(
+                queryTags.query_context,
+            );
 
             if (isParquetMaterialization) {
                 const s3Config = getDuckdbRuntimeConfig(
@@ -1977,6 +1994,7 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
+                        dataTimezone: resolvedDataTimezone,
                     }),
             );
 
@@ -2120,6 +2138,14 @@ export class AsyncQueryService extends ProjectService {
             this.logger.error(
                 `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
             );
+
+            // Override clients are used for fallback attempts such as DuckDB
+            // pre-aggregate execution. Keep the query history row non-terminal
+            // so polling clients can receive the warehouse retry result.
+            if (warehouseClientOverride) {
+                throw e;
+            }
+
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.error',
@@ -2150,12 +2176,6 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryTags.query_context || 'unknown',
             );
-
-            // Re-throw when using an override client (e.g. DuckDB pre-agg)
-            // so the caller can fall back to the warehouse path
-            if (warehouseClientOverride) {
-                throw e;
-            }
         }
 
         try {
@@ -2532,7 +2552,12 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const resolvedTimezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+        );
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -2540,7 +2565,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone,
+            timezone: resolvedTimezone,
             dateZoom,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
@@ -2590,7 +2615,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
-            timezone,
+            resolvedTimezone,
         };
     }
 
@@ -2629,7 +2654,7 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     pivotConfiguration,
                     parameters,
-                    timezone: resolvedTimezone,
+                    timezone,
                     routingTarget,
                     preAggregationRoute,
                     userAccessControls,
@@ -2744,11 +2769,15 @@ export class AsyncQueryService extends ProjectService {
 
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
+                    // Use the resolved timezone (not metricQuery.timezone) because the
+                    // resolved value includes project and config fallbacks. Two queries with
+                    // the same SQL but different resolved timezones produce different results
+                    // (e.g., timezone-aware DATE_TRUNC, filter boundaries) and must not share a cache entry.
                     const cacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
                             sql: query,
-                            timezone: metricQuery.timezone,
+                            timezone,
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
@@ -2905,7 +2934,7 @@ export class AsyncQueryService extends ProjectService {
                             projectUuid,
                             warehouseQuery: query,
                             metricQuery,
-                            timezone: resolvedTimezone ?? 'UTC',
+                            timezone: timezone ?? 'UTC',
                             dateZoom,
                             parameters,
                             routingTarget: routingTarget ?? 'warehouse',
@@ -3240,7 +3269,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
-            timezone,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3293,7 +3322,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
-                timezone,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3316,6 +3345,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -3486,6 +3516,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3534,6 +3565,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3556,6 +3588,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -3783,6 +3816,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3833,6 +3867,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3856,6 +3891,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             dateZoomApplied,
+            resolvedTimezone,
         };
     }
 
@@ -4085,6 +4121,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -4110,6 +4147,7 @@ export class AsyncQueryService extends ProjectService {
                     sql,
                     originalColumns: undefined,
                     missingParameterReferences,
+                    timezone: resolvedTimezone,
                 },
                 requestParameters,
             );
@@ -4122,6 +4160,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -4204,6 +4243,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
@@ -4551,6 +4591,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
@@ -4652,6 +4693,7 @@ export class AsyncQueryService extends ProjectService {
             },
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 

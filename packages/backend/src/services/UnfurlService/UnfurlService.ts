@@ -6,6 +6,7 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -57,6 +58,8 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
+import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -274,6 +277,7 @@ type UnfurlServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
+    slackUnfurlImageModel: SlackUnfurlImageModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
     spacePermissionService: SpacePermissionService;
@@ -296,6 +300,8 @@ export class UnfurlService extends BaseService {
 
     downloadFileModel: DownloadFileModel;
 
+    slackUnfurlImageModel: SlackUnfurlImageModel;
+
     analytics: LightdashAnalytics;
 
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -310,6 +316,7 @@ export class UnfurlService extends BaseService {
         fileStorageClient,
         projectModel,
         downloadFileModel,
+        slackUnfurlImageModel,
         slackClient,
         analytics,
         slackAuthenticationModel,
@@ -324,9 +331,15 @@ export class UnfurlService extends BaseService {
         this.slackClient = slackClient;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
+        this.slackUnfurlImageModel = slackUnfurlImageModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
+    }
+
+    async getPreviewSignedUrl(previewId: string): Promise<string> {
+        const record = await this.slackUnfurlImageModel.get(previewId);
+        return this.fileStorageClient.getFileUrl(record.s3_key, 300);
     }
 
     async getTitleAndDescription(
@@ -551,6 +564,29 @@ export class UnfurlService extends BaseService {
                     imageBuffer,
                     imageId,
                 );
+
+                if (details?.organizationUuid) {
+                    const usePersistentUrls = await isFeatureFlagEnabled(
+                        FeatureFlags.SlackUnfurlPersistentImages,
+                        {
+                            userUuid: authUserUuid,
+                            organizationUuid: details.organizationUuid,
+                        },
+                    );
+
+                    if (usePersistentUrls) {
+                        const previewId = useNanoid();
+                        await this.slackUnfurlImageModel.create({
+                            nanoid: previewId,
+                            s3Key: `${imageId}.png`,
+                            organizationUuid: details.organizationUuid,
+                        });
+                        imageUrl = new URL(
+                            `/api/v1/slack/preview/${previewId}`,
+                            this.lightdashConfig.siteUrl,
+                        ).href;
+                    }
+                }
             } else {
                 const filePath = `/tmp/${imageId}.png`;
                 const downloadFileId = useNanoid();

@@ -7,7 +7,7 @@ import {
     type FilterableItem,
     type FilterOperator,
 } from '@lightdash/common';
-import { Accordion, Divider } from '@mantine/core';
+import { Accordion, Divider, Group } from '@mantine/core';
 import { produce } from 'immer';
 import {
     Fragment,
@@ -123,12 +123,7 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                     <ColorSelector
                         color={config.color}
                         swatches={colorPalette}
-                        onColorChange={(color) =>
-                            onChange({
-                                ...config,
-                                color,
-                            })
-                        }
+                        readOnly
                     />
                 }
                 onControlClick={handleControlClick}
@@ -143,6 +138,19 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                         onChange={() => undefined}
                         hasGrouping
                     />
+                    <Group spacing="xs">
+                        <Config.Label>Color</Config.Label>
+                        <ColorSelector
+                            color={config.color}
+                            swatches={colorPalette}
+                            onColorChange={(color) =>
+                                onChange({
+                                    ...config,
+                                    color,
+                                })
+                            }
+                        />
+                    </Group>
                     {config.rules.map((rule, ruleIndex) => (
                         <Fragment key={rule.id ?? ruleIndex}>
                             <ChartConditionalFormattingRule
