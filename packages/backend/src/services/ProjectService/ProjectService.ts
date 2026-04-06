@@ -74,6 +74,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getParameterReferences,
     getPreAggregateExploreName,
     getTimeDimensionsMap,
     getTimezoneLabel,
@@ -7498,9 +7499,32 @@ export class ProjectService extends BaseService {
                 isRegisteredUser: true,
             }),
         );
+        // Merge project parameter defaults with explicitly provided values,
+        // filtered to only parameters referenced in the SQL
+        const referencedParams = getParameterReferences(payload.sql);
+        let effectiveParameterValues: ParametersValuesMap | undefined;
+        if (referencedParams.length > 0) {
+            const allValues = await this.combineParameters(
+                projectUuid,
+                undefined,
+                payload.parameterValues,
+            );
+            effectiveParameterValues = Object.fromEntries(
+                Object.entries(allValues).filter(([key]) =>
+                    referencedParams.includes(key),
+                ),
+            );
+            if (Object.keys(effectiveParameterValues).length === 0) {
+                effectiveParameterValues = undefined;
+            }
+        }
+
         const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
-            payload,
+            {
+                ...payload,
+                parameterValues: effectiveParameterValues,
+            },
             warehouseClient,
         );
 
@@ -7556,10 +7580,33 @@ export class ProjectService extends BaseService {
             }),
         );
 
+        // Merge project parameter defaults with explicitly provided values,
+        // filtered to only parameters referenced in the SQL
+        const referencedParams = getParameterReferences(payload.sql);
+        let effectiveParameterValues: ParametersValuesMap | undefined;
+        if (referencedParams.length > 0) {
+            const allValues = await this.combineParameters(
+                projectUuid,
+                undefined,
+                payload.parameterValues,
+            );
+            effectiveParameterValues = Object.fromEntries(
+                Object.entries(allValues).filter(([key]) =>
+                    referencedParams.includes(key),
+                ),
+            );
+            if (Object.keys(effectiveParameterValues).length === 0) {
+                effectiveParameterValues = undefined;
+            }
+        }
+
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
             exploreName,
-            payload,
+            {
+                ...payload,
+                parameterValues: effectiveParameterValues,
+            },
             warehouseClient,
         );
 
@@ -8286,10 +8333,11 @@ export class ProjectService extends BaseService {
                 .filter(([key, value]) => value !== undefined),
         );
 
-        // Combine in order of priority: defaults (project / explore) < saved parameters (chart/dashboard) < request
+        // Combine in order of priority: defaults (project / explore) < virtual view saved values < saved parameters (chart/dashboard) < request
         return {
             ...projectDefaultParameterValues,
             ...exploreDefaultParameterValues,
+            ...(explore?.savedParameterValues || {}),
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };

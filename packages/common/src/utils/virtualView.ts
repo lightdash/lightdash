@@ -7,6 +7,7 @@ import {
     friendlyName,
     type Dimension,
 } from '../types/field';
+import { type ParametersValuesMap } from '../types/parameters';
 import { WarehouseTypes } from '../types/projects';
 import {
     type TimeIntervalUnit,
@@ -21,6 +22,7 @@ export const createVirtualView = (
     columns: VizColumn[],
     warehouseClient: WarehouseClient,
     label?: string,
+    parameterValues?: ParametersValuesMap,
 ): Explore => {
     const exploreCompiler = new ExploreCompiler(warehouseClient);
 
@@ -65,9 +67,15 @@ export const createVirtualView = (
         meta: {},
     });
 
-    const virtualView = {
+    const hasSavedParameters =
+        parameterValues && Object.keys(parameterValues).length > 0;
+
+    const virtualView: Explore = {
         ...explore,
         type: ExploreType.VIRTUAL,
+        ...(hasSavedParameters
+            ? { savedParameterValues: parameterValues }
+            : {}),
     };
 
     return virtualView;
