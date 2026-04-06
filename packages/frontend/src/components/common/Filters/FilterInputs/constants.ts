@@ -20,10 +20,10 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
     [FilterOperator.NOT_IN_BETWEEN]: 'is not between',
-    [FilterOperator.YEAR_TO_DATE]: 'year to date',
-    [FilterOperator.QUARTER_TO_DATE]: 'quarter to date',
-    [FilterOperator.MONTH_TO_DATE]: 'month to date',
-    [FilterOperator.WEEK_TO_DATE]: 'week to date',
+    [FilterOperator.YEAR_TO_DATE]: 'is year to date (YTD)',
+    [FilterOperator.QUARTER_TO_DATE]: 'is quarter to date (QTD)',
+    [FilterOperator.MONTH_TO_DATE]: 'is month to date (MTD)',
+    [FilterOperator.WEEK_TO_DATE]: 'is week to date (WTD)',
 };
 
 export const filterOperatorDescription: Partial<

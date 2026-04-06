@@ -675,12 +675,120 @@ describe('Filter SQL', () => {
         ).toStrictEqual(`(EXTRACT(DAYOFYEAR FROM ${DimensionSqlMock}) <= 95)`);
     });
 
+    test('should return year to date filter sql for clickhouse', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(toDayOfYear(${DimensionSqlMock}) <= 95)`);
+    });
+
+    test('should return year to date filter sql for trino', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                SupportedDbtAdapter.TRINO,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
+    });
+
+    test('should return year to date filter sql for snowflake', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                SupportedDbtAdapter.SNOWFLAKE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
+    });
+
+    test('should return year to date filter sql for databricks', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                SupportedDbtAdapter.DATABRICKS,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
+    });
+
+    test('should return year to date filter sql for redshift', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                YearToDateFilterBase,
+                SupportedDbtAdapter.REDSHIFT,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
+    });
+
     test('should return month to date filter sql', () => {
         expect(
             renderDateFilterSql(
                 DimensionSqlMock,
                 MonthToDateFilterBase,
                 adapterType.default,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
+    });
+
+    test('should return month to date filter sql for bigquery', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                MonthToDateFilterBase,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
+    });
+
+    test('should return month to date filter sql for clickhouse', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                MonthToDateFilterBase,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(toDayOfMonth(${DimensionSqlMock}) <= 4)`);
+    });
+
+    test('should return month to date filter sql for trino', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                MonthToDateFilterBase,
+                SupportedDbtAdapter.TRINO,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
+    });
+
+    test('should return month to date filter sql for snowflake', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                MonthToDateFilterBase,
+                SupportedDbtAdapter.SNOWFLAKE,
                 'UTC',
                 formatTimestamp,
             ),
@@ -715,6 +823,62 @@ describe('Filter SQL', () => {
         );
     });
 
+    test('should return quarter to date filter sql for bigquery', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                QuarterToDateFilterBase,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, QUARTER), DAY) <= 3)`,
+        );
+    });
+
+    test('should return quarter to date filter sql for clickhouse', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                QuarterToDateFilterBase,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(dateDiff('day', toStartOfQuarter(${DimensionSqlMock}), ${DimensionSqlMock}) <= 3)`,
+        );
+    });
+
+    test('should return quarter to date filter sql for athena', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                QuarterToDateFilterBase,
+                SupportedDbtAdapter.ATHENA,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(DATE_DIFF('day', DATE_TRUNC('quarter', ${DimensionSqlMock}), ${DimensionSqlMock}) <= 3)`,
+        );
+    });
+
+    test('should return quarter to date filter sql for snowflake', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                QuarterToDateFilterBase,
+                SupportedDbtAdapter.SNOWFLAKE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('QUARTER', ${DimensionSqlMock})) <= 3)`,
+        );
+    });
+
     test('should return week to date filter sql (monday start)', () => {
         expect(
             renderDateFilterSql(
@@ -726,6 +890,109 @@ describe('Filter SQL', () => {
             ),
         ).toStrictEqual(
             `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 5)`,
+        );
+    });
+
+    test('should return week to date filter sql for bigquery (sunday start default)', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, WEEK(SUNDAY)), DAY) <= 6)`,
+        );
+    });
+
+    test('should return week to date filter sql for clickhouse (sunday start default)', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(dateDiff('day', toStartOfWeek(${DimensionSqlMock}, 0), ${DimensionSqlMock}) <= 6)`,
+        );
+    });
+
+    test('should return week to date filter sql for trino', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                SupportedDbtAdapter.TRINO,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(DATE_DIFF('day', DATE_TRUNC('week', ${DimensionSqlMock}), ${DimensionSqlMock}) <= 5)`,
+        );
+    });
+
+    test('should return week to date filter sql for snowflake', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                SupportedDbtAdapter.SNOWFLAKE,
+                'UTC',
+                formatTimestamp,
+            ),
+        ).toStrictEqual(
+            `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 5)`,
+        );
+    });
+
+    // Week to date with custom startOfWeek
+    // April 4, 2020 is Saturday. Monday start: dayInWeek=5 (Mon=0..Sat=5). Sunday start: dayInWeek=6 (Sun=0..Sat=6).
+    test('should return week to date filter sql for postgres with sunday start', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                adapterType.default,
+                'UTC',
+                formatTimestamp,
+                WeekDay.SUNDAY,
+            ),
+        ).toStrictEqual(
+            `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 6)`,
+        );
+    });
+
+    test('should return week to date filter sql for bigquery with monday start', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                formatTimestamp,
+                WeekDay.MONDAY,
+            ),
+        ).toStrictEqual(
+            `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, WEEK(MONDAY)), DAY) <= 5)`,
+        );
+    });
+
+    test('should return week to date filter sql for clickhouse with monday start', () => {
+        expect(
+            renderDateFilterSql(
+                DimensionSqlMock,
+                WeekToDateFilterBase,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'UTC',
+                formatTimestamp,
+                WeekDay.MONDAY,
+            ),
+        ).toStrictEqual(
+            `(dateDiff('day', toStartOfWeek(${DimensionSqlMock}, 1), ${DimensionSqlMock}) <= 5)`,
         );
     });
 
