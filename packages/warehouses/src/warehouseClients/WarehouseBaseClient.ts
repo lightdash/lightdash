@@ -2,8 +2,10 @@ import {
     AnyType,
     CreateWarehouseCredentials,
     DimensionType,
+    isValidTimezone,
     Metric,
     NotImplementedError,
+    ParameterError,
     PartitionColumn,
     SupportedDbtAdapter,
     TimeIntervalUnit,
@@ -82,6 +84,17 @@ export default abstract class WarehouseBaseClient<
         },
     ): Promise<void>;
 
+    /**
+     * Validates timezone before it reaches SQL interpolation in warehouse
+     * clients (e.g., SET TIME ZONE '...'). Defense-in-depth against SQL
+     * injection — the write path should also validate.
+     */
+    private static validateTimezone(timezone?: string): void {
+        if (timezone && !isValidTimezone(timezone)) {
+            throw new ParameterError(`Invalid timezone: ${timezone}`);
+        }
+    }
+
     async executeAsyncQuery(
         {
             sql,
@@ -95,6 +108,8 @@ export default abstract class WarehouseBaseClient<
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
+        WarehouseBaseClient.validateTimezone(timezone);
+
         let rowCount = 0;
 
         const startTime = performance.now();
@@ -128,6 +143,8 @@ export default abstract class WarehouseBaseClient<
         values?: AnyType[],
         queryParams?: Record<string, AnyType>,
     ) {
+        WarehouseBaseClient.validateTimezone(timezone);
+
         let fields: WarehouseResults['fields'] = {};
         const rows: WarehouseResults['rows'] = [];
 
