@@ -1,3 +1,10 @@
+## [0.2724.5](https://github.com/lightdash/lightdash/compare/0.2724.4...0.2724.5) (2026-04-06)
+
+
+### Bug Fixes
+
+* upgrade cypress-split 1.24.28→1.24.29 (security) ([#21469](https://github.com/lightdash/lightdash/issues/21469)) ([92eeef2](https://github.com/lightdash/lightdash/commit/92eeef20500fc4260fdde415f1b4d0f4609d3b74))
+
 ## [0.2724.4](https://github.com/lightdash/lightdash/compare/0.2724.3...0.2724.4) (2026-04-06)
 
 
