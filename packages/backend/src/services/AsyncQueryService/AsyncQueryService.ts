@@ -47,6 +47,7 @@ import {
     isField,
     isJwtUser,
     isMetric,
+    isValidTimezone,
     isVizTableConfig,
     ItemsMap,
     KnexPaginateArgs,
@@ -54,6 +55,7 @@ import {
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    ParameterError,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -1507,6 +1509,10 @@ export class AsyncQueryService extends ProjectService {
                   );
                   await write?.(rows);
               };
+
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
+        }
 
         const warehouseResults = await Sentry.startSpan(
             {
