@@ -1,6 +1,4 @@
-import { assertUnreachable, SupportedDbtAdapter } from '@lightdash/common';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { format, type SqlLanguage } from 'sql-formatter';
+import { formatSql, type WarehouseClient } from '@lightdash/common';
 import { BuildQueryProps, MetricQueryBuilder } from '../MetricQueryBuilder';
 import {
     INTRINSIC_USER_ATTRIBUTES,
@@ -11,47 +9,8 @@ import {
 export const SNAPSHOT_DEFAULTS = {
     intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
     timezone: QUERY_BUILDER_UTC_TIMEZONE,
-    warehouseSqlBuilder: warehouseClientMock,
+    warehouseClient: warehouseClientMock,
 } as const;
-
-const getLanguage = (adapterType: SupportedDbtAdapter): SqlLanguage => {
-    switch (adapterType) {
-        case SupportedDbtAdapter.BIGQUERY:
-            return 'bigquery';
-        case SupportedDbtAdapter.SNOWFLAKE:
-            return 'snowflake';
-        case SupportedDbtAdapter.DATABRICKS:
-            return 'spark';
-        case SupportedDbtAdapter.TRINO:
-        case SupportedDbtAdapter.ATHENA:
-            return 'trino';
-        case SupportedDbtAdapter.POSTGRES:
-        case SupportedDbtAdapter.DUCKDB:
-            return 'postgresql';
-        case SupportedDbtAdapter.REDSHIFT:
-            return 'redshift';
-        case SupportedDbtAdapter.CLICKHOUSE:
-            return 'sql';
-        default:
-            return assertUnreachable(
-                adapterType,
-                `Unsupported sql formatter adapter: ${adapterType}`,
-            );
-    }
-};
-
-const formatSqlForSnapshot = (
-    sql: string,
-    adapterType: SupportedDbtAdapter,
-): string => {
-    try {
-        return format(sql, {
-            language: getLanguage(adapterType),
-        });
-    } catch {
-        return sql;
-    }
-};
 
 export const buildQuery = (
     args: Omit<
@@ -62,21 +21,20 @@ export const buildQuery = (
         | 'warehouseSqlBuilder'
     > &
         Partial<
-            Pick<
-                BuildQueryProps,
-                'intrinsicUserAttributes' | 'timezone' | 'warehouseSqlBuilder'
-            >
-        >,
+            Pick<BuildQueryProps, 'intrinsicUserAttributes' | 'timezone'>
+        > & {
+            warehouseClient?: WarehouseClient;
+        },
 ): string => {
+    const warehouseClient =
+        args.warehouseClient ?? SNAPSHOT_DEFAULTS.warehouseClient;
+
     const { query } = new MetricQueryBuilder({
         parameterDefinitions: {},
         ...SNAPSHOT_DEFAULTS,
         ...args,
+        warehouseSqlBuilder: warehouseClient,
     }).compileQuery();
 
-    return formatSqlForSnapshot(
-        query,
-        args.warehouseSqlBuilder?.getAdapterType() ??
-            SNAPSHOT_DEFAULTS.warehouseSqlBuilder.getAdapterType(),
-    );
+    return formatSql(query, warehouseClient.credentials.type);
 };
