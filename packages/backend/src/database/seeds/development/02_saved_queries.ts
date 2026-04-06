@@ -19,10 +19,11 @@ export async function seed(knex: Knex): Promise<void> {
         lightdashConfig,
     });
     const spaceModel = new SpaceModel({ database: knex });
-    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
-        SEED_PROJECT.project_uuid,
-    );
-    const spaceUuid = rootSpaces[0];
+    const [seedSpace] = await spaceModel.find({
+        projectUuid: SEED_PROJECT.project_uuid,
+        slug: 'jaffle-shop',
+    });
+    const spaceUuid = seedSpace?.uuid;
     if (!spaceUuid) throw new Error('No space found for seeding');
 
     // Deletes ALL existing entries
