@@ -56,11 +56,29 @@ const SimpleSankey: FC<SimpleSankeyProps> = memo(
         }, [resultsData]);
 
         useEffect(() => {
-            const listener = () =>
-                chartRef.current?.getEchartsInstance().resize();
-            window.addEventListener('resize', listener);
-            return () => window.removeEventListener('resize', listener);
-        });
+            const eCharts = chartRef.current?.getEchartsInstance();
+            const dom = eCharts?.getDom();
+            if (!eCharts || !dom) return;
+
+            let rafId: number | null = null;
+            const resizeChart = () => {
+                if (rafId !== null) return;
+                rafId = requestAnimationFrame(() => {
+                    eCharts.resize();
+                    rafId = null;
+                });
+            };
+
+            const observer = new ResizeObserver(resizeChart);
+            observer.observe(dom);
+            window.addEventListener('resize', resizeChart);
+
+            return () => {
+                window.removeEventListener('resize', resizeChart);
+                observer.disconnect();
+                if (rafId !== null) cancelAnimationFrame(rafId);
+            };
+        }, [chartRef, sankeyChartOptions]);
 
         if (isLoading) return <LoadingChart />;
         if (!sankeyChartOptions) return <EmptyChart />;
