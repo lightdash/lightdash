@@ -1,6 +1,6 @@
-import { SupportedDbtAdapter } from '@lightdash/common';
+import { assertUnreachable, SupportedDbtAdapter } from '@lightdash/common';
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
+import { format, type SqlLanguage } from 'sql-formatter';
 import { BuildQueryProps, MetricQueryBuilder } from '../MetricQueryBuilder';
 import {
     INTRINSIC_USER_ATTRIBUTES,
@@ -14,29 +14,35 @@ export const SNAPSHOT_DEFAULTS = {
     warehouseSqlBuilder: warehouseClientMock,
 } as const;
 
-const getLanguage = (
-    adapterType?: SupportedDbtAdapter,
-): FormatOptionsWithLanguage['language'] => {
+const getLanguage = (adapterType: SupportedDbtAdapter): SqlLanguage => {
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
             return 'bigquery';
         case SupportedDbtAdapter.SNOWFLAKE:
             return 'snowflake';
-        case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.DATABRICKS:
             return 'spark';
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return 'trino';
         case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
             return 'postgresql';
         case SupportedDbtAdapter.REDSHIFT:
             return 'redshift';
-        default:
+        case SupportedDbtAdapter.CLICKHOUSE:
             return 'sql';
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unsupported sql formatter adapter: ${adapterType}`,
+            );
     }
 };
 
 const formatSqlForSnapshot = (
     sql: string,
-    adapterType?: SupportedDbtAdapter,
+    adapterType: SupportedDbtAdapter,
 ): string => {
     try {
         return format(sql, {
