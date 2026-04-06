@@ -56,10 +56,7 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
         '(customers.age) >= (1) AND (customers.age) <= (2)',
     [FilterOperator.NOT_IN_BETWEEN]:
         '(customers.age) < (1) OR (customers.age) > (2)',
-    [FilterOperator.YEAR_TO_DATE]: null,
-    [FilterOperator.QUARTER_TO_DATE]: null,
-    [FilterOperator.MONTH_TO_DATE]: null,
-    [FilterOperator.WEEK_TO_DATE]: null,
+    [FilterOperator.IN_PERIOD_TO_DATE]: null,
 };
 
 export const YearToDateFilterBase = {
@@ -67,7 +64,8 @@ export const YearToDateFilterBase = {
     target: {
         fieldId: 'fieldId',
     },
-    operator: FilterOperator.YEAR_TO_DATE,
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.years },
 };
 
 export const QuarterToDateFilterBase = {
@@ -75,7 +73,8 @@ export const QuarterToDateFilterBase = {
     target: {
         fieldId: 'fieldId',
     },
-    operator: FilterOperator.QUARTER_TO_DATE,
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.quarters },
 };
 
 export const MonthToDateFilterBase = {
@@ -83,7 +82,8 @@ export const MonthToDateFilterBase = {
     target: {
         fieldId: 'fieldId',
     },
-    operator: FilterOperator.MONTH_TO_DATE,
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.months },
 };
 
 export const WeekToDateFilterBase = {
@@ -91,7 +91,8 @@ export const WeekToDateFilterBase = {
     target: {
         fieldId: 'fieldId',
     },
-    operator: FilterOperator.WEEK_TO_DATE,
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.weeks },
 };
 
 export const InTheCurrentFilterBase = {

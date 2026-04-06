@@ -206,10 +206,7 @@ export const supportsSingleValue = (
 export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NULL &&
     filterOperator !== FilterOperator.NOT_NULL &&
-    filterOperator !== FilterOperator.YEAR_TO_DATE &&
-    filterOperator !== FilterOperator.QUARTER_TO_DATE &&
-    filterOperator !== FilterOperator.MONTH_TO_DATE &&
-    filterOperator !== FilterOperator.WEEK_TO_DATE;
+    filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     filterType: FilterType,
@@ -223,10 +220,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
         ![
             FilterOperator.NULL,
             FilterOperator.NOT_NULL,
-            FilterOperator.YEAR_TO_DATE,
-            FilterOperator.QUARTER_TO_DATE,
-            FilterOperator.MONTH_TO_DATE,
-            FilterOperator.WEEK_TO_DATE,
+            FilterOperator.IN_PERIOD_TO_DATE,
         ].includes(filterRule.operator) &&
         values !== null
     ) {
@@ -327,6 +321,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             default:
                 break;
         }
+    }
+    if (filterRule.operator === FilterOperator.IN_PERIOD_TO_DATE) {
+        filterRuleDefaults.settings = {
+            unitOfTime: UnitOfTime.years,
+            completed: false,
+        } as DateFilterRule['settings'];
     }
     return {
         ...filterRule,

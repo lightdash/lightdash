@@ -20,21 +20,12 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
     [FilterOperator.NOT_IN_BETWEEN]: 'is not between',
-    [FilterOperator.YEAR_TO_DATE]: 'is year to date (YTD)',
-    [FilterOperator.QUARTER_TO_DATE]: 'is quarter to date (QTD)',
-    [FilterOperator.MONTH_TO_DATE]: 'is month to date (MTD)',
-    [FilterOperator.WEEK_TO_DATE]: 'is week to date (WTD)',
+    [FilterOperator.IN_PERIOD_TO_DATE]: 'is period to date',
 };
 
 export const filterOperatorDescription: Partial<
     Record<FilterOperator, string>
 > = {
-    [FilterOperator.YEAR_TO_DATE]:
-        "Includes rows where the day-of-year is on or before today's day-of-year. For example, if today is March 31 (day 90), this includes days 1-90 of every year in your data.",
-    [FilterOperator.QUARTER_TO_DATE]:
-        "Includes rows where the day within the quarter is on or before today's position in the current quarter. Useful for comparing equivalent portions of quarters.",
-    [FilterOperator.MONTH_TO_DATE]:
-        "Includes rows where the day of the month is on or before today's day of the month. For example, if today is the 15th, this includes days 1-15 of every month.",
-    [FilterOperator.WEEK_TO_DATE]:
-        "Includes rows where the day of the week is on or before today's day of the week. Useful for comparing equivalent portions of weeks.",
+    [FilterOperator.IN_PERIOD_TO_DATE]:
+        "Includes rows where the position within the selected period is on or before today's position. Useful for period-over-period comparisons (e.g., YTD, QTD, MTD, WTD).",
 };

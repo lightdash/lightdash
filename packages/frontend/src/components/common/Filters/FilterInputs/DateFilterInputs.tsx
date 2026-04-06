@@ -23,6 +23,7 @@ import FilterDateRangePicker from './FilterDateRangePicker';
 import FilterDateTimePicker from './FilterDateTimePicker';
 import FilterDateTimeRangePicker from './FilterDateTimeRangePicker';
 import FilterMonthAndYearPicker from './FilterMonthAndYearPicker';
+import FilterPeriodToDateSelect from './FilterPeriodToDateSelect';
 import FilterQuarterPicker from './FilterQuarterPicker';
 import FilterUnitOfTimeAutoComplete from './FilterUnitOfTimeAutoComplete';
 import FilterWeekPicker from './FilterWeekPicker';
@@ -411,11 +412,23 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     }}
                 />
             );
-        case FilterOperator.YEAR_TO_DATE:
-        case FilterOperator.QUARTER_TO_DATE:
-        case FilterOperator.MONTH_TO_DATE:
-        case FilterOperator.WEEK_TO_DATE:
-            return null;
+        case FilterOperator.IN_PERIOD_TO_DATE:
+            return (
+                <FilterPeriodToDateSelect
+                    disabled={disabled}
+                    unitOfTime={rule.settings?.unitOfTime}
+                    field={field}
+                    onChange={(unitOfTime) =>
+                        onChange({
+                            ...rule,
+                            settings: {
+                                unitOfTime,
+                                completed: false,
+                            },
+                        })
+                    }
+                />
+            );
         default: {
             return <DefaultFilterInputs {...props} />;
         }

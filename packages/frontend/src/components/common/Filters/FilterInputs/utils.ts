@@ -59,40 +59,30 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
     { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
-    ...getFilterOptions([
-        FilterOperator.YEAR_TO_DATE,
-        FilterOperator.QUARTER_TO_DATE,
-        FilterOperator.MONTH_TO_DATE,
-        FilterOperator.WEEK_TO_DATE,
-    ]),
+    ...getFilterOptions([FilterOperator.IN_PERIOD_TO_DATE]),
 ];
 
-const toDateOperators = new Set<FilterOperator>([
-    FilterOperator.YEAR_TO_DATE,
-    FilterOperator.QUARTER_TO_DATE,
-    FilterOperator.MONTH_TO_DATE,
-    FilterOperator.WEEK_TO_DATE,
-]);
-
 /**
- * Time intervals that are too coarse for to-date operators.
- * e.g. DATE_TRUNC(date, YEAR) returns 2026-01-01 — day-of-year is always 1,
- * so "year to date" would incorrectly match all records.
+ * Returns whether the field supports period-to-date filters.
+ * Allowed when the dimension has a base date dimension (timeIntervalBaseDimensionName)
+ * or when the field is at day-level or finer granularity.
  */
-const coarseTimeIntervals = new Set<TimeFrames>([
-    TimeFrames.YEAR,
-    TimeFrames.QUARTER,
-    TimeFrames.MONTH,
-    TimeFrames.WEEK,
-]);
-
 const supportsToDateOperators = (
     field: FilterableField | undefined,
 ): boolean => {
     if (!field) return true;
     if (!isDimension(field)) return true;
     if (!field.timeInterval) return true;
-    return !coarseTimeIntervals.has(field.timeInterval);
+    // Coarse intervals are allowed if backed by a raw date dimension
+    if (field.timeIntervalBaseDimensionName) return true;
+    // Otherwise only day-level or finer
+    const coarseIntervals = new Set<TimeFrames>([
+        TimeFrames.YEAR,
+        TimeFrames.QUARTER,
+        TimeFrames.MONTH,
+        TimeFrames.WEEK,
+    ]);
+    return !coarseIntervals.has(field.timeInterval);
 };
 
 export const getFilterOperatorOptions = (
@@ -127,7 +117,7 @@ export const getFilterOperatorOptions = (
         case FilterType.DATE:
             if (!supportsToDateOperators(field)) {
                 return timeFilterOptions.filter(
-                    (opt) => !toDateOperators.has(opt.value),
+                    (opt) => opt.value !== FilterOperator.IN_PERIOD_TO_DATE,
                 );
             }
             return timeFilterOptions;
@@ -237,14 +227,21 @@ const getValueAsString = (
                             }
                         })
                         .join(', ');
-                case FilterOperator.YEAR_TO_DATE:
-                    return 'year to date';
-                case FilterOperator.QUARTER_TO_DATE:
-                    return 'quarter to date';
-                case FilterOperator.MONTH_TO_DATE:
-                    return 'month to date';
-                case FilterOperator.WEEK_TO_DATE:
-                    return 'week to date';
+                case FilterOperator.IN_PERIOD_TO_DATE: {
+                    if (!isFilterRule(rule)) throw new Error('Invalid rule');
+                    const unit = rule.settings?.unitOfTime;
+                    const periodLabel =
+                        unit === 'years'
+                            ? 'year'
+                            : unit === 'quarters'
+                              ? 'quarter'
+                              : unit === 'months'
+                                ? 'month'
+                                : unit === 'weeks'
+                                  ? 'week'
+                                  : 'period';
+                    return `${periodLabel} to date`;
+                }
                 case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:

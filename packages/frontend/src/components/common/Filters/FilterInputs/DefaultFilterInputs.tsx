@@ -193,10 +193,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                     }}
                 />
             );
-        case FilterOperator.YEAR_TO_DATE:
-        case FilterOperator.QUARTER_TO_DATE:
-        case FilterOperator.MONTH_TO_DATE:
-        case FilterOperator.WEEK_TO_DATE:
+        case FilterOperator.IN_PERIOD_TO_DATE:
             return null;
         default:
             return assertUnreachable(

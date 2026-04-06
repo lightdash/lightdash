@@ -174,10 +174,7 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
     switch (filterRule.operator) {
         case FilterOperator.NULL:
         case FilterOperator.NOT_NULL:
-        case FilterOperator.YEAR_TO_DATE:
-        case FilterOperator.QUARTER_TO_DATE:
-        case FilterOperator.MONTH_TO_DATE:
-        case FilterOperator.WEEK_TO_DATE:
+        case FilterOperator.IN_PERIOD_TO_DATE:
             return true;
         case FilterOperator.EQUALS:
         case FilterOperator.NOT_EQUALS:
