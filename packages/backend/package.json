@@ -71,6 +71,7 @@
         "@octokit/request": "8.4.1",
         "@octokit/rest": "20.1.1",
         "@openrouter/ai-sdk-provider": "1.5.4",
+        "@polyglot-sql/sdk": "0.2.2",
         "@rudderstack/rudder-sdk-node": "2.1.1",
         "@sentry/core": "9.31.0",
         "@sentry/node": "9.46.0",

@@ -3121,11 +3121,21 @@ export class ProjectService extends BaseService {
                     matchResult.preAggregateName,
                 );
                 try {
-                    explore = await this.getExplore(
+                    const preAggExplore = await this.getExplore(
                         account,
                         projectUuid,
                         preAggExploreName,
                     );
+                    // Transpile sql_filter from source warehouse dialect to DuckDB
+                    // and rename columns to flattened pre-aggregate names
+                    const { transpileExploreSqlFilters } =
+                        await import('../../ee/preAggregates/sqlTranspiler');
+                    const transpiledTables =
+                        await transpileExploreSqlFilters(preAggExplore);
+                    explore = {
+                        ...preAggExplore,
+                        tables: transpiledTables,
+                    };
                 } catch {
                     this.logger.warn(
                         `Pre-aggregate explore "${preAggExploreName}" not found, falling back to source explore`,
