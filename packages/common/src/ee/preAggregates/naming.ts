@@ -2,6 +2,9 @@ import type { TimeFrames } from '../../types/timeFrames';
 
 export const PRE_AGGREGATE_EXPLORE_PREFIX = '__preagg__';
 
+export const PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER =
+    '${materialized_table}';
+
 export const getPreAggregateExploreName = (
     exploreName: string,
     preAggregateName: string,
