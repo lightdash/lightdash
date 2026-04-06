@@ -1,3 +1,10 @@
+## [0.2726.1](https://github.com/lightdash/lightdash/compare/0.2726.0...0.2726.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* exclude BigQuery from UTC offset in filter timestamp literals ([#21762](https://github.com/lightdash/lightdash/issues/21762)) ([6f56154](https://github.com/lightdash/lightdash/commit/6f56154e9119a72108036ac0836802665588ad91))
+
 # [0.2726.0](https://github.com/lightdash/lightdash/compare/0.2725.0...0.2726.0) (2026-04-06)
 
 
