@@ -1,3 +1,15 @@
+# [0.2728.0](https://github.com/lightdash/lightdash/compare/0.2727.0...0.2728.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* accept filters nested inside queryConfig in MCP run_metric_query tool ([#21765](https://github.com/lightdash/lightdash/issues/21765)) ([763c23b](https://github.com/lightdash/lightdash/commit/763c23b923f9492d32fe0160acb5bca21027b2e8))
+
+
+### Features
+
+* add SQL limit change listener to refresh chart data in visualization tab ([#21766](https://github.com/lightdash/lightdash/issues/21766)) ([8f4701e](https://github.com/lightdash/lightdash/commit/8f4701e18973e8a7c8c69f532e545fd3cf0517c1))
+
 # [0.2727.0](https://github.com/lightdash/lightdash/compare/0.2726.1...0.2727.0) (2026-04-06)
 
 
