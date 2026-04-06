@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    type ApiAppImageUploadUrlResponse,
     type ApiCancelAppVersionResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
@@ -51,6 +52,33 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             body.prompt,
             body.image,
+            body.appUuid,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Get a presigned URL for uploading an image to S3.
+     * @summary Get image upload URL
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/upload-url')
+    @OperationId('getAppImageUploadUrl')
+    async getImageUploadUrl(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: { mimeType: string; appUuid?: string },
+    ): Promise<ApiAppImageUploadUrlResponse> {
+        this.setStatus(200);
+        const result = await this.getAppGenerateService().getImageUploadUrl(
+            req.user!,
+            projectUuid,
+            body.mimeType,
+            body.appUuid,
         );
         return {
             status: 'ok',
