@@ -1,3 +1,15 @@
+# [0.2727.0](https://github.com/lightdash/lightdash/compare/0.2726.1...0.2727.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* scope autocomplete filter overlap check to active tab tiles ([#21763](https://github.com/lightdash/lightdash/issues/21763)) ([63d1661](https://github.com/lightdash/lightdash/commit/63d1661e07fa43dad8a4f92dc6fdd7704dd19d83))
+
+
+### Features
+
+* **explorer:** Make Virtual Views and Pre-aggregates collapsible by default ([#21720](https://github.com/lightdash/lightdash/issues/21720)) ([f754154](https://github.com/lightdash/lightdash/commit/f754154311fca77545775f0747240429b33372ef))
+
 ## [0.2726.1](https://github.com/lightdash/lightdash/compare/0.2726.0...0.2726.1) (2026-04-06)
 
 
