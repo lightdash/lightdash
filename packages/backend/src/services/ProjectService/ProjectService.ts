@@ -7499,25 +7499,12 @@ export class ProjectService extends BaseService {
                 isRegisteredUser: true,
             }),
         );
-        // Merge project parameter defaults with explicitly provided values,
-        // filtered to only parameters referenced in the SQL
-        const referencedParams = getParameterReferences(payload.sql);
-        let effectiveParameterValues: ParametersValuesMap | undefined;
-        if (referencedParams.length > 0) {
-            const allValues = await this.combineParameters(
+        const effectiveParameterValues =
+            await this.resolveVirtualViewParameters(
                 projectUuid,
-                undefined,
+                payload.sql,
                 payload.parameterValues,
             );
-            effectiveParameterValues = Object.fromEntries(
-                Object.entries(allValues).filter(([key]) =>
-                    referencedParams.includes(key),
-                ),
-            );
-            if (Object.keys(effectiveParameterValues).length === 0) {
-                effectiveParameterValues = undefined;
-            }
-        }
 
         const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
@@ -7580,25 +7567,12 @@ export class ProjectService extends BaseService {
             }),
         );
 
-        // Merge project parameter defaults with explicitly provided values,
-        // filtered to only parameters referenced in the SQL
-        const referencedParams = getParameterReferences(payload.sql);
-        let effectiveParameterValues: ParametersValuesMap | undefined;
-        if (referencedParams.length > 0) {
-            const allValues = await this.combineParameters(
+        const effectiveParameterValues =
+            await this.resolveVirtualViewParameters(
                 projectUuid,
-                undefined,
+                payload.sql,
                 payload.parameterValues,
             );
-            effectiveParameterValues = Object.fromEntries(
-                Object.entries(allValues).filter(([key]) =>
-                    referencedParams.includes(key),
-                ),
-            );
-            if (Object.keys(effectiveParameterValues).length === 0) {
-                effectiveParameterValues = undefined;
-            }
-        }
 
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
@@ -8341,6 +8315,32 @@ export class ProjectService extends BaseService {
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };
+    }
+
+    /**
+     * Resolves effective parameter values for a virtual view by merging
+     * project defaults with explicitly provided values, filtered to only
+     * parameters referenced in the SQL.
+     */
+    private async resolveVirtualViewParameters(
+        projectUuid: string,
+        sql: string,
+        parameterValues?: ParametersValuesMap,
+    ): Promise<ParametersValuesMap | undefined> {
+        const referencedParams = getParameterReferences(sql);
+        if (referencedParams.length === 0) return undefined;
+
+        const allValues = await this.combineParameters(
+            projectUuid,
+            undefined,
+            parameterValues,
+        );
+        const filtered = Object.fromEntries(
+            Object.entries(allValues).filter(([key]) =>
+                referencedParams.includes(key),
+            ),
+        );
+        return Object.keys(filtered).length > 0 ? filtered : undefined;
     }
 
     static isChartEmbed(account: Account) {

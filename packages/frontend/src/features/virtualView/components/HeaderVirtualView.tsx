@@ -339,6 +339,9 @@ export const HeaderVirtualView: FC<{
         virtualViewState.label || friendlyName(virtualViewState.name),
     );
 
+    const savedParameterValues =
+        Object.keys(parameterValues).length > 0 ? parameterValues : undefined;
+
     const handleUpdateVirtualView = async ({
         handleDiff,
     }: {
@@ -395,10 +398,7 @@ export const HeaderVirtualView: FC<{
                 name,
                 sql,
                 columns: columnsFromQuery,
-                parameterValues:
-                    Object.keys(parameterValues).length > 0
-                        ? parameterValues
-                        : undefined,
+                parameterValues: savedParameterValues,
             });
             return navigate(0);
         }
