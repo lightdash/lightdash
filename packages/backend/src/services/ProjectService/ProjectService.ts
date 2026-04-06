@@ -2271,11 +2271,6 @@ export class ProjectService extends BaseService {
             default:
                 break;
         }
-
-        const { dataTimezone } = project.warehouseConnection ?? {};
-        if (dataTimezone && !isValidTimezone(dataTimezone)) {
-            throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
-        }
     }
 
     async updateAndScheduleAsyncWork(
