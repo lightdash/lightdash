@@ -68,6 +68,7 @@ import {
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
+    type IntrinsicUserAttributes,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -95,6 +96,7 @@ import {
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
     type WarehouseSqlBuilder,
+    type UserAttributeValueMap,
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -150,6 +152,7 @@ import {
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
+    type MaterializationAccessPlan,
     NoOpPreAggregateStrategy,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
@@ -2528,6 +2531,136 @@ export class AsyncQueryService extends ProjectService {
         return { fields, dateZoomApplied };
     }
 
+    private async getMaterializationRawExploreFromCache(
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<Explore> {
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+
+        if (isExploreError(explore)) {
+            throw new NotFoundError(`Explore "${exploreName}" has an error.`);
+        }
+
+        return explore;
+    }
+
+    private sanitizeMaterializationFieldAccess<
+        T extends CompiledDimension | CompiledMetric,
+    >({
+        field,
+        stripFieldAccess,
+        tableNames,
+    }: {
+        field: T;
+        stripFieldAccess: boolean;
+        tableNames: Set<string>;
+    }): T {
+        const tablesRequiredAttributes = field.tablesRequiredAttributes
+            ? Object.fromEntries(
+                  Object.entries(field.tablesRequiredAttributes).filter(
+                      ([tableName]) => !tableNames.has(tableName),
+                  ),
+              )
+            : undefined;
+        const tablesAnyAttributes = field.tablesAnyAttributes
+            ? Object.fromEntries(
+                  Object.entries(field.tablesAnyAttributes).filter(
+                      ([tableName]) => !tableNames.has(tableName),
+                  ),
+              )
+            : undefined;
+
+        return {
+            ...field,
+            ...(stripFieldAccess
+                ? {
+                      requiredAttributes: undefined,
+                      anyAttributes: undefined,
+                  }
+                : {}),
+            tablesRequiredAttributes:
+                tablesRequiredAttributes &&
+                Object.keys(tablesRequiredAttributes).length > 0
+                    ? tablesRequiredAttributes
+                    : undefined,
+            tablesAnyAttributes:
+                tablesAnyAttributes && Object.keys(tablesAnyAttributes).length > 0
+                    ? tablesAnyAttributes
+                    : undefined,
+        };
+    }
+
+    private sanitizeExploreForMaterialization({
+        explore,
+        accessPlan,
+    }: {
+        explore: Explore;
+        accessPlan?: MaterializationAccessPlan;
+    }): Explore {
+        if (!accessPlan) {
+            return explore;
+        }
+
+        const tableNames = new Set(accessPlan.tableNames);
+        const dimensionFieldIds = new Set(accessPlan.dimensionFieldIds);
+        const metricFieldIds = new Set(accessPlan.metricFieldIds);
+
+        return {
+            ...explore,
+            tables: Object.fromEntries(
+                Object.entries(explore.tables).map(([tableName, table]) => {
+                    const stripTableAccess = tableNames.has(tableName);
+
+                    return [
+                        tableName,
+                        {
+                            ...table,
+                            ...(stripTableAccess
+                                ? {
+                                      sqlWhere: undefined,
+                                      uncompiledSqlWhere: undefined,
+                                      requiredAttributes: undefined,
+                                      anyAttributes: undefined,
+                                  }
+                                : {}),
+                            dimensions: Object.fromEntries(
+                                Object.entries(table.dimensions).map(
+                                    ([dimensionName, dimension]) => [
+                                        dimensionName,
+                                        this.sanitizeMaterializationFieldAccess({
+                                            field: dimension,
+                                            stripFieldAccess: dimensionFieldIds.has(
+                                                getItemId(dimension),
+                                            ),
+                                            tableNames,
+                                        }),
+                                    ],
+                                ),
+                            ),
+                            metrics: Object.fromEntries(
+                                Object.entries(table.metrics).map(
+                                    ([metricName, metric]) => [
+                                        metricName,
+                                        this.sanitizeMaterializationFieldAccess({
+                                            field: metric,
+                                            stripFieldAccess: metricFieldIds.has(
+                                                getItemId(metric),
+                                            ),
+                                            tableNames,
+                                        }),
+                                    ],
+                                ),
+                            ),
+                        },
+                    ];
+                }),
+            ),
+        };
+    }
+
     private async prepareMetricQueryAsyncQueryArgs({
         account,
         metricQuery,
@@ -2538,6 +2671,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         pivotConfiguration,
         userAttributeOverrides,
+        materialization,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2550,14 +2684,29 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        materialization?: {
+            accessPlan?: MaterializationAccessPlan;
+        };
     }) {
         assertIsAccountWithOrg(account);
 
-        const { userAttributes: dbUserAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
-        const userAttributes = userAttributeOverrides
-            ? { ...dbUserAttributes, ...userAttributeOverrides }
-            : dbUserAttributes;
+        let userAttributes: UserAttributeValueMap = {};
+        let intrinsicUserAttributes: IntrinsicUserAttributes = {};
+
+        if (!materialization) {
+            const {
+                userAttributes: dbUserAttributes,
+                intrinsicUserAttributes: dbIntrinsicUserAttributes,
+            } = await this.getUserAttributes({ account });
+
+            intrinsicUserAttributes = dbIntrinsicUserAttributes;
+            userAttributes = userAttributeOverrides
+                ? { ...dbUserAttributes, ...userAttributeOverrides }
+                : dbUserAttributes;
+        } else {
+            // Materialization compiles against a sanitized raw explore and
+            // intentionally skips all user-scoped access controls.
+        }
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
@@ -3240,16 +3389,43 @@ export class AsyncQueryService extends ProjectService {
         };
 
         const metricQueryStart = Date.now();
+        const isMaterializationQuery =
+            context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+        let routingDecision: PreAggregationRoutingDecision | undefined;
+        const explore = isMaterializationQuery
+            ? await (async () => {
+                  const rawExplore =
+                      await this.getMaterializationRawExploreFromCache(
+                          projectUuid,
+                          metricQuery.exploreName,
+                      );
 
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            metricQuery.exploreName,
-            organizationUuid,
-        );
+                  routingDecision = this.getPreAggregationRoutingDecision({
+                      metricQuery,
+                      explore: rawExplore,
+                      context,
+                      forceWarehouse: usePreAggregateCache === false,
+                  });
+
+                  return this.sanitizeExploreForMaterialization({
+                      explore: rawExplore,
+                      accessPlan:
+                          routingDecision.target === 'materialization'
+                              ? routingDecision.materializationAccessPlan
+                              : undefined,
+                  });
+              })()
+            : await this.getExplore(
+                  account,
+                  projectUuid,
+                  metricQuery.exploreName,
+                  organizationUuid,
+              );
         const getExploreMs = Date.now() - metricQueryStart;
 
         const whCredStart = Date.now();
+        // TODO: PRE_AGGREGATE_MATERIALIZATION should use project/org-scoped
+        // warehouse credentials only, without personal credential resolution.
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
@@ -3292,6 +3468,16 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
             userAttributeOverrides,
+            ...(isMaterializationQuery
+                ? {
+                      materialization: {
+                          accessPlan:
+                              routingDecision?.target === 'materialization'
+                                  ? routingDecision.materializationAccessPlan
+                                  : undefined,
+                      },
+                  }
+                : {}),
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -3301,7 +3487,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
         };
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        routingDecision ??= this.getPreAggregationRoutingDecision({
             metricQuery,
             explore,
             context,

@@ -1,6 +1,7 @@
 import {
     ApiPreAggregateStatsResults,
     ExploreType,
+    getItemId,
     preAggregateUtils,
     QueryExecutionContext as QEC,
     UnexpectedServerError,
@@ -14,6 +15,7 @@ import {
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import Logger from '../../../logging/logger';
 import type {
+    MaterializationAccessPlan,
     PreAggregateStrategy as IPreAggregateStrategy,
     PreAggregateExecutionResolution,
     PreAggregateStatsFilters,
@@ -22,6 +24,7 @@ import type {
 } from '../../../services/AsyncQueryService/PreAggregateStrategy';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { type PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';
+import { buildMaterializationMetricQuery } from '../PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
@@ -32,6 +35,111 @@ type EePreAggregateStrategyArgs = {
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     preAggregateResultsStorageClient: S3ResultsFileStorageClient;
     isEnabled: () => boolean;
+};
+
+const setsMatch = (left: string[], right: string[]): boolean => {
+    if (left.length !== right.length) {
+        return false;
+    }
+
+    const rightSet = new Set(right);
+    return left.every((value) => rightSet.has(value));
+};
+
+const addTableReferences = (
+    tableNames: Set<string>,
+    table: string,
+    tablesReferences?: string[],
+) => {
+    tableNames.add(table);
+    tablesReferences?.forEach((tableReference) => {
+        tableNames.add(tableReference);
+    });
+};
+
+const getMaterializationAccessPlan = ({
+    metricQuery,
+    explore,
+}: {
+    metricQuery: MetricQuery;
+    explore: Explore;
+}): (MaterializationAccessPlan & { preAggregateName: string }) | undefined => {
+    if (!explore.preAggregates?.length) {
+        return undefined;
+    }
+
+    const metricsByReference = preAggregateUtils.getMetricsByReference({
+        tables: explore.tables,
+        baseTable: explore.baseTable,
+    });
+
+    for (const preAggregateDef of explore.preAggregates) {
+        const expectedMaterializationMetricQuery = buildMaterializationMetricQuery(
+            {
+                sourceExplore: explore,
+                preAggregateDef,
+                materializationConfig: {
+                    maxRows: null,
+                },
+            },
+        ).metricQuery;
+
+        if (
+            !setsMatch(
+                metricQuery.dimensions,
+                expectedMaterializationMetricQuery.dimensions,
+            ) ||
+            !setsMatch(
+                metricQuery.metrics,
+                expectedMaterializationMetricQuery.metrics,
+            )
+        ) {
+            continue;
+        }
+
+        const dimensionFieldIds = expectedMaterializationMetricQuery.dimensions;
+        const tableNames = new Set<string>([explore.baseTable]);
+        const dimensionFieldIdsSet = new Set(dimensionFieldIds);
+
+        Object.values(explore.tables).forEach((table) => {
+            Object.values(table.dimensions).forEach((dimension) => {
+                if (dimensionFieldIdsSet.has(getItemId(dimension))) {
+                    addTableReferences(
+                        tableNames,
+                        dimension.table,
+                        dimension.tablesReferences,
+                    );
+                }
+            });
+        });
+
+        const metricFieldIds = preAggregateDef.metrics.reduce<string[]>(
+            (acc, metricReference) => {
+                const metricLookup = metricsByReference.get(metricReference);
+                if (!metricLookup) {
+                    return acc;
+                }
+
+                addTableReferences(
+                    tableNames,
+                    metricLookup.metric.table,
+                    metricLookup.metric.tablesReferences,
+                );
+                acc.push(metricLookup.fieldId);
+                return acc;
+            },
+            [],
+        );
+
+        return {
+            preAggregateName: preAggregateDef.name,
+            tableNames: Array.from(tableNames),
+            dimensionFieldIds,
+            metricFieldIds,
+        };
+    }
+
+    return undefined;
 };
 
 export class PreAggregateStrategy implements IPreAggregateStrategy {
@@ -88,14 +196,35 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         }
 
         const matchResult = preAggregateUtils.findMatch(metricQuery, explore);
+        const materializationAccessPlan =
+            context === QEC.PRE_AGGREGATE_MATERIALIZATION
+                ? getMaterializationAccessPlan({ metricQuery, explore })
+                : undefined;
         const preAggregateMetadata = {
-            hit: matchResult.hit,
-            name: matchResult.preAggregateName || undefined,
+            hit: materializationAccessPlan ? true : matchResult.hit,
+            name:
+                materializationAccessPlan?.preAggregateName ||
+                matchResult.preAggregateName ||
+                undefined,
             reason: matchResult.miss || undefined,
         };
 
         if (context === QEC.PRE_AGGREGATE_MATERIALIZATION) {
-            return { target: 'materialization', preAggregateMetadata };
+            return {
+                target: 'materialization',
+                preAggregateMetadata,
+                materializationAccessPlan:
+                    materializationAccessPlan
+                        ? {
+                              tableNames:
+                                  materializationAccessPlan.tableNames,
+                              dimensionFieldIds:
+                                  materializationAccessPlan.dimensionFieldIds,
+                              metricFieldIds:
+                                  materializationAccessPlan.metricFieldIds,
+                          }
+                        : undefined,
+            };
         }
 
         if (matchResult.hit && matchResult.preAggregateName) {

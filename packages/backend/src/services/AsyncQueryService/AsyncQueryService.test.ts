@@ -3,6 +3,7 @@ import {
     DimensionType,
     ExploreType,
     ForbiddenError,
+    getItemId,
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -61,6 +62,7 @@ import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
     expectedColumns,
@@ -124,6 +126,7 @@ const projectModel = {
     get: jest.fn(async () => projectWithSensitiveFields),
     getSummary: jest.fn(async () => projectSummary),
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
+    getQueryTimezone: jest.fn(async () => 'UTC'),
     updateTablesConfiguration: jest.fn(),
     getExploreFromCache: jest.fn(async () => validExplore),
     findExploresFromCache: jest.fn(async () => allExplores),
@@ -1049,6 +1052,10 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
         test('attaches required pre-aggregate routing metadata for direct pre-aggregate explores', async () => {
             const mockStrategy: PreAggregateStrategy = {
                 ...makeMockStrategy({
@@ -1149,6 +1156,372 @@ describe('AsyncQueryService', () => {
                 hit: true,
                 name: 'rollup',
             });
+        });
+
+        test('loads the raw cached explore and strips deferred access controls for materialization compilation', async () => {
+            const deferredExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        sqlWhere: "${lightdash.attribute.country} = 'US'",
+                        uncompiledSqlWhere:
+                            "${lightdash.attribute.country} = 'US'",
+                        requiredAttributes: {
+                            country: 'US',
+                        },
+                        anyAttributes: {
+                            region: ['us'],
+                        },
+                        dimensions: {
+                            ...validExplore.tables.a.dimensions,
+                            dim1: {
+                                ...validExplore.tables.a.dimensions.dim1,
+                                requiredAttributes: {
+                                    country: 'US',
+                                },
+                                anyAttributes: {
+                                    region: ['us'],
+                                },
+                                tablesRequiredAttributes: {
+                                    a: {
+                                        country: 'US',
+                                    },
+                                },
+                                tablesAnyAttributes: {
+                                    a: {
+                                        region: ['us'],
+                                    },
+                                },
+                            },
+                        },
+                        metrics: {
+                            ...validExplore.tables.a.metrics,
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                requiredAttributes: {
+                                    country: 'US',
+                                },
+                                anyAttributes: {
+                                    region: ['us'],
+                                },
+                                tablesRequiredAttributes: {
+                                    a: {
+                                        country: 'US',
+                                    },
+                                },
+                                tablesAnyAttributes: {
+                                    a: {
+                                        region: ['us'],
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = {
+                ...makeMockStrategy({
+                    resolved: false,
+                    reason: 'not_used',
+                    isFatal: false,
+                }),
+                getRoutingDecision: () => ({
+                    target: 'materialization',
+                    preAggregateMetadata: {
+                        hit: true,
+                        name: 'rollup',
+                    },
+                    materializationAccessPlan: {
+                        tableNames: ['a'],
+                        dimensionFieldIds: [
+                            getItemId(deferredExplore.tables.a.dimensions.dim1),
+                        ],
+                        metricFieldIds: [
+                            getItemId(deferredExplore.tables.a.metrics.met1),
+                        ],
+                    },
+                }),
+            };
+            service.getExplore = jest.fn();
+            projectModel.getExploreFromCache.mockResolvedValue(deferredExplore);
+            (service as AnyType).getWarehouseCredentials = jest
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = jest.fn().mockResolvedValue(undefined);
+            service.getUserAttributes = jest.fn(async () => {
+                throw new Error(
+                    'Materialization should not fetch user attributes',
+                );
+            });
+            const compileSpy = jest
+                .spyOn(ProjectService, '_compileQuery')
+                .mockResolvedValue({
+                    query: 'SELECT 1',
+                    fields: {},
+                    warnings: [],
+                    parameterReferences: new Set(),
+                    missingParameterReferences: new Set(),
+                    usedParameters: {},
+                } as AnyType);
+            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    tableCalculations: [],
+                },
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                invalidateCache: false,
+                parameters: undefined,
+                pivotConfiguration: undefined,
+                userAttributeOverrides: {
+                    country: ['CA'],
+                },
+            });
+
+            expect(service.getExplore).not.toHaveBeenCalled();
+            expect(projectModel.getExploreFromCache).toHaveBeenCalledWith(
+                projectUuid,
+                metricQueryMock.exploreName,
+            );
+
+            const compileArgs = compileSpy.mock.calls[0][0];
+            expect(compileArgs.userAttributes).toEqual({});
+            expect(compileArgs.intrinsicUserAttributes).toEqual({});
+            expect(compileArgs.explore.tables.a.sqlWhere).toBeUndefined();
+            expect(compileArgs.explore.tables.a.uncompiledSqlWhere).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.requiredAttributes,
+            ).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.anyAttributes,
+            ).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.dimensions.dim1.requiredAttributes,
+            ).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.dimensions.dim1.anyAttributes,
+            ).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.dimensions.dim1
+                    .tablesRequiredAttributes,
+            ).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.metrics.met1.requiredAttributes,
+            ).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.metrics.met1.tablesAnyAttributes,
+            ).toBeUndefined();
+        });
+
+        test('keeps real user access controls on the normal pre-aggregate read path', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const mockStrategy: PreAggregateStrategy = {
+                ...makeMockStrategy({
+                    resolved: true,
+                    query: 'SELECT * FROM duckdb_preagg',
+                }),
+                getRoutingDecision: () => ({
+                    target: 'pre_aggregate',
+                    preAggregateMetadata: {
+                        hit: true,
+                        name: 'rollup',
+                    },
+                    route: {
+                        sourceExploreName: 'valid_explore',
+                        preAggregateName: 'rollup',
+                        mode: 'opportunistic',
+                    },
+                }),
+            };
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            service.getExplore = jest.fn().mockResolvedValue(validExplore);
+            (service as AnyType).getWarehouseCredentials = jest
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = jest.fn().mockResolvedValue(undefined);
+            service.getUserAttributes = jest.fn(async () => ({
+                userAttributes: {
+                    country: ['US'],
+                    department: ['finance'],
+                },
+                intrinsicUserAttributes: {
+                    email: 'person@example.com',
+                },
+            }));
+            const compileSpy = jest
+                .spyOn(ProjectService, '_compileQuery')
+                .mockResolvedValue({
+                    query: 'SELECT 1',
+                    fields: {},
+                    warnings: [],
+                    parameterReferences: new Set(),
+                    missingParameterReferences: new Set(),
+                    usedParameters: {},
+                } as AnyType);
+            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    tableCalculations: [],
+                },
+                context: QueryExecutionContext.EXPLORE,
+                invalidateCache: false,
+                parameters: undefined,
+                pivotConfiguration: undefined,
+                userAttributeOverrides: {
+                    country: ['CA'],
+                },
+            });
+
+            expect(service.getExplore).toHaveBeenCalledWith(
+                sessionAccount,
+                projectUuid,
+                metricQueryMock.exploreName,
+                'organizationUuid',
+            );
+
+            const compileArgs = compileSpy.mock.calls[0][0];
+            expect(compileArgs.explore).toBe(validExplore);
+            expect(compileArgs.userAttributes).toEqual({
+                country: ['CA'],
+                department: ['finance'],
+            });
+            expect(compileArgs.intrinsicUserAttributes).toEqual({
+                email: 'person@example.com',
+            });
+            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    preAggregationRoute: {
+                        sourceExploreName: 'valid_explore',
+                        preAggregateName: 'rollup',
+                        mode: 'opportunistic',
+                    },
+                    userAccessControls: {
+                        userAttributes: {
+                            country: ['CA'],
+                            department: ['finance'],
+                        },
+                        intrinsicUserAttributes: {
+                            email: 'person@example.com',
+                        },
+                    },
+                }),
+                expect.any(Object),
+            );
+        });
+
+        test('does not strip unsupported user attributes outside approved materialization access points', async () => {
+            const unsupportedExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        sqlTable:
+                            "${lightdash.attribute.country}.unsupported_source",
+                        sqlWhere: "${lightdash.attribute.country} = 'US'",
+                        uncompiledSqlWhere:
+                            "${lightdash.attribute.country} = 'US'",
+                    },
+                },
+            };
+
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            (service as AnyType).preAggregateStrategy = {
+                ...makeMockStrategy({
+                    resolved: false,
+                    reason: 'not_used',
+                    isFatal: false,
+                }),
+                getRoutingDecision: () => ({
+                    target: 'materialization',
+                    preAggregateMetadata: {
+                        hit: true,
+                        name: 'rollup',
+                    },
+                    materializationAccessPlan: {
+                        tableNames: ['a'],
+                        dimensionFieldIds: [
+                            getItemId(unsupportedExplore.tables.a.dimensions.dim1),
+                        ],
+                        metricFieldIds: [
+                            getItemId(unsupportedExplore.tables.a.metrics.met1),
+                        ],
+                    },
+                }),
+            };
+            projectModel.getExploreFromCache.mockResolvedValue(unsupportedExplore);
+            (service as AnyType).getWarehouseCredentials = jest
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = jest.fn().mockResolvedValue(undefined);
+            service.getUserAttributes = jest.fn(async () => {
+                throw new Error(
+                    'Materialization should not fetch user attributes',
+                );
+            });
+            const compileSpy = jest
+                .spyOn(ProjectService, '_compileQuery')
+                .mockImplementation(async ({ explore }: AnyType) => {
+                    if (
+                        explore.tables.a.sqlTable.includes(
+                            '${lightdash.attribute.country}',
+                        )
+                    ) {
+                        throw new Error(
+                            'Unsupported user attribute in sqlTable',
+                        );
+                    }
+
+                    return {
+                        query: 'SELECT 1',
+                        fields: {},
+                        warnings: [],
+                        parameterReferences: new Set(),
+                        missingParameterReferences: new Set(),
+                        usedParameters: {},
+                    } as AnyType;
+                });
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        tableCalculations: [],
+                    },
+                    context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                    invalidateCache: false,
+                    parameters: undefined,
+                    pivotConfiguration: undefined,
+                }),
+            ).rejects.toThrow('Unsupported user attribute in sqlTable');
+
+            const compileArgs = compileSpy.mock.calls[0][0];
+            expect(compileArgs.explore.tables.a.sqlTable).toContain(
+                '${lightdash.attribute.country}',
+            );
         });
     });
 

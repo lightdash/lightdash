@@ -31,7 +31,14 @@ export type PreAggregationRoutingDecision =
     | {
           target: 'materialization';
           preAggregateMetadata?: CacheMetadata['preAggregate'];
+          materializationAccessPlan?: MaterializationAccessPlan;
       };
+
+export type MaterializationAccessPlan = {
+    tableNames: string[];
+    dimensionFieldIds: string[];
+    metricFieldIds: string[];
+};
 
 export type PreAggregateStatsFilters = {
     exploreName?: string;

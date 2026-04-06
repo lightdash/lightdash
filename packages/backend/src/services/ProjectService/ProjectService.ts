@@ -1236,6 +1236,8 @@ export class ProjectService extends BaseService {
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
     }) {
+        // TODO: PRE_AGGREGATE_MATERIALIZATION should resolve project/org scoped
+        // warehouse credentials only, without consulting personal credentials.
         // First, check if project uses organization-level credentials
         const project = await this.projectModel.get(projectUuid);
         const { organizationWarehouseCredentialsUuid } = project;
