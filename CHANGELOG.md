@@ -1,3 +1,11 @@
+## [0.2724.4](https://github.com/lightdash/lightdash/compare/0.2724.3...0.2724.4) (2026-04-06)
+
+
+### Bug Fixes
+
+* make snapshot SQL formatter adapter mapping exhaustive ([#21754](https://github.com/lightdash/lightdash/issues/21754)) ([1c81936](https://github.com/lightdash/lightdash/commit/1c819364ec781fad59d994a59e92e21b28be45f9))
+* upgrade dompurify 3.2.5→3.3.2 (security) ([#21726](https://github.com/lightdash/lightdash/issues/21726)) ([b7b83de](https://github.com/lightdash/lightdash/commit/b7b83de8df851650db81c9a63f1d9396f3e643ce))
+
 ## [0.2724.3](https://github.com/lightdash/lightdash/compare/0.2724.2...0.2724.3) (2026-04-03)
 
 
