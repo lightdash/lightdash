@@ -26,10 +26,11 @@ async function createCharts(knex: Knex): Promise<ChartUuids> {
         database: knex,
     });
 
-    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
-        SEED_PROJECT.project_uuid,
-    );
-    const spaceUuid = rootSpaces[0];
+    const [seedSpace] = await spaceModel.find({
+        projectUuid: SEED_PROJECT.project_uuid,
+        slug: 'jaffle-shop',
+    });
+    const spaceUuid = seedSpace?.uuid;
     if (!spaceUuid) throw new Error('No space found for seeding');
 
     const updatedByUser = {
@@ -1508,10 +1509,11 @@ async function createDashboard(
         database: knex,
     });
 
-    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
-        SEED_PROJECT.project_uuid,
-    );
-    const spaceUuid = rootSpaces[0];
+    const [seedSpace] = await spaceModel.find({
+        projectUuid: SEED_PROJECT.project_uuid,
+        slug: 'jaffle-shop',
+    });
+    const spaceUuid = seedSpace?.uuid;
     if (!spaceUuid) throw new Error('No space found for seeding');
 
     // Create dashboard tiles
