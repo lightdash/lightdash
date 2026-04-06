@@ -571,6 +571,7 @@ export const getSqlForTruncatedDate = (
     );
     return toUtc(truncated, timezone);
 };
+
 const getSqlForDatePart: TimeFrameConfig['getSql'] = (
     adapterType,
     timeFrame,
