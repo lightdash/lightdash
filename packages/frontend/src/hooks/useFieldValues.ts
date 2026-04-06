@@ -101,6 +101,7 @@ export const useFieldValues = (
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
+    exploreName: string | undefined = undefined,
 ) => {
     const { embedToken } = useEmbed();
     const [fieldName, setFieldName] = useState<string>(field.name);
@@ -113,8 +114,8 @@ export const useFieldValues = (
     const [refreshedAt, setRefreshedAt] = useState<Date>(new Date());
 
     const tableName = useMemo(
-        () => (isField(field) ? field.table : undefined),
-        [field],
+        () => exploreName ?? (isField(field) ? field.table : undefined),
+        [exploreName, field],
     );
 
     const fieldId = useMemo(() => getItemId(field), [field]);
@@ -153,6 +154,7 @@ export const useFieldValues = (
         'search',
         debouncedSearch,
         parameterValues,
+        filters,
     ];
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
@@ -249,6 +251,7 @@ export const useFieldValuesSafely = (
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
+    exploreName: string | undefined = undefined,
 ) => {
     const fieldValuesResult = useFieldValues(
         search,
@@ -273,6 +276,7 @@ export const useFieldValuesSafely = (
             enabled: !!field && useQueryOptions?.enabled !== false,
         },
         parameterValues,
+        exploreName,
     );
 
     if (!field) {
