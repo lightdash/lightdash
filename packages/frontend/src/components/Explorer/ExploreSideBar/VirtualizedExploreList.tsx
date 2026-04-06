@@ -1,9 +1,10 @@
 import { type SummaryExplore } from '@lightdash/common';
-import { Divider, Text } from '@mantine-8/core';
+import { Divider } from '@mantine-8/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import ExploreNavLink from './ExploreNavLink';
 import GroupHeader from './GroupHeader';
+import SectionHeader from './SectionHeader';
 
 // Define item types for the virtualized list
 export type VirtualListItem =
@@ -20,7 +21,12 @@ export type VirtualListItem =
           groupLabel?: string;
       }
     | { type: 'divider'; id: string }
-    | { type: 'section-header'; id: string; label: string };
+    | {
+          type: 'section-header';
+          id: string;
+          label: string;
+          isExpanded: boolean;
+      };
 
 interface VirtualizedExploreListProps {
     sortedGroupLabels: string[];
@@ -49,6 +55,10 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
         new Set(),
     );
+    // Sections are collapsed by default (empty set means all collapsed)
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(
+        new Set(),
+    );
     const parentRef = useRef<HTMLDivElement>(null);
 
     const toggleGroup = useCallback((groupLabel: string) => {
@@ -58,6 +68,18 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 newSet.delete(groupLabel);
             } else {
                 newSet.add(groupLabel);
+            }
+            return newSet;
+        });
+    }, []);
+
+    const toggleSection = useCallback((sectionLabel: string) => {
+        setExpandedSections((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(sectionLabel)) {
+                newSet.delete(sectionLabel);
+            } else {
+                newSet.add(sectionLabel);
             }
             return newSet;
         });
@@ -105,6 +127,9 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
 
         // Add virtual views section if there are custom explores
         if (customUngroupedExplores.length > 0) {
+            const isVirtualViewsExpanded =
+                expandedSections.has('Virtual Views');
+
             items.push({
                 type: 'divider',
                 id: `divider-${itemId++}`,
@@ -113,19 +138,25 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'Virtual Views',
+                isExpanded: isVirtualViewsExpanded,
             });
 
-            for (const explore of customUngroupedExplores) {
-                items.push({
-                    type: 'explore',
-                    id: `virtual-${itemId++}`,
-                    explore,
-                });
+            if (isVirtualViewsExpanded) {
+                for (const explore of customUngroupedExplores) {
+                    items.push({
+                        type: 'explore',
+                        id: `virtual-${itemId++}`,
+                        explore,
+                    });
+                }
             }
         }
 
         // Add pre-aggregates section if there are pre-aggregate explores
         if (preAggregateExplores.length > 0) {
+            const isPreAggregatesExpanded =
+                expandedSections.has('Pre-aggregates');
+
             items.push({
                 type: 'divider',
                 id: `divider-${itemId++}`,
@@ -134,14 +165,17 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'Pre-aggregates',
+                isExpanded: isPreAggregatesExpanded,
             });
 
-            for (const explore of preAggregateExplores) {
-                items.push({
-                    type: 'explore',
-                    id: `pre-aggregate-${itemId++}`,
-                    explore,
-                });
+            if (isPreAggregatesExpanded) {
+                for (const explore of preAggregateExplores) {
+                    items.push({
+                        type: 'explore',
+                        id: `pre-aggregate-${itemId++}`,
+                        explore,
+                    });
+                }
             }
         }
 
@@ -153,6 +187,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         customUngroupedExplores,
         preAggregateExplores,
         expandedGroups,
+        expandedSections,
     ]);
 
     const getItemHeight = useCallback(
@@ -224,22 +259,19 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
 
                 case 'section-header':
                     return (
-                        <Text
+                        <SectionHeader
                             key={item.id}
-                            fw={500}
-                            fz="xs"
-                            c="ldGray.6"
-                            mb="xs"
-                        >
-                            {item.label}
-                        </Text>
+                            label={item.label}
+                            isExpanded={item.isExpanded}
+                            onToggle={() => toggleSection(item.label)}
+                        />
                     );
 
                 default:
                     return null;
             }
         },
-        [searchQuery, toggleGroup, onExploreClick],
+        [searchQuery, toggleGroup, toggleSection, onExploreClick],
     );
 
     return (
@@ -252,7 +284,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         >
             <div
                 style={{
-                    height: virtualizer.getTotalSize(),
+                    height: virtualizer.getTotalSize() + 16,
                     position: 'relative',
                 }}
             >
