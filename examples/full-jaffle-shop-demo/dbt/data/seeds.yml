@@ -11,6 +11,8 @@ seeds:
             DateTime64(3, 'UTC')
           {%- elif target.type in ['databricks', 'spark', 'bigquery'] -%}
             timestamp
+          {%- elif target.type in ['trino', 'athena'] -%}
+            timestamp with time zone
           {%- else -%}
             timestamptz
           {%- endif -%}
