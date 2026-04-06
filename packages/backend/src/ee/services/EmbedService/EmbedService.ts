@@ -1838,6 +1838,7 @@ export class EmbedService extends BaseService {
                 search,
                 limit,
                 filters,
+                filterOperator: undefined,
             });
 
         const projectTimezone =

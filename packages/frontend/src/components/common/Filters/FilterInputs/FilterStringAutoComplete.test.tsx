@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
@@ -64,6 +65,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={[]}
                     onChange={onChange}
@@ -82,6 +84,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={[]}
                     onChange={onChange}
@@ -108,6 +111,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={[]}
                     onChange={onChange}
@@ -148,6 +152,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={['new-suggestion']}
                     onChange={onChange}
@@ -184,6 +189,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={[]}
                     onChange={onChange}
@@ -209,6 +215,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={[]}
                     onChange={onChange}
@@ -237,6 +244,7 @@ describe('FilterStringAutoComplete', () => {
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
+                    filterOperator={FilterOperator.INCLUDE}
                     values={values}
                     suggestions={[]}
                     onChange={onChange}

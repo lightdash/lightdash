@@ -139,6 +139,8 @@ projectRouter.post(
                     req.body.filters,
                     req.body.forceRefresh,
                     req.body.parameters,
+                    undefined, // userAttributeOverrides
+                    req.body.filterOperator,
                 );
 
             res.json({

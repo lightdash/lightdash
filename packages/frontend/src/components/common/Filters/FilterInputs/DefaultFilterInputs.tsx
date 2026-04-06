@@ -77,6 +77,7 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                         <FilterStringAutoComplete
                             limit={FILTER_SELECT_LIMIT}
                             filterId={rule.id}
+                            filterOperator={rule.operator}
                             disabled={disabled}
                             field={field}
                             data-autofocus

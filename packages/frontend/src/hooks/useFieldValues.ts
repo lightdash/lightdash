@@ -7,6 +7,7 @@ import {
     type DashboardFilterRule,
     type FieldValueSearchResult,
     type FilterableItem,
+    type FilterOperator,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
@@ -71,6 +72,7 @@ const getFieldValues = async (
     filters: AndFilterGroup | undefined,
     limit: number = MAX_AUTOCOMPLETE_RESULTS,
     parameterValues?: ParametersValuesMap,
+    filterOperator?: FilterOperator,
 ) => {
     if (!table) {
         throw new Error('Table is required to search for field values');
@@ -86,6 +88,7 @@ const getFieldValues = async (
             filters: stripTileTargetsFromFilters(filters),
             forceRefresh,
             parameters: parameterValues,
+            filterOperator,
         }),
     });
 };
@@ -102,6 +105,7 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
     exploreName: string | undefined = undefined,
+    filterOperator: FilterOperator | undefined = undefined,
 ) => {
     const { embedToken } = useEmbed();
     const [fieldName, setFieldName] = useState<string>(field.name);
@@ -155,6 +159,7 @@ export const useFieldValues = (
         debouncedSearch,
         parameterValues,
         filters,
+        filterOperator,
     ];
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
@@ -180,6 +185,7 @@ export const useFieldValues = (
                     filters,
                     undefined,
                     parameterValues,
+                    filterOperator,
                 );
             }
         },
@@ -252,6 +258,7 @@ export const useFieldValuesSafely = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
     exploreName: string | undefined = undefined,
+    filterOperator: FilterOperator | undefined = undefined,
 ) => {
     const fieldValuesResult = useFieldValues(
         search,
@@ -277,6 +284,7 @@ export const useFieldValuesSafely = (
         },
         parameterValues,
         exploreName,
+        filterOperator,
     );
 
     if (!field) {
