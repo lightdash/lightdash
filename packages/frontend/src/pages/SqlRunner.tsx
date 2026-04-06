@@ -26,6 +26,7 @@ import {
     resetState,
     setFetchResultsOnLoad,
     setMode,
+    setParameterValues,
     setProjectUuid,
     setQuoteChar,
     setSavedChartData,
@@ -107,6 +108,12 @@ const SqlRunner = ({
             const sql = virtualViewState.sql.replace(/^[()]+|[()]+$/g, '');
             dispatch(setSql(sql));
             dispatch(setMode('virtualView'));
+            // Restore saved parameter values when editing a virtual view
+            if (virtualViewState.savedParameterValues) {
+                dispatch(
+                    setParameterValues(virtualViewState.savedParameterValues),
+                );
+            }
         }
     });
 

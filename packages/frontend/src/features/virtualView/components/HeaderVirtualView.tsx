@@ -5,6 +5,7 @@ import {
     isChartValidationError,
     ValidationTarget,
     type Explore,
+    type ParametersValuesMap,
     type ValidationErrorChartResponse,
     type ValidationResponse,
     type VizColumn,
@@ -50,6 +51,7 @@ export type VirtualViewState = {
     name: string;
     label: string;
     sql: string;
+    savedParameterValues?: ParametersValuesMap;
     onCloseEditVirtualView: () => void;
 };
 
@@ -301,6 +303,9 @@ export const HeaderVirtualView: FC<{
     const navigate = useNavigate();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const parameterValues = useAppSelector(
+        (state) => state.sqlRunner.parameterValues,
+    );
     const warehouseConnectionType = useAppSelector(
         (state) => state.sqlRunner.warehouseConnectionType,
     );
@@ -333,6 +338,9 @@ export const HeaderVirtualView: FC<{
     const [name, setName] = useState(
         virtualViewState.label || friendlyName(virtualViewState.name),
     );
+
+    const savedParameterValues =
+        Object.keys(parameterValues).length > 0 ? parameterValues : undefined;
 
     const handleUpdateVirtualView = async ({
         handleDiff,
@@ -390,6 +398,7 @@ export const HeaderVirtualView: FC<{
                 name,
                 sql,
                 columns: columnsFromQuery,
+                parameterValues: savedParameterValues,
             });
             return navigate(0);
         }
@@ -437,6 +446,10 @@ export const HeaderVirtualView: FC<{
                         name,
                         sql,
                         columns: columnsFromQuery,
+                        parameterValues:
+                            Object.keys(parameterValues).length > 0
+                                ? parameterValues
+                                : undefined,
                     });
                     void navigate(0);
                 } else {
@@ -468,6 +481,10 @@ export const HeaderVirtualView: FC<{
                                 name,
                                 sql,
                                 columns: columnsFromQuery,
+                                parameterValues:
+                                    Object.keys(parameterValues).length > 0
+                                        ? parameterValues
+                                        : undefined,
                             });
                             void navigate(0);
                         } else {

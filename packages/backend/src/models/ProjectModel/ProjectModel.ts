@@ -2925,7 +2925,7 @@ export class ProjectModel {
 
     async createVirtualView(
         projectUuid: string,
-        { name, sql, columns }: CreateVirtualViewPayload,
+        { name, sql, columns, parameterValues }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
@@ -2933,6 +2933,8 @@ export class ProjectModel {
             sql,
             columns,
             warehouseClient,
+            undefined, // label
+            parameterValues,
         );
 
         // insert virtual view into cached_explore
@@ -2981,6 +2983,7 @@ export class ProjectModel {
             payload.columns,
             warehouseClient,
             payload.name, // label
+            payload.parameterValues,
         );
 
         // insert into cached_explore

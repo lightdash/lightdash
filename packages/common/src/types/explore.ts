@@ -12,6 +12,7 @@ import {
     type Source,
 } from './field';
 import { type LightdashProjectConfig } from './lightdashProjectConfig';
+import { type ParametersValuesMap } from './parameters';
 import { type PreAggregateDef } from './preAggregate';
 import { type TableBase } from './table';
 
@@ -108,6 +109,7 @@ export type Explore = {
     };
     aiHint?: string | string[];
     parameters?: LightdashProjectConfig['parameters'];
+    savedParameterValues?: ParametersValuesMap; // Parameter values stored with virtual views
     preAggregates?: PreAggregateDef[];
     preAggregateSource?: PreAggregateSource;
     /**

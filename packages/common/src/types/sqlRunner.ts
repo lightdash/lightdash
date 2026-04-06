@@ -20,6 +20,7 @@ import {
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
 import { type Organization } from './organization';
+import { type ParametersValuesMap } from './parameters';
 import { type Project } from './projects';
 import { type RawResultRow } from './results';
 import { type ChartKind } from './savedCharts';
@@ -315,6 +316,7 @@ export type CreateVirtualViewPayload = {
     name: string;
     sql: string;
     columns: VizColumn[];
+    parameterValues?: ParametersValuesMap;
 };
 
 export type UpdateVirtualViewPayload = CreateVirtualViewPayload;

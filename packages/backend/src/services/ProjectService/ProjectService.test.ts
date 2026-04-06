@@ -8,6 +8,7 @@ import {
     ParameterError,
     SessionUser,
     WarehouseTypes,
+    type Explore,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -1317,6 +1318,59 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(
                 'Pre-aggregate definition "invalid" cannot be materialized: Unknown metric "orders.count"',
             );
+        });
+    });
+
+    describe('combineParameters', () => {
+        test('should include savedParameterValues from explore', async () => {
+            const explore = {
+                name: 'my_virtual_view',
+                baseTable: 'my_virtual_view',
+                tables: {},
+                savedParameterValues: {
+                    order_status: 'completed',
+                },
+            } as Pick<
+                Explore,
+                'name' | 'baseTable' | 'tables' | 'savedParameterValues'
+            >;
+
+            const result = await service.combineParameters(
+                projectUuid,
+                explore as Explore,
+            );
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    order_status: 'completed',
+                }),
+            );
+        });
+
+        test('savedParameterValues should be overridden by request parameters', async () => {
+            const explore = {
+                name: 'my_virtual_view',
+                baseTable: 'my_virtual_view',
+                tables: {},
+                savedParameterValues: {
+                    order_status: 'completed',
+                    region: 'US',
+                },
+            } as Pick<
+                Explore,
+                'name' | 'baseTable' | 'tables' | 'savedParameterValues'
+            >;
+
+            const result = await service.combineParameters(
+                projectUuid,
+                explore as Explore,
+                { order_status: 'pending' }, // request parameters override
+            );
+
+            // Request param overrides saved value
+            expect(result.order_status).toBe('pending');
+            // Saved param without request override is still included
+            expect(result.region).toBe('US');
         });
     });
 });

@@ -210,6 +210,12 @@ export const sqlRunnerSlice = createSlice({
         clearParameterValues: (state) => {
             state.parameterValues = {};
         },
+        setParameterValues: (
+            state,
+            action: PayloadAction<ParametersValuesMap>,
+        ) => {
+            state.parameterValues = action.payload;
+        },
         setFetchResultsOnLoad: (
             state,
             action: PayloadAction<{
@@ -435,6 +441,7 @@ export const {
     setState,
     updateParameterValue,
     clearParameterValues,
+    setParameterValues,
 } = sqlRunnerSlice.actions;
 
 export const {
