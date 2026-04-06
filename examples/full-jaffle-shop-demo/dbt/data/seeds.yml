@@ -19,6 +19,8 @@ seeds:
             timestamp_ntz
           {%- elif target.type == 'clickhouse' -%}
             DateTime64(3)
+          {%- elif target.type == 'bigquery' -%}
+            datetime
           {%- else -%}
             timestamp
           {%- endif -%}
