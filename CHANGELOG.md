@@ -1,3 +1,11 @@
+## [0.2728.3](https://github.com/lightdash/lightdash/compare/0.2728.2...0.2728.3) (2026-04-06)
+
+
+### Bug Fixes
+
+* batch insert during preview project copy ([#21772](https://github.com/lightdash/lightdash/issues/21772)) ([1cf0b53](https://github.com/lightdash/lightdash/commit/1cf0b535d5ae09e6e098a1d9a5e662e42afbdff7))
+* use deterministic space lookup in seed scripts ([#21775](https://github.com/lightdash/lightdash/issues/21775)) ([e88da83](https://github.com/lightdash/lightdash/commit/e88da83844295385f5d154e60a9ef96bf9ab42e4))
+
 ## [0.2728.2](https://github.com/lightdash/lightdash/compare/0.2728.1...0.2728.2) (2026-04-06)
 
 
