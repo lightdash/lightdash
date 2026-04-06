@@ -99,6 +99,7 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
+            activeTabUuid={activeTabUuid}
         >
             <AddFilterButton
                 isEditMode={isEditMode}
