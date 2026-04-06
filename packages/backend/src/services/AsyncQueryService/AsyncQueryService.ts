@@ -68,7 +68,6 @@ import {
     UnexpectedServerError,
     UserAccessControls,
     WarehouseClient,
-    type IntrinsicUserAttributes,
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
@@ -83,6 +82,7 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
+    type IntrinsicUserAttributes,
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -93,10 +93,10 @@ import {
     type ResultColumns,
     type RunQueryTags,
     type SpaceSummaryBase,
+    type UserAttributeValueMap,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
     type WarehouseSqlBuilder,
-    type UserAttributeValueMap,
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -152,8 +152,8 @@ import {
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
-    type MaterializationAccessPlan,
     NoOpPreAggregateStrategy,
+    type MaterializationAccessPlan,
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
     type PreAggregationRoutingDecision,
@@ -2547,7 +2547,7 @@ export class AsyncQueryService extends ProjectService {
         return explore;
     }
 
-    private sanitizeMaterializationFieldAccess<
+    private static sanitizeMaterializationFieldAccess<
         T extends CompiledDimension | CompiledMetric,
     >({
         field,
@@ -2587,13 +2587,14 @@ export class AsyncQueryService extends ProjectService {
                     ? tablesRequiredAttributes
                     : undefined,
             tablesAnyAttributes:
-                tablesAnyAttributes && Object.keys(tablesAnyAttributes).length > 0
+                tablesAnyAttributes &&
+                Object.keys(tablesAnyAttributes).length > 0
                     ? tablesAnyAttributes
                     : undefined,
         };
     }
 
-    private sanitizeExploreForMaterialization({
+    private static sanitizeExploreForMaterialization({
         explore,
         accessPlan,
     }: {
@@ -2630,13 +2631,16 @@ export class AsyncQueryService extends ProjectService {
                                 Object.entries(table.dimensions).map(
                                     ([dimensionName, dimension]) => [
                                         dimensionName,
-                                        this.sanitizeMaterializationFieldAccess({
-                                            field: dimension,
-                                            stripFieldAccess: dimensionFieldIds.has(
-                                                getItemId(dimension),
-                                            ),
-                                            tableNames,
-                                        }),
+                                        AsyncQueryService.sanitizeMaterializationFieldAccess(
+                                            {
+                                                field: dimension,
+                                                stripFieldAccess:
+                                                    dimensionFieldIds.has(
+                                                        getItemId(dimension),
+                                                    ),
+                                                tableNames,
+                                            },
+                                        ),
                                     ],
                                 ),
                             ),
@@ -2644,13 +2648,16 @@ export class AsyncQueryService extends ProjectService {
                                 Object.entries(table.metrics).map(
                                     ([metricName, metric]) => [
                                         metricName,
-                                        this.sanitizeMaterializationFieldAccess({
-                                            field: metric,
-                                            stripFieldAccess: metricFieldIds.has(
-                                                getItemId(metric),
-                                            ),
-                                            tableNames,
-                                        }),
+                                        AsyncQueryService.sanitizeMaterializationFieldAccess(
+                                            {
+                                                field: metric,
+                                                stripFieldAccess:
+                                                    metricFieldIds.has(
+                                                        getItemId(metric),
+                                                    ),
+                                                tableNames,
+                                            },
+                                        ),
                                     ],
                                 ),
                             ),
@@ -3407,7 +3414,7 @@ export class AsyncQueryService extends ProjectService {
                       forceWarehouse: usePreAggregateCache === false,
                   });
 
-                  return this.sanitizeExploreForMaterialization({
+                  return AsyncQueryService.sanitizeExploreForMaterialization({
                       explore: rawExplore,
                       accessPlan:
                           routingDecision.target === 'materialization'

@@ -15,8 +15,8 @@ import {
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import Logger from '../../../logging/logger';
 import type {
-    MaterializationAccessPlan,
     PreAggregateStrategy as IPreAggregateStrategy,
+    MaterializationAccessPlan,
     PreAggregateExecutionResolution,
     PreAggregateStatsFilters,
     PreAggregationRoutingDecision,
@@ -74,69 +74,68 @@ const getMaterializationAccessPlan = ({
     });
 
     for (const preAggregateDef of explore.preAggregates) {
-        const expectedMaterializationMetricQuery = buildMaterializationMetricQuery(
-            {
+        const expectedMaterializationMetricQuery =
+            buildMaterializationMetricQuery({
                 sourceExplore: explore,
                 preAggregateDef,
                 materializationConfig: {
                     maxRows: null,
                 },
-            },
-        ).metricQuery;
+            }).metricQuery;
 
         if (
-            !setsMatch(
+            setsMatch(
                 metricQuery.dimensions,
                 expectedMaterializationMetricQuery.dimensions,
-            ) ||
-            !setsMatch(
+            ) &&
+            setsMatch(
                 metricQuery.metrics,
                 expectedMaterializationMetricQuery.metrics,
             )
         ) {
-            continue;
-        }
+            const dimensionFieldIds =
+                expectedMaterializationMetricQuery.dimensions;
+            const tableNames = new Set<string>([explore.baseTable]);
+            const dimensionFieldIdsSet = new Set(dimensionFieldIds);
 
-        const dimensionFieldIds = expectedMaterializationMetricQuery.dimensions;
-        const tableNames = new Set<string>([explore.baseTable]);
-        const dimensionFieldIdsSet = new Set(dimensionFieldIds);
+            Object.values(explore.tables).forEach((table) => {
+                Object.values(table.dimensions).forEach((dimension) => {
+                    if (dimensionFieldIdsSet.has(getItemId(dimension))) {
+                        addTableReferences(
+                            tableNames,
+                            dimension.table,
+                            dimension.tablesReferences,
+                        );
+                    }
+                });
+            });
 
-        Object.values(explore.tables).forEach((table) => {
-            Object.values(table.dimensions).forEach((dimension) => {
-                if (dimensionFieldIdsSet.has(getItemId(dimension))) {
+            const metricFieldIds = preAggregateDef.metrics.reduce<string[]>(
+                (acc, metricReference) => {
+                    const metricLookup =
+                        metricsByReference.get(metricReference);
+                    if (!metricLookup) {
+                        return acc;
+                    }
+
                     addTableReferences(
                         tableNames,
-                        dimension.table,
-                        dimension.tablesReferences,
+                        metricLookup.metric.table,
+                        metricLookup.metric.tablesReferences,
                     );
-                }
-            });
-        });
-
-        const metricFieldIds = preAggregateDef.metrics.reduce<string[]>(
-            (acc, metricReference) => {
-                const metricLookup = metricsByReference.get(metricReference);
-                if (!metricLookup) {
+                    acc.push(metricLookup.fieldId);
                     return acc;
-                }
+                },
+                [],
+            );
 
-                addTableReferences(
-                    tableNames,
-                    metricLookup.metric.table,
-                    metricLookup.metric.tablesReferences,
-                );
-                acc.push(metricLookup.fieldId);
-                return acc;
-            },
-            [],
-        );
-
-        return {
-            preAggregateName: preAggregateDef.name,
-            tableNames: Array.from(tableNames),
-            dimensionFieldIds,
-            metricFieldIds,
-        };
+            return {
+                preAggregateName: preAggregateDef.name,
+                tableNames: Array.from(tableNames),
+                dimensionFieldIds,
+                metricFieldIds,
+            };
+        }
     }
 
     return undefined;
@@ -213,17 +212,15 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             return {
                 target: 'materialization',
                 preAggregateMetadata,
-                materializationAccessPlan:
-                    materializationAccessPlan
-                        ? {
-                              tableNames:
-                                  materializationAccessPlan.tableNames,
-                              dimensionFieldIds:
-                                  materializationAccessPlan.dimensionFieldIds,
-                              metricFieldIds:
-                                  materializationAccessPlan.metricFieldIds,
-                          }
-                        : undefined,
+                materializationAccessPlan: materializationAccessPlan
+                    ? {
+                          tableNames: materializationAccessPlan.tableNames,
+                          dimensionFieldIds:
+                              materializationAccessPlan.dimensionFieldIds,
+                          metricFieldIds:
+                              materializationAccessPlan.metricFieldIds,
+                      }
+                    : undefined,
             };
         }
 
