@@ -665,12 +665,21 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
         appliedDashboardFilters: DashboardFilters;
     };
 
+export type QueryResultsPerformance = {
+    initialQueryExecutionMs: number | null;
+    resultsPageExecutionMs: number;
+    queueTimeMs: number | null;
+};
+
+export type QueryResultsMetadata = {
+    performance: QueryResultsPerformance;
+};
+
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];
-    initialQueryExecutionMs: number;
-    resultsPageExecutionMs: number;
+    metadata: QueryResultsMetadata;
     status: QueryHistoryStatus.READY;
     pivotDetails: {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over maxColumnLimit
