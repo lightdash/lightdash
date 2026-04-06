@@ -53,16 +53,18 @@ const timeFilterOptions: Array<{
         FilterOperator.IN_THE_NEXT,
         FilterOperator.IN_THE_CURRENT,
         FilterOperator.NOT_IN_THE_CURRENT,
-        FilterOperator.YEAR_TO_DATE,
-        FilterOperator.QUARTER_TO_DATE,
-        FilterOperator.MONTH_TO_DATE,
-        FilterOperator.WEEK_TO_DATE,
     ]),
     { value: FilterOperator.LESS_THAN, label: 'is before' },
     { value: FilterOperator.LESS_THAN_OR_EQUAL, label: 'is on or before' },
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
     { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
+    ...getFilterOptions([
+        FilterOperator.YEAR_TO_DATE,
+        FilterOperator.QUARTER_TO_DATE,
+        FilterOperator.MONTH_TO_DATE,
+        FilterOperator.WEEK_TO_DATE,
+    ]),
 ];
 
 const toDateOperators = new Set<FilterOperator>([
