@@ -6,8 +6,8 @@
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "typecheck-sdk": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
-        "build": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build",
-        "build-sdk": "pnpm run typecheck && NODE_OPTIONS=--max-old-space-size=8192 vite build --config vite.config.sdk.ts",
+        "build": "pnpm run typecheck && vite build",
+        "build-sdk": "pnpm run typecheck && vite build --config vite.config.sdk.ts",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",
@@ -169,7 +169,7 @@
         "@types/topojson-client": "3.1.5",
         "@types/topojson-specification": "1.0.5",
         "@types/uuid": "8.3.4",
-        "@vitejs/plugin-react": "4.4.1",
+        "@vitejs/plugin-react": "6.0.1",
         "csstype": "3.2.3",
         "eslint-plugin-jest-dom": "5.1.0",
         "isomorphic-fetch": "3.0.0",
@@ -182,12 +182,11 @@
         "ts-unused-exports": "9.0.4",
         "typescript": "6.0.0-beta",
         "unified": "11.0.5",
-        "vite": "7.1.10",
-        "vite-plugin-compression2": "2.3.0",
-        "vite-plugin-css-injected-by-js": "3.5.2",
+        "vite": "8.0.4",
+        "vite-plugin-css-injected-by-js": "4.0.1",
         "vite-plugin-dts": "4.5.4",
         "vite-plugin-monaco-editor": "1.1.0",
         "vite-plugin-svgr": "4.5.0",
-        "vitest": "3.2.4"
+        "vitest": "4.1.2"
     }
 }

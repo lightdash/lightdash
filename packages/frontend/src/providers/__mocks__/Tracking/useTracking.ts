@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
 
-export function useTracking() {
+export function useTracking(): unknown {
     return vi.fn();
 }

@@ -49,9 +49,13 @@ describe('copyImageToClipboard', () => {
         } as any;
 
         // Mock ClipboardItem
-        global.ClipboardItem = vi
-            .fn()
-            .mockImplementation((items) => ({ items })) as any;
+        global.ClipboardItem = class {
+            items: Record<string, Blob>;
+
+            constructor(items: Record<string, Blob>) {
+                this.items = items;
+            }
+        } as unknown as typeof ClipboardItem;
     });
 
     it('should successfully copy image to clipboard', async () => {

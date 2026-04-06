@@ -32,7 +32,7 @@ export default defineConfig({
             fileName: (ext) => `sdk.${ext}.js`,
             cssFileName: 'sdk',
         },
-        rollupOptions: {
+        rolldownOptions: {
             external: [
                 'react',
                 'react-dom',
