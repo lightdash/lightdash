@@ -1,5 +1,5 @@
 import { Paper, ScrollArea } from '@mantine/core';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import Tree from '../components/common/Tree/Tree';
 
 const meta: Meta<typeof Tree> = {

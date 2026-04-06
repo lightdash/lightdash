@@ -11,7 +11,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
     IconExternalLink,
     IconFolderShare,
