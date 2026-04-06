@@ -1,4 +1,4 @@
-import { type FilterableItem } from '@lightdash/common';
+import { type FilterableItem, type FilterOperator } from '@lightdash/common';
 import {
     ActionIcon,
     Group,
@@ -55,6 +55,7 @@ import { formatDisplayValue } from './utils';
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     filterId: string;
     field: FilterableItem;
+    filterOperator: FilterOperator;
     values: string[];
     suggestions: string[];
     onChange: (values: string[]) => void;
@@ -124,6 +125,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     filterId,
     values,
     field,
+    filterOperator,
     suggestions: initialSuggestionData,
     disabled,
     onChange,
@@ -199,6 +201,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         },
         parameterValues,
         baseTable,
+        filterOperator,
     );
 
     const refreshedAtRef = useRef(refreshedAt);

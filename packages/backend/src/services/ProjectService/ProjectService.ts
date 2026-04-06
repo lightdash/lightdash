@@ -4494,6 +4494,18 @@ export class ProjectService extends BaseService {
     }
 
     // Note: can't be private method as it is used in EE
+    static getAutocompleteSearchOperator(
+        filterOperator: FilterOperator | undefined,
+    ): FilterOperator {
+        switch (filterOperator) {
+            case FilterOperator.STARTS_WITH:
+            case FilterOperator.ENDS_WITH:
+                return filterOperator;
+            default:
+                return FilterOperator.INCLUDE;
+        }
+    }
+
     async _getFieldValuesMetricQuery({
         projectUuid,
         table,
@@ -4501,6 +4513,7 @@ export class ProjectService extends BaseService {
         search,
         limit,
         filters,
+        filterOperator,
     }: {
         projectUuid: string;
         table: string;
@@ -4508,6 +4521,7 @@ export class ProjectService extends BaseService {
         search: string;
         limit: number;
         filters: AndFilterGroup | undefined;
+        filterOperator: FilterOperator | undefined;
     }) {
         if (limit > this.lightdashConfig.query.maxLimit) {
             throw new ParameterError(
@@ -4548,13 +4562,15 @@ export class ProjectService extends BaseService {
                 `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
             );
         }
+        const searchOperator =
+            ProjectService.getAutocompleteSearchOperator(filterOperator);
         const autocompleteDimensionFilters: FilterGroupItem[] = [
             {
                 id: uuidv4(),
                 target: {
                     fieldId,
                 },
-                operator: FilterOperator.INCLUDE,
+                operator: searchOperator,
                 values: [search],
             },
             {
@@ -4610,6 +4626,7 @@ export class ProjectService extends BaseService {
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
+        filterOperator?: FilterOperator,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -4631,6 +4648,7 @@ export class ProjectService extends BaseService {
                 search,
                 limit,
                 filters,
+                filterOperator,
             });
 
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
