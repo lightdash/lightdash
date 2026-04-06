@@ -6,6 +6,7 @@ import {
     MAX_SAFE_INTEGER,
     type VizTableConfig,
     type VizTableHeaderSortConfig,
+    formatSql,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -58,7 +59,6 @@ import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import useApp from '../../../providers/App/useApp';
-import { formatSql } from '../../../utils/sqlFormatter';
 import { Parameters, useParameters } from '../../parameters';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { DEFAULT_SQL_LIMIT } from '../constants';

@@ -31,7 +31,7 @@ describe('MetricQueryBuilder snapshot: core queries', () => {
             buildQuery({
                 explore: EXPLORE_BIGQUERY,
                 compiledMetricQuery: METRIC_QUERY,
-                warehouseSqlBuilder: bigqueryClientMock,
+                warehouseClient: bigqueryClientMock,
             }),
         ).toMatchSnapshot();
     });

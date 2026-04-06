@@ -50,6 +50,7 @@
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",
     "sanitize-html": "2.12.1",
+    "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
     "uuid": "11.0.3",
     "yaml": "2.7.0",

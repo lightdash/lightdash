@@ -1,3 +1,4 @@
+import { formatSql } from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -21,7 +22,6 @@ import {
 } from '../features/sqlRunner/utils/monaco';
 import { useCompiledSql } from '../hooks/useCompiledSql';
 import { useProject } from '../hooks/useProject';
-import { formatSql } from '../utils/sqlFormatter';
 
 const MONACO_READ_ONLY: EditorProps['options'] = {
     ...MONACO_DEFAULT_OPTIONS,
