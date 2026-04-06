@@ -7,6 +7,7 @@ import {
     getPreAggregateMetricComponentColumnName,
     getSqlForTruncatedDate,
     MetricType,
+    PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     PreAggregateMetricRepresentationKind,
     preAggregateUtils,
     SupportedDbtAdapter,
@@ -352,9 +353,6 @@ const getEmptyTable = (
     dimensions: {},
     metrics: {},
 });
-
-export const PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER =
-    '${materialized_table}';
 
 export const buildPreAggregateExplore = (
     sourceExplore: Explore,
