@@ -6,6 +6,7 @@ import type { AppDispatch, RootState } from './index';
 import {
     addChartConfigListener,
     addChartTypeListener,
+    addLimitChangeListener,
     addSqlRunnerQueryListener,
     addTabSwitchListener,
 } from './sqlRunnerListeners';
@@ -24,3 +25,4 @@ addSqlRunnerQueryListener(startAppListening);
 addChartConfigListener(startAppListening);
 addChartTypeListener(startAppListening);
 addTabSwitchListener(startAppListening);
+addLimitChangeListener(startAppListening);
