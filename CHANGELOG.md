@@ -1,3 +1,10 @@
+## [0.2728.1](https://github.com/lightdash/lightdash/compare/0.2728.0...0.2728.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* validate timezone strings before SQL interpolation ([#21767](https://github.com/lightdash/lightdash/issues/21767)) ([f9af142](https://github.com/lightdash/lightdash/commit/f9af1422cb3ab9d3b316d2ee393581fcf40b50bc))
+
 # [0.2728.0](https://github.com/lightdash/lightdash/compare/0.2727.0...0.2728.0) (2026-04-06)
 
 
