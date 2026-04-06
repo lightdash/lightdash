@@ -1,3 +1,16 @@
+# [0.2726.0](https://github.com/lightdash/lightdash/compare/0.2725.0...0.2726.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* add embedToken to treemap chart config for embed support ([#21760](https://github.com/lightdash/lightdash/issues/21760)) ([0085fb5](https://github.com/lightdash/lightdash/commit/0085fb5a205466e308ea97d5885c7a0729538f9d))
+* sql format duckdb sql ([#21756](https://github.com/lightdash/lightdash/issues/21756)) ([2e01f5d](https://github.com/lightdash/lightdash/commit/2e01f5d69355928efc568b20d47542aca84101b2))
+
+
+### Features
+
+* add missing sql formattings and consolidate SQL formatting utility to common package ([#21757](https://github.com/lightdash/lightdash/issues/21757)) ([57b9f09](https://github.com/lightdash/lightdash/commit/57b9f097b47b2c7e490344b2d72a958e3607833a))
+
 # [0.2725.0](https://github.com/lightdash/lightdash/compare/0.2724.5...0.2725.0) (2026-04-06)
 
 
