@@ -1,3 +1,10 @@
+## [0.2728.2](https://github.com/lightdash/lightdash/compare/0.2728.1...0.2728.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* persist parameter values with virtual views ([#21774](https://github.com/lightdash/lightdash/issues/21774)) ([2b30190](https://github.com/lightdash/lightdash/commit/2b30190f90d0f254e08d8718e3775c48942031c4))
+
 ## [0.2728.1](https://github.com/lightdash/lightdash/compare/0.2728.0...0.2728.1) (2026-04-06)
 
 
