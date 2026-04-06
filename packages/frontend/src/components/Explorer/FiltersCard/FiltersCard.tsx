@@ -318,6 +318,7 @@ const FiltersCard: FC = memo(() => {
                         withinPortal: true,
                     }}
                     baseTable={data?.baseTable}
+                    exploreFilters={processedFilters}
                     parameterValues={parameterValues}
                 >
                     <FiltersForm

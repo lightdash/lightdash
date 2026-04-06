@@ -2,6 +2,7 @@ import {
     type AndFilterGroup,
     type FilterableItem,
     type FilterRule,
+    type Filters,
     type ItemsMap,
     type ParametersValuesMap,
     type WeekDay,
@@ -19,6 +20,7 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     itemsMap: T;
     baseTable?: string;
     startOfWeek?: WeekDay;
+    exploreFilters: Filters | undefined;
     getField: (filterRule: FilterRule) => T[keyof T] | undefined;
     getAutocompleteFilterGroup: (
         filterId: string,

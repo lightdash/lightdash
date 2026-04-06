@@ -136,8 +136,12 @@ const FilterStringAutoComplete: FC<Props> = ({
     ...rest
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
-    const { projectUuid, getAutocompleteFilterGroup, parameterValues } =
-        useFiltersContext();
+    const {
+        projectUuid,
+        baseTable,
+        getAutocompleteFilterGroup,
+        parameterValues,
+    } = useFiltersContext();
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
     }
@@ -194,6 +198,7 @@ const FilterStringAutoComplete: FC<Props> = ({
             refetchOnMount: 'always',
         },
         parameterValues,
+        baseTable,
     );
 
     const refreshedAtRef = useRef(refreshedAt);
