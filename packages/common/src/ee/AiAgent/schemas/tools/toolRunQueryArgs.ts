@@ -39,6 +39,11 @@ const queryConfigSchema = z.object({
         .describe(
             'The total number of data points / rows allowed on the chart.',
         ),
+    // External LLMs frequently nest filters inside queryConfig instead of at
+    // the top level. Accepting them here prevents Zod from silently stripping
+    // the key. The transform in `toolRunQueryArgsSchemaTransformed` lifts
+    // nested filters to the top level.
+    filters: filtersSchemaV2.optional(),
 });
 
 // Chart-specific configuration for rendering hints
@@ -181,11 +186,19 @@ export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
         tableCalculations: tableCalcsSchema.default(null),
         chartConfig: chartConfigSchema.default(null),
     })
-    .transform((data) => ({
-        ...data,
-        filters: filtersSchemaTransformed.parse(data.filters),
-        customMetrics: customMetricsSchemaTransformed.parse(data.customMetrics),
-    }));
+    .transform((data) => {
+        // LLMs often nest filters inside queryConfig instead of at the top
+        // level. Prefer top-level filters, fall back to queryConfig.filters.
+        const resolvedFilters =
+            data.filters ?? data.queryConfig.filters ?? null;
+        return {
+            ...data,
+            filters: filtersSchemaTransformed.parse(resolvedFilters),
+            customMetrics: customMetricsSchemaTransformed.parse(
+                data.customMetrics,
+            ),
+        };
+    });
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
