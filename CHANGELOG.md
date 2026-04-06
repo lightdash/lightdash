@@ -1,3 +1,10 @@
+# [0.2725.0](https://github.com/lightdash/lightdash/compare/0.2724.5...0.2725.0) (2026-04-06)
+
+
+### Features
+
+* add query execution metadata with queue time and performance breakdown ([#21712](https://github.com/lightdash/lightdash/issues/21712)) ([b375c03](https://github.com/lightdash/lightdash/commit/b375c03b81ea9a9d156643f5da2d11c62b1a8cf6))
+
 ## [0.2724.5](https://github.com/lightdash/lightdash/compare/0.2724.4...0.2724.5) (2026-04-06)
 
 
