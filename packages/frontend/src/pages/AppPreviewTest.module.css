@@ -1,0 +1,12 @@
+.previewContainer {
+    position: relative;
+    height: calc(100vh - 50px);
+    width: 100%;
+}
+
+.menuOverlay {
+    position: absolute;
+    top: var(--mantine-spacing-sm);
+    right: var(--mantine-spacing-xl);
+    z-index: 10;
+}
