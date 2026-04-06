@@ -1119,6 +1119,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string;
         name: string;
         description: string;
+        createdByUserUuid: string;
         versions: {
             version: number;
             prompt: string;
@@ -1143,7 +1144,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const { name, description, versions, hasMore } =
+        const { name, description, createdByUserUuid, versions, hasMore } =
             await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
 
         // Auto-heal stale builds: if the pipeline died (e.g. server restart)
@@ -1184,6 +1185,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             name,
             description,
+            createdByUserUuid,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,

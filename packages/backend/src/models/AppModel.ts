@@ -151,6 +151,7 @@ export class AppModel {
     ): Promise<{
         name: string;
         description: string;
+        createdByUserUuid: string;
         versions: DbAppVersion[];
         hasMore: boolean;
     }> {
@@ -168,6 +169,7 @@ export class AppModel {
                 `${AppVersionsTableName}.*`,
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
+                `${AppsTableName}.created_by_user_uuid`,
             )
             .orderBy(`${AppVersionsTableName}.version`, 'desc')
             .limit(limit + 1);
@@ -183,6 +185,7 @@ export class AppModel {
         const rows: ((DbAppVersion | Record<string, null>) & {
             name: string;
             description: string;
+            created_by_user_uuid: string;
         })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
@@ -191,7 +194,11 @@ export class AppModel {
         }
 
         // App-level fields come from every row (same values); grab from first
-        const { name, description } = rows[0];
+        const {
+            name,
+            description,
+            created_by_user_uuid: createdByUserUuid,
+        } = rows[0];
 
         // If app exists but no versions match, we get one row with all nulls
         const versions = rows.filter(
@@ -202,6 +209,7 @@ export class AppModel {
         return {
             name,
             description,
+            createdByUserUuid,
             versions: versions.slice(0, limit),
             hasMore,
         };
