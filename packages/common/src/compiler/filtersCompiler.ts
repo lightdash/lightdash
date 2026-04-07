@@ -287,7 +287,7 @@ export const renderDateFilterSql = (
         if (dateFormatter === formatDate) {
             return m.format('YYYY-MM-DD');
         }
-        return dateFormatter(m.utc().toDate());
+        return dateFormatter(m.clone().utc().toDate());
     };
 
     const castValue = (value: string): string => {
@@ -349,7 +349,7 @@ export const renderDateFilterSql = (
                 const untilDate = formatBoundary(completedMoment);
                 const fromMoment = getMomentDateWithCustomStartOfWeek(
                     effectiveStartOfWeek,
-                    completedMoment.utc().toDate(),
+                    completedMoment.clone().utc().toDate(),
                 )
                     .tz(timezone)
                     .subtract(filter.values?.[0], unitOfTime);
@@ -386,7 +386,7 @@ export const renderDateFilterSql = (
                     .startOf(unitOfTime);
                 const toMoment = getMomentDateWithCustomStartOfWeek(
                     effectiveStartOfWeek,
-                    fromMoment.utc().toDate(),
+                    fromMoment.clone().utc().toDate(),
                 )
                     .tz(timezone)
                     .add(filter.values?.[0], unitOfTime);
