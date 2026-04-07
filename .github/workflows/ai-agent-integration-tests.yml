@@ -35,10 +35,10 @@ jobs:
                     - 5432:5432
 
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-            - uses: pnpm/action-setup@v5
-            - uses: actions/setup-node@v6
+            - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
               with:
                   node-version-file: '.nvmrc'
                   cache: 'pnpm'
@@ -57,7 +57,7 @@ jobs:
               run: pnpm backend-build
 
             - name: Setup Python and dbt
-              uses: actions/setup-python@v6
+              uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
               with:
                   python-version: '3.10.x'
 
@@ -98,7 +98,7 @@ jobs:
                   PGPASSWORD=password pg_dump -h localhost -U postgres -d lightdash_test -Fc -f lightdash_test_setup.dump
 
             - name: Cache build artifacts
-              uses: actions/cache/save@v5
+              uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
               with:
                   path: |
                       node_modules
@@ -142,17 +142,17 @@ jobs:
                     - 5432:5432
 
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-            - uses: pnpm/action-setup@v5
-            - uses: actions/setup-node@v6
+            - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+            - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
               with:
                   node-version-file: '.nvmrc'
                   cache: 'pnpm'
                   cache-dependency-path: 'pnpm-lock.yaml'
 
             - name: Restore build artifacts
-              uses: actions/cache/restore@v5
+              uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
               with:
                   path: |
                       node_modules
@@ -167,7 +167,7 @@ jobs:
                   fail-on-cache-miss: true
 
             - name: Setup Python and dbt
-              uses: actions/setup-python@v6
+              uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
               with:
                   python-version: '3.10.x'
 
@@ -241,7 +241,7 @@ jobs:
                   AI_DEFAULT_EMBEDDING_PROVIDER: 'openai'
 
             - name: Upload test results
-              uses: actions/upload-artifact@v7
+              uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
               if: always()
               with:
                   name: ai-agent-test-results-${{ matrix.ai_provider }}-${{ matrix.model_name }}
