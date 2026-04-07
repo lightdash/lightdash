@@ -11,6 +11,7 @@ import {
     type Explore,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -122,6 +123,7 @@ jest.mock('@lightdash/warehouses', () => ({
         connect: jest.fn(() => warehouseClientMock.credentials),
         disconnect: jest.fn(),
     })),
+    DuckdbWarehouseClient: jest.fn(() => warehouseClientMock),
 }));
 
 const projectModel = {
@@ -151,6 +153,15 @@ const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
     getPreAggregateDefinitionsForProject: jest.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
+    getActiveMaterialization: jest.fn(async () => ({
+        materializationUuid: 'mat-1',
+        queryUuid: 'mat-query-1',
+        materializationUri: 's3://mock_preagg_bucket/abc123.jsonl',
+        format: 'jsonl' as const,
+        columns: null,
+        materializedAt: new Date('2024-01-01T00:00:00.000Z'),
+        totalBytes: 987654,
+    })),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -259,6 +270,7 @@ describe('ProjectService', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+        jest.restoreAllMocks();
     });
     test('should run sql query', async () => {
         jest.spyOn(analyticsMock, 'track');
@@ -277,6 +289,70 @@ describe('ProjectService', () => {
 
         expect(results).toEqual(expectedCatalog);
     });
+    describe('calculateTotalFromQuery', () => {
+        test('should execute explicit pre-aggregate totals against DuckDB materializations', async () => {
+            const getExploreSpy = jest
+                .spyOn(service, 'getExplore')
+                .mockResolvedValue(preAggregateExplore);
+            let executedQuery: string | undefined;
+            const runQueryMock = jest.fn(async (query: string) => {
+                executedQuery = query;
+                return resultsWith1Row;
+            });
+            const mockedDuckdbWarehouseClient = jest.mocked(
+                DuckdbWarehouseClient,
+            );
+
+            mockedDuckdbWarehouseClient.mockReturnValue({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            } as unknown as InstanceType<typeof DuckdbWarehouseClient>);
+
+            await service.calculateTotalFromQuery(
+                developerAccount,
+                projectUuid,
+                {
+                    explore: preAggregateExplore.name,
+                    metricQuery: metricQueryMock,
+                },
+            );
+
+            expect(getExploreSpy).toHaveBeenCalledWith(
+                developerAccount,
+                projectUuid,
+                preAggregateExplore.name,
+                projectSummary.organizationUuid,
+            );
+            expect(
+                preAggregateModel.getActiveMaterialization,
+            ).toHaveBeenCalledWith(projectUuid, preAggregateExplore.name);
+            expect(mockedDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
+            const [credentialsArg, optionsArg] =
+                mockedDuckdbWarehouseClient.mock.calls[0] ?? [];
+            expect(credentialsArg).toMatchObject({
+                type: 'duckdb_s3',
+            });
+            expect(
+                (credentialsArg as { s3Config?: unknown } | undefined)
+                    ?.s3Config,
+            ).toMatchObject(
+                expect.objectContaining({
+                    endpoint: lightdashConfigMock.preAggregates.s3!.endpoint,
+                    region: lightdashConfigMock.preAggregates.s3!.region,
+                }),
+            );
+            expect(optionsArg).toEqual(
+                expect.objectContaining({
+                    logger: expect.anything(),
+                }),
+            );
+            expect(runQueryMock).toHaveBeenCalledTimes(1);
+            expect(executedQuery).toContain(
+                "read_json_auto('s3://mock_preagg_bucket/abc123.jsonl')",
+            );
+            expect(executedQuery).not.toContain('${materialized_table}');
+        });
+    });
     test('should get tables configuration', async () => {
         const result = await service.getTablesConfiguration(
             account,
@@ -285,12 +361,12 @@ describe('ProjectService', () => {
         expect(result).toEqual(tablesConfiguration);
     });
     test('should update tables configuration', async () => {
+        jest.spyOn(analyticsMock, 'track');
         await service.updateTablesConfiguration(
             user,
             projectUuid,
             tablesConfigurationWithNames,
         );
-        jest.spyOn(analyticsMock, 'track');
         expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
@@ -1001,6 +1077,15 @@ describe('ProjectService', () => {
         beforeEach(() => {
             // Clear the warehouse clients cache
             service.warehouseClients = {};
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => warehouseClientMock.credentials);
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
         });
 
         afterEach(() => {

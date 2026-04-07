@@ -184,6 +184,7 @@ import {
 import {
     BigqueryWarehouseClient,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
+    DuckdbWarehouseClient,
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
     SshTunnel,
@@ -215,7 +216,12 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
+import {
+    getDuckdbPreAggregateSqlTable,
+    getPreAggregateDuckdbLocator,
+} from '../../ee/services/PreAggregateMaterializationService/getDuckdbPreAggregateSqlTable';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -6826,26 +6832,26 @@ export class ProjectService extends BaseService {
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+        const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
-        );
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+        const executionTarget = await this.getTotalExecutionTarget({
+            projectUuid,
+            explore,
+            warehouseCredentials,
+        });
+        const { warehouseClient } = executionTarget;
+        const executionExplore = executionTarget.explore;
 
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
-            explore,
+            executionExplore,
         );
 
         const projectTimezone =
@@ -6857,7 +6863,7 @@ export class ProjectService extends BaseService {
                 timezone,
                 userAttributes,
                 intrinsicUserAttributes,
-                explore,
+                executionExplore,
                 metricQuery,
                 warehouseClient,
                 availableParameterDefinitions,
@@ -6873,7 +6879,7 @@ export class ProjectService extends BaseService {
             };
 
             const { rows } = await warehouseClient.runQuery(query, queryTags);
-            await sshTunnel.disconnect();
+            await executionTarget.disconnect();
             return { row: rows[0] };
         } catch (e) {
             if (e instanceof NotSupportedError) {
@@ -6899,21 +6905,20 @@ export class ProjectService extends BaseService {
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
         });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+        const executionTarget = await this.getTotalExecutionTarget({
             projectUuid,
+            explore,
             warehouseCredentials,
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
-        );
+        });
+        const { warehouseClient } = executionTarget;
+        const executionExplore = executionTarget.explore;
 
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
-            explore,
+            executionExplore,
         );
 
         const projectTimezone =
@@ -6926,7 +6931,7 @@ export class ProjectService extends BaseService {
                     timezone,
                     userAttributes,
                     intrinsicUserAttributes,
-                    explore,
+                    executionExplore,
                     metricQuery,
                     warehouseClient,
                     availableParameterDefinitions,
@@ -6955,7 +6960,7 @@ export class ProjectService extends BaseService {
                     queryTags,
                     invalidateCache,
                 });
-            await sshTunnel.disconnect();
+            await executionTarget.disconnect();
             return { row: rows[0], cacheMetadata };
         } catch (e) {
             if (e instanceof NotSupportedError) {
@@ -6964,6 +6969,96 @@ export class ProjectService extends BaseService {
             }
             throw e;
         }
+    }
+
+    private async getTotalExecutionTarget({
+        projectUuid,
+        explore,
+        warehouseCredentials,
+    }: {
+        projectUuid: string;
+        explore: Explore;
+        warehouseCredentials: CreateWarehouseCredentials;
+    }): Promise<{
+        warehouseClient: WarehouseClient;
+        disconnect: () => Promise<void>;
+        explore: Explore;
+    }> {
+        if (
+            explore.type === ExploreType.PRE_AGGREGATE &&
+            explore.preAggregateSource
+        ) {
+            const duckdbRuntimeConfig = getDuckdbRuntimeConfig(
+                this.lightdashConfig.preAggregates.s3,
+            );
+            if (!duckdbRuntimeConfig) {
+                throw new UnexpectedServerError(
+                    'Pre-aggregate DuckDB runtime is not configured',
+                );
+            }
+
+            const activeMaterialization =
+                await this.preAggregateModel.getActiveMaterialization(
+                    projectUuid,
+                    explore.name,
+                );
+
+            if (!activeMaterialization) {
+                throw new NotFoundError(
+                    `No active materialization found for pre-aggregate explore "${explore.name}"`,
+                );
+            }
+
+            const sqlTable = getDuckdbPreAggregateSqlTable(
+                getPreAggregateDuckdbLocator({
+                    uri: activeMaterialization.materializationUri,
+                    format: activeMaterialization.format,
+                }),
+                activeMaterialization.columns,
+            );
+
+            return {
+                warehouseClient: new DuckdbWarehouseClient(
+                    {
+                        type: 'duckdb_s3',
+                        s3Config: duckdbRuntimeConfig,
+                    },
+                    {
+                        logger: this.logger,
+                    },
+                ),
+                disconnect: async () => {},
+                explore: {
+                    ...explore,
+                    tables: Object.fromEntries(
+                        Object.entries(explore.tables).map(
+                            ([tableName, table]) => [
+                                tableName,
+                                {
+                                    ...table,
+                                    sqlTable,
+                                },
+                            ],
+                        ),
+                    ),
+                },
+            };
+        }
+
+        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            projectUuid,
+            warehouseCredentials,
+            {
+                snowflakeVirtualWarehouse: explore.warehouse,
+                databricksCompute: explore.databricksCompute,
+            },
+        );
+
+        return {
+            warehouseClient,
+            disconnect: () => sshTunnel.disconnect(),
+            explore,
+        };
     }
 
     async calculateTotalFromSavedChart(
