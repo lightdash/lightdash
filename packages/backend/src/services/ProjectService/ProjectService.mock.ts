@@ -335,6 +335,7 @@ export const projectWithSensitiveFields: Project = {
         environment_id: 'environment_id',
     },
     schedulerTimezone: 'UTC',
+    schedulerCjkFont: '',
     queryTimezone: null,
     createdByUserUuid: sessionAccount.user.id,
     hasDefaultUserSpaces: false,

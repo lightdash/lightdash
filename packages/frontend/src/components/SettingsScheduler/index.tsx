@@ -1,4 +1,8 @@
-import { getErrorMessage, isApiError } from '@lightdash/common';
+import {
+    type CjkFontValue,
+    getErrorMessage,
+    isApiError,
+} from '@lightdash/common';
 import { Card, Group, LoadingOverlay, Title } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import type { z } from 'zod';
@@ -24,21 +28,22 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
 
     const handleSubmit = useCallback(
         async (schedulerSettings: z.infer<typeof schedulerSettingsSchema>) => {
-            const { timezone } = schedulerSettings;
+            const { timezone, cjkFont } = schedulerSettings;
             try {
                 await projectMutation.mutateAsync({
                     schedulerTimezone: timezone,
+                    schedulerCjkFont: cjkFont as CjkFontValue,
                 });
 
                 showToastSuccess({
-                    title: `Successfully updated project's scheduler timezone settings`,
+                    title: `Successfully updated project's scheduled delivery settings`,
                 });
             } catch (e) {
                 const errorMessage = isApiError(e)
                     ? e.error.message
                     : getErrorMessage(e);
                 showToastError({
-                    title: `Failed to update project's scheduler timezone settings`,
+                    title: `Failed to update project's scheduled delivery settings`,
                     subtitle: errorMessage,
                 });
             }

@@ -9740,19 +9740,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -17090,9 +17077,6 @@
             },
             "SchedulerImageOptions": {
                 "properties": {
-                    "lang": {
-                        "type": "string"
-                    },
                     "withPdf": {
                         "type": "boolean"
                     }
@@ -20212,6 +20196,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "schedulerCjkFont": {
+                        "type": "string"
+                    },
                     "schedulerTimezone": {
                         "type": "string"
                     },
@@ -20247,6 +20234,7 @@
                     "hasDefaultUserSpaces",
                     "createdByUserUuid",
                     "queryTimezone",
+                    "schedulerCjkFont",
                     "schedulerTimezone",
                     "dbtVersion",
                     "dbtConnection",
@@ -21003,8 +20991,15 @@
                 "required": ["compileJobUuid", "projectUuid"],
                 "type": "object"
             },
+            "CjkFontValue": {
+                "type": "string",
+                "enum": ["", "ja", "zh-CN", "zh-TW", "ko"]
+            },
             "UpdateSchedulerSettings": {
                 "properties": {
+                    "schedulerCjkFont": {
+                        "$ref": "#/components/schemas/CjkFontValue"
+                    },
                     "schedulerTimezone": {
                         "type": "string"
                     }

@@ -654,6 +654,7 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
+                  scheduler_cjk_font: string;
                   query_timezone: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
@@ -671,6 +672,7 @@ export class ProjectModel {
                   dbt_version: SupportedDbtVersions;
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
+                  scheduler_cjk_font: string;
                   query_timezone: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
@@ -728,6 +730,9 @@ export class ProjectModel {
                             .ref('scheduler_timezone')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('scheduler_cjk_font')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('query_timezone')
                             .withSchema(ProjectTableName),
                         this.database
@@ -777,6 +782,7 @@ export class ProjectModel {
                     dbtVersion: project.dbt_version,
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     schedulerTimezone: project.scheduler_timezone,
+                    schedulerCjkFont: project.scheduler_cjk_font,
                     queryTimezone: project.query_timezone,
                     createdByUserUuid: project.created_by_user_uuid,
                     organizationWarehouseCredentialsUuid:
@@ -980,6 +986,7 @@ export class ProjectModel {
             dbtVersion: project.dbtVersion,
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             schedulerTimezone: project.schedulerTimezone,
+            schedulerCjkFont: project.schedulerCjkFont,
             queryTimezone: project.queryTimezone,
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
@@ -3071,6 +3078,31 @@ export class ProjectModel {
             .returning('*');
 
         return updatedProject;
+    }
+
+    async updateSchedulerCjkFont(projectUuid: string, cjkFont: string) {
+        const [updatedProject] = await this.database(ProjectTableName)
+            .update({
+                scheduler_cjk_font: cjkFont,
+            })
+            .where('project_uuid', projectUuid)
+            .returning('*');
+
+        return updatedProject;
+    }
+
+    async getSchedulerCjkFont(projectUuid: string): Promise<string> {
+        const [project] = await this.database(ProjectTableName)
+            .select('scheduler_cjk_font')
+            .where('project_uuid', projectUuid);
+
+        if (!project) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return project.scheduler_cjk_font;
     }
 
     async getQueryTimezone(projectUuid: string): Promise<string | null> {

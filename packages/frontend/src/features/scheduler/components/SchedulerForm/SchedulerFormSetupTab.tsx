@@ -345,23 +345,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     type: 'checkbox',
                                 })}
                             />
-                            <Select
-                                label="Language (for font rendering)"
-                                data={[
-                                    { value: 'en', label: 'English' },
-                                    { value: 'ja', label: '日本語' },
-                                    {
-                                        value: 'zh-CN',
-                                        label: '中文 (简体)',
-                                    },
-                                    {
-                                        value: 'zh-TW',
-                                        label: '中文 (繁體)',
-                                    },
-                                    { value: 'ko', label: '한국어' },
-                                ]}
-                                {...form.getInputProps('options.lang')}
-                            />
                         </Stack>
                     ) : (
                         <Stack gap="xs">

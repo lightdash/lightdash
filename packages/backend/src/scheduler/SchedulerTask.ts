@@ -413,6 +413,10 @@ export default class SchedulerTask {
                     )
                         ? scheduler.options
                         : undefined;
+                    const schedulerCjkFont =
+                        await this.projectService.getSchedulerCjkFont(
+                            projectUuid,
+                        );
                     const unfurlImage = await this.unfurlService.unfurlImage({
                         url: minimalUrl,
                         lightdashPage: pageType,
@@ -429,7 +433,7 @@ export default class SchedulerTask {
                         selectedTabs,
                         sendNowSchedulerFilters,
                         sendNowSchedulerParameters,
-                        lang: imageOptions?.lang,
+                        lang: schedulerCjkFont || undefined,
                     });
                     if (unfurlImage.imageUrl === undefined) {
                         throw new Error('Unable to unfurl image');

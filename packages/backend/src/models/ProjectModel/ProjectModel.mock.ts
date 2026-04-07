@@ -106,6 +106,7 @@ export const expectedProject: Project = {
     } as AnyType as BigqueryCredentials,
     dbtVersion: DefaultSupportedDbtVersion,
     schedulerTimezone: 'UTC',
+    schedulerCjkFont: '',
     queryTimezone: null,
     createdByUserUuid: null,
     hasDefaultUserSpaces: false,

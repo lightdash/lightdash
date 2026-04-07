@@ -585,6 +585,7 @@ export type Project = {
     upstreamProjectUuid?: string;
     dbtVersion: DbtVersionOption;
     schedulerTimezone: string;
+    schedulerCjkFont: string;
     queryTimezone: string | null;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
@@ -623,8 +624,18 @@ export type PreviewContentMapping = {
     aiAgents: IdContentMapping[];
 };
 
+export const VALID_CJK_FONT_VALUES = [
+    '',
+    'ja',
+    'zh-CN',
+    'zh-TW',
+    'ko',
+] as const;
+export type CjkFontValue = (typeof VALID_CJK_FONT_VALUES)[number];
+
 export type UpdateSchedulerSettings = {
     schedulerTimezone: string;
+    schedulerCjkFont?: CjkFontValue;
 };
 
 export type UpdateQueryTimezoneSettings = {

@@ -7637,6 +7637,39 @@ export class ProjectService extends BaseService {
         return updatedProject;
     }
 
+    async updateSchedulerCjkFont(
+        user: SessionUser,
+        projectUuid: string,
+        cjkFont: string,
+    ) {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        if (user.ability.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        const updatedProject = await this.projectModel.updateSchedulerCjkFont(
+            projectUuid,
+            cjkFont,
+        );
+
+        this.analytics.track({
+            event: 'scheduler_cjk_font.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationUuid: project.organizationUuid,
+                cjkFont,
+            },
+        });
+
+        return updatedProject;
+    }
+
+    async getSchedulerCjkFont(projectUuid: string): Promise<string> {
+        return this.projectModel.getSchedulerCjkFont(projectUuid);
+    }
+
     async updateQueryTimezone(
         user: SessionUser,
         projectUuid: string,
