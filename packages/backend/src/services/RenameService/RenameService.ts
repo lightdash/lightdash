@@ -588,6 +588,56 @@ export class RenameService extends BaseService {
         );
     }
 
+    async previewRenameResources({
+        user,
+        projectUuid,
+        context,
+        ...renameBody
+    }: ApiRenameBody & {
+        user: SessionUser;
+        projectUuid: string;
+        context: RequestMethod;
+    }): Promise<ApiRenameResponse['results']> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Pre-compute nameChanges so runScheduledRenameResources takes
+        // the fast path and doesn't need to look up the (possibly broken)
+        // field in the explore cache.
+        const { from, to, type, model } = renameBody;
+        const nameChanges =
+            model && type === RenameType.FIELD
+                ? getNameChanges({ from, to, table: model, type })
+                : undefined;
+
+        return this.runScheduledRenameResources({
+            ...renameBody,
+            ...(nameChanges && {
+                fromReference: nameChanges.fromReference,
+                toReference: nameChanges.toReference,
+                fromFieldName: nameChanges.fromFieldName,
+                toFieldName: nameChanges.toFieldName,
+            }),
+            dryRun: true,
+            context,
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            schedulerUuid: undefined,
+        });
+    }
+
     private async findExploreForField({
         projectUuid,
         fieldName,

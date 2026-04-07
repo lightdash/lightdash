@@ -8043,7 +8043,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -8055,6 +8055,9 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
+                            },
+                            "createdByUserUuid": {
+                                "type": "string"
                             },
                             "description": {
                                 "type": "string"
@@ -8069,6 +8072,7 @@
                         "required": [
                             "hasMore",
                             "versions",
+                            "createdByUserUuid",
                             "description",
                             "name",
                             "appUuid"
@@ -8085,7 +8089,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
@@ -9733,6 +9737,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -17054,7 +17071,7 @@
                 "type": "object"
             },
             "SchedulerFormat": {
-                "enum": ["csv", "xlsx", "image", "gsheets"],
+                "enum": ["csv", "xlsx", "image", "gsheets", "pdf"],
                 "type": "string"
             },
             "SchedulerCsvOptions": {
@@ -17115,6 +17132,14 @@
                 ],
                 "type": "object"
             },
+            "Record_string.never_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "SchedulerPdfOptions": {
+                "$ref": "#/components/schemas/Record_string.never_"
+            },
             "SchedulerOptions": {
                 "anyOf": [
                     {
@@ -17125,6 +17150,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SchedulerGsheetsOptions"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SchedulerPdfOptions"
                     }
                 ]
             },
@@ -19676,6 +19704,64 @@
                     }
                 },
                 "required": ["type", "from", "to"],
+                "type": "object"
+            },
+            "RenameChange": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
+            "ApiRenameResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "dashboardSchedulers": {
+                                "items": {
+                                    "$ref": "#/components/schemas/RenameChange"
+                                },
+                                "type": "array"
+                            },
+                            "alerts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/RenameChange"
+                                },
+                                "type": "array"
+                            },
+                            "dashboards": {
+                                "items": {
+                                    "$ref": "#/components/schemas/RenameChange"
+                                },
+                                "type": "array"
+                            },
+                            "charts": {
+                                "items": {
+                                    "$ref": "#/components/schemas/RenameChange"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "dashboardSchedulers",
+                            "alerts",
+                            "dashboards",
+                            "charts"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "ApiRenameChartResponse": {
@@ -29724,7 +29810,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2726.1",
+        "version": "0.2729.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37549,6 +37635,57 @@
                 },
                 "description": "Rename resources in a project",
                 "summary": "Rename resources",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiRenameBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/rename/preview": {
+            "post": {
+                "operationId": "previewRename",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRenameResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview which resources would be affected by a bulk rename",
+                "summary": "Preview rename",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
