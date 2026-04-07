@@ -61,6 +61,7 @@ import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
     expectedColumns,
@@ -1902,6 +1903,94 @@ describe('AsyncQueryService', () => {
                     results_file_name: expect.any(String),
                 }),
                 expect.any(Object), // session account
+            );
+        });
+    });
+
+    describe('materializationRole', () => {
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('uses materializationRole instead of the triggering user context during materialization prep', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            service.getUserAttributes = jest.fn(async () => ({
+                userAttributes: {
+                    region: ['viewer-region'],
+                },
+                intrinsicUserAttributes: {
+                    email: 'viewer@example.com',
+                },
+            }));
+            (service as AnyType).getAvailableParameters = jest.fn(
+                async () => ({}),
+            );
+            (service as AnyType).getQueryTimezoneForProject = jest.fn(
+                async () => 'UTC',
+            );
+
+            const compileQuerySpy = jest
+                .spyOn(ProjectService, '_compileQuery')
+                .mockResolvedValue({
+                    query: 'SELECT 1',
+                    fields: {},
+                    warnings: [],
+                    parameterReferences: new Set(),
+                    missingParameterReferences: new Set(),
+                    usedParameters: {},
+                } as AnyType);
+
+            await (service as AnyType).prepareMetricQueryAsyncQueryArgs({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                dateZoom: undefined,
+                explore: validExplore,
+                warehouseSqlBuilder: warehouseClientMock,
+                parameters: undefined,
+                pivotConfiguration: undefined,
+                userAttributeOverrides: undefined,
+                materializationRole: {
+                    userAttributes: {
+                        allowed_regions: ['EMEA', 'APAC'],
+                    },
+                    intrinsicUserAttributes: {
+                        email: 'materialize@acme.com',
+                    },
+                },
+            });
+
+            expect(service.getUserAttributes).not.toHaveBeenCalled();
+            expect(compileQuerySpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userAttributes: {
+                        allowed_regions: ['EMEA', 'APAC'],
+                    },
+                    intrinsicUserAttributes: {
+                        email: 'materialize@acme.com',
+                    },
+                }),
+            );
+        });
+
+        it('fails closed when materializationRole is supplied outside materialization context', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    materializationRole: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {
+                            email: 'materialize@acme.com',
+                        },
+                    },
+                }),
+            ).rejects.toThrow(
+                'materializationRole is only supported for pre-aggregate materialization',
             );
         });
     });

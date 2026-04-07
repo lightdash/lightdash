@@ -2546,6 +2546,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         pivotConfiguration,
         userAttributeOverrides,
+        materializationRole,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2554,6 +2555,7 @@ export class AsyncQueryService extends ProjectService {
         | 'parameters'
         | 'projectUuid'
         | 'userAttributeOverrides'
+        | 'materializationRole'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -2561,11 +2563,14 @@ export class AsyncQueryService extends ProjectService {
     }) {
         assertIsAccountWithOrg(account);
 
-        const { userAttributes: dbUserAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
-        const userAttributes = userAttributeOverrides
-            ? { ...dbUserAttributes, ...userAttributeOverrides }
-            : dbUserAttributes;
+        const resolvedUserAccessControls =
+            materializationRole ?? (await this.getUserAttributes({ account }));
+        const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
+            resolvedUserAccessControls;
+        const userAttributes =
+            materializationRole === undefined && userAttributeOverrides
+                ? { ...baseUserAttributes, ...userAttributeOverrides }
+                : baseUserAttributes;
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
@@ -3207,8 +3212,18 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         userAttributeOverrides,
+        materializationRole,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
+
+        if (
+            materializationRole !== undefined &&
+            context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        ) {
+            throw new Error(
+                'materializationRole is only supported for pre-aggregate materialization',
+            );
+        }
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -3300,6 +3315,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
             userAttributeOverrides,
+            materializationRole,
         });
         const prepareMs = Date.now() - prepareStart;
 

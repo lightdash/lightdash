@@ -4,6 +4,7 @@ import { type MetricQuery } from './metricQuery';
 import { type ResultColumns } from './results';
 import { type PreAggregateMaterializationTrigger } from './scheduler';
 import { type TimeFrames } from './timeFrames';
+import { type UserAttributeValueMap } from './userAttributes';
 
 export type MaterializationMetricComponent = {
     componentFieldId: string;
@@ -33,6 +34,11 @@ export type ActiveMaterializationDetails = {
     totalBytes: number | null;
 };
 
+export type PreAggregateMaterializationRole = {
+    email: string;
+    attributes: UserAttributeValueMap;
+};
+
 export type PreAggregateDef = {
     name: string;
     dimensions: string[];
@@ -44,6 +50,7 @@ export type PreAggregateDef = {
     refresh?: {
         cron?: string;
     };
+    materializationRole?: PreAggregateMaterializationRole;
 };
 
 export enum PreAggregateMissReason {

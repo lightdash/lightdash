@@ -1,7 +1,11 @@
 import type { DbtPreAggregateDef } from '../types/dbt';
 import { ParseError } from '../types/errors';
-import type { PreAggregateDef } from '../types/preAggregate';
+import type {
+    PreAggregateDef,
+    PreAggregateMaterializationRole,
+} from '../types/preAggregate';
 import { TimeFrames } from '../types/timeFrames';
+import type { UserAttributeValueMap } from '../types/userAttributes';
 
 const PRE_AGGREGATE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
 
@@ -39,6 +43,97 @@ const parsePreAggregateStringArray = (
         }
         return item.trim();
     });
+};
+
+const parseMaterializationRoleAttributes = (
+    value: unknown,
+    modelName: string,
+    preAggregateName: string,
+): UserAttributeValueMap => {
+    if (
+        value === null ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        Object.keys(value).length === 0
+    ) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role.attributes". Expected a non-empty object.`,
+        );
+    }
+
+    return Object.entries(value).reduce<UserAttributeValueMap>(
+        (acc, [attributeName, attributeValue]) => {
+            if (typeof attributeValue === 'string') {
+                acc[attributeName] = [attributeValue];
+                return acc;
+            }
+
+            if (
+                Array.isArray(attributeValue) &&
+                attributeValue.length > 0 &&
+                attributeValue.every((item) => typeof item === 'string')
+            ) {
+                acc[attributeName] = attributeValue;
+                return acc;
+            }
+
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role.attributes.${attributeName}" value`,
+            );
+        },
+        {},
+    );
+};
+
+const parseMaterializationRole = (
+    materializationRole: unknown,
+    modelName: string,
+    preAggregateName: string,
+): PreAggregateMaterializationRole => {
+    if (
+        materializationRole === null ||
+        typeof materializationRole !== 'object' ||
+        Array.isArray(materializationRole)
+    ) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role". Expected an object.`,
+        );
+    }
+
+    const { email, attributes, ...unknownFields } =
+        materializationRole as NonNullable<
+            DbtPreAggregateDef['materialization_role']
+        >;
+
+    const unknownIntrinsicFields = Object.keys(unknownFields);
+    if (unknownIntrinsicFields.length > 0) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has unsupported "materialization_role" fields: ${unknownIntrinsicFields.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    if (typeof email !== 'string' || email.trim().length === 0) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" must define a non-empty "materialization_role.email"`,
+        );
+    }
+
+    if (attributes === undefined) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" must define "materialization_role.attributes" when "materialization_role" is set`,
+        );
+    }
+
+    return {
+        email: email.trim(),
+        attributes: parseMaterializationRoleAttributes(
+            attributes,
+            modelName,
+            preAggregateName,
+        ),
+    };
 };
 
 export const parseDbtPreAggregateDef = (
@@ -111,6 +206,15 @@ export const parseDbtPreAggregateDef = (
         );
     }
 
+    const materializationRole =
+        safePreAggregate?.materialization_role !== undefined
+            ? parseMaterializationRole(
+                  safePreAggregate.materialization_role,
+                  modelName,
+                  name,
+              )
+            : undefined;
+
     return {
         name,
         dimensions,
@@ -121,6 +225,7 @@ export const parseDbtPreAggregateDef = (
         ...(safePreAggregate.refresh?.cron
             ? { refresh: { cron: safePreAggregate.refresh.cron } }
             : {}),
+        ...(materializationRole ? { materializationRole } : {}),
     };
 };
 
