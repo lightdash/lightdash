@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import { parse } from '../src/compiler';
 
 describe('Formula Grammar', () => {
