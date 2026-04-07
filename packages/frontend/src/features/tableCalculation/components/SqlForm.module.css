@@ -1,0 +1,15 @@
+.sqlEditor {
+    width: 100%;
+}
+
+.sqlEditor :global(.ace_gutter) {
+    background-color: var(--sql-editor-gutter-bg);
+}
+
+.sqlEditorFullScreen {
+    min-height: 100px;
+}
+
+.sqlEditorDefault {
+    min-height: 250px;
+}

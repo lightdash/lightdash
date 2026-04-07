@@ -1,0 +1,295 @@
+/* TableScrollableWrapper */
+.tableScrollableWrapper {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: auto;
+    min-width: 100%;
+    border-radius: 4px;
+    border: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.tableScrollableWrapper[data-dashboard='true'] {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+}
+
+.tableScrollableWrapper:not(:has(thead tr)):not(:has(tbody tr)) {
+    border: none;
+}
+
+/* TableContainer */
+.tableContainer {
+    display: flex;
+    flex-direction: column;
+    min-width: 100%;
+    overflow: hidden;
+    font-family: var(--table-font, Inter, sans-serif);
+    font-feature-settings: 'tnum';
+    padding: var(--table-padding, 0px);
+    max-height: 800px;
+}
+
+.tableContainer[data-expand='true'] {
+    height: inherit;
+    max-height: none;
+}
+
+/* Table */
+.table {
+    border-spacing: 0;
+    font-size: 14px;
+    width: 100%;
+    border-radius: 4px;
+}
+
+.table th,
+.table td {
+    padding-left: 11px;
+    padding-right: 11px;
+    padding-bottom: 6px;
+    padding-top: 6px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.table th {
+    font-weight: 600;
+}
+
+/* Inner cell borders using box-shadow (from Blueprint CSS) */
+.table tbody tr:first-child th,
+.table tbody tr:first-child td,
+.table tfoot tr:first-child th,
+.table tfoot tr:first-child td {
+    box-shadow: inset 0 1px 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+.table tbody tr td,
+.table tfoot tr td {
+    box-shadow: inset 0 1px 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+.table tbody tr td:not(:first-child),
+.table tfoot tr td:not(:first-child) {
+    box-shadow: inset 1px 1px 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+.table th:not(:first-child) {
+    box-shadow: inset 1px 0 0 0
+        color-mix(in srgb, var(--mantine-color-ldGray-3) 80%, transparent);
+}
+
+/* FIXME: everything above this line is copied from blueprint's table css */
+
+.table thead {
+    z-index: 2;
+    position: sticky;
+    top: 0;
+    inset-block-start: 0;
+}
+
+.table thead th {
+    border-bottom: none !important;
+}
+
+.table tfoot {
+    position: sticky;
+    z-index: 3;
+    bottom: 0;
+    inset-block-end: 0;
+}
+
+.table tfoot th:first-child {
+    border-top: none !important;
+    border-bottom: none !important;
+}
+
+.table tfoot th {
+    border-top: none !important;
+    border-bottom: none !important;
+    box-shadow: inset 0 1px 0 var(--mantine-color-ldGray-3) !important;
+}
+
+.table :global(.sticky-column) {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    word-break: break-word;
+}
+
+.table :global(.sticky-column):hover {
+    white-space: normal;
+    background-color: light-dark(
+        var(--mantine-color-background-0),
+        var(--mantine-color-ldGray-0)
+    );
+}
+
+.table th:global(.sticky-column) {
+    background: light-dark(
+        var(--mantine-color-background-0),
+        var(--mantine-color-ldGray-0)
+    ) !important;
+}
+
+.table :global(.last-sticky-column) {
+    border-right: 1.4px solid var(--mantine-color-ldGray-4);
+}
+
+/* TableFooter */
+.tableFooter {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* Shared cell font */
+.cellFont {
+    font-size: 13px;
+}
+
+/* Th */
+.th {
+    position: relative;
+}
+
+/* ThContainer */
+.thContainer {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+}
+
+/* ThActionsContainer */
+.thActionsContainer {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    margin-left: 5px;
+}
+
+.thActionsContainer > *:not(:last-child) {
+    margin-right: 10px;
+}
+
+/* TableHeaderLabelContainer */
+.tableHeaderLabelContainer {
+    font-size: 13px;
+    color: var(
+        --table-header-label-color,
+        var(--table-header-color, var(--mantine-color-text))
+    );
+}
+
+/* TableHeaderRegularLabel */
+.tableHeaderRegularLabel {
+    font-weight: 400;
+    opacity: 0.7;
+}
+
+/* TableHeaderBoldLabel */
+.tableHeaderBoldLabel {
+    font-weight: 600;
+}
+
+/* FooterCell */
+.footerCell {
+    font-size: 13px;
+    text-align: right !important;
+    padding: 8.5px !important;
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.footerCell[data-nan='true'] {
+    text-align: left !important;
+}
+
+/* Td */
+.td {
+    max-width: 300px;
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+    height: 34px;
+    font-size: 13px;
+    text-align: right !important;
+    padding: 8.5px !important;
+    background-color: transparent;
+    filter: saturate(1) brightness(1);
+    transition: filter 0.15s linear;
+}
+
+.td[data-nan='true'] {
+    text-align: left !important;
+}
+
+.td[data-large-text='true'] {
+    min-width: 300px;
+    white-space: pre;
+}
+
+.td[data-large-text='true']:hover {
+    white-space: pre-wrap;
+}
+
+.td[data-large-text='true'][data-selected='true'],
+.td[data-large-text='true'][data-minimal='true'] {
+    white-space: pre-wrap;
+}
+
+.td[data-has-urls='true'] {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.td[data-interactive='true'][data-has-data='true'] {
+    cursor: pointer;
+}
+
+.td[data-selected='true'] {
+    pointer-events: none;
+}
+
+/* Dynamic background color via CSS variable */
+.td[data-has-bg='true'] {
+    background-color: var(--td-bg-color) !important;
+}
+
+/* Dynamic font color via CSS variable */
+.td[data-has-font-color='true'] {
+    color: var(--td-font-color) !important;
+}
+
+/* Selected state */
+.td[data-interactive='true'][data-selected='true'][data-has-data='true'] {
+    box-shadow: inset 0 0 0 1px var(--table-selected-border) !important;
+}
+
+.td[data-interactive='true'][data-selected='true'][data-has-data='true']:not(
+        [data-has-bg='true']
+    ) {
+    background-color: var(--table-selected-bg) !important;
+}
+
+.td[data-interactive='true'][data-selected='true'][data-has-data='true'][data-has-bg='true'] {
+    filter: saturate(1) brightness(0.8) !important;
+}
+
+/* Copying flash */
+.td[data-copying='true'] {
+    filter: saturate(2) brightness(1) !important;
+}
+
+.td[data-has-newlines='true'] {
+    white-space: pre-line;
+}

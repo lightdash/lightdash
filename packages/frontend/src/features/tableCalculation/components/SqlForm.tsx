@@ -12,13 +12,13 @@ import { useLocalStorage } from '@mantine/hooks';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import AceEditor, { type IAceEditorProps } from 'react-ace';
-import styled, { css } from 'styled-components';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { SqlEditorActions } from '../../../components/SqlRunner/SqlEditorActions';
 import { AiTableCalculationInput } from '../../../ee/features/ambientAi/components/tableCalculation';
 import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { type TableCalculationForm } from '../types';
+import classes from './SqlForm.module.css';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
 import 'ace-builds/src-noconflict/theme-tomorrow_night';
@@ -33,23 +33,28 @@ type Props = {
     onCmdEnter?: () => void;
 };
 
-export const SqlEditor = styled(AceEditor)<
+export const SqlEditor: FC<
     IAceEditorProps & { isFullScreen: boolean; gutterBackgroundColor: string }
->`
-    width: 100%;
-    & > .ace_gutter {
-        background-color: ${({ gutterBackgroundColor }) =>
-            gutterBackgroundColor};
-    }
-    ${({ isFullScreen }) =>
-        isFullScreen
-            ? css`
-                  min-height: 100px;
-              `
-            : css`
-                  min-height: 250px;
-              `}
-`;
+> = ({ isFullScreen, gutterBackgroundColor, className, style, ...props }) => (
+    <AceEditor
+        {...props}
+        className={[
+            classes.sqlEditor,
+            isFullScreen
+                ? classes.sqlEditorFullScreen
+                : classes.sqlEditorDefault,
+            className,
+        ]
+            .filter(Boolean)
+            .join(' ')}
+        style={
+            {
+                ...style,
+                '--sql-editor-gutter-bg': gutterBackgroundColor,
+            } as React.CSSProperties
+        }
+    />
+);
 
 export const SqlForm: FC<Props> = ({
     form,

@@ -20,7 +20,7 @@ import {
     useState,
     type FC,
 } from 'react';
-import { type CSSProperties } from 'styled-components';
+import { type CSSProperties } from 'react';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';

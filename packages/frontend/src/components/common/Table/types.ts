@@ -17,7 +17,7 @@ import {
     type Table,
 } from '@tanstack/react-table';
 import { type FC } from 'react';
-import { type CSSProperties } from 'styled-components';
+import { type CSSProperties } from 'react';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
