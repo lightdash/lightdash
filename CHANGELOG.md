@@ -1,3 +1,10 @@
+# [0.2729.0](https://github.com/lightdash/lightdash/compare/0.2728.3...0.2729.0) (2026-04-07)
+
+
+### Features
+
+* add PDF-only scheduled delivery format ([#21457](https://github.com/lightdash/lightdash/issues/21457)) ([82a182e](https://github.com/lightdash/lightdash/commit/82a182eca681f72e07cc7cb9204cd8f5f6f78505)), closes [#21444](https://github.com/lightdash/lightdash/issues/21444)
+
 ## [0.2728.3](https://github.com/lightdash/lightdash/compare/0.2728.2...0.2728.3) (2026-04-06)
 
 

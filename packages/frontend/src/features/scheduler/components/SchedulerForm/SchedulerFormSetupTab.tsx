@@ -313,6 +313,16 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     value: SchedulerFormat.IMAGE,
                                     disabled: isImageDisabled,
                                 },
+                                {
+                                    label: 'PDF',
+                                    value: SchedulerFormat.PDF,
+                                    disabled:
+                                        isImageDisabled ||
+                                        (form.values.msTeamsTargets?.length ??
+                                            0) > 0 ||
+                                        (form.values.googleChatTargets
+                                            ?.length ?? 0) > 0,
+                                },
                             ]}
                             w="50%"
                             {...form.getInputProps('format')}
@@ -336,17 +346,16 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                     <Space h="xxs" />
                     {form.getInputProps('format').value ===
                     SchedulerFormat.IMAGE ? (
-                        <Stack gap="xs">
-                            <Checkbox
-                                h={26}
-                                label="Also include image as PDF attachment"
-                                labelPosition="left"
-                                {...form.getInputProps('options.withPdf', {
-                                    type: 'checkbox',
-                                })}
-                            />
-                        </Stack>
-                    ) : (
+                        <Checkbox
+                            h={26}
+                            label="Also include image as PDF attachment"
+                            labelPosition="left"
+                            {...form.getInputProps('options.withPdf', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    ) : form.getInputProps('format').value ===
+                      SchedulerFormat.PDF ? null : (
                         <Stack gap="xs">
                             {form.values.format === SchedulerFormat.CSV && (
                                 <Tooltip

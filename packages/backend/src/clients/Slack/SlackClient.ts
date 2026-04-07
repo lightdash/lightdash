@@ -144,7 +144,7 @@ export type SlackChannelForCache = {
 export type PostSlackFile = {
     organizationUuid: string;
     channelId: string;
-    threadTs: string;
+    threadTs?: string;
     file: FilesUploadV2Arguments['file'];
     title: string;
     comment?: string;
