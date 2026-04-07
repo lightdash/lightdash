@@ -7,6 +7,7 @@ import {
     ApiRenameDashboardBody,
     ApiRenameDashboardResponse,
     ApiRenameFieldsResponse,
+    ApiRenameResponse,
     getRequestMethod,
     LightdashRequestMethodHeader,
 } from '@lightdash/common';
@@ -70,6 +71,43 @@ export class RenameController extends BaseController {
         return {
             status: 'ok',
             results: scheduledJob,
+        };
+    }
+
+    /**
+     * Preview which resources would be affected by a bulk rename
+     * @summary Preview rename
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/preview')
+    @OperationId('previewRename')
+    async previewRename(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ApiRenameBody,
+    ): Promise<ApiRenameResponse> {
+        this.setStatus(200);
+        const context = getRequestMethod(
+            req.header(LightdashRequestMethodHeader),
+        );
+
+        const results = await this.services
+            .getRenameService()
+            .previewRenameResources({
+                user: req.user!,
+                projectUuid,
+                context,
+                ...body,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 

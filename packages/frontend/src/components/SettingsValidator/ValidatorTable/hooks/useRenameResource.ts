@@ -2,11 +2,13 @@ import {
     getErrorMessage,
     type ApiError,
     type ApiJobScheduledResponse,
+    type ApiRenameBody,
     type ApiRenameChartBody,
     type ApiRenameChartResponse,
     type ApiRenameDashboardBody,
     type ApiRenameDashboardResponse,
     type ApiRenameFieldsResponse,
+    type ApiRenameResponse,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -122,6 +124,31 @@ export const useRenameChart = () => {
                 subtitle: error.error.message,
             });
         },
+    });
+};
+
+const previewRename = async ({
+    projectUuid,
+    from,
+    to,
+    type,
+    model,
+}: ApiRenameBody & { projectUuid: string }) => {
+    return lightdashApi<ApiRenameResponse['results']>({
+        url: `/projects/${projectUuid}/rename/preview`,
+        method: 'POST',
+        body: JSON.stringify({ from, to, type, model }),
+    });
+};
+
+export const usePreviewRename = () => {
+    return useMutation<
+        ApiRenameResponse['results'],
+        ApiError,
+        ApiRenameBody & { projectUuid: string }
+    >({
+        mutationKey: ['preview-rename'],
+        mutationFn: previewRename,
     });
 };
 
