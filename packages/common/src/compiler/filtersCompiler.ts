@@ -268,6 +268,7 @@ export const renderDateFilterSql = (
     timezone: string,
     dateFormatter: (date: Date) => string = formatDate,
     startOfWeek: WeekDay | null | undefined = undefined,
+    baseDimensionSql?: string,
 ): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
@@ -461,6 +462,72 @@ export const renderDateFilterSql = (
 
             return `(NOT ((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate}))`;
         }
+        case FilterOperator.IN_PERIOD_TO_DATE: {
+            const today =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const periodUnit = (filter as DateFilterRule).settings?.unitOfTime;
+            // Use the raw base dimension SQL for date extraction when available
+            // (e.g., when filtering on a DATE_TRUNC'd dimension like order_date_year)
+            const extractSql = baseDimensionSql || dimensionSql;
+            switch (periodUnit) {
+                case UnitOfTime.years: {
+                    const dayOfYear = today.dayOfYear(); // 1-366
+                    switch (adapterType) {
+                        case SupportedDbtAdapter.BIGQUERY:
+                            return `(EXTRACT(DAYOFYEAR FROM ${extractSql}) <= ${dayOfYear})`;
+                        case SupportedDbtAdapter.CLICKHOUSE:
+                            return `(toDayOfYear(${extractSql}) <= ${dayOfYear})`;
+                        default:
+                            return `(EXTRACT(DOY FROM ${extractSql}) <= ${dayOfYear})`;
+                    }
+                }
+                case UnitOfTime.months: {
+                    const dayOfMonth = today.date(); // 1-31
+                    switch (adapterType) {
+                        case SupportedDbtAdapter.CLICKHOUSE:
+                            return `(toDayOfMonth(${extractSql}) <= ${dayOfMonth})`;
+                        default:
+                            return `(EXTRACT(DAY FROM ${extractSql}) <= ${dayOfMonth})`;
+                    }
+                }
+                case UnitOfTime.quarters: {
+                    const quarterStart = today.clone().startOf('quarter');
+                    const dayInQuarter = today.diff(quarterStart, 'days');
+                    switch (adapterType) {
+                        case SupportedDbtAdapter.BIGQUERY:
+                            return `(DATE_DIFF(${extractSql}, DATE_TRUNC(${extractSql}, QUARTER), DAY) <= ${dayInQuarter})`;
+                        case SupportedDbtAdapter.CLICKHOUSE:
+                            return `(dateDiff('day', toStartOfQuarter(${extractSql}), ${extractSql}) <= ${dayInQuarter})`;
+                        case SupportedDbtAdapter.TRINO:
+                        case SupportedDbtAdapter.ATHENA:
+                            return `(DATE_DIFF('day', DATE_TRUNC('quarter', ${extractSql}), ${extractSql}) <= ${dayInQuarter})`;
+                        default:
+                            return `(EXTRACT(DAY FROM ${extractSql} - DATE_TRUNC('QUARTER', ${extractSql})) <= ${dayInQuarter})`;
+                    }
+                }
+                case UnitOfTime.weeks: {
+                    const weekStart = today.clone().startOf('week');
+                    const dayInWeek = today.diff(weekStart, 'days');
+                    switch (adapterType) {
+                        case SupportedDbtAdapter.BIGQUERY:
+                            return `(DATE_DIFF(${extractSql}, DATE_TRUNC(${extractSql}, WEEK(${effectiveStartOfWeek === WeekDay.SUNDAY ? 'SUNDAY' : 'MONDAY'})), DAY) <= ${dayInWeek})`;
+                        case SupportedDbtAdapter.CLICKHOUSE:
+                            return `(dateDiff('day', toStartOfWeek(${extractSql}, ${effectiveStartOfWeek === WeekDay.SUNDAY ? '0' : '1'}), ${extractSql}) <= ${dayInWeek})`;
+                        case SupportedDbtAdapter.TRINO:
+                        case SupportedDbtAdapter.ATHENA:
+                            return `(DATE_DIFF('day', DATE_TRUNC('week', ${extractSql}), ${extractSql}) <= ${dayInWeek})`;
+                        default:
+                            return `(EXTRACT(DAY FROM ${extractSql} - DATE_TRUNC('WEEK', ${extractSql})) <= ${dayInWeek})`;
+                    }
+                }
+                default:
+                    throw new CompileError(
+                        `Period to date filter requires a unitOfTime setting (weeks, months, quarters, or years)`,
+                    );
+            }
+        }
         case FilterOperator.IN_BETWEEN: {
             const startDate = dateFormatter(filter.values?.[0]);
             const endDate = dateFormatter(filter.values?.[1]);
@@ -581,6 +648,7 @@ export const renderFilterRuleSql = (
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
     caseSensitive: boolean = true,
+    baseDimensionSql?: string,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -626,6 +694,7 @@ export const renderFilterRuleSql = (
                 timezone,
                 undefined,
                 startOfWeek,
+                baseDimensionSql,
             );
         }
         case DimensionType.TIMESTAMP:
@@ -640,6 +709,7 @@ export const renderFilterRuleSql = (
                     ? formatTimestampAsUTCNoOffset
                     : formatTimestampAsUTC,
                 startOfWeek,
+                baseDimensionSql,
             );
         }
         case DimensionType.BOOLEAN:
@@ -666,6 +736,7 @@ export const renderFilterRuleSqlFromField = (
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
     exploreCaseSensitive: boolean = true,
+    baseDimensionSql?: string,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -695,5 +766,6 @@ export const renderFilterRuleSqlFromField = (
         adapterType,
         timezone,
         caseSensitive,
+        baseDimensionSql,
     );
 };

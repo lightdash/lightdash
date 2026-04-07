@@ -106,8 +106,8 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     );
 
     const filterOperatorOptions = useMemo(() => {
-        return getFilterOperatorOptions(filterType);
-    }, [filterType]);
+        return getFilterOperatorOptions(filterType, field);
+    }, [filterType, field]);
 
     if (!field) {
         // show invalid dashboard filter

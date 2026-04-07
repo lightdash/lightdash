@@ -205,7 +205,8 @@ export const supportsSingleValue = (
 
 export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NULL &&
-    filterOperator !== FilterOperator.NOT_NULL;
+    filterOperator !== FilterOperator.NOT_NULL &&
+    filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     filterType: FilterType,
@@ -216,9 +217,11 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     const filterRuleDefaults: Partial<FilterRule> = {};
 
     if (
-        ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
-            filterRule.operator,
-        ) &&
+        ![
+            FilterOperator.NULL,
+            FilterOperator.NOT_NULL,
+            FilterOperator.IN_PERIOD_TO_DATE,
+        ].includes(filterRule.operator) &&
         values !== null
     ) {
         switch (filterType) {
@@ -318,6 +321,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             default:
                 break;
         }
+    }
+    if (filterRule.operator === FilterOperator.IN_PERIOD_TO_DATE) {
+        filterRuleDefaults.settings = {
+            unitOfTime: UnitOfTime.years,
+            completed: false,
+        } as DateFilterRule['settings'];
     }
     return {
         ...filterRule,
