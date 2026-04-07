@@ -119,15 +119,17 @@ const dateTruncTimezoneConversions: Record<
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
     },
-    // Trino: CAST to timestamptz interprets NTZ via session TZ,
-    // then AT TIME ZONE converts to project TZ
+    // Trino/Athena: CAST to timestamptz interprets NTZ via session TZ,
+    // then AT TIME ZONE changes the timezone. Unlike Postgres, Trino's
+    // AT TIME ZONE on timestamptz produces another timestamptz (not NTZ).
+    // The outer CAST to timestamp strips the timezone to get NTZ local time.
     [SupportedDbtAdapter.TRINO]: {
         toProjectTz: (sql, tz) =>
-            `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
+            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
-            `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
+            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
     },
     // ClickHouse: toTimeZone changes the display timezone
     [SupportedDbtAdapter.CLICKHOUSE]: {
@@ -161,8 +163,13 @@ const bigqueryConfig: WarehouseConfig = {
                 ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
-            const tzParam = timezone ? `, '${timezone}'` : '';
-            return `TIMESTAMP_TRUNC(${originalSql}, ${datePart}${tzParam})`;
+            if (timezone) {
+                // TIMESTAMP_TRUNC returns a UTC TIMESTAMP. Wrap with
+                // DATETIME to convert to local time so the result matches
+                // date literals in filters (e.g., '2024-01-15').
+                return `DATETIME(TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}'), '${timezone}')`;
+            }
+            return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
     },
