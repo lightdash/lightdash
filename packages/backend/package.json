@@ -108,7 +108,7 @@
         "express-winston": "4.2.0",
         "fs-extra": "10.0.0",
         "fuse.js": "6.5.3",
-        "googleapis": "105.0.0",
+        "googleapis": "124.0.0",
         "graphile-worker": "0.13.0",
         "graphql": "16.8.1",
         "graphql-request": "5.2.0",
