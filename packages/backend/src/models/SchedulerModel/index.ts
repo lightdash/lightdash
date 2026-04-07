@@ -606,7 +606,7 @@ export class SchedulerModel {
         // organization on the outer query. This ensures any new scheduler
         // content type added to the union is automatically org-scoped.
         let query = this.database
-            .from(
+            .from<SelectScheduler>(
                 schedulerCharts
                     .unionAll(schedulerDashboards)
                     .unionAll(schedulerSqlCharts)
