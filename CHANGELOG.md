@@ -1,3 +1,15 @@
+# [0.2730.0](https://github.com/lightdash/lightdash/compare/0.2729.3...0.2730.0) (2026-04-07)
+
+
+### Bug Fixes
+
+* match dashboard filters by field ID instead of table name to prevent filter bypass ([#21791](https://github.com/lightdash/lightdash/issues/21791)) ([95a8b80](https://github.com/lightdash/lightdash/commit/95a8b808436864129698d4908641d77ca2391308))
+
+
+### Features
+
+* add preview step before bulk rename in validator fix modal ([#21790](https://github.com/lightdash/lightdash/issues/21790)) ([b52cbee](https://github.com/lightdash/lightdash/commit/b52cbee047434def07051b3651736989acdadd64))
+
 ## [0.2729.3](https://github.com/lightdash/lightdash/compare/0.2729.2...0.2729.3) (2026-04-07)
 
 
