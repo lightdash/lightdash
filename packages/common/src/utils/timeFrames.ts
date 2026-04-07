@@ -78,72 +78,60 @@ type WarehouseConfig = {
 };
 
 /**
- * Per-warehouse SQL for converting timestamps to/from a project timezone.
- * Used by getSqlForTruncatedDate to wrap DATE_TRUNC with timezone conversion:
- *   1. toProjectTz: convert input from UTC/session TZ to project TZ
- *   2. DATE_TRUNC in project TZ
- *   3. toUtc: convert truncated result back to UTC
+ * Per-warehouse SQL for converting timestamps to the project timezone
+ * before DATE_TRUNC. The truncated result stays in local time (NTZ) —
+ * no conversion back to UTC is needed because DATE_TRUNC is lossy
+ * (always produces midnight, no meaningful time component).
  *
- * BigQuery uses no-ops because TIMESTAMP_TRUNC has native timezone support —
- * the timezone parameter is passed directly inside the function call, not
- * as input/output wrapping.
+ * BigQuery uses no-ops because TIMESTAMP_TRUNC has native timezone
+ * support — the timezone parameter is passed directly inside the
+ * function call, not as input wrapping.
  */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string) => string;
-    toUtc: (sql: string, tz: string) => string;
 };
 
 const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
 > = {
-    // BigQuery: no-ops — TIMESTAMP_TRUNC handles timezone natively as a parameter
+    // BigQuery: no-op — TIMESTAMP_TRUNC handles timezone natively as a parameter
     [SupportedDbtAdapter.BIGQUERY]: {
         toProjectTz: (sql) => sql,
-        toUtc: (sql) => sql,
     },
-    // Snowflake: CONVERT_TIMEZONE between UTC and project TZ
+    // Snowflake: CONVERT_TIMEZONE from UTC to project TZ
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz) => `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
-        toUtc: (sql, tz) =>
-            `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('${tz}', 'UTC', ${sql}))`,
     },
     // Postgres: ::timestamptz interprets NTZ via session TZ (data timezone),
-    // then AT TIME ZONE converts to project TZ
+    // then AT TIME ZONE converts to project TZ (produces NTZ in local time)
     [SupportedDbtAdapter.POSTGRES]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
-        toUtc: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
-        toUtc: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.DUCKDB]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
-        toUtc: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     // Databricks: normalize to UTC via session TZ, then to project TZ
     [SupportedDbtAdapter.DATABRICKS]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
-        toUtc: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
     },
     // Trino: CAST to timestamptz interprets NTZ via session TZ,
     // then AT TIME ZONE converts to project TZ
     [SupportedDbtAdapter.TRINO]: {
         toProjectTz: (sql, tz) =>
             `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
-        toUtc: (sql, tz) => `${sql} AT TIME ZONE '${tz}' AT TIME ZONE 'UTC'`,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
             `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
-        toUtc: (sql, tz) => `${sql} AT TIME ZONE '${tz}' AT TIME ZONE 'UTC'`,
     },
-    // ClickHouse: DateTime is UTC internally, toTimeZone changes display TZ
+    // ClickHouse: toTimeZone changes the display timezone
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
-        toUtc: (sql) => `toTimeZone(${sql}, 'UTC')`,
     },
 };
 
@@ -540,8 +528,11 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
  *   1. Convert input to project timezone (dateTruncTimezoneConversions.toProjectTz)
  *   2. Apply DATE_TRUNC (warehouseConfigs.getSqlForTruncatedDate)
  *      — BigQuery uses timezone natively inside TIMESTAMP_TRUNC; others ignore it
- *   3. Convert result back to UTC (dateTruncTimezoneConversions.toUtc)
- *      — BigQuery no-ops here since TIMESTAMP_TRUNC handles it
+ *
+ * The result stays in the project timezone (NTZ). DATE_TRUNC is lossy —
+ * it always produces midnight with no meaningful time component — so
+ * converting back to UTC is unnecessary and would break filter comparisons
+ * (e.g., `= '2024-01-15'` wouldn't match midnight-local expressed as UTC).
  */
 export const getSqlForTruncatedDate = (
     adapterType: SupportedDbtAdapter,
@@ -560,16 +551,15 @@ export const getSqlForTruncatedDate = (
         );
     }
 
-    const { toProjectTz, toUtc } = dateTruncTimezoneConversions[adapterType];
+    const { toProjectTz } = dateTruncTimezoneConversions[adapterType];
     const input = toProjectTz(originalSql, timezone);
-    const truncated = warehouseConfigs[adapterType].getSqlForTruncatedDate(
+    return warehouseConfigs[adapterType].getSqlForTruncatedDate(
         timeFrame,
         input,
         type,
         startOfWeek,
         timezone,
     );
-    return toUtc(truncated, timezone);
 };
 
 const getSqlForDatePart: TimeFrameConfig['getSql'] = (

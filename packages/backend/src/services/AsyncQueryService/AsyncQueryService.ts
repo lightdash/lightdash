@@ -2631,6 +2631,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         userAttributeOverrides,
         materializationRole,
+        dataTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2644,6 +2645,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        dataTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -2685,6 +2687,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotDimensions: metricQuery.pivotDimensions,
             useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -3412,6 +3415,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             materializationRole,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -3657,6 +3661,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3972,6 +3977,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -4276,6 +4282,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =

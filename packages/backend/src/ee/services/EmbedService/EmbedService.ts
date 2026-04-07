@@ -881,6 +881,7 @@ export class EmbedService extends BaseService {
             parameters: combinedParameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseClient.credentials.dataTimezone,
         });
 
         const results =
@@ -1402,6 +1403,7 @@ export class EmbedService extends BaseService {
                     availableParameterDefinitions,
                     combinedParameters,
                     useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const { rows } = await this._runEmbedQuery({
@@ -1665,6 +1667,7 @@ export class EmbedService extends BaseService {
                     availableParameterDefinitions,
                     combinedParameters,
                     useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const { rows } = await this._runEmbedQuery({

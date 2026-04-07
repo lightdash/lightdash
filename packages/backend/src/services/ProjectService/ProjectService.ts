@@ -2992,6 +2992,7 @@ export class ProjectService extends BaseService {
         pivotDimensions,
         continueOnError,
         useTimezoneAwareDateTrunc,
+        dataTimezone,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -3006,6 +3007,7 @@ export class ProjectService extends BaseService {
         pivotDimensions?: string[];
         continueOnError?: boolean;
         useTimezoneAwareDateTrunc?: boolean;
+        dataTimezone?: string;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -3039,6 +3041,7 @@ export class ProjectService extends BaseService {
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
             useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -3183,6 +3186,7 @@ export class ProjectService extends BaseService {
             pivotDimensions,
             continueOnError: true, // Return SQL even with compilation errors for debugging
             useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         // Generate pivot query if pivot configuration is provided
@@ -4067,6 +4071,7 @@ export class ProjectService extends BaseService {
                         availableParameterDefinitions,
                         pivotDimensions: metricQueryWithLimit.pivotDimensions,
                         useTimezoneAwareDateTrunc,
+                        dataTimezone: warehouseClient.credentials.dataTimezone,
                     });
 
                     const { query } = fullQuery;
@@ -4704,6 +4709,7 @@ export class ProjectService extends BaseService {
             parameters: combinedParameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseClient.credentials.dataTimezone,
         });
 
         const cacheKey = metricQuery.timezone
@@ -6792,6 +6798,7 @@ export class ProjectService extends BaseService {
         availableParameterDefinitions: ParameterDefinitions,
         parameters?: ParametersValuesMap,
         useTimezoneAwareDateTrunc?: boolean,
+        dataTimezone?: string,
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -6827,6 +6834,7 @@ export class ProjectService extends BaseService {
             parameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         return { query, totalQuery };
@@ -6879,6 +6887,7 @@ export class ProjectService extends BaseService {
                 availableParameterDefinitions,
                 parameters,
                 useTimezoneAwareDateTrunc,
+                warehouseClient.credentials.dataTimezone,
             );
 
             const queryTags: RunQueryTags = {
@@ -6951,6 +6960,7 @@ export class ProjectService extends BaseService {
                     availableParameterDefinitions,
                     parameters,
                     useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const queryTags: RunQueryTags = {

@@ -35,6 +35,7 @@ import {
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
+    isDimension,
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
@@ -135,6 +136,12 @@ export type BuildQueryProps = {
      * timezone instead of UTC. Gated behind EnableTimezoneSupport.
      */
     useTimezoneAwareDateTrunc?: boolean;
+    /**
+     * The warehouse data timezone from credentials. Used to skip
+     * timezone-aware DATE_TRUNC wrapping when the session timezone
+     * already matches the query timezone (no conversion needed).
+     */
+    dataTimezone?: string;
 };
 
 /**
@@ -311,14 +318,33 @@ export class MetricQueryBuilder {
     > = {};
 
     /**
-     * Returns the query timezone when timezone-aware DATE_TRUNC is enabled,
+     * Returns the query timezone when timezone-aware DATE_TRUNC is needed,
      * undefined otherwise. Used to pass timezone to getDimensionFromId and
      * getSqlForTruncatedDate.
+     *
+     * Skips wrapping when the warehouse session timezone already matches
+     * the query timezone, since bare DATE_TRUNC already groups correctly.
+     *
+     * Snowflake is special: convertTimezone() in translator.ts normalizes
+     * all timestamp dimensions to UTC at compile time, so the session TZ
+     * is irrelevant for DATE_TRUNC input. Skip only when queryTimezone
+     * is UTC (the already-normalized value).
      */
     private get timezoneForDateTrunc(): string | undefined {
-        return this.args.useTimezoneAwareDateTrunc
-            ? this.args.timezone
-            : undefined;
+        if (!this.args.useTimezoneAwareDateTrunc) return undefined;
+
+        const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
+
+        if (adapterType === SupportedDbtAdapter.SNOWFLAKE) {
+            return this.args.timezone === 'UTC'
+                ? undefined
+                : this.args.timezone;
+        }
+
+        const effectiveDataTz = this.args.dataTimezone ?? 'UTC';
+        if (effectiveDataTz === this.args.timezone) return undefined;
+
+        return this.args.timezone;
     }
 
     // Contains the metrics from the Explore and the custom metrics from the metric query
@@ -1346,6 +1372,21 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
+        // When timezone-aware DATE_TRUNC is active, override the filter
+        // dimension's compiledSql to match the SELECT clause. Without this,
+        // filters on time-interval dimensions (e.g., event_timestamp_day = '2024-01-16')
+        // would use UTC DATE_TRUNC while the SELECT groups by project timezone.
+        const filterField = isDimension(field)
+            ? {
+                  ...field,
+                  compiledSql: this.getTimezoneAwareDimensionSql(
+                      field,
+                      adapterType,
+                      startOfWeek,
+                  ),
+              }
+            : field;
+
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
         let baseDimensionSql: string | undefined;
@@ -1371,7 +1412,7 @@ export class MetricQueryBuilder {
         return renderWithErrorHandling(() =>
             renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
-                field,
+                filterField,
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeString,

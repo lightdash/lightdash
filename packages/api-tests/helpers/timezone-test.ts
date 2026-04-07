@@ -1,0 +1,129 @@
+import { SEED_PROJECT } from '@lightdash/common';
+import { expect } from 'vitest';
+import { ApiClient, Body } from './api-client';
+
+const apiUrl = '/api/v2';
+const projectUuid = SEED_PROJECT.project_uuid;
+
+export async function getProjectConfig(client: ApiClient): Promise<{
+    dbtConnection: Record<string, unknown>;
+    warehouseConnection: Record<string, unknown>;
+}> {
+    const resp = await client.request<
+        Body<{
+            dbtConnection: Record<string, unknown>;
+            warehouseConnection: Record<string, unknown>;
+        }>
+    >(`/api/v1/projects/${projectUuid}`);
+    expect(resp.status).toBe(200);
+    return {
+        dbtConnection: resp.body.results.dbtConnection,
+        warehouseConnection: resp.body.results.warehouseConnection,
+    };
+}
+
+export async function updateDataTimezone(
+    client: ApiClient,
+    dataTimezone?: string,
+): Promise<void> {
+    const { dbtConnection, warehouseConnection } =
+        await getProjectConfig(client);
+    const resp = await client.request(`/api/v1/projects/${projectUuid}`, {
+        method: 'PATCH',
+        body: {
+            dbtConnection,
+            warehouseConnection: {
+                ...warehouseConnection,
+                dataTimezone: dataTimezone ?? null,
+            },
+        },
+    });
+    expect(resp.status).toBe(200);
+}
+
+export async function runTimezoneTestQuery(
+    client: ApiClient,
+    options: {
+        dimensions: string[];
+        metrics: string[];
+        filters?: Record<string, unknown>;
+        sorts?: Array<{ fieldId: string; descending: boolean }>;
+        timezone?: string;
+    },
+): Promise<
+    Array<Record<string, { value: { raw: string; formatted: string } }>>
+> {
+    const startResp = await client.request<Body<{ queryUuid: string }>>(
+        `${apiUrl}/projects/${projectUuid}/query/metric-query`,
+        {
+            method: 'POST',
+            body: {
+                query: {
+                    exploreName: 'timezone_test',
+                    dimensions: options.dimensions,
+                    metrics: options.metrics,
+                    filters: options.filters ?? {},
+                    sorts: options.sorts ?? [
+                        {
+                            fieldId: options.dimensions[0],
+                            descending: false,
+                        },
+                    ],
+                    limit: 500,
+                    tableCalculations: [],
+                    timezone: options.timezone,
+                },
+            },
+        },
+    );
+    expect(startResp.status).toBe(200);
+    const { queryUuid } = startResp.body.results;
+
+    let attempts = 0;
+    while (attempts < 30) {
+        const pollResp = await client.request<
+            Body<{ status: string; rows: Array<Record<string, unknown>> }>
+        >(
+            `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=500`,
+        );
+        expect(pollResp.status).toBe(200);
+
+        if (pollResp.body.results.status === 'ready') {
+            return pollResp.body.results.rows as Array<
+                Record<string, { value: { raw: string; formatted: string } }>
+            >;
+        }
+        if (pollResp.body.results.status === 'error') {
+            const errorDetails = JSON.stringify(pollResp.body.results, null, 2);
+            throw new Error(`Query failed: ${errorDetails}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        attempts++;
+    }
+    throw new Error('Query timed out');
+}
+
+type TimezoneTestRow = Record<
+    string,
+    { value: { raw: string; formatted: string } }
+>;
+
+export function getRowCount(
+    rows: TimezoneTestRow[],
+    dayFormatted: string,
+): number {
+    const row = rows.find(
+        (r) =>
+            r.timezone_test_event_timestamp_day?.value?.formatted ===
+            dayFormatted,
+    );
+    return row ? parseInt(row.timezone_test_count?.value?.raw ?? '0', 10) : 0;
+}
+
+export function getTotalCount(rows: TimezoneTestRow[]): number {
+    return rows.reduce(
+        (sum, r) =>
+            sum + parseInt(r.timezone_test_count?.value?.raw ?? '0', 10),
+        0,
+    );
+}
