@@ -1,4 +1,5 @@
 import {
+    type PreAggregateMaterializationRole,
     type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationWarning,
 } from '@lightdash/common';
@@ -107,6 +108,61 @@ const ColumnsSection: FC<{
     );
 };
 
+const MaterializationRoleSection: FC<{
+    materializationRole: PreAggregateMaterializationRole;
+}> = ({ materializationRole }) => {
+    const attributeEntries = Object.entries(materializationRole.attributes);
+
+    return (
+        <Box>
+            <DetailLabel>Materialization role</DetailLabel>
+            <Stack gap="sm" mt={4}>
+                <Box>
+                    <DetailLabel>Email</DetailLabel>
+                    <DetailValue mono>{materializationRole.email}</DetailValue>
+                </Box>
+
+                <Box>
+                    <DetailLabel>Attributes</DetailLabel>
+                    <Stack gap={6} mt={4}>
+                        {attributeEntries.map(([attributeName, values]) => (
+                            <Box
+                                key={attributeName}
+                                px="xs"
+                                py={6}
+                                style={{
+                                    borderRadius: 'var(--mantine-radius-sm)',
+                                    backgroundColor:
+                                        'var(--mantine-color-ldGray-0)',
+                                }}
+                            >
+                                <Stack gap={6}>
+                                    <Text fz="xs" ff="monospace">
+                                        {attributeName}
+                                    </Text>
+                                    <Group gap={4}>
+                                        {values.map((value) => (
+                                            <Badge
+                                                key={`${attributeName}-${value}`}
+                                                variant="outline"
+                                                color="gray"
+                                                size="xs"
+                                                ff="monospace"
+                                            >
+                                                {value}
+                                            </Badge>
+                                        ))}
+                                    </Group>
+                                </Stack>
+                            </Box>
+                        ))}
+                    </Stack>
+                </Box>
+            </Stack>
+        </Box>
+    );
+};
+
 type Props = {
     summary: PreAggregateMaterializationSummary | null;
     opened: boolean;
@@ -150,6 +206,12 @@ const MaterializationDetailDrawer: FC<Props> = ({
                     <DetailLabel>Source explore</DetailLabel>
                     <DetailValue mono>{summary.sourceExploreName}</DetailValue>
                 </Box>
+
+                {summary.materializationRole && (
+                    <MaterializationRoleSection
+                        materializationRole={summary.materializationRole}
+                    />
+                )}
 
                 <Box>
                     <DetailLabel>Metrics</DetailLabel>
