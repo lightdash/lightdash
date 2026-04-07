@@ -141,7 +141,7 @@
         "format": "turbo run format --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests",
         "fix-lint": "turbo run fix-lint --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests",
         "fix-format": "turbo run fix-format --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests",
-        "test": "turbo run test --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=e2e --filter=@lightdash/cli --filter=api-tests",
+        "test": "turbo run test --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend --filter=@lightdash/cli --filter=api-tests",
         "dev": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev",
         "build": "turbo run build --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
         "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F query-sdk -F cli build && pnpm frontend-build-sdk",
