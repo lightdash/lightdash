@@ -79,6 +79,7 @@ const DELIVERY_FORMATS = [
     SchedulerFormat.CSV,
     SchedulerFormat.XLSX,
     SchedulerFormat.IMAGE,
+    SchedulerFormat.PDF,
 ];
 
 export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
