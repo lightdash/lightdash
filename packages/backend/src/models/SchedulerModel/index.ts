@@ -317,6 +317,16 @@ export class SchedulerModel {
             destinations?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        // Resolve organization_id once — used to scope all sub-queries
+        const orgRow = await this.database(OrganizationTableName)
+            .select('organization_id')
+            .where('organization_uuid', organizationUuid)
+            .first();
+        if (!orgRow) {
+            throw new NotFoundError('Organization not found');
+        }
+        const { organization_id: organizationId } = orgRow;
+
         let baseQuery = this.database(SchedulerTableName)
             .select<SelectScheduler[]>(
                 `${SchedulerTableName}.*`,
@@ -329,6 +339,7 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_uuid as project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
+                `${ProjectTableName}.organization_id as organization_id`,
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -562,26 +573,6 @@ export class SchedulerModel {
             `${SpaceTableName}.deleted_at`,
         );
 
-        const orgFilter = this.database(OrganizationTableName)
-            .select('organization_id')
-            .where('organization_uuid', organizationUuid);
-
-        schedulerCharts = schedulerCharts.where(
-            `${ProjectTableName}.organization_id`,
-            'in',
-            orgFilter,
-        );
-        schedulerDashboards = schedulerDashboards.where(
-            `${ProjectTableName}.organization_id`,
-            'in',
-            orgFilter,
-        );
-        schedulerSqlCharts = schedulerSqlCharts.where(
-            `${ProjectTableName}.organization_id`,
-            'in',
-            orgFilter,
-        );
-
         if (projectUuid) {
             schedulerCharts = schedulerCharts.where(
                 `${ProjectTableName}.project_uuid`,
@@ -628,10 +619,17 @@ export class SchedulerModel {
             );
         }
 
-        // Use union to combine all queries
-        let query = schedulerCharts
-            .unionAll(schedulerDashboards)
-            .unionAll(schedulerSqlCharts);
+        // Combine all content-type queries, then scope to the caller's
+        // organization on the outer query. This ensures any new scheduler
+        // content type added to the union is automatically org-scoped.
+        let query = this.database
+            .from(
+                schedulerCharts
+                    .unionAll(schedulerDashboards)
+                    .unionAll(schedulerSqlCharts)
+                    .as('schedulers'),
+            )
+            .where('organization_id', organizationId);
 
         // Apply sorting if present, default to name asc
         if (sort && sort.column && sort.direction) {
