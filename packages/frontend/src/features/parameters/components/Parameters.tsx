@@ -1,4 +1,5 @@
 import {
+    sortParameterKeys,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type ParameterValue,
@@ -57,14 +58,10 @@ export const Parameters: FC<Props> = ({
         );
     }
 
-    const paramEntries = Object.entries(parameters).sort(
-        ([keyA, a], [keyB, b]) => {
-            const aOrder = a.order ?? Infinity;
-            const bOrder = b.order ?? Infinity;
-            if (aOrder !== bOrder) return aOrder - bOrder;
-            return keyA.localeCompare(keyB);
-        },
-    );
+    const paramEntries = sortParameterKeys(
+        parameters,
+        Object.keys(parameters),
+    ).map((key) => [key, parameters[key]] as const);
 
     return (
         <>

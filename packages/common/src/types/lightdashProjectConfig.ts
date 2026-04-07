@@ -46,3 +46,18 @@ export type LightdashProjectConfig = {
 export const DEFAULT_SPOTLIGHT_CONFIG: SpotlightConfig = {
     default_visibility: 'show',
 };
+
+/**
+ * Sort parameter keys by explicit `order` field (lower first),
+ * falling back to alphabetical key order for parameters with the same or no order.
+ */
+export const sortParameterKeys = (
+    parameters: Record<string, LightdashProjectParameter>,
+    keys: string[],
+): string[] =>
+    [...keys].sort((a, b) => {
+        const aOrder = parameters[a]?.order ?? Infinity;
+        const bOrder = parameters[b]?.order ?? Infinity;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.localeCompare(b);
+    });

@@ -1,4 +1,5 @@
 import {
+    sortParameterKeys,
     type LightdashProjectParameter,
     type ParametersValuesMap,
     type ParameterValue,
@@ -56,12 +57,7 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     onParameterPin,
 }) => {
     const parameterKeys = parameters
-        ? Object.keys(parameters).sort((a, b) => {
-              const aOrder = parameters[a]?.order ?? Infinity;
-              const bOrder = parameters[b]?.order ?? Infinity;
-              if (aOrder !== bOrder) return aOrder - bOrder;
-              return a.localeCompare(b);
-          })
+        ? sortParameterKeys(parameters, Object.keys(parameters))
         : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
         (value) => value !== null && value !== '',
