@@ -1,3 +1,10 @@
+## [0.2729.1](https://github.com/lightdash/lightdash/compare/0.2729.0...0.2729.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* add pivot documentation to table chart skill reference ([#21463](https://github.com/lightdash/lightdash/issues/21463)) ([8bfdff2](https://github.com/lightdash/lightdash/commit/8bfdff272beabd2cd737e199770010494674b60f))
+
 # [0.2729.0](https://github.com/lightdash/lightdash/compare/0.2728.3...0.2729.0) (2026-04-07)
 
 
