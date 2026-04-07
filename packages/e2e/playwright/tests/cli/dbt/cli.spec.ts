@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { expect, test } from '../../../fixtures';
 
 const projectDir = '../../examples/full-jaffle-shop-demo/dbt';
@@ -27,25 +27,17 @@ function exec(
     command: string,
     options: { env?: Record<string, string>; timeout?: number } = {},
 ): { stdout: string; stderr: string; code: number } {
-    try {
-        const stdout = execSync(command, {
-            encoding: 'utf-8',
-            env: { ...process.env, ...options.env },
-            timeout: options.timeout,
-        });
-        return { stdout, stderr: '', code: 0 };
-    } catch (e: unknown) {
-        const error = e as {
-            stdout?: string;
-            stderr?: string;
-            status?: number;
-        };
-        return {
-            stdout: error.stdout ?? '',
-            stderr: error.stderr ?? '',
-            code: error.status ?? 1,
-        };
-    }
+    const result = spawnSync(command, {
+        encoding: 'utf-8',
+        env: { ...process.env, ...options.env },
+        timeout: options.timeout,
+        shell: true,
+    });
+    return {
+        stdout: result.stdout ?? '',
+        stderr: result.stderr ?? '',
+        code: result.status ?? 1,
+    };
 }
 
 test.describe('CLI', () => {
