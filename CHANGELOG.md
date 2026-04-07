@@ -1,3 +1,10 @@
+# [0.2732.0](https://github.com/lightdash/lightdash/compare/0.2731.0...0.2732.0) (2026-04-07)
+
+
+### Features
+
+* scope data apps to admin only ([#21814](https://github.com/lightdash/lightdash/issues/21814)) ([9fb5ed5](https://github.com/lightdash/lightdash/commit/9fb5ed5070877103e08b6ef9e37b76a3165fb307))
+
 # [0.2731.0](https://github.com/lightdash/lightdash/compare/0.2730.2...0.2731.0) (2026-04-07)
 
 
