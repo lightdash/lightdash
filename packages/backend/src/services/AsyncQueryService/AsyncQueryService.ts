@@ -37,6 +37,7 @@ import {
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
+    getMetrics,
     getMetricsWithValidParameters,
     isCartesianChartConfig,
     isCustomBinDimension,
@@ -45,6 +46,7 @@ import {
     isDateItem,
     isExploreError,
     isField,
+    isFilterableDimension,
     isJwtUser,
     isMetric,
     isValidTimezone,
@@ -3706,11 +3708,25 @@ export class AsyncQueryService extends ProjectService {
             account.isRegisteredUser() ? account.user.id : null,
         );
 
-        const tables = Object.keys(explore.tables);
+        // Use the explore's actual field ids (dimensions + metrics) as the
+        // source of truth for which dashboard filter rules apply to this tile.
+        // Matching on field id avoids the divergence between the UI and the
+        // server when a filter rule's `target.tableName` is stale (see comment
+        // on getDashboardFilterRulesForTables in @lightdash/common filters).
+        // The set is intentionally aligned with the UI's
+        // getAvailableFiltersForSavedQueries (filterable, non-hidden).
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
         const appliedDashboardFilters: DashboardFilters =
             getDashboardFiltersForTileAndTables(
                 tileUuid,
-                tables,
+                availableFieldIds,
                 dashboardFilters,
             );
 

@@ -3498,18 +3498,29 @@ export class ProjectService extends BaseService {
             account.user.id,
         );
 
-        const tables = Object.keys(explore.tables);
+        // Match dashboard filter rules by their actual field id against the
+        // explore's available fields, not by tableName. See comment on
+        // getDashboardFilterRulesForTables for the rationale. Aligned with the
+        // UI's getAvailableFiltersForSavedQueries (filterable, non-hidden).
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
         const appliedDashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
-                tables,
+                availableFieldIds,
                 dashboardFilters.dimensions,
             ),
             metrics: getDashboardFilterRulesForTables(
-                tables,
+                availableFieldIds,
                 dashboardFilters.metrics,
             ),
             tableCalculations: getDashboardFilterRulesForTables(
-                tables,
+                availableFieldIds,
                 dashboardFilters.tableCalculations,
             ),
         };
@@ -6976,20 +6987,27 @@ export class ProjectService extends BaseService {
             savedChart.tableName,
             organizationUuid,
         );
-        const tables = Object.keys(explore.tables);
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
 
         const appliedDashboardFilters = dashboardFilters
             ? {
                   dimensions: getDashboardFilterRulesForTables(
-                      tables,
+                      availableFieldIds,
                       dashboardFilters.dimensions,
                   ),
                   metrics: getDashboardFilterRulesForTables(
-                      tables,
+                      availableFieldIds,
                       dashboardFilters.metrics,
                   ),
                   tableCalculations: getDashboardFilterRulesForTables(
-                      tables,
+                      availableFieldIds,
                       dashboardFilters.tableCalculations,
                   ),
               }
