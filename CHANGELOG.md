@@ -1,3 +1,10 @@
+## [0.2730.2](https://github.com/lightdash/lightdash/compare/0.2730.1...0.2730.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* allow null meta in dbt manifest validation schemas for Fusion compatibility ([#21732](https://github.com/lightdash/lightdash/issues/21732)) ([74a0c1a](https://github.com/lightdash/lightdash/commit/74a0c1ad663f10e031e9db53bcf9702905af1695))
+
 ## [0.2730.1](https://github.com/lightdash/lightdash/compare/0.2730.0...0.2730.1) (2026-04-07)
 
 
