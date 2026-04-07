@@ -43,6 +43,7 @@ import {
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
@@ -297,12 +298,14 @@ export class SchedulerModel {
 
     async getSchedulers({
         projectUuid,
+        organizationUuid,
         paginateArgs,
         searchQuery,
         sort,
         filters,
     }: {
         projectUuid?: string;
+        organizationUuid: string;
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
@@ -314,6 +317,16 @@ export class SchedulerModel {
             destinations?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        // Resolve organization_id once — used to scope all sub-queries
+        const orgRow = await this.database(OrganizationTableName)
+            .select('organization_id')
+            .where('organization_uuid', organizationUuid)
+            .first();
+        if (!orgRow) {
+            throw new NotFoundError('Organization not found');
+        }
+        const { organization_id: organizationId } = orgRow;
+
         let baseQuery = this.database(SchedulerTableName)
             .select<SelectScheduler[]>(
                 `${SchedulerTableName}.*`,
@@ -326,6 +339,7 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_uuid as project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
+                `${ProjectTableName}.organization_id as organization_id`,
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -559,18 +573,6 @@ export class SchedulerModel {
             `${SpaceTableName}.deleted_at`,
         );
 
-        if (projectUuid) {
-            schedulerCharts = schedulerCharts.where(
-                `${ProjectTableName}.project_uuid`,
-                projectUuid,
-            );
-
-            schedulerDashboards = schedulerDashboards.where(
-                `${ProjectTableName}.project_uuid`,
-                projectUuid,
-            );
-        }
-
         // Apply resource type filter
         const noResults = this.database.raw('1 = 0');
         if (filters?.resourceType === 'chart') {
@@ -600,10 +602,22 @@ export class SchedulerModel {
             );
         }
 
-        // Use union to combine all queries
-        let query = schedulerCharts
-            .unionAll(schedulerDashboards)
-            .unionAll(schedulerSqlCharts);
+        // Combine all content-type queries, then scope to the caller's
+        // organization on the outer query. This ensures any new scheduler
+        // content type added to the union is automatically org-scoped.
+        let query = this.database
+            .select<SelectScheduler[]>('*')
+            .from(
+                schedulerCharts
+                    .unionAll(schedulerDashboards)
+                    .unionAll(schedulerSqlCharts)
+                    .as('schedulers'),
+            )
+            .where('organization_id', organizationId);
+
+        if (projectUuid) {
+            query = query.where('project_uuid', projectUuid);
+        }
 
         // Apply sorting if present, default to name asc
         if (sort && sort.column && sort.direction) {
