@@ -1,3 +1,10 @@
+## [0.2729.2](https://github.com/lightdash/lightdash/compare/0.2729.1...0.2729.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* filter SQL chart schedulers by project in getSchedulers ([#21786](https://github.com/lightdash/lightdash/issues/21786)) ([a177cc0](https://github.com/lightdash/lightdash/commit/a177cc038409f7f1014bded090ae464cff41e11f))
+
 ## [0.2729.1](https://github.com/lightdash/lightdash/compare/0.2729.0...0.2729.1) (2026-04-07)
 
 
