@@ -717,21 +717,15 @@ export default class App {
         expressApp.use(
             (error: Error, req: Request, res: Response, _: NextFunction) => {
                 const errorResponse = errorHandler(error);
-                if (
-                    error instanceof UnexpectedServerError ||
-                    !(error instanceof LightdashError)
-                ) {
-                    // This intentionally uses console vs. winston because of problems from some error/JSON payloads.
-                    console.error(error);
-                }
                 Logger.error(
                     `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
-                    errorResponse,
+                    {
+                        name: errorResponse.name,
+                        statusCode: errorResponse.statusCode,
+                        data: errorResponse.data,
+                        error,
+                    },
                 );
-
-                if (process.env.NODE_ENV === 'development') {
-                    Logger.error(error.stack);
-                }
 
                 this.analytics.track({
                     event: 'api.error',
