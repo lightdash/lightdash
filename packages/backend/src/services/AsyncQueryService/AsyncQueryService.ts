@@ -47,6 +47,7 @@ import {
     isField,
     isJwtUser,
     isMetric,
+    isValidTimezone,
     isVizTableConfig,
     ItemsMap,
     KnexPaginateArgs,
@@ -54,6 +55,7 @@ import {
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    ParameterError,
     ParseError,
     PivotConfig,
     PivotConfiguration,
@@ -766,9 +768,21 @@ export class AsyncQueryService extends ProjectService {
             page,
             nextPage,
             previousPage,
-            initialQueryExecutionMs:
-                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
-            resultsPageExecutionMs: roundedDurationMs,
+            metadata: {
+                performance: {
+                    initialQueryExecutionMs:
+                        queryHistory.warehouseExecutionTimeMs ?? null,
+                    resultsPageExecutionMs: roundedDurationMs,
+                    queueTimeMs:
+                        this.lightdashConfig.natsWorker.enabled &&
+                        queryHistory.processingStartedAt
+                            ? Math.round(
+                                  queryHistory.processingStartedAt.getTime() -
+                                      queryHistory.createdAt.getTime(),
+                              )
+                            : null,
+                },
+            },
             status,
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
@@ -1495,6 +1509,10 @@ export class AsyncQueryService extends ProjectService {
                   );
                   await write?.(rows);
               };
+
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
+        }
 
         const warehouseResults = await Sentry.startSpan(
             {

@@ -1,3 +1,91 @@
+## [0.2728.3](https://github.com/lightdash/lightdash/compare/0.2728.2...0.2728.3) (2026-04-06)
+
+
+### Bug Fixes
+
+* batch insert during preview project copy ([#21772](https://github.com/lightdash/lightdash/issues/21772)) ([1cf0b53](https://github.com/lightdash/lightdash/commit/1cf0b535d5ae09e6e098a1d9a5e662e42afbdff7))
+* use deterministic space lookup in seed scripts ([#21775](https://github.com/lightdash/lightdash/issues/21775)) ([e88da83](https://github.com/lightdash/lightdash/commit/e88da83844295385f5d154e60a9ef96bf9ab42e4))
+
+## [0.2728.2](https://github.com/lightdash/lightdash/compare/0.2728.1...0.2728.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* persist parameter values with virtual views ([#21774](https://github.com/lightdash/lightdash/issues/21774)) ([2b30190](https://github.com/lightdash/lightdash/commit/2b30190f90d0f254e08d8718e3775c48942031c4))
+
+## [0.2728.1](https://github.com/lightdash/lightdash/compare/0.2728.0...0.2728.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* validate timezone strings before SQL interpolation ([#21767](https://github.com/lightdash/lightdash/issues/21767)) ([f9af142](https://github.com/lightdash/lightdash/commit/f9af1422cb3ab9d3b316d2ee393581fcf40b50bc))
+
+# [0.2728.0](https://github.com/lightdash/lightdash/compare/0.2727.0...0.2728.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* accept filters nested inside queryConfig in MCP run_metric_query tool ([#21765](https://github.com/lightdash/lightdash/issues/21765)) ([763c23b](https://github.com/lightdash/lightdash/commit/763c23b923f9492d32fe0160acb5bca21027b2e8))
+
+
+### Features
+
+* add SQL limit change listener to refresh chart data in visualization tab ([#21766](https://github.com/lightdash/lightdash/issues/21766)) ([8f4701e](https://github.com/lightdash/lightdash/commit/8f4701e18973e8a7c8c69f532e545fd3cf0517c1))
+
+# [0.2727.0](https://github.com/lightdash/lightdash/compare/0.2726.1...0.2727.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* scope autocomplete filter overlap check to active tab tiles ([#21763](https://github.com/lightdash/lightdash/issues/21763)) ([63d1661](https://github.com/lightdash/lightdash/commit/63d1661e07fa43dad8a4f92dc6fdd7704dd19d83))
+
+
+### Features
+
+* **explorer:** Make Virtual Views and Pre-aggregates collapsible by default ([#21720](https://github.com/lightdash/lightdash/issues/21720)) ([f754154](https://github.com/lightdash/lightdash/commit/f754154311fca77545775f0747240429b33372ef))
+
+## [0.2726.1](https://github.com/lightdash/lightdash/compare/0.2726.0...0.2726.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* exclude BigQuery from UTC offset in filter timestamp literals ([#21762](https://github.com/lightdash/lightdash/issues/21762)) ([6f56154](https://github.com/lightdash/lightdash/commit/6f56154e9119a72108036ac0836802665588ad91))
+
+# [0.2726.0](https://github.com/lightdash/lightdash/compare/0.2725.0...0.2726.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* add embedToken to treemap chart config for embed support ([#21760](https://github.com/lightdash/lightdash/issues/21760)) ([0085fb5](https://github.com/lightdash/lightdash/commit/0085fb5a205466e308ea97d5885c7a0729538f9d))
+* sql format duckdb sql ([#21756](https://github.com/lightdash/lightdash/issues/21756)) ([2e01f5d](https://github.com/lightdash/lightdash/commit/2e01f5d69355928efc568b20d47542aca84101b2))
+
+
+### Features
+
+* add missing sql formattings and consolidate SQL formatting utility to common package ([#21757](https://github.com/lightdash/lightdash/issues/21757)) ([57b9f09](https://github.com/lightdash/lightdash/commit/57b9f097b47b2c7e490344b2d72a958e3607833a))
+
+# [0.2725.0](https://github.com/lightdash/lightdash/compare/0.2724.5...0.2725.0) (2026-04-06)
+
+
+### Features
+
+* add query execution metadata with queue time and performance breakdown ([#21712](https://github.com/lightdash/lightdash/issues/21712)) ([b375c03](https://github.com/lightdash/lightdash/commit/b375c03b81ea9a9d156643f5da2d11c62b1a8cf6))
+
+## [0.2724.5](https://github.com/lightdash/lightdash/compare/0.2724.4...0.2724.5) (2026-04-06)
+
+
+### Bug Fixes
+
+* upgrade cypress-split 1.24.28→1.24.29 (security) ([#21469](https://github.com/lightdash/lightdash/issues/21469)) ([92eeef2](https://github.com/lightdash/lightdash/commit/92eeef20500fc4260fdde415f1b4d0f4609d3b74))
+
+## [0.2724.4](https://github.com/lightdash/lightdash/compare/0.2724.3...0.2724.4) (2026-04-06)
+
+
+### Bug Fixes
+
+* make snapshot SQL formatter adapter mapping exhaustive ([#21754](https://github.com/lightdash/lightdash/issues/21754)) ([1c81936](https://github.com/lightdash/lightdash/commit/1c819364ec781fad59d994a59e92e21b28be45f9))
+* upgrade dompurify 3.2.5→3.3.2 (security) ([#21726](https://github.com/lightdash/lightdash/issues/21726)) ([b7b83de](https://github.com/lightdash/lightdash/commit/b7b83de8df851650db81c9a63f1d9396f3e643ce))
+
 ## [0.2724.3](https://github.com/lightdash/lightdash/compare/0.2724.2...0.2724.3) (2026-04-03)
 
 

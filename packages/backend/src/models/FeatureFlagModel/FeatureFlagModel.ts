@@ -212,28 +212,11 @@ export class FeatureFlagModel {
     }
 
     private async getShowExecutionTimeEnabled({
-        user,
         featureFlagId,
     }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.showExecutionTime ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ShowExecutionTime,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-
         return {
             id: featureFlagId,
-            enabled,
+            enabled: this.lightdashConfig.query.showExecutionTime ?? false,
         };
     }
 

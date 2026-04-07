@@ -29,6 +29,9 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
     const columns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const parameterValues = useAppSelector(
+        (state) => state.sqlRunner.parameterValues,
+    );
 
     const name = useAppSelector((state) => state.sqlRunner.name);
 
@@ -67,11 +70,22 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
                 sql,
                 columns,
                 projectUuid,
+                parameterValues:
+                    Object.keys(parameterValues).length > 0
+                        ? parameterValues
+                        : undefined,
             });
 
             onClose();
         },
-        [columns, onClose, projectUuid, sql, createVirtualView],
+        [
+            columns,
+            onClose,
+            projectUuid,
+            sql,
+            parameterValues,
+            createVirtualView,
+        ],
     );
 
     return (

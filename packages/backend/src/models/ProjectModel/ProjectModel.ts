@@ -136,6 +136,23 @@ const warehouseCredentialsCache =
           })
         : undefined;
 
+const INSERT_BATCH_SIZE = 1000;
+
+async function chunkedInsertReturning<T extends Record<string, unknown>>(
+    trx: Transaction,
+    tableName: string,
+    rows: Record<string, unknown>[],
+): Promise<T[]> {
+    const results: T[] = [];
+    for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
+        const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
+        // eslint-disable-next-line no-await-in-loop -- chunked inserts must run sequentially to bound payload size
+        const inserted = await trx(tableName).insert(batch).returning('*');
+        results.push(...(inserted as T[]));
+    }
+    return results;
+}
+
 type RawSummaryRow = {
     name: Explore['name'];
     label: Explore['label'];
@@ -2232,29 +2249,29 @@ export class ProjectModel {
 
             const newCharts =
                 charts.length > 0
-                    ? await trx(SavedChartsTableName)
-                          .insert(
-                              charts.map((d) => {
-                                  if (!d.space_id) {
-                                      throw new Error(
-                                          `Chart ${d.saved_query_id} has no space_id`,
-                                      );
-                                  }
-                                  const createChart: CloneChart = {
-                                      ...d,
-                                      search_vector: undefined,
-                                      saved_query_id: undefined,
-                                      saved_query_uuid: undefined,
-                                      space_id: getNewSpaceId(d.space_id),
-                                      dashboard_uuid: null,
-                                  };
-                                  delete createChart.search_vector;
-                                  delete createChart.saved_query_id;
-                                  delete createChart.saved_query_uuid;
-                                  return createChart;
-                              }),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<DbSavedChart>(
+                          trx,
+                          SavedChartsTableName,
+                          charts.map((d) => {
+                              if (!d.space_id) {
+                                  throw new Error(
+                                      `Chart ${d.saved_query_id} has no space_id`,
+                                  );
+                              }
+                              const createChart: CloneChart = {
+                                  ...d,
+                                  search_vector: undefined,
+                                  saved_query_id: undefined,
+                                  saved_query_uuid: undefined,
+                                  space_id: getNewSpaceId(d.space_id),
+                                  dashboard_uuid: null,
+                              };
+                              delete createChart.search_vector;
+                              delete createChart.saved_query_id;
+                              delete createChart.saved_query_uuid;
+                              return createChart;
+                          }),
+                      )
                     : [];
 
             const chartsInDashboards = await trx(SavedChartsTableName)
@@ -2287,28 +2304,28 @@ export class ProjectModel {
             // We also copy charts in dashboards, we will replace the dashboard_uuid later
             const newChartsInDashboards =
                 chartsInDashboards.length > 0
-                    ? await trx(SavedChartsTableName)
-                          .insert(
-                              chartsInDashboards.map((d) => {
-                                  if (!d.dashboard_uuid) {
-                                      throw new Error(
-                                          `Chart in dashboard ${d.saved_query_id} has no dashboard_uuid`,
-                                      );
-                                  }
-                                  const createChart: CloneChart = {
-                                      ...d,
-                                      search_vector: undefined,
-                                      space_id: null,
-                                      dashboard_uuid: d.dashboard_uuid, // we'll update this later
-                                  };
-                                  delete createChart.search_vector;
-                                  delete createChart.saved_query_id;
-                                  delete createChart.saved_query_uuid;
+                    ? await chunkedInsertReturning<DbSavedChart>(
+                          trx,
+                          SavedChartsTableName,
+                          chartsInDashboards.map((d) => {
+                              if (!d.dashboard_uuid) {
+                                  throw new Error(
+                                      `Chart in dashboard ${d.saved_query_id} has no dashboard_uuid`,
+                                  );
+                              }
+                              const createChart: CloneChart = {
+                                  ...d,
+                                  search_vector: undefined,
+                                  space_id: null,
+                                  dashboard_uuid: d.dashboard_uuid,
+                              };
+                              delete createChart.search_vector;
+                              delete createChart.saved_query_id;
+                              delete createChart.saved_query_uuid;
 
-                                  return createChart;
-                              }),
-                          )
-                          .returning('*')
+                              return createChart;
+                          }),
+                      )
                     : [];
             const chartInSpacesMapping = charts.map((c, i) => ({
                 id: c.saved_query_id,
@@ -2345,30 +2362,32 @@ export class ProjectModel {
 
             const newChartVersions =
                 chartVersions.length > 0
-                    ? await trx('saved_queries_versions')
-                          .insert(
-                              chartVersions.map((d) => {
-                                  const newSavedQueryId = chartMapping.find(
-                                      (m) => m.id === d.saved_query_id,
-                                  )?.newId;
-                                  if (!newSavedQueryId) {
-                                      throw new Error(
-                                          `Cannot find new chart id for ${d.saved_query_id}`,
-                                      );
-                                  }
-                                  const createChartVersion = {
-                                      ...d,
-                                      saved_queries_version_id: undefined,
-                                      saved_queries_version_uuid: undefined,
-                                      saved_query_id: newSavedQueryId,
-                                  };
-                                  delete createChartVersion.saved_queries_version_id;
-                                  delete createChartVersion.saved_queries_version_uuid;
+                    ? await chunkedInsertReturning<
+                          (typeof chartVersions)[number]
+                      >(
+                          trx,
+                          'saved_queries_versions',
+                          chartVersions.map((d) => {
+                              const newSavedQueryId = chartMapping.find(
+                                  (m) => m.id === d.saved_query_id,
+                              )?.newId;
+                              if (!newSavedQueryId) {
+                                  throw new Error(
+                                      `Cannot find new chart id for ${d.saved_query_id}`,
+                                  );
+                              }
+                              const createChartVersion = {
+                                  ...d,
+                                  saved_queries_version_id: undefined,
+                                  saved_queries_version_uuid: undefined,
+                                  saved_query_id: newSavedQueryId,
+                              };
+                              delete createChartVersion.saved_queries_version_id;
+                              delete createChartVersion.saved_queries_version_uuid;
 
-                                  return createChartVersion;
-                              }),
-                          )
-                          .returning('*')
+                              return createChartVersion;
+                          }),
+                      )
                     : [];
 
             const chartVersionMapping = chartVersions.map((c, i) => ({
@@ -2932,7 +2951,7 @@ export class ProjectModel {
 
     async createVirtualView(
         projectUuid: string,
-        { name, sql, columns }: CreateVirtualViewPayload,
+        { name, sql, columns, parameterValues }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
@@ -2940,6 +2959,8 @@ export class ProjectModel {
             sql,
             columns,
             warehouseClient,
+            undefined, // label
+            parameterValues,
         );
 
         // insert virtual view into cached_explore
@@ -2988,6 +3009,7 @@ export class ProjectModel {
             payload.columns,
             warehouseClient,
             payload.name, // label
+            payload.parameterValues,
         );
 
         // insert into cached_explore

@@ -15,7 +15,7 @@ describe('MetricQueryBuilder snapshot: custom dimension queries', () => {
             buildQuery({
                 explore: EXPLORE,
                 compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                warehouseSqlBuilder: bigqueryClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }),
         ).toMatchSnapshot();
@@ -41,7 +41,7 @@ describe('MetricQueryBuilder snapshot: custom dimension queries', () => {
                         },
                     ],
                 },
-                warehouseSqlBuilder: bigqueryClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }),
         ).toMatchSnapshot();
@@ -72,7 +72,7 @@ describe('MetricQueryBuilder snapshot: custom dimension queries', () => {
                         },
                     ],
                 },
-                warehouseSqlBuilder: bigqueryClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }),
         ).toMatchSnapshot();
@@ -93,7 +93,7 @@ describe('MetricQueryBuilder snapshot: custom dimension queries', () => {
                         },
                     ],
                 },
-                warehouseSqlBuilder: bigqueryClientMock,
+                warehouseClient: bigqueryClientMock,
                 userAttributes: {},
             }),
         ).toMatchSnapshot();

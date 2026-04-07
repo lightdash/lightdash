@@ -61,7 +61,8 @@ const formatTimestampAsUTC = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ssZ');
 
 // ClickHouse's date_time_input_format may be set to 'basic', which cannot
-// parse timezone offsets like +00:00. The value is already computed as UTC.
+// parse timezone offsets like +00:00. BigQuery's DATETIME type also rejects
+// timezone offsets. Both already interpret bare strings correctly as UTC.
 const formatTimestampAsUTCNoOffset = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
@@ -634,7 +635,8 @@ export const renderFilterRuleSql = (
                 escapedFilterRule,
                 adapterType,
                 timezone,
-                adapterType === SupportedDbtAdapter.CLICKHOUSE
+                adapterType === SupportedDbtAdapter.CLICKHOUSE ||
+                    adapterType === SupportedDbtAdapter.BIGQUERY
                     ? formatTimestampAsUTCNoOffset
                     : formatTimestampAsUTC,
                 startOfWeek,

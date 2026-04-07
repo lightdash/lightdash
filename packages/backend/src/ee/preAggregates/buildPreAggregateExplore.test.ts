@@ -3,16 +3,14 @@ import {
     ExploreType,
     FieldType,
     MetricType,
+    PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
     TimeFrames,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
 } from '@lightdash/common';
-import {
-    buildPreAggregateExplore,
-    PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
-} from './buildPreAggregateExplore';
+import { buildPreAggregateExplore } from './buildPreAggregateExplore';
 
 const makeDimension = ({
     name,

@@ -22,6 +22,7 @@ export type ApiGetAppResponse = ApiSuccess<{
     appUuid: string;
     name: string;
     description: string;
+    createdByUserUuid: string;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
 }>;

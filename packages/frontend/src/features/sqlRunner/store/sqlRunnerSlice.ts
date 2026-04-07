@@ -10,11 +10,11 @@ import {
     type VizTableColumnsConfig,
     type VizTableConfig,
     type WarehouseTypes,
+    formatSql,
 } from '@lightdash/common';
 import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
-import { formatSql } from '../../../utils/sqlFormatter';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
@@ -209,6 +209,12 @@ export const sqlRunnerSlice = createSlice({
         },
         clearParameterValues: (state) => {
             state.parameterValues = {};
+        },
+        setParameterValues: (
+            state,
+            action: PayloadAction<ParametersValuesMap>,
+        ) => {
+            state.parameterValues = action.payload;
         },
         setFetchResultsOnLoad: (
             state,
@@ -435,6 +441,7 @@ export const {
     setState,
     updateParameterValue,
     clearParameterValues,
+    setParameterValues,
 } = sqlRunnerSlice.actions;
 
 export const {

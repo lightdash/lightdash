@@ -132,7 +132,8 @@ export const getUnderlyingDataResults = async (
         fields: executeQueryResponse.fields,
         warehouseExecutionTimeMs:
             currentPage.status === QueryHistoryStatus.READY
-                ? currentPage.initialQueryExecutionMs
+                ? (currentPage.metadata.performance.initialQueryExecutionMs ??
+                  undefined)
                 : undefined,
         totalClientFetchTimeMs: totalTime,
     };

@@ -4,6 +4,7 @@ import {
     DimensionType,
     ExploreType,
     InlineErrorType,
+    PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
     TimeFrames,
     type Explore,
@@ -14,7 +15,6 @@ import {
     MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     MODEL_WITH_METRIC,
 } from '@lightdash/common/src/compiler/translator.mock';
-import { PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER } from './buildPreAggregateExplore';
 import { preAggregatePostProcessor } from './postProcessor';
 
 describe('pre-aggregates metadata parsing', () => {

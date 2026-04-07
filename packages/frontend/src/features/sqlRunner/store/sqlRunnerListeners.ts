@@ -13,6 +13,7 @@ import {
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
     setSelectedChartType,
+    setSqlLimit,
 } from './sqlRunnerSlice';
 import { prepareAndFetchChartData, runSqlQuery } from './thunks';
 
@@ -184,6 +185,28 @@ export const addTabSwitchListener = (
                     setChartOptionsAndConfig(chartResultOptions),
                 );
                 await listenerApi.dispatch(prepareAndFetchChartData());
+            }
+        },
+    });
+};
+
+/**
+ * Add a listener for when the SQL limit is changed.
+ * This listener will re-fetch the pivot chart data with the new limit
+ * when on the visualization tab.
+ * @param startListening - The startAppListening function from listenerMiddleware.ts
+ */
+export const addLimitChangeListener = (
+    startListening: typeof startAppListening,
+) => {
+    startListening({
+        actionCreator: setSqlLimit,
+        effect: async (_, listenerApi) => {
+            const state = listenerApi.getState();
+            if (state.sqlRunner.activeEditorTab === EditorTabs.VISUALIZATION) {
+                await listenerApi.dispatch(
+                    prepareAndFetchChartData({ forceRefresh: true }),
+                );
             }
         },
     });

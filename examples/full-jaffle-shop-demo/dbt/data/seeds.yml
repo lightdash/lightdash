@@ -11,6 +11,8 @@ seeds:
             DateTime64(3, 'UTC')
           {%- elif target.type in ['databricks', 'spark', 'bigquery'] -%}
             timestamp
+          {%- elif target.type in ['trino', 'athena'] -%}
+            timestamp with time zone
           {%- else -%}
             timestamptz
           {%- endif -%}
@@ -19,6 +21,8 @@ seeds:
             timestamp_ntz
           {%- elif target.type == 'clickhouse' -%}
             DateTime64(3)
+          {%- elif target.type == 'bigquery' -%}
+            datetime
           {%- else -%}
             timestamp
           {%- endif -%}

@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { formatSql } from '@lightdash/common';
 import {
     ActionIcon,
     CopyButton,
@@ -30,7 +31,6 @@ import { useProject } from '../../../hooks/useProject';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import { formatSql } from '../../../utils/sqlFormatter';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { type SqlViewType } from '../../RenderedSql';

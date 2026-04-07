@@ -16,6 +16,7 @@ const createVirtualView = async ({
     name,
     sql,
     columns,
+    parameterValues,
 }: {
     projectUuid: string;
 } & CreateVirtualViewPayload) =>
@@ -26,6 +27,7 @@ const createVirtualView = async ({
             name,
             sql,
             columns,
+            parameterValues,
         }),
     });
 
@@ -76,6 +78,7 @@ const updateVirtualView = async ({
     name,
     sql,
     columns,
+    parameterValues,
 }: {
     exploreName: string;
     projectUuid: string;
@@ -87,6 +90,7 @@ const updateVirtualView = async ({
             name,
             sql,
             columns,
+            parameterValues,
         }),
     });
 

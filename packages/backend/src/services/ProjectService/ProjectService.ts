@@ -74,6 +74,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getMetrics,
+    getParameterReferences,
     getPreAggregateExploreName,
     getTimeDimensionsMap,
     getTimezoneLabel,
@@ -7498,9 +7499,19 @@ export class ProjectService extends BaseService {
                 isRegisteredUser: true,
             }),
         );
+        const effectiveParameterValues =
+            await this.resolveVirtualViewParameters(
+                projectUuid,
+                payload.sql,
+                payload.parameterValues,
+            );
+
         const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
-            payload,
+            {
+                ...payload,
+                parameterValues: effectiveParameterValues,
+            },
             warehouseClient,
         );
 
@@ -7556,10 +7567,20 @@ export class ProjectService extends BaseService {
             }),
         );
 
+        const effectiveParameterValues =
+            await this.resolveVirtualViewParameters(
+                projectUuid,
+                payload.sql,
+                payload.parameterValues,
+            );
+
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
             exploreName,
-            payload,
+            {
+                ...payload,
+                parameterValues: effectiveParameterValues,
+            },
             warehouseClient,
         );
 
@@ -8319,13 +8340,40 @@ export class ProjectService extends BaseService {
                 .filter(([key, value]) => value !== undefined),
         );
 
-        // Combine in order of priority: defaults (project / explore) < saved parameters (chart/dashboard) < request
+        // Combine in order of priority: defaults (project / explore) < virtual view saved values < saved parameters (chart/dashboard) < request
         return {
             ...projectDefaultParameterValues,
             ...exploreDefaultParameterValues,
+            ...(explore?.savedParameterValues || {}),
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };
+    }
+
+    /**
+     * Resolves effective parameter values for a virtual view by merging
+     * project defaults with explicitly provided values, filtered to only
+     * parameters referenced in the SQL.
+     */
+    private async resolveVirtualViewParameters(
+        projectUuid: string,
+        sql: string,
+        parameterValues?: ParametersValuesMap,
+    ): Promise<ParametersValuesMap | undefined> {
+        const referencedParams = getParameterReferences(sql);
+        if (referencedParams.length === 0) return undefined;
+
+        const allValues = await this.combineParameters(
+            projectUuid,
+            undefined,
+            parameterValues,
+        );
+        const filtered = Object.fromEntries(
+            Object.entries(allValues).filter(([key]) =>
+                referencedParams.includes(key),
+            ),
+        );
+        return Object.keys(filtered).length > 0 ? filtered : undefined;
     }
 
     static isChartEmbed(account: Account) {
