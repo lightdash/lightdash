@@ -58,6 +58,7 @@ export const projectMock = {
     organization_uuid: 'organizationUuid',
     dbt_version: DefaultSupportedDbtVersion,
     scheduler_timezone: 'UTC',
+    scheduler_cjk_font: '',
     query_timezone: null,
     has_default_user_spaces: false,
 };
