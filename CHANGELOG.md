@@ -1,3 +1,10 @@
+# [0.2733.0](https://github.com/lightdash/lightdash/compare/0.2732.0...0.2733.0) (2026-04-07)
+
+
+### Features
+
+* add formula test harness ([#21792](https://github.com/lightdash/lightdash/issues/21792)) ([61bfd34](https://github.com/lightdash/lightdash/commit/61bfd340446cb6961b50140bc2bc529990c700f1))
+
 # [0.2732.0](https://github.com/lightdash/lightdash/compare/0.2731.0...0.2732.0) (2026-04-07)
 
 
