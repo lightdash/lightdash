@@ -159,48 +159,62 @@ export class AiService {
         user: SessionUser,
         dashboard: DashboardDAO,
     ): Promise<ChartPromptData[]> {
-        const chartUuids = dashboard.tiles.reduce<string[]>((acc, tile) => {
+        const chartTiles = dashboard.tiles.reduce<
+            Array<{ tileUuid: string; chartUuid: string }>
+        >((acc, tile) => {
             if (
                 isDashboardChartTileType(tile) &&
                 tile.properties.savedChartUuid
             ) {
-                return [...acc, tile.properties.savedChartUuid];
+                return [
+                    ...acc,
+                    {
+                        tileUuid: tile.uuid,
+                        chartUuid: tile.properties.savedChartUuid,
+                    },
+                ];
             }
             return acc;
         }, []);
 
-        const chartResultPromises = chartUuids.map(async (chartUuid) => {
-            const chartAndResults =
-                await this.projectService.getChartAndResults({
-                    account: fromSession(user),
-                    dashboardUuid: dashboard.uuid,
-                    chartUuid,
-                    dashboardFilters: dashboard.filters,
-                    dashboardSorts: [],
-                    context: QueryExecutionContext.AI,
-                });
+        const chartResultPromises = chartTiles.map(
+            async ({ tileUuid, chartUuid }) => {
+                const chartAndResults =
+                    await this.projectService.getChartAndResults({
+                        account: fromSession(user),
+                        dashboardUuid: dashboard.uuid,
+                        chartUuid,
+                        tileUuid,
+                        dashboardFilters: dashboard.filters,
+                        dashboardSorts: [],
+                        context: QueryExecutionContext.AI,
+                    });
 
-            const columns = [
-                ...chartAndResults.metricQuery.dimensions,
-                ...chartAndResults.metricQuery.metrics, // custom metrics are already included here
-                ...chartAndResults.metricQuery.tableCalculations.map(
-                    (tc) => tc.name,
-                ),
-                ...(chartAndResults.metricQuery.customDimensions ?? []).map(
-                    (cd) => cd.id,
-                ),
-            ];
+                const columns = [
+                    ...chartAndResults.metricQuery.dimensions,
+                    ...chartAndResults.metricQuery.metrics, // custom metrics are already included here
+                    ...chartAndResults.metricQuery.tableCalculations.map(
+                        (tc) => tc.name,
+                    ),
+                    ...(chartAndResults.metricQuery.customDimensions ?? []).map(
+                        (cd) => cd.id,
+                    ),
+                ];
 
-            const data = await makeResultsCSV(columns, chartAndResults.rows);
+                const data = await makeResultsCSV(
+                    columns,
+                    chartAndResults.rows,
+                );
 
-            return {
-                name: chartAndResults.chart.name,
-                description: chartAndResults.chart.description,
-                data,
-                columns,
-                fields: chartAndResults.fields,
-            };
-        });
+                return {
+                    name: chartAndResults.chart.name,
+                    description: chartAndResults.chart.description,
+                    data,
+                    columns,
+                    fields: chartAndResults.fields,
+                };
+            },
+        );
 
         return Promise.all(chartResultPromises);
     }

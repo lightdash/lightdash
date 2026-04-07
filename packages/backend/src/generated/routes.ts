@@ -5828,7 +5828,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'PreAggregateDef' },
                 },
-                savedParameterValues: { ref: 'ParametersValuesMap' },
                 parameters: { ref: 'Record_string.LightdashProjectParameter_' },
                 aiHint: {
                     dataType: 'union',
@@ -16044,7 +16043,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                parameterValues: { ref: 'ParametersValuesMap' },
                 columns: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'VizColumn' },
@@ -21389,13 +21387,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                savedParameterValues: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ParametersValuesMap' },
-                        { dataType: 'undefined' },
-                    ],
-                },
                 preAggregates: {
                     dataType: 'union',
                     subSchemas: [
@@ -24242,13 +24233,6 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'string' },
                         { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                savedParameterValues: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'ParametersValuesMap' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -42131,6 +42115,7 @@ export function RegisterRoutes(app: Router) {
             nestedProperties: {
                 autoRefresh: { dataType: 'boolean' },
                 dateZoom: { ref: 'DateZoom' },
+                tileUuid: { dataType: 'string' },
                 dashboardUuid: { dataType: 'string', required: true },
                 dashboardSorts: {
                     dataType: 'array',

@@ -7000,9 +7000,6 @@
                         },
                         "type": "array"
                     },
-                    "savedParameterValues": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
@@ -16970,9 +16967,6 @@
             },
             "CreateVirtualViewPayload": {
                 "properties": {
-                    "parameterValues": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "columns": {
                         "items": {
                             "$ref": "#/components/schemas/VizColumn"
@@ -22546,9 +22540,6 @@
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
-                    "savedParameterValues": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "preAggregates": {
                         "items": {
                             "$ref": "#/components/schemas/PreAggregateDef"
@@ -25424,9 +25415,6 @@
                                 "type": "array"
                             }
                         ]
-                    },
-                    "savedParameterValues": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
                     },
                     "preAggregates": {
                         "items": {
@@ -29724,7 +29712,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2726.1",
+        "version": "0.2729.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -36945,6 +36933,9 @@
                                     },
                                     "dateZoom": {
                                         "$ref": "#/components/schemas/DateZoom"
+                                    },
+                                    "tileUuid": {
+                                        "type": "string"
                                     },
                                     "dashboardUuid": {
                                         "type": "string"

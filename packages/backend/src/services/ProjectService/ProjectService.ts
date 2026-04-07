@@ -68,6 +68,7 @@ import {
     getAllDimensionsMap,
     getAvailableParametersFromTables,
     getDashboardFilterRulesForTables,
+    getDashboardFiltersForTileAndTables,
     getDimensions,
     getErrorMessage,
     getFields,
@@ -3446,12 +3447,18 @@ export class ProjectService extends BaseService {
         dashboardSorts,
         dateZoom,
         dashboardUuid,
+        tileUuid,
         autoRefresh,
         context = QueryExecutionContext.DASHBOARD,
     }: {
         account: Account;
         chartUuid: string;
         dashboardUuid: string;
+        // tileUuid is required to correctly resolve cross-explore filter
+        // tileTargets overrides. When omitted, dashboard filters fall back to
+        // matching by the rule's top-level target.tableName, which silently
+        // drops cross-explore mapped filters.
+        tileUuid?: string;
         dashboardFilters: DashboardFilters;
         invalidateCache?: boolean;
         dashboardSorts: SortField[];
@@ -3499,20 +3506,31 @@ export class ProjectService extends BaseService {
         );
 
         const tables = Object.keys(explore.tables);
-        const appliedDashboardFilters = {
-            dimensions: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.dimensions,
-            ),
-            metrics: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.metrics,
-            ),
-            tableCalculations: getDashboardFilterRulesForTables(
-                tables,
-                dashboardFilters.tableCalculations,
-            ),
-        };
+        // When tileUuid is provided, resolve per-tile tileTargets overrides
+        // before filtering by the explore's tables. This is necessary so that
+        // cross-explore filter mappings (where the rule's top-level target
+        // points at a table not in this tile's explore, but tileTargets
+        // remaps it to a table that is) are applied correctly.
+        const appliedDashboardFilters: DashboardFilters = tileUuid
+            ? getDashboardFiltersForTileAndTables(
+                  tileUuid,
+                  tables,
+                  dashboardFilters,
+              )
+            : {
+                  dimensions: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.dimensions,
+                  ),
+                  metrics: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.metrics,
+                  ),
+                  tableCalculations: getDashboardFilterRulesForTables(
+                      tables,
+                      dashboardFilters.tableCalculations,
+                  ),
+              };
 
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...addDashboardFiltersToMetricQuery(

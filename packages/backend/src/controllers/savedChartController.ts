@@ -125,6 +125,7 @@ export class SavedChartController extends BaseController {
             invalidateCache?: boolean;
             dashboardSorts: SortField[];
             dashboardUuid: string;
+            tileUuid?: string;
             dateZoom?: DateZoom;
             autoRefresh?: boolean;
         },
@@ -144,6 +145,7 @@ export class SavedChartController extends BaseController {
                     dashboardSorts: body.dashboardSorts,
                     dateZoom: body.dateZoom,
                     dashboardUuid: body.dashboardUuid,
+                    tileUuid: body.tileUuid,
                     autoRefresh: body.autoRefresh,
                     context: getContextFromQueryOrHeader(req),
                 }),
