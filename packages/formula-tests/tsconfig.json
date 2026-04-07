@@ -11,6 +11,7 @@
         "importHelpers": true,
         "isolatedModules": true,
         "moduleResolution": "node10",
+        "ignoreDeprecations": "6.0",
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "types": ["node"]
