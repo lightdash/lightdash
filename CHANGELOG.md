@@ -1,3 +1,10 @@
+## [0.2730.1](https://github.com/lightdash/lightdash/compare/0.2730.0...0.2730.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* **ci:** remove quotes from pinned google-github-actions refs ([#21793](https://github.com/lightdash/lightdash/issues/21793)) ([78523ee](https://github.com/lightdash/lightdash/commit/78523eeb9a7c30a1ff6de15abfe51733f6265575))
+
 # [0.2730.0](https://github.com/lightdash/lightdash/compare/0.2729.3...0.2730.0) (2026-04-07)
 
 
