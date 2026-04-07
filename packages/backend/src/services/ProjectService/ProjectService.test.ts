@@ -6,11 +6,11 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    preAggregateUtils,
     SessionUser,
     WarehouseTypes,
-    type Explore,
-    type PossibleAbilities,
 } from '@lightdash/common';
+import type { Explore, PossibleAbilities } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -18,6 +18,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import * as preAggregateSqlFilters from '../../ee/preAggregates/sqlFilters';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -122,6 +123,7 @@ jest.mock('@lightdash/warehouses', () => ({
         connect: jest.fn(() => warehouseClientMock.credentials),
         disconnect: jest.fn(),
     })),
+    warehouseSqlBuilderFromType: jest.fn(() => warehouseClientMock),
 }));
 
 const projectModel = {
@@ -259,6 +261,7 @@ describe('ProjectService', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+        jest.restoreAllMocks();
     });
     test('should run sql query', async () => {
         jest.spyOn(analyticsMock, 'track');
@@ -277,6 +280,35 @@ describe('ProjectService', () => {
 
         expect(results).toEqual(expectedCatalog);
     });
+    describe('calculateTotalFromQuery', () => {
+        test('should return empty totals for explicit pre-aggregate explores', async () => {
+            const getExploreSpy = jest
+                .spyOn(service, 'getExplore')
+                .mockResolvedValue(preAggregateExplore);
+            const getWarehouseClientFromCredentialsSpy = jest.spyOn(
+                projectModel,
+                'getWarehouseClientFromCredentials',
+            );
+
+            const result = await service.calculateTotalFromQuery(
+                developerAccount,
+                projectUuid,
+                {
+                    explore: preAggregateExplore.name,
+                    metricQuery: metricQueryMock,
+                },
+            );
+
+            expect(getExploreSpy).toHaveBeenCalledWith(
+                developerAccount,
+                projectUuid,
+                preAggregateExplore.name,
+                projectSummary.organizationUuid,
+            );
+            expect(result).toEqual({});
+            expect(getWarehouseClientFromCredentialsSpy).not.toHaveBeenCalled();
+        });
+    });
     test('should get tables configuration', async () => {
         const result = await service.getTablesConfiguration(
             account,
@@ -285,12 +317,12 @@ describe('ProjectService', () => {
         expect(result).toEqual(tablesConfiguration);
     });
     test('should update tables configuration', async () => {
+        jest.spyOn(analyticsMock, 'track');
         await service.updateTablesConfiguration(
             user,
             projectUuid,
             tablesConfigurationWithNames,
         );
-        jest.spyOn(analyticsMock, 'track');
         expect(projectModel.updateTablesConfiguration).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledWith(
@@ -393,6 +425,72 @@ describe('ProjectService', () => {
 
             // Query should still execute successfully with user credentials
             expect(result).toEqual(expectedApiQueryResultsWith1Row);
+        });
+    });
+
+    describe('calculateTotalFromQuery', () => {
+        test('should resolve pre-aggregate explore for totals and return no totals', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+
+            const getExploreSpy = jest
+                .spyOn(serviceWithPreAggregatesEnabled, 'getExplore')
+                .mockResolvedValueOnce(validExplore)
+                .mockResolvedValueOnce(preAggregateExplore);
+            const findMatchSpy = jest
+                .spyOn(preAggregateUtils, 'findMatch')
+                .mockReturnValue({
+                    hit: true,
+                    preAggregateName:
+                        preAggregateExplore.preAggregateSource!
+                            .preAggregateName,
+                    miss: null,
+                });
+            const rebuildSpy = jest
+                .spyOn(
+                    preAggregateSqlFilters,
+                    'rebuildAndTranspilePreAggregateSqlFilters',
+                )
+                .mockResolvedValue(preAggregateExplore.tables);
+            const getWarehouseClientFromCredentialsSpy = jest.spyOn(
+                projectModel,
+                'getWarehouseClientFromCredentials',
+            );
+
+            serviceWithPreAggregatesEnabled.warehouseClients = {};
+
+            const result =
+                await serviceWithPreAggregatesEnabled.calculateTotalFromQuery(
+                    account,
+                    projectUuid,
+                    {
+                        explore: validExplore.name,
+                        metricQuery: metricQueryMock,
+                    },
+                );
+
+            expect(findMatchSpy).toHaveBeenCalledWith(
+                metricQueryMock,
+                validExplore,
+            );
+            expect(getExploreSpy).toHaveBeenNthCalledWith(
+                2,
+                account,
+                projectUuid,
+                preAggregateExplore.name,
+            );
+            expect(rebuildSpy).toHaveBeenCalledWith({
+                sourceExplore: validExplore,
+                preAggExplore: preAggregateExplore,
+                warehouseSqlBuilder: expect.anything(),
+            });
+            expect(result).toEqual({});
+            expect(getWarehouseClientFromCredentialsSpy).not.toHaveBeenCalled();
         });
     });
 
@@ -1001,6 +1099,15 @@ describe('ProjectService', () => {
         beforeEach(() => {
             // Clear the warehouse clients cache
             service.warehouseClients = {};
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => warehouseClientMock.credentials);
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
         });
 
         afterEach(() => {

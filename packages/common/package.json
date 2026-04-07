@@ -30,6 +30,7 @@
   },
   "dependencies": {
     "@casl/ability": "6.8.0",
+    "@polyglot-sql/sdk": "0.3.1",
     "@types/lodash": "4.14.202",
     "ajv": "8.18.0",
     "ajv-errors": "3.0.0",

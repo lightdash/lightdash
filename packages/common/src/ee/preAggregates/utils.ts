@@ -7,7 +7,14 @@ export {
 } from './metricRepresentation';
 export {
     getDimensionBaseName,
+    getDimensionsByReference,
     getDimensionReferences,
     getMetricReferences,
     getMetricsByReference,
+    getSimpleSqlColumnName,
 } from './references';
+export {
+    formatPreAggregateSqlFilterCompatibilityError,
+    getPreAggregateSqlFilterCompatibility,
+    getSqlFilterDependencies,
+} from './sqlFilters';

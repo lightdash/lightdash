@@ -227,6 +227,9 @@ importers:
       '@openrouter/ai-sdk-provider':
         specifier: 1.5.4
         version: 1.5.4(ai@6.0.71(zod@3.25.55))(zod@3.25.55)
+      '@polyglot-sql/sdk':
+        specifier: 0.3.1
+        version: 0.3.1
       '@rudderstack/rudder-sdk-node':
         specifier: 2.1.1
         version: 2.1.1(tslib@2.8.1)
@@ -724,6 +727,9 @@ importers:
       '@casl/ability':
         specifier: 6.8.0
         version: 6.8.0
+      '@polyglot-sql/sdk':
+        specifier: 0.3.1
+        version: 0.3.1
       '@types/lodash':
         specifier: 4.14.202
         version: 4.14.202
@@ -4214,6 +4220,10 @@ packages:
 
   '@pm2/pm2-version-check@1.0.4':
     resolution: {integrity: sha512-SXsM27SGH3yTWKc2fKR4SYNxsmnvuBQ9dd6QHtEWmiZ/VqaOYPAIlS8+vMcn27YLtAEBGvNRSh3TPNvtjZgfqA==}
+
+  '@polyglot-sql/sdk@0.3.1':
+    resolution: {integrity: sha512-MAdIo1bQGpwnDDPv+kjqu8CoucAQ/jKWgr/N2SkQyDv3NdlFTRGyD2LjvqlNx5P5aGSmwMvCc4DijMLjeM424A==}
+    engines: {node: '>=22', pnpm: '>=10'}
 
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
@@ -12329,7 +12339,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.14.1:
@@ -18623,6 +18632,8 @@ snapshots:
       debug: 4.4.3(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
+
+  '@polyglot-sql/sdk@0.3.1': {}
 
   '@popperjs/core@2.11.8': {}
 

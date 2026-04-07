@@ -15,3 +15,7 @@ export {
     type PreAggregateSupportedMetricType,
 } from './metricRepresentation';
 export { type PreAggregateMetricReferenceLookup } from './references';
+export {
+    type PreAggregateSqlFilterCompatibilityResult,
+    type PreAggregateSqlFilterDependency,
+} from './sqlFilters';

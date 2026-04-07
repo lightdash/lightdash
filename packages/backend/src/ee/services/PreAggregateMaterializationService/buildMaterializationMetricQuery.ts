@@ -189,7 +189,7 @@ const getPreAggregateDimensionFilters = ({
     };
 };
 
-export const buildMaterializationMetricQuery = ({
+export const buildMaterializationMetricQuery = async ({
     sourceExplore,
     preAggregateDef,
     materializationConfig,
@@ -197,7 +197,21 @@ export const buildMaterializationMetricQuery = ({
     sourceExplore: Explore;
     preAggregateDef: PreAggregateDef;
     materializationConfig: MaterializationConfig;
-}): MaterializationMetricQueryPayload => {
+}): Promise<MaterializationMetricQueryPayload> => {
+    const sqlFilterCompatibility =
+        await preAggregateUtils.getPreAggregateSqlFilterCompatibility({
+            explore: sourceExplore,
+            preAggregateDef,
+        });
+    if (!sqlFilterCompatibility.supported) {
+        throw new Error(
+            preAggregateUtils.formatPreAggregateSqlFilterCompatibilityError({
+                preAggregateName: preAggregateDef.name,
+                compatibility: sqlFilterCompatibility,
+            }),
+        );
+    }
+
     const metricsByReference = preAggregateUtils.getMetricsByReference({
         tables: sourceExplore.tables,
         baseTable: sourceExplore.baseTable,
