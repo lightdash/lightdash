@@ -5,6 +5,7 @@ import isString from 'lodash/isString';
 import keys from 'lodash/keys';
 import type { DbtPreAggregateDef } from '../types/dbt';
 import { ParseError } from '../types/errors';
+import { parseFilters } from '../types/filterGrammar';
 import type {
     PreAggregateDef,
     PreAggregateMaterializationRole,
@@ -206,10 +207,15 @@ export const parseDbtPreAggregateDef = (
               )
             : undefined;
 
+    const filters = safePreAggregate?.filters
+        ? parseFilters(safePreAggregate.filters)
+        : undefined;
+
     return {
         name,
         dimensions,
         metrics,
+        ...(filters ? { filters } : {}),
         ...(timeDimension ? { timeDimension } : {}),
         ...(granularity ? { granularity } : {}),
         ...(maxRows !== undefined ? { maxRows } : {}),

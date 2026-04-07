@@ -8,6 +8,7 @@ import {
     preAggregateUtils,
     SupportedDbtAdapter,
     TimeFrames,
+    UnitOfTime,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
@@ -213,6 +214,48 @@ describe('findMatch', () => {
                     name: 'orders_daily',
                     dimensions: ['status'],
                     metrics: ['order_count'],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status', 'orders_order_date_month'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_daily',
+            miss: null,
+        });
+    });
+
+    it('still matches pre-aggregates that define materialization filters', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['status', 'order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [3],
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                            },
+                        },
+                    ],
                     timeDimension: 'order_date',
                     granularity: TimeFrames.DAY,
                 },

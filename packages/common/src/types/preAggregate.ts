@@ -1,4 +1,5 @@
 import { type FieldId, type MetricType } from './field';
+import { type MetricFilterRule } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type ResultColumns } from './results';
@@ -43,6 +44,7 @@ export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    filters?: MetricFilterRule[];
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;
     granularity?: TimeFrames;
