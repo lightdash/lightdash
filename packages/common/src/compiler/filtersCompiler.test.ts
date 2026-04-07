@@ -20,13 +20,16 @@ import {
     ExpectedInTheNextFilterSQL,
     ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek,
     ExpectedNumberFilterSQL,
+    filterInTheCurrentDayDateFormatterMocks,
     filterInTheCurrentDayTimezoneMocks,
     filterInTheNextCompletedDayDstMocks,
     filterInTheNextCompletedDayTimezoneMocks,
     filterInTheNextNonCompletedDayDstMocks,
     filterInTheNextNonCompletedDayTimezoneMocks,
+    filterInThePastCompletedDayDateFormatterMocks,
     filterInThePastCompletedDayDstMocks,
     filterInThePastCompletedDayTimezoneMocks,
+    filterInThePastNonCompletedDayDateFormatterMocks,
     filterInThePastNonCompletedDayDstMocks,
     filterInThePastNonCompletedDayTimezoneMocks,
     InBetweenPastTwoYearsFilter,
@@ -2153,5 +2156,79 @@ describe('Number Filter SQL Injection Prevention', () => {
             };
             expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
         });
+    });
+
+    // ── Date formatter boundary tests (GLITCH-323) ──────────────────
+    // Verify that formatBoundary formats dates in the project timezone
+    // (not UTC) for date-level comparisons. This fixes positive-offset
+    // timezones where .utc() shifted the date back one day.
+
+    describe('date formatter boundaries with positive-offset timezones', () => {
+        test.each(filterInThePastCompletedDayDateFormatterMocks)(
+            'inThePast completed day (date formatter) for timezone %s',
+            (timezone, expected) => {
+                jest.setSystemTime(
+                    new Date('04 Apr 2020 06:12:30 GMT').getTime(),
+                );
+                expect(
+                    renderDateFilterSql(
+                        DimensionSqlMock,
+                        {
+                            ...InThePastFilterBase,
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                                completed: true,
+                            },
+                        },
+                        adapterType.default,
+                        timezone,
+                        // No dateFormatter param → uses default formatDate (YYYY-MM-DD)
+                    ),
+                ).toStrictEqual(expected);
+            },
+        );
+
+        test.each(filterInTheCurrentDayDateFormatterMocks)(
+            'inTheCurrent day (date formatter) for timezone %s',
+            (timezone, expected) => {
+                jest.setSystemTime(
+                    new Date('04 Apr 2020 06:12:30 GMT').getTime(),
+                );
+                expect(
+                    renderDateFilterSql(
+                        DimensionSqlMock,
+                        {
+                            ...InTheCurrentFilterBase,
+                            settings: { unitOfTime: UnitOfTime.days },
+                        },
+                        adapterType.default,
+                        timezone,
+                    ),
+                ).toStrictEqual(expected);
+            },
+        );
+
+        test.each(filterInThePastNonCompletedDayDateFormatterMocks)(
+            'inThePast non-completed day (date formatter) for timezone %s',
+            (timezone, expected) => {
+                jest.setSystemTime(
+                    new Date('04 Apr 2020 06:12:30 GMT').getTime(),
+                );
+                expect(
+                    renderDateFilterSql(
+                        DimensionSqlMock,
+                        {
+                            ...InThePastFilterBase,
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                                completed: false,
+                            },
+                        },
+                        adapterType.default,
+                        timezone,
+                    ),
+                ).toStrictEqual(expected);
+            },
+        );
     });
 });
