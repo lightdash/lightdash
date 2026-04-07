@@ -7,6 +7,7 @@ import {
     type ApiPreviewTokenResponse,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
+    type GenerateAppRequestBody,
 } from '@lightdash/common';
 import {
     Body,
@@ -31,10 +32,6 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 
-type GenerateAppRequestBody = {
-    prompt: string;
-};
-
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
 @Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
@@ -53,6 +50,7 @@ export class AppGenerateController extends BaseController {
             req.user!,
             projectUuid,
             body.prompt,
+            body.image,
         );
         return {
             status: 'ok',
@@ -108,6 +106,7 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             body.prompt,
+            body.image,
         );
         return {
             status: 'ok',
