@@ -3355,8 +3355,16 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         userAttributeOverrides,
+        internalExecutionOptions,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
+
+        if (
+            context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION &&
+            !internalExecutionOptions?.allowMaterializationContext
+        ) {
+            throw new ForbiddenError('Invalid query context');
+        }
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);

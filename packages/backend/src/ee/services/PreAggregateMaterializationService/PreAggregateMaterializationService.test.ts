@@ -131,6 +131,9 @@ describe('PreAggregateMaterializationService', () => {
             expect.objectContaining({
                 projectUuid: 'project-1',
                 context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                internalExecutionOptions: {
+                    allowMaterializationContext: true,
+                },
                 metricQuery: {
                     exploreName: 'orders',
                     dimensions: [],
@@ -198,6 +201,9 @@ describe('PreAggregateMaterializationService', () => {
 
         expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
             expect.objectContaining({
+                internalExecutionOptions: {
+                    allowMaterializationContext: true,
+                },
                 metricQuery: expect.objectContaining({
                     sorts: [
                         { fieldId: 'orders_order_date_day', descending: true },

@@ -153,6 +153,9 @@ export class PreAggregateMaterializationService extends BaseService {
                         projectUuid: args.projectUuid,
                         context:
                             QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                        internalExecutionOptions: {
+                            allowMaterializationContext: true,
+                        },
                         metricQuery: {
                             ...materializationMetricQuery.metricQuery,
                             sorts: materializationMetricQuery.metricQuery.dimensions

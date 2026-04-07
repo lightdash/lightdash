@@ -63,6 +63,9 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
+    internalExecutionOptions?: {
+        allowMaterializationContext?: boolean;
+    };
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {

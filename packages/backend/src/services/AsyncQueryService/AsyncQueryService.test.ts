@@ -1282,6 +1282,9 @@ describe('AsyncQueryService', () => {
                     tableCalculations: [],
                 },
                 context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                internalExecutionOptions: {
+                    allowMaterializationContext: true,
+                },
                 invalidateCache: false,
                 parameters: undefined,
                 pivotConfiguration: undefined,
@@ -1300,13 +1303,13 @@ describe('AsyncQueryService', () => {
             expect(compileArgs.userAttributes).toEqual({});
             expect(compileArgs.intrinsicUserAttributes).toEqual({});
             expect(compileArgs.explore.tables.a.sqlWhere).toBeUndefined();
-            expect(compileArgs.explore.tables.a.uncompiledSqlWhere).toBeUndefined();
+            expect(
+                compileArgs.explore.tables.a.uncompiledSqlWhere,
+            ).toBeUndefined();
             expect(
                 compileArgs.explore.tables.a.requiredAttributes,
             ).toBeUndefined();
-            expect(
-                compileArgs.explore.tables.a.anyAttributes,
-            ).toBeUndefined();
+            expect(compileArgs.explore.tables.a.anyAttributes).toBeUndefined();
             expect(
                 compileArgs.explore.tables.a.dimensions.dim1.requiredAttributes,
             ).toBeUndefined();
@@ -1323,6 +1326,32 @@ describe('AsyncQueryService', () => {
             expect(
                 compileArgs.explore.tables.a.metrics.met1.tablesAnyAttributes,
             ).toBeUndefined();
+        });
+
+        test('rejects materialization context unless explicitly allowed by the internal caller', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const initialGetExploreFromCacheCalls =
+                projectModel.getExploreFromCache.mock.calls.length;
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        tableCalculations: [],
+                    },
+                    context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                    invalidateCache: false,
+                    parameters: undefined,
+                    pivotConfiguration: undefined,
+                }),
+            ).rejects.toThrow('Invalid query context');
+
+            expect(projectModel.getExploreFromCache.mock.calls.length).toBe(
+                initialGetExploreFromCacheCalls,
+            );
         });
 
         test('keeps real user access controls on the normal pre-aggregate read path', async () => {
@@ -1438,7 +1467,7 @@ describe('AsyncQueryService', () => {
                     a: {
                         ...validExplore.tables.a,
                         sqlTable:
-                            "${lightdash.attribute.country}.unsupported_source",
+                            '${lightdash.attribute.country}.unsupported_source',
                         sqlWhere: "${lightdash.attribute.country} = 'US'",
                         uncompiledSqlWhere:
                             "${lightdash.attribute.country} = 'US'",
@@ -1462,7 +1491,9 @@ describe('AsyncQueryService', () => {
                     materializationAccessPlan: {
                         tableNames: ['a'],
                         dimensionFieldIds: [
-                            getItemId(unsupportedExplore.tables.a.dimensions.dim1),
+                            getItemId(
+                                unsupportedExplore.tables.a.dimensions.dim1,
+                            ),
                         ],
                         metricFieldIds: [
                             getItemId(unsupportedExplore.tables.a.metrics.met1),
@@ -1470,7 +1501,9 @@ describe('AsyncQueryService', () => {
                     },
                 }),
             };
-            projectModel.getExploreFromCache.mockResolvedValue(unsupportedExplore);
+            projectModel.getExploreFromCache.mockResolvedValue(
+                unsupportedExplore,
+            );
             (service as AnyType).getWarehouseCredentials = jest
                 .fn()
                 .mockResolvedValue(warehouseClientMock.credentials);
@@ -1511,7 +1544,11 @@ describe('AsyncQueryService', () => {
                         ...metricQueryMock,
                         tableCalculations: [],
                     },
-                    context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                    context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                    internalExecutionOptions: {
+                        allowMaterializationContext: true,
+                    },
                     invalidateCache: false,
                     parameters: undefined,
                     pivotConfiguration: undefined,
