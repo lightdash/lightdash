@@ -196,217 +196,217 @@ importers:
         specifier: workspace:*
         version: link:../warehouses
       '@mastra/schema-compat':
-        specifier: 0.11.2
+        specifier: ^0.11.2
         version: 0.11.2(ai@6.0.71(zod@3.25.55))(zod@3.25.55)
       '@modelcontextprotocol/sdk':
-        specifier: 1.27.1
+        specifier: ^1.27.1
         version: 1.27.1(zod@3.25.55)
       '@node-oauth/oauth2-server':
-        specifier: 5.2.0
+        specifier: ^5.2.0
         version: 5.2.0
       '@octokit/app':
-        specifier: 14.0.2
+        specifier: ^14.0.2
         version: 14.0.2
       '@octokit/auth-app':
-        specifier: 6.0.3
+        specifier: ^6.0.3
         version: 6.0.3
       '@octokit/auth-token':
-        specifier: 4.0.0
+        specifier: ^4.0.0
         version: 4.0.0
       '@octokit/core':
-        specifier: 5.2.0
+        specifier: ^5.1.1
         version: 5.2.0
       '@octokit/request':
-        specifier: 8.4.1
+        specifier: ^8.4.1
         version: 8.4.1
       '@octokit/rest':
-        specifier: 20.1.1
+        specifier: ^20.0.2
         version: 20.1.1
       '@openrouter/ai-sdk-provider':
-        specifier: 1.5.4
+        specifier: ^1.5.4
         version: 1.5.4(ai@6.0.71(zod@3.25.55))(zod@3.25.55)
       '@rudderstack/rudder-sdk-node':
-        specifier: 2.1.1
+        specifier: ^2.0.6
         version: 2.1.1(tslib@2.8.1)
       '@sentry/core':
-        specifier: 9.31.0
-        version: 9.31.0
+        specifier: ^9.31.0
+        version: 9.46.0
       '@sentry/node':
-        specifier: 9.46.0
+        specifier: ^9.46.0
         version: 9.46.0
       '@sentry/profiling-node':
-        specifier: 9.46.0
+        specifier: ^9.46.0
         version: 9.46.0
       '@slack/bolt':
-        specifier: 3.22.0
+        specifier: ^3.22.0
         version: 3.22.0
       '@slack/oauth':
-        specifier: 3.0.4
+        specifier: ^3.0.4
         version: 3.0.4
       '@slack/web-api':
-        specifier: 6.13.0
+        specifier: ^6.13.0
         version: 6.13.0
       '@tsoa/runtime':
-        specifier: 6.6.0
+        specifier: ^6.6.0
         version: 6.6.0
       '@types/async':
-        specifier: 3.2.16
+        specifier: ^3.2.16
         version: 3.2.16
       '@types/sshpk':
-        specifier: 1.17.1
+        specifier: ^1.17.1
         version: 1.17.1
       ai:
-        specifier: 6.0.71
+        specifier: ^6.0.71
         version: 6.0.71(zod@3.25.55)
       ajv:
-        specifier: 8.18.0
+        specifier: ^8.18.0
         version: 8.18.0
       ajv-formats:
-        specifier: 2.1.1
+        specifier: ^2.1.0
         version: 2.1.1(ajv@8.18.0)
       apache-arrow:
-        specifier: 16.1.0
+        specifier: ^16.1.0
         version: 16.1.0
       archiver:
-        specifier: 7.0.1
+        specifier: ^7.0.1
         version: 7.0.1
       autoevals:
-        specifier: 0.0.130
+        specifier: ^0.0.130
         version: 0.0.130(encoding@0.1.13)(ws@8.18.0)
       bcrypt:
-        specifier: 6.0.0
+        specifier: ^6.0.0
         version: 6.0.0
       canvas:
         specifier: 3.2.1
         version: 3.2.1
       chokidar:
-        specifier: 4.0.2
+        specifier: ^4.0.2
         version: 4.0.2
       connect-flash:
-        specifier: 0.1.1
+        specifier: ^0.1.1
         version: 0.1.1
       connect-session-knex:
-        specifier: 3.0.1
+        specifier: ^3.0.0
         version: 3.0.1(pg@8.13.1)
       cookie-signature:
-        specifier: 1.2.2
+        specifier: ^1.2.2
         version: 1.2.2
       cors:
-        specifier: 2.8.5
+        specifier: ^2.8.5
         version: 2.8.5
       cron-converter:
-        specifier: 2.0.0
+        specifier: ^2.0.0
         version: 2.0.0
       cronstrue:
-        specifier: 2.23.0
+        specifier: ^2.23.0
         version: 2.23.0
       csv-stringify:
-        specifier: 6.5.1
+        specifier: ^6.2.4
         version: 6.5.1
       duckdb-async:
-        specifier: 1.4.2
+        specifier: ^1.2.0
         version: 1.4.2(encoding@0.1.13)
       e2b:
-        specifier: 2.16.0
+        specifier: ^2.16.0
         version: 2.16.0
       echarts:
-        specifier: 6.0.0
+        specifier: ^6.0.0
         version: 6.0.0
       exceljs:
-        specifier: 4.4.0
+        specifier: ^4.4.0
         version: 4.4.0
       execa:
-        specifier: 5.1.1
+        specifier: ^5.0.0
         version: 5.1.1
       express:
-        specifier: 4.21.2
+        specifier: ^4.21.2
         version: 4.21.2
       express-session:
-        specifier: 1.17.2
+        specifier: ^1.17.2
         version: 1.17.2
       express-static-gzip:
-        specifier: 2.1.8
+        specifier: ^2.1.8
         version: 2.1.8
       express-winston:
-        specifier: 4.2.0
+        specifier: ^4.2.0
         version: 4.2.0(winston@3.13.0)
       fs-extra:
-        specifier: 10.0.0
+        specifier: ^10.0.0
         version: 10.0.0
       fuse.js:
-        specifier: 6.5.3
+        specifier: ^6.4.6
         version: 6.5.3
       googleapis:
-        specifier: 105.0.0
+        specifier: '105'
         version: 105.0.0(encoding@0.1.13)
       graphile-worker:
-        specifier: 0.13.0
+        specifier: ^0.13.0
         version: 0.13.0
       graphql:
-        specifier: 16.8.1
+        specifier: ^16.8.1
         version: 16.8.1
       graphql-request:
-        specifier: 5.2.0
+        specifier: ^5.2.0
         version: 5.2.0(encoding@0.1.13)(graphql@16.8.1)
       handlebars:
-        specifier: 4.7.8
-        version: 4.7.8
+        specifier: ^4.7.9
+        version: 4.7.9
       helmet:
-        specifier: 7.1.0
+        specifier: ^7.1.0
         version: 7.1.0
       immer:
-        specifier: 10.1.1
+        specifier: ^10.1.1
         version: 10.1.1
       jose:
-        specifier: 5.2.3
+        specifier: ^5.2.3
         version: 5.2.3
       js-yaml:
-        specifier: 4.1.1
+        specifier: ^4.1.1
         version: 4.1.1
       jsonwebtoken:
-        specifier: 9.0.3
+        specifier: ^9.0.3
         version: 9.0.3
       knex:
-        specifier: 2.5.1
+        specifier: ^2.5.1
         version: 2.5.1(pg@8.13.1)
       langchain:
-        specifier: 0.3.37
-        version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
+        specifier: ^0.3.37
+        version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.9)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
       lodash:
-        specifier: 4.17.23
+        specifier: ^4.17.23
         version: 4.17.23
       marked:
-        specifier: 9.0.3
+        specifier: ^9.0.3
         version: 9.0.3
       moment:
-        specifier: 2.29.4
+        specifier: ^2.29.4
         version: 2.29.4
       nanoid:
-        specifier: 3.3.8
-        version: 3.3.8
+        specifier: ^3.3.8
+        version: 3.3.11
       nats:
-        specifier: 2.29.3
+        specifier: ^2.29.3
         version: 2.29.3
       node-cache:
-        specifier: 5.1.2
+        specifier: ^5.1.2
         version: 5.1.2
       node-execution-context:
-        specifier: 3.1.0
+        specifier: ^3.1.0
         version: 3.1.0
       node-fetch:
-        specifier: 2.7.0
+        specifier: ^2.6.13
         version: 2.7.0(encoding@0.1.13)
       nodejs-polars:
-        specifier: 0.15.0
+        specifier: ^0.15.0
         version: 0.15.0
       nodemailer:
-        specifier: 7.0.13
+        specifier: ^7.0.0
         version: 7.0.13
       octokit:
-        specifier: 3.1.2
+        specifier: ^3.1.2
         version: 3.1.2
       openid-client:
-        specifier: 5.6.4
+        specifier: ^5.6.4
         version: 5.6.4
       p-limit:
         specifier: 3.1.0
@@ -720,82 +720,79 @@ importers:
   packages/common:
     dependencies:
       '@casl/ability':
-        specifier: 6.8.0
+        specifier: ^6.7.5
         version: 6.8.0
       '@types/lodash':
-        specifier: 4.14.202
+        specifier: ^4.14.202
         version: 4.14.202
       ajv:
-        specifier: 8.18.0
+        specifier: ^8.18.0
         version: 8.18.0
       ajv-errors:
-        specifier: 3.0.0
+        specifier: ^3.0.0
         version: 3.0.0(ajv@8.18.0)
       ajv-formats:
-        specifier: 2.1.1
+        specifier: ^2.1.0
         version: 2.1.1(ajv@8.18.0)
       better-ajv-errors:
-        specifier: 1.2.0
+        specifier: ^1.2.0
         version: 1.2.0(ajv@8.18.0)
       colorjs.io:
-        specifier: 0.5.2
+        specifier: ^0.5.2
         version: 0.5.2
       cronstrue:
-        specifier: 2.23.0
+        specifier: ^2.23.0
         version: 2.23.0
       dayjs:
-        specifier: 1.11.10
+        specifier: ^1.11.9
         version: 1.11.10
       dependency-graph:
-        specifier: 0.11.0
+        specifier: ^0.11.0
         version: 0.11.0
       echarts:
-        specifier: 6.0.0
+        specifier: ^6.0.0
         version: 6.0.0
       fast-json-patch:
-        specifier: 3.1.1
+        specifier: ^3.1.1
         version: 3.1.1
       handlebars:
-        specifier: 4.7.8
-        version: 4.7.8
+        specifier: ^4.7.9
+        version: 4.7.9
       js-yaml:
-        specifier: 4.1.1
+        specifier: ^4.1.1
         version: 4.1.1
       liquidjs:
-        specifier: 10.25.2
+        specifier: ^10.25.1
         version: 10.25.2
       lodash:
-        specifier: 4.17.23
+        specifier: ^4.17.23
         version: 4.17.23
       moment:
-        specifier: 2.29.4
+        specifier: ^2.29.4
         version: 2.29.4
       moment-timezone:
-        specifier: 0.5.45
+        specifier: ^0.5.45
         version: 0.5.45
       numfmt:
-        specifier: 3.2.1
+        specifier: ^3.2.1
         version: 3.2.1
       pegjs:
-        specifier: 0.10.0
+        specifier: ^0.10.0
         version: 0.10.0
       sanitize-html:
-        specifier: 2.12.1
+        specifier: ^2.12.1
         version: 2.12.1
-      sql-formatter:
-        specifier: 15.7.3
-        version: 15.7.3
       type-fest:
-        specifier: 4.32.0
+        specifier: ^4.32.0
         version: 4.32.0
       uuid:
-        specifier: 11.0.3
+        specifier: ^11.0.3
         version: 11.0.3
       yaml:
-        specifier: 2.7.0
+        specifier: ^2.7.0
         version: 2.7.0
       zod:
-        specifier: 3.25.55
+        specifier: ^3.25.55
         version: 3.25.55
     devDependencies:
       '@types/handlebars':
@@ -908,113 +905,113 @@ importers:
         specifier: 6.0.21
         version: 6.0.21(react@19.2.0)
       '@monaco-editor/react':
-        specifier: 4.6.0
+        specifier: ^4.6.0
         version: 4.6.0(monaco-editor@0.44.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@popsql/monaco-sql-languages':
-        specifier: 0.2.0
+        specifier: ^0.2.0
         version: 0.2.0(monaco-editor@0.44.0)
       '@reduxjs/toolkit':
-        specifier: 2.2.6
+        specifier: ^2.2.6
         version: 2.2.6(react-redux@9.2.0(@types/react@19.2.2)(react@19.2.0)(redux@5.0.1))(react@19.2.0)
       '@sentry/react':
-        specifier: 9.31.0
+        specifier: ^9.31.0
         version: 9.31.0(react@19.2.0)
       '@sentry/vite-plugin':
-        specifier: 5.1.1
+        specifier: ^5.0.0
         version: 5.1.1(encoding@0.1.13)(rollup@4.60.1)
       '@shopify/react-web-worker':
-        specifier: 5.0.13
+        specifier: ^5.0.13
         version: 5.0.13(@babel/core@7.28.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(webpack-virtual-modules@0.5.0)
       '@tabler/icons-react':
-        specifier: 2.47.0
+        specifier: ^2.32.0
         version: 2.47.0(react@19.2.0)
       '@tanstack/react-query':
-        specifier: 4.36.1
+        specifier: ^4.36.1
         version: 4.36.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tanstack/react-query-devtools':
-        specifier: 4.36.1
+        specifier: ^4.36.1
         version: 4.36.1(@tanstack/react-query@4.36.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tanstack/react-table':
-        specifier: 8.21.3
+        specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tanstack/react-virtual':
-        specifier: 3.13.19
+        specifier: ^3.13.19
         version: 3.13.19(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tiptap/extension-link':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)
       '@tiptap/extension-mention':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)(@tiptap/suggestion@2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4))
       '@tiptap/extension-placeholder':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)
       '@tiptap/pm':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4
       '@tiptap/react':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tiptap/starter-kit':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4(@tiptap/pm@2.2.4)
       '@tiptap/suggestion':
-        specifier: 2.2.4
+        specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)
       '@types/leaflet':
-        specifier: 1.9.21
+        specifier: ^1.9.21
         version: 1.9.21
       '@types/leaflet.heat':
-        specifier: 0.2.5
+        specifier: ^0.2.5
         version: 0.2.5
       '@uiw/react-markdown-preview':
-        specifier: 5.1.3
+        specifier: ^5.0.6
         version: 5.1.3(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@uiw/react-md-editor':
-        specifier: 4.0.5
+        specifier: ^4.0.5
         version: 4.0.5(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@xyflow/react':
-        specifier: 12.3.5
+        specifier: ^12.3.5
         version: 12.3.5(@types/react@19.2.2)(immer@10.1.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       ace-builds:
-        specifier: 1.4.14
+        specifier: ^1.4.14
         version: 1.4.14
       ai:
-        specifier: 6.0.69
-        version: 6.0.69(zod@3.25.55)
+        specifier: ^6.0.69
+        version: 6.0.71(zod@3.25.55)
       canvas-confetti:
-        specifier: 1.6.0
+        specifier: ^1.6.0
         version: 1.6.0
       colorjs.io:
-        specifier: 0.5.2
+        specifier: ^0.5.2
         version: 0.5.2
       cron-converter:
-        specifier: 2.0.0
+        specifier: ^2.0.0
         version: 2.0.0
       cronstrue:
-        specifier: 2.23.0
+        specifier: ^2.22.0
         version: 2.23.0
       csv-stringify:
-        specifier: 6.5.1
+        specifier: ^6.5.1
         version: 6.5.1
       d3-geo:
-        specifier: 3.1.1
+        specifier: ^3.1.1
         version: 3.1.1
       d3-scale:
-        specifier: 4.0.2
+        specifier: ^4.0.2
         version: 4.0.2
       d3-time:
-        specifier: 3.1.0
+        specifier: ^3.1.0
         version: 3.1.0
       date-fns:
-        specifier: 4.1.0
+        specifier: ^4.1.0
         version: 4.1.0
       dayjs:
-        specifier: 1.11.10
+        specifier: ^1.11.10
         version: 1.11.10
       dompurify:
-        specifier: 3.3.2
-        version: 3.3.2
+        specifier: ^3.2.7
+        version: 3.3.1
       echarts:
         specifier: 5.6.0
         version: 5.6.0
@@ -1028,70 +1025,70 @@ importers:
         specifier: npm:echarts-for-react@3.0.1
         version: echarts-for-react@3.0.1(react@19.2.0)
       emoji-picker-react:
-        specifier: 4.12.0
+        specifier: ^4.12.0
         version: 4.12.0(react@19.2.0)
       eslint-plugin-lodash:
-        specifier: 8.0.0
+        specifier: ^8.0.0
         version: 8.0.0(eslint@8.57.1)
       fastest-levenshtein:
-        specifier: 1.0.16
+        specifier: ^1.0.16
         version: 1.0.16
       fuse.js:
-        specifier: 6.5.3
+        specifier: ^6.5.3
         version: 6.5.3
       hast:
-        specifier: 1.0.0
+        specifier: ^1.0.0
         version: 1.0.0
       html2canvas-pro:
-        specifier: 1.5.13
+        specifier: ^1.5.13
         version: 1.5.13
       immer:
-        specifier: 10.1.1
+        specifier: ^10.1.1
         version: 10.1.1
       js-yaml:
-        specifier: 4.1.1
+        specifier: ^4.1.1
         version: 4.1.1
       jspdf:
-        specifier: 4.2.0
-        version: 4.2.0
+        specifier: ^4.2.1
+        version: 4.2.1
       leaflet:
-        specifier: 1.9.4
+        specifier: ^1.9.4
         version: 1.9.4
       leaflet.heat:
-        specifier: 0.2.0
+        specifier: ^0.2.0
         version: 0.2.0
       lodash:
-        specifier: 4.17.23
+        specifier: ^4.17.23
         version: 4.17.23
       mantine-form-zod-resolver:
-        specifier: 1.1.0
+        specifier: ^1.1.0
         version: 1.1.0(@mantine/form@7.5.2(react@19.2.0))(zod@3.25.55)
       mantine-react-table:
-        specifier: 1.3.4
+        specifier: ^1.3.4
         version: 1.3.4(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/dates@6.0.21(@mantine/core@6.0.22(@emotion/react@11.10.6(@types/react@19.2.2)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(dayjs@1.11.10)(react@19.2.0))(@mantine/hooks@6.0.22(react@19.2.0))(@tabler/icons-react@2.47.0(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       moment:
-        specifier: 2.29.4
+        specifier: ^2.29.4
         version: 2.29.4
       monaco-editor:
-        specifier: 0.44.0
+        specifier: ^0.44.0
         version: 0.44.0
       monaco-sql-languages:
-        specifier: 0.12.2
+        specifier: ^0.12.2
         version: 0.12.2(antlr4ng-cli@1.0.7)(monaco-editor@0.44.0)
       monaco-yaml:
-        specifier: 5.4.0
+        specifier: ^5.4.0
         version: 5.4.0(monaco-editor@0.44.0)
       polished:
-        specifier: 4.2.2
+        specifier: ^4.2.2
         version: 4.2.2
       postcss-preset-mantine:
-        specifier: 1.18.0
+        specifier: ^1.18.0
         version: 1.18.0(postcss@8.5.8)
       postcss-simple-vars:
-        specifier: 7.0.1
+        specifier: ^7.0.1
         version: 7.0.1(postcss@8.5.8)
       posthog-js:
-        specifier: 1.166.1
+        specifier: ^1.166.1
         version: 1.166.1
       react:
         specifier: 19.2.0
@@ -1597,12 +1594,6 @@ packages:
 
   '@ai-sdk/azure@3.0.26':
     resolution: {integrity: sha512-R9v2kuzeu80qErIcXyqM1dpr6/w/iEPdxNAgFPJOFUhk5Zi4XSEBGz+eLYdw1cuzVPfqgMWyFvze9LR7vqz0Gg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/gateway@3.0.32':
-    resolution: {integrity: sha512-7clZRr07P9rpur39t1RrbIe7x8jmwnwUWI8tZs+BvAfX3NFgdSVGGIaT7bTz2pb08jmLXzTSDbrOTqAQ7uBkBQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -6433,12 +6424,6 @@ packages:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
 
-  ai@6.0.69:
-    resolution: {integrity: sha512-zIURMSnNroaVvu47Bm3XhC2y3LRsm8jmkwBgupxF+N7q/s6MpIiv04w1ltlnWqC8+T2PT2rN+f0sUhF+vArkwg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   ai@6.0.71:
     resolution: {integrity: sha512-33/Qq0BhEG+SabYeE7ZlLL3DCubUQo04C8E9UdEHqh2DJuGdtxMXG/TSMkO2uF+ZmlGJpD4UY5Wij9/qal298w==}
     engines: {node: '>=18'}
@@ -8065,9 +8050,6 @@ packages:
     resolution: {integrity: sha512-9S6m9Sukh1cZNknO1CWAr2QAWsbKLafQiyM5gZ7VgXHeuaoUwffKN4q6NC4A/Mf9iiPlOXQEKW/Mv/mh9/3YFA==}
     hasBin: true
 
-  discontinuous-range@1.0.0:
-    resolution: {integrity: sha512-c68LpLbO+7kP/b1Hr1qs8/BJ09F5khZGTxqxZuhzxpmwJKOgRFHJWIb9/KmqnqHhLdO55aOxFH/EGBvUQbL/RQ==}
-
   dockerfile-ast@0.7.1:
     resolution: {integrity: sha512-oX/A4I0EhSkGqrFv0YuvPkBUSYp1XiY8O8zAKc8Djglx8ocz+JfOr8gP0ryRMC2myqvDLagmnZaU9ot1vG2ijw==}
 
@@ -8098,9 +8080,8 @@ packages:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==}
     engines: {node: '>= 4'}
 
-  dompurify@3.3.2:
-    resolution: {integrity: sha512-6obghkliLdmKa56xdbLOpUZ43pAR6xFy1uOrxBaIDjT+yaRuuybLjGS9eVBoSR/UPU5fq3OXClEHLJNGvbxKpQ==}
-    engines: {node: '>=20'}
+  dompurify@3.3.1:
+    resolution: {integrity: sha512-qkdCKzLNtrgPFP1Vo+98FRzJnBRGe4ffyCea9IwHB1fyxPOeNTHpLKYGd4Uk9xvNoH0ZoOjwZxNptyMwqrId1Q==}
 
   domutils@3.1.0:
     resolution: {integrity: sha512-H78uMmQtI2AhgDJjWeQmHwJJ2bLPD3GMmO7Zja/ZZh84wkm+4ut+IUnUdRa8uCGX88DiVx1j6FRe1XfxEgjEZA==}
@@ -9229,8 +9210,8 @@ packages:
     resolution: {integrity: sha512-+CqsMbHPiSTdtSO14O51eMNlrp9N79gmeqmXeouJOhfucAedHw9noVe/n5uJk3tbKE6a+6ZCQg3RPhVhHByAIw==}
     engines: {node: '>=18'}
 
-  handlebars@4.7.8:
-    resolution: {integrity: sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==}
+  handlebars@4.7.9:
+    resolution: {integrity: sha512-4E71E0rpOaQuJR2A3xDZ+GM1HyWYv1clR58tC8emQNeQe3RH7MAzSbat+V0wG78LQBo6m6bzSG/L4pBuCsgnUQ==}
     engines: {node: '>=0.4.7'}
     hasBin: true
 
@@ -10172,8 +10153,8 @@ packages:
     resolution: {integrity: sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==}
     engines: {node: '>=12', npm: '>=6'}
 
-  jspdf@4.2.0:
-    resolution: {integrity: sha512-hR/hnRevAXXlrjeqU5oahOE+Ln9ORJUB5brLHHqH67A+RBQZuFr5GkbI9XQI8OUFSEezKegsi45QRpc4bGj75Q==}
+  jspdf@4.2.1:
+    resolution: {integrity: sha512-YyAXyvnmjTbR4bHQRLzex3CuINCDlQnBqoSYyjJwTP2x9jDLuKDzy7aKUl0hgx3uhcl7xzg32agn5vlie6HIlQ==}
 
   jsprim@2.0.2:
     resolution: {integrity: sha512-gqXddjPqQ6G40VdnI6T6yObEC+pDNvyP95wdQhkWkg7crHH3km5qP1FsOXEkzEQwnz6gz5qGTn1c2Y52wP3OyQ==}
@@ -11131,9 +11112,6 @@ packages:
     peerDependencies:
       monaco-editor: '>=0.36'
 
-  moo@0.5.2:
-    resolution: {integrity: sha512-iSAJLHYKnX41mKcJKjqvnAN9sf0LMDTXDEvFv+ffuRR9a1MIuXLjMNL6EsnDHSkKLTWNqQQ5uo61P4EbU4NU+Q==}
-
   ms@2.0.0:
     resolution: {integrity: sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==}
 
@@ -11177,11 +11155,6 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@3.3.8:
-    resolution: {integrity: sha512-WNLf5Sd8oZxOm+TzppcYk8gVOgP+l58xNy58D0nbUnOxOWRWvlcCV4kUF7ltmI6PsrLl/BgKEyS4mqsGChFN0w==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-
   napi-build-utils@2.0.0:
     resolution: {integrity: sha512-GEbrYkbfF7MoNaoh2iGG84Mnf/WZfB0GdGEsM8wz7Expx/LlWf5U8t9nvJKXSp3qr5IsEbK04cBGhol/KwOsWA==}
 
@@ -11195,10 +11168,6 @@ packages:
   natural-orderby@5.0.0:
     resolution: {integrity: sha512-kKHJhxwpR/Okycz4HhQKKlhWe4ASEfPgkSWNmKFHd7+ezuQlxkA5cM3+XkBPvm1gmHen3w53qsYAv+8GwRrBlg==}
     engines: {node: '>=18'}
-
-  nearley@2.20.1:
-    resolution: {integrity: sha512-+Mc8UaAebFzgV+KpI5n7DasuuQCHA89dmwm7JXw3TV43ukfNQ9DnBH3Mdb2g/I4Fdxc26pwimBWvjIw0UAILSQ==}
-    hasBin: true
 
   needle@2.4.0:
     resolution: {integrity: sha512-4Hnwzr3mi5L97hMYeNl8wRW/Onhy4nUKR/lVemJ8gJedxxUyBLm9kkrDColJvoSfwi0jCNhD+xCdOtiGDQiRZg==}
@@ -12271,18 +12240,11 @@ packages:
   raf@3.4.1:
     resolution: {integrity: sha512-Sq4CW4QhwOHE8ucn6J34MqtZCeWFP2aQSmrlroYgqAV1PjStIhJXxYuTgUIfkEk7zTLjmIjLmU5q+fbD1NnOJA==}
 
-  railroad-diagrams@1.0.0:
-    resolution: {integrity: sha512-cz93DjNeLY0idrCNOH6PviZGRN9GJhsdm9hpn1YCS879fj4W+x5IFJhhkRZcwVgMmFF7R82UA/7Oh+R8lLZg6A==}
-
   ramda@0.27.2:
     resolution: {integrity: sha512-SbiLPU40JuJniHexQSAgad32hfwd+DRUdwF2PlVuI5RZD0/vahUco7R8vD86J/tcEKKF9vZrUVwgtmGCqlCKyA==}
 
   ramda@0.29.0:
     resolution: {integrity: sha512-BBea6L67bYLtdbOqfp8f58fPMqEwx0doL+pAi8TZyp2YWz8R9G8z9x75CZI8W+ftqhFHCpEX2cRnUUXK130iKA==}
-
-  randexp@0.4.6:
-    resolution: {integrity: sha512-80WNmd9DA0tmZrw9qQa62GPPWfuXJknrmVmLcxvq4uZBdYqb1wYoKTmnlGUchvVWe0XiLupYkBoXVOxz3C8DYQ==}
-    engines: {node: '>=0.12'}
 
   random-bytes@1.0.0:
     resolution: {integrity: sha512-iv7LhNVO047HzYR3InF6pUcUsPQiHTM1Qal51DcGSuZFBil1aBBWG5eHPNek7bvILMaYJ/8RU1e8w1AMdHmLQQ==}
@@ -12790,10 +12752,6 @@ packages:
     resolution: {integrity: sha512-l+sSefzHpj5qimhFSE5a8nufZYAM3sBSVMAPtYkmC+4EH2anSGaEMXSD0izRQbu9nfyQ9y5JrVmp7E8oZrUjvA==}
     engines: {node: '>=8'}
 
-  ret@0.1.15:
-    resolution: {integrity: sha512-TTlYpa+OL+vMMNG24xSlQGEJ3B/RzEfUlLct7b5G/ytav+wPrplCpVMFuwzXbkecJrb6IYo1iFb0S9v37754mg==}
-    engines: {node: '>=0.12'}
-
   retry-request@7.0.2:
     resolution: {integrity: sha512-dUOvLMJ0/JJYEn8NrpOaGNE7X3vpI5XlZS/u0ANjqtcZVKnIxP7IgCFwrKTxENw29emmwug53awKtaMm4i9g5w==}
     engines: {node: '>=14'}
@@ -13195,10 +13153,6 @@ packages:
 
   sprintf-js@1.1.3:
     resolution: {integrity: sha512-Oo+0REFV59/rz3gfJNKQiBlwfHaSESl1pcGyABQsnnIfWOFt6JNj5gCog2U6MLZ//IGYD+nA8nI+mTShREReaA==}
-
-  sql-formatter@15.7.3:
-    resolution: {integrity: sha512-5+zl9Nqg5aNjss0tb1G+StpC4dJKbjv3+g8CL/+V+00PfZop+2RKGyi53ScFl0dr+Dkx1LjmUO54Q3N7K3EtMw==}
-    hasBin: true
 
   ssh2@1.14.0:
     resolution: {integrity: sha512-AqzD1UCqit8tbOKoj6ztDDi1ffJZ2rV2SwlgrVVrHPkV5vWqGJOVp5pmtj18PunkPJAuKQsnInyKV+/Nb2bUnA==}
@@ -14934,13 +14888,6 @@ snapshots:
       '@ai-sdk/openai': 3.0.25(zod@3.25.55)
       '@ai-sdk/provider': 3.0.7
       '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
-      zod: 3.25.55
-
-  '@ai-sdk/gateway@3.0.32(zod@3.25.55)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.7
-      '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
-      '@vercel/oidc': 3.1.0
       zod: 3.25.55
 
   '@ai-sdk/gateway@3.0.34(zod@3.25.55)':
@@ -19777,13 +19724,13 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
       superjson: 1.13.3
-      use-sync-external-store: 1.4.0(react@19.2.0)
+      use-sync-external-store: 1.6.0(react@19.2.0)
 
   '@tanstack/react-query@4.36.1(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
       '@tanstack/query-core': 4.36.1
       react: 19.2.0
-      use-sync-external-store: 1.4.0(react@19.2.0)
+      use-sync-external-store: 1.6.0(react@19.2.0)
     optionalDependencies:
       react-dom: 19.2.0(react@19.2.0)
 
@@ -20084,7 +20031,7 @@ snapshots:
       '@types/multer': 1.4.12
       fs-extra: 11.3.2
       glob: 10.5.0
-      handlebars: 4.7.8
+      handlebars: 4.7.9
       merge-anything: 5.1.7
       minimatch: 9.0.5
       ts-deepmerge: 7.0.2
@@ -20283,7 +20230,7 @@ snapshots:
 
   '@types/handlebars@4.1.0':
     dependencies:
-      handlebars: 4.7.8
+      handlebars: 4.7.9
 
   '@types/hast@2.3.1':
     dependencies:
@@ -20857,7 +20804,7 @@ snapshots:
       '@typescript-eslint/types': 8.56.1
       '@typescript-eslint/visitor-keys': 8.56.1
       debug: 4.4.3(supports-color@9.1.0)
-      minimatch: 10.2.2
+      minimatch: 10.2.5
       semver: 7.7.3
       tinyglobby: 0.2.15
       ts-api-utils: 2.4.0(typescript@5.9.3)
@@ -20872,7 +20819,7 @@ snapshots:
       '@typescript-eslint/types': 8.56.1
       '@typescript-eslint/visitor-keys': 8.56.1
       debug: 4.4.3(supports-color@9.1.0)
-      minimatch: 10.2.2
+      minimatch: 10.2.5
       semver: 7.7.3
       tinyglobby: 0.2.15
       ts-api-utils: 2.4.0(typescript@6.0.0-beta)
@@ -21244,9 +21191,9 @@ snapshots:
 
   ace-builds@1.4.14: {}
 
-  acorn-import-attributes@1.9.5(acorn@8.15.0):
+  acorn-import-attributes@1.9.5(acorn@8.16.0):
     dependencies:
-      acorn: 8.15.0
+      acorn: 8.16.0
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
@@ -21274,14 +21221,6 @@ snapshots:
     dependencies:
       clean-stack: 2.2.0
       indent-string: 4.0.0
-
-  ai@6.0.69(zod@3.25.55):
-    dependencies:
-      '@ai-sdk/gateway': 3.0.32(zod@3.25.55)
-      '@ai-sdk/provider': 3.0.7
-      '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
-      '@opentelemetry/api': 1.9.0
-      zod: 3.25.55
 
   ai@6.0.71(zod@3.25.55):
     dependencies:
@@ -23037,8 +22976,6 @@ snapshots:
 
   direction@2.0.1: {}
 
-  discontinuous-range@1.0.0: {}
-
   dockerfile-ast@0.7.1:
     dependencies:
       vscode-languageserver-textdocument: 1.0.12
@@ -23073,7 +23010,7 @@ snapshots:
     dependencies:
       domelementtype: 2.3.0
 
-  dompurify@3.3.2:
+  dompurify@3.3.1:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -24456,7 +24393,7 @@ snapshots:
     dependencies:
       foreground-child: 3.3.1
       jackspeak: 4.2.3
-      minimatch: 10.2.2
+      minimatch: 10.2.5
       minipass: 7.1.3
       package-json-from-dist: 1.0.1
       path-scurry: 2.0.2
@@ -24640,7 +24577,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  handlebars@4.7.8:
+  handlebars@4.7.9:
     dependencies:
       minimist: 1.2.8
       neo-async: 2.6.2
@@ -24993,15 +24930,15 @@ snapshots:
 
   import-in-the-middle@1.14.2:
     dependencies:
-      acorn: 8.15.0
-      acorn-import-attributes: 1.9.5(acorn@8.15.0)
+      acorn: 8.16.0
+      acorn-import-attributes: 1.9.5(acorn@8.16.0)
       cjs-module-lexer: 1.4.3
       module-details-from-path: 1.0.4
 
   import-in-the-middle@2.0.6:
     dependencies:
-      acorn: 8.15.0
-      acorn-import-attributes: 1.9.5(acorn@8.15.0)
+      acorn: 8.16.0
+      acorn-import-attributes: 1.9.5(acorn@8.16.0)
       cjs-module-lexer: 2.2.0
       module-details-from-path: 1.0.4
 
@@ -25957,7 +25894,7 @@ snapshots:
       ms: 2.1.3
       semver: 7.7.3
 
-  jspdf@4.2.0:
+  jspdf@4.2.1:
     dependencies:
       '@babel/runtime': 7.28.6
       fast-png: 6.4.0
@@ -25965,7 +25902,7 @@ snapshots:
     optionalDependencies:
       canvg: 3.0.11
       core-js: 3.45.1
-      dompurify: 3.3.2
+      dompurify: 3.3.1
       html2canvas: 1.4.1
 
   jsprim@2.0.2:
@@ -26053,7 +25990,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
+  langchain@0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.9)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
     dependencies:
       '@langchain/core': 0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))
       '@langchain/openai': 0.4.2(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(encoding@0.1.13)(ws@8.18.0)
@@ -26069,7 +26006,7 @@ snapshots:
       zod: 3.25.55
     optionalDependencies:
       axios: 1.12.2
-      handlebars: 4.7.8
+      handlebars: 4.7.9
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - '@opentelemetry/exporter-trace-otlp-proto'
@@ -27132,8 +27069,6 @@ snapshots:
       vscode-uri: 3.1.0
       yaml: 2.7.0
 
-  moo@0.5.2: {}
-
   ms@2.0.0: {}
 
   ms@2.1.2: {}
@@ -27186,8 +27121,6 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  nanoid@3.3.8: {}
-
   napi-build-utils@2.0.0: {}
 
   nats@2.29.3:
@@ -27197,13 +27130,6 @@ snapshots:
   natural-compare@1.4.0: {}
 
   natural-orderby@5.0.0: {}
-
-  nearley@2.20.1:
-    dependencies:
-      commander: 2.20.3
-      moo: 0.5.2
-      railroad-diagrams: 1.0.0
-      randexp: 0.4.6
 
   needle@2.4.0:
     dependencies:
@@ -28096,13 +28022,13 @@ snapshots:
 
   postcss@8.4.31:
     dependencies:
-      nanoid: 3.3.8
+      nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
   postcss@8.5.3:
     dependencies:
-      nanoid: 3.3.8
+      nanoid: 3.3.11
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
@@ -28427,16 +28353,9 @@ snapshots:
       performance-now: 2.1.0
     optional: true
 
-  railroad-diagrams@1.0.0: {}
-
   ramda@0.27.2: {}
 
   ramda@0.29.0: {}
-
-  randexp@0.4.6:
-    dependencies:
-      discontinuous-range: 1.0.0
-      ret: 0.1.15
 
   random-bytes@1.0.0: {}
 
@@ -29083,8 +29002,6 @@ snapshots:
       onetime: 5.1.2
       signal-exit: 3.0.7
 
-  ret@0.1.15: {}
-
   retry-request@7.0.2(encoding@0.1.13):
     dependencies:
       '@types/request': 2.48.12
@@ -29648,11 +29565,6 @@ snapshots:
   sprintf-js@1.1.2: {}
 
   sprintf-js@1.1.3: {}
-
-  sql-formatter@15.7.3:
-    dependencies:
-      argparse: 2.0.1
-      nearley: 2.20.1
 
   ssh2@1.14.0:
     dependencies:
