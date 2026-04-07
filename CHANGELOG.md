@@ -1,3 +1,10 @@
+# [0.2731.0](https://github.com/lightdash/lightdash/compare/0.2730.2...0.2731.0) (2026-04-07)
+
+
+### Features
+
+* added to date filter operators ([#21779](https://github.com/lightdash/lightdash/issues/21779)) ([ea504a0](https://github.com/lightdash/lightdash/commit/ea504a003ce361e9fab68412b2d4077c53b9cf6a))
+
 ## [0.2730.2](https://github.com/lightdash/lightdash/compare/0.2730.1...0.2730.2) (2026-04-07)
 
 
