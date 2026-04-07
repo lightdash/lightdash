@@ -275,6 +275,21 @@ export const renderDateFilterSql = (
     const effectiveStartOfWeek =
         startOfWeek ?? getDefaultStartOfWeek(adapterType);
 
+    // Format a computed boundary moment for SQL comparison.
+    // For date-level formatting (formatDate), the moment is formatted in the
+    // project timezone so the calendar date matches the timezone-aware
+    // DATE_TRUNC output (NTZ local midnight). Without this, positive-offset
+    // timezones (e.g., Tokyo +9) would shift the date back one day because
+    // .utc() moves midnight local to the previous UTC calendar day.
+    // For timestamp-level formatting (formatTimestampAsUTC), the moment is
+    // formatted in UTC with full timestamp precision — timezone is irrelevant.
+    const formatBoundary = (m: moment.Moment): string => {
+        if (dateFormatter === formatDate) {
+            return m.format('YYYY-MM-DD');
+        }
+        return dateFormatter(m.utc().toDate());
+    };
+
     const castValue = (value: string): string => {
         switch (adapterType) {
             case SupportedDbtAdapter.TRINO:
@@ -326,48 +341,36 @@ export const renderDateFilterSql = (
                     : '';
 
             if (completed) {
-                const completedDate = getMomentDateWithCustomStartOfWeek(
+                const completedMoment = getMomentDateWithCustomStartOfWeek(
                     effectiveStartOfWeek,
                 )
                     .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate();
-                const untilDate = dateFormatter(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .tz(timezone)
-                        .startOf(unitOfTime)
-                        .utc()
-                        .toDate(),
-                );
+                    .startOf(unitOfTime);
+                const untilDate = formatBoundary(completedMoment);
+                const fromMoment = getMomentDateWithCustomStartOfWeek(
+                    effectiveStartOfWeek,
+                    completedMoment.utc().toDate(),
+                )
+                    .tz(timezone)
+                    .subtract(filter.values?.[0], unitOfTime);
                 return `${not}((${dimensionSql}) >= ${castValue(
-                    dateFormatter(
-                        getMomentDateWithCustomStartOfWeek(
-                            effectiveStartOfWeek,
-                            completedDate,
-                        )
-                            .tz(timezone)
-                            .subtract(filter.values?.[0], unitOfTime)
-                            .utc()
-                            .toDate(),
-                    ),
+                    formatBoundary(fromMoment),
                 )} AND (${dimensionSql}) < ${castValue(untilDate)})`;
             }
-            const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .utc()
-                    .toDate(),
-            );
+            const untilMoment =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const fromMoment = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+            )
+                .tz(timezone)
+                .subtract(filter.values?.[0], unitOfTime);
             return `${not}((${dimensionSql}) >= ${castValue(
-                dateFormatter(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .tz(timezone)
-                        .subtract(filter.values?.[0], unitOfTime)
-                        .utc()
-                        .toDate(),
-                ),
-            )} AND (${dimensionSql}) <= ${castValue(untilDate)})`;
+                formatBoundary(fromMoment),
+            )} AND (${dimensionSql}) <= ${castValue(
+                formatBoundary(untilMoment),
+            )})`;
         }
         case FilterOperator.IN_THE_NEXT: {
             const unitOfTime: UnitOfTime =
@@ -375,66 +378,56 @@ export const renderDateFilterSql = (
             const completed: boolean = !!filter.settings?.completed;
 
             if (completed) {
-                const fromDate = getMomentDateWithCustomStartOfWeek(
+                const fromMoment = getMomentDateWithCustomStartOfWeek(
                     effectiveStartOfWeek,
                 )
                     .tz(timezone)
                     .add(1, unitOfTime)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate();
-                const toDate = dateFormatter(
-                    getMomentDateWithCustomStartOfWeek(
-                        effectiveStartOfWeek,
-                        fromDate,
-                    )
-                        .tz(timezone)
-                        .add(filter.values?.[0], unitOfTime)
-                        .utc()
-                        .toDate(),
-                );
+                    .startOf(unitOfTime);
+                const toMoment = getMomentDateWithCustomStartOfWeek(
+                    effectiveStartOfWeek,
+                    fromMoment.utc().toDate(),
+                )
+                    .tz(timezone)
+                    .add(filter.values?.[0], unitOfTime);
                 return `((${dimensionSql}) >= ${castValue(
-                    dateFormatter(fromDate),
-                )} AND (${dimensionSql}) < ${castValue(toDate)})`;
+                    formatBoundary(fromMoment),
+                )} AND (${dimensionSql}) < ${castValue(
+                    formatBoundary(toMoment),
+                )})`;
             }
-            const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .utc()
-                    .toDate(),
-            );
-            const toDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .add(filter.values?.[0], unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
+            const fromMoment =
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const toMoment = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+            )
+                .tz(timezone)
+                .add(filter.values?.[0], unitOfTime);
             return `((${dimensionSql}) >= ${castValue(
-                fromDate,
-            )} AND (${dimensionSql}) <= ${castValue(toDate)})`;
+                formatBoundary(fromMoment),
+            )} AND (${dimensionSql}) <= ${castValue(
+                formatBoundary(toMoment),
+            )})`;
         }
         case FilterOperator.IN_THE_CURRENT: {
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
 
-            const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
-            const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .endOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
+            const fromMoment = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+            )
+                .tz(timezone)
+                .startOf(unitOfTime);
+            const untilMoment = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+            )
+                .tz(timezone)
+                .endOf(unitOfTime);
 
-            const castedFromDate = castValue(fromDate);
-            const castedUntilDate = castValue(untilDate);
+            const castedFromDate = castValue(formatBoundary(fromMoment));
+            const castedUntilDate = castValue(formatBoundary(untilMoment));
 
             return `((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate})`;
         }
@@ -442,23 +435,19 @@ export const renderDateFilterSql = (
             const unitOfTime: UnitOfTime =
                 filter.settings?.unitOfTime || UnitOfTime.days;
 
-            const fromDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .startOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
-            const untilDate = dateFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .endOf(unitOfTime)
-                    .utc()
-                    .toDate(),
-            );
+            const fromMoment = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+            )
+                .tz(timezone)
+                .startOf(unitOfTime);
+            const untilMoment = getMomentDateWithCustomStartOfWeek(
+                effectiveStartOfWeek,
+            )
+                .tz(timezone)
+                .endOf(unitOfTime);
 
-            const castedFromDate = castValue(fromDate);
-            const castedUntilDate = castValue(untilDate);
+            const castedFromDate = castValue(formatBoundary(fromMoment));
+            const castedUntilDate = castValue(formatBoundary(untilMoment));
 
             return `(NOT ((${dimensionSql}) >= ${castedFromDate} AND (${dimensionSql}) <= ${castedUntilDate}))`;
         }
