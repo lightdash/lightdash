@@ -1055,7 +1055,7 @@ describe('AsyncQueryService', () => {
                     resolved: true,
                     query: 'SELECT * FROM duckdb_preagg',
                 }),
-                getRoutingDecision: ({ explore }) => {
+                getRoutingDecision: async ({ explore }) => {
                     if (
                         explore.type === ExploreType.PRE_AGGREGATE &&
                         explore.preAggregateSource

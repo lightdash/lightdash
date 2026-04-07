@@ -344,6 +344,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             }),
                         preAggregateDailyStatsModel:
                             models.getPreAggregateDailyStatsModel(),
+                        preAggregateModel: models.getPreAggregateModel(),
                         preAggregateResultsStorageClient:
                             clients.getPreAggregateResultsFileStorageClient(),
                         isEnabled: () =>

@@ -316,21 +316,24 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    private getPreAggregationRoutingDecision({
+    private async getPreAggregationRoutingDecision({
+        projectUuid,
         metricQuery,
         explore,
         context,
         forceWarehouse,
     }: {
+        projectUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
         forceWarehouse: boolean;
-    }): PreAggregationRoutingDecision {
+    }): Promise<PreAggregationRoutingDecision> {
         if (forceWarehouse) {
             return { target: 'warehouse' };
         }
         return this.preAggregateStrategy.getRoutingDecision({
+            projectUuid,
             metricQuery,
             explore,
             context,
@@ -3309,7 +3312,8 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
         };
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             metricQuery,
             explore,
             context,
@@ -3547,7 +3551,8 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             metricQuery: metricQueryWithLimit,
             explore,
             context,
@@ -3862,7 +3867,8 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
         });
 
-        const routingDecision = this.getPreAggregationRoutingDecision({
+        const routingDecision = await this.getPreAggregationRoutingDecision({
+            projectUuid,
             metricQuery: metricQueryWithLimit,
             explore,
             context,

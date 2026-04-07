@@ -40,10 +40,11 @@ export type PreAggregateStatsFilters = {
 
 export interface PreAggregateStrategy {
     getRoutingDecision(params: {
+        projectUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
-    }): PreAggregationRoutingDecision;
+    }): Promise<PreAggregationRoutingDecision>;
 
     resolveExecution(params: {
         projectUuid: string;
@@ -94,7 +95,7 @@ export type PreAggregateExecutionResolution =
 
 /* eslint-disable class-methods-use-this */
 export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
-    getRoutingDecision(): PreAggregationRoutingDecision {
+    async getRoutingDecision(): Promise<PreAggregationRoutingDecision> {
         return { target: 'warehouse' };
     }
 
