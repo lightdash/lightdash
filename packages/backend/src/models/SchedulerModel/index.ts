@@ -43,6 +43,7 @@ import {
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
@@ -297,12 +298,14 @@ export class SchedulerModel {
 
     async getSchedulers({
         projectUuid,
+        organizationUuid,
         paginateArgs,
         searchQuery,
         sort,
         filters,
     }: {
         projectUuid?: string;
+        organizationUuid: string;
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
@@ -557,6 +560,26 @@ export class SchedulerModel {
         );
         schedulerDashboards = schedulerDashboards.whereNull(
             `${SpaceTableName}.deleted_at`,
+        );
+
+        const orgFilter = this.database(OrganizationTableName)
+            .select('organization_id')
+            .where('organization_uuid', organizationUuid);
+
+        schedulerCharts = schedulerCharts.where(
+            `${ProjectTableName}.organization_id`,
+            'in',
+            orgFilter,
+        );
+        schedulerDashboards = schedulerDashboards.where(
+            `${ProjectTableName}.organization_id`,
+            'in',
+            orgFilter,
+        );
+        schedulerSqlCharts = schedulerSqlCharts.where(
+            `${ProjectTableName}.organization_id`,
+            'in',
+            orgFilter,
         );
 
         if (projectUuid) {
