@@ -1,0 +1,3 @@
+-- DuckDB-specific seed overrides (if needed)
+-- DuckDB uses standard SQL for most things, so this is mostly identical to seed.sql
+-- The main runner will execute seed.sql first, then this file for any overrides
