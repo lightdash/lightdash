@@ -1401,6 +1401,7 @@ export class DashboardService
         );
         return this.schedulerModel.getSchedulers({
             projectUuid: dashboard.projectUuid,
+            organizationUuid: dashboard.organizationUuid,
             paginateArgs,
             searchQuery,
             filters: {

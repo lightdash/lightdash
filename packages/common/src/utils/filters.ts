@@ -205,7 +205,8 @@ export const supportsSingleValue = (
 
 export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NULL &&
-    filterOperator !== FilterOperator.NOT_NULL;
+    filterOperator !== FilterOperator.NOT_NULL &&
+    filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     filterType: FilterType,
@@ -216,9 +217,11 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     const filterRuleDefaults: Partial<FilterRule> = {};
 
     if (
-        ![FilterOperator.NULL, FilterOperator.NOT_NULL].includes(
-            filterRule.operator,
-        ) &&
+        ![
+            FilterOperator.NULL,
+            FilterOperator.NOT_NULL,
+            FilterOperator.IN_PERIOD_TO_DATE,
+        ].includes(filterRule.operator) &&
         values !== null
     ) {
         switch (filterType) {
@@ -318,6 +321,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
             default:
                 break;
         }
+    }
+    if (filterRule.operator === FilterOperator.IN_PERIOD_TO_DATE) {
+        filterRuleDefaults.settings = {
+            unitOfTime: UnitOfTime.years,
+            completed: false,
+        } as DateFilterRule['settings'];
     }
     return {
         ...filterRule,
@@ -805,40 +814,55 @@ export const getDashboardFilterRulesForTileAndReferences = (
         (f) => f.target.isSqlColumn && references.includes(f.target.fieldId),
     );
 
+/**
+ * Filter dashboard filter rules to those whose target field id is actually
+ * present in the explore.
+ *
+ * Previously this matched by `target.tableName` against the explore's joined
+ * table aliases. That diverged from the UI's "is this filter applicable to
+ * this tile?" check, which matches by field id (see TileFilterConfiguration's
+ * `selectedField` computation). When a filter rule's `target.tableName` is
+ * stale (e.g. the dbt model was renamed since the filter was created) but
+ * `target.fieldId` still resolves against the explore, the UI rendered the
+ * filter as applied while the server silently dropped it — resulting in
+ * unfiltered data on dashboards (notably a PII leak risk for org-scoping
+ * filters). Matching by field id makes both checks use the same source of
+ * truth.
+ */
 export const getDashboardFilterRulesForTables = (
-    tables: string[],
+    availableFieldIds: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    rules.filter((f) => tables.includes(f.target.tableName));
+    rules.filter((f) => availableFieldIds.includes(f.target.fieldId));
 
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
-    tables: string[],
+    availableFieldIds: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
     getDashboardFilterRulesForTables(
-        tables,
+        availableFieldIds,
         getDashboardFilterRulesForTile(tileUuid, rules),
     );
 
 export const getDashboardFiltersForTileAndTables = (
     tileUuid: string,
-    tables: string[],
+    availableFieldIds: string[],
     dashboardFilters: DashboardFilters,
 ): DashboardFilters => ({
     dimensions: getDashboardFilterRulesForTileAndTables(
         tileUuid,
-        tables,
+        availableFieldIds,
         dashboardFilters.dimensions,
     ),
     metrics: getDashboardFilterRulesForTileAndTables(
         tileUuid,
-        tables,
+        availableFieldIds,
         dashboardFilters.metrics,
     ),
     tableCalculations: getDashboardFilterRulesForTileAndTables(
         tileUuid,
-        tables,
+        availableFieldIds,
         dashboardFilters.tableCalculations,
     ),
 });

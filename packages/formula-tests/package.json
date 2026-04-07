@@ -1,0 +1,22 @@
+{
+  "name": "@lightdash/formula-tests",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test:fast": "tsx run.ts --tier fast",
+    "test:tier1": "tsx run.ts --tier tier1",
+    "test:tier2": "tsx run.ts --tier tier2",
+    "test:all": "tsx run.ts --tier all"
+  },
+  "dependencies": {
+    "@lightdash/formula": "workspace:*",
+    "duckdb": "1.4.2",
+    "pg": "8.13.1",
+    "tsx": "4.19.2"
+  },
+  "devDependencies": {
+    "@types/pg": "8.11.10",
+    "typescript": "6.0.0-beta"
+  }
+}

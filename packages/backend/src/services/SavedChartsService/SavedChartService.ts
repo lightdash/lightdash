@@ -1352,6 +1352,7 @@ export class SavedChartService
         );
         return this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
+            organizationUuid: chart.organizationUuid,
             paginateArgs,
             searchQuery,
             filters: {

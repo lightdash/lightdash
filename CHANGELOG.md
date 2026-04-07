@@ -1,3 +1,71 @@
+# [0.2733.0](https://github.com/lightdash/lightdash/compare/0.2732.0...0.2733.0) (2026-04-07)
+
+
+### Features
+
+* add formula test harness ([#21792](https://github.com/lightdash/lightdash/issues/21792)) ([61bfd34](https://github.com/lightdash/lightdash/commit/61bfd340446cb6961b50140bc2bc529990c700f1))
+
+# [0.2732.0](https://github.com/lightdash/lightdash/compare/0.2731.0...0.2732.0) (2026-04-07)
+
+
+### Features
+
+* scope data apps to admin only ([#21814](https://github.com/lightdash/lightdash/issues/21814)) ([9fb5ed5](https://github.com/lightdash/lightdash/commit/9fb5ed5070877103e08b6ef9e37b76a3165fb307))
+
+# [0.2731.0](https://github.com/lightdash/lightdash/compare/0.2730.2...0.2731.0) (2026-04-07)
+
+
+### Features
+
+* added to date filter operators ([#21779](https://github.com/lightdash/lightdash/issues/21779)) ([ea504a0](https://github.com/lightdash/lightdash/commit/ea504a003ce361e9fab68412b2d4077c53b9cf6a))
+
+## [0.2730.2](https://github.com/lightdash/lightdash/compare/0.2730.1...0.2730.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* allow null meta in dbt manifest validation schemas for Fusion compatibility ([#21732](https://github.com/lightdash/lightdash/issues/21732)) ([74a0c1a](https://github.com/lightdash/lightdash/commit/74a0c1ad663f10e031e9db53bcf9702905af1695))
+
+## [0.2730.1](https://github.com/lightdash/lightdash/compare/0.2730.0...0.2730.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* **ci:** remove quotes from pinned google-github-actions refs ([#21793](https://github.com/lightdash/lightdash/issues/21793)) ([78523ee](https://github.com/lightdash/lightdash/commit/78523eeb9a7c30a1ff6de15abfe51733f6265575))
+
+# [0.2730.0](https://github.com/lightdash/lightdash/compare/0.2729.3...0.2730.0) (2026-04-07)
+
+
+### Bug Fixes
+
+* match dashboard filters by field ID instead of table name to prevent filter bypass ([#21791](https://github.com/lightdash/lightdash/issues/21791)) ([95a8b80](https://github.com/lightdash/lightdash/commit/95a8b808436864129698d4908641d77ca2391308))
+
+
+### Features
+
+* add preview step before bulk rename in validator fix modal ([#21790](https://github.com/lightdash/lightdash/issues/21790)) ([b52cbee](https://github.com/lightdash/lightdash/commit/b52cbee047434def07051b3651736989acdadd64))
+
+## [0.2729.3](https://github.com/lightdash/lightdash/compare/0.2729.2...0.2729.3) (2026-04-07)
+
+
+### Bug Fixes
+
+* validator model rename resolves wrong model when names share a prefix ([#21789](https://github.com/lightdash/lightdash/issues/21789)) ([e9724c6](https://github.com/lightdash/lightdash/commit/e9724c6a86fcce03a16192c82ad70a5841fcd6f3))
+
+## [0.2729.2](https://github.com/lightdash/lightdash/compare/0.2729.1...0.2729.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* filter SQL chart schedulers by project in getSchedulers ([#21786](https://github.com/lightdash/lightdash/issues/21786)) ([a177cc0](https://github.com/lightdash/lightdash/commit/a177cc038409f7f1014bded090ae464cff41e11f))
+
+## [0.2729.1](https://github.com/lightdash/lightdash/compare/0.2729.0...0.2729.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* add pivot documentation to table chart skill reference ([#21463](https://github.com/lightdash/lightdash/issues/21463)) ([8bfdff2](https://github.com/lightdash/lightdash/commit/8bfdff272beabd2cd737e199770010494674b60f))
+
 # [0.2729.0](https://github.com/lightdash/lightdash/compare/0.2728.3...0.2729.0) (2026-04-07)
 
 

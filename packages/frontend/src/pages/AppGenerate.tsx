@@ -1,9 +1,14 @@
 import { subject } from '@casl/ability';
-import type { ApiAppVersionSummary } from '@lightdash/common';
+import type {
+    ApiAppVersionSummary,
+    AppImageAttachment,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    CloseButton,
     Group,
+    Image,
     Loader,
     Text,
     Textarea,
@@ -13,6 +18,7 @@ import {
     IconAppWindow,
     IconArrowUp,
     IconExternalLink,
+    IconPhoto,
     IconPlayerStop,
     IconSparkles,
 } from '@tabler/icons-react';
@@ -46,6 +52,7 @@ import classes from './AppGenerate.module.css';
 type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
+    imagePreviewUrl: string | null;
     appUuid: string | null;
     version: number | null;
 };
@@ -107,7 +114,16 @@ const AppGenerate: FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [prompt, setPrompt] = useState('');
+    const [imageAttachment, setImageAttachment] = useState<{
+        file: File;
+        previewUrl: string;
+    } | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+    // Maps prompt text → image preview URL so the thumbnail survives the
+    // local→server message transition (localMessages get cleared when server
+    // version data arrives, but the ref persists).
+    const sentImagesByPrompt = useRef(new Map<string, string>());
     // Track appUuid in local state so polling starts immediately after creation
     // (before the URL param updates via replaceState)
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
@@ -123,6 +139,10 @@ const AppGenerate: FC = () => {
             setPreviewApp(null);
             versionCacheRef.current.clear();
             versionCacheAppRef.current = undefined;
+            sentImagesByPrompt.current.forEach((url) =>
+                URL.revokeObjectURL(url),
+            );
+            sentImagesByPrompt.current.clear();
         }
     }, [urlAppUuid]);
     const {
@@ -224,6 +244,8 @@ const AppGenerate: FC = () => {
                 {
                     role: 'user',
                     content: v.prompt,
+                    imagePreviewUrl:
+                        sentImagesByPrompt.current.get(v.prompt) ?? null,
                     appUuid: null,
                     version: null,
                 },
@@ -236,6 +258,7 @@ const AppGenerate: FC = () => {
                         (v.version === 1
                             ? 'Your app is ready!'
                             : `Version ${v.version} is ready!`),
+                    imagePreviewUrl: null,
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
@@ -245,6 +268,7 @@ const AppGenerate: FC = () => {
                     content:
                         v.statusMessage ??
                         'Generation failed. Please try again.',
+                    imagePreviewUrl: null,
                     appUuid: null,
                     version: null,
                 });
@@ -291,6 +315,16 @@ const AppGenerate: FC = () => {
         scrollToBottom();
     }, [messages, isLoading, scrollToBottom]);
 
+    // Revoke all sent image blob URLs on unmount to prevent memory leaks.
+    // We don't revoke on imageAttachment change because the URL may have
+    // been transferred to a sent message for display.
+    useEffect(() => {
+        const ref = sentImagesByPrompt.current;
+        return () => {
+            ref.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, []);
+
     if (health.data && !health.data.dataApps.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
@@ -311,28 +345,120 @@ const AppGenerate: FC = () => {
         return <Box>Missing project UUID</Box>;
     }
 
-    const handleSubmit = () => {
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const ACCEPTED_IMAGE_TYPES = [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+    ];
+
+    const handleImageAttach = (file: File) => {
+        if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+            return;
+        }
+        if (file.size > MAX_IMAGE_SIZE) {
+            return;
+        }
+        setImageAttachment({
+            file,
+            previewUrl: URL.createObjectURL(file),
+        });
+    };
+
+    const handlePaste = (e: React.ClipboardEvent) => {
+        const items = e.clipboardData?.files;
+        if (items && items.length > 0) {
+            const file = items[0];
+            if (file.type.startsWith('image/')) {
+                e.preventDefault();
+                handleImageAttach(file);
+            }
+        }
+    };
+
+    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleImageAttach(file);
+        }
+        e.target.value = '';
+    };
+
+    const clearImage = () => {
+        if (imageAttachment?.previewUrl) {
+            URL.revokeObjectURL(imageAttachment.previewUrl);
+        }
+        setImageAttachment(null);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            handleImageAttach(file);
+        }
+    };
+
+    const handleSubmit = async () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
+        // Convert image to base64 if attached
+        // Phase 2: swap this for a presigned S3 upload when supporting
+        // larger files or multiple images.
+        let image: AppImageAttachment | undefined;
+        if (imageAttachment) {
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = reader.result as string;
+                    // Strip the data:...;base64, prefix
+                    resolve(result.split(',')[1]);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(imageAttachment.file);
+            });
+            image = {
+                data: base64,
+                mimeType: imageAttachment.file.type,
+                filename: imageAttachment.file.name,
+            };
+        }
+
+        // Capture the preview URL before clearing — it stays in the message bubble.
+        // Also store in the ref so it survives the local→server transition.
+        const sentImageUrl = imageAttachment?.previewUrl ?? null;
+        if (sentImageUrl) {
+            sentImagesByPrompt.current.set(trimmed, sentImageUrl);
+        }
+
         setLocalMessages((prev) => [
             ...prev,
-            { role: 'user', content: trimmed, appUuid: null, version: null },
+            {
+                role: 'user',
+                content: trimmed,
+                imagePreviewUrl: sentImageUrl,
+                appUuid: null,
+                version: null,
+            },
         ]);
         setPrompt('');
+        // Don't revoke the object URL since it's now referenced by the message
+        setImageAttachment(null);
         resetGenerate();
         resetIterate();
 
         const callbacks = {
             onSuccess: (data: { appUuid: string; version: number }) => {
-                // Set active app so polling starts immediately
                 setActiveAppUuid(data.appUuid);
-                // Invalidate so useGetApp refetches and picks up the new
-                // building version, which starts the Worker poll loop.
                 void queryClient.invalidateQueries({
                     queryKey: ['app', projectUuid, data.appUuid],
                 });
-                // Update URL so the session is resumable
                 if (!urlAppUuid) {
                     void navigate(
                         `/projects/${projectUuid}/apps/${data.appUuid}`,
@@ -349,6 +475,7 @@ const AppGenerate: FC = () => {
                             err instanceof Error
                                 ? err.message
                                 : 'Failed to generate app',
+                        imagePreviewUrl: null,
                         appUuid: null,
                         version: null,
                     },
@@ -362,18 +489,19 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     appUuid: activeAppUuid,
                     prompt: trimmed,
+                    image,
                 },
                 callbacks,
             );
         } else {
-            generateMutate({ projectUuid, prompt: trimmed }, callbacks);
+            generateMutate({ projectUuid, prompt: trimmed, image }, callbacks);
         }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSubmit();
+            void handleSubmit();
         }
     };
 
@@ -463,6 +591,17 @@ const AppGenerate: FC = () => {
                                                     }
                                                 >
                                                     {msg.content}
+                                                    {msg.imagePreviewUrl && (
+                                                        <Image
+                                                            src={
+                                                                msg.imagePreviewUrl
+                                                            }
+                                                            className={
+                                                                classes.sentImageThumbnail
+                                                            }
+                                                            alt="Attached"
+                                                        />
+                                                    )}
                                                 </Box>
                                             </Box>
                                         ) : (
@@ -535,25 +674,54 @@ const AppGenerate: FC = () => {
 
                         {/* Chat Input */}
                         <Box className={classes.chatInputArea}>
-                            <Box className={classes.inputWrapper}>
-                                <Textarea
-                                    ref={textareaRef}
-                                    placeholder="Describe the app you want to build..."
-                                    autosize
-                                    minRows={1}
-                                    maxRows={6}
-                                    value={prompt}
-                                    onChange={(e) =>
-                                        setPrompt(e.currentTarget.value)
-                                    }
-                                    onKeyDown={handleKeyDown}
-                                    disabled={isLoading}
-                                    classNames={{
-                                        root: classes.textareaRoot,
-                                        input: classes.textarea,
-                                        wrapper: classes.textareaWrapper,
-                                    }}
-                                />
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/gif,image/webp"
+                                onChange={handleFileInputChange}
+                                hidden
+                            />
+                            <Box
+                                className={classes.inputWrapper}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                            >
+                                <Box className={classes.textareaColumn}>
+                                    <Textarea
+                                        ref={textareaRef}
+                                        placeholder="Describe the app you want to build..."
+                                        autosize
+                                        minRows={1}
+                                        maxRows={6}
+                                        value={prompt}
+                                        onChange={(e) =>
+                                            setPrompt(e.currentTarget.value)
+                                        }
+                                        onKeyDown={handleKeyDown}
+                                        onPaste={handlePaste}
+                                        disabled={isLoading}
+                                        classNames={{
+                                            root: classes.textareaRoot,
+                                            input: classes.textarea,
+                                            wrapper: classes.textareaWrapper,
+                                        }}
+                                    />
+                                    {imageAttachment && (
+                                        <Box className={classes.imagePreview}>
+                                            <Image
+                                                src={imageAttachment.previewUrl}
+                                                className={
+                                                    classes.imagePreviewThumbnail
+                                                }
+                                                alt="Attached image"
+                                            />
+                                            <CloseButton
+                                                size="xs"
+                                                onClick={clearImage}
+                                            />
+                                        </Box>
+                                    )}
+                                </Box>
                                 {isBuilding ? (
                                     <ActionIcon
                                         size="sm"
@@ -567,18 +735,40 @@ const AppGenerate: FC = () => {
                                         <IconPlayerStop size={14} />
                                     </ActionIcon>
                                 ) : (
-                                    <ActionIcon
-                                        size="sm"
-                                        radius="xl"
-                                        variant="filled"
-                                        color="violet"
-                                        onClick={handleSubmit}
-                                        disabled={!prompt.trim() || isLoading}
-                                        loading={isGenerating || isIterating}
-                                        className={classes.submitButton}
-                                    >
-                                        <IconArrowUp size={14} />
-                                    </ActionIcon>
+                                    <Group gap={4} wrap="nowrap">
+                                        <ActionIcon
+                                            size="sm"
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={() =>
+                                                fileInputRef.current?.click()
+                                            }
+                                            disabled={
+                                                isLoading || !!imageAttachment
+                                            }
+                                            className={
+                                                classes.imagePickerButton
+                                            }
+                                        >
+                                            <IconPhoto size={16} />
+                                        </ActionIcon>
+                                        <ActionIcon
+                                            size="sm"
+                                            radius="xl"
+                                            variant="filled"
+                                            color="violet"
+                                            onClick={() => void handleSubmit()}
+                                            disabled={
+                                                !prompt.trim() || isLoading
+                                            }
+                                            loading={
+                                                isGenerating || isIterating
+                                            }
+                                            className={classes.submitButton}
+                                        >
+                                            <IconArrowUp size={14} />
+                                        </ActionIcon>
+                                    </Group>
                                 )}
                             </Box>
                         </Box>

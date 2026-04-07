@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Context
-        uses: okteto/context@latest
+        uses: okteto/context@bff593401ac86e181bab973c61b35816bd52587a # latest
         with:
           url: ${{secrets.OKTETO_CONTEXT}}
           token: ${{ secrets.OKTETO_TOKEN }}
@@ -24,6 +24,6 @@ jobs:
       # the preview.yml workflow
 
       - name: Destroy preview environment
-        uses: okteto/destroy-preview@latest
+        uses: okteto/destroy-preview@b3b2db89ea11724de3edddf8d4591173fbede9c7 # latest
         with:
           name: pr-${{ github.event.number }} 

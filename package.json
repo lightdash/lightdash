@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2729.0",
+    "version": "0.2733.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -68,6 +68,12 @@
         "typescript": "6.0.0-beta"
     },
     "scripts": {
+        "formula:build": "pnpm -F formula build",
+        "formula:test": "pnpm -F formula test",
+        "formula:test:fast": "pnpm -F formula-tests test:fast",
+        "formula:test:tier1": "pnpm -F formula-tests test:tier1",
+        "formula:test:tier2": "pnpm -F formula-tests test:tier2",
+        "formula:test:all": "pnpm -F formula-tests test:all",
         "common-dev": "pnpm -F common dev",
         "common-build": "pnpm -F common build",
         "common-lint": "pnpm -F common lint",

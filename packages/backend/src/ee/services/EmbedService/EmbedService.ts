@@ -33,6 +33,7 @@ import {
     getDimensions,
     getFilterInteractivityValue,
     getItemId,
+    getMetrics,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isChartContent,
@@ -926,11 +927,18 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const tables = Object.keys(explore.tables);
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
 
         let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
             tileUuid,
-            tables,
+            availableFieldIds,
             dashboard.filters,
         );
         if (
@@ -939,7 +947,7 @@ export class EmbedService extends BaseService {
         ) {
             appliedDashboardFilters = getDashboardFiltersForTileAndTables(
                 tileUuid,
-                tables,
+                availableFieldIds,
                 dashboardFilters,
             );
         }

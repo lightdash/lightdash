@@ -15,6 +15,7 @@ import {
     FieldType,
     FilterGroup,
     FilterGroupItem,
+    FilterOperator,
     FilterRule,
     getCustomMetricDimensionId,
     getDimensionMapFromTables,
@@ -1268,6 +1269,28 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
+        // For period-to-date filters on truncated dimensions, resolve the
+        // base (raw) dimension SQL so EXTRACT operates on the actual date
+        let baseDimensionSql: string | undefined;
+        if (
+            filterRuleWithParamReplacedValues.operator ===
+                FilterOperator.IN_PERIOD_TO_DATE &&
+            'timeIntervalBaseDimensionName' in field &&
+            field.timeIntervalBaseDimensionName
+        ) {
+            const baseDimension = getDimensions(filterExplore).find(
+                (d) =>
+                    getItemId(d) ===
+                    getItemId({
+                        table: (field as CompiledDimension).table,
+                        name: field.timeIntervalBaseDimensionName!,
+                    }),
+            );
+            if (baseDimension) {
+                baseDimensionSql = baseDimension.compiledSql;
+            }
+        }
+
         return renderWithErrorHandling(() =>
             renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
@@ -1279,6 +1302,7 @@ export class MetricQueryBuilder {
                 adapterType,
                 timezone,
                 this.args.explore.caseSensitive ?? true,
+                baseDimensionSql,
             ),
         );
     }

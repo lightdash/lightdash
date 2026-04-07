@@ -21,8 +21,10 @@ import {
     type CustomSqlDimension,
     type DashboardFilterableField,
     type Field,
+    type FilterableField,
     type FilterableItem,
     type TableCalculation,
+    TimeFrames,
 } from '@lightdash/common';
 import isEmpty from 'lodash/isEmpty';
 import uniq from 'lodash/uniq';
@@ -57,10 +59,35 @@ const timeFilterOptions: Array<{
     { value: FilterOperator.GREATER_THAN, label: 'is after' },
     { value: FilterOperator.GREATER_THAN_OR_EQUAL, label: 'is on or after' },
     { value: FilterOperator.IN_BETWEEN, label: 'is between' },
+    ...getFilterOptions([FilterOperator.IN_PERIOD_TO_DATE]),
 ];
+
+/**
+ * Returns whether the field supports period-to-date filters.
+ * Allowed when the dimension has a base date dimension (timeIntervalBaseDimensionName)
+ * or when the field is at day-level or finer granularity.
+ */
+const supportsToDateOperators = (
+    field: FilterableField | undefined,
+): boolean => {
+    if (!field) return true;
+    if (!isDimension(field)) return true;
+    if (!field.timeInterval) return true;
+    // Coarse intervals are allowed if backed by a raw date dimension
+    if (field.timeIntervalBaseDimensionName) return true;
+    // Otherwise only day-level or finer
+    const coarseIntervals = new Set<TimeFrames>([
+        TimeFrames.YEAR,
+        TimeFrames.QUARTER,
+        TimeFrames.MONTH,
+        TimeFrames.WEEK,
+    ]);
+    return !coarseIntervals.has(field.timeInterval);
+};
 
 export const getFilterOperatorOptions = (
     filterType: FilterType,
+    field?: FilterableField,
 ): Array<{ value: FilterOperator; label: string }> => {
     switch (filterType) {
         case FilterType.STRING:
@@ -88,6 +115,11 @@ export const getFilterOperatorOptions = (
                 FilterOperator.NOT_IN_BETWEEN,
             ]);
         case FilterType.DATE:
+            if (!supportsToDateOperators(field)) {
+                return timeFilterOptions.filter(
+                    (opt) => opt.value !== FilterOperator.IN_PERIOD_TO_DATE,
+                );
+            }
             return timeFilterOptions;
         case FilterType.BOOLEAN:
             return getFilterOptions([
@@ -195,6 +227,21 @@ const getValueAsString = (
                             }
                         })
                         .join(', ');
+                case FilterOperator.IN_PERIOD_TO_DATE: {
+                    if (!isFilterRule(rule)) throw new Error('Invalid rule');
+                    const unit = rule.settings?.unitOfTime;
+                    const periodLabel =
+                        unit === 'years'
+                            ? 'year'
+                            : unit === 'quarters'
+                              ? 'quarter'
+                              : unit === 'months'
+                                ? 'month'
+                                : unit === 'weeks'
+                                  ? 'week'
+                                  : 'period';
+                    return `${periodLabel} to date`;
+                }
                 case FilterOperator.NOT_IN_BETWEEN:
                     throw new Error('Not implemented');
                 default:

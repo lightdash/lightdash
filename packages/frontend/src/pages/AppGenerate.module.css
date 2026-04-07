@@ -139,8 +139,7 @@
 }
 
 .textareaRoot {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
 }
 
 .textareaWrapper {
@@ -293,4 +292,44 @@
         opacity: 1;
         transform: scale(1);
     }
+}
+
+.imagePreview {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs) 0;
+}
+
+.imagePreviewThumbnail {
+    height: 48px;
+    max-width: 120px;
+    border-radius: var(--mantine-radius-sm);
+    object-fit: cover;
+}
+
+.textareaColumn {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.imagePickerButton {
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: opacity 150ms ease;
+
+    &:hover {
+        opacity: 1;
+    }
+}
+
+.sentImageThumbnail {
+    max-height: 40px;
+    max-width: 80px;
+    border-radius: var(--mantine-radius-xs);
+    object-fit: cover;
+    margin-top: var(--mantine-spacing-xs);
+    opacity: 0.9;
 }

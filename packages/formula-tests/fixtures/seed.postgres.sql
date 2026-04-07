@@ -1,0 +1,2 @@
+-- Postgres-specific seed overrides (if needed)
+-- The main runner will execute seed.sql first, then this file for any overrides

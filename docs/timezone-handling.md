@@ -66,7 +66,7 @@ flowchart TD
         direction TB
         A["Resolve project timezone<br/><code>metricQuery.timezone ?? project.queryTimezone ?? 'UTC'</code>"]
         B["Build SELECT: DATE_TRUNC<br/>⚠️ No timezone awareness — always UTC"]
-        C["Build WHERE: filter boundaries<br/>⚠️ Only 2 of 5 relative operators use project TZ"]
+        C["Build WHERE: filter boundaries<br/>✅ All relative operators use project TZ"]
         A --> B
         A --> C
     end
@@ -106,21 +106,30 @@ Grouping boundaries are always in UTC. A row at March 1 02:00 UTC (= Feb 28 9pm 
 
 ### WHERE — Filter boundaries
 
-Filter boundaries are computed in Node.js. Only 2 of 5 relative date filter operators use the project timezone:
+Filter boundaries are computed in Node.js. All relative date filter operators use the project timezone via `.tz(timezone)`:
 
-| Operator             | Uses project timezone?                 |
-| -------------------- | -------------------------------------- |
-| `IN_THE_CURRENT`     | ✅ `.tz(timezone).startOf().utc()`     |
-| `NOT_IN_THE_CURRENT` | ✅                                     |
-| `IN_THE_PAST`        | ❌ Uses process TZ (UTC in production) |
-| `NOT_IN_THE_PAST`    | ❌                                     |
-| `IN_THE_NEXT`        | ❌                                     |
+| Operator             | Uses project timezone?             |
+| -------------------- | ---------------------------------- |
+| `IN_THE_CURRENT`     | ✅ `.tz(timezone).startOf().utc()` |
+| `NOT_IN_THE_CURRENT` | ✅                                 |
+| `IN_THE_PAST`        | ✅                                 |
+| `NOT_IN_THE_PAST`    | ✅                                 |
+| `IN_THE_NEXT`        | ✅                                 |
 
-Filter literals are formatted without timezone offset:
+Timestamp filter literals include the UTC offset so the warehouse interprets them unambiguously:
 
 ```typescript
-const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
+const formatTimestampAsUTC = (date: Date): string =>
+  moment(date).utc().format('YYYY-MM-DD HH:mm:ssZ');
+// e.g. '2024-01-16 00:00:00+00:00'
+```
+
+BigQuery and ClickHouse are excluded from the offset format because BigQuery's `DATETIME` type rejects timezone offsets and ClickHouse's `date_time_input_format` may be set to `'basic'` which cannot parse them. These warehouses use a bare literal instead:
+
+```typescript
+const formatTimestampAsUTCNoOffset = (date: Date): string =>
   moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
+// e.g. '2024-01-16 00:00:00'
 ```
 
 **File:** `packages/common/src/compiler/filtersCompiler.ts`
@@ -131,22 +140,27 @@ Each warehouse client sets the session timezone from `dataTimezone` before execu
 
 **File:** `packages/warehouses/src/warehouseClients/` — per-client
 
-| Warehouse    | Session command                     | Behavior when not set                   |
-| ------------ | ----------------------------------- | --------------------------------------- |
-| Snowflake    | `ALTER SESSION SET TIMEZONE = 'tz'` | Defaults to `'UTC'` (always set)        |
-| Postgres     | `SET timezone TO 'tz'`              | Not set (server default, typically UTC) |
-| Databricks   | `SET TIME ZONE 'tz'`                | Not set                                 |
-| Trino/Athena | `SET TIME ZONE 'tz'`                | Not set                                 |
-| DuckDB       | `SET TimeZone = 'tz'`               | Not set                                 |
-| ClickHouse   | `clickhouse_settings.timezone`      | Not set                                 |
-| BigQuery     | N/A                                 | No session timezone support             |
-| Redshift     | Inherits Postgres behavior          | Not set                                 |
+| Warehouse  | Session command                               | Behavior when not set                   |
+| ---------- | --------------------------------------------- | --------------------------------------- |
+| Snowflake  | `ALTER SESSION SET TIMEZONE = 'tz'`           | Defaults to `'UTC'` (always set)        |
+| Postgres   | `SET timezone TO 'tz'`                        | Not set (server default, typically UTC) |
+| Redshift   | `SET timezone TO 'tz'` (inherits Postgres)    | Not set                                 |
+| Databricks | `SET TIME ZONE 'tz'`                          | Not set                                 |
+| Trino      | `SET TIME ZONE 'tz'`                          | Not set                                 |
+| DuckDB     | `SET TimeZone = 'tz'`                         | Not set                                 |
+| ClickHouse | `clickhouse_settings.session_timezone`        | Not set                                 |
+| BigQuery   | N/A (accepts parameter but never applies it)  | No session timezone support             |
+| Athena     | N/A (accepts parameter but never applies it)  | No session timezone support             |
+
+The data timezone UI field is hidden for BigQuery and Athena since these warehouses have no session timezone plumbing.
 
 ### Result formatting
 
-`formatTimestamp` has no arbitrary timezone parameter — only a `convertToUTC` boolean. Results are always formatted in the process timezone (UTC in production). The API response includes no timezone metadata.
+`formatTimestamp` has no arbitrary timezone parameter — only a `convertToUTC` boolean. Results are always formatted in the process timezone (UTC in production).
 
-**File:** `packages/common/src/utils/formatting.ts`
+The API response includes a `resolvedTimezone` field (e.g., `"America/New_York"` or `null` for SQL queries) in query execution results, so the frontend knows what timezone the data was queried in. However, the formatted values themselves are still UTC.
+
+**Files:** `packages/common/src/utils/formatting.ts`, `packages/common/src/types/api.ts` (`ApiExecuteAsyncQueryResultsCommon`)
 
 ---
 
@@ -178,24 +192,26 @@ The Snowflake wrapper converts from the session timezone to UTC, normalizing all
 
 ### Impact on filters
 
+Filter literals now include the UTC offset (`+00:00`) on most warehouses, which makes comparison unambiguous for TZ columns:
+
 ```mermaid
 flowchart LR
     subgraph Snowflake
         SF_COL["compiledSql:<br/>CONVERT_TIMEZONE('UTC', col)<br/><em>= UTC value</em>"]
-        SF_LIT["literal:<br/>'2024-01-16 00:00:00'<br/><em>= UTC value</em>"]
+        SF_LIT["literal:<br/>'2024-01-16 00:00:00+00:00'<br/><em>= explicit UTC</em>"]
         SF_COL --- SF_CMP["✅ Both UTC"]
         SF_LIT --- SF_CMP
     end
 
-    subgraph Postgres["Postgres (NTZ + data TZ)"]
-        PG_COL["compiledSql:<br/>col<br/><em>= raw Chicago value</em>"]
-        PG_LIT["literal:<br/>'2024-01-16 00:00:00'<br/><em>= UTC value</em>"]
-        PG_COL --- PG_CMP["⚠️ Different timezones"]
+    subgraph Postgres["Postgres (timestamptz + data TZ)"]
+        PG_COL["compiledSql:<br/>col<br/><em>= stored as UTC internally</em>"]
+        PG_LIT["literal:<br/>'2024-01-16 00:00:00+00:00'<br/><em>= explicit UTC</em>"]
+        PG_COL --- PG_CMP["✅ Offset makes literal unambiguous"]
         PG_LIT --- PG_CMP
     end
 ```
 
-For Postgres timestamptz columns the bare literal is interpreted in the session timezone, which can shift the boundary incorrectly when data timezone is non-UTC. For NTZ columns, the comparison is raw — the literal is compared as-is regardless of session timezone.
+For Postgres **timestamptz** columns, the `+00:00` offset ensures the literal is interpreted as UTC regardless of session timezone. For **NTZ** columns, the comparison is still raw — the literal is compared as-is and the offset is ignored by the column type. BigQuery and ClickHouse use bare literals (no offset) due to parser limitations, so the same NTZ ambiguity applies there.
 
 ### Impact on DATE_TRUNC
 
@@ -205,18 +221,27 @@ DATE_TRUNC is currently not timezone-aware, so the asymmetry doesn't affect grou
 
 ## Current Gaps
 
-| Gap                                                          | Description                                                                                | Impact                                                                                                |
-| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| **3 of 5 relative filter operators ignore project timezone** | `IN_THE_PAST`, `NOT_IN_THE_PAST`, `IN_THE_NEXT` use process TZ (UTC) instead of project TZ | "Last 7 days" means "last 7 days in UTC" even when project TZ is New York                             |
-| **`metricQuery.timezone` ignored in query compilation**      | Per-chart timezone override is stored but not used when resolving the query timezone       | Chart-level timezone picker has no effect on query results                                            |
-| **DATE_TRUNC is not timezone-aware**                         | Grouping boundaries are always UTC                                                         | A row at March 1 02:00 UTC (= Feb 28 9pm NY) groups into March, not February                          |
-| **Filter literals have no timezone offset**                  | Bare strings like `'2024-01-16 00:00:00'` are interpreted by the warehouse in session TZ   | When data TZ is non-UTC, Postgres timestamptz filter boundaries shift incorrectly                     |
-| **NTZ filter comparison on non-Snowflake**                   | Filter WHERE clause compares raw NTZ column against UTC literal                            | NTZ columns with non-UTC data timezone produce incorrect filter results on Postgres, Databricks, etc. |
-| **Result formatting is UTC-only**                            | `formatTimestamp` has no arbitrary timezone parameter                                      | Formatted values always show UTC regardless of project timezone                                       |
-| **No timezone metadata in API response**                     | The frontend doesn't know what timezone results are in                                     | No timezone indicator in the UI                                                                       |
-| **Scheduled deliveries use UTC**                             | Query formatting in email/Slack uses process timezone                                      | Scheduled reports don't match Explorer display                                                        |
-| **BigQuery/Redshift: no session timezone**                   | No session timezone support for these warehouses                                           | Data timezone setting has no effect                                                                   |
-| **`convertTimezone` is a stub**                              | Only Snowflake gets conversion; `source_tz` and `target_tz` params are unused              | Non-Snowflake warehouses have no compile-time timestamp normalization                                 |
+| Gap                                                              | Description                                                                                       | Impact                                                                                                        |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **DATE_TRUNC is not timezone-aware**                             | Grouping boundaries are always UTC                                                                | A row at March 1 02:00 UTC (= Feb 28 9pm NY) groups into March, not February                                  |
+| **Result formatting is UTC-only**                                | `formatTimestamp` has no arbitrary timezone parameter                                              | Formatted values always show UTC regardless of project timezone                                                |
+| **Filter boundary formatting for positive-offset timezones**     | Boundaries computed correctly but date formatting loses the timezone shift for DATE dimensions     | "In the past 1 day" with Asia/Tokyo can produce a filter date off by one day                                  |
+| **NTZ filter comparison on non-Snowflake**                       | Filter WHERE clause compares raw NTZ column against UTC literal                                   | NTZ columns with non-UTC data timezone produce incorrect filter results on Postgres, Databricks, etc.         |
+| **Scheduled deliveries use UTC**                                 | Query formatting in email/Slack uses process timezone                                             | Scheduled reports don't match Explorer display                                                                 |
+| **BigQuery/Athena: no session timezone**                         | These warehouses accept the timezone parameter but never apply it                                 | Data timezone setting has no effect (UI field is hidden)                                                       |
+| **`convertTimezone` only active for Snowflake**                  | Only Snowflake gets compile-time UTC normalization; `source_tz` and `target_tz` params are unused | Non-Snowflake warehouses have no compile-time timestamp normalization, which affects NTZ column filter accuracy |
+
+### Recently resolved
+
+| What                                                     | How                                                                                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| All 5 relative filter operators now use project timezone | `.tz(timezone)` added to `IN_THE_PAST`, `NOT_IN_THE_PAST`, `IN_THE_NEXT`                                           |
+| `metricQuery.timezone` wired into resolution hierarchy   | Resolution order: `metricQuery.timezone` → `project.queryTimezone` → `'UTC'`                                        |
+| Filter literals include UTC offset                       | Timestamp literals use `+00:00` suffix (except BigQuery/ClickHouse due to parser limitations)                       |
+| API response includes `resolvedTimezone`                 | `ApiExecuteAsyncQueryResultsCommon` now carries the resolved timezone; `null` for SQL queries                        |
+| ClickHouse session timezone key corrected                | Changed from `timezone` to `session_timezone` in `clickhouse_settings`                                              |
+| Data timezone UI hidden for unsupported warehouses       | BigQuery and Athena no longer show the data timezone field since they can't apply it                                 |
+| Timezone strings validated before SQL interpolation      | Prevents SQL injection via malicious timezone values                                                                 |
 
 ---
 
@@ -237,16 +262,16 @@ flowchart TD
 
 ### What "fully working" means
 
-1. **Filters:** All relative operators compute boundaries in project TZ. Literals are unambiguously UTC. Comparison works for both TZ and NTZ columns on all warehouses.
-2. **DATE_TRUNC:** Groups at project TZ boundaries on all warehouses.
-3. **Display:** Formatted timestamps reflect the project timezone, with timezone indicator in the UI.
-4. **Scheduled deliveries:** Results match what the user sees in the Explorer.
-5. **NTZ normalization:** Filter WHERE clause normalizes NTZ columns to UTC (like DATE_TRUNC will) so UTC literals compare correctly.
+1. **Filters:** ~~All relative operators compute boundaries in project TZ.~~ Done. ~~Literals are unambiguously UTC.~~ Done (except BigQuery/ClickHouse bare literals). Comparison works for both TZ and NTZ columns on all warehouses — **not yet done** for NTZ on non-Snowflake.
+2. **DATE_TRUNC:** Groups at project TZ boundaries on all warehouses — **not yet done**.
+3. **Display:** Formatted timestamps reflect the project timezone, with timezone indicator in the UI — **not yet done** (`resolvedTimezone` is in the API response but `formatTimestamp` doesn't use it yet).
+4. **Scheduled deliveries:** Results match what the user sees in the Explorer — **not yet done**.
+5. **NTZ normalization:** Filter WHERE clause normalizes NTZ columns to UTC so UTC literals compare correctly — **not yet done**.
 
 ### Open design questions
 
-- **Should `convertTimezone` in translator.ts normalize all warehouses to UTC?** This would fix the NTZ filter issue at the source but has a large blast radius — it changes `compiledSql` for all timestamp dimensions on all warehouses.
-- **Or should the filter path normalize per-query?** Apply `::timestamptz` (or equivalent) to the filter column in MetricQueryBuilder when data timezone is set. Smaller blast radius but adds per-warehouse SQL to the filter path.
+- **How should NTZ columns be normalized for filter comparison on non-Snowflake warehouses?** The original question of whether to expand `convertTimezone` in `translator.ts` to all warehouses was shelved due to large blast radius. An alternative is to normalize per-query in the filter path (e.g., `::timestamptz` on Postgres). No approach has been chosen yet.
+- **Should `formatTimestamp` accept a timezone string directly, or should formatting happen at a higher level?** The current `convertToUTC` boolean is insufficient for project timezone formatting, but changing the signature affects all call sites.
 
 ---
 

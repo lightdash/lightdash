@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     isChartValidationError,
     RenameType,
+    type ApiRenameResponse,
     type ValidationErrorChartResponse,
     type ValidationResponse,
 } from '@lightdash/common';
@@ -10,10 +11,11 @@ import {
     Box,
     Button,
     Checkbox,
-    Code,
     Group,
     Highlight,
+    List,
     Radio,
+    ScrollArea,
     Select,
     Stack,
     Text,
@@ -27,8 +29,13 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
+import { resolveModelNameFromField } from '../utils/resolveModelName';
 import { getLinkToResource } from '../utils/utils';
-import { useFieldsForChart, useRenameChart } from './hooks/useRenameResource';
+import {
+    useFieldsForChart,
+    usePreviewRename,
+    useRenameChart,
+} from './hooks/useRenameResource';
 
 type Props = {
     validationError: ValidationErrorChartResponse | undefined; // At the moment we can only fix chart errors
@@ -41,6 +48,8 @@ export const FixValidationErrorModal: FC<Props> = ({
     onClose,
 }) => {
     const { mutate: renameChart } = useRenameChart();
+    const { mutate: previewRename, isLoading: isPreviewLoading } =
+        usePreviewRename();
 
     const chartUuid = validationError?.chartUuid;
     const { data: fields, isError: isErrorFields } = useFieldsForChart(
@@ -56,6 +65,9 @@ export const FixValidationErrorModal: FC<Props> = ({
     const [newName, setNewName] = useState('');
     const [fixAll, setFixAll] = useState(false);
     const [renameType, setRenameType] = useState<RenameType>(RenameType.FIELD);
+    const [previewData, setPreviewData] = useState<
+        ApiRenameResponse['results'] | null
+    >(null);
     const form = useForm<{}>();
 
     const [search, setSearch] = useState('');
@@ -95,7 +107,7 @@ export const FixValidationErrorModal: FC<Props> = ({
             return allValidationErrors.filter(
                 (e) =>
                     isChartValidationError(e) &&
-                    (e.fieldName || '').startsWith(tableName ?? ''),
+                    (e.fieldName || '').startsWith(`${tableName}_`),
             ).length;
         } else {
             return assertUnreachable(
@@ -107,16 +119,15 @@ export const FixValidationErrorModal: FC<Props> = ({
 
     const fieldName = validationError?.fieldName;
 
-    // Check if the field belongs to the chart's base table
-    const fieldBaseTableNameCandidate = useMemo(() => {
-        if (!fieldName || !savedQuery?.tableName) return '';
-        if (fieldName.startsWith(savedQuery?.tableName ?? ''))
-            return savedQuery?.tableName;
-        return fieldName.split('_')[0];
-    }, [fieldName, savedQuery?.tableName]);
-
-    const isFieldFromBaseTable =
-        fieldBaseTableNameCandidate === savedQuery?.tableName;
+    const fieldBaseTableNameCandidate = useMemo(
+        () =>
+            resolveModelNameFromField(
+                fieldName ?? '',
+                savedQuery?.tableName,
+                explores?.map((e) => e.name),
+            ),
+        [fieldName, savedQuery?.tableName, explores],
+    );
 
     if (!validationError) {
         return null;
@@ -127,11 +138,12 @@ export const FixValidationErrorModal: FC<Props> = ({
         setRenameType(RenameType.FIELD);
         setNewName('');
         setFixAll(false);
+        setPreviewData(null);
         form.reset();
         onClose();
     };
 
-    const handleConfirm = form.onSubmit(() => {
+    const executeRename = () => {
         renameChart({
             from: oldName || fieldName || '',
             to: newName,
@@ -147,9 +159,35 @@ export const FixValidationErrorModal: FC<Props> = ({
 
         form.reset();
         handleClose();
+    };
+
+    const handleConfirm = form.onSubmit(() => {
+        if (fixAll && !previewData) {
+            previewRename(
+                {
+                    from: oldName || fieldName || '',
+                    to: newName,
+                    type: renameType,
+                    model: savedQuery?.tableName,
+                    projectUuid: validationError.projectUuid!,
+                },
+                {
+                    onSuccess: (data) => setPreviewData(data),
+                },
+            );
+        } else {
+            executeRename();
+        }
     });
 
     const FIX_VALIDATION_FORM_ID = 'fix-validation-form';
+
+    const totalPreviewChanges = previewData
+        ? previewData.charts.length +
+          previewData.dashboards.length +
+          previewData.alerts.length +
+          previewData.dashboardSchedulers.length
+        : 0;
 
     return (
         <MantineModal
@@ -159,13 +197,26 @@ export const FixValidationErrorModal: FC<Props> = ({
             opened={!!validationError}
             onClose={handleClose}
             actions={
-                <Button
-                    type="submit"
-                    form={FIX_VALIDATION_FORM_ID}
-                    disabled={newName === ''}
-                >
-                    Rename
-                </Button>
+                previewData ? (
+                    <Group>
+                        <Button
+                            variant="default"
+                            onClick={() => setPreviewData(null)}
+                        >
+                            Back
+                        </Button>
+                        <Button onClick={executeRename}>Confirm rename</Button>
+                    </Group>
+                ) : (
+                    <Button
+                        type="submit"
+                        form={FIX_VALIDATION_FORM_ID}
+                        disabled={newName === ''}
+                        loading={isPreviewLoading}
+                    >
+                        {fixAll ? 'Preview changes' : 'Rename'}
+                    </Button>
+                )
             }
         >
             <Text fz="sm">
@@ -188,54 +239,187 @@ export const FixValidationErrorModal: FC<Props> = ({
                 </Anchor>
             </Text>
 
-            <Callout
-                variant="info"
-                title="You can rename the missing dimension by renaming the affected field or model using the drop down below."
-            />
-
-            <form id={FIX_VALIDATION_FORM_ID} onSubmit={handleConfirm}>
+            {previewData ? (
                 <Stack>
-                    <Radio.Group
-                        defaultValue={RenameType.FIELD}
-                        onChange={(e) => {
-                            const type = e as RenameType;
-                            setRenameType(type);
-
-                            switch (type) {
-                                case RenameType.FIELD:
-                                    setOldName(fieldName);
-                                    break;
-                                case RenameType.MODEL:
-                                    setOldName(fieldBaseTableNameCandidate);
-                                    break;
-                                default:
-                                    assertUnreachable(
-                                        type,
-                                        `Unexpected rename type ${type}`,
-                                    );
-                            }
-                        }}
+                    <Callout
+                        variant="warning"
+                        title={`This will rename "${oldName || fieldName}" to "${newName}" in ${totalPreviewChanges} resource(s) across the project.`}
                     >
-                        <Group>
-                            <Radio value={RenameType.FIELD} label="Field" />
-                            <Radio value={RenameType.MODEL} label="Model" />
-                        </Group>
-                    </Radio.Group>
-                    {renameType === RenameType.FIELD ? (
+                        {previewData.charts.length > 0 && (
+                            <>
+                                <Text fw={600} fz="xs" mt="xs">
+                                    Charts ({previewData.charts.length})
+                                </Text>
+                                <ScrollArea.Autosize mah="150px" scrollbars="y">
+                                    <List size="xs">
+                                        {previewData.charts.map((c) => (
+                                            <List.Item key={c.uuid}>
+                                                {c.name}
+                                            </List.Item>
+                                        ))}
+                                    </List>
+                                </ScrollArea.Autosize>
+                            </>
+                        )}
+                        {previewData.dashboards.length > 0 && (
+                            <>
+                                <Text fw={600} fz="xs" mt="xs">
+                                    Dashboards ({previewData.dashboards.length})
+                                </Text>
+                                <ScrollArea.Autosize mah="150px" scrollbars="y">
+                                    <List size="xs">
+                                        {previewData.dashboards.map((d) => (
+                                            <List.Item key={d.uuid}>
+                                                {d.name}
+                                            </List.Item>
+                                        ))}
+                                    </List>
+                                </ScrollArea.Autosize>
+                            </>
+                        )}
+                        {previewData.alerts.length > 0 && (
+                            <Text fz="xs" mt="xs">
+                                + {previewData.alerts.length} alert(s)
+                            </Text>
+                        )}
+                        {previewData.dashboardSchedulers.length > 0 && (
+                            <Text fz="xs" mt="xs">
+                                + {previewData.dashboardSchedulers.length}{' '}
+                                scheduled delivery(ies)
+                            </Text>
+                        )}
+                    </Callout>
+                    {totalPreviewChanges === 0 && (
+                        <Text fz="sm" c="dimmed">
+                            No other resources will be affected. The rename will
+                            only apply to the current chart.
+                        </Text>
+                    )}
+                </Stack>
+            ) : (
+                <>
+                    <Callout
+                        variant="info"
+                        title="You can rename the missing dimension by renaming the affected field or model using the drop down below."
+                    />
+
+                    <form id={FIX_VALIDATION_FORM_ID} onSubmit={handleConfirm}>
                         <Stack>
-                            <TextInput
-                                disabled
-                                label="Old field"
-                                defaultValue={fieldName}
-                                value={oldName}
-                            />
-                            <Tooltip
-                                withinPortal
-                                disabled={!isErrorFields}
-                                label={`Could not find any fields on explore ${savedQuery?.tableName}. Perhaps you want to replace the model instead?`}
+                            <Radio.Group
+                                value={renameType}
+                                onChange={(e) => {
+                                    const type = e as RenameType;
+                                    setRenameType(type);
+                                    setNewName('');
+
+                                    switch (type) {
+                                        case RenameType.FIELD:
+                                            setOldName(fieldName);
+                                            break;
+                                        case RenameType.MODEL:
+                                            setOldName(
+                                                fieldBaseTableNameCandidate,
+                                            );
+                                            break;
+                                        default:
+                                            assertUnreachable(
+                                                type,
+                                                `Unexpected rename type ${type}`,
+                                            );
+                                    }
+                                }}
                             >
-                                <div>
+                                <Group>
+                                    <Radio
+                                        value={RenameType.FIELD}
+                                        label="Field"
+                                    />
+                                    <Radio
+                                        value={RenameType.MODEL}
+                                        label="Model"
+                                    />
+                                </Group>
+                            </Radio.Group>
+                            {renameType === RenameType.FIELD ? (
+                                <Stack>
+                                    <TextInput
+                                        disabled
+                                        label="Old field"
+                                        defaultValue={fieldName}
+                                        value={oldName}
+                                    />
+                                    <Tooltip
+                                        withinPortal
+                                        disabled={!isErrorFields}
+                                        label={`Could not find any fields on explore ${savedQuery?.tableName}. Perhaps you want to replace the model instead?`}
+                                    >
+                                        <div>
+                                            <Select
+                                                renderOption={({ option }) => (
+                                                    <Highlight
+                                                        highlight={search}
+                                                        {...option}
+                                                        fz="sm"
+                                                        color="yellow"
+                                                    >
+                                                        {option.label}
+                                                    </Highlight>
+                                                )}
+                                                onSearchChange={setSearch}
+                                                searchValue={search}
+                                                radius="md"
+                                                data={fieldOptions}
+                                                required
+                                                disabled={isErrorFields}
+                                                searchable
+                                                value={newName || null}
+                                                label="New field"
+                                                placeholder={`Select a field to rename to`}
+                                                onChange={(e) => {
+                                                    if (e) setNewName(e);
+                                                }}
+                                            />
+                                        </div>
+                                    </Tooltip>
+                                </Stack>
+                            ) : renameType === RenameType.MODEL ? (
+                                <Stack>
+                                    <TextInput
+                                        label="Old model"
+                                        placeholder="Enter the table name (e.g., customers)"
+                                        value={oldName}
+                                        onChange={(e) =>
+                                            setOldName(e.currentTarget.value)
+                                        }
+                                    />
+                                    {oldName &&
+                                        savedQuery?.tableName &&
+                                        oldName !== savedQuery.tableName && (
+                                            <Text size="xs" c="dimmed">
+                                                The field{' '}
+                                                <Text
+                                                    span
+                                                    ff="monospace"
+                                                    size="xs"
+                                                >
+                                                    {fieldName}
+                                                </Text>{' '}
+                                                doesn't belong to the base model
+                                                for chart:{' '}
+                                                <Text
+                                                    span
+                                                    ff="monospace"
+                                                    size="xs"
+                                                >
+                                                    {savedQuery.tableName}
+                                                </Text>
+                                                . Verify the old model name is
+                                                correct before renaming.
+                                            </Text>
+                                        )}
                                     <Select
+                                        searchValue={search}
+                                        onSearchChange={setSearch}
                                         renderOption={({ option }) => (
                                             <Highlight
                                                 highlight={search}
@@ -246,99 +430,54 @@ export const FixValidationErrorModal: FC<Props> = ({
                                                 {option.label}
                                             </Highlight>
                                         )}
-                                        onSearchChange={setSearch}
-                                        searchValue={search}
-                                        radius="md"
-                                        data={fieldOptions}
+                                        data={
+                                            explores?.map((e) => e.name) || []
+                                        }
                                         required
-                                        disabled={isErrorFields}
                                         searchable
-                                        label="New field"
-                                        placeholder={`Select a field to rename to`}
+                                        value={newName || null}
+                                        label="New model"
+                                        placeholder={`Select a model to rename to`}
                                         onChange={(e) => {
                                             if (e) setNewName(e);
                                         }}
                                     />
-                                </div>
-                            </Tooltip>
-                        </Stack>
-                    ) : renameType === RenameType.MODEL ? (
-                        <Stack>
-                            <TextInput
-                                disabled={isFieldFromBaseTable}
-                                label="Old model"
-                                placeholder={
-                                    isFieldFromBaseTable
-                                        ? undefined
-                                        : 'Enter the table name (e.g., customers)'
-                                }
-                                value={oldName}
-                                onChange={(e) =>
-                                    setOldName(e.currentTarget.value)
-                                }
-                            />
-                            {!isFieldFromBaseTable && (
-                                <Text size="xs" c="dimmed">
-                                    The field <Code>{fieldName}</Code> doesn't
-                                    belong to the base model for chart:{' '}
-                                    <Code>{savedQuery?.tableName}</Code>. Enter
-                                    the correct old model name to point the
-                                    field to the correct model.
+                                </Stack>
+                            ) : (
+                                assertUnreachable(
+                                    renameType,
+                                    `Unexpected rename type ${renameType}`,
+                                )
+                            )}
+                            {totalOcurrences > 1 ? (
+                                <Tooltip
+                                    withinPortal
+                                    position="left"
+                                    label="Check this to rename all occurrences of this field in other charts and dashboards."
+                                >
+                                    <Box>
+                                        <Checkbox
+                                            size="xs"
+                                            label={`Fix all occurrences (${totalOcurrences})`}
+                                            checked={fixAll}
+                                            onChange={(e) =>
+                                                setFixAll(
+                                                    e.currentTarget.checked,
+                                                )
+                                            }
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            ) : (
+                                <Text fz="xs" c="ldGray.7">
+                                    This {renameType} is not used in any other
+                                    charts.
                                 </Text>
                             )}
-                            <Select
-                                searchValue={search}
-                                onSearchChange={setSearch}
-                                renderOption={({ option }) => (
-                                    <Highlight
-                                        highlight={search}
-                                        {...option}
-                                        fz="sm"
-                                        color="yellow"
-                                    >
-                                        {option.label}
-                                    </Highlight>
-                                )}
-                                data={explores?.map((e) => e.name) || []}
-                                required
-                                searchable
-                                label="New model"
-                                placeholder={`Select a model to rename to`}
-                                onChange={(e) => {
-                                    if (e) setNewName(e);
-                                }}
-                            />
                         </Stack>
-                    ) : (
-                        assertUnreachable(
-                            renameType,
-                            `Unexpected rename type ${renameType}`,
-                        )
-                    )}
-                    {totalOcurrences > 1 ? (
-                        <Tooltip
-                            withinPortal
-                            position="left"
-                            label="Check this to rename all occurrences of this field in other charts and dashboards."
-                        >
-                            <Box>
-                                <Checkbox
-                                    size="xs"
-                                    label={`Fix all occurrences (${totalOcurrences})`}
-                                    checked={fixAll}
-                                    onChange={(e) =>
-                                        setFixAll(e.currentTarget.checked)
-                                    }
-                                />
-                            </Box>
-                        </Tooltip>
-                    ) : (
-                        <Text fz="xs" c="ldGray.7">
-                            This {renameType} is not used in any other charts.
-                        </Text>
-                    )}
-                </Stack>
-            </form>
+                    </form>
+                </>
+            )}
         </MantineModal>
     );
 };

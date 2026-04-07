@@ -11,6 +11,7 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    type AppImageAttachment,
     type SessionUser,
 } from '@lightdash/common';
 import { Sandbox } from 'e2b';
@@ -304,6 +305,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         projectUuid: string,
         prompt: string,
+        image?: AppImageAttachment,
     ): Promise<number> {
         const start = performance.now();
 
@@ -315,18 +317,29 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images 2>/dev/null; true',
             { timeoutMs: 5_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
+
+        // Write image to sandbox and prepend path reference to prompt
+        let finalPrompt = prompt;
+        if (image) {
+            const imagePath = await this.writeImageToSandbox(
+                sandbox,
+                appUuid,
+                image,
+            );
+            finalPrompt = `[Design reference image at ${imagePath} — use the Read tool to view it]\n\n${prompt}`;
+        }
 
         // Write only the latest prompt — Claude is stateless between runs, but
         // the sandbox filesystem preserves all code from previous iterations.
         // Claude can read existing files to understand what was built so far,
         // so replaying the full prompt history is unnecessary and makes
         // responses overly verbose.
-        await sandbox.files.write('/tmp/prompt.txt', `${prompt}\n`);
+        await sandbox.files.write('/tmp/prompt.txt', `${finalPrompt}\n`);
 
         let tableCount = 0;
         let totalDimensions = 0;
@@ -348,6 +361,47 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${totalDimensions}, metrics=${totalMetrics}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
         );
         return durationMs;
+    }
+
+    /**
+     * Decode a base64 image attachment and write it into the sandbox.
+     * Returns the sandbox file path where the image was written.
+     *
+     * Phase 2: When images are used as app assets, write to /app/src/assets/<filename>
+     * instead and update skill.md to tell Claude the image is available as a static import.
+     * Also persist the image to S3 alongside the source tarball so it survives sandbox teardown.
+     */
+    private async writeImageToSandbox(
+        sandbox: Sandbox,
+        appUuid: string,
+        image: AppImageAttachment,
+    ): Promise<string> {
+        const extMap: Record<string, string> = {
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+        };
+        const ext = extMap[image.mimeType] ?? 'png';
+        const filePath = `/tmp/images/reference.${ext}`;
+
+        const buffer = Buffer.from(image.data, 'base64');
+        this.logger.info(
+            `App ${appUuid}: writing image to sandbox (${image.mimeType}, ${buffer.length} bytes)`,
+        );
+
+        await sandbox.commands.run('mkdir -p /tmp/images', {
+            timeoutMs: 5_000,
+        });
+        await sandbox.files.write(
+            filePath,
+            buffer.buffer.slice(
+                buffer.byteOffset,
+                buffer.byteOffset + buffer.byteLength,
+            ) as ArrayBuffer,
+        );
+
+        return filePath;
     }
 
     /**
@@ -459,7 +513,7 @@ export class AppGenerateService extends BaseService {
             `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                 `--model sonnet ` +
                 `--verbose --output-format stream-json ` +
-                `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
+                `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
                 `--append-system-prompt-file /app/skill.md`,
             {
                 cwd: '/app',
@@ -630,6 +684,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         projectUuid: string,
         prompt: string,
+        image?: AppImageAttachment,
     ): Promise<void> {
         let anthropicApiKey: string;
         let e2bApiKey: string;
@@ -687,6 +742,7 @@ export class AppGenerateService extends BaseService {
                 overallStart,
                 false, // fresh sandbox — no previous session to continue
                 anthropicApiKey,
+                image,
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
@@ -705,6 +761,7 @@ export class AppGenerateService extends BaseService {
         overallStart: number,
         continueSession: boolean,
         anthropicApiKey: string,
+        image?: AppImageAttachment,
     ): Promise<void> {
         const durations: Record<string, number> = { ...extraDurations };
 
@@ -719,6 +776,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 projectUuid,
                 prompt,
+                image,
             );
         } catch (error) {
             const totalMs = AppGenerateService.elapsed(overallStart);
@@ -860,6 +918,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         prompt: string,
+        image?: AppImageAttachment,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
         if (
@@ -902,13 +961,17 @@ export class AppGenerateService extends BaseService {
         }
 
         // Fire pipeline in background — status updates flow through DB polling
-        this.runNewAppPipeline(appUuid, version, projectUuid, prompt).catch(
-            (error) => {
-                this.logger.error(
-                    `App ${appUuid}: unhandled pipeline error: ${getErrorMessage(error)}`,
-                );
-            },
-        );
+        this.runNewAppPipeline(
+            appUuid,
+            version,
+            projectUuid,
+            prompt,
+            image,
+        ).catch((error) => {
+            this.logger.error(
+                `App ${appUuid}: unhandled pipeline error: ${getErrorMessage(error)}`,
+            );
+        });
 
         return { appUuid, version };
     }
@@ -919,6 +982,7 @@ export class AppGenerateService extends BaseService {
         newVersion: number,
         projectUuid: string,
         prompt: string,
+        image?: AppImageAttachment,
     ): Promise<void> {
         let anthropicApiKey: string;
         let e2bApiKey: string;
@@ -984,6 +1048,7 @@ export class AppGenerateService extends BaseService {
                 overallStart,
                 wasResumed, // continue Claude session if sandbox was resumed
                 anthropicApiKey,
+                image,
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
@@ -995,6 +1060,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         prompt: string,
+        image?: AppImageAttachment,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
         if (
@@ -1040,6 +1106,7 @@ export class AppGenerateService extends BaseService {
             newVersion,
             projectUuid,
             prompt,
+            image,
         ).catch((error) => {
             this.logger.error(
                 `App ${appUuid}: unhandled iteration pipeline error: ${getErrorMessage(error)}`,

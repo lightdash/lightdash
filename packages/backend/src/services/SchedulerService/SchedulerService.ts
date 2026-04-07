@@ -356,6 +356,7 @@ export class SchedulerService extends BaseService {
 
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
             paginateArgs,
             searchQuery,
             sort,
@@ -428,6 +429,7 @@ export class SchedulerService extends BaseService {
         }
 
         const schedulers = await this.schedulerModel.getSchedulers({
+            organizationUuid: user.organizationUuid,
             paginateArgs,
             searchQuery,
             sort,
