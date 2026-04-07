@@ -573,23 +573,6 @@ export class SchedulerModel {
             `${SpaceTableName}.deleted_at`,
         );
 
-        if (projectUuid) {
-            schedulerCharts = schedulerCharts.where(
-                `${ProjectTableName}.project_uuid`,
-                projectUuid,
-            );
-
-            schedulerDashboards = schedulerDashboards.where(
-                `${ProjectTableName}.project_uuid`,
-                projectUuid,
-            );
-
-            schedulerSqlCharts = schedulerSqlCharts.where(
-                `${ProjectTableName}.project_uuid`,
-                projectUuid,
-            );
-        }
-
         // Apply resource type filter
         const noResults = this.database.raw('1 = 0');
         if (filters?.resourceType === 'chart') {
@@ -630,6 +613,10 @@ export class SchedulerModel {
                     .as('schedulers'),
             )
             .where('organization_id', organizationId);
+
+        if (projectUuid) {
+            query = query.where('project_uuid', projectUuid);
+        }
 
         // Apply sorting if present, default to name asc
         if (sort && sort.column && sort.direction) {
