@@ -1,3 +1,10 @@
+## [0.2729.3](https://github.com/lightdash/lightdash/compare/0.2729.2...0.2729.3) (2026-04-07)
+
+
+### Bug Fixes
+
+* validator model rename resolves wrong model when names share a prefix ([#21789](https://github.com/lightdash/lightdash/issues/21789)) ([e9724c6](https://github.com/lightdash/lightdash/commit/e9724c6a86fcce03a16192c82ad70a5841fcd6f3))
+
 ## [0.2729.2](https://github.com/lightdash/lightdash/compare/0.2729.1...0.2729.2) (2026-04-07)
 
 
