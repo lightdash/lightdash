@@ -10,7 +10,6 @@ import {
     Box,
     Button,
     Checkbox,
-    Code,
     Group,
     Highlight,
     Radio,
@@ -27,6 +26,7 @@ import { useExplores } from '../../../hooks/useExplores';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
+import { resolveModelNameFromField } from '../utils/resolveModelName';
 import { getLinkToResource } from '../utils/utils';
 import { useFieldsForChart, useRenameChart } from './hooks/useRenameResource';
 
@@ -95,7 +95,7 @@ export const FixValidationErrorModal: FC<Props> = ({
             return allValidationErrors.filter(
                 (e) =>
                     isChartValidationError(e) &&
-                    (e.fieldName || '').startsWith(tableName ?? ''),
+                    (e.fieldName || '').startsWith(`${tableName}_`),
             ).length;
         } else {
             return assertUnreachable(
@@ -107,16 +107,15 @@ export const FixValidationErrorModal: FC<Props> = ({
 
     const fieldName = validationError?.fieldName;
 
-    // Check if the field belongs to the chart's base table
-    const fieldBaseTableNameCandidate = useMemo(() => {
-        if (!fieldName || !savedQuery?.tableName) return '';
-        if (fieldName.startsWith(savedQuery?.tableName ?? ''))
-            return savedQuery?.tableName;
-        return fieldName.split('_')[0];
-    }, [fieldName, savedQuery?.tableName]);
-
-    const isFieldFromBaseTable =
-        fieldBaseTableNameCandidate === savedQuery?.tableName;
+    const fieldBaseTableNameCandidate = useMemo(
+        () =>
+            resolveModelNameFromField(
+                fieldName ?? '',
+                savedQuery?.tableName,
+                explores?.map((e) => e.name),
+            ),
+        [fieldName, savedQuery?.tableName, explores],
+    );
 
     if (!validationError) {
         return null;
@@ -265,27 +264,30 @@ export const FixValidationErrorModal: FC<Props> = ({
                     ) : renameType === RenameType.MODEL ? (
                         <Stack>
                             <TextInput
-                                disabled={isFieldFromBaseTable}
                                 label="Old model"
-                                placeholder={
-                                    isFieldFromBaseTable
-                                        ? undefined
-                                        : 'Enter the table name (e.g., customers)'
-                                }
+                                placeholder="Enter the table name (e.g., customers)"
                                 value={oldName}
                                 onChange={(e) =>
                                     setOldName(e.currentTarget.value)
                                 }
                             />
-                            {!isFieldFromBaseTable && (
-                                <Text size="xs" c="dimmed">
-                                    The field <Code>{fieldName}</Code> doesn't
-                                    belong to the base model for chart:{' '}
-                                    <Code>{savedQuery?.tableName}</Code>. Enter
-                                    the correct old model name to point the
-                                    field to the correct model.
-                                </Text>
-                            )}
+                            {oldName &&
+                                savedQuery?.tableName &&
+                                oldName !== savedQuery.tableName && (
+                                    <Text size="xs" c="dimmed">
+                                        The field{' '}
+                                        <Text span ff="monospace" size="xs">
+                                            {fieldName}
+                                        </Text>{' '}
+                                        doesn't belong to the base model for
+                                        chart:{' '}
+                                        <Text span ff="monospace" size="xs">
+                                            {savedQuery.tableName}
+                                        </Text>
+                                        . Verify the old model name is correct
+                                        before renaming.
+                                    </Text>
+                                )}
                             <Select
                                 searchValue={search}
                                 onSearchChange={setSearch}
