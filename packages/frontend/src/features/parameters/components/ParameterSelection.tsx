@@ -59,8 +59,8 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
         ? Object.keys(parameters).sort((a, b) => {
               const aOrder = parameters[a]?.order ?? Infinity;
               const bOrder = parameters[b]?.order ?? Infinity;
-              if (aOrder === bOrder) return 0;
-              return aOrder - bOrder;
+              if (aOrder !== bOrder) return aOrder - bOrder;
+              return a.localeCompare(b);
           })
         : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
