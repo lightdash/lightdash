@@ -139,6 +139,9 @@ const AppGenerate: FC = () => {
             setPreviewApp(null);
             versionCacheRef.current.clear();
             versionCacheAppRef.current = undefined;
+            sentImagesByPrompt.current.forEach((url) =>
+                URL.revokeObjectURL(url),
+            );
             sentImagesByPrompt.current.clear();
         }
     }, [urlAppUuid]);
@@ -312,13 +315,15 @@ const AppGenerate: FC = () => {
         scrollToBottom();
     }, [messages, isLoading, scrollToBottom]);
 
+    // Revoke all sent image blob URLs on unmount to prevent memory leaks.
+    // We don't revoke on imageAttachment change because the URL may have
+    // been transferred to a sent message for display.
     useEffect(() => {
+        const ref = sentImagesByPrompt.current;
         return () => {
-            if (imageAttachment?.previewUrl) {
-                URL.revokeObjectURL(imageAttachment.previewUrl);
-            }
+            ref.forEach((url) => URL.revokeObjectURL(url));
         };
-    }, [imageAttachment]);
+    }, []);
 
     if (health.data && !health.data.dataApps.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
