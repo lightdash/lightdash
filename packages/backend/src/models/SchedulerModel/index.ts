@@ -569,6 +569,11 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_uuid`,
                 projectUuid,
             );
+
+            schedulerSqlCharts = schedulerSqlCharts.where(
+                `${ProjectTableName}.project_uuid`,
+                projectUuid,
+            );
         }
 
         // Apply resource type filter
