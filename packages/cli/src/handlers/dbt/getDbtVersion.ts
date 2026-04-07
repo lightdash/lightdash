@@ -45,6 +45,9 @@ const getDbtCLIVersion = async () => {
 const isDbtCloudCLI = (version: string): boolean =>
     version.match(DBT_CLOUD_CLI_REGEX) !== null;
 
+const isDbtFusion = (version: string): boolean =>
+    version.match(DBT_FUSION_VERSION_REGEX) !== null;
+
 const getSupportedDbtVersionOption = (
     version: string,
 ): DbtVersionOption | null => {
@@ -74,6 +77,7 @@ export type DbtVersion = {
     verboseVersion: string; // Verbose version returned by dbt --version
     versionOption: DbtVersionOption; // The supported version by Lightdash
     isDbtCloudCLI: boolean; // Whether the version is dbt Cloud CLI
+    isDbtFusion: boolean; // Whether the version is dbt Fusion
 };
 
 export const getDbtVersion = async (): Promise<DbtVersion> => {
@@ -152,6 +156,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
     return {
         verboseVersion,
         isDbtCloudCLI: isDbtCloudCLI(verboseVersion),
+        isDbtFusion: isDbtFusion(verboseVersion),
         versionOption: supportedVersionOption ?? fallbackVersionOption,
     };
 };
