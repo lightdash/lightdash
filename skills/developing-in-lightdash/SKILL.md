@@ -60,12 +60,25 @@ lightdash config set-project --name "My Project"  # Switch project
 | Type | Detection | Key Difference |
 |------|-----------|----------------|
 | **dbt Project** | Has `dbt_project.yml` | Metadata nested under `meta:` |
+| **dbt Fusion / dbt 1.10+** | Has `dbt_project.yml`, uses dbt Fusion or dbt >= 1.10 | Metadata nested under `config: meta:` |
 | **Pure Lightdash** | Has `lightdash.config.yml`, no dbt | Top-level properties |
 
 ```bash
 ls dbt_project.yml 2>/dev/null && echo "dbt project" || echo "Not dbt"
 ls lightdash.config.yml 2>/dev/null && echo "Pure Lightdash" || echo "Not pure Lightdash"
 ```
+
+> **dbt Fusion / dbt 1.10+:** Lightdash metadata must be nested under `config: meta:` instead of `meta:`. The properties are identical — only the nesting changes. Example:
+> ```yaml
+> models:
+>   - name: orders
+>     config:
+>       meta:
+>         metrics:
+>           total_revenue:
+>             type: sum
+>             sql: "${TABLE}.amount"
+> ```
 
 ### Syntax Comparison
 
