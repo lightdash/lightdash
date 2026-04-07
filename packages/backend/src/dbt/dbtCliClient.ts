@@ -84,6 +84,32 @@ enum DbtCommands {
     DBT_1_11 = 'dbt1.11',
 }
 
+export function getDbtExecName(version: SupportedDbtVersions): string {
+    switch (version) {
+        case SupportedDbtVersions.V1_4:
+            return DbtCommands.DBT_1_4;
+        case SupportedDbtVersions.V1_5:
+            return DbtCommands.DBT_1_5;
+        case SupportedDbtVersions.V1_6:
+            return DbtCommands.DBT_1_6;
+        case SupportedDbtVersions.V1_7:
+            return DbtCommands.DBT_1_7;
+        case SupportedDbtVersions.V1_8:
+            return DbtCommands.DBT_1_8;
+        case SupportedDbtVersions.V1_9:
+            return DbtCommands.DBT_1_9;
+        case SupportedDbtVersions.V1_10:
+            return DbtCommands.DBT_1_10;
+        case SupportedDbtVersions.V1_11:
+            return DbtCommands.DBT_1_11;
+        default:
+            return assertUnreachable(
+                version,
+                'Missing dbt version command mapping',
+            );
+    }
+}
+
 export class DbtCliClient implements DbtClient {
     dbtProjectDirectory: string;
 
@@ -149,29 +175,7 @@ export class DbtCliClient implements DbtClient {
     }
 
     getDbtExec(): string {
-        switch (this.dbtVersion) {
-            case SupportedDbtVersions.V1_4:
-                return DbtCommands.DBT_1_4;
-            case SupportedDbtVersions.V1_5:
-                return DbtCommands.DBT_1_5;
-            case SupportedDbtVersions.V1_6:
-                return DbtCommands.DBT_1_6;
-            case SupportedDbtVersions.V1_7:
-                return DbtCommands.DBT_1_7;
-            case SupportedDbtVersions.V1_8:
-                return DbtCommands.DBT_1_8;
-            case SupportedDbtVersions.V1_9:
-                return DbtCommands.DBT_1_9;
-            case SupportedDbtVersions.V1_10:
-                return DbtCommands.DBT_1_10;
-            case SupportedDbtVersions.V1_11:
-                return DbtCommands.DBT_1_11;
-            default:
-                return assertUnreachable(
-                    this.dbtVersion,
-                    'Missing dbt version command mapping',
-                );
-        }
+        return getDbtExecName(this.dbtVersion);
     }
 
     private async _runDbtCommand(...command: string[]): Promise<{
