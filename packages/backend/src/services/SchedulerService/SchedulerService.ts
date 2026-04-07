@@ -11,6 +11,8 @@ import {
     GoogleSheetsTransientError,
     InvalidUser,
     isChartScheduler,
+    isCreateSchedulerGoogleChatTarget,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isSchedulerGsheetsOptions,
@@ -541,6 +543,20 @@ export class SchedulerService extends BaseService {
                 }
                 throw new MissingConfigError(
                     'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
+
+        // Validate PDF format is not used with webhook destinations
+        if (updatedScheduler.format === SchedulerFormat.PDF) {
+            const hasWebhookTargets = updatedScheduler.targets.some(
+                (target) =>
+                    isCreateSchedulerMsTeamsTarget(target) ||
+                    isCreateSchedulerGoogleChatTarget(target),
+            );
+            if (hasWebhookTargets) {
+                throw new ParameterError(
+                    'PDF format is not supported with MS Teams or Google Chat destinations',
                 );
             }
         }
@@ -1136,6 +1152,20 @@ export class SchedulerService extends BaseService {
         }
         if (!isValidTimezone(scheduler.timezone)) {
             throw new ParameterError('Timezone string is not valid');
+        }
+
+        // Validate PDF format is not used with webhook destinations
+        if (scheduler.format === SchedulerFormat.PDF) {
+            const hasWebhookTargets = scheduler.targets.some(
+                (target) =>
+                    isCreateSchedulerMsTeamsTarget(target) ||
+                    isCreateSchedulerGoogleChatTarget(target),
+            );
+            if (hasWebhookTargets) {
+                throw new ParameterError(
+                    'PDF format is not supported with MS Teams or Google Chat destinations',
+                );
+            }
         }
 
         await this.checkViewResource(user, scheduler);
