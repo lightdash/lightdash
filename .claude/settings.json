@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(packages/formula-tests/**)",
+      "Edit(packages/formula-tests/**)",
+      "Write(packages/formula-tests/**)",
+      "Glob(packages/formula-tests/**)",
+      "Grep(packages/formula-tests/**)"
+    ]
+  }
+}

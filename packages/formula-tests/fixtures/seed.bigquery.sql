@@ -1,0 +1,3 @@
+-- BigQuery-specific seed overrides
+-- BigQuery requires fully qualified table names (project.dataset.table)
+-- The runner handles this via table name prefixing, so no overrides needed here
