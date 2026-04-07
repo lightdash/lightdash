@@ -477,6 +477,10 @@ export default class SchedulerTask {
             case SchedulerFormat.PDF:
                 try {
                     const pdfId = `pdf-notification-${nanoid()}`;
+                    const pdfCjkFont =
+                        await this.projectService.getSchedulerCjkFont(
+                            projectUuid,
+                        );
                     const unfurlPdf = await this.unfurlService.unfurlImage({
                         url: minimalUrl,
                         lightdashPage: pageType,
@@ -493,6 +497,7 @@ export default class SchedulerTask {
                         selectedTabs,
                         sendNowSchedulerFilters,
                         sendNowSchedulerParameters,
+                        lang: pdfCjkFont || undefined,
                     });
                     if (!unfurlPdf.pdfFile) {
                         throw new Error('Unable to generate PDF');
