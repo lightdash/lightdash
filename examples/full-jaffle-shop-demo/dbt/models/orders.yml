@@ -40,6 +40,10 @@ models:
             relationship: many-to-one
             label: Order Customer
             description: The customer who placed this order (many orders can belong to one customer)
+          - join: raw_order_statuses
+            label: Order Status
+            sql_on: ${orders.status} = ${raw_order_statuses.status}
+            relationship: many-to-one
         metrics:
           completion_percentage:
             spotlight:

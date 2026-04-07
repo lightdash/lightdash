@@ -1155,7 +1155,11 @@ export const convertExplores = async (
         {},
     );
     const validModels = models.filter(
-        (model) => tableLookup[model.name] !== undefined,
+        (model) =>
+            tableLookup[model.name] !== undefined &&
+            // Seeds are compiled as tables (for join resolution) but should
+            // not generate standalone explores — they're join targets only.
+            model.resource_type !== 'seed',
     );
 
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {

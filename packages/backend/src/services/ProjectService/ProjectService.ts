@@ -8144,7 +8144,8 @@ export class ProjectService extends BaseService {
         Logger.info(`Manifest models ${nodes.length}`);
         // todo: does it error if they use a selector in the job? check logic in dbtBaseProjectAdapter.compileAllExplores
         const models = nodes.filter(
-            (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+            (node: AnyType) =>
+                ['model', 'seed'].includes(node.resource_type) && node.meta,
         ) as DbtRawModelNode[];
 
         const { warehouseClient } = await this._getWarehouseClient(

@@ -164,6 +164,29 @@ describe('getModelsFromManifest', () => {
             'model.test.view_model',
         ]);
     });
+
+    it('should include seed nodes alongside models', () => {
+        const manifest = makeManifest({
+            'model.test.my_model': {
+                ...baseModel,
+                unique_id: 'model.test.my_model',
+                name: 'my_model',
+                config: { materialized: 'table' },
+            },
+            'seed.test.raw_plan': {
+                ...baseModel,
+                unique_id: 'seed.test.raw_plan',
+                name: 'raw_plan',
+                resource_type: 'seed',
+                config: { materialized: 'seed' },
+            },
+        });
+
+        const models = getModelsFromManifest(manifest);
+        expect(models).toHaveLength(2);
+        const ids = models.map((m) => m.unique_id).sort();
+        expect(ids).toEqual(['model.test.my_model', 'seed.test.raw_plan']);
+    });
 });
 
 describe('patchPathParts', () => {

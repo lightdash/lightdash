@@ -188,7 +188,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 Logger.info(`Compiled models ${compiledModels.length}`);
                 const filtered = compiledModels.filter(
                     (node: AnyType) =>
-                        node.resource_type === 'model' && node.meta,
+                        ['model', 'seed'].includes(node.resource_type) &&
+                        node.meta,
                 ) as DbtRawModelNode[];
                 const elapsed = Date.now() - startTime;
                 Logger.info(
@@ -365,6 +366,11 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     };
                 }
                 if (error) {
+                    // Seeds that fail validation are silently skipped —
+                    // they're only used as join targets, not standalone explores.
+                    if (model.resource_type === 'seed') {
+                        return [validModels, invalidModels];
+                    }
                     const exploreError: ExploreError = {
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
