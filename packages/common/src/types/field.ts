@@ -521,12 +521,6 @@ export type TableCalculation = {
           /** Template-based calculation (alternative to sql) */
           template: TableCalculationTemplate;
       }
-    | {
-          /** Google Sheets-like formula source (compiled to SQL for execution) */
-          formula: string;
-          /** SQL generated from the formula (dialect-specific) */
-          compiledSql: string;
-      }
 );
 
 export type TableCalculationMetadata = {
@@ -547,8 +541,7 @@ export const isTableCalculation = (
     item
         ? !isCustomDimension(item) &&
           (!!('sql' in item && item.sql) ||
-              !!('template' in item && item.template) ||
-              !!('formula' in item && item.formula)) &&
+              !!('template' in item && item.template)) &&
           !('description' in item) &&
           !('tableName' in item) &&
           'displayName' in item
@@ -563,11 +556,6 @@ export const isTemplateTableCalculation = (
     calc: TableCalculation,
 ): calc is TableCalculation & { template: TableCalculationTemplate } =>
     !!calc && 'template' in calc && !!calc.template;
-
-export const isFormulaTableCalculation = (
-    calc: TableCalculation,
-): calc is TableCalculation & { formula: string; compiledSql: string } =>
-    !!calc && 'formula' in calc && !!calc.formula;
 
 export type CompiledTableCalculation = TableCalculation & {
     compiledSql: string;

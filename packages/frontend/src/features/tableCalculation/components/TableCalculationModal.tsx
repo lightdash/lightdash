@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     getErrorMessage,
     getItemId,
-    isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     NumberSeparator,
@@ -14,6 +13,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     getDefaultZIndex,
@@ -103,14 +103,7 @@ const TableCalculationModal: FC<Props> = ({
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
-    const hasFormula = tableCalculation
-        ? isFormulaTableCalculation(tableCalculation)
-        : false;
-    const defaultMode = hasFormula
-        ? EditMode.FORMULA
-        : hasTemplate
-          ? EditMode.TEMPLATE
-          : EditMode.SQL;
+    const defaultMode = hasTemplate ? EditMode.TEMPLATE : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -333,7 +326,21 @@ const TableCalculationModal: FC<Props> = ({
             { value: EditMode.SQL, label: 'SQL' },
             {
                 value: EditMode.FORMULA,
-                label: isFormulaEnabled ? 'Formula' : 'Formula — coming soon',
+                label: isFormulaEnabled ? (
+                    'Formula'
+                ) : (
+                    <Group spacing={6} noWrap>
+                        <span>Formula</span>
+                        <Badge
+                            size="xs"
+                            variant="filled"
+                            color="indigo"
+                            radius="sm"
+                        >
+                            Coming soon
+                        </Badge>
+                    </Group>
+                ),
                 disabled: !isFormulaEnabled,
             },
         ],
@@ -479,14 +486,7 @@ const TableCalculationModal: FC<Props> = ({
                                                     project?.warehouseConnection
                                                         ?.type
                                                 }
-                                                initialFormulaSource={
-                                                    tableCalculation &&
-                                                    isFormulaTableCalculation(
-                                                        tableCalculation,
-                                                    )
-                                                        ? tableCalculation.formula
-                                                        : undefined
-                                                }
+                                                initialFormulaSource={undefined}
                                                 isFullScreen={isExpanded}
                                             />
                                         </Box>

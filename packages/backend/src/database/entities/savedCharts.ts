@@ -181,7 +181,6 @@ export type DbSavedChartTableCalculation = {
     format?: CustomFormat;
     type?: TableCalculationType;
     template?: TableCalculationTemplate;
-    formula_source?: string;
 };
 
 export type DbSavedChartTableCalculationInsert = Omit<
