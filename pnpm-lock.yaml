@@ -859,6 +859,9 @@ importers:
 
   packages/formula-tests:
     dependencies:
+      '@google-cloud/bigquery':
+        specifier: 7.9.2
+        version: 7.9.2(encoding@0.1.13)
       '@lightdash/formula':
         specifier: workspace:*
         version: link:../formula

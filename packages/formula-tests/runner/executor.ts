@@ -18,6 +18,9 @@ function normalizeValue(val: any): any {
         return val;
     }
     if (typeof val === 'bigint') return Number(val);
+    // BigQuery returns BigNumber/Decimal objects for NUMERIC types
+    if (typeof val === 'object' && val !== null && 'value' in val) return Number(val.value);
+    if (typeof val === 'object' && val !== null && typeof val.toNumber === 'function') return val.toNumber();
     return val;
 }
 

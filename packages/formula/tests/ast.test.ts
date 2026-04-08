@@ -27,7 +27,9 @@ describe('SQL Code Generation', () => {
 
         it('compiles modulo for bigquery', () => {
             const sql = compile('=A % B', { dialect: 'bigquery', columns });
-            expect(sql).toBe('MOD(`order_amount`, `tax`)');
+            expect(sql).toBe(
+                'MOD(CAST(`order_amount` AS NUMERIC), CAST(`tax` AS NUMERIC))',
+            );
         });
     });
 
