@@ -2712,9 +2712,9 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('Simple path: implicit metrics are excluded from SELECT * output', () => {
-            // M2 fix: on the simple path (no groupByColumns), implicit metrics
-            // are now excluded from group_by_query since pivot_table_calculations
-            // is not created on this path — they would just be noise columns.
+            // On the simple path (no groupByColumns), implicit metrics are
+            // excluded from group_by_query since pivot_table_calculations is
+            // not created on this path — they would just be noise columns.
             const itemsMap: ItemsMap = {
                 tc1: {
                     name: 'tc1',
@@ -3117,12 +3117,12 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
 
         test('Postgres: implicit metrics use ARRAY_AGG not SUM/AVG (safe for non-additive metrics)', () => {
-            // M3 validation: implicit metrics must NOT re-aggregate with the
-            // metric's original aggregation (e.g., SUM, AVG). The values in
-            // original_query are already aggregated by MetricQueryBuilder.
-            // Re-aggregating would be wrong for non-additive metrics like AVG.
-            // ANY_VALUE (ARRAY_AGG[1] on Postgres) picks a single value, which
-            // is correct when each (index, groupBy) cell maps to one row.
+            // Implicit metrics must NOT re-aggregate with the metric's original
+            // aggregation (e.g., SUM, AVG). The values in original_query are
+            // already aggregated by MetricQueryBuilder. Re-aggregating would be
+            // wrong for non-additive metrics like AVG. ANY_VALUE (ARRAY_AGG[1]
+            // on Postgres) picks a single value, which is correct when each
+            // (index, groupBy) cell maps to one row.
             const itemsMap: ItemsMap = {
                 tc1: {
                     name: 'tc1',
@@ -3632,7 +3632,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('"base_calc_any" *');
         });
 
-        test('Should leave unmatched references unchanged in pivot table calculations', () => {
+        test('Should resolve unknown field references as implicit metrics in pivot table calculations', () => {
             const itemsMapWithUnknownRef: ItemsMap = {
                 tc_with_unknown: {
                     name: 'tc_with_unknown',
@@ -3671,10 +3671,13 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             expect(result).toContain('pivot_table_calculations');
-            // Known ref should be quoted
+            // Known ref should be quoted with aggregation suffix
             expect(result).toContain('"metric1_sum"');
-            // Unknown ref should pass through unchanged (still wrapped in ${})
-            expect(result).toContain('${unknown_field}');
+            // Bare ref (unknown_field) is detected as an implicit metric — carried
+            // through group_by_query via ANY_VALUE and resolved to a quoted column
+            // name in pivot_table_calculations (not left as raw ${} syntax).
+            expect(result).toContain('"unknown_field"');
+            expect(result).not.toContain('${unknown_field}');
         });
     });
 });
