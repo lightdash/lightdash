@@ -21,6 +21,7 @@ import {
     Loader,
     Modal,
     Paper,
+    SegmentedControl,
     Select,
     Stack,
     Tabs,
@@ -326,35 +327,16 @@ const TableCalculationModal: FC<Props> = ({
         [form, tableCalculationTypeOptions],
     );
 
-    // Memoize edit mode data
+    // Memoize edit mode data for segmented control
     const editModeOptions = useMemo(
         () => [
-            {
-                value: EditMode.SQL,
-                label: 'Raw SQL',
-            },
+            { value: EditMode.SQL, label: 'SQL' },
             ...(isFormulaEnabled
-                ? [
-                      {
-                          value: EditMode.FORMULA,
-                          label: 'Formula',
-                      },
-                  ]
+                ? [{ value: EditMode.FORMULA, label: 'Formula' }]
                 : []),
-            {
-                value: EditMode.TEMPLATE,
-                label: 'Predefined Template',
-            },
         ],
         [isFormulaEnabled],
     );
-
-    // Memoize edit mode change handler
-    const handleEditModeChange = useCallback((value: string | null) => {
-        if (value) {
-            setEditMode(value as EditMode);
-        }
-    }, []);
 
     return (
         <Modal.Root
@@ -422,13 +404,14 @@ const TableCalculationModal: FC<Props> = ({
                                 {...form.getInputProps('name')}
                             />
 
-                            {(hasTemplate || isFormulaEnabled) && (
-                                <Select
-                                    label="Calculation Mode"
+                            {isFormulaEnabled && !hasTemplate && (
+                                <SegmentedControl
                                     value={editMode}
-                                    onChange={handleEditModeChange}
+                                    onChange={(value) =>
+                                        setEditMode(value as EditMode)
+                                    }
                                     data={editModeOptions}
-                                    mb="md"
+                                    size="xs"
                                 />
                             )}
 
