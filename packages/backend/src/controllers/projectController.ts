@@ -35,7 +35,6 @@ import {
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
-    VALID_CJK_FONT_VALUES,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
@@ -855,11 +854,6 @@ export class ProjectController extends BaseController {
         }
 
         if (body.schedulerCjkFont !== undefined) {
-            if (!VALID_CJK_FONT_VALUES.includes(body.schedulerCjkFont)) {
-                throw new ParameterError(
-                    `Invalid CJK font value: ${body.schedulerCjkFont}`,
-                );
-            }
             await this.services
                 .getProjectService()
                 .updateSchedulerCjkFont(
