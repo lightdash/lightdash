@@ -43,7 +43,7 @@ type VisualizationContext = {
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
 
-    getSeriesColor: (seriesLike: SeriesLike) => string;
+    getSeriesColor: (seriesLike: SeriesLike, index?: number) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     colorPalette: string[];
     chartConfig: ChartConfig;
