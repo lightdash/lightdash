@@ -17,6 +17,7 @@ import {
     WarehouseSqlBuilder,
     WeekDay,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
 
 // Mock warehouse SQL builder
@@ -3678,6 +3679,154 @@ SELECT * FROM group_by_query LIMIT 50`);
             // name in pivot_table_calculations (not left as raw ${} syntax).
             expect(result).toContain('"unknown_field"');
             expect(result).not.toContain('${unknown_field}');
+        });
+
+        test('Should log a warning for unknown field references', () => {
+            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+
+            const itemsMap: ItemsMap = {
+                tc_unknown: {
+                    name: 'tc_unknown',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Unknown',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${ghost_field}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_unknown',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            // eslint-disable-next-line no-new
+            new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('ghost_field'),
+            );
+        });
+
+        test('Should filter out TC-to-TC bare references from implicit metrics', () => {
+            const itemsMap: ItemsMap = {
+                tc_pivot: {
+                    name: 'tc_pivot',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Pivot',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${tc_helper}',
+                },
+                tc_helper: {
+                    name: 'tc_helper',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Helper',
+                    sql: '100',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_pivot',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, revenue, null AS tc_pivot, null AS tc_helper FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // events_revenue IS an implicit metric (table-prefixed, not a TC)
+            expect(normalized).toContain('(ARRAY_AGG("events_revenue"))[1]');
+            // tc_helper should NOT be carried as an implicit metric
+            expect(normalized).not.toContain('ARRAY_AGG("tc_helper")');
+        });
+
+        test('Should handle table-prefixed unknown references', () => {
+            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+
+            const itemsMap: ItemsMap = {
+                tc_missing: {
+                    name: 'tc_missing',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Missing',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${missing_table.missing_metric}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_missing',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Table-prefixed unknown ref becomes implicit metric
+            expect(normalized).toContain(
+                '(ARRAY_AGG("missing_table_missing_metric"))[1] AS "missing_table_missing_metric"',
+            );
+            // Warning should fire for unknown table-prefixed ref
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('missing_table_missing_metric'),
+            );
         });
     });
 });
