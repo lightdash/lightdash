@@ -11,6 +11,14 @@ import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { PreAggregateMaterializationService } from './PreAggregateMaterializationService';
 
 describe('PreAggregateMaterializationService', () => {
+    const baseStoredPreAggregateDefinition = {
+        preAggregateDefinition: {
+            name: 'orders_rollup',
+            dimensions: ['order_date'],
+            metrics: ['order_count'],
+        },
+    };
+
     const preAggregateModel = {
         getPreAggregateDefinitionByUuid: jest.fn(),
         insertInProgress: jest.fn(),
@@ -50,6 +58,7 @@ describe('PreAggregateMaterializationService', () => {
 
     test('marks run as failed when definition has no materialization query', async () => {
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            ...baseStoredPreAggregateDefinition,
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: null,
             materializationQueryError: 'Unknown metric "orders.count"',
@@ -83,6 +92,7 @@ describe('PreAggregateMaterializationService', () => {
     test('runs query and promotes active materialization for valid definition', async () => {
         const queryUpdatedAt = new Date('2024-02-01T10:00:00.000Z');
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            ...baseStoredPreAggregateDefinition,
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: {
                 metricQuery: {
@@ -143,6 +153,9 @@ describe('PreAggregateMaterializationService', () => {
                 invalidateCache: true,
             }),
         );
+        expect(
+            asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
+        ).not.toHaveProperty('materializationRole');
         expect(preAggregateModel.promoteToActive).toHaveBeenCalledWith({
             materializationUuid: 'mat-1',
             queryUuid: 'query-1',
@@ -157,6 +170,7 @@ describe('PreAggregateMaterializationService', () => {
     test('sorts by dimensions with time dimension first and descending', async () => {
         const queryUpdatedAt = new Date('2024-02-01T10:00:00.000Z');
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            ...baseStoredPreAggregateDefinition,
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: {
                 metricQuery: {
@@ -210,6 +224,7 @@ describe('PreAggregateMaterializationService', () => {
 
     test('marks run as failed when ready query has no persisted results file', async () => {
         preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            ...baseStoredPreAggregateDefinition,
             preAggregateDefinitionUuid: 'def-1',
             materializationMetricQuery: {
                 metricQuery: {
@@ -256,5 +271,72 @@ describe('PreAggregateMaterializationService', () => {
                 'Materialization query completed without a persisted results file',
         });
         expect(preAggregateModel.promoteToActive).not.toHaveBeenCalled();
+    });
+
+    test('passes materializationRole only when the pre-aggregate definition configures it', async () => {
+        const queryUpdatedAt = new Date('2024-02-01T10:00:00.000Z');
+        preAggregateModel.getPreAggregateDefinitionByUuid.mockResolvedValue({
+            preAggregateDefinitionUuid: 'def-1',
+            preAggregateDefinition: {
+                ...baseStoredPreAggregateDefinition.preAggregateDefinition,
+                materializationRole: {
+                    email: 'materialize@acme.com',
+                    attributes: {
+                        allowed_regions: ['EMEA', 'APAC'],
+                        is_admin: ['true'],
+                    },
+                },
+            },
+            materializationMetricQuery: {
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 100,
+                    tableCalculations: [],
+                },
+                metricComponents: {},
+                timeDimensionFieldId: null,
+                resolvedMaxRows: null,
+            },
+            materializationQueryError: null,
+        });
+        asyncQueryService.executeAsyncMetricQuery.mockResolvedValue({
+            queryUuid: 'query-1',
+        });
+        queryHistoryModel.pollForQueryCompletion.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            resultsFileName: 'query-1-results',
+            resultsUpdatedAt: queryUpdatedAt,
+            totalRowCount: 123,
+            columns: null,
+        });
+        preAggregateResultsStorageClient.getFileSize.mockResolvedValue(456789);
+        preAggregateModel.promoteToActive.mockResolvedValue({
+            status: 'active',
+        });
+
+        await service.materializePreAggregate({
+            account: {} as Account,
+            projectUuid: 'project-1',
+            preAggregateDefinitionUuid: 'def-1',
+            trigger: 'manual',
+        });
+
+        expect(asyncQueryService.executeAsyncMetricQuery).toHaveBeenCalledWith(
+            expect.objectContaining({
+                materializationRole: {
+                    intrinsicUserAttributes: {
+                        email: 'materialize@acme.com',
+                    },
+                    userAttributes: {
+                        allowed_regions: ['EMEA', 'APAC'],
+                        is_admin: ['true'],
+                    },
+                },
+            }),
+        );
     });
 });

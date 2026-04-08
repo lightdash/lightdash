@@ -118,6 +118,11 @@ export type DbtPreAggregateDef = {
     refresh?: {
         cron?: string;
     };
+    materialization_role?: {
+        email?: string;
+        attributes?: Record<string, string | string[]>;
+        [key: string]: unknown;
+    };
 };
 
 export type SharedDbtModelLightdashConfig = {

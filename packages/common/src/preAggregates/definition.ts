@@ -1,7 +1,16 @@
+import castArray from 'lodash/castArray';
+import isEmpty from 'lodash/isEmpty';
+import isPlainObject from 'lodash/isPlainObject';
+import isString from 'lodash/isString';
+import keys from 'lodash/keys';
 import type { DbtPreAggregateDef } from '../types/dbt';
 import { ParseError } from '../types/errors';
-import type { PreAggregateDef } from '../types/preAggregate';
+import type {
+    PreAggregateDef,
+    PreAggregateMaterializationRole,
+} from '../types/preAggregate';
 import { TimeFrames } from '../types/timeFrames';
+import type { UserAttributeValueMap } from '../types/userAttributes';
 
 const PRE_AGGREGATE_NAME_PATTERN = /^[a-zA-Z0-9_]+$/;
 
@@ -39,6 +48,83 @@ const parsePreAggregateStringArray = (
         }
         return item.trim();
     });
+};
+
+const parseMaterializationRoleAttributes = (
+    value: unknown,
+    modelName: string,
+    preAggregateName: string,
+): UserAttributeValueMap => {
+    if (!isPlainObject(value) || isEmpty(value)) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role.attributes". Expected a non-empty object.`,
+        );
+    }
+
+    const attributes = value as Record<string, unknown>;
+
+    return Object.entries(attributes).reduce<UserAttributeValueMap>(
+        (acc, [attributeName, attributeValue]) => {
+            const attributeValues = castArray(attributeValue);
+
+            if (!isEmpty(attributeValues) && attributeValues.every(isString)) {
+                acc[attributeName] = attributeValues;
+                return acc;
+            }
+
+            throw new ParseError(
+                `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role.attributes.${attributeName}" value`,
+            );
+        },
+        {},
+    );
+};
+
+const parseMaterializationRole = (
+    materializationRole: unknown,
+    modelName: string,
+    preAggregateName: string,
+): PreAggregateMaterializationRole => {
+    if (!isPlainObject(materializationRole)) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role". Expected an object.`,
+        );
+    }
+
+    const { email, attributes, ...unknownFields } =
+        materializationRole as NonNullable<
+            DbtPreAggregateDef['materialization_role']
+        >;
+
+    const unknownIntrinsicFields = keys(unknownFields);
+    if (!isEmpty(unknownIntrinsicFields)) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" has unsupported "materialization_role" fields: ${unknownIntrinsicFields.join(
+                ', ',
+            )}`,
+        );
+    }
+
+    if (!isString(email) || email.trim().length === 0) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" must define a non-empty "materialization_role.email"`,
+        );
+    }
+
+    if (attributes === undefined) {
+        throw new ParseError(
+            `Pre-aggregate "${preAggregateName}" in model "${modelName}" must define "materialization_role.attributes" when "materialization_role" is set`,
+        );
+    }
+
+    return {
+        email: email.trim(),
+        attributes: parseMaterializationRoleAttributes(
+            attributes,
+            modelName,
+            preAggregateName,
+        ),
+    };
 };
 
 export const parseDbtPreAggregateDef = (
@@ -111,6 +197,15 @@ export const parseDbtPreAggregateDef = (
         );
     }
 
+    const materializationRole =
+        safePreAggregate?.materialization_role !== undefined
+            ? parseMaterializationRole(
+                  safePreAggregate.materialization_role,
+                  modelName,
+                  name,
+              )
+            : undefined;
+
     return {
         name,
         dimensions,
@@ -121,6 +216,7 @@ export const parseDbtPreAggregateDef = (
         ...(safePreAggregate.refresh?.cron
             ? { refresh: { cron: safePreAggregate.refresh.cron } }
             : {}),
+        ...(materializationRole ? { materializationRole } : {}),
     };
 };
 

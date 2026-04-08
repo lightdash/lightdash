@@ -1,5 +1,6 @@
 import {
     getErrorMessage,
+    getIntrinsicUserAttributes,
     NotFoundError,
     PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD,
     QueryExecutionContext,
@@ -171,6 +172,22 @@ export class PreAggregateMaterializationService extends BaseService {
                                         materializationMetricQuery.timeDimensionFieldId,
                                 })),
                         },
+                        ...(definition.preAggregateDefinition
+                            .materializationRole
+                            ? {
+                                  materializationRole: {
+                                      intrinsicUserAttributes:
+                                          getIntrinsicUserAttributes({
+                                              email: definition
+                                                  .preAggregateDefinition
+                                                  .materializationRole.email,
+                                          }),
+                                      userAttributes:
+                                          definition.preAggregateDefinition
+                                              .materializationRole.attributes,
+                                  },
+                              }
+                            : {}),
                         invalidateCache: true,
                     }),
             );

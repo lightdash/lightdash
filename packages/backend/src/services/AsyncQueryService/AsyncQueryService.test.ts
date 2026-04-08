@@ -125,6 +125,7 @@ const projectModel = {
     getSummary: jest.fn(async () => projectSummary),
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
     updateTablesConfiguration: jest.fn(),
+    getQueryTimezone: jest.fn(async () => 'UTC'),
     getExploreFromCache: jest.fn(async () => validExplore),
     findExploresFromCache: jest.fn(async () => allExplores),
     lockProcess: jest.fn((_projectUuid, fun) => fun()),
@@ -1903,6 +1904,101 @@ describe('AsyncQueryService', () => {
                 }),
                 expect.any(Object), // session account
             );
+        });
+    });
+
+    describe('materializationRole', () => {
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('uses materializationRole instead of the triggering user context during materialization execution', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const materializationExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        sqlWhere:
+                            "'EMEA' IN (${lightdash.attribute.allowed_regions}) AND ${lightdash.user.email} = 'materialize@acme.com'",
+                        uncompiledSqlWhere:
+                            "'EMEA' IN (${lightdash.attribute.allowed_regions}) AND ${lightdash.user.email} = 'materialize@acme.com'",
+                    },
+                },
+            };
+
+            service.getUserAttributes = jest.fn(async () => ({
+                userAttributes: {
+                    allowed_regions: ['viewer-region'],
+                },
+                intrinsicUserAttributes: {
+                    email: 'viewer@example.com',
+                },
+            }));
+            jest.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
+                materializationExplore,
+            );
+            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                materializationRole: {
+                    userAttributes: {
+                        allowed_regions: ['EMEA', 'APAC'],
+                    },
+                    intrinsicUserAttributes: {
+                        email: 'materialize@acme.com',
+                    },
+                },
+            });
+
+            expect(service.getUserAttributes).not.toHaveBeenCalled();
+            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: expect.stringContaining("'EMEA', 'APAC'"),
+                }),
+                expect.any(Object),
+            );
+            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: expect.stringContaining('materialize@acme.com'),
+                }),
+                expect.any(Object),
+            );
+            expect(service.executeAsyncQuery).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: expect.stringContaining('viewer-region'),
+                }),
+                expect.any(Object),
+            );
+        });
+
+        it('fails closed when materializationRole is supplied outside materialization context', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+            await expect(
+                service.executeAsyncMetricQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    materializationRole: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {
+                            email: 'materialize@acme.com',
+                        },
+                    },
+                }),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 
