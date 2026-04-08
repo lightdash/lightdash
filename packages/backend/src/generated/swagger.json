@@ -6932,8 +6932,37 @@
                 "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
             },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "UserAttributeValueMap": {
+                "$ref": "#/components/schemas/Record_string.string-Array_"
+            },
+            "PreAggregateMaterializationRole": {
+                "properties": {
+                    "attributes": {
+                        "$ref": "#/components/schemas/UserAttributeValueMap"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["attributes", "email"],
+                "type": "object"
+            },
             "PreAggregateDef": {
                 "properties": {
+                    "materializationRole": {
+                        "$ref": "#/components/schemas/PreAggregateMaterializationRole"
+                    },
                     "refresh": {
                         "properties": {
                             "cron": {
@@ -6951,6 +6980,12 @@
                     },
                     "timeDimension": {
                         "type": "string"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
                     },
                     "metrics": {
                         "items": {
@@ -7251,6 +7286,10 @@
                 "enum": ["filter_dimension_not_in_pre_aggregate"],
                 "type": "string"
             },
+            "PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED": {
+                "enum": ["pre_aggregate_filter_not_satisfied"],
+                "type": "string"
+            },
             "PreAggregateMissReason.GRANULARITY_TOO_FINE": {
                 "enum": ["granularity_too_fine"],
                 "type": "string"
@@ -7341,6 +7380,18 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED"
                             }
                         },
                         "required": ["fieldId", "reason"],
@@ -8005,8 +8056,27 @@
             "ApiGenerateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
+            "AppImageAttachment": {
+                "properties": {
+                    "filename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "string"
+                    }
+                },
+                "required": ["filename", "mimeType", "data"],
+                "type": "object",
+                "description": "Image attached to a data app generation request.\n\nPhase 1: `data` contains the base64-encoded image sent inline in the JSON body.\nPhase 2: Add an optional `s3Key` field for images pre-uploaded to S3 via\npresigned URL. When `s3Key` is present, `data` can be omitted and the backend\nstreams the image from S3 into the sandbox. This also enables persisting images\nalongside the source tarball for use as app assets."
+            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "image": {
+                        "$ref": "#/components/schemas/AppImageAttachment"
+                    },
                     "prompt": {
                         "type": "string"
                     }
@@ -11498,6 +11568,14 @@
                         },
                         "type": "array"
                     },
+                    "materializationRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PreAggregateMaterializationRole"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "sourceExploreName": {
                         "type": "string"
                     },
@@ -11521,6 +11599,7 @@
                     "timeDimension",
                     "metrics",
                     "dimensions",
+                    "materializationRole",
                     "sourceExploreName",
                     "preAggExploreName",
                     "preAggregateName",
@@ -29798,7 +29877,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2730.1",
+        "version": "0.2735.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
