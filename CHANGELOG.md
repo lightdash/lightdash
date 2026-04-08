@@ -1,3 +1,17 @@
+# [0.2737.0](https://github.com/lightdash/lightdash/compare/0.2736.0...0.2737.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* update schemas for pre-aggregate filters ([#21844](https://github.com/lightdash/lightdash/issues/21844)) ([86ff6bc](https://github.com/lightdash/lightdash/commit/86ff6bcd2fb92e4613aebc4276abd577dfd9800d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add filter support to pre-aggregates ([#21795](https://github.com/lightdash/lightdash/issues/21795)) ([8d442d0](https://github.com/lightdash/lightdash/commit/8d442d068cc23ded758cc6b57e676fc352c3eb27))
+* add filters display to pre-aggregate materialization details ([#21840](https://github.com/lightdash/lightdash/issues/21840)) ([ee49e33](https://github.com/lightdash/lightdash/commit/ee49e336c95c19ebf325e9d41a08f4842ae65b2e))
+* add pre-aggregate filter matching logic ([#21796](https://github.com/lightdash/lightdash/issues/21796)) ([787e0d2](https://github.com/lightdash/lightdash/commit/787e0d21ca3bf8fba28c03b77dc4790ad72a794a))
+
 # [0.2736.0](https://github.com/lightdash/lightdash/compare/0.2735.0...0.2736.0) (2026-04-08)
 
 
