@@ -194,6 +194,9 @@ importers:
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
+      '@lightdash/formula':
+        specifier: workspace:*
+        version: link:../formula
       '@lightdash/warehouses':
         specifier: workspace:*
         version: link:../warehouses
