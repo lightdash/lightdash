@@ -150,7 +150,10 @@ import { PersistentDownloadFileService } from '../services/PersistentDownloadFil
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
+import { SavedChartService } from '../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../services/SavedSqlService/SavedSqlService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
+import { SpaceService } from '../services/SpaceService/SpaceService';
 import {
     ScreenshotContext,
     UnfurlService,
@@ -187,6 +190,9 @@ export type SchedulerTaskArguments = {
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
+    spaceService: SpaceService;
+    savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
 };
 
 export default class SchedulerTask {
@@ -240,6 +246,12 @@ export default class SchedulerTask {
 
     protected readonly preAggregateModel: PreAggregateModel;
 
+    protected readonly spaceService: SpaceService;
+
+    protected readonly savedChartService: SavedChartService;
+
+    protected readonly savedSqlService: SavedSqlService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -267,6 +279,9 @@ export default class SchedulerTask {
         this.preAggregateModel = args.preAggregateModel;
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
+        this.spaceService = args.spaceService;
+        this.savedChartService = args.savedChartService;
+        this.savedSqlService = args.savedSqlService;
     }
 
     private static getCsvOptions(

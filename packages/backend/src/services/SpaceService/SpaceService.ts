@@ -25,9 +25,12 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
-import type {
-    SoftDeletableService,
-    SoftDeleteOptions,
+import {
+    batchDeleteExpired,
+    type CleanupConfig,
+    type CleanupResult,
+    type SoftDeletableService,
+    type SoftDeleteOptions,
 } from '../SoftDeletableService';
 import { SpacePermissionService } from './SpacePermissionService';
 
@@ -699,6 +702,13 @@ export class SpaceService
         }
 
         await this.spaceModel.permanentDelete(spaceUuid);
+    }
+
+    async permanentDeleteExpired(
+        retentionDays: number,
+        config: CleanupConfig,
+    ): Promise<CleanupResult> {
+        return batchDeleteExpired(this.spaceModel, retentionDays, config);
     }
 
     async addSpaceUserAccess(
