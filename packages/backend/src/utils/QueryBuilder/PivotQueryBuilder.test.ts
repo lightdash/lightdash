@@ -1,8 +1,11 @@
 import {
     BinType,
+    CompiledDimension,
+    CustomBinDimension,
     CustomDimensionType,
     DimensionType,
     FieldType,
+    ItemsMap,
     MetricType,
     ParameterError,
     SortByDirection,
@@ -11,11 +14,8 @@ import {
     TimeFrames,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseSqlBuilder,
     WeekDay,
-    type CompiledDimension,
-    type CustomBinDimension,
-    type ItemsMap,
-    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
 
@@ -3065,6 +3065,244 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'ANY_VALUE(`events_revenue`) AS `events_revenue`',
             );
             expect(result).not.toContain('ARRAY_AGG');
+        });
+
+        test('Should not add implicit metrics for fields already in indexColumns', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${date}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // events_revenue should be implicit (not in any column list)
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+
+            // date is already an index column — should NOT be added as implicit
+            expect(normalized).not.toContain('ARRAY_AGG("date")');
+        });
+
+        test('Should not add implicit metrics for fields already in groupByColumns', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${category}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // events_revenue should be implicit
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+
+            // category is already a groupBy column — should NOT be added as implicit
+            expect(normalized).not.toContain('ARRAY_AGG("category")');
+        });
+
+        test('Should produce no implicit metrics when TC has no variable references', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1) + 100',
+                },
+            };
+
+            // events_revenue IS in valuesColumns, and 100 is a literal
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // Only the explicit SUM should appear, no extra ARRAY_AGG for implicit metrics
+            expect(normalized).toContain(
+                'sum("events_revenue") AS "events_revenue_sum"',
+            );
+            expect(normalized).not.toMatch(/ARRAY_AGG\("events_revenue"\)/);
+        });
+
+        test('Should not inflate total_columns even with many implicit metrics', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.m1}, 1) + pivot_index(${events.m2}, 1) + pivot_index(${events.m3}, 1) + pivot_index(${events.m4}, 1) + pivot_index(${events.m5}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_m1, events_m2, events_m3, events_m4, events_m5, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // All 5 implicit metrics should be in group_by_query
+            for (const m of [
+                'events_m1',
+                'events_m2',
+                'events_m3',
+                'events_m4',
+                'events_m5',
+            ]) {
+                expect(normalized).toContain(
+                    `(ARRAY_AGG("${m}"))[1] AS "${m}"`,
+                );
+            }
+
+            // total_columns should count only 1 display value column (tc1), not 6
+            expect(result).toContain('COUNT(*) AS total_columns');
+            expect(result).not.toContain('COUNT(*) * 5');
+            expect(result).not.toContain('COUNT(*) * 6');
+        });
+
+        test('Should produce identical SQL when no pivot TCs exist in itemsMap', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            // With itemsMap (no TCs)
+            const withItems = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {
+                    revenue: {
+                        name: 'revenue',
+                        table: 'events',
+                        label: 'Revenue',
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.SUM,
+                        tableLabel: 'Events',
+                        sql: '',
+                        compiledSql: '',
+                        tablesReferences: [],
+                        isAutoGenerated: false,
+                        hidden: false,
+                    },
+                },
+            );
+
+            // Without itemsMap
+            const withoutItems = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            expect(withItems.toSql({ columnLimit: 100 })).toBe(
+                withoutItems.toSql({ columnLimit: 100 }),
+            );
         });
     });
 
