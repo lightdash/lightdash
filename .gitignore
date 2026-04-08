@@ -2,6 +2,7 @@
 
 # version control
 .git
+.worktrees/
 
 # dependencies
 node_modules/
