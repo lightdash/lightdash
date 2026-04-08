@@ -2447,10 +2447,11 @@ SELECT * FROM group_by_query LIMIT 50`);
             // The impressions_delta calculation uses LAG function with proper reference replacement
             // The key fix being tested: When replacing field references, it now also checks
             // fieldAliasMap[ref] to handle interdependent table calculation references
+            // Field references must be quoted to handle reserved words and special characters
             expect(result).toContain(
-                'impressions_any - CASE WHEN LAG("row_index", 1)',
+                '"impressions_any" - CASE WHEN LAG("row_index", 1)',
             );
-            expect(result).toContain('LAG(impressions_any, 1)');
+            expect(result).toContain('LAG("impressions_any", 1)');
 
             // Verify that table calculations with pivot functions are properly included
             expect(result).toContain('impressions_delta_any');
@@ -2462,6 +2463,205 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 '(ARRAY_AGG("impressions_delta"))[1] AS "impressions_delta_any"',
             );
+        });
+
+        test('Should quote SQL reserved words used as field names in pivot table calculations', () => {
+            const itemsMapWithReservedWord: ItemsMap = {
+                sla_hit: {
+                    name: 'sla_hit',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'SLA hit',
+                    sql: 'pivot_index(${table1.metric1}, 2) / NULLIF(${limit}, 0) + ${category}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'date', type: VizIndexType.TIME },
+                    { reference: 'limit', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'sla_hit',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1, "limit" FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithReservedWord,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // 'limit' is a SQL reserved word — must be quoted as an index column reference
+            expect(result).toContain('NULLIF("limit", 0)');
+            // groupBy column reference should also be quoted
+            expect(result).toContain('+ "category"');
+        });
+
+        test('Should use backtick quoting for BigQuery/Databricks warehouses', () => {
+            const mockBigQuerySqlBuilder = {
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            } as unknown as WarehouseSqlBuilder;
+
+            const itemsMapWithTc: ItemsMap = {
+                doubled: {
+                    name: 'doubled',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Doubled',
+                    sql: 'pivot_offset(${table1.metric1}, 0) * 2',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'doubled',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockBigQuerySqlBuilder,
+                500,
+                itemsMapWithTc,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // BigQuery uses backticks — verify metric ref is backtick-quoted
+            expect(result).toContain('`metric1_sum`');
+            expect(result).not.toContain('"metric1_sum"');
+        });
+
+        test('Should quote both fully-qualified and bare table calc references in pivot TCs', () => {
+            const itemsMapWithBothRefStyles: ItemsMap = {
+                base_calc: {
+                    name: 'base_calc',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Base Calc',
+                    sql: 'pivot_offset(${table1.metric1}, 0) + 1',
+                },
+                derived_calc: {
+                    name: 'derived_calc',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Derived Calc',
+                    sql: '${base_calc} * pivot_offset(${table1.metric1}, 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'base_calc',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'derived_calc',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithBothRefStyles,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // Bare table calc ref: ${base_calc} → "base_calc_any" (quoted)
+            // Assert the expression to confirm quoting happens in the TC replacement specifically
+            expect(result).toContain('"base_calc_any" *');
+        });
+
+        test('Should leave unmatched references unchanged in pivot table calculations', () => {
+            const itemsMapWithUnknownRef: ItemsMap = {
+                tc_with_unknown: {
+                    name: 'tc_with_unknown',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC with unknown',
+                    sql: 'pivot_offset(${table1.metric1}, 0) + ${unknown_field}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_with_unknown',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithUnknownRef,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // Known ref should be quoted
+            expect(result).toContain('"metric1_sum"');
+            // Unknown ref should pass through unchanged (still wrapped in ${})
+            expect(result).toContain('${unknown_field}');
         });
     });
 });
