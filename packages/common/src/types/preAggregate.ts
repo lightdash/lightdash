@@ -245,6 +245,7 @@ export type PreAggregateMaterializationSummary = {
     preAggregateName: string;
     preAggExploreName: string;
     sourceExploreName: string;
+    materializationRole: PreAggregateMaterializationRole | null;
     dimensions: string[];
     metrics: string[];
     timeDimension: string | null;
