@@ -25,6 +25,7 @@ import {
     isCustomBinDimension,
     isCustomSqlDimension,
     isFormat,
+    isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     KnexPaginateArgs,
@@ -273,22 +274,31 @@ const createSavedChartVersion = async (
         );
         await createSavedChartVersionTableCalculations(
             trx,
-            tableCalculations.map((tableCalculation) => ({
-                name: tableCalculation.name,
-                display_name: tableCalculation.displayName,
-                calculation_raw_sql: isSqlTableCalculation(tableCalculation)
-                    ? tableCalculation.sql
-                    : '',
-                saved_queries_version_id: version.saved_queries_version_id,
-                format: tableCalculation.format,
-                order: tableConfig.columnOrder.findIndex(
-                    (column) => column === tableCalculation.name,
-                ),
-                type: tableCalculation.type,
-                template: isTemplateTableCalculation(tableCalculation)
-                    ? tableCalculation.template
-                    : undefined,
-            })),
+            tableCalculations.map((tableCalculation) => {
+                let calculationRawSql = '';
+                if (isFormulaTableCalculation(tableCalculation)) {
+                    calculationRawSql = tableCalculation.compiledSql;
+                } else if (isSqlTableCalculation(tableCalculation)) {
+                    calculationRawSql = tableCalculation.sql;
+                }
+                return {
+                    name: tableCalculation.name,
+                    display_name: tableCalculation.displayName,
+                    calculation_raw_sql: calculationRawSql,
+                    saved_queries_version_id: version.saved_queries_version_id,
+                    format: tableCalculation.format,
+                    order: tableConfig.columnOrder.findIndex(
+                        (column) => column === tableCalculation.name,
+                    ),
+                    type: tableCalculation.type,
+                    template: isTemplateTableCalculation(tableCalculation)
+                        ? tableCalculation.template
+                        : undefined,
+                    formula_source: isFormulaTableCalculation(tableCalculation)
+                        ? tableCalculation.formula
+                        : undefined,
+                };
+            }),
         );
         await createSavedChartVersionCustomDimensions(
             trx,
@@ -1089,6 +1099,7 @@ export class SavedChartModel {
                         'format',
                         'type',
                         'template',
+                        'formula_source',
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -1235,19 +1246,37 @@ export class SavedChartModel {
                         dimensionOverrides:
                             savedQuery.dimension_overrides || undefined,
                         tableCalculations: tableCalculations.map(
-                            (tableCalculation) =>
-                                ({
+                            (tableCalculation) => {
+                                const base = {
                                     name: tableCalculation.name,
                                     displayName: tableCalculation.display_name,
-                                    sql:
-                                        tableCalculation.calculation_raw_sql ||
-                                        undefined,
                                     format:
                                         tableCalculation.format || undefined,
                                     type: tableCalculation.type || undefined,
-                                    template:
-                                        tableCalculation.template || undefined,
-                                }) as TableCalculation,
+                                };
+                                if (tableCalculation.formula_source) {
+                                    return {
+                                        ...base,
+                                        formula:
+                                            tableCalculation.formula_source,
+                                        compiledSql:
+                                            tableCalculation.calculation_raw_sql ||
+                                            '',
+                                    } as TableCalculation;
+                                }
+                                if (tableCalculation.template) {
+                                    return {
+                                        ...base,
+                                        template: tableCalculation.template,
+                                    } as TableCalculation;
+                                }
+                                return {
+                                    ...base,
+                                    sql:
+                                        tableCalculation.calculation_raw_sql ||
+                                        '',
+                                } as TableCalculation;
+                            },
                         ),
                         additionalMetrics,
                         customDimensions: [

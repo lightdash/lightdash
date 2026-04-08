@@ -2,6 +2,7 @@ import {
     CustomFormatType,
     getErrorMessage,
     getItemId,
+    isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     NumberSeparator,
@@ -99,7 +100,9 @@ const TableCalculationModal: FC<Props> = ({
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
-    const hasFormula = !!tableCalculation?.formulaSource;
+    const hasFormula = tableCalculation
+        ? isFormulaTableCalculation(tableCalculation)
+        : false;
     const defaultMode = hasFormula
         ? EditMode.FORMULA
         : hasTemplate
@@ -256,15 +259,15 @@ const TableCalculationModal: FC<Props> = ({
                     return;
                 }
                 try {
-                    const { sql: compiledSql, formulaSource } =
+                    const { formula, compiledSql } =
                         formulaFormRef.current.compileFormula();
                     onSave({
                         name: finalName,
                         displayName: name,
                         format: data.format,
                         type: data.type,
-                        sql: compiledSql,
-                        formulaSource,
+                        formula,
+                        compiledSql,
                     });
                 } catch (e) {
                     addToastError({
@@ -538,7 +541,12 @@ const TableCalculationModal: FC<Props> = ({
                                                     ?.type
                                             }
                                             initialFormulaSource={
-                                                tableCalculation?.formulaSource
+                                                tableCalculation &&
+                                                isFormulaTableCalculation(
+                                                    tableCalculation,
+                                                )
+                                                    ? tableCalculation.formula
+                                                    : undefined
                                             }
                                             isFullScreen={isExpanded}
                                         />

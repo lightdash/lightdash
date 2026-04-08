@@ -9,6 +9,7 @@ import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, type FC } from 'react';
 import { type FieldSuggestionItem } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput/FieldSuggestionList';
@@ -31,6 +32,54 @@ const MentionWithLabel = Mention.extend({
         };
     },
 });
+
+/**
+ * Convert plain formula text into TipTap JSON content,
+ * replacing known field IDs with mention nodes.
+ */
+function buildInitialContent(
+    text: string,
+    fieldSuggestions: FieldSuggestionItem[],
+): JSONContent {
+    if (!text || fieldSuggestions.length === 0) {
+        return {
+            type: 'doc',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+        };
+    }
+
+    // Sort field IDs by length descending to match longest first
+    const sorted = [...fieldSuggestions].sort(
+        (a, b) => b.id.length - a.id.length,
+    );
+
+    // Build a regex that matches any field ID as a whole word
+    const pattern = new RegExp(
+        `(${sorted.map((f) => f.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+        'g',
+    );
+
+    const parts = text.split(pattern);
+    const fieldMap = new Map(sorted.map((f) => [f.id, f]));
+
+    const inlineContent: JSONContent[] = parts
+        .filter((part) => part.length > 0)
+        .map((part) => {
+            const field = fieldMap.get(part);
+            if (field) {
+                return {
+                    type: 'mention',
+                    attrs: { id: field.id, label: field.label },
+                };
+            }
+            return { type: 'text', text: part };
+        });
+
+    return {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: inlineContent }],
+    };
+}
 
 type Props = {
     explore: Explore | undefined;
@@ -103,7 +152,9 @@ export const FormulaEditor: FC<Props> = ({
                     'Type a formula (use @ to reference fields)... e.g. =IF(@Revenue > 1000, "high", "low")',
             }),
         ],
-        content: initialContent ? `<p>${initialContent}</p>` : undefined,
+        content: initialContent
+            ? buildInitialContent(initialContent, fieldSuggestions)
+            : undefined,
         onUpdate: ({ editor: e }) => {
             if (onTextChange) {
                 onTextChange(e.getText());

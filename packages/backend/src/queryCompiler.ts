@@ -13,6 +13,7 @@ import {
     ExploreCompiler,
     getItemId,
     isCustomBinDimension,
+    isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
     isSqlTableCalculation,
@@ -68,7 +69,17 @@ const buildTableCalculationDependencyGraph = (
             };
         }
 
-        throw new CompileError(`Table calculation has no SQL or template`, {});
+        if (isFormulaTableCalculation(calc)) {
+            return {
+                name: calc.name,
+                dependencies: [], // Formula compiledSql is self-contained
+            };
+        }
+
+        throw new CompileError(
+            `Table calculation has no SQL, template, or formula`,
+            {},
+        );
     });
 
 const compileTableCalculation = (
@@ -96,6 +107,14 @@ const compileTableCalculation = (
               dependencyGraph.some((d) => d.name === dep),
           )
         : [];
+
+    if (isFormulaTableCalculation(tableCalculation)) {
+        return {
+            ...tableCalculation,
+            compiledSql: tableCalculation.compiledSql,
+            dependsOn: [],
+        };
+    }
 
     if (isSqlTableCalculation(tableCalculation)) {
         const compiledSql = tableCalculation.sql.replace(
