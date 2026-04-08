@@ -1,9 +1,9 @@
-import type { Dialect, CompileOptions } from '../types';
-import { BaseSqlGenerator } from './base';
-import { PostgresSqlGenerator } from './postgres';
+import type { CompileOptions } from '../types';
+import type { BaseSqlGenerator } from './base';
 import { BigQuerySqlGenerator } from './bigquery';
-import { SnowflakeSqlGenerator } from './snowflake';
 import { DuckDBSqlGenerator } from './duckdb';
+import { PostgresSqlGenerator } from './postgres';
+import { SnowflakeSqlGenerator } from './snowflake';
 
 export function createGenerator(options: CompileOptions): BaseSqlGenerator {
     switch (options.dialect) {

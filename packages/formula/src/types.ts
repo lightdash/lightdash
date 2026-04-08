@@ -1,12 +1,12 @@
 import type {
-    ZeroArgFnName,
-    SingleArgFnName,
-    OneOrTwoArgFnName,
-    ZeroOrOneArgFnName,
-    VariadicFnName,
-    WindowFnName,
     ConditionalAggFnName,
     FunctionName,
+    OneOrTwoArgFnName,
+    SingleArgFnName,
+    VariadicFnName,
+    WindowFnName,
+    ZeroArgFnName,
+    ZeroOrOneArgFnName,
 } from './functions';
 
 export type Dialect = 'postgres' | 'bigquery' | 'snowflake' | 'duckdb';
@@ -145,7 +145,15 @@ export interface WindowClauseNode {
     partitionBy?: ASTNode;
 }
 
-export type FunctionCategory = 'math' | 'string' | 'date' | 'logical' | 'aggregate' | 'window' | 'null' | 'type';
+export type FunctionCategory =
+    | 'math'
+    | 'string'
+    | 'date'
+    | 'logical'
+    | 'aggregate'
+    | 'window'
+    | 'null'
+    | 'type';
 
 export interface FunctionDefinition {
     name: FunctionName;

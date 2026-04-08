@@ -1,24 +1,24 @@
 import type {
     ASTNode,
     BinaryOpNode,
-    UnaryOpNode,
-    IfNode,
+    BooleanLiteralNode,
+    ColumnRefNode,
+    ComparisonNode,
+    CompileOptions,
     ConditionalAggregateNode,
     CountIfNode,
-    ZeroArgFnNode,
-    SingleArgFnNode,
-    OneOrTwoArgFnNode,
-    ZeroOrOneArgFnNode,
-    VariadicFnNode,
-    WindowFnNode,
-    ColumnRefNode,
-    NumberLiteralNode,
-    StringLiteralNode,
-    BooleanLiteralNode,
-    ComparisonNode,
+    IfNode,
     LogicalNode,
-    CompileOptions,
+    NumberLiteralNode,
+    OneOrTwoArgFnNode,
+    SingleArgFnNode,
+    StringLiteralNode,
+    UnaryOpNode,
+    VariadicFnNode,
     WindowClauseNode,
+    WindowFnNode,
+    ZeroArgFnNode,
+    ZeroOrOneArgFnNode,
 } from '../types';
 import { assertUnreachable } from '../utils';
 
@@ -62,9 +62,14 @@ export abstract class BaseSqlGenerator {
             case 'Logical':
                 return this.generateLogical(node);
             case 'WindowClause':
-                throw new Error('WindowClause should not be generated directly');
+                throw new Error(
+                    'WindowClause should not be generated directly',
+                );
             default:
-                return assertUnreachable(node, `Unknown node type: ${(node as any).type}`);
+                return assertUnreachable(
+                    node,
+                    `Unknown node type: ${(node as Record<string, unknown>).type}`,
+                );
         }
     }
 
@@ -84,7 +89,10 @@ export abstract class BaseSqlGenerator {
             case '%':
                 return this.generateModulo(left, right);
             default:
-                return assertUnreachable(node.op, `Unknown operator: ${node.op}`);
+                return assertUnreachable(
+                    node.op,
+                    `Unknown operator: ${node.op}`,
+                );
         }
     }
 
@@ -100,7 +108,10 @@ export abstract class BaseSqlGenerator {
             case 'NOT':
                 return `(NOT ${operand})`;
             default:
-                return assertUnreachable(node.op, `Unknown unary op: ${node.op}`);
+                return assertUnreachable(
+                    node.op,
+                    `Unknown unary op: ${node.op}`,
+                );
         }
     }
 
@@ -111,7 +122,9 @@ export abstract class BaseSqlGenerator {
         return `CASE WHEN ${condition} THEN ${then} ELSE ${else_} END`;
     }
 
-    protected generateConditionalAggregate(node: ConditionalAggregateNode): string {
+    protected generateConditionalAggregate(
+        node: ConditionalAggregateNode,
+    ): string {
         const value = this.generate(node.value);
         const condition = this.generate(node.condition);
         switch (node.name) {
@@ -120,7 +133,10 @@ export abstract class BaseSqlGenerator {
             case 'AVERAGEIF':
                 return `AVG(CASE WHEN ${condition} THEN ${value} END)`;
             default:
-                return assertUnreachable(node.name, `Unknown conditional aggregate: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown conditional aggregate: ${node.name}`,
+                );
         }
     }
 
@@ -136,7 +152,10 @@ export abstract class BaseSqlGenerator {
             case 'NOW':
                 return this.generateNow();
             default:
-                return assertUnreachable(node.name, `Unknown zero-arg function: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown zero-arg function: ${node.name}`,
+                );
         }
     }
 
@@ -173,7 +192,10 @@ export abstract class BaseSqlGenerator {
             case 'AVG':
                 return `AVG(${arg})`;
             default:
-                return assertUnreachable(node.name, `Unknown single-arg function: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown single-arg function: ${node.name}`,
+                );
         }
     }
 
@@ -183,20 +205,32 @@ export abstract class BaseSqlGenerator {
             case 'ROUND':
                 return `ROUND(${args[0]}${args[1] !== undefined ? `, ${args[1]}` : ''})`;
             case 'MIN':
-                return args.length === 1 ? `MIN(${args[0]})` : `LEAST(${args.join(', ')})`;
+                return args.length === 1
+                    ? `MIN(${args[0]})`
+                    : `LEAST(${args.join(', ')})`;
             case 'MAX':
-                return args.length === 1 ? `MAX(${args[0]})` : `GREATEST(${args.join(', ')})`;
+                return args.length === 1
+                    ? `MAX(${args[0]})`
+                    : `GREATEST(${args.join(', ')})`;
             default:
-                return assertUnreachable(node.name, `Unknown one-or-two-arg function: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown one-or-two-arg function: ${node.name}`,
+                );
         }
     }
 
     protected generateZeroOrOneArgFn(node: ZeroOrOneArgFnNode): string {
         switch (node.name) {
             case 'COUNT':
-                return node.arg ? `COUNT(${this.generate(node.arg)})` : 'COUNT(*)';
+                return node.arg
+                    ? `COUNT(${this.generate(node.arg)})`
+                    : 'COUNT(*)';
             default:
-                return assertUnreachable(node.name, `Unknown zero-or-one-arg function: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown zero-or-one-arg function: ${node.name}`,
+                );
         }
     }
 
@@ -208,7 +242,10 @@ export abstract class BaseSqlGenerator {
             case 'COALESCE':
                 return `COALESCE(${args.join(', ')})`;
             default:
-                return assertUnreachable(node.name, `Unknown variadic function: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown variadic function: ${node.name}`,
+                );
         }
     }
 
@@ -222,13 +259,27 @@ export abstract class BaseSqlGenerator {
             case 'DENSE_RANK':
                 return this.generateWindowFunction('DENSE_RANK', [], node);
             case 'RUNNING_TOTAL':
-                return this.generateWindowFunction('SUM', [args[0]], node, 'ROWS UNBOUNDED PRECEDING');
+                return this.generateWindowFunction(
+                    'SUM',
+                    [args[0]],
+                    node,
+                    'ROWS UNBOUNDED PRECEDING',
+                );
             case 'NTILE':
                 return this.generateWindowFunction('NTILE', [args[0]], node);
             case 'FIRST':
-                return this.generateWindowFunction('FIRST_VALUE', [args[0]], node);
+                return this.generateWindowFunction(
+                    'FIRST_VALUE',
+                    [args[0]],
+                    node,
+                );
             case 'LAST':
-                return this.generateWindowFunction('LAST_VALUE', [args[0]], node, 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING');
+                return this.generateWindowFunction(
+                    'LAST_VALUE',
+                    [args[0]],
+                    node,
+                    'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
+                );
             case 'LAG':
                 return this.generateWindowFunction('LAG', args, node);
             case 'LEAD':
@@ -238,14 +289,27 @@ export abstract class BaseSqlGenerator {
             // enforces NumberLiteral in the second position (same pattern as BooleanExpression).
             case 'MOVING_SUM': {
                 const preceding = (node.args[1] as NumberLiteralNode).value;
-                return this.generateWindowFunction('SUM', [args[0]], node, `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`);
+                return this.generateWindowFunction(
+                    'SUM',
+                    [args[0]],
+                    node,
+                    `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
+                );
             }
             case 'MOVING_AVG': {
                 const preceding = (node.args[1] as NumberLiteralNode).value;
-                return this.generateWindowFunction('AVG', [args[0]], node, `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`);
+                return this.generateWindowFunction(
+                    'AVG',
+                    [args[0]],
+                    node,
+                    `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
+                );
             }
             default:
-                return assertUnreachable(node.name, `Unknown window function: ${node.name}`);
+                return assertUnreachable(
+                    node.name,
+                    `Unknown window function: ${node.name}`,
+                );
         }
     }
 
@@ -313,7 +377,10 @@ export abstract class BaseSqlGenerator {
         node: { windowClause?: WindowClauseNode | null },
         frameClause?: string,
     ): string {
-        const funcCall = funcArgs.length > 0 ? `${sqlFunc}(${funcArgs.join(', ')})` : `${sqlFunc}()`;
+        const funcCall =
+            funcArgs.length > 0
+                ? `${sqlFunc}(${funcArgs.join(', ')})`
+                : `${sqlFunc}()`;
         const overParts: string[] = [];
 
         const wc = node.windowClause;
@@ -322,7 +389,9 @@ export abstract class BaseSqlGenerator {
         }
         if (wc?.orderBy) {
             const dir = wc.orderBy.direction ? ` ${wc.orderBy.direction}` : '';
-            overParts.push(`ORDER BY ${this.generate(wc.orderBy.column)}${dir}`);
+            overParts.push(
+                `ORDER BY ${this.generate(wc.orderBy.column)}${dir}`,
+            );
         }
 
         const framePart = frameClause ? ` ${frameClause}` : '';

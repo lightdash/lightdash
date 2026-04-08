@@ -1,5 +1,5 @@
-import { BaseSqlGenerator } from './base';
 import type { StringLiteralNode } from '../types';
+import { BaseSqlGenerator } from './base';
 
 export class BigQuerySqlGenerator extends BaseSqlGenerator {
     protected quoteIdentifier(name: string): string {
