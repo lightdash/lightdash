@@ -59,7 +59,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormulaForm, type FormulaFormRef } from './FormulaForm';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
@@ -113,10 +113,9 @@ const TableCalculationModal: FC<Props> = ({
     const { addToastError } = useToaster();
 
     // Formula feature flag
-    const { data: formulaFlag } = useServerFeatureFlag(
+    const isFormulaEnabled = useClientFeatureFlag(
         FeatureFlags.FormulaTableCalculations,
     );
-    const isFormulaEnabled = formulaFlag?.enabled === true;
 
     // Explorer context for formula editor
     const tableName = useExplorerSelector(selectTableName);
