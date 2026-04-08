@@ -257,6 +257,7 @@ export type PreAggregateMaterializationSummary = {
     materializationRole: PreAggregateMaterializationRole | null;
     dimensions: string[];
     metrics: string[];
+    filters: MetricFilterRule[];
     timeDimension: string | null;
     granularity: TimeFrames | null;
     refreshCron: string | null;
