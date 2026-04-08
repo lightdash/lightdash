@@ -9,6 +9,7 @@ import {
     type CustomFormat,
     type TableCalculation,
     type TableCalculationTemplate,
+    FeatureFlags,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -49,11 +50,18 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
 import {
     selectCustomDimensions,
+    selectMetricQuery,
     selectTableCalculations,
+    selectTableName,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useExplore } from '../../../hooks/useExplore';
+import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
+import { FormulaForm, type FormulaFormRef } from './FormulaForm';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
 // Lazy load SqlForm to avoid loading heavy Ace Editor on initial modal open
@@ -76,6 +84,7 @@ type TableCalculationFormInputs = {
 enum EditMode {
     SQL = 'sql',
     TEMPLATE = 'template',
+    FORMULA = 'formula',
 }
 
 const TableCalculationModal: FC<Props> = ({
@@ -92,11 +101,30 @@ const TableCalculationModal: FC<Props> = ({
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
-    const defaultMode = hasTemplate ? EditMode.TEMPLATE : EditMode.SQL;
+    const hasFormula = !!tableCalculation?.formulaSource;
+    const defaultMode = hasFormula
+        ? EditMode.FORMULA
+        : hasTemplate
+          ? EditMode.TEMPLATE
+          : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
+
+    // Formula feature flag
+    const { data: formulaFlag } = useServerFeatureFlag(
+        FeatureFlags.FormulaTableCalculations,
+    );
+    const isFormulaEnabled = formulaFlag?.enabled === true;
+
+    // Explorer context for formula editor
+    const tableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const { data: explore } = useExplore(tableName);
+    const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
+    const formulaFormRef = useRef<FormulaFormRef>(null);
 
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -223,6 +251,33 @@ const TableCalculationModal: FC<Props> = ({
                     type: data.type,
                     template: editedTemplate ?? tableCalculation.template,
                 });
+            } else if (editMode === EditMode.FORMULA) {
+                if (!formulaFormRef.current) {
+                    addToastError({
+                        title: 'Formula editor not ready',
+                        key: 'table-calculation-modal',
+                    });
+                    return;
+                }
+                try {
+                    const { sql: compiledSql, formulaSource } =
+                        formulaFormRef.current.compileFormula();
+                    onSave({
+                        name: finalName,
+                        displayName: name,
+                        format: data.format,
+                        type: data.type,
+                        sql: compiledSql,
+                        formulaSource,
+                    });
+                } catch (e) {
+                    addToastError({
+                        title: 'Formula error',
+                        subtitle: getErrorMessage(e),
+                        key: 'table-calculation-modal',
+                    });
+                    return;
+                }
             } else {
                 onSave({
                     name: finalName,
@@ -297,12 +352,20 @@ const TableCalculationModal: FC<Props> = ({
                 value: EditMode.SQL,
                 label: 'Raw SQL',
             },
+            ...(isFormulaEnabled
+                ? [
+                      {
+                          value: EditMode.FORMULA,
+                          label: 'Formula',
+                      },
+                  ]
+                : []),
             {
                 value: EditMode.TEMPLATE,
                 label: 'Predefined Template',
             },
         ],
-        [],
+        [isFormulaEnabled],
     );
 
     // Memoize edit mode change handler
@@ -378,7 +441,7 @@ const TableCalculationModal: FC<Props> = ({
                                 {...form.getInputProps('name')}
                             />
 
-                            {hasTemplate && (
+                            {(hasTemplate || isFormulaEnabled) && (
                                 <Select
                                     label="Calculation Mode"
                                     value={editMode}
@@ -426,6 +489,62 @@ const TableCalculationModal: FC<Props> = ({
                                             onTemplateChange={
                                                 handleTemplateChange
                                             }
+                                        />
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="format" p="sm">
+                                        <FormatForm
+                                            formatInputProps={
+                                                getFormatInputProps
+                                            }
+                                            setFormatFieldValue={
+                                                setFormatFieldValue
+                                            }
+                                            format={form.values.format}
+                                        />
+                                    </Tabs.Panel>
+                                </Tabs>
+                            ) : editMode === EditMode.FORMULA ? (
+                                <Tabs
+                                    key="formula"
+                                    defaultValue="formulaEditor"
+                                    color="indigo"
+                                    variant="outline"
+                                    radius="xs"
+                                    styles={{
+                                        panel: {
+                                            borderColor: colors.ldGray[2],
+                                            borderWidth: 1,
+                                            borderStyle: 'solid',
+                                            borderTop: 'none',
+                                            height: isExpanded
+                                                ? 'calc(85vh - 400px)'
+                                                : 'auto',
+                                        },
+                                    }}
+                                >
+                                    <Tabs.List>
+                                        <Tabs.Tab value="formulaEditor">
+                                            Formula
+                                        </Tabs.Tab>
+                                        <Tabs.Tab value="format">
+                                            Format
+                                        </Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value="formulaEditor" p="sm">
+                                        <FormulaForm
+                                            ref={formulaFormRef}
+                                            explore={explore}
+                                            metricQuery={metricQuery}
+                                            warehouseType={
+                                                project?.warehouseConnection
+                                                    ?.type
+                                            }
+                                            initialFormulaSource={
+                                                tableCalculation?.formulaSource
+                                            }
+                                            isFullScreen={isExpanded}
                                         />
                                     </Tabs.Panel>
 
