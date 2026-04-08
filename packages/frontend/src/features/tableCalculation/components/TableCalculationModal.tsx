@@ -9,7 +9,6 @@ import {
     type CustomFormat,
     type TableCalculation,
     type TableCalculationTemplate,
-    FeatureFlags,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -59,7 +58,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormulaForm, type FormulaFormRef } from './FormulaForm';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
@@ -112,10 +110,9 @@ const TableCalculationModal: FC<Props> = ({
 
     const { addToastError } = useToaster();
 
-    // Formula feature flag
-    const isFormulaEnabled = useClientFeatureFlag(
-        FeatureFlags.FormulaTableCalculations,
-    );
+    // Formula feature flag — hardcoded for development
+    // TODO: restore useClientFeatureFlag(FeatureFlags.FormulaTableCalculations)
+    const isFormulaEnabled = true;
 
     // Explorer context for formula editor
     const tableName = useExplorerSelector(selectTableName);
