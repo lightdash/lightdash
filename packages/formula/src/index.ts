@@ -1,9 +1,27 @@
-import { parse } from './compiler';
 import { createGenerator } from './codegen';
+import { parse } from './compiler';
 import { FUNCTION_DEFINITIONS } from './functions';
-import type { ASTNode, CompileOptions, Dialect, FunctionDefinition } from './types';
+import type { FunctionDefinitionEntry } from './functions';
+import type {
+    ASTNode,
+    CompileOptions,
+    Dialect,
+    FunctionCategory,
+    FunctionDefinition,
+} from './types';
 
-export type { ASTNode, CompileOptions, Dialect, FunctionDefinition };
+export type {
+    ASTNode,
+    CompileOptions,
+    Dialect,
+    FunctionCategory,
+    FunctionDefinition,
+};
+export type {
+    FunctionName,
+    FunctionDefinitionEntry,
+    FunctionDefinitionFor,
+} from './functions';
 export { parse } from './compiler';
 export { FUNCTION_DEFINITIONS } from './functions';
 
@@ -13,6 +31,6 @@ export function compile(formula: string, options: CompileOptions): string {
     return generator.generate(ast);
 }
 
-export function listFunctions(): FunctionDefinition[] {
+export function listFunctions(): readonly FunctionDefinitionEntry[] {
     return FUNCTION_DEFINITIONS;
 }

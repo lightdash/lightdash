@@ -3,11 +3,22 @@ import type { FunctionDefinition } from './types';
 export const ZERO_ARG_FNS = ['TODAY', 'NOW'] as const;
 
 export const SINGLE_ARG_FNS = [
-    'ABS', 'CEIL', 'CEILING', 'FLOOR',
-    'LEN', 'LENGTH', 'TRIM', 'LOWER', 'UPPER',
-    'YEAR', 'MONTH', 'DAY',
+    'ABS',
+    'CEIL',
+    'CEILING',
+    'FLOOR',
+    'LEN',
+    'LENGTH',
+    'TRIM',
+    'LOWER',
+    'UPPER',
+    'YEAR',
+    'MONTH',
+    'DAY',
     'ISNULL',
-    'SUM', 'AVERAGE', 'AVG',
+    'SUM',
+    'AVERAGE',
+    'AVG',
 ] as const;
 
 export const ONE_OR_TWO_ARG_FNS = ['ROUND', 'MIN', 'MAX'] as const;
@@ -17,24 +28,32 @@ export const ZERO_OR_ONE_ARG_FNS = ['COUNT'] as const;
 export const VARIADIC_FNS = ['CONCAT', 'COALESCE'] as const;
 
 export const WINDOW_FNS = [
-    'ROW_NUMBER', 'RANK', 'DENSE_RANK',
-    'RUNNING_TOTAL', 'NTILE', 'FIRST', 'LAST',
-    'LAG', 'LEAD', 'MOVING_SUM', 'MOVING_AVG',
+    'ROW_NUMBER',
+    'RANK',
+    'DENSE_RANK',
+    'RUNNING_TOTAL',
+    'NTILE',
+    'FIRST',
+    'LAST',
+    'LAG',
+    'LEAD',
+    'MOVING_SUM',
+    'MOVING_AVG',
 ] as const;
 
 export const CONDITIONAL_AGG_FNS = ['SUMIF', 'AVERAGEIF'] as const;
 
 export const BOOLEAN_FNS = ['ISNULL'] as const;
 
-export type ZeroArgFnName = typeof ZERO_ARG_FNS[number];
-export type SingleArgFnName = typeof SINGLE_ARG_FNS[number];
-export type OneOrTwoArgFnName = typeof ONE_OR_TWO_ARG_FNS[number];
-export type ZeroOrOneArgFnName = typeof ZERO_OR_ONE_ARG_FNS[number];
-export type VariadicFnName = typeof VARIADIC_FNS[number];
-export type WindowFnName = typeof WINDOW_FNS[number];
-export type ConditionalAggFnName = typeof CONDITIONAL_AGG_FNS[number];
+export type ZeroArgFnName = (typeof ZERO_ARG_FNS)[number];
+export type SingleArgFnName = (typeof SINGLE_ARG_FNS)[number];
+export type OneOrTwoArgFnName = (typeof ONE_OR_TWO_ARG_FNS)[number];
+export type ZeroOrOneArgFnName = (typeof ZERO_OR_ONE_ARG_FNS)[number];
+export type VariadicFnName = (typeof VARIADIC_FNS)[number];
+export type WindowFnName = (typeof WINDOW_FNS)[number];
+export type ConditionalAggFnName = (typeof CONDITIONAL_AGG_FNS)[number];
 
-export const ALL_FUNCTION_NAMES: readonly string[] = [
+export const ALL_FUNCTION_NAMES = [
     ...ZERO_ARG_FNS,
     ...SINGLE_ARG_FNS,
     ...ONE_OR_TWO_ARG_FNS,
@@ -44,9 +63,12 @@ export const ALL_FUNCTION_NAMES: readonly string[] = [
     ...CONDITIONAL_AGG_FNS,
     'COUNTIF',
     'IF',
-];
+] as const;
 
-export const FUNCTION_DEFINITIONS: FunctionDefinition[] = [
+export type FunctionName = (typeof ALL_FUNCTION_NAMES)[number];
+
+// prettier-ignore
+export const FUNCTION_DEFINITIONS = [
     // Logical
     { name: 'IF', description: 'Conditional expression', minArgs: 2, maxArgs: 3, category: 'logical' },
     // Math
@@ -94,18 +116,32 @@ export const FUNCTION_DEFINITIONS: FunctionDefinition[] = [
     { name: 'LAST', description: 'Last value in window', minArgs: 1, maxArgs: 1, category: 'window' },
     { name: 'MOVING_SUM', description: 'Moving sum over preceding rows', minArgs: 2, maxArgs: 2, category: 'window' },
     { name: 'MOVING_AVG', description: 'Moving average over preceding rows', minArgs: 2, maxArgs: 2, category: 'window' },
-];
+] as const satisfies readonly FunctionDefinition[];
+
+export type FunctionDefinitionEntry = (typeof FUNCTION_DEFINITIONS)[number];
+
+export type FunctionDefinitionFor<N extends FunctionName> = Extract<FunctionDefinitionEntry, { name: N }>;
+
+type _AssertAllFunctionsDefined = [
+    Exclude<FunctionName, FunctionDefinitionEntry['name']>,
+] extends [never]
+    ? true
+    : {
+          error: 'Missing function definitions for';
+          names: Exclude<FunctionName, FunctionDefinitionEntry['name']>;
+      };
+const _assertAllFunctionsDefined: _AssertAllFunctionsDefined = true;
 
 export function getParserOptions() {
     return {
-        zeroArgFns: ZERO_ARG_FNS as unknown as string[],
-        singleArgFns: SINGLE_ARG_FNS as unknown as string[],
-        oneOrTwoArgFns: ONE_OR_TWO_ARG_FNS as unknown as string[],
-        zeroOrOneArgFns: ZERO_OR_ONE_ARG_FNS as unknown as string[],
-        variadicFns: VARIADIC_FNS as unknown as string[],
-        windowFns: WINDOW_FNS as unknown as string[],
-        conditionalAggFns: CONDITIONAL_AGG_FNS as unknown as string[],
-        allFunctionNames: ALL_FUNCTION_NAMES as unknown as string[],
-        booleanFns: BOOLEAN_FNS as unknown as string[],
+        zeroArgFns: ZERO_ARG_FNS,
+        singleArgFns: SINGLE_ARG_FNS,
+        oneOrTwoArgFns: ONE_OR_TWO_ARG_FNS,
+        zeroOrOneArgFns: ZERO_OR_ONE_ARG_FNS,
+        variadicFns: VARIADIC_FNS,
+        windowFns: WINDOW_FNS,
+        conditionalAggFns: CONDITIONAL_AGG_FNS,
+        allFunctionNames: ALL_FUNCTION_NAMES,
+        booleanFns: BOOLEAN_FNS,
     };
 }
