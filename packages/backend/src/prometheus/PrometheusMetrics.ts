@@ -140,7 +140,9 @@ export default class PrometheusMetrics {
 
     private warehouseDurationHistogram: prometheus.Histogram | null = null;
 
-    private overheadDurationHistogram: prometheus.Histogram | null = null;
+    private processingDurationHistogram: prometheus.Histogram | null = null;
+
+    private prepDurationHistogram: prometheus.Histogram | null = null;
 
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
@@ -205,9 +207,17 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
-                this.overheadDurationHistogram = new prometheus.Histogram({
-                    name: 'lightdash_query_overhead_duration_seconds',
-                    help: 'Lightdash overhead: total duration minus warehouse execution time',
+                this.processingDurationHistogram = new prometheus.Histogram({
+                    name: 'lightdash_query_processing_duration_seconds',
+                    help: 'Time spent on S3 stream setup, upload finalization, and DB updates around the warehouse query',
+                    labelNames: ['context'],
+                    buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                    ...rest,
+                });
+
+                this.prepDurationHistogram = new prometheus.Histogram({
+                    name: 'lightdash_query_prep_duration_seconds',
+                    help: 'Time spent preparing a query before warehouse execution: explore fetch, SQL compilation, credential loading',
                     labelNames: ['context'],
                     buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
@@ -872,14 +882,21 @@ export default class PrometheusMetrics {
         );
     }
 
-    public observeOverheadDuration(durationMs: number, context: string) {
+    public observeProcessingDuration(durationMs: number, context: string) {
         if (durationMs < 0) {
             Logger.warn(
-                `Negative query overhead detected: ${durationMs}ms (context=${context}). Warehouse reported longer than wall clock.`,
+                `Negative query processing duration: ${durationMs}ms (context=${context}). Warehouse reported longer than wall clock.`,
             );
             return;
         }
-        this.overheadDurationHistogram?.observe(
+        this.processingDurationHistogram?.observe(
+            { context: getQueryContextLabel(context) },
+            durationMs / 1000,
+        );
+    }
+
+    public observePrepDuration(durationMs: number, context: string) {
+        this.prepDurationHistogram?.observe(
             { context: getQueryContextLabel(context) },
             durationMs / 1000,
         );
