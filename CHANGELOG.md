@@ -1,3 +1,11 @@
+# [0.2735.0](https://github.com/lightdash/lightdash/compare/0.2734.0...0.2735.0) (2026-04-08)
+
+
+### Features
+
+* add materialization role display to pre-aggregate details ([#21837](https://github.com/lightdash/lightdash/issues/21837)) ([e7186eb](https://github.com/lightdash/lightdash/commit/e7186eb735d87224b1a7d677a4a2bd3377bdb3a4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add materialization role support for pre-aggregates ([#21797](https://github.com/lightdash/lightdash/issues/21797)) ([58d9272](https://github.com/lightdash/lightdash/commit/58d92720a33f08efb5f9dffa9523b12a8a3709c7))
+
 # [0.2734.0](https://github.com/lightdash/lightdash/compare/0.2733.0...0.2734.0) (2026-04-08)
 
 
