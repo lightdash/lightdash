@@ -61,7 +61,6 @@ import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
-import { ProjectService } from '../ProjectService/ProjectService';
 import {
     allExplores,
     expectedColumns,
@@ -126,6 +125,7 @@ const projectModel = {
     getSummary: jest.fn(async () => projectSummary),
     getTablesConfiguration: jest.fn(async () => tablesConfiguration),
     updateTablesConfiguration: jest.fn(),
+    getQueryTimezone: jest.fn(async () => 'UTC'),
     getExploreFromCache: jest.fn(async () => validExplore),
     findExploresFromCache: jest.fn(async () => allExplores),
     lockProcess: jest.fn((_projectUuid, fun) => fun()),
@@ -1912,44 +1912,45 @@ describe('AsyncQueryService', () => {
             jest.restoreAllMocks();
         });
 
-        it('uses materializationRole instead of the triggering user context during materialization prep', async () => {
+        it('uses materializationRole instead of the triggering user context during materialization execution', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const materializationExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        sqlWhere:
+                            "'EMEA' IN (${lightdash.attribute.allowed_regions}) AND ${lightdash.user.email} = 'materialize@acme.com'",
+                        uncompiledSqlWhere:
+                            "'EMEA' IN (${lightdash.attribute.allowed_regions}) AND ${lightdash.user.email} = 'materialize@acme.com'",
+                    },
+                },
+            };
+
             service.getUserAttributes = jest.fn(async () => ({
                 userAttributes: {
-                    region: ['viewer-region'],
+                    allowed_regions: ['viewer-region'],
                 },
                 intrinsicUserAttributes: {
                     email: 'viewer@example.com',
                 },
             }));
-            (service as AnyType).getAvailableParameters = jest.fn(
-                async () => ({}),
-            );
-            (service as AnyType).getQueryTimezoneForProject = jest.fn(
-                async () => 'UTC',
-            );
+            service.getExplore = jest
+                .fn()
+                .mockResolvedValue(materializationExplore);
+            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: {
+                    cacheHit: false,
+                },
+            });
 
-            const compileQuerySpy = jest
-                .spyOn(ProjectService, '_compileQuery')
-                .mockResolvedValue({
-                    query: 'SELECT 1',
-                    fields: {},
-                    warnings: [],
-                    parameterReferences: new Set(),
-                    missingParameterReferences: new Set(),
-                    usedParameters: {},
-                } as AnyType);
-
-            await (service as AnyType).prepareMetricQueryAsyncQueryArgs({
+            await service.executeAsyncMetricQuery({
                 account: sessionAccount,
                 projectUuid,
                 metricQuery: metricQueryMock,
-                dateZoom: undefined,
-                explore: validExplore,
-                warehouseSqlBuilder: warehouseClientMock,
-                parameters: undefined,
-                pivotConfiguration: undefined,
-                userAttributeOverrides: undefined,
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
                 materializationRole: {
                     userAttributes: {
                         allowed_regions: ['EMEA', 'APAC'],
@@ -1961,15 +1962,23 @@ describe('AsyncQueryService', () => {
             });
 
             expect(service.getUserAttributes).not.toHaveBeenCalled();
-            expect(compileQuerySpy).toHaveBeenCalledWith(
+            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    userAttributes: {
-                        allowed_regions: ['EMEA', 'APAC'],
-                    },
-                    intrinsicUserAttributes: {
-                        email: 'materialize@acme.com',
-                    },
+                    sql: expect.stringContaining("'EMEA', 'APAC'"),
                 }),
+                expect.any(Object),
+            );
+            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: expect.stringContaining('materialize@acme.com'),
+                }),
+                expect.any(Object),
+            );
+            expect(service.executeAsyncQuery).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sql: expect.stringContaining('viewer-region'),
+                }),
+                expect.any(Object),
             );
         });
 
