@@ -406,17 +406,20 @@ export class PivotQueryBuilder {
 
         // Carry implicit metrics through using ANY_VALUE — these are already
         // aggregated in original_query, we just need them to survive the GROUP BY.
-        // Aliased to their original column name (no suffix).
-        const implicitMetricSelects = this.implicitMetricReferences.map(
-            (ref) => {
-                const passthrough = getAggregatedField(
-                    this.warehouseSqlBuilder,
-                    VizAggregationOptions.ANY,
-                    ref,
-                );
-                return `${passthrough} AS ${q}${ref}${q}`;
-            },
-        );
+        // Only needed on the full pivot path (groupByColumns present) where
+        // pivot_table_calculations will reference them. On the simple path
+        // (no groupByColumns) they would leak into SELECT * with no consumer.
+        const implicitMetricSelects =
+            groupByColumns && groupByColumns.length > 0
+                ? this.implicitMetricReferences.map((ref) => {
+                      const passthrough = getAggregatedField(
+                          this.warehouseSqlBuilder,
+                          VizAggregationOptions.ANY,
+                          ref,
+                      );
+                      return `${passthrough} AS ${q}${ref}${q}`;
+                  })
+                : [];
 
         return `SELECT ${[
             ...new Set(groupBySelectDimensions), // Remove duplicate columns

@@ -2667,7 +2667,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             ).toHaveLength(1);
         });
 
-        test('Should include implicit metrics in simple query path (no groupByColumns)', () => {
+        test('Should NOT include implicit metrics in simple query path (no groupByColumns)', () => {
             const itemsMap: ItemsMap = {
                 tc1: {
                     name: 'tc1',
@@ -2702,12 +2702,61 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
             const normalized = replaceWhitespace(result);
 
-            // Implicit metric should still be in group_by_query even in simple path
-            expect(normalized).toContain(
-                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
-            );
+            // Implicit metrics should NOT be in group_by_query on simple path —
+            // pivot_table_calculations is not created, so they would just leak
+            // into SELECT * as noise columns.
+            expect(normalized).not.toContain('ARRAY_AGG("events_revenue")');
 
             // Simple path should NOT have pivot_table_calculations
+            expect(result).not.toContain('pivot_table_calculations');
+        });
+
+        test('Simple path: implicit metrics are excluded from SELECT * output', () => {
+            // M2 fix: on the simple path (no groupByColumns), implicit metrics
+            // are now excluded from group_by_query since pivot_table_calculations
+            // is not created on this path — they would just be noise columns.
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // The final query is SELECT * FROM group_by_query
+            expect(result).toContain('SELECT * FROM group_by_query');
+
+            // Implicit metric should NOT be in group_by_query (no leak)
+            expect(replaceWhitespace(result)).not.toContain(
+                'ARRAY_AGG("events_revenue")',
+            );
+
+            // pivot_table_calculations is NOT created on the simple path
             expect(result).not.toContain('pivot_table_calculations');
         });
 
@@ -3067,6 +3116,56 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).not.toContain('ARRAY_AGG');
         });
 
+        test('Postgres: implicit metrics use ARRAY_AGG not SUM/AVG (safe for non-additive metrics)', () => {
+            // M3 validation: implicit metrics must NOT re-aggregate with the
+            // metric's original aggregation (e.g., SUM, AVG). The values in
+            // original_query are already aggregated by MetricQueryBuilder.
+            // Re-aggregating would be wrong for non-additive metrics like AVG.
+            // ANY_VALUE (ARRAY_AGG[1] on Postgres) picks a single value, which
+            // is correct when each (index, groupBy) cell maps to one row.
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.avg_score}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_avg_score, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // Must use ARRAY_AGG (ANY_VALUE equivalent), NOT SUM or AVG
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_avg_score"))[1] AS "events_avg_score"',
+            );
+            expect(normalized).not.toMatch(
+                /sum\("events_avg_score"\)|avg\("events_avg_score"\)/i,
+            );
+        });
+
         test('Should not add implicit metrics for fields already in indexColumns', () => {
             const itemsMap: ItemsMap = {
                 tc1: {
@@ -3284,9 +3383,6 @@ SELECT * FROM group_by_query LIMIT 50`);
                         type: MetricType.SUM,
                         tableLabel: 'Events',
                         sql: '',
-                        compiledSql: '',
-                        tablesReferences: [],
-                        isAutoGenerated: false,
                         hidden: false,
                     },
                 },
