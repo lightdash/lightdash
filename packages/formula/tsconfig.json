@@ -2,7 +2,7 @@
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
         "target": "ES2020",
-        "module": "CommonJS",
+        "module": "ESNext",
         "lib": ["ESNext"],
         "declaration": true,
         "declarationMap": true,

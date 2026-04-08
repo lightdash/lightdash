@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build:grammar": "peggy --format commonjs -o src/grammar/parser.js src/grammar/formula.pegjs",
+    "build:grammar": "peggy --format es -o src/grammar/parser.js src/grammar/formula.pegjs",
     "build:ts": "tsc --build",
     "build": "pnpm run build:grammar && pnpm run build:ts",
     "typecheck": "tsc --project tsconfig.json --noEmit",
