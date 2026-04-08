@@ -5,29 +5,17 @@ import {
 } from '@lightdash/common';
 import { compile, parse } from '@lightdash/formula';
 import { Code, Text } from '@mantine-8/core';
+import type { Editor } from '@tiptap/react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { FormulaEditor } from './FormulaEditor';
+import { buildFieldMapping, getFormulaDialect } from './formulaFieldUtils';
+import styles from './FormulaForm.module.css';
 
 /** Prepend '=' for the parser — strip if user typed it since the UI shows '=' as a prefix */
 function toFormulaText(text: string): string {
     const trimmed = text.trim();
     return trimmed.startsWith('=') ? trimmed : `=${trimmed}`;
 }
-import type { Editor } from '@tiptap/react';
-import {
-    useCallback,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-    forwardRef,
-} from 'react';
-import { FormulaEditor } from './FormulaEditor';
-import { buildFieldMapping, getFormulaDialect } from './formulaFieldUtils';
-import styles from './FormulaForm.module.css';
-
-export type FormulaFormRef = {
-    /** Compile the current formula to SQL. Returns formula + compiledSql for the new type variant. */
-    compileFormula: () => { formula: string; compiledSql: string };
-};
 
 type Props = {
     explore: Explore | undefined;
@@ -38,123 +26,83 @@ type Props = {
 };
 
 // ts-unused-exports:disable-next-line
-export const FormulaForm = forwardRef<FormulaFormRef, Props>(
-    (
-        {
-            explore,
-            metricQuery,
-            warehouseType,
-            initialFormulaSource,
-            isFullScreen,
+export const FormulaForm: FC<Props> = ({
+    explore,
+    metricQuery,
+    warehouseType,
+    initialFormulaSource,
+    isFullScreen,
+}) => {
+    const editorRef = useRef<Editor | null>(null);
+    const [parseError, setParseError] = useState<string | null>(null);
+    const [sqlPreview, setSqlPreview] = useState<string | null>(null);
+
+    const fieldMapping = useMemo(
+        () => buildFieldMapping(explore, metricQuery),
+        [explore, metricQuery],
+    );
+
+    const dialect = useMemo(
+        () => getFormulaDialect(warehouseType),
+        [warehouseType],
+    );
+
+    /** Client-side compile for preview only — real compilation will happen on the backend */
+    const tryCompile = useCallback(
+        (text: string): string | null => {
+            const columns: Record<string, string> = {};
+            for (const fieldId of Object.keys(fieldMapping.idToDisplay)) {
+                columns[fieldId] = fieldId;
+            }
+            try {
+                return compile(toFormulaText(text), { dialect, columns });
+            } catch {
+                return null;
+            }
         },
-        ref,
-    ) => {
-        const editorRef = useRef<Editor | null>(null);
-        const [parseError, setParseError] = useState<string | null>(null);
-        const [sqlPreview, setSqlPreview] = useState<string | null>(null);
+        [dialect, fieldMapping],
+    );
 
-        const fieldMapping = useMemo(
-            () => buildFieldMapping(explore, metricQuery),
-            [explore, metricQuery],
-        );
+    const handleTextChange = useCallback(
+        (text: string) => {
+            if (!text.trim()) {
+                setParseError(null);
+                setSqlPreview(null);
+                return;
+            }
+            try {
+                parse(toFormulaText(text));
+                setParseError(null);
+                const sql = tryCompile(text);
+                setSqlPreview(sql);
+            } catch (e: unknown) {
+                const message =
+                    e instanceof Error ? e.message : 'Invalid formula';
+                setParseError(message);
+                setSqlPreview(null);
+            }
+        },
+        [tryCompile],
+    );
 
-        const dialect = useMemo(
-            () => getFormulaDialect(warehouseType),
-            [warehouseType],
-        );
-
-        const tryCompile = useCallback(
-            (text: string): string | null => {
-                const columns: Record<string, string> = {};
-                for (const fieldId of Object.keys(fieldMapping.idToDisplay)) {
-                    columns[fieldId] = fieldId;
-                }
-                try {
-                    return compile(toFormulaText(text), { dialect, columns });
-                } catch {
-                    return null;
-                }
-            },
-            [dialect, fieldMapping],
-        );
-
-        const handleTextChange = useCallback(
-            (text: string) => {
-                if (!text.trim()) {
-                    setParseError(null);
-                    setSqlPreview(null);
-                    return;
-                }
-                try {
-                    parse(toFormulaText(text));
-                    setParseError(null);
-                    // If parse succeeds, try to compile for preview
-                    const sql = tryCompile(text);
-                    setSqlPreview(sql);
-                } catch (e: unknown) {
-                    const message =
-                        e instanceof Error ? e.message : 'Invalid formula';
-                    setParseError(message);
-                    setSqlPreview(null);
-                }
-            },
-            [tryCompile],
-        );
-
-        useImperativeHandle(
-            ref,
-            () => ({
-                compileFormula: () => {
-                    const editor = editorRef.current;
-                    if (!editor) {
-                        throw new Error('Editor not initialized');
-                    }
-
-                    const formulaText = editor.getText().trim();
-                    if (!formulaText) {
-                        throw new Error('Formula cannot be empty');
-                    }
-
-                    const columns: Record<string, string> = {};
-                    for (const fieldId of Object.keys(
-                        fieldMapping.idToDisplay,
-                    )) {
-                        columns[fieldId] = fieldId;
-                    }
-
-                    const fullFormula = toFormulaText(formulaText);
-                    const compiledSql = compile(fullFormula, {
-                        dialect,
-                        columns,
-                    });
-
-                    return { formula: fullFormula, compiledSql };
-                },
-            }),
-            [dialect, fieldMapping],
-        );
-
-        return (
-            <>
-                <FormulaEditor
-                    explore={explore}
-                    metricQuery={metricQuery}
-                    initialContent={initialFormulaSource?.replace(/^=/, '')}
-                    onTextChange={handleTextChange}
-                    editorRef={editorRef}
-                    isFullScreen={isFullScreen}
-                />
-                {parseError && (
-                    <Text className={styles.errorText}>{parseError}</Text>
-                )}
-                {sqlPreview && !parseError && (
-                    <Code block className={styles.sqlPreview}>
-                        {sqlPreview}
-                    </Code>
-                )}
-            </>
-        );
-    },
-);
-
-FormulaForm.displayName = 'FormulaForm';
+    return (
+        <>
+            <FormulaEditor
+                explore={explore}
+                metricQuery={metricQuery}
+                initialContent={initialFormulaSource?.replace(/^=/, '')}
+                onTextChange={handleTextChange}
+                editorRef={editorRef}
+                isFullScreen={isFullScreen}
+            />
+            {parseError && (
+                <Text className={styles.errorText}>{parseError}</Text>
+            )}
+            {sqlPreview && !parseError && (
+                <Code block className={styles.sqlPreview}>
+                    {sqlPreview}
+                </Code>
+            )}
+        </>
+    );
+};

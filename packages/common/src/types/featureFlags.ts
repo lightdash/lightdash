@@ -145,7 +145,7 @@ export enum FeatureFlags {
      * Enable Google Sheets-like formula editor in Table Calculations modal.
      * When enabled, a "Formula" tab appears alongside SQL and Template tabs.
      */
-    FormulaTableCalculations = 'formula-table-calculations',
+    FormulaTableCalculations = 'table-calculations-spreadsheet-formulas',
 }
 
 export type FeatureFlag = {

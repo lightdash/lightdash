@@ -1,5 +1,6 @@
 import {
     CustomFormatType,
+    FeatureFlags,
     getErrorMessage,
     getItemId,
     isFormulaTableCalculation,
@@ -59,8 +60,9 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
-import { FormulaForm, type FormulaFormRef } from './FormulaForm';
+import { FormulaForm } from './FormulaForm';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
 // Lazy load SqlForm to avoid loading heavy Ace Editor on initial modal open
@@ -113,9 +115,9 @@ const TableCalculationModal: FC<Props> = ({
 
     const { addToastError } = useToaster();
 
-    // Formula feature flag — hardcoded for development
-    // TODO: restore useClientFeatureFlag(FeatureFlags.FormulaTableCalculations)
-    const isFormulaEnabled = true;
+    const isFormulaEnabled = useClientFeatureFlag(
+        FeatureFlags.FormulaTableCalculations,
+    );
 
     // Explorer context for formula editor
     const tableName = useExplorerSelector(selectTableName);
@@ -123,8 +125,6 @@ const TableCalculationModal: FC<Props> = ({
     const { data: explore } = useExplore(tableName);
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
-    const formulaFormRef = useRef<FormulaFormRef>(null);
-
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
 
@@ -251,32 +251,14 @@ const TableCalculationModal: FC<Props> = ({
                     template: editedTemplate ?? tableCalculation.template,
                 });
             } else if (editMode === EditMode.FORMULA) {
-                if (!formulaFormRef.current) {
-                    addToastError({
-                        title: 'Formula editor not ready',
-                        key: 'table-calculation-modal',
-                    });
-                    return;
-                }
-                try {
-                    const { formula, compiledSql } =
-                        formulaFormRef.current.compileFormula();
-                    onSave({
-                        name: finalName,
-                        displayName: name,
-                        format: data.format,
-                        type: data.type,
-                        formula,
-                        compiledSql,
-                    });
-                } catch (e) {
-                    addToastError({
-                        title: 'Formula error',
-                        subtitle: getErrorMessage(e),
-                        key: 'table-calculation-modal',
-                    });
-                    return;
-                }
+                // TODO: backend parse + compile endpoints needed before formula save
+                addToastError({
+                    title: 'Formula save not yet supported',
+                    subtitle:
+                        'Backend compilation endpoints are not implemented yet.',
+                    key: 'table-calculation-modal',
+                });
+                return;
             } else {
                 onSave({
                     name: finalName,
@@ -533,7 +515,6 @@ const TableCalculationModal: FC<Props> = ({
 
                                     <Tabs.Panel value="formulaEditor" p="sm">
                                         <FormulaForm
-                                            ref={formulaFormRef}
                                             explore={explore}
                                             metricQuery={metricQuery}
                                             warehouseType={
