@@ -85,6 +85,13 @@
                                     "type": "string"
                                 }
                             },
+                            "filters": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/Filter"
+                                },
+                                "description": "Static filters applied when materializing the pre-aggregate"
+                            },
                             "time_dimension": {
                                 "type": "string"
                             },
