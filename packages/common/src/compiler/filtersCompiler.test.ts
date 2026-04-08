@@ -3,12 +3,13 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
-    createTimezoneAwareDateFormatter,
+    createBoundaryDateFormatter,
     renderBooleanFilterSql,
     renderDateFilterSql,
     renderFilterRuleSqlFromField,
     renderNumberFilterSql,
     renderStringFilterSql,
+    renderTimestampFilterSql,
 } from './filtersCompiler';
 import {
     adapterType,
@@ -632,7 +633,7 @@ describe('Filter SQL', () => {
 
     test('should return in between date filter sql for timestamps', () => {
         expect(
-            renderDateFilterSql(
+            renderTimestampFilterSql(
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
                 adapterType.default,
@@ -643,7 +644,7 @@ describe('Filter SQL', () => {
     });
     test('should return in between date filter sql for timestamps for trino adapter', () => {
         expect(
-            renderDateFilterSql(
+            renderTimestampFilterSql(
                 DimensionSqlMock,
                 InBetweenPastTwoYearsFilter,
                 adapterType.trino,
@@ -2160,7 +2161,7 @@ describe('Number Filter SQL Injection Prevention', () => {
     });
 
     // ── Timezone-aware date formatter boundary tests (GLITCH-323) ───
-    // Verify that createTimezoneAwareDateFormatter produces correct
+    // Verify that createBoundaryDateFormatter produces correct
     // local dates for positive-offset timezones where the default
     // formatDate (which receives a UTC Date) would shift the date
     // back one day.
@@ -2184,7 +2185,7 @@ describe('Number Filter SQL Injection Prevention', () => {
                         },
                         adapterType.default,
                         timezone,
-                        createTimezoneAwareDateFormatter(timezone),
+                        createBoundaryDateFormatter(timezone),
                     ),
                 ).toStrictEqual(expected);
             },
@@ -2205,7 +2206,7 @@ describe('Number Filter SQL Injection Prevention', () => {
                         },
                         adapterType.default,
                         timezone,
-                        createTimezoneAwareDateFormatter(timezone),
+                        createBoundaryDateFormatter(timezone),
                     ),
                 ).toStrictEqual(expected);
             },
@@ -2229,7 +2230,7 @@ describe('Number Filter SQL Injection Prevention', () => {
                         },
                         adapterType.default,
                         timezone,
-                        createTimezoneAwareDateFormatter(timezone),
+                        createBoundaryDateFormatter(timezone),
                     ),
                 ).toStrictEqual(expected);
             },

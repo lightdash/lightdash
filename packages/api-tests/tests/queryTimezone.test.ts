@@ -56,6 +56,20 @@ const EQUALS_FILTER = (day: string) => ({
     },
 });
 
+const IN_BETWEEN_FILTER = (from: string, to: string) => ({
+    dimensions: {
+        id: 'tz-test',
+        and: [
+            {
+                id: 'tz-between',
+                target: { fieldId: 'timezone_test_event_timestamp_day' },
+                operator: 'inBetween',
+                values: [from, to],
+            },
+        ],
+    },
+});
+
 const GREATER_THAN_FILTER = (day: string) => ({
     dimensions: {
         id: 'tz-test',
@@ -193,6 +207,72 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
             });
             expect(rows).toHaveLength(1);
             expect(getTotalCount(rows)).toBe(5);
+        });
+    });
+
+    // ── Filter alignment: inBetween ────────────────────────────────────
+    // Jan 14–15 inclusive. Expected totals per timezone:
+    //   UTC: 0+6=6 | New_York: 1+6=7 | Chicago: 2+5=7 | Tokyo: 0+5=5 | Pago_Pago: 4+4=8
+
+    describe('filter alignment — inBetween Jan 14 to Jan 15', () => {
+        it('UTC: 6 events in Jan 14–15', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
+            });
+            expect(getTotalCount(rows)).toBe(6);
+        });
+
+        it('America/New_York: 7 events in Jan 14–15', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'America/New_York',
+                filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
+            });
+            expect(getTotalCount(rows)).toBe(7);
+        });
+
+        it('America/Chicago: 7 events in Jan 14–15', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'America/Chicago',
+                filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
+            });
+            expect(getTotalCount(rows)).toBe(7);
+        });
+
+        it('Asia/Tokyo: 5 events in Jan 14–15', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'Asia/Tokyo',
+                filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
+            });
+            expect(getTotalCount(rows)).toBe(5);
+        });
+
+        it('Pacific/Pago_Pago: 8 events in Jan 14–15', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'Pacific/Pago_Pago',
+                filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
+            });
+            expect(getTotalCount(rows)).toBe(8);
+        });
+
+        // Single-day inBetween — same as equals, catches off-by-one boundary shifts
+        it('America/New_York: 6 events in Jan 15–15 (single day)', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'America/New_York',
+                filters: IN_BETWEEN_FILTER('2024-01-15', '2024-01-15'),
+            });
+            expect(getTotalCount(rows)).toBe(6);
         });
     });
 
