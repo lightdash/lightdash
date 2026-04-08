@@ -1,0 +1,12 @@
+.errorText {
+    font-size: var(--mantine-font-size-xs);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+
+    @mixin light {
+        color: var(--mantine-color-red-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-red-4);
+    }
+}
