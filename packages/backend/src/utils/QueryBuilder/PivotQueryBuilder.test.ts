@@ -2958,6 +2958,114 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('pivot_table_calculations');
             expect(result).toContain('events_avg_score');
         });
+
+        test('Should carry implicit metrics through anchor CTE pipeline when sorting by value column', () => {
+            const itemsMap: ItemsMap = {
+                ratio: {
+                    name: 'ratio',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Ratio',
+                    sql: 'pivot_index(${events.cost}, 1) / NULLIF(pivot_index(${events.revenue}, 2), 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'ratio',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'events_revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, events_cost, null AS ratio FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // Implicit metric events_cost should be in group_by_query with ANY_VALUE
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_cost"))[1] AS "events_cost"',
+            );
+
+            // Anchor CTE pipeline should be active (sorting by value column)
+            expect(result).toContain('column_ranking AS (');
+            expect(result).toContain('anchor_column AS (');
+            expect(result).toContain('row_ranking AS (');
+
+            // Implicit metric should be carried through pivot_query SELECT
+            expect(normalized).toContain('g."events_cost"');
+
+            // pivot_table_calculations should exist for the TC
+            expect(result).toContain('pivot_table_calculations');
+        });
+
+        test('Should use BigQuery ANY_VALUE syntax for implicit metrics', () => {
+            const mockBigQueryBuilder = {
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            } as unknown as WarehouseSqlBuilder;
+
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockBigQueryBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+
+            // BigQuery should use ANY_VALUE, not ARRAY_AGG
+            expect(result).toContain(
+                'ANY_VALUE(`events_revenue`) AS `events_revenue`',
+            );
+            expect(result).not.toContain('ARRAY_AGG');
+        });
     });
 
     describe('Table calculations with interdependencies', () => {
