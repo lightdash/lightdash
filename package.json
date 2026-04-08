@@ -29,7 +29,8 @@
             "eslint": "8.57.1",
             "canvas": "3.2.1",
             "express-rate-limit": "8.3.0",
-            "@hapi/content": "6.0.1"
+            "@hapi/content": "6.0.1",
+            "undici": "6.24.1"
         }
     },
     "dependencies": {
