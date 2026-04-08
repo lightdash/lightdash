@@ -64,6 +64,10 @@ export default defineConfig({
                           __dirname,
                           '../common/src/index.ts',
                       ),
+                      '@lightdash/formula': path.resolve(
+                          __dirname,
+                          '../formula/src/index.ts',
+                      ),
                   }
                 : undefined,
     },
