@@ -1,3 +1,10 @@
+## [0.2739.1](https://github.com/lightdash/lightdash/compare/0.2739.0...0.2739.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* quote field references in pivot table calculation SQL ([#21836](https://github.com/lightdash/lightdash/issues/21836)) ([6c5544e](https://github.com/lightdash/lightdash/commit/6c5544e15e73e141785c4ff0cb1cb5500126328f))
+
 # [0.2739.0](https://github.com/lightdash/lightdash/compare/0.2738.1...0.2739.0) (2026-04-08)
 
 
