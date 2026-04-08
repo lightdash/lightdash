@@ -3220,7 +3220,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole !== undefined &&
             context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
         ) {
-            throw new Error(
+            throw new ForbiddenError(
                 'materializationRole is only supported for pre-aggregate materialization',
             );
         }

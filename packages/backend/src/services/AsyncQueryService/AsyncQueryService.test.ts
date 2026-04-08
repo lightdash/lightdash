@@ -1998,9 +1998,7 @@ describe('AsyncQueryService', () => {
                         },
                     },
                 }),
-            ).rejects.toThrow(
-                'materializationRole is only supported for pre-aggregate materialization',
-            );
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 
