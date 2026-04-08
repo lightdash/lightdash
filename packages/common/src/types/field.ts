@@ -512,6 +512,8 @@ export type TableCalculation = {
     format?: CustomFormat;
     /** Data type of the calculation result */
     type?: TableCalculationType;
+    /** Original formula source for re-editing (set when created via Formula tab) */
+    formulaSource?: string;
 } & (
     | {
           /** SQL expression for the calculation (can reference fields with ${table.field}) */
