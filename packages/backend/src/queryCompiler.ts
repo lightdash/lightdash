@@ -13,6 +13,7 @@ import {
     ExploreCompiler,
     getItemId,
     isCustomBinDimension,
+    isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
     isSqlTableCalculation,
@@ -24,6 +25,12 @@ import {
     TableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import {
+    compile as compileFormula,
+    extractColumnRefs,
+    parse as parseFormula,
+} from '@lightdash/formula';
+import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 
 const getTableCalculationReferences = (sql: string): string[] => {
@@ -68,7 +75,18 @@ const buildTableCalculationDependencyGraph = (
             };
         }
 
-        throw new CompileError(`Table calculation has no SQL or template`, {});
+        if (isFormulaTableCalculation(calc)) {
+            const ast = parseFormula(calc.formula);
+            return {
+                name: calc.name,
+                dependencies: extractColumnRefs(ast),
+            };
+        }
+
+        throw new CompileError(
+            `Table calculation has no SQL, template, or formula`,
+            {},
+        );
     });
 
 const compileTableCalculation = (
@@ -101,31 +119,22 @@ const compileTableCalculation = (
         const compiledSql = tableCalculation.sql.replace(
             lightdashVariablePattern,
             (_, p1) => {
-                // Check if this is a reference to another table calculation
                 if (dependencyGraph.some((dep) => dep.name === p1)) {
-                    // For table calc references, we'll leave them as placeholders
-                    // MetricQueryBuilder will resolve these with proper CTE references
                     return `${quoteChar}${p1}${quoteChar}`;
                 }
-
-                // If the field is already valid, return it
                 if (validFieldIds.includes(p1)) {
                     return `${quoteChar}${p1}${quoteChar}`;
                 }
-
-                // Otherwise, try to convert it as a field reference (table.field format)
                 const fieldId = convertFieldRefToFieldId(p1);
                 if (validFieldIds.includes(fieldId)) {
                     return `${quoteChar}${fieldId}${quoteChar}`;
                 }
-
                 throw new CompileError(
                     `Table calculation contains a reference "${p1}" to a field or table calculation that isn't included in the query.`,
                     {},
                 );
             },
         );
-
         return {
             ...tableCalculation,
             compiledSql,
@@ -140,7 +149,6 @@ const compileTableCalculation = (
             sortFields,
             customBinDimensionIds,
         );
-
         return {
             ...tableCalculation,
             compiledSql,
@@ -148,7 +156,32 @@ const compileTableCalculation = (
         };
     }
 
-    throw new CompileError(`Table calculation has no SQL or template`, {});
+    if (isFormulaTableCalculation(tableCalculation)) {
+        const dialect = mapAdapterToFormulaDialect(
+            warehouseSqlBuilder.getAdapterType(),
+        );
+        const columns: Record<string, string> = {};
+        for (const fieldId of validFieldIds) {
+            columns[fieldId] = fieldId;
+        }
+        for (const dep of dependencyGraph) {
+            columns[dep.name] = dep.name;
+        }
+        const compiledSql = compileFormula(tableCalculation.formula, {
+            dialect,
+            columns,
+        });
+        return {
+            ...tableCalculation,
+            compiledSql,
+            dependsOn: tableCalcDependencies,
+        };
+    }
+
+    throw new CompileError(
+        `Table calculation has no SQL, template, or formula`,
+        {},
+    );
 };
 
 const compileTableCalculations = (

@@ -60,6 +60,7 @@
         "@langchain/core": "0.3.80",
         "@langchain/openai": "0.4.2",
         "@lightdash/common": "workspace:*",
+        "@lightdash/formula": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
         "@mastra/schema-compat": "0.11.2",
         "@modelcontextprotocol/sdk": "1.27.1",

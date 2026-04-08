@@ -23,6 +23,7 @@ export type {
     FunctionDefinitionFor,
 } from './functions';
 export { parse } from './compiler';
+export { extractColumnRefs } from './ast';
 export { FUNCTION_DEFINITIONS } from './functions';
 
 export function compile(formula: string, options: CompileOptions): string {
