@@ -331,9 +331,11 @@ const TableCalculationModal: FC<Props> = ({
     const editModeOptions = useMemo(
         () => [
             { value: EditMode.SQL, label: 'SQL' },
-            ...(isFormulaEnabled
-                ? [{ value: EditMode.FORMULA, label: 'Formula' }]
-                : []),
+            {
+                value: EditMode.FORMULA,
+                label: isFormulaEnabled ? 'Formula' : 'Formula — coming soon',
+                disabled: !isFormulaEnabled,
+            },
         ],
         [isFormulaEnabled],
     );
@@ -404,7 +406,7 @@ const TableCalculationModal: FC<Props> = ({
                                 {...form.getInputProps('name')}
                             />
 
-                            {isFormulaEnabled && !hasTemplate && (
+                            {!hasTemplate && (
                                 <SegmentedControl
                                     value={editMode}
                                     onChange={(value) =>
