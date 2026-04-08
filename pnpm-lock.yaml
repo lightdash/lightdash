@@ -925,6 +925,9 @@ importers:
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
+      '@lightdash/formula':
+        specifier: workspace:*
+        version: link:../formula
       '@mantine-8/core':
         specifier: npm:@mantine/core@8.0.0
         version: '@mantine/core@8.0.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)'

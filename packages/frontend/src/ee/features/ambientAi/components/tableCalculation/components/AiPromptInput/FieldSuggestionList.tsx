@@ -38,7 +38,7 @@ const FieldItem: FC<FieldItemProps> = ({ suggestion, isSelected, onClick }) => {
     return (
         <PolymorphicGroupButton
             onClick={onClick}
-            className={styles.fieldItem}
+            className={styles.suggestionItem}
             data-selected={isSelected}
         >
             <Group noWrap spacing="xs">

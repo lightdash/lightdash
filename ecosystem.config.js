@@ -139,6 +139,20 @@ module.exports = {
             time: true,
         },
 
+        // Formula Package TypeScript Watcher
+        {
+            name: `${instanceId}-formula-watch`,
+            script: '../../node_modules/.bin/tsc',
+            args: '--build --watch --preserveWatchOutput tsconfig.json',
+            interpreter: 'none',
+            cwd: path.join(__dirname, 'packages/formula'),
+            watch: false,
+            autorestart: false,
+            kill_timeout: 3000,
+            merge_logs: true,
+            time: true,
+        },
+
         // Warehouses Package TypeScript Watcher
         {
             name: `${instanceId}-warehouses-watch`,
