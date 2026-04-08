@@ -21,6 +21,7 @@ import {
     type PivotConfiguration,
     type TableCalculation,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -128,6 +129,12 @@ export class PivotQueryBuilder {
             existingRefs.add(col.reference);
         }
 
+        const allTableCalculationIds = new Set(
+            Object.values(this.itemsMap)
+                .filter(isTableCalculation)
+                .map(getItemId),
+        );
+
         const referencedFields = new Set<string>();
 
         for (const tc of Object.values(this.pivotTableCalculations)) {
@@ -146,7 +153,15 @@ export class PivotQueryBuilder {
                     if (!existingRefs.has(fieldId) && !existingRefs.has(ref)) {
                         // Use fieldId for table-prefixed refs (metrics), raw ref for bare names (TCs)
                         const reference = refTable ? fieldId : ref;
-                        referencedFields.add(reference);
+
+                        if (!allTableCalculationIds.has(reference)) {
+                            if (!(reference in this.itemsMap)) {
+                                Logger.warn(
+                                    `Pivot TC "${getItemId(tc)}" references unknown field "${reference}" — it will be treated as an implicit metric but may produce null values`,
+                                );
+                            }
+                            referencedFields.add(reference);
+                        }
                     }
                     match = regex.exec(tc.sql);
                 }
