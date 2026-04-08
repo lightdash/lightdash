@@ -1,3 +1,10 @@
+## [0.2740.1](https://github.com/lightdash/lightdash/compare/0.2740.0...0.2740.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* include implicit metrics in pivot group_by_query when referenced by TCs ([#21835](https://github.com/lightdash/lightdash/issues/21835)) ([bf5cd24](https://github.com/lightdash/lightdash/commit/bf5cd2416e22f9f25ac421f8a889b540788a9a9a)), closes [#21836](https://github.com/lightdash/lightdash/issues/21836)
+
 # [0.2740.0](https://github.com/lightdash/lightdash/compare/0.2739.1...0.2740.0) (2026-04-08)
 
 
