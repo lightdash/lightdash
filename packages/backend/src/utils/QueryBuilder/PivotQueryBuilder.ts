@@ -14,12 +14,14 @@ import {
     SortByDirection,
     TableCalculationFunctionCompiler,
     TimeFrames,
+    VizAggregationOptions,
     VizSortBy,
     WarehouseSqlBuilder,
     type ItemsMap,
     type PivotConfiguration,
     type TableCalculation,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import {
     applyLimitToSqlQuery,
     sortDayOfWeekName,
@@ -51,6 +53,13 @@ export class PivotQueryBuilder {
     private readonly pivotTableCalculations: Record<string, TableCalculation>;
 
     /**
+     * Column references for metrics that pivot table calculations depend on
+     * but aren't in any pivot column list. These are carried through the CTE
+     * pipeline under their original column name (no aggregation suffix).
+     */
+    private readonly implicitMetricReferences: string[];
+
+    /**
      * Creates a new PivotQueryBuilder instance.
      * @param sql - The base SQL query to transform
      * @param pivotConfiguration - Configuration defining how to pivot the data
@@ -71,6 +80,7 @@ export class PivotQueryBuilder {
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.itemsMap = itemsMap ?? {};
         this.pivotTableCalculations = this.identifyPivotTableCalculations();
+        this.implicitMetricReferences = this.getImplicitMetricReferences();
     }
 
     /**
@@ -92,6 +102,73 @@ export class PivotQueryBuilder {
             }
             return acc;
         }, {});
+    }
+
+    /**
+     * Identifies fields (typically metrics) referenced by pivot table calculations
+     * that are not already present in valuesColumns, indexColumns, or groupByColumns.
+     * These fields must be carried through group_by_query and the pivot pipeline
+     * so that pivot_table_calculations can reference them.
+     */
+    private getImplicitMetricReferences(): string[] {
+        if (Object.keys(this.pivotTableCalculations).length === 0) {
+            return [];
+        }
+
+        const existingRefs = new Set(
+            (this.pivotConfiguration.valuesColumns ?? []).map(
+                (c) => c.reference,
+            ),
+        );
+        for (const col of normalizeIndexColumns(
+            this.pivotConfiguration.indexColumn,
+        )) {
+            existingRefs.add(col.reference);
+        }
+        for (const col of this.pivotConfiguration.groupByColumns ?? []) {
+            existingRefs.add(col.reference);
+        }
+
+        const allTableCalculationIds = new Set(
+            Object.values(this.itemsMap)
+                .filter(isTableCalculation)
+                .map(getItemId),
+        );
+
+        const referencedFields = new Set<string>();
+
+        for (const tc of Object.values(this.pivotTableCalculations)) {
+            if (isSqlTableCalculation(tc)) {
+                const regex = new RegExp(lightdashVariablePattern.source, 'g');
+                let match = regex.exec(tc.sql);
+                while (match !== null) {
+                    const ref = match[1];
+                    const { refTable, refName } = getParsedReference(ref, '');
+                    const fieldId = getItemId({
+                        table: refTable,
+                        name: refName,
+                    });
+
+                    // Check both fieldId and raw ref (mirrors replaceFieldReferencesWithAliases)
+                    if (!existingRefs.has(fieldId) && !existingRefs.has(ref)) {
+                        // Use fieldId for table-prefixed refs (metrics), raw ref for bare names (TCs)
+                        const reference = refTable ? fieldId : ref;
+
+                        if (!allTableCalculationIds.has(reference)) {
+                            if (!(reference in this.itemsMap)) {
+                                Logger.warn(
+                                    `Pivot TC "${getItemId(tc)}" references unknown field "${reference}" — it will be treated as an implicit metric but may cause a SQL error if the column is missing from the base query`,
+                                );
+                            }
+                            referencedFields.add(reference);
+                        }
+                    }
+                    match = regex.exec(tc.sql);
+                }
+            }
+        }
+
+        return Array.from(referencedFields);
     }
 
     /**
@@ -329,24 +406,40 @@ export class PivotQueryBuilder {
             groupBySelectDimensions.push(`${q}${ref}_order${q}`);
         }
 
-        const groupBySelectMetrics = [
-            ...(valuesColumns ?? []).map((col) => {
-                const aggregationField = getAggregatedField(
-                    this.warehouseSqlBuilder,
-                    col.aggregation,
-                    col.reference,
-                );
-                const fieldName = PivotQueryBuilder.getValueColumnFieldName(
-                    col.reference,
-                    col.aggregation,
-                );
-                return `${aggregationField} AS ${q}${fieldName}${q}`;
-            }),
-        ];
+        const groupBySelectMetrics = (valuesColumns ?? []).map((col) => {
+            const aggregationField = getAggregatedField(
+                this.warehouseSqlBuilder,
+                col.aggregation,
+                col.reference,
+            );
+            const fieldName = PivotQueryBuilder.getValueColumnFieldName(
+                col.reference,
+                col.aggregation,
+            );
+            return `${aggregationField} AS ${q}${fieldName}${q}`;
+        });
+
+        // Carry implicit metrics through using ANY_VALUE — these are already
+        // aggregated in original_query, we just need them to survive the GROUP BY.
+        // Only needed on the full pivot path (groupByColumns present) where
+        // pivot_table_calculations will reference them. On the simple path
+        // (no groupByColumns) they would leak into SELECT * with no consumer.
+        const implicitMetricSelects =
+            groupByColumns && groupByColumns.length > 0
+                ? this.implicitMetricReferences.map((ref) => {
+                      const passthrough = getAggregatedField(
+                          this.warehouseSqlBuilder,
+                          VizAggregationOptions.ANY,
+                          ref,
+                      );
+                      return `${passthrough} AS ${q}${ref}${q}`;
+                  })
+                : [];
 
         return `SELECT ${[
             ...new Set(groupBySelectDimensions), // Remove duplicate columns
             ...groupBySelectMetrics,
+            ...implicitMetricSelects,
         ].join(', ')} FROM original_query group by ${Array.from(
             new Set(groupBySelectDimensions),
         ).join(', ')}`;
@@ -949,6 +1042,8 @@ export class PivotQueryBuilder {
                 );
                 return `g.${q}${fieldName}${q}`;
             }),
+            // Implicit metrics — carried under their original column name
+            ...this.implicitMetricReferences.map((ref) => `g.${q}${ref}${q}`),
         ];
 
         if (usePrecomputedRankings) {
@@ -1119,6 +1214,11 @@ export class PivotQueryBuilder {
                 );
                 fieldAliasMap[col.reference] = aliasedName;
             }
+        }
+
+        // Implicit metrics keep their original column name (no suffix)
+        for (const ref of this.implicitMetricReferences) {
+            fieldAliasMap[ref] = ref;
         }
 
         // Add index columns (they keep their original names)
@@ -1355,6 +1455,7 @@ export class PivotQueryBuilder {
         }
 
         const baseSql = this.getBaseSql();
+
         const groupByQuery = this.getGroupByQuerySQL(
             indexColumns,
             valuesColumns,
