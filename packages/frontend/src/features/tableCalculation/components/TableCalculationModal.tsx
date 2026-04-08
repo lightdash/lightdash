@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     getErrorMessage,
     getItemId,
+    isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     NumberSeparator,
@@ -77,6 +78,7 @@ type Props = ModalProps & {
 type TableCalculationFormInputs = {
     name: string;
     sql: string;
+    formula: string;
     format: CustomFormat;
     type?: TableCalculationType;
 };
@@ -97,11 +99,18 @@ const TableCalculationModal: FC<Props> = ({
     const { colors } = theme;
     const [isExpanded, toggleExpanded] = useToggle(false);
 
-    // Default to Raw SQL, but show Template if it exists
+    // Default to Raw SQL, but show Template/Formula if it exists
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
-    const defaultMode = hasTemplate ? EditMode.TEMPLATE : EditMode.SQL;
+    const hasFormula = tableCalculation
+        ? isFormulaTableCalculation(tableCalculation)
+        : false;
+    const defaultMode = hasFormula
+        ? EditMode.FORMULA
+        : hasTemplate
+          ? EditMode.TEMPLATE
+          : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
     const submitButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -124,6 +133,10 @@ const TableCalculationModal: FC<Props> = ({
             sql:
                 tableCalculation && isSqlTableCalculation(tableCalculation)
                     ? tableCalculation.sql
+                    : '',
+            formula:
+                tableCalculation && isFormulaTableCalculation(tableCalculation)
+                    ? tableCalculation.formula.replace(/^=/, '')
                     : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
@@ -192,16 +205,12 @@ const TableCalculationModal: FC<Props> = ({
         },
     });
 
+    const isFormulaEmpty =
+        editMode === EditMode.FORMULA &&
+        (!form.values.formula || form.values.formula.trim().length === 0);
+
     const handleSubmit = form.onSubmit((data) => {
-        const { name, sql } = data;
-        // throw error if sql is empty
-        if (sql.length === 0 && editMode === EditMode.SQL) {
-            addToastError({
-                title: 'SQL cannot be empty',
-                key: 'table-calculation-modal',
-            });
-            return;
-        }
+        const { name, sql, formula } = data;
         // throw error if name is empty
         if (name.length === 0) {
             addToastError({
@@ -241,14 +250,13 @@ const TableCalculationModal: FC<Props> = ({
                     template: editedTemplate ?? tableCalculation.template,
                 });
             } else if (editMode === EditMode.FORMULA) {
-                // TODO: backend parse + compile endpoints needed before formula save
-                addToastError({
-                    title: 'Formula save not yet supported',
-                    subtitle:
-                        'Backend compilation endpoints are not implemented yet.',
-                    key: 'table-calculation-modal',
+                onSave({
+                    name: finalName,
+                    displayName: name,
+                    format: data.format,
+                    type: data.type,
+                    formula: `=${formula}`,
                 });
-                return;
             } else {
                 onSave({
                     name: finalName,
@@ -478,6 +486,16 @@ const TableCalculationModal: FC<Props> = ({
                                             <FormulaForm
                                                 explore={explore}
                                                 metricQuery={metricQuery}
+                                                initialFormula={
+                                                    form.values.formula ||
+                                                    undefined
+                                                }
+                                                onChange={(text) =>
+                                                    form.setFieldValue(
+                                                        'formula',
+                                                        text,
+                                                    )
+                                                }
                                                 isFullScreen={isExpanded}
                                             />
                                         </Box>
@@ -589,8 +607,9 @@ const TableCalculationModal: FC<Props> = ({
                                     ref={submitButtonRef}
                                     data-testid="table-calculation-save-button"
                                     disabled={
-                                        editMode === EditMode.SQL &&
-                                        form.values.sql.length === 0
+                                        (editMode === EditMode.SQL &&
+                                            form.values.sql.length === 0) ||
+                                        isFormulaEmpty
                                     }
                                 >
                                     {tableCalculation
