@@ -1,3 +1,15 @@
+# [0.2738.0](https://github.com/lightdash/lightdash/compare/0.2737.0...0.2738.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* override undici 6.23.0 → 6.24.1 (security) ([#21830](https://github.com/lightdash/lightdash/issues/21830)) ([05d03c1](https://github.com/lightdash/lightdash/commit/05d03c15c5335a85ce92f99341226613a1d961c6))
+
+
+### Features
+
+* restrict e2b sandbox outgoing network ([#21843](https://github.com/lightdash/lightdash/issues/21843)) ([f1e7870](https://github.com/lightdash/lightdash/commit/f1e78701aeaaa8d3169893098d18cf370ec8f0c0))
+
 # [0.2737.0](https://github.com/lightdash/lightdash/compare/0.2736.0...0.2737.0) (2026-04-08)
 
 
