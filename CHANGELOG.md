@@ -1,3 +1,10 @@
+# [0.2736.0](https://github.com/lightdash/lightdash/compare/0.2735.0...0.2736.0) (2026-04-08)
+
+
+### Features
+
+* migrate formula package from ESLint to oxlint ([#21833](https://github.com/lightdash/lightdash/issues/21833)) ([efc21e5](https://github.com/lightdash/lightdash/commit/efc21e56944ae3708d167e0edd66a6fa11cc3083))
+
 # [0.2735.0](https://github.com/lightdash/lightdash/compare/0.2734.0...0.2735.0) (2026-04-08)
 
 
