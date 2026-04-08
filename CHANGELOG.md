@@ -1,3 +1,18 @@
+# [0.2734.0](https://github.com/lightdash/lightdash/compare/0.2733.0...0.2734.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* override @hapi/content 6.0.0 → 6.0.1 (security) ([#21829](https://github.com/lightdash/lightdash/issues/21829)) ([7cc951d](https://github.com/lightdash/lightdash/commit/7cc951d9ff67684493e01bf20e4cb98fa2afdffa))
+* remove accidentally committed worktree gitlinks ([#21839](https://github.com/lightdash/lightdash/issues/21839)) ([6e38cfa](https://github.com/lightdash/lightdash/commit/6e38cfa14da80e9c32eb3d1d20b4e78fea1a6844))
+* upgrade jspdf 4.2.0 → 4.2.1 (security) ([#21826](https://github.com/lightdash/lightdash/issues/21826)) ([c7ae67b](https://github.com/lightdash/lightdash/commit/c7ae67b5c1b2368515e0de5e5c5ef3344c2d7614))
+
+
+### Features
+
+* add Australia/Brisbane timezone option ([#21828](https://github.com/lightdash/lightdash/issues/21828)) ([bd438ff](https://github.com/lightdash/lightdash/commit/bd438ff424961c23b886a8b9777c5f3b404ea28d)), closes [#21827](https://github.com/lightdash/lightdash/issues/21827)
+* add BigQuery connection to formula test harness ([#21813](https://github.com/lightdash/lightdash/issues/21813)) ([576d15d](https://github.com/lightdash/lightdash/commit/576d15dd98e2368715225f29e670a6c73868a685))
+
 # [0.2733.0](https://github.com/lightdash/lightdash/compare/0.2732.0...0.2733.0) (2026-04-07)
 
 
