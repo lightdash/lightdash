@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    convertFieldRefToFieldId,
     getItemId,
     getPreAggregateMetricComponentColumnName,
     MetricType,
@@ -10,6 +11,7 @@ import {
     type CompiledMetric,
     type Explore,
     type FieldId,
+    type FilterRule,
     type MaterializationMetricComponent,
     type MaterializationMetricQueryPayload,
     type MetricQuery,
@@ -151,6 +153,40 @@ const hasTimeDimensionReference = ({
 
 type MaterializationConfig = {
     maxRows: number | null;
+};
+
+const getPreAggregateDimensionFilters = ({
+    sourceExplore,
+    preAggregateDef,
+}: {
+    sourceExplore: Explore;
+    preAggregateDef: PreAggregateDef;
+}): MetricQuery['filters']['dimensions'] | undefined => {
+    if (!preAggregateDef.filters || preAggregateDef.filters.length === 0) {
+        return undefined;
+    }
+
+    return {
+        id: 'pre-aggregate-filters',
+        and: preAggregateDef.filters.map<FilterRule>((filter) => ({
+            id: filter.id,
+            target: {
+                fieldId: convertFieldRefToFieldId(
+                    filter.target.fieldRef,
+                    sourceExplore.baseTable,
+                ),
+            },
+            operator: filter.operator,
+            values: filter.values,
+            ...(filter.settings ? { settings: filter.settings } : {}),
+            ...(filter.required !== undefined
+                ? { required: filter.required }
+                : {}),
+            ...(filter.disabled !== undefined
+                ? { disabled: filter.disabled }
+                : {}),
+        })),
+    };
 };
 
 export const buildMaterializationMetricQuery = ({
@@ -304,12 +340,16 @@ export const buildMaterializationMetricQuery = ({
         preAggregateDef.maxRows ??
         materializationConfig.maxRows ??
         SYSTEM_MAX_ROWS;
+    const dimensionFilters = getPreAggregateDimensionFilters({
+        sourceExplore,
+        preAggregateDef,
+    });
 
     const metricQuery: MetricQuery = {
         exploreName: sourceExplore.name,
         dimensions,
         metrics: metricFieldIds,
-        filters: {},
+        filters: dimensionFilters ? { dimensions: dimensionFilters } : {},
         sorts: [],
         limit: resolvedMaxRows,
         tableCalculations: [],

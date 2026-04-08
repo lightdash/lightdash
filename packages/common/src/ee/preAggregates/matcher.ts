@@ -148,6 +148,8 @@ const getMissForDef = ({
     >;
     metricsByFieldId: ReturnType<typeof getMetricsMapFromTables>;
 }): PreAggregateMatchMiss | null => {
+    // TODO: pre-aggregate filters are ignored for matching in this PR.
+    // Follow-up work should require the query filter set to be equivalent or narrower.
     const defMetrics = new Set(preAggregateDef.metrics);
     for (const metricFieldId of metricQuery.metrics) {
         const metric = metricsByFieldId[metricFieldId];
