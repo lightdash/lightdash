@@ -1,5 +1,6 @@
 import {
     CustomFormatType,
+    FeatureFlags,
     getErrorMessage,
     getItemId,
     isSqlTableCalculation,
@@ -12,6 +13,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     getDefaultZIndex,
@@ -19,6 +21,7 @@ import {
     Loader,
     Modal,
     Paper,
+    SegmentedControl,
     Select,
     Stack,
     Tabs,
@@ -49,11 +52,16 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
 import {
     selectCustomDimensions,
+    selectMetricQuery,
     selectTableCalculations,
+    selectTableName,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useExplore } from '../../../hooks/useExplore';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
+import { FormulaForm } from './FormulaForm/FormulaForm';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
 // Lazy load SqlForm to avoid loading heavy Ace Editor on initial modal open
@@ -76,6 +84,7 @@ type TableCalculationFormInputs = {
 enum EditMode {
     SQL = 'sql',
     TEMPLATE = 'template',
+    FORMULA = 'formula',
 }
 
 const TableCalculationModal: FC<Props> = ({
@@ -98,6 +107,14 @@ const TableCalculationModal: FC<Props> = ({
 
     const { addToastError } = useToaster();
 
+    const isFormulaEnabled = useClientFeatureFlag(
+        FeatureFlags.FormulaTableCalculations,
+    );
+
+    // Explorer context for formula editor
+    const tableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const { data: explore } = useExplore(tableName);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
 
@@ -223,6 +240,15 @@ const TableCalculationModal: FC<Props> = ({
                     type: data.type,
                     template: editedTemplate ?? tableCalculation.template,
                 });
+            } else if (editMode === EditMode.FORMULA) {
+                // TODO: backend parse + compile endpoints needed before formula save
+                addToastError({
+                    title: 'Formula save not yet supported',
+                    subtitle:
+                        'Backend compilation endpoints are not implemented yet.',
+                    key: 'table-calculation-modal',
+                });
+                return;
             } else {
                 onSave({
                     name: finalName,
@@ -290,27 +316,32 @@ const TableCalculationModal: FC<Props> = ({
         [form, tableCalculationTypeOptions],
     );
 
-    // Memoize edit mode data
+    // Memoize edit mode data for segmented control
     const editModeOptions = useMemo(
         () => [
+            { value: EditMode.SQL, label: 'SQL' },
             {
-                value: EditMode.SQL,
-                label: 'Raw SQL',
-            },
-            {
-                value: EditMode.TEMPLATE,
-                label: 'Predefined Template',
+                value: EditMode.FORMULA,
+                label: isFormulaEnabled ? (
+                    'Formula'
+                ) : (
+                    <Group spacing={6} noWrap sx={{ justifyContent: 'center' }}>
+                        <Text span>Formula</Text>
+                        <Badge
+                            size="xs"
+                            variant="filled"
+                            color="indigo"
+                            radius="sm"
+                        >
+                            Coming soon
+                        </Badge>
+                    </Group>
+                ),
+                disabled: !isFormulaEnabled,
             },
         ],
-        [],
+        [isFormulaEnabled],
     );
-
-    // Memoize edit mode change handler
-    const handleEditModeChange = useCallback((value: string | null) => {
-        if (value) {
-            setEditMode(value as EditMode);
-        }
-    }, []);
 
     return (
         <Modal.Root
@@ -378,105 +409,79 @@ const TableCalculationModal: FC<Props> = ({
                                 {...form.getInputProps('name')}
                             />
 
-                            {hasTemplate && (
-                                <Select
-                                    label="Calculation Mode"
+                            {!hasTemplate && (
+                                <SegmentedControl
                                     value={editMode}
-                                    onChange={handleEditModeChange}
+                                    onChange={(value) =>
+                                        setEditMode(value as EditMode)
+                                    }
                                     data={editModeOptions}
-                                    mb="md"
+                                    size="xs"
                                 />
                             )}
 
-                            {editMode === EditMode.TEMPLATE ? (
-                                <Tabs
-                                    key="template"
-                                    defaultValue="template"
-                                    color="indigo"
-                                    variant="outline"
-                                    radius="xs"
-                                    styles={{
-                                        panel: {
-                                            borderColor: colors.ldGray[2],
-                                            borderWidth: 1,
-                                            borderStyle: 'solid',
-                                            borderTop: 'none',
-                                            height: isExpanded
-                                                ? 'calc(90vh - 400px)'
-                                                : 'auto',
-                                        },
+                            <Tabs
+                                key={editMode}
+                                defaultValue="editor"
+                                color="indigo"
+                                variant="outline"
+                                radius="xs"
+                                styles={{
+                                    panel: {
+                                        borderColor: colors.ldGray[2],
+                                        borderWidth: 1,
+                                        borderStyle: 'solid',
+                                        borderTop: 'none',
+                                        height: isExpanded
+                                            ? 'calc(85vh - 400px)'
+                                            : 'auto',
+                                    },
+                                }}
+                            >
+                                <Tabs.List>
+                                    <Tabs.Tab value="editor">
+                                        {editMode === EditMode.TEMPLATE
+                                            ? 'Template'
+                                            : editMode === EditMode.FORMULA
+                                              ? 'Formula'
+                                              : 'SQL'}
+                                    </Tabs.Tab>
+                                    <Tabs.Tab value="format">Format</Tabs.Tab>
+                                </Tabs.List>
+
+                                <Tabs.Panel
+                                    value="editor"
+                                    style={{
+                                        height: isExpanded
+                                            ? 'calc(85vh - 400px)'
+                                            : 'auto',
                                     }}
                                 >
-                                    <Tabs.List>
-                                        <Tabs.Tab value="template">
-                                            Template
-                                        </Tabs.Tab>
-
-                                        <Tabs.Tab value="format">
-                                            Format
-                                        </Tabs.Tab>
-                                    </Tabs.List>
-
-                                    <Tabs.Panel value="template" p="sm">
-                                        <TemplateViewer
-                                            template={
-                                                editedTemplate ?? template
-                                            }
-                                            readOnly={false}
-                                            onTemplateChange={
-                                                handleTemplateChange
-                                            }
-                                        />
-                                    </Tabs.Panel>
-
-                                    <Tabs.Panel value="format" p="sm">
-                                        <FormatForm
-                                            formatInputProps={
-                                                getFormatInputProps
-                                            }
-                                            setFormatFieldValue={
-                                                setFormatFieldValue
-                                            }
-                                            format={form.values.format}
-                                        />
-                                    </Tabs.Panel>
-                                </Tabs>
-                            ) : (
-                                <Tabs
-                                    key="sql"
-                                    defaultValue={'sqlEditor'}
-                                    color="indigo"
-                                    variant="outline"
-                                    radius="xs"
-                                    styles={{
-                                        panel: {
-                                            borderColor: colors.ldGray[2],
-                                            borderWidth: 1,
-                                            borderStyle: 'solid',
-                                            borderTop: 'none',
-                                            height: isExpanded
-                                                ? 'calc(80vh - 400px)'
-                                                : 'auto',
-                                        },
-                                    }}
-                                >
-                                    <Tabs.List>
-                                        <Tabs.Tab value="sqlEditor">
-                                            SQL
-                                        </Tabs.Tab>
-                                        <Tabs.Tab value="format">
-                                            Format
-                                        </Tabs.Tab>
-                                    </Tabs.List>
-
-                                    <Tabs.Panel
-                                        value="sqlEditor"
-                                        style={{
-                                            height: isExpanded
-                                                ? 'calc(85vh - 400px)'
-                                                : 'auto',
-                                        }}
-                                    >
+                                    {editMode === EditMode.TEMPLATE &&
+                                    tableCalculation &&
+                                    isTemplateTableCalculation(
+                                        tableCalculation,
+                                    ) ? (
+                                        <Box p="sm">
+                                            <TemplateViewer
+                                                template={
+                                                    editedTemplate ?? template
+                                                }
+                                                readOnly={false}
+                                                onTemplateChange={
+                                                    handleTemplateChange
+                                                }
+                                            />
+                                        </Box>
+                                    ) : editMode === EditMode.FORMULA ? (
+                                        <Box p="sm">
+                                            <FormulaForm
+                                                explore={explore}
+                                                metricQuery={metricQuery}
+                                                isFullScreen={isExpanded}
+                                            />
+                                        </Box>
+                                    ) : (
                                         <Suspense
                                             fallback={
                                                 <Box
@@ -504,21 +509,19 @@ const TableCalculationModal: FC<Props> = ({
                                                 onCmdEnter={handleCmdEnter}
                                             />
                                         </Suspense>
-                                    </Tabs.Panel>
+                                    )}
+                                </Tabs.Panel>
 
-                                    <Tabs.Panel value="format" p="sm">
-                                        <FormatForm
-                                            formatInputProps={
-                                                getFormatInputProps
-                                            }
-                                            setFormatFieldValue={
-                                                setFormatFieldValue
-                                            }
-                                            format={form.values.format}
-                                        />
-                                    </Tabs.Panel>
-                                </Tabs>
-                            )}
+                                <Tabs.Panel value="format" p="sm">
+                                    <FormatForm
+                                        formatInputProps={getFormatInputProps}
+                                        setFormatFieldValue={
+                                            setFormatFieldValue
+                                        }
+                                        format={form.values.format}
+                                    />
+                                </Tabs.Panel>
+                            </Tabs>
 
                             <Tooltip
                                 position="right"
