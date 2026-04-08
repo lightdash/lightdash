@@ -171,7 +171,8 @@
         "pm2:logs:spotlight": "pm2 logs lightdash-spotlight --lines 50",
         "pm2:restart:spotlight": "pm2 restart lightdash-spotlight",
         "spotlight": "pnpm dlx @spotlightjs/spotlight@latest",
-        "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50"
+        "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50",
+        "signoff": "tsx scripts/signoff.ts"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
