@@ -140,6 +140,12 @@ export enum FeatureFlags {
      * /api/v1/slack/preview/:id which mints fresh signed URLs on demand.
      */
     SlackUnfurlPersistentImages = 'slack-unfurl-persistent-images',
+
+    /**
+     * Enable Google Sheets-like formula editor in Table Calculations modal.
+     * When enabled, a "Formula" tab appears alongside SQL and Template tabs.
+     */
+    FormulaTableCalculations = 'table-calculations-spreadsheet-formulas',
 }
 
 export type FeatureFlag = {
