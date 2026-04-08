@@ -33,6 +33,7 @@ export class AiAgentAdminService {
             user.ability.cannot(
                 'manage',
                 subject('Organization', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid,
                 }),
             )

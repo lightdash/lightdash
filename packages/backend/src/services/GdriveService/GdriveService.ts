@@ -65,13 +65,15 @@ export class GdriveService extends BaseService {
         user: SessionUser,
         gsheetOptions: UploadMetricGsheet,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const projectSummary = await this.projectModel.getSummary(
             gsheetOptions.projectUuid,
         );
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
+                    uuid: '',
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
                 }),
@@ -81,9 +83,10 @@ export class GdriveService extends BaseService {
         }
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('GoogleSheets', {
+                    uuid: '',
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
                 }),
@@ -96,9 +99,10 @@ export class GdriveService extends BaseService {
             gsheetOptions.metricQuery.customDimensions?.some(
                 isCustomSqlDimension,
             ) &&
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CustomSql', {
+                    uuid: '',
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
                 }),

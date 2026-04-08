@@ -621,6 +621,7 @@ export class UnfurlService extends BaseService {
         user: SessionUser,
         selectedTabs: string[] | null,
     ): Promise<string> {
+        const auditedAbility = this.createAuditedAbility(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { inheritsFromOrgOrProject, access } =
@@ -674,9 +675,10 @@ export class UnfurlService extends BaseService {
         };
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
+                    uuid: '',
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
@@ -715,6 +717,7 @@ export class UnfurlService extends BaseService {
         chartUuidOrSlug: string,
         user: SessionUser,
     ): Promise<string> {
+        const auditedAbility = this.createAuditedAbility(user);
         const chart = await this.savedChartModel.get(chartUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -723,9 +726,10 @@ export class UnfurlService extends BaseService {
             );
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
+                    uuid: '',
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     inheritsFromOrgOrProject,

@@ -46,6 +46,7 @@ export class AiOrganizationSettingsService {
             user.ability.cannot(
                 'manage',
                 subject('AiAgent', {
+                    uuid: '',
                     organizationUuid: user.organizationUuid,
                 }),
             )

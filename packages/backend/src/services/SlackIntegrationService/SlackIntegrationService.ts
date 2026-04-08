@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     NotFoundError,
@@ -107,7 +108,16 @@ export class SlackIntegrationService<
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) throw new ForbiddenError();
 
-        if (user.ability.cannot('manage', 'Organization')) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Organization', {
+                    uuid: '',
+                    organizationUuid: user.organizationUuid || '',
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 

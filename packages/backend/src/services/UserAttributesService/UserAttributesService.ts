@@ -51,11 +51,12 @@ export class UserAttributesService extends BaseService {
         user: SessionUser,
         context: RequestMethod,
     ): Promise<UserAttribute[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         const organizationUuid = user.organizationUuid!;
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', { uuid: '', organizationUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -82,12 +83,13 @@ export class UserAttributesService extends BaseService {
         user: SessionUser,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
+        const auditedAbility = this.createAuditedAbility(user);
         const organizationUuid = user.organizationUuid!;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', { uuid: '', organizationUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -114,13 +116,15 @@ export class UserAttributesService extends BaseService {
         orgAttributeUuid: string,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
+        const auditedAbility = this.createAuditedAbility(user);
         const savedAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
+                    uuid: '',
                     organizationUuid: savedAttribute.organizationUuid,
                 }),
             )
@@ -146,12 +150,14 @@ export class UserAttributesService extends BaseService {
     }
 
     async delete(user: SessionUser, orgAttributeUuid: string): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const orgAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
+                    uuid: '',
                     organizationUuid: orgAttribute.organizationUuid,
                 }),
             )

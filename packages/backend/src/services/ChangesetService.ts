@@ -34,12 +34,14 @@ export class ChangesetService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ChangesetWithChanges | undefined> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
+                    uuid: '',
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
@@ -58,12 +60,14 @@ export class ChangesetService extends BaseService {
         projectUuid: string,
         changeUuid: string,
     ): Promise<Change> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
+                    uuid: '',
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
@@ -80,12 +84,14 @@ export class ChangesetService extends BaseService {
         projectUuid: string,
         changeUuid: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
+                    uuid: '',
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {
@@ -130,12 +136,14 @@ export class ChangesetService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
+                    uuid: '',
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid || '',
                 }),
             )
         ) {

@@ -566,10 +566,12 @@ export class CoderService extends BaseService {
         content: T[],
         spaces: SpaceSummaryBase[],
     ): Promise<T[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('Project', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -608,10 +610,12 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -745,10 +749,12 @@ export class CoderService extends BaseService {
         }
 
         // Filter charts based on user permissions (from private spaces)
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -880,10 +886,12 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -998,12 +1006,14 @@ export class CoderService extends BaseService {
         force?: boolean,
         spaceNames?: Record<string, string>,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         const project = await this.projectModel.get(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -1201,12 +1211,14 @@ export class CoderService extends BaseService {
         force?: boolean,
         spaceNames?: Record<string, string>,
     ): Promise<PromotionChanges> {
+        const auditedAbility = this.createAuditedAbility(user);
         const project = await this.projectModel.get(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
@@ -1487,12 +1499,14 @@ export class CoderService extends BaseService {
         force?: boolean,
         spaceNames?: Record<string, string>,
     ): Promise<PromotionChanges> {
+        const auditedAbility = this.createAuditedAbility(user);
         const project = await this.projectModel.get(projectUuid);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
+                    uuid: '',
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),

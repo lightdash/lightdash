@@ -43,8 +43,6 @@ import {
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
-import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
-import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -936,8 +934,9 @@ export class ValidationService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
                     organizationUuid,
@@ -1053,11 +1052,12 @@ export class ValidationService extends BaseService {
     ): Promise<ValidationResponse[]> {
         const { organizationUuid } = user;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
-                    organizationUuid,
+                    organizationUuid: organizationUuid || '',
                     projectUuid,
                     uuid: projectUuid,
                 }),
@@ -1122,9 +1122,7 @@ export class ValidationService extends BaseService {
     ): Promise<ValidationResponse> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -1184,9 +1182,7 @@ export class ValidationService extends BaseService {
     ): Promise<KnexPaginatedData<ValidationResponse[]>> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -1269,10 +1265,12 @@ export class ValidationService extends BaseService {
         const projectSummary = await this.projectModel.getSummary(
             validation.projectUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
+                    uuid: '',
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: validation.projectUuid,
                 }),
@@ -1301,8 +1299,9 @@ export class ValidationService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
                     organizationUuid,
@@ -1325,9 +1324,10 @@ export class ValidationService extends BaseService {
             );
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
+                    uuid: '',
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     inheritsFromOrgOrProject,
@@ -1381,8 +1381,9 @@ export class ValidationService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
                     organizationUuid,
@@ -1406,9 +1407,10 @@ export class ValidationService extends BaseService {
             );
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
+                    uuid: '',
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
                     inheritsFromOrgOrProject,

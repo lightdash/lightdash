@@ -194,10 +194,11 @@ export class SpaceService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('Space', { organizationUuid, projectUuid }),
+                subject('Space', { uuid: '', organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -609,9 +610,11 @@ export class SpaceService
         });
 
         if (!options?.bypassPermissions) {
-            const isAdmin = user.ability.can(
+            const auditedAbility = this.createAuditedAbility(user);
+            const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
+                    uuid: '',
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),
@@ -685,10 +688,12 @@ export class SpaceService
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
             });
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
+                        uuid: '',
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
                     }),
@@ -774,10 +779,15 @@ export class SpaceService
         const existingSpace = await this.spaceModel.get(spaceUuid);
         const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('PinnedItems', { projectUuid, organizationUuid }),
+                subject('PinnedItems', {
+                    uuid: '',
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
