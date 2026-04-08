@@ -1,3 +1,10 @@
+## [0.2738.1](https://github.com/lightdash/lightdash/compare/0.2738.0...0.2738.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* bump node-forge override 1.3.3 → 1.4.0 (security) ([#21849](https://github.com/lightdash/lightdash/issues/21849)) ([7e3ba69](https://github.com/lightdash/lightdash/commit/7e3ba695ff9f5016881e3e08136d01c8654832c0))
+
 # [0.2738.0](https://github.com/lightdash/lightdash/compare/0.2737.0...0.2738.0) (2026-04-08)
 
 
