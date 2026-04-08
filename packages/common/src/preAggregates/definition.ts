@@ -1,3 +1,8 @@
+import castArray from 'lodash/castArray';
+import isEmpty from 'lodash/isEmpty';
+import isPlainObject from 'lodash/isPlainObject';
+import isString from 'lodash/isString';
+import keys from 'lodash/keys';
 import type { DbtPreAggregateDef } from '../types/dbt';
 import { ParseError } from '../types/errors';
 import type {
@@ -50,30 +55,20 @@ const parseMaterializationRoleAttributes = (
     modelName: string,
     preAggregateName: string,
 ): UserAttributeValueMap => {
-    if (
-        value === null ||
-        typeof value !== 'object' ||
-        Array.isArray(value) ||
-        Object.keys(value).length === 0
-    ) {
+    if (!isPlainObject(value) || isEmpty(value)) {
         throw new ParseError(
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role.attributes". Expected a non-empty object.`,
         );
     }
 
-    return Object.entries(value).reduce<UserAttributeValueMap>(
-        (acc, [attributeName, attributeValue]) => {
-            if (typeof attributeValue === 'string') {
-                acc[attributeName] = [attributeValue];
-                return acc;
-            }
+    const attributes = value as Record<string, unknown>;
 
-            if (
-                Array.isArray(attributeValue) &&
-                attributeValue.length > 0 &&
-                attributeValue.every((item) => typeof item === 'string')
-            ) {
-                acc[attributeName] = attributeValue;
+    return Object.entries(attributes).reduce<UserAttributeValueMap>(
+        (acc, [attributeName, attributeValue]) => {
+            const attributeValues = castArray(attributeValue);
+
+            if (!isEmpty(attributeValues) && attributeValues.every(isString)) {
+                acc[attributeName] = attributeValues;
                 return acc;
             }
 
@@ -90,11 +85,7 @@ const parseMaterializationRole = (
     modelName: string,
     preAggregateName: string,
 ): PreAggregateMaterializationRole => {
-    if (
-        materializationRole === null ||
-        typeof materializationRole !== 'object' ||
-        Array.isArray(materializationRole)
-    ) {
+    if (!isPlainObject(materializationRole)) {
         throw new ParseError(
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" has invalid "materialization_role". Expected an object.`,
         );
@@ -105,8 +96,8 @@ const parseMaterializationRole = (
             DbtPreAggregateDef['materialization_role']
         >;
 
-    const unknownIntrinsicFields = Object.keys(unknownFields);
-    if (unknownIntrinsicFields.length > 0) {
+    const unknownIntrinsicFields = keys(unknownFields);
+    if (!isEmpty(unknownIntrinsicFields)) {
         throw new ParseError(
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" has unsupported "materialization_role" fields: ${unknownIntrinsicFields.join(
                 ', ',
@@ -114,7 +105,7 @@ const parseMaterializationRole = (
         );
     }
 
-    if (typeof email !== 'string' || email.trim().length === 0) {
+    if (!isString(email) || email.trim().length === 0) {
         throw new ParseError(
             `Pre-aggregate "${preAggregateName}" in model "${modelName}" must define a non-empty "materialization_role.email"`,
         );
