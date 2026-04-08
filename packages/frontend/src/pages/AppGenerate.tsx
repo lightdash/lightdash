@@ -1,7 +1,8 @@
 import { subject } from '@casl/ability';
-import type {
-    ApiAppVersionSummary,
-    AppImageAttachment,
+import {
+    FeatureFlags,
+    type ApiAppVersionSummary,
+    type AppImageAttachment,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -46,7 +47,7 @@ import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
-import useHealth from '../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
@@ -161,7 +162,7 @@ const AppGenerate: FC = () => {
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
     const { mutateAsync: getUploadUrl } = useAppImageUploadUrl();
-    const health = useHealth();
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -328,7 +329,10 @@ const AppGenerate: FC = () => {
         };
     }, []);
 
-    if (health.data && !health.data.dataApps.enabled) {
+    if (dataAppsFlag.isLoading) {
+        return null;
+    }
+    if (!dataAppsFlag.data?.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 

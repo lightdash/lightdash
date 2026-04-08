@@ -208,7 +208,7 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() version: number,
     ): Promise<ApiPreviewTokenResponse> {
-        const token = this.getAppGenerateService().getPreviewToken(
+        const token = await this.getAppGenerateService().getPreviewToken(
             req.user!,
             projectUuid,
             appUuid,

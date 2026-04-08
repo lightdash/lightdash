@@ -7,6 +7,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     MissingConfigError,
@@ -24,6 +25,7 @@ import { LightdashConfig } from '../../../config/parseConfig';
 import { type DbApp } from '../../../database/entities/apps';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 
@@ -31,6 +33,7 @@ type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     catalogModel: CatalogModel;
     appModel: AppModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 type GenerateAppResult = {
@@ -45,15 +48,19 @@ export class AppGenerateService extends BaseService {
 
     private readonly appModel: AppModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         catalogModel,
         appModel,
+        featureFlagModel,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.catalogModel = catalogModel;
         this.appModel = appModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private getAnthropicApiKey(): string {
@@ -103,8 +110,12 @@ export class AppGenerateService extends BaseService {
         };
     }
 
-    private assertDataAppsEnabled(): void {
-        if (!this.lightdashConfig.appRuntime.enabled) {
+    private async assertDataAppsEnabled(user: SessionUser): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.EnableDataApps,
+        });
+        if (!enabled) {
             throw new ForbiddenError('Data apps are not enabled');
         }
     }
@@ -125,7 +136,7 @@ export class AppGenerateService extends BaseService {
         mimeType: string,
         appUuid?: string,
     ): Promise<{ uploadUrl: string; s3Key: string }> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',
@@ -1032,7 +1043,7 @@ export class AppGenerateService extends BaseService {
         image?: AppImageAttachment,
         preGeneratedAppUuid?: string,
     ): Promise<GenerateAppResult> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',
@@ -1174,7 +1185,7 @@ export class AppGenerateService extends BaseService {
         prompt: string,
         image?: AppImageAttachment,
     ): Promise<GenerateAppResult> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',
@@ -1234,7 +1245,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
     ): Promise<void> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',
@@ -1308,7 +1319,7 @@ export class AppGenerateService extends BaseService {
         }[];
         hasMore: boolean;
     }> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',
@@ -1399,7 +1410,7 @@ export class AppGenerateService extends BaseService {
             totalResults: number;
         };
     }> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (user.ability.cannot('manage', 'DataApp')) {
             throw new ForbiddenError('Insufficient permissions');
         }
@@ -1430,7 +1441,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         update: { name?: string; description?: string },
     ): Promise<{ appUuid: string; name: string; description: string }> {
-        this.assertDataAppsEnabled();
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',
@@ -1564,13 +1575,13 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    getPreviewToken(
+    async getPreviewToken(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
         version: number,
-    ): string {
-        this.assertDataAppsEnabled();
+    ): Promise<string> {
+        await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
                 'manage',

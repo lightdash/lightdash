@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import { IconDots, IconPencil } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
-import useHealth from '../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppPreviewTest.module.css';
@@ -25,7 +26,7 @@ export default function AppPreviewTest() {
 
     const explicitVersion = versionParam ? Number(versionParam) : undefined;
 
-    const health = useHealth();
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
 
@@ -62,7 +63,10 @@ export default function AppPreviewTest() {
         return () => window.removeEventListener('blur', handleBlur);
     }, [handleBlur]);
 
-    if (health.data && !health.data.dataApps.enabled) {
+    if (dataAppsFlag.isLoading) {
+        return null;
+    }
+    if (!dataAppsFlag.data?.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 

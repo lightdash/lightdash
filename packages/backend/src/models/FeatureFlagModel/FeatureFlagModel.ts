@@ -63,6 +63,8 @@ export class FeatureFlagModel {
                 this.getShowHideColumnsEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
+            [FeatureFlags.EnableDataApps]:
+                this.getEnableDataAppsEnabled.bind(this),
         };
     }
 
@@ -418,6 +420,17 @@ export class FeatureFlagModel {
             id: featureFlagId,
             enabled: this.lightdashConfig.query.enableTimezoneSupport ?? false,
         };
+    }
+
+    private async getEnableDataAppsEnabled({
+        featureFlagId,
+    }: FeatureFlagLogicArgs): Promise<FeatureFlag> {
+        if (this.lightdashConfig.appRuntime.enabled) {
+            return { id: featureFlagId, enabled: true };
+        }
+        // Fall through to database check
+        const dbResult = await this.getFromDatabase({ featureFlagId });
+        return dbResult ?? { id: featureFlagId, enabled: false };
     }
 
     private async getFromDatabase(
