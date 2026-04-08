@@ -157,7 +157,7 @@ export class PivotQueryBuilder {
                         if (!allTableCalculationIds.has(reference)) {
                             if (!(reference in this.itemsMap)) {
                                 Logger.warn(
-                                    `Pivot TC "${getItemId(tc)}" references unknown field "${reference}" — it will be treated as an implicit metric but may produce null values`,
+                                    `Pivot TC "${getItemId(tc)}" references unknown field "${reference}" — it will be treated as an implicit metric but may cause a SQL error if the column is missing from the base query`,
                                 );
                             }
                             referencedFields.add(reference);

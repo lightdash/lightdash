@@ -3723,6 +3723,13 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(warnSpy).toHaveBeenCalledWith(
                 expect.stringContaining('ghost_field'),
             );
+            // Warning should describe the actual failure mode (SQL error), not "null values"
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('SQL error'),
+            );
+            expect(warnSpy).not.toHaveBeenCalledWith(
+                expect.stringContaining('null values'),
+            );
         });
 
         test('Should filter out TC-to-TC bare references from implicit metrics', () => {
