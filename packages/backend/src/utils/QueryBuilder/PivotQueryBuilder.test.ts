@@ -2883,9 +2883,9 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // The fix adds SUM("events_status") — this will fail at SQL execution time
-            // on string columns. Verify it's present (the fix applies) even though
-            // it's semantically wrong for non-numeric fields.
+            // The fix adds ARRAY_AGG("events_status")[1] as an implicit metric.
+            // ANY aggregation is correct here since values are already aggregated
+            // by MetricQueryBuilder.
             expect(replaceWhitespace(result)).toContain(
                 '(ARRAY_AGG("events_status"))[1] AS "events_status"',
             );
