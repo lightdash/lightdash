@@ -181,7 +181,7 @@ tiles:
 2. **Edit** the YAML file in `lightdash/` directory
 3. **Verify filter values**: If you added or changed filters, use `lightdash sql` to check actual column values (see [Common Mistakes](#common-mistakes))
 4. **Lint**: `lightdash lint` to validate before uploading
-5. **Upload**: `lightdash upload --dashboards dashboard-slug`
+5. **Upload**: `lightdash upload --dashboards dashboard-slug --include-charts` (uploads the dashboard and all charts it references)
 
 ### Creating New Content
 
@@ -209,6 +209,7 @@ lightdash stop-preview --name "my-feature"
 |---------|---------|
 | `lightdash deploy` | Sync semantic layer (metrics, dimensions) |
 | `lightdash upload` | Upload charts/dashboards |
+| `lightdash upload --dashboards ... --include-charts` | Upload dashboard with all its referenced charts |
 | `lightdash download` | Download charts/dashboards as YAML |
 | `lightdash lint` | Validate YAML locally |
 | `lightdash preview` | Create temporary test project |
