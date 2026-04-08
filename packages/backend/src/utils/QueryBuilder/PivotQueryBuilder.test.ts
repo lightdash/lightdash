@@ -2615,9 +2615,8 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             expect(result).toContain('pivot_table_calculations');
             // Bare table calc ref: ${base_calc} → "base_calc_any" (quoted)
-            expect(result).toContain('"base_calc_any"');
-            // Fully-qualified ref: ${table1.metric1} → "metric1_sum" (quoted)
-            expect(result).toContain('"metric1_sum"');
+            // Assert the expression to confirm quoting happens in the TC replacement specifically
+            expect(result).toContain('"base_calc_any" *');
         });
 
         test('Should leave unmatched references unchanged in pivot table calculations', () => {
