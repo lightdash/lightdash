@@ -1,3 +1,10 @@
+# [0.2739.0](https://github.com/lightdash/lightdash/compare/0.2738.1...0.2739.0) (2026-04-08)
+
+
+### Features
+
+* formula table calculations UI with feature flag ([#21850](https://github.com/lightdash/lightdash/issues/21850)) ([9f346cd](https://github.com/lightdash/lightdash/commit/9f346cd151925d6c26748962a3cfc0603893b355))
+
 ## [0.2738.1](https://github.com/lightdash/lightdash/compare/0.2738.0...0.2738.1) (2026-04-08)
 
 
