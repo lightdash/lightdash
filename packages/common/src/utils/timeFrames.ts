@@ -788,6 +788,23 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
               TimeFrames.YEAR,
           ];
 
+/**
+ * Time frames that use DATE_TRUNC (truncation to a calendar boundary).
+ * Non-truncatable time frames (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.) use
+ * EXTRACT/DATE_PART instead and should not be passed to getSqlForTruncatedDate.
+ */
+export const truncatableTimeFrames: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+    TimeFrames.DAY,
+    TimeFrames.WEEK,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+]);
+
 export const isTimeInterval = (value: string): value is TimeFrames =>
     Object.keys(timeFrameConfigs).includes(value);
 

@@ -59,6 +59,7 @@ import {
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
     TimeFrames,
+    truncatableTimeFrames,
     UserAttributeValueMap,
     type FieldsContext,
     type ParameterDefinitions,
@@ -621,11 +622,13 @@ export class MetricQueryBuilder {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
         // Only apply timezone-aware DATE_TRUNC when the feature is enabled
-        // and the dimension has a truncatable time interval
+        // and the dimension uses a truncatable time interval (DAY, WEEK, etc.).
+        // Non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.) use
+        // EXTRACT/DATE_PART and must not be passed to getSqlForTruncatedDate.
         if (
             !useTimezoneAwareDateTrunc ||
             !dimension.timeInterval ||
-            dimension.timeInterval === TimeFrames.RAW
+            !truncatableTimeFrames.has(dimension.timeInterval)
         ) {
             return dimension.compiledSql;
         }
