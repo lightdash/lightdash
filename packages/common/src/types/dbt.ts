@@ -39,6 +39,7 @@ export enum SupportedDbtAdapter {
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
+    SPARK = 'spark',
 }
 
 export type DbtNodeConfig = {
@@ -299,6 +300,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.CLICKHOUSE:
             return { ...model, database: '' }; // Clickhouse doesn't have a database field
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
             return { ...model, database: model.database || 'DEFAULT' };
         default:
             return assertUnreachable(
