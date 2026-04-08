@@ -94,6 +94,7 @@ export function convertLightdashModelToDbtModel(
         ai_hint: model.ai_hint,
         parameters: model.parameters,
         primary_key: model.primary_key,
+        pre_aggregates: model.pre_aggregates,
     };
 
     // Create a DbtModelNode that mimics what dbt would produce

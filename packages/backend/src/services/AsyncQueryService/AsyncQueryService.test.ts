@@ -1936,9 +1936,9 @@ describe('AsyncQueryService', () => {
                     email: 'viewer@example.com',
                 },
             }));
-            service.getExplore = jest
-                .fn()
-                .mockResolvedValue(materializationExplore);
+            jest.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
+                materializationExplore,
+            );
             service.executeAsyncQuery = jest.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
@@ -1998,9 +1998,7 @@ describe('AsyncQueryService', () => {
                         },
                     },
                 }),
-            ).rejects.toThrow(
-                'materializationRole is only supported for pre-aggregate materialization',
-            );
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 

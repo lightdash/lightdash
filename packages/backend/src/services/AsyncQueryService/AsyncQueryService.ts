@@ -23,6 +23,7 @@ import {
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
+    ExploreType,
     FeatureFlags,
     FieldType,
     ForbiddenError,
@@ -151,6 +152,10 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import {
+    exploreHasFilteredAttribute,
+    getFilteredExplore,
+} from '../UserAttributesService/UserAttributeUtils';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
@@ -345,6 +350,82 @@ export class AsyncQueryService extends ProjectService {
                 ? this.preAggregateStrategy.getResultsStorageClient()
                 : undefined;
         return strategyClient ?? this.resultsStorageClient;
+    }
+
+    private async getExploreForMetricQueryExecution({
+        account,
+        projectUuid,
+        exploreName,
+        organizationUuid,
+        materializationRole,
+    }: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        organizationUuid: string;
+        materializationRole?: UserAccessControls;
+    }): Promise<Explore> {
+        if (materializationRole === undefined) {
+            return this.getExplore(
+                account,
+                projectUuid,
+                exploreName,
+                organizationUuid,
+            );
+        }
+
+        const ability = this.createAuditedAbility(account);
+        const isForbidden =
+            ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            ) &&
+            ability.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    exploreNames: [exploreName],
+                }),
+            );
+
+        if (isForbidden) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+
+        if (isExploreError(explore)) {
+            throw new NotFoundError(`Explore "${exploreName}" has an error.`);
+        }
+
+        if (
+            explore.type === ExploreType.PRE_AGGREGATE &&
+            ability.cannot(
+                'manage',
+                subject('PreAggregation', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
+        }
+
+        if (!exploreHasFilteredAttribute(explore)) {
+            return explore;
+        }
+
+        return getFilteredExplore(explore, materializationRole.userAttributes);
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -3220,7 +3301,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole !== undefined &&
             context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
         ) {
-            throw new Error(
+            throw new ForbiddenError(
                 'materializationRole is only supported for pre-aggregate materialization',
             );
         }
@@ -3264,12 +3345,16 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQueryStart = Date.now();
 
-        const explore = await this.getExplore(
+        const explore = await this.getExploreForMetricQueryExecution({
             account,
             projectUuid,
-            metricQuery.exploreName,
+            exploreName: metricQuery.exploreName,
             organizationUuid,
-        );
+            materializationRole:
+                context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                    ? materializationRole
+                    : undefined,
+        });
         const getExploreMs = Date.now() - metricQueryStart;
 
         const whCredStart = Date.now();
