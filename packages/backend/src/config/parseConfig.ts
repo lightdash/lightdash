@@ -628,6 +628,12 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const region = process.env.S3_REGION;
     const accessKey = process.env.S3_ACCESS_KEY;
     const secretKey = process.env.S3_SECRET_KEY;
+    // Browser-facing S3 endpoint used when minting presigned URLs that the
+    // browser will fetch directly (e.g. PUT uploads for app images). In local
+    // dev the internal Docker hostname (http://minio:9000) is unreachable from
+    // the browser, so set this to http://localhost:9000. In production with
+    // real S3 this is typically unnecessary — omit it and the internal endpoint
+    // is used for signing, which already resolves publicly.
     const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || undefined;
     const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
     const expirationTime = parseInt(
