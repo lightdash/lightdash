@@ -761,18 +761,19 @@ export const filterInTheCurrentDayTimezoneMocks = [
     ],
 ];
 
-// ── Date formatter boundary tests (formatDate, YYYY-MM-DD) ──────────
-// These test the `formatBoundary` helper which formats boundaries in the
-// project timezone for date-level comparisons, fixing the positive-offset
-// date shift bug (GLITCH-323).
+// ── Timezone-aware date formatter boundary tests (YYYY-MM-DD) ────────
+// These test createTimezoneAwareDateFormatter which counteracts the
+// .utc().toDate() conversion inside renderDateFilterSql by converting
+// back to the project timezone before formatting. Fixes the positive-
+// offset date shift bug (GLITCH-323).
 //
 // System time: 04 Apr 2020 06:12:30 GMT
-// IN_THE_PAST 1 completed day with date formatter (no time component):
+// IN_THE_PAST 1 completed day with timezone-aware formatter:
 //   UTC:            start of day = 2020-04-04 → from 2020-04-03, until 2020-04-04
 //   America/New_York (EDT, UTC-4): start of day = 2020-04-04 (local) → from 2020-04-03, until 2020-04-04
 //   Asia/Tokyo (JST, UTC+9): 06:12 GMT = 15:12 JST → start of day = 2020-04-04 (local) → from 2020-04-03, until 2020-04-04
-//     Without fix: .utc() shifts midnight Apr 4 JST to Apr 3 15:00 UTC → formatDate → '2020-04-03' (wrong!)
-//     With fix: formatBoundary formats in JST → '2020-04-04' (correct)
+//     Without fix: .utc().toDate() → formatDate → '2020-04-03' (wrong!)
+//     With fix: createTimezoneAwareDateFormatter converts back to JST → '2020-04-04' (correct)
 export const filterInThePastCompletedDayDateFormatterMocks = [
     [
         'UTC',
@@ -788,11 +789,11 @@ export const filterInThePastCompletedDayDateFormatterMocks = [
     ],
 ];
 
-// IN_THE_CURRENT day with date formatter:
+// IN_THE_CURRENT day with timezone-aware formatter:
 //   UTC:            from 2020-04-04, until 2020-04-04 (same day)
 //   Asia/Tokyo:     06:12 GMT = 15:12 JST Apr 4 → from 2020-04-04, until 2020-04-04
-//     Without fix: .utc() shifts to Apr 3/Apr 4 UTC → wrong boundaries
-//     With fix: formats in JST → both 2020-04-04
+//     Without fix: .utc().toDate() shifts to Apr 3/Apr 4 UTC → wrong boundaries
+//     With fix: createTimezoneAwareDateFormatter → both 2020-04-04
 export const filterInTheCurrentDayDateFormatterMocks = [
     [
         'UTC',
@@ -804,7 +805,7 @@ export const filterInTheCurrentDayDateFormatterMocks = [
     ],
 ];
 
-// IN_THE_PAST 1 day non-completed with date formatter:
+// IN_THE_PAST 1 day non-completed with timezone-aware formatter:
 //   Boundaries are (now - 1 day) to now, formatted as dates.
 //   UTC:            from = 2020-04-03 06:12:30 → '2020-04-03', until = 2020-04-04 06:12:30 → '2020-04-04'
 //   Asia/Tokyo:     from = 2020-04-03 15:12:30 JST → '2020-04-03', until = 2020-04-04 15:12:30 JST → '2020-04-04'

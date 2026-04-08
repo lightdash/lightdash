@@ -3,6 +3,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
+    createTimezoneAwareDateFormatter,
     renderBooleanFilterSql,
     renderDateFilterSql,
     renderFilterRuleSqlFromField,
@@ -2158,14 +2159,15 @@ describe('Number Filter SQL Injection Prevention', () => {
         });
     });
 
-    // ── Date formatter boundary tests (GLITCH-323) ──────────────────
-    // Verify that formatBoundary formats dates in the project timezone
-    // (not UTC) for date-level comparisons. This fixes positive-offset
-    // timezones where .utc() shifted the date back one day.
+    // ── Timezone-aware date formatter boundary tests (GLITCH-323) ───
+    // Verify that createTimezoneAwareDateFormatter produces correct
+    // local dates for positive-offset timezones where the default
+    // formatDate (which receives a UTC Date) would shift the date
+    // back one day.
 
-    describe('date formatter boundaries with positive-offset timezones', () => {
+    describe('timezone-aware date formatter boundaries with positive-offset timezones', () => {
         test.each(filterInThePastCompletedDayDateFormatterMocks)(
-            'inThePast completed day (date formatter) for timezone %s',
+            'inThePast completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
                 jest.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
@@ -2182,14 +2184,14 @@ describe('Number Filter SQL Injection Prevention', () => {
                         },
                         adapterType.default,
                         timezone,
-                        // No dateFormatter param → uses default formatDate (YYYY-MM-DD)
+                        createTimezoneAwareDateFormatter(timezone),
                     ),
                 ).toStrictEqual(expected);
             },
         );
 
         test.each(filterInTheCurrentDayDateFormatterMocks)(
-            'inTheCurrent day (date formatter) for timezone %s',
+            'inTheCurrent day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
                 jest.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
@@ -2203,13 +2205,14 @@ describe('Number Filter SQL Injection Prevention', () => {
                         },
                         adapterType.default,
                         timezone,
+                        createTimezoneAwareDateFormatter(timezone),
                     ),
                 ).toStrictEqual(expected);
             },
         );
 
         test.each(filterInThePastNonCompletedDayDateFormatterMocks)(
-            'inThePast non-completed day (date formatter) for timezone %s',
+            'inThePast non-completed day (tz-aware formatter) for timezone %s',
             (timezone, expected) => {
                 jest.setSystemTime(
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
@@ -2226,6 +2229,7 @@ describe('Number Filter SQL Injection Prevention', () => {
                         },
                         adapterType.default,
                         timezone,
+                        createTimezoneAwareDateFormatter(timezone),
                     ),
                 ).toStrictEqual(expected);
             },

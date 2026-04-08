@@ -324,27 +324,39 @@ export class MetricQueryBuilder {
      *
      * Skips wrapping when the warehouse session timezone already matches
      * the query timezone, since bare DATE_TRUNC already groups correctly.
-     *
-     * Snowflake is special: convertTimezone() in translator.ts normalizes
-     * all timestamp dimensions to UTC at compile time, so the session TZ
-     * is irrelevant for DATE_TRUNC input. Skip only when queryTimezone
-     * is UTC (the already-normalized value).
      */
     private get timezoneForDateTrunc(): string | undefined {
         if (!this.args.useTimezoneAwareDateTrunc) return undefined;
+        if (this.shouldSkipTimezoneConversion()) return undefined;
+        return this.args.timezone;
+    }
 
+    /**
+     * Whether timezone conversion can be skipped because the warehouse
+     * input is already in the query timezone.
+     *
+     * Each warehouse's DATE_TRUNC input has an "effective input timezone"
+     * that determines what bare DATE_TRUNC operates on:
+     *
+     * - Snowflake: convertTimezone() in translator.ts normalizes all
+     *   timestamp compiledSql to UTC at compile time, so the effective
+     *   input TZ is always UTC regardless of the session/data timezone.
+     *
+     * - All others: compiledSql is the raw column, interpreted via the
+     *   warehouse session timezone (= dataTimezone, defaulting to UTC).
+     *
+     * When the effective input TZ matches the query TZ, bare DATE_TRUNC
+     * already truncates in the correct timezone — no wrapping needed.
+     */
+    private shouldSkipTimezoneConversion(): boolean {
         const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
 
-        if (adapterType === SupportedDbtAdapter.SNOWFLAKE) {
-            return this.args.timezone === 'UTC'
-                ? undefined
-                : this.args.timezone;
-        }
+        const effectiveInputTz =
+            adapterType === SupportedDbtAdapter.SNOWFLAKE
+                ? 'UTC'
+                : (this.args.dataTimezone ?? 'UTC');
 
-        const effectiveDataTz = this.args.dataTimezone ?? 'UTC';
-        if (effectiveDataTz === this.args.timezone) return undefined;
-
-        return this.args.timezone;
+        return effectiveInputTz === this.args.timezone;
     }
 
     // Contains the metrics from the Explore and the custom metrics from the metric query
@@ -1421,6 +1433,7 @@ export class MetricQueryBuilder {
                 timezone,
                 this.args.explore.caseSensitive ?? true,
                 baseDimensionSql,
+                this.args.useTimezoneAwareDateTrunc,
             ),
         );
     }
