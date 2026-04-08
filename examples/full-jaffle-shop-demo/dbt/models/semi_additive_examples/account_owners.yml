@@ -1,0 +1,30 @@
+models:
+  - name: account_owners
+    config:
+      meta:
+        description: "This table contains the account owner information for each account. It is used to join with the account balances table to provide additional context on the account owners."
+        primary_key: owner_id
+        joins:
+          - join: account_balances
+            sql_on: ${account_owners.account_id} = ${account_balances.account_id}
+            type: left
+            relationship: many-to-one
+    columns:
+      - name: account_id
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: owner_id
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: owner_name
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: string
