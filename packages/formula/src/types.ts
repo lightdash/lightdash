@@ -1,17 +1,33 @@
+import type {
+    ZeroArgFnName,
+    SingleArgFnName,
+    OneOrTwoArgFnName,
+    ZeroOrOneArgFnName,
+    VariadicFnName,
+    WindowFnName,
+    ConditionalAggFnName,
+} from './functions';
+
 export type Dialect = 'postgres' | 'bigquery' | 'snowflake' | 'duckdb';
 
 export interface CompileOptions {
     dialect: Dialect;
-    columns: Record<string, string>; // "A" → "order_amount"
-    orderBy?: string;
-    partitionBy?: string;
+    columns: Record<string, string>;
 }
 
 // AST Node Types
 export type ASTNode =
     | BinaryOpNode
     | UnaryOpNode
-    | FunctionCallNode
+    | IfNode
+    | ConditionalAggregateNode
+    | CountIfNode
+    | ZeroArgFnNode
+    | SingleArgFnNode
+    | OneOrTwoArgFnNode
+    | ZeroOrOneArgFnNode
+    | VariadicFnNode
+    | WindowFnNode
     | ColumnRefNode
     | NumberLiteralNode
     | StringLiteralNode
@@ -33,16 +49,64 @@ export interface UnaryOpNode {
     operand: ASTNode;
 }
 
-export interface FunctionCallNode {
-    type: 'FunctionCall';
-    name: string;
+export interface IfNode {
+    type: 'If';
+    condition: ASTNode;
+    then: ASTNode;
+    else: ASTNode | null;
+}
+
+export interface ConditionalAggregateNode {
+    type: 'ConditionalAggregate';
+    name: ConditionalAggFnName;
+    value: ASTNode;
+    condition: ASTNode;
+}
+
+export interface CountIfNode {
+    type: 'CountIf';
+    condition: ASTNode;
+}
+
+export interface ZeroArgFnNode {
+    type: 'ZeroArgFn';
+    name: ZeroArgFnName;
+}
+
+export interface SingleArgFnNode {
+    type: 'SingleArgFn';
+    name: SingleArgFnName;
+    arg: ASTNode;
+}
+
+export interface OneOrTwoArgFnNode {
+    type: 'OneOrTwoArgFn';
+    name: OneOrTwoArgFnName;
+    args: [ASTNode] | [ASTNode, ASTNode];
+}
+
+export interface ZeroOrOneArgFnNode {
+    type: 'ZeroOrOneArgFn';
+    name: ZeroOrOneArgFnName;
+    arg: ASTNode | null;
+}
+
+export interface VariadicFnNode {
+    type: 'VariadicFn';
+    name: VariadicFnName;
     args: ASTNode[];
-    windowClause?: WindowClauseNode;
+}
+
+export interface WindowFnNode {
+    type: 'WindowFn';
+    name: WindowFnName;
+    args: ASTNode[];
+    windowClause: WindowClauseNode | null;
 }
 
 export interface ColumnRefNode {
     type: 'ColumnRef';
-    name: string; // e.g. "A", "B"
+    name: string;
 }
 
 export interface NumberLiteralNode {

@@ -1,36 +1,65 @@
-{{
-// Formula grammar — Google Sheets-like syntax → AST
-// Supports: arithmetic, comparisons, logical ops, function calls, column refs, literals
-}}
+{
+  const zeroArgFns = options.zeroArgFns;
+  const singleArgFns = options.singleArgFns;
+  const oneOrTwoArgFns = options.oneOrTwoArgFns;
+  const zeroOrOneArgFns = options.zeroOrOneArgFns;
+  const variadicFns = options.variadicFns;
+  const windowFns = options.windowFns;
+  const conditionalAggFns = options.conditionalAggFns;
+  const allFunctionNames = options.allFunctionNames;
+  const booleanFns = options.booleanFns;
+}
 
 Formula
   = "=" _ expr:Expression _ { return expr; }
 
 Expression
-  = LogicalOr
+  = BooleanOr
+  / Arithmetic
 
-LogicalOr
-  = head:LogicalAnd tail:(_ "OR"i _ LogicalAnd)* {
+// --- Boolean layer (OR > AND > comparison/leaf) ---
+
+BooleanOr
+  = head:BooleanAnd tail:(_ "OR"i _ BooleanAnd)* {
       return tail.reduce((left, [, , , right]) => ({
         type: "Logical", op: "OR", left, right
       }), head);
     }
 
-LogicalAnd
-  = head:Comparison tail:(_ "AND"i _ Comparison)* {
+BooleanAnd
+  = head:BooleanAtom tail:(_ "AND"i _ BooleanAtom)* {
       return tail.reduce((left, [, , , right]) => ({
         type: "Logical", op: "AND", left, right
       }), head);
     }
 
+BooleanAtom
+  = Comparison
+  / "NOT"i _ operand:BooleanAtom {
+      return { type: "UnaryOp", op: "NOT", operand };
+    }
+  / BooleanFn
+  / "(" _ expr:BooleanOr _ ")" { return expr; }
+  / BooleanLiteral
+
 Comparison
-  = left:Addition _ op:ComparisonOp _ right:Addition {
+  = left:Arithmetic _ op:ComparisonOp _ right:Arithmetic {
       return { type: "Comparison", op, left, right };
     }
-  / Addition
 
 ComparisonOp
   = "<>" / ">=" / "<=" / "=" / ">" / "<"
+
+BooleanFn
+  = name:Identifier &{ return booleanFns.includes(name.toUpperCase()); }
+    _ "(" _ arg:Expression _ ")" {
+      return { type: "SingleArgFn", name: name.toUpperCase(), arg };
+    }
+
+// --- Arithmetic layer ---
+
+Arithmetic
+  = Addition
 
 Addition
   = head:Multiplication tail:(_ ("+" / "-") _ Multiplication)* {
@@ -57,22 +86,79 @@ UnaryExpr
   = "-" _ operand:UnaryExpr {
       return { type: "UnaryOp", op: "-", operand };
     }
-  / "NOT"i _ operand:UnaryExpr {
-      return { type: "UnaryOp", op: "NOT", operand };
-    }
   / Primary
 
+// --- Primary (function calls, literals, refs) ---
+
 Primary
-  = FunctionCall
+  = IfExpr
+  / ConditionalAggregate
+  / CountIf
+  / ZeroArgFn
+  / SingleArgFn
+  / OneOrTwoArgFn
+  / ZeroOrOneArgFn
+  / VariadicFn
+  / WindowFn
+  / InvalidFn
   / "(" _ expr:Expression _ ")" { return expr; }
-  / BooleanLiteral
   / NumberLiteral
   / StringLiteral
   / ColumnRef
 
-FunctionCall
-  = name:Identifier _ "(" _ content:FuncContent? _ ")" {
-      const node = { type: "FunctionCall", name: name.toUpperCase(), args: [] };
+// --- Dedicated function rules ---
+
+IfExpr
+  = "IF"i _ "(" _ condition:BooleanOr _ "," _ then:Expression _ else_:(_ "," _ Expression)? _ ")" {
+      return { type: "If", condition, then, "else": else_ ? else_[3] : null };
+    }
+
+ConditionalAggregate
+  = name:Identifier &{ return conditionalAggFns.includes(name.toUpperCase()); }
+    _ "(" _ value:Expression _ "," _ condition:BooleanOr _ ")" {
+      return { type: "ConditionalAggregate", name: name.toUpperCase(), value, condition };
+    }
+
+CountIf
+  = "COUNTIF"i _ "(" _ condition:BooleanOr _ ")" {
+      return { type: "CountIf", condition };
+    }
+
+ZeroArgFn
+  = name:Identifier &{ return zeroArgFns.includes(name.toUpperCase()); }
+    _ "(" _ ")" {
+      return { type: "ZeroArgFn", name: name.toUpperCase() };
+    }
+
+SingleArgFn
+  = name:Identifier &{ return singleArgFns.includes(name.toUpperCase()); }
+    _ "(" _ arg:Expression _ ")" {
+      return { type: "SingleArgFn", name: name.toUpperCase(), arg };
+    }
+
+OneOrTwoArgFn
+  = name:Identifier &{ return oneOrTwoArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ second:("," _ Expression)? _ ")" {
+      const args = second ? [first, second[2]] : [first];
+      return { type: "OneOrTwoArgFn", name: name.toUpperCase(), args };
+    }
+
+ZeroOrOneArgFn
+  = name:Identifier &{ return zeroOrOneArgFns.includes(name.toUpperCase()); }
+    _ "(" _ arg:Expression? _ ")" {
+      return { type: "ZeroOrOneArgFn", name: name.toUpperCase(), arg: arg ?? null };
+    }
+
+VariadicFn
+  = name:Identifier &{ return variadicFns.includes(name.toUpperCase()); }
+    _ "(" _ head:Expression tail:(_ "," _ Expression)* _ ")" {
+      return { type: "VariadicFn", name: name.toUpperCase(), args: [head, ...tail.map(t => t[3])] };
+    }
+
+WindowFn
+  = name:Identifier &{ return windowFns.includes(name.toUpperCase()); }
+    _ "(" _ content:WindowFnContent? _ ")" {
+      const node = { type: "WindowFn", name: name.toUpperCase(), args: [], windowClause: null };
       if (content) {
         node.args = content.args;
         if (content.windowClause) node.windowClause = content.windowClause;
@@ -80,7 +166,33 @@ FunctionCall
       return node;
     }
 
-FuncContent
+// --- Error fallback ---
+
+InvalidFn
+  = "IF"i _ "(" _ Expression _ "," _ Expression _ ("," _ Expression)? _ ")" {
+      error("IF requires a condition (e.g. A > 0) as its first argument");
+    }
+  / name:Identifier &{ return conditionalAggFns.includes(name.toUpperCase()); }
+    _ "(" _ Expression _ "," _ Expression _ ")" {
+      error(name.toUpperCase() + " requires a condition (e.g. B > 0) as its second argument");
+    }
+  / "COUNTIF"i _ "(" _ Expression _ ")" {
+      error("COUNTIF requires a condition (e.g. A > 0) as its argument");
+    }
+  / name:Identifier &{ return allFunctionNames.includes(name.toUpperCase()); }
+    _ "(" _ ArgListPermissive? _ ")" {
+      error(name.toUpperCase() + " called with wrong number of arguments");
+    }
+  / name:Identifier _ "(" _ ArgListPermissive? _ ")" {
+      error("Unknown function: " + name);
+    }
+
+ArgListPermissive
+  = Expression (_ "," _ Expression)*
+
+// --- Window function content ---
+
+WindowFnContent
   = first:WindowClausePartFirst rest:WindowClausePart* {
       const wc = { type: "WindowClause" };
       const parts = [first, ...rest];
@@ -90,7 +202,7 @@ FuncContent
       }
       return { args: [], windowClause: wc };
     }
-  / head:Expression tail:FuncContentTail* {
+  / head:Expression tail:WindowFnContentTail* {
       const args = [head];
       let windowClause = undefined;
       for (const item of tail) {
@@ -106,7 +218,7 @@ FuncContent
       return result;
     }
 
-FuncContentTail
+WindowFnContentTail
   = _ "," _ "ORDER"i _ "BY"i _ col:Expression dir:(_ ("ASC"i / "DESC"i))? {
       return { _tag: 'window', orderBy: { column: col, direction: dir ? dir[1].toUpperCase() : undefined } };
     }
@@ -133,13 +245,10 @@ WindowClausePart
       return { partitionBy: col };
     }
 
-ArgList
-  = head:Expression tail:(_ "," _ Expression)* {
-      return [head, ...tail.map(t => t[3])];
-    }
+// --- Terminals ---
 
 ColumnRef
-  = name:Identifier {
+  = name:Identifier !{ return allFunctionNames.includes(name.toUpperCase()); } {
       return { type: "ColumnRef", name };
     }
 
