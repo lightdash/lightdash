@@ -6,6 +6,7 @@ import type {
     VariadicFnName,
     WindowFnName,
     ConditionalAggFnName,
+    FunctionName,
 } from './functions';
 
 export type Dialect = 'postgres' | 'bigquery' | 'snowflake' | 'duckdb';
@@ -144,10 +145,12 @@ export interface WindowClauseNode {
     partitionBy?: ASTNode;
 }
 
+export type FunctionCategory = 'math' | 'string' | 'date' | 'logical' | 'aggregate' | 'window' | 'null' | 'type';
+
 export interface FunctionDefinition {
-    name: string;
+    name: FunctionName;
     description: string;
     minArgs: number;
     maxArgs: number;
-    category: 'math' | 'string' | 'date' | 'logical' | 'aggregate' | 'window' | 'null' | 'type';
+    category: FunctionCategory;
 }
