@@ -154,6 +154,39 @@ other part of the system, please use the appropriate tag to avoid the extra over
 You can see all
 the [supported types here](https://github.com/commitizen/conventional-commit-types/blob/v3.0.0/index.json).
 
+##### Breaking Changes
+
+When a change breaks backwards compatibility, signal it using one of these conventional commit methods:
+
+- **`!` suffix**: `feat!: remove deprecated /api/v1/charts endpoint`
+- **`BREAKING CHANGE:` footer**:
+  ```
+  feat: redesign project settings API
+
+  BREAKING CHANGE: The /api/v1/projects/:id/settings endpoint now returns
+  a flat object instead of nested groups.
+  ```
+
+Either method triggers a **major version bump** (e.g., `1.5.0` → `2.0.0`).
+
+**What counts as a breaking change for Lightdash:**
+
+- REST API endpoint removals or response shape changes
+- Database migrations requiring manual intervention
+- Removed or renamed environment variables / configuration options
+- CLI command removals or changed flags
+- Changed authentication/authorization behavior
+- npm package API changes (`@lightdash/common`, `@lightdash/warehouses`, `@lightdash/cli`)
+- dbt YAML schema changes that invalidate existing `.yml` files
+
+**Not breaking** (minor or patch):
+
+- New API endpoints or new optional fields on existing responses
+- New environment variables with sensible defaults
+- UI changes (layout, design, new features)
+- New database migrations that run automatically
+- Internal refactors with no user-facing effect
+
 #### Merge Strategy
 
 We use `squash & merge` to keep the main branch history clean.
