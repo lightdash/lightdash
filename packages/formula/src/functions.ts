@@ -67,7 +67,7 @@ export const ALL_FUNCTION_NAMES = [
 
 export type FunctionName = (typeof ALL_FUNCTION_NAMES)[number];
 
-// prettier-ignore
+// oxfmt-ignore
 export const FUNCTION_DEFINITIONS = [
     // Logical
     { name: 'IF', description: 'Conditional expression', minArgs: 2, maxArgs: 3, category: 'logical' },
@@ -120,7 +120,10 @@ export const FUNCTION_DEFINITIONS = [
 
 export type FunctionDefinitionEntry = (typeof FUNCTION_DEFINITIONS)[number];
 
-export type FunctionDefinitionFor<N extends FunctionName> = Extract<FunctionDefinitionEntry, { name: N }>;
+export type FunctionDefinitionFor<N extends FunctionName> = Extract<
+    FunctionDefinitionEntry,
+    { name: N }
+>;
 
 type _AssertAllFunctionsDefined = [
     Exclude<FunctionName, FunctionDefinitionEntry['name']>,

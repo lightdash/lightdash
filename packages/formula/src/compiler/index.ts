@@ -1,8 +1,10 @@
-import type { ASTNode } from '../types';
 import { getParserOptions } from '../functions';
+import type { ASTNode } from '../types';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-let parserModule: { parse: (input: string, options?: Record<string, unknown>) => ASTNode } | null = null;
+let parserModule: {
+    parse: (input: string, options?: Record<string, unknown>) => ASTNode;
+} | null = null;
 
 function getParser() {
     if (!parserModule) {

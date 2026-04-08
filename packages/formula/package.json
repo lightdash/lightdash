@@ -10,11 +10,17 @@
     "build:ts": "tsc --build",
     "build": "pnpm run build:grammar && pnpm run build:ts",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "lint": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore ./src",
+    "format": "oxfmt ./src --check",
+    "fix-format": "oxfmt ./src",
+    "formatter": "oxfmt",
+    "lint": "pnpm run linter ./src",
+    "fix-lint": "pnpm run linter ./src --fix",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "test": "vitest run"
   },
-  "dependencies": {},
   "devDependencies": {
+    "oxlint": "1.57.0",
+    "oxlint-tsgolint": "0.18.1",
     "peggy": "4.2.0",
     "typescript": "6.0.0-beta",
     "vitest": "3.1.1"
