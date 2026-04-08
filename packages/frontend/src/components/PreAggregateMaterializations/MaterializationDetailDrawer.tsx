@@ -1,4 +1,5 @@
 import {
+    FilterOperator,
     type PreAggregateMaterializationRole,
     type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationWarning,
@@ -36,6 +37,7 @@ import cronstrue from 'cronstrue';
 import { type FC } from 'react';
 import { LD_FIELD_COLORS } from '../../mantineTheme';
 import Callout from '../common/Callout';
+import { filterOperatorLabel } from '../common/Filters/FilterInputs/constants';
 import MantineIcon from '../common/MantineIcon';
 import { IconBox } from '../common/ResourceIcon';
 import { formatDuration, formatFileSize } from './formatters';
@@ -61,6 +63,34 @@ const DetailValue: FC<{ children: React.ReactNode; mono?: boolean }> = ({
         {children}
     </Text>
 );
+
+const formatFilterValue = (
+    filter: PreAggregateMaterializationSummary['filters'][number],
+) => {
+    const { operator, values, settings } = filter;
+
+    switch (operator) {
+        case FilterOperator.NULL:
+        case FilterOperator.NOT_NULL:
+            return null;
+        case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT:
+            return `${settings?.completed ? 'completed ' : ''}${
+                settings?.unitOfTime?.slice(0, -1) ?? 'day'
+            }`;
+        case FilterOperator.IN_THE_PAST:
+        case FilterOperator.NOT_IN_THE_PAST:
+        case FilterOperator.IN_THE_NEXT:
+            return `${values?.[0] ?? ''} ${
+                settings?.completed ? 'completed ' : ''
+            }${settings?.unitOfTime ?? ''}`.trim();
+        case FilterOperator.IN_BETWEEN:
+        case FilterOperator.NOT_IN_BETWEEN:
+            return values?.filter((value) => value != null).join(', ') ?? null;
+        default:
+            return values?.filter((value) => value != null).join(', ') ?? null;
+    }
+};
 
 const ColumnsSection: FC<{
     columns: [string, { type: string }][];
@@ -163,6 +193,59 @@ const MaterializationRoleSection: FC<{
     );
 };
 
+const FiltersSection: FC<{
+    filters: PreAggregateMaterializationSummary['filters'];
+}> = ({ filters }) => (
+    <Box>
+        <DetailLabel>Filters</DetailLabel>
+        <Stack gap={6} mt={4}>
+            {filters.map((filter, index) => {
+                const value = formatFilterValue(filter);
+
+                return (
+                    <Box
+                        key={filter.id}
+                        px="xs"
+                        py={6}
+                        style={{
+                            borderRadius: 'var(--mantine-radius-sm)',
+                        }}
+                    >
+                        <Group gap={6} wrap="wrap" align="center">
+                            <Badge
+                                variant="light"
+                                color="gray"
+                                size="xs"
+                                ff="monospace"
+                            >
+                                {filter.target.fieldRef}
+                            </Badge>
+                            <Text fz="xs" c="ldGray.6" fw={500}>
+                                {filterOperatorLabel[filter.operator]}
+                            </Text>
+                            {value && (
+                                <Badge
+                                    variant="outline"
+                                    color="gray"
+                                    size="xs"
+                                    ff="monospace"
+                                >
+                                    {value}
+                                </Badge>
+                            )}
+                        </Group>
+                        {index < filters.length - 1 && (
+                            <Text fz="xs" c="ldGray.5" fw={600} mt={4}>
+                                AND
+                            </Text>
+                        )}
+                    </Box>
+                );
+            })}
+        </Stack>
+    </Box>
+);
+
 type Props = {
     summary: PreAggregateMaterializationSummary | null;
     opened: boolean;
@@ -248,6 +331,10 @@ const MaterializationDetailDrawer: FC<Props> = ({
                         ))}
                     </Group>
                 </Box>
+
+                {summary.filters.length > 0 && (
+                    <FiltersSection filters={summary.filters} />
+                )}
 
                 {summary.timeDimension && (
                     <Group gap="xl">

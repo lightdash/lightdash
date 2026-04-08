@@ -605,6 +605,7 @@ export class PreAggregateModel {
                         null,
                     dimensions: row.pre_aggregate_definition.dimensions ?? [],
                     metrics: row.pre_aggregate_definition.metrics ?? [],
+                    filters: row.pre_aggregate_definition.filters ?? [],
                     timeDimension:
                         row.pre_aggregate_definition.timeDimension ?? null,
                     granularity:
