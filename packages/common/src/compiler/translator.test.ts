@@ -1213,6 +1213,46 @@ describe('explore-scoped additional dimensions', () => {
         ).toBe('custom_date');
     });
 
+    it('should apply sql_filter from explore config', async () => {
+        const modelWithExploreSqlFilter: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            meta: {
+                explores: {
+                    completed_orders: {
+                        label: 'Completed Orders Only',
+                        sql_filter: "${TABLE}.status = 'completed'",
+                    },
+                },
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithExploreSqlFilter],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        const completedExplore = explores.find(
+            (e) => 'name' in e && e.name === 'completed_orders',
+        ) as Explore;
+
+        expect(completedExplore).toBeDefined();
+        expect(completedExplore.tables.test_model.sqlWhere).toBe(
+            '"test_model".status = \'completed\'',
+        );
+
+        // Base explore should NOT have the sql_filter
+        const baseExplore = explores.find(
+            (e) => 'name' in e && e.name === 'test_model',
+        ) as Explore;
+        expect(baseExplore.tables.test_model.sqlWhere).toBeUndefined();
+    });
+
     it('should apply default show underlying values to metrics', () => {
         const table = convertTable(
             SupportedDbtAdapter.POSTGRES,

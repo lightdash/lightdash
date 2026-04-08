@@ -1060,6 +1060,14 @@
                                     "type": "array",
                                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
                                     "items": { "$ref": "#/$defs/filterItem" }
+                                },
+                                "sql_filter": {
+                                    "type": "string",
+                                    "description": "SQL filter applied to the WHERE clause of all queries using this explore"
+                                },
+                                "sql_where": {
+                                    "type": "string",
+                                    "description": "Alias for sql_filter (deprecated, use sql_filter instead)"
                                 }
                             }
                         }
