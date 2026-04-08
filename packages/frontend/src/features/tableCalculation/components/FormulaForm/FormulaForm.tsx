@@ -5,6 +5,12 @@ import {
 } from '@lightdash/common';
 import { compile, parse } from '@lightdash/formula';
 import { Code, Text } from '@mantine-8/core';
+
+/** Prepend '=' for the parser — strip if user typed it since the UI shows '=' as a prefix */
+function toFormulaText(text: string): string {
+    const trimmed = text.trim();
+    return trimmed.startsWith('=') ? trimmed : `=${trimmed}`;
+}
 import type { Editor } from '@tiptap/react';
 import {
     useCallback,
@@ -64,7 +70,7 @@ export const FormulaForm = forwardRef<FormulaFormRef, Props>(
                     columns[fieldId] = fieldId;
                 }
                 try {
-                    return compile(text, { dialect, columns });
+                    return compile(toFormulaText(text), { dialect, columns });
                 } catch {
                     return null;
                 }
@@ -80,7 +86,7 @@ export const FormulaForm = forwardRef<FormulaFormRef, Props>(
                     return;
                 }
                 try {
-                    parse(text);
+                    parse(toFormulaText(text));
                     setParseError(null);
                     // If parse succeeds, try to compile for preview
                     const sql = tryCompile(text);
@@ -116,12 +122,13 @@ export const FormulaForm = forwardRef<FormulaFormRef, Props>(
                         columns[fieldId] = fieldId;
                     }
 
-                    const compiledSql = compile(formulaText, {
+                    const fullFormula = toFormulaText(formulaText);
+                    const compiledSql = compile(fullFormula, {
                         dialect,
                         columns,
                     });
 
-                    return { formula: formulaText, compiledSql };
+                    return { formula: fullFormula, compiledSql };
                 },
             }),
             [dialect, fieldMapping],
@@ -132,7 +139,7 @@ export const FormulaForm = forwardRef<FormulaFormRef, Props>(
                 <FormulaEditor
                     explore={explore}
                     metricQuery={metricQuery}
-                    initialContent={initialFormulaSource}
+                    initialContent={initialFormulaSource?.replace(/^=/, '')}
                     onTextChange={handleTextChange}
                     editorRef={editorRef}
                     isFullScreen={isFullScreen}

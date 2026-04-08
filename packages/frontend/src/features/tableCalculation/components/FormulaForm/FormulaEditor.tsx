@@ -138,7 +138,11 @@ export const FormulaEditor: FC<Props> = ({
                 horizontalRule: false,
             }),
             MentionWithLabel.configure({
-                suggestion: generateFieldSuggestion(fieldSuggestions),
+                suggestion: {
+                    ...generateFieldSuggestion(fieldSuggestions),
+                    // Allow @ after any character (e.g. after parentheses)
+                    allowedPrefixes: null,
+                },
                 renderText: ({ node }) =>
                     `${node.attrs.id ?? node.attrs.label}`,
                 renderHTML: ({ node }) => [
@@ -148,8 +152,7 @@ export const FormulaEditor: FC<Props> = ({
                 ],
             }),
             Placeholder.configure({
-                placeholder:
-                    'Type a formula (use @ to reference fields)... e.g. =IF(@Revenue > 1000, "high", "low")',
+                placeholder: 'IF(@Revenue > 1000, "high", "low")',
             }),
         ],
         content: initialContent
@@ -190,11 +193,15 @@ export const FormulaEditor: FC<Props> = ({
                     content: styles.editorContent,
                 }}
             >
-                <RichTextEditor.Content
-                    style={{
-                        minHeight: isFullScreen ? '300px' : '120px',
-                    }}
-                />
+                <Box className={styles.editorWithPrefix}>
+                    <span className={styles.equalsPrefix}>=</span>
+                    <RichTextEditor.Content
+                        className={styles.editorContentInner}
+                        style={{
+                            minHeight: isFullScreen ? '300px' : '120px',
+                        }}
+                    />
+                </Box>
             </RichTextEditor>
         </Box>
     );

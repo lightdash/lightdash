@@ -13,7 +13,7 @@
 
 .sqlPreview {
     font-size: var(--mantine-font-size-xs);
-    margin: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    margin-top: var(--mantine-spacing-xs);
     max-height: 80px;
     overflow-y: auto;
 
