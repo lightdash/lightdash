@@ -1,3 +1,11 @@
+# [0.2740.0](https://github.com/lightdash/lightdash/compare/0.2739.1...0.2740.0) (2026-04-08)
+
+
+### Features
+
+* add formula support to table calculation modal ([#21853](https://github.com/lightdash/lightdash/issues/21853)) ([8301946](https://github.com/lightdash/lightdash/commit/83019464d47e898f4155dd4d49a938de8c1fb6b3))
+* add formula support to table calculations ([#21847](https://github.com/lightdash/lightdash/issues/21847)) ([9721380](https://github.com/lightdash/lightdash/commit/9721380d2724599aa09a743b085fb224a75afa9d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2739.1](https://github.com/lightdash/lightdash/compare/0.2739.0...0.2739.1) (2026-04-08)
 
 
