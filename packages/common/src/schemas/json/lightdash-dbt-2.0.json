@@ -783,6 +783,12 @@
                                     "type": "string"
                                 }
                             },
+                            "filters": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            },
                             "time_dimension": {
                                 "type": "string"
                             },
