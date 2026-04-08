@@ -1,6 +1,8 @@
 import {
     ApiPreAggregateStatsResults,
     ExploreType,
+    getPreAggregateExploreName,
+    PreAggregateMissReason,
     preAggregateUtils,
     QueryExecutionContext as QEC,
     UnexpectedServerError,
@@ -22,6 +24,7 @@ import type {
 } from '../../../services/AsyncQueryService/PreAggregateStrategy';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { type PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';
+import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
@@ -30,6 +33,7 @@ import {
 type EePreAggregateStrategyArgs = {
     preAggregationDuckDbClient: PreAggregationDuckDbClient;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
+    preAggregateModel: Pick<PreAggregateModel, 'getActiveMaterialization'>;
     preAggregateResultsStorageClient: S3ResultsFileStorageClient;
     isEnabled: () => boolean;
 };
@@ -39,6 +43,11 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
 
     private readonly statsModel: PreAggregateDailyStatsModel;
 
+    private readonly preAggregateModel: Pick<
+        PreAggregateModel,
+        'getActiveMaterialization'
+    >;
+
     private readonly resultsStorageClient: S3ResultsFileStorageClient;
 
     private readonly isEnabled: () => boolean;
@@ -46,19 +55,22 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
     constructor(args: EePreAggregateStrategyArgs) {
         this.duckDbClient = args.preAggregationDuckDbClient;
         this.statsModel = args.preAggregateDailyStatsModel;
+        this.preAggregateModel = args.preAggregateModel;
         this.resultsStorageClient = args.preAggregateResultsStorageClient;
         this.isEnabled = args.isEnabled;
     }
 
-    getRoutingDecision({
+    async getRoutingDecision({
+        projectUuid,
         metricQuery,
         explore,
         context,
     }: {
+        projectUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
-    }): PreAggregationRoutingDecision {
+    }): Promise<PreAggregationRoutingDecision> {
         if (!this.isEnabled()) {
             return { target: 'warehouse' };
         }
@@ -67,6 +79,18 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             if (!explore.preAggregateSource) {
                 throw new UnexpectedServerError(
                     `Pre-aggregate explore "${explore.name}" is missing source metadata`,
+                );
+            }
+
+            const activeMaterialization =
+                await this.preAggregateModel.getActiveMaterialization(
+                    projectUuid,
+                    explore.name,
+                );
+
+            if (!activeMaterialization) {
+                throw new UnexpectedServerError(
+                    `Pre-aggregate explore "${explore.name}" has no active materialization`,
                 );
             }
 
@@ -99,6 +123,31 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         }
 
         if (matchResult.hit && matchResult.preAggregateName) {
+            // Check if there's an active materialization before reporting a hit
+            const preAggExploreName = getPreAggregateExploreName(
+                metricQuery.exploreName,
+                matchResult.preAggregateName,
+            );
+            const activeMaterialization =
+                await this.preAggregateModel.getActiveMaterialization(
+                    projectUuid,
+                    preAggExploreName,
+                );
+
+            if (!activeMaterialization) {
+                return {
+                    target: 'warehouse',
+                    preAggregateMetadata: {
+                        hit: false,
+                        name: matchResult.preAggregateName,
+                        reason: {
+                            reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                            preAggregateName: matchResult.preAggregateName,
+                        },
+                    },
+                };
+            }
+
             return {
                 target: 'pre_aggregate',
                 preAggregateMetadata,

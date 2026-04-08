@@ -3271,37 +3271,50 @@ export class ProjectService extends BaseService {
         );
         try {
             await this.getExplore(account, projectUuid, preAggExploreName);
-            return {
-                hit: true,
-                preAggregateName: matchResult.preAggregateName,
-                preAggregateExploreName: preAggExploreName,
-            };
         } catch (error) {
-            this.logger.error(
-                `Failed to resolve pre-aggregate explore "${preAggExploreName}", falling back to source explore`,
-                {
-                    projectUuid,
-                    sourceExploreName: sourceExplore.name,
-                    preAggregateName: matchResult.preAggregateName,
-                    preAggExploreName,
-                    error: getErrorMessage(error),
-                },
+            if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    `Failed to resolve pre-aggregate explore "${preAggExploreName}", falling back to source explore`,
+                    {
+                        projectUuid,
+                        sourceExploreName: sourceExplore.name,
+                        preAggregateName: matchResult.preAggregateName,
+                        preAggExploreName,
+                        error: getErrorMessage(error),
+                    },
+                );
+                return {
+                    hit: false,
+                    reason: {
+                        reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR,
+                    },
+                };
+            }
+
+            throw error;
+        }
+
+        const activeMaterialization =
+            await this.preAggregateModel.getActiveMaterialization(
+                projectUuid,
+                preAggExploreName,
             );
-            Sentry.captureException(error, {
-                tags: {
-                    projectUuid,
-                    sourceExploreName: sourceExplore.name,
-                    preAggregateName: matchResult.preAggregateName,
-                },
-                extra: { preAggExploreName },
-            });
+
+        if (!activeMaterialization) {
             return {
                 hit: false,
                 reason: {
-                    reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR,
+                    reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                    preAggregateName: matchResult.preAggregateName,
                 },
             };
         }
+
+        return {
+            hit: true,
+            preAggregateName: matchResult.preAggregateName,
+            preAggregateExploreName: preAggExploreName,
+        };
     }
 
     async runUnderlyingDataQuery(

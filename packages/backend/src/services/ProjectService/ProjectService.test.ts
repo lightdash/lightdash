@@ -6,6 +6,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    PreAggregateMissReason,
     SessionUser,
     WarehouseTypes,
     type Explore,
@@ -151,6 +152,7 @@ const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
     getPreAggregateDefinitionsForProject: jest.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
+    getActiveMaterialization: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -885,6 +887,74 @@ describe('ProjectService', () => {
             ).rejects.toThrow(
                 `Explore "${preAggregateExplore.name}" does not exist.`,
             );
+        });
+    });
+
+    describe('checkPreAggregateMatch', () => {
+        const matchingMetricQuery = {
+            exploreName: validExplore.name,
+            dimensions: ['a_dim1'],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        };
+        const sourceExploreWithPreAggregate: Explore = {
+            ...validExplore,
+            preAggregates: [
+                {
+                    name: 'rollup',
+                    dimensions: ['dim1'],
+                    metrics: [],
+                },
+            ],
+        };
+
+        test('should return a miss when matched pre-aggregate has no active materialization', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementation(
+                async (_projectUuid: string, _key: string, names: string[]) =>
+                    names.reduce<Record<string, Explore>>((acc, name) => {
+                        if (name === sourceExploreWithPreAggregate.name) {
+                            acc[name] = sourceExploreWithPreAggregate;
+                        }
+                        if (name === preAggregateExplore.name) {
+                            acc[name] = preAggregateExplore;
+                        }
+                        return acc;
+                    }, {}),
+            );
+
+            (
+                preAggregateModel.getActiveMaterialization as jest.Mock
+            ).mockResolvedValue(undefined);
+
+            const result =
+                await serviceWithPreAggregatesEnabled.checkPreAggregateMatch({
+                    account: developerAccount,
+                    projectUuid,
+                    exploreName: sourceExploreWithPreAggregate.name,
+                    metricQuery: matchingMetricQuery,
+                    usePreAggregateCache: true,
+                });
+
+            expect(result).toEqual({
+                hit: false,
+                reason: {
+                    reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                    preAggregateName: 'rollup',
+                },
+            });
         });
     });
     describe('getJobStatus', () => {
