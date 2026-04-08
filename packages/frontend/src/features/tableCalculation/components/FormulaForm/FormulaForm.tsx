@@ -102,10 +102,13 @@ export const FormulaForm = forwardRef<FormulaFormRef, Props>(
 
                     // Store the formula source with display names for re-editing
                     // Replace field IDs back to display names in the stored source
+                    // Sort by length descending to prevent partial replacements
+                    // (e.g. "orders_total" replacing part of "orders_total_tax")
                     let formulaSource = formulaText;
-                    for (const [id, display] of Object.entries(
+                    const sortedEntries = Object.entries(
                         fieldMapping.idToDisplay,
-                    )) {
+                    ).sort(([a], [b]) => b.length - a.length);
+                    for (const [id, display] of sortedEntries) {
                         formulaSource = formulaSource.replaceAll(id, display);
                     }
 
