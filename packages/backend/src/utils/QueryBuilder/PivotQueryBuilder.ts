@@ -1105,6 +1105,8 @@ export class PivotQueryBuilder {
      * @returns SQL with field references replaced by their pivot_query aliases
      */
     private replaceFieldReferencesWithAliases(sql: string): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
         // Build a map of original field names to their aliased names
         const fieldAliasMap: Record<string, string> = {};
 
@@ -1142,8 +1144,11 @@ export class PivotQueryBuilder {
                 '', // todo: explore base table
             );
             const fieldId = getItemId({ table: refTable, name: refName });
-            // First field match, second table calculation match, fallback
-            return fieldAliasMap[fieldId] || fieldAliasMap[ref] || fullmatch;
+            const alias = fieldAliasMap[fieldId] || fieldAliasMap[ref];
+            if (alias) {
+                return `${q}${alias}${q}`;
+            }
+            return fullmatch;
         });
     }
 
