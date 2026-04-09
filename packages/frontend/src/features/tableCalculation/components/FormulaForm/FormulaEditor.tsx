@@ -14,11 +14,15 @@ import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, type FC } from 'react';
-import { type FieldSuggestionItem } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput/FieldSuggestionList';
-import { generateFieldSuggestion } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput/generateFieldSuggestion';
+import {
+    generateFieldSuggestion,
+    type FieldSuggestionItem,
+} from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
-import { type FunctionSuggestionItem } from './FunctionSuggestionList';
-import { generateFunctionSuggestion } from './generateFunctionSuggestion';
+import {
+    generateFunctionSuggestion,
+    type FunctionSuggestionItem,
+} from './generateFunctionSuggestion';
 
 const MentionWithLabel = Mention.extend({
     addAttributes() {
