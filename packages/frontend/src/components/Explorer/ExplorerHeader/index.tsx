@@ -58,7 +58,9 @@ const ExplorerHeader: FC = memo(() => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const handleSetTimeZone = (timezone: string | null) => {
-        if (timezone && isTimeZone(timezone)) {
+        if (timezone === null) {
+            dispatch(explorerActions.setTimeZone(undefined));
+        } else if (isTimeZone(timezone)) {
             dispatch(explorerActions.setTimeZone(timezone));
         }
     };
@@ -194,8 +196,9 @@ const ExplorerHeader: FC = memo(() => {
                 {userTimeZonesEnabled && (
                     <TimeZonePicker
                         onChange={handleSetTimeZone}
-                        value={selectedTimezone as string}
+                        value={selectedTimezone ?? null}
                         placeholder={timezonePlaceholder}
+                        clearable
                     />
                 )}
 
