@@ -38,6 +38,8 @@ import {
     filterInThePastNonCompletedDayTimezoneMocks,
     filterNegativeOffsetEdgeCaseCurrentDayMocks,
     filterNegativeOffsetEdgeCasePastCompletedDayMocks,
+    filterPositiveOffsetEdgeCaseCurrentDayMocks,
+    filterPositiveOffsetEdgeCasePastCompletedDayMocks,
     InBetweenPastTwoYearsFilter,
     InBetweenPastTwoYearsFilterSQL,
     InBetweenPastTwoYearsTimestampFilterSQL,
@@ -2310,6 +2312,53 @@ describe('Number Filter SQL Injection Prevention', () => {
             (timezone, expected) => {
                 jest.setSystemTime(
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
+                );
+                expect(
+                    renderDateFilterSql(
+                        DimensionSqlMock,
+                        {
+                            ...InThePastFilterBase,
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                                completed: true,
+                            },
+                        },
+                        adapterType.default,
+                        timezone,
+                        createBoundaryDateFormatter(timezone),
+                    ),
+                ).toStrictEqual(expected);
+            },
+        );
+    });
+
+    describe('positive-offset edge case near end of UTC day', () => {
+        test.each(filterPositiveOffsetEdgeCaseCurrentDayMocks)(
+            'inTheCurrent day late UTC for timezone %s',
+            (timezone, expected) => {
+                jest.setSystemTime(
+                    new Date('04 Apr 2020 22:00:00 GMT').getTime(),
+                );
+                expect(
+                    renderDateFilterSql(
+                        DimensionSqlMock,
+                        {
+                            ...InTheCurrentFilterBase,
+                            settings: { unitOfTime: UnitOfTime.days },
+                        },
+                        adapterType.default,
+                        timezone,
+                        createBoundaryDateFormatter(timezone),
+                    ),
+                ).toStrictEqual(expected);
+            },
+        );
+
+        test.each(filterPositiveOffsetEdgeCasePastCompletedDayMocks)(
+            'inThePast completed day late UTC for timezone %s',
+            (timezone, expected) => {
+                jest.setSystemTime(
+                    new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
                     renderDateFilterSql(

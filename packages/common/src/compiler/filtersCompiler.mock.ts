@@ -858,3 +858,22 @@ export const filterNegativeOffsetEdgeCasePastCompletedDayMocks = [
         "((customers.created) >= ('2020-04-02') AND (customers.created) < ('2020-04-03'))",
     ],
 ];
+
+// ── Positive-offset edge case: 22:00 UTC Apr 4 = Apr 5 07:00 JST ────
+// System time: 04 Apr 2020 22:00:00 GMT
+// Tokyo is already on Apr 5 while UTC is still Apr 4.
+// Without fix: boundaries formatted from UTC dates yield Apr 3/Apr 4
+// With fix: boundaryFormatter converts to JST → correct Apr 4/Apr 5
+export const filterPositiveOffsetEdgeCaseCurrentDayMocks = [
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) <= ('2020-04-05'))",
+    ],
+];
+
+export const filterPositiveOffsetEdgeCasePastCompletedDayMocks = [
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) < ('2020-04-05'))",
+    ],
+];
