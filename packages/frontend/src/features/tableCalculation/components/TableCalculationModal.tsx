@@ -17,39 +17,26 @@ import {
     Badge,
     Box,
     Button,
-    getDefaultZIndex,
     Group,
     Loader,
-    Modal,
-    Paper,
     SegmentedControl,
     Select,
     Stack,
-    Tabs,
     Text,
     TextInput,
     Tooltip,
-    useMantineTheme,
-    type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
     IconCalculator,
     IconMaximize,
     IconMinimize,
 } from '@tabler/icons-react';
-import {
-    lazy,
-    Suspense,
-    useCallback,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
 import {
     selectCustomDimensions,
@@ -63,14 +50,16 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormulaForm } from './FormulaForm/FormulaForm';
+import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
-// Lazy load SqlForm to avoid loading heavy Ace Editor on initial modal open
 const SqlForm = lazy(() =>
     import('./SqlForm').then((module) => ({ default: module.SqlForm })),
 );
 
-type Props = ModalProps & {
+type Props = {
+    opened: boolean;
+    onClose: () => void;
     tableCalculation?: TableCalculation;
     onSave: (tableCalculation: TableCalculation) => void;
 };
@@ -95,11 +84,8 @@ const TableCalculationModal: FC<Props> = ({
     onSave,
     onClose,
 }) => {
-    const theme = useMantineTheme();
-    const { colors } = theme;
     const [isExpanded, toggleExpanded] = useToggle(false);
 
-    // Default to Raw SQL, but show Template/Formula if it exists
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
@@ -112,7 +98,6 @@ const TableCalculationModal: FC<Props> = ({
           ? EditMode.TEMPLATE
           : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
-    const submitButtonRef = useRef<HTMLButtonElement>(null);
 
     const { addToastError } = useToaster();
 
@@ -120,7 +105,6 @@ const TableCalculationModal: FC<Props> = ({
         FeatureFlags.FormulaTableCalculations,
     );
 
-    // Explorer context for formula editor
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data: explore } = useExplore(tableName);
@@ -185,7 +169,6 @@ const TableCalculationModal: FC<Props> = ({
         [tableCalculation, existingItemIds],
     );
 
-    // Memoize template for TemplateViewer
     const template = useMemo(
         () =>
             tableCalculation && isTemplateTableCalculation(tableCalculation)
@@ -215,9 +198,11 @@ const TableCalculationModal: FC<Props> = ({
             form.values.formula.trim().length === 0 ||
             formulaParseError !== null);
 
-    const handleSubmit = form.onSubmit((data) => {
-        const { name, sql, formula } = data;
-        // throw error if name is empty
+    const handleConfirm = useCallback(() => {
+        const validation = form.validate();
+        if (validation.hasErrors) return;
+
+        const { name, sql, formula, format, type } = form.values;
         if (name.length === 0) {
             addToastError({
                 title: 'Name cannot be empty',
@@ -226,7 +211,6 @@ const TableCalculationModal: FC<Props> = ({
             return;
         }
         try {
-            // Determine the final name - only run uniqueness check if name changed or it's a new calculation
             const isNewCalculation = !tableCalculation;
             const nameChanged =
                 tableCalculation && tableCalculation.displayName !== name;
@@ -239,7 +223,6 @@ const TableCalculationModal: FC<Props> = ({
                     tableCalculation,
                 );
             } else {
-                // Name unchanged - keep the original name
                 finalName = tableCalculation.name;
             }
 
@@ -251,24 +234,24 @@ const TableCalculationModal: FC<Props> = ({
                 onSave({
                     name: finalName,
                     displayName: name,
-                    format: data.format,
-                    type: data.type,
+                    format,
+                    type,
                     template: editedTemplate ?? tableCalculation.template,
                 });
             } else if (editMode === EditMode.FORMULA) {
                 onSave({
                     name: finalName,
                     displayName: name,
-                    format: data.format,
-                    type: data.type,
+                    format,
+                    type,
                     formula: `=${formula}`,
                 });
             } else {
                 onSave({
                     name: finalName,
                     displayName: name,
-                    format: data.format,
-                    type: data.type,
+                    format,
+                    type,
                     sql,
                 });
             }
@@ -279,7 +262,15 @@ const TableCalculationModal: FC<Props> = ({
                 key: 'table-calculation-modal',
             });
         }
-    });
+    }, [
+        form,
+        editMode,
+        tableCalculation,
+        tableCalculations,
+        editedTemplate,
+        onSave,
+        addToastError,
+    ]);
 
     const getFormatInputProps = useCallback(
         (path: keyof CustomFormat) => {
@@ -295,13 +286,6 @@ const TableCalculationModal: FC<Props> = ({
         [form],
     );
 
-    // Memoize callback for Cmd+Enter
-    const handleCmdEnter = useCallback(() => {
-        if (submitButtonRef.current) {
-            submitButtonRef.current.click();
-        }
-    }, []);
-
     const handleTemplateChange = useCallback(
         (updated: TableCalculationTemplate) => {
             setEditedTemplate(updated);
@@ -309,13 +293,11 @@ const TableCalculationModal: FC<Props> = ({
         [],
     );
 
-    // Memoize table calculation type options
     const tableCalculationTypeOptions = useMemo(
         () => Object.values(TableCalculationType),
         [],
     );
 
-    // Memoize type change handler
     const handleTypeChange = useCallback(
         (value: string | null) => {
             if (
@@ -330,7 +312,6 @@ const TableCalculationModal: FC<Props> = ({
         [form, tableCalculationTypeOptions],
     );
 
-    // Memoize edit mode data for segmented control
     const editModeOptions = useMemo(
         () => [
             { value: EditMode.SQL, label: 'SQL' },
@@ -339,7 +320,7 @@ const TableCalculationModal: FC<Props> = ({
                 label: isFormulaEnabled ? (
                     'Formula'
                 ) : (
-                    <Group spacing={6} noWrap sx={{ justifyContent: 'center' }}>
+                    <Group gap={6} wrap="nowrap" justify="center">
                         <Text span>Formula</Text>
                         <Badge
                             size="xs"
@@ -358,280 +339,148 @@ const TableCalculationModal: FC<Props> = ({
     );
 
     return (
-        <Modal.Root
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            size="xl"
-            centered
-            styles={{
-                content: {
-                    minWidth: isExpanded ? '90vw' : 'auto',
-                    height: isExpanded ? '80vh' : 'auto',
-                },
+            title={`${tableCalculation ? 'Edit' : 'Create'} Table Calculation`}
+            icon={IconCalculator}
+            size={isExpanded ? 'auto' : 'xl'}
+            headerActions={
+                <Tooltip label={isExpanded ? 'Collapse' : 'Expand'}>
+                    <ActionIcon
+                        variant="subtle"
+                        onClick={toggleExpanded}
+                        color="gray"
+                    >
+                        <MantineIcon
+                            icon={isExpanded ? IconMinimize : IconMaximize}
+                        />
+                    </ActionIcon>
+                </Tooltip>
+            }
+            actions={
+                <Button
+                    onClick={handleConfirm}
+                    data-testid="table-calculation-save-button"
+                    disabled={
+                        (editMode === EditMode.SQL &&
+                            form.values.sql.length === 0) ||
+                        isFormulaInvalid
+                    }
+                >
+                    {tableCalculation ? 'Save changes' : 'Create'}
+                </Button>
+            }
+            cancelLabel="Cancel"
+            modalRootProps={{
+                closeOnClickOutside: false,
+                styles: isExpanded
+                    ? {
+                          content: {
+                              minWidth: '90vw',
+                              height: '80vh',
+                              maxHeight: '90vh',
+                          },
+                      }
+                    : undefined,
             }}
         >
-            <Modal.Overlay />
-            <Modal.Content
-                sx={{
-                    margin: '0 auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: isExpanded ? '90vh' : '60vh',
-                }}
-            >
-                <Modal.Header
-                    sx={(themeProps) => ({
-                        borderBottom: `1px solid ${themeProps.colors.ldGray[2]}`,
-                        padding: themeProps.spacing.sm,
-                    })}
-                >
-                    <Group spacing="xs">
-                        <Paper p="xs" withBorder radius="sm">
-                            <MantineIcon icon={IconCalculator} size="sm" />
-                        </Paper>
-                        <Text fw={700} fz="md">
-                            {tableCalculation ? 'Edit' : 'Create'} Table
-                            Calculation
-                            {tableCalculation ? (
-                                <Text span fw={400}>
-                                    {' '}
-                                    - {tableCalculation.displayName}
-                                </Text>
-                            ) : null}
-                        </Text>
-                    </Group>
-                    <Modal.CloseButton />
-                </Modal.Header>
+            <Stack gap="lg">
+                <Group gap="md" align="flex-start">
+                    <TextInput
+                        label="Name"
+                        required
+                        placeholder="E.g. Cumulative order count"
+                        data-testid="table-calculation-name-input"
+                        flex={2}
+                        {...form.getInputProps('name')}
+                    />
+                    <Select
+                        label="Data type"
+                        flex={1}
+                        {...form.getInputProps('type')}
+                        onChange={handleTypeChange}
+                        data={tableCalculationTypeOptions}
+                    />
+                </Group>
 
-                <form
-                    name="table_calculation"
-                    onSubmit={handleSubmit}
-                    style={{ display: 'contents' }}
-                >
-                    <Modal.Body
-                        p={0}
-                        sx={{
-                            flex: 1,
-                        }}
-                    >
-                        <Stack p="sm" spacing="xs">
-                            <TextInput
-                                label="Name"
-                                required
-                                placeholder="E.g. Cumulative order count"
-                                data-testid="table-calculation-name-input"
-                                {...form.getInputProps('name')}
-                            />
+                <Stack gap="xs">
+                    <Text fz="sm" fw={600}>
+                        Input
+                    </Text>
 
-                            {!hasTemplate && (
-                                <SegmentedControl
-                                    value={editMode}
-                                    onChange={(value) =>
-                                        setEditMode(value as EditMode)
-                                    }
-                                    data={editModeOptions}
-                                    size="xs"
-                                />
-                            )}
-
-                            <Tabs
-                                key={editMode}
-                                defaultValue="editor"
-                                color="indigo"
-                                variant="outline"
-                                radius="xs"
-                                styles={{
-                                    panel: {
-                                        borderColor: colors.ldGray[2],
-                                        borderWidth: 1,
-                                        borderStyle: 'solid',
-                                        borderTop: 'none',
-                                        height: isExpanded
-                                            ? 'calc(85vh - 400px)'
-                                            : 'auto',
-                                    },
-                                }}
-                            >
-                                <Tabs.List>
-                                    <Tabs.Tab value="editor">
-                                        {editMode === EditMode.TEMPLATE
-                                            ? 'Template'
-                                            : editMode === EditMode.FORMULA
-                                              ? 'Formula'
-                                              : 'SQL'}
-                                    </Tabs.Tab>
-                                    <Tabs.Tab value="format">Format</Tabs.Tab>
-                                </Tabs.List>
-
-                                <Tabs.Panel
-                                    value="editor"
-                                    style={{
-                                        height: isExpanded
-                                            ? 'calc(85vh - 400px)'
-                                            : 'auto',
-                                    }}
-                                >
-                                    {editMode === EditMode.TEMPLATE &&
-                                    tableCalculation &&
-                                    isTemplateTableCalculation(
-                                        tableCalculation,
-                                    ) ? (
-                                        <Box p="sm">
-                                            <TemplateViewer
-                                                template={
-                                                    editedTemplate ?? template
-                                                }
-                                                readOnly={false}
-                                                onTemplateChange={
-                                                    handleTemplateChange
-                                                }
-                                            />
-                                        </Box>
-                                    ) : editMode === EditMode.FORMULA ? (
-                                        <Box p="sm">
-                                            <FormulaForm
-                                                explore={explore}
-                                                metricQuery={metricQuery}
-                                                formula={form.values.formula}
-                                                initialFormula={
-                                                    form.values.formula ||
-                                                    undefined
-                                                }
-                                                onChange={(text) =>
-                                                    form.setFieldValue(
-                                                        'formula',
-                                                        text,
-                                                    )
-                                                }
-                                                onValidationChange={
-                                                    setFormulaParseError
-                                                }
-                                                isFullScreen={isExpanded}
-                                            />
-                                        </Box>
-                                    ) : (
-                                        <Suspense
-                                            fallback={
-                                                <Box
-                                                    p="xl"
-                                                    style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent:
-                                                            'center',
-                                                        minHeight: '250px',
-                                                        gap: '12px',
-                                                    }}
-                                                >
-                                                    <Loader size="sm" />
-                                                    <Text c="dimmed" size="sm">
-                                                        Loading SQL editor...
-                                                    </Text>
-                                                </Box>
-                                            }
-                                        >
-                                            <SqlForm
-                                                form={form}
-                                                isFullScreen={isExpanded}
-                                                focusOnRender={true}
-                                                onCmdEnter={handleCmdEnter}
-                                            />
-                                        </Suspense>
-                                    )}
-                                </Tabs.Panel>
-
-                                <Tabs.Panel value="format" p="sm">
-                                    <FormatForm
-                                        formatInputProps={getFormatInputProps}
-                                        setFormatFieldValue={
-                                            setFormatFieldValue
-                                        }
-                                        format={form.values.format}
-                                    />
-                                </Tabs.Panel>
-                            </Tabs>
-
-                            <Tooltip
-                                position="right"
-                                withArrow
-                                multiline
-                                maw={400}
-                                variant="xs"
-                                withinPortal
-                                label={
-                                    'Manually select the type of the result of this SQL table calculation, this will help us to treat this field correctly in filters or results.'
-                                }
-                            >
-                                <Select
-                                    label={'Result type'}
-                                    id="download-type"
-                                    sx={{
-                                        alignSelf: 'flex-start',
-                                    }}
-                                    {...form.getInputProps('type')}
-                                    onChange={handleTypeChange}
-                                    data={tableCalculationTypeOptions}
-                                />
-                            </Tooltip>
-                        </Stack>
-                    </Modal.Body>
+                    {!hasTemplate && (
+                        <SegmentedControl
+                            value={editMode}
+                            onChange={(value) => setEditMode(value as EditMode)}
+                            data={editModeOptions}
+                            size="xs"
+                        />
+                    )}
 
                     <Box
-                        sx={(themeProps) => ({
-                            borderTop: `1px solid ${themeProps.colors.ldGray[2]}`,
-                            padding: themeProps.spacing.sm,
-                            backgroundColor: themeProps.colors.background,
-                            position: 'sticky',
-                            bottom: 0,
-                            width: '100%',
-                            zIndex: getDefaultZIndex('modal'),
-                        })}
+                        key={editMode}
+                        className={
+                            isExpanded
+                                ? classes.editorContainerExpanded
+                                : classes.editorContainer
+                        }
                     >
-                        <Group position="apart">
-                            <Tooltip label="Expand/Collapse" variant="xs">
-                                <ActionIcon
-                                    variant="outline"
-                                    onClick={toggleExpanded}
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            isExpanded
-                                                ? IconMinimize
-                                                : IconMaximize
-                                        }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-
-                            <Group spacing="xs">
-                                <Button
-                                    variant="default"
-                                    h={32}
-                                    onClick={onClose}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    h={32}
-                                    type="submit"
-                                    ref={submitButtonRef}
-                                    data-testid="table-calculation-save-button"
-                                    disabled={
-                                        (editMode === EditMode.SQL &&
-                                            form.values.sql.length === 0) ||
-                                        isFormulaInvalid
+                        {editMode === EditMode.TEMPLATE &&
+                        tableCalculation &&
+                        isTemplateTableCalculation(tableCalculation) ? (
+                            <TemplateViewer
+                                template={editedTemplate ?? template}
+                                readOnly={false}
+                                onTemplateChange={handleTemplateChange}
+                            />
+                        ) : editMode === EditMode.FORMULA ? (
+                            <FormulaForm
+                                explore={explore}
+                                metricQuery={metricQuery}
+                                formula={form.values.formula}
+                                initialFormula={
+                                    form.values.formula || undefined
+                                }
+                                onChange={(text) =>
+                                    form.setFieldValue('formula', text)
+                                }
+                                onValidationChange={setFormulaParseError}
+                                isFullScreen={isExpanded}
+                            />
+                        ) : (
+                            <Box className={classes.sqlEditorBorder}>
+                                <Suspense
+                                    fallback={
+                                        <Box
+                                            className={classes.loadingFallback}
+                                        >
+                                            <Loader size="sm" />
+                                            <Text c="dimmed" size="sm">
+                                                Loading SQL editor...
+                                            </Text>
+                                        </Box>
                                     }
                                 >
-                                    {tableCalculation
-                                        ? 'Save changes'
-                                        : 'Create'}
-                                </Button>
-                            </Group>
-                        </Group>
+                                    <SqlForm
+                                        form={form}
+                                        isFullScreen={isExpanded}
+                                        focusOnRender={true}
+                                        onCmdEnter={handleConfirm}
+                                    />
+                                </Suspense>
+                            </Box>
+                        )}
                     </Box>
-                </form>
-            </Modal.Content>
-        </Modal.Root>
+                </Stack>
+
+                <FormatForm
+                    formatInputProps={getFormatInputProps}
+                    setFormatFieldValue={setFormatFieldValue}
+                    format={form.values.format}
+                />
+            </Stack>
+        </MantineModal>
     );
 };
 

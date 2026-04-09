@@ -1,0 +1,38 @@
+.editorContainer {
+    display: flex;
+    flex-direction: column;
+    height: 280px;
+}
+
+.editorContainerExpanded {
+    display: flex;
+    flex-direction: column;
+    height: calc(85vh - 400px);
+    min-height: 280px;
+}
+
+.editorContainer > *,
+.editorContainerExpanded > * {
+    flex: 1;
+    min-height: 0;
+}
+
+.sqlEditorBorder {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.loadingFallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+    gap: var(--mantine-spacing-sm);
+}

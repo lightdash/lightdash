@@ -109,11 +109,8 @@ export const SqlForm: FC<Props> = ({
     }, [isSoftWrapEnabled, setSoftWrapEnabled]);
 
     return (
-        <Flex direction="column" h={isFullScreen ? '100%' : 'auto'}>
-            <ScrollArea
-                style={{ flex: isFullScreen ? 1 : 'none' }}
-                h={isFullScreen ? undefined : '150px'}
-            >
+        <Flex direction="column" h="100%">
+            <ScrollArea style={{ flex: 1 }}>
                 <SqlEditor
                     mode="sql"
                     theme={
