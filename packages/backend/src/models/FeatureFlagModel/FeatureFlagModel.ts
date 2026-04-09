@@ -422,15 +422,15 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getEnableDataAppsEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs): Promise<FeatureFlag> {
+    private async getEnableDataAppsEnabled(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag> {
         if (this.lightdashConfig.appRuntime.enabled) {
-            return { id: featureFlagId, enabled: true };
+            return { id: args.featureFlagId, enabled: true };
         }
-        // Fall through to database check
-        const dbResult = await this.getFromDatabase({ featureFlagId });
-        return dbResult ?? { id: featureFlagId, enabled: false };
+        // Fall through to database check (pass full args for user/org override resolution)
+        const dbResult = await this.getFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
     private async getFromDatabase(
