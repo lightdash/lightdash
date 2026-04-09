@@ -1,5 +1,6 @@
 import { NotFoundError } from '@lightdash/common';
 import { nanoid } from 'nanoid';
+import { type Readable } from 'stream';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFileModel';
@@ -73,13 +74,7 @@ export class PersistentDownloadFileService extends BaseService {
         return url;
     }
 
-    async getSignedUrl(
-        fileNanoid: string,
-        requestContext?: {
-            ip: string | undefined;
-            userAgent: string | undefined;
-        },
-    ): Promise<string> {
+    private async getValidFile(fileNanoid: string) {
         const file = await this.persistentDownloadFileModel.get(fileNanoid);
 
         if (file.expires_at < new Date()) {
@@ -89,14 +84,56 @@ export class PersistentDownloadFileService extends BaseService {
             throw new NotFoundError('This download link has expired');
         }
 
+        return file;
+    }
+
+    /**
+     * @deprecated Prefer `getFileStream` to avoid exposing internal S3
+     * endpoints to end users. Kept for backwards compatibility.
+     */
+    async getSignedUrl(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+        },
+    ): Promise<string> {
+        const file = await this.getValidFile(fileNanoid);
+
         const signedUrl = await this.fileStorageClient.getFileUrl(
             file.s3_key,
             PERSISTENT_URL_S3_EXPIRY_SECONDS,
         );
 
         this.logger.info(
-            `Serving persistent download: nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+            `Serving persistent download (redirect): nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
         );
         return signedUrl;
+    }
+
+    async getFileStream(
+        fileNanoid: string,
+        requestContext?: {
+            ip: string | undefined;
+            userAgent: string | undefined;
+        },
+    ): Promise<{
+        stream: Readable;
+        fileType: string;
+        s3Key: string;
+    }> {
+        const file = await this.getValidFile(fileNanoid);
+
+        const stream = await this.fileStorageClient.getFileStream(file.s3_key);
+
+        this.logger.info(
+            `Serving persistent download (stream): nanoid=${fileNanoid}, ip=${requestContext?.ip}, userAgent=${requestContext?.userAgent}`,
+        );
+
+        return {
+            stream,
+            fileType: file.file_type,
+            s3Key: file.s3_key,
+        };
     }
 }
