@@ -107,43 +107,31 @@ lightdash upload --charts my-chart --dashboards my-dashboard
 
 ## Delete Content
 
-Permanently delete charts and dashboards from the server and remove their local YAML files.
-
 ```bash
-# Delete a chart by slug
-lightdash delete -c my-chart
+There is no `lightdash delete` CLI command. Use one of the following approaches instead.
 
-# Delete a dashboard by slug
-lightdash delete -d my-dashboard
+### Via the Lightdash UI
 
-# Delete multiple items at once
-lightdash delete -c chart1 chart2 -d dashboard1
+For charts and dashboards visible in the UI:
 
-# Delete by UUID
-lightdash delete -c abc123-def456
+1. Navigate to the chart or dashboard
+2. Open the three-dot menu → **Delete**
 
-# Delete by URL
-lightdash delete -c "https://app.lightdash.cloud/projects/xxx/saved/abc123"
+### Via the REST API (v2)
 
-# Skip confirmation prompt (use with caution)
-lightdash delete -c my-chart --force
+Use the [v2 API](https://docs.lightdash.com/api-reference/v2) to delete content programmatically. Both endpoints accept a UUID **or** slug.
+When you need this: Charts created via lightdash upload with a dashboardSlug are scoped to that dashboard and may not appear in the UI. They still show up in lightdash download output. Use the API to remove these orphaned charts.
 
-# Use custom path for local files
-lightdash delete -c my-chart --path ./custom-lightdash
+[Delete a chart](https://docs.lightdash.com/api-reference/v2/delete-chart)
+curl -s -X DELETE -H "Authorization: ApiKey $LIGHTDASH_API_KEY" \
+  "$LIGHTDASH_URL/api/v2/projects/$PROJECT_UUID/saved/$CHART_UUID_OR_SLUG"
 
-# Delete from a specific project
-lightdash delete -c my-chart --project <project-uuid>
+[Delete a dashboard](https://docs.lightdash.com/api-reference/v2/delete-dashboard)
+curl -s -X DELETE -H "Authorization: ApiKey $LIGHTDASH_API_KEY" \
+  "$LIGHTDASH_URL/api/v2/projects/$PROJECT_UUID/dashboards/$DASHBOARD_UUID_OR_SLUG"
+
+Note: The v1 endpoints (/api/v1/saved/{identifier}, /api/v1/dashboards/{identifier}) only accept UUIDs — passing a slug returns a generic error. Prefer the v2 endpoints above.
 ```
-
-**Options:**
-
-- `-c, --charts <charts...>` - Chart slugs, UUIDs, or URLs to delete
-- `-d, --dashboards <dashboards...>` - Dashboard slugs, UUIDs, or URLs to delete
-- `-f, --force` - Skip confirmation prompt
-- `-p, --path <path>` - Custom path where local chart-as-code files are stored
-- `--project <uuid>` - Specify a project UUID
-
-**Warning:** The delete command will warn you if any charts being deleted are referenced by dashboards.
 
 ## SQL Runner
 
@@ -249,7 +237,7 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 | `lightdash deploy`    | Sync semantic layer to Lightdash |
 | `lightdash upload`    | Upload charts/dashboards         |
 | `lightdash download`  | Download charts/dashboards       |
-| `lightdash delete`    | Remove charts/dashboards         |
+| REST API `DELETE`     | Remove charts/dashboards         |
 | `lightdash preview`   | Create temporary test project    |
 | `lightdash validate`  | Validate against server          |
 | `lightdash lint`      | Validate YAML locally            |
