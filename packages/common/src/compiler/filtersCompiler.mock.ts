@@ -761,19 +761,10 @@ export const filterInTheCurrentDayTimezoneMocks = [
     ],
 ];
 
-// ── Timezone-aware date formatter boundary tests (YYYY-MM-DD) ────────
-// These test createBoundaryDateFormatter which counteracts the
-// .utc().toDate() conversion inside renderDateFilterSql by converting
-// back to the project timezone before formatting. Fixes the positive-
-// offset date shift bug (GLITCH-323).
-//
+// ── Boundary formatter tests (YYYY-MM-DD) ────────────────────────────
+// createBoundaryDateFormatter converts UTC dates back to project TZ
+// before formatting, fixing the positive-offset date shift (GLITCH-323).
 // System time: 04 Apr 2020 06:12:30 GMT
-// IN_THE_PAST 1 completed day with timezone-aware formatter:
-//   UTC:            start of day = 2020-04-04 → from 2020-04-03, until 2020-04-04
-//   America/New_York (EDT, UTC-4): start of day = 2020-04-04 (local) → from 2020-04-03, until 2020-04-04
-//   Asia/Tokyo (JST, UTC+9): 06:12 GMT = 15:12 JST → start of day = 2020-04-04 (local) → from 2020-04-03, until 2020-04-04
-//     Without fix: .utc().toDate() → formatDate → '2020-04-03' (wrong!)
-//     With fix: createBoundaryDateFormatter converts back to JST → '2020-04-04' (correct)
 export const filterInThePastCompletedDayDateFormatterMocks = [
     [
         'UTC',
@@ -789,12 +780,7 @@ export const filterInThePastCompletedDayDateFormatterMocks = [
     ],
 ];
 
-// IN_THE_CURRENT day with timezone-aware formatter:
-//   UTC:            from 2020-04-04, until 2020-04-04 (same day)
-//   America/New_York (EDT, UTC-4): 06:12 GMT = 02:12 EDT Apr 4 → from 2020-04-04, until 2020-04-04
-//   Asia/Tokyo:     06:12 GMT = 15:12 JST Apr 4 → from 2020-04-04, until 2020-04-04
-//     Without fix: .utc().toDate() shifts to Apr 3/Apr 4 UTC → wrong boundaries
-//     With fix: createBoundaryDateFormatter → both 2020-04-04
+// IN_THE_CURRENT day: all TZs resolve to 2020-04-04
 export const filterInTheCurrentDayDateFormatterMocks = [
     [
         'UTC',
@@ -810,10 +796,7 @@ export const filterInTheCurrentDayDateFormatterMocks = [
     ],
 ];
 
-// IN_THE_PAST 1 day non-completed with timezone-aware formatter:
-//   Boundaries are (now - 1 day) to now, formatted as dates.
-//   UTC:            from = 2020-04-03 06:12:30 → '2020-04-03', until = 2020-04-04 06:12:30 → '2020-04-04'
-//   Asia/Tokyo:     from = 2020-04-03 15:12:30 JST → '2020-04-03', until = 2020-04-04 15:12:30 JST → '2020-04-04'
+// IN_THE_PAST 1 day non-completed: (now-1d) to now, formatted as dates
 export const filterInThePastNonCompletedDayDateFormatterMocks = [
     [
         'UTC',
@@ -825,16 +808,8 @@ export const filterInThePastNonCompletedDayDateFormatterMocks = [
     ],
 ];
 
-// IN_THE_NEXT 1 completed day with timezone-aware formatter:
-//   System time: 04 Apr 2020 06:12:30 GMT
-//   fromDate = now + 1 day → startOf(day) in local tz → utc → toDate
-//   toDate   = fromDate + 1 day in local tz → utc → toDate
-//   UTC:            from = Apr5 00:00 UTC → '2020-04-05', to = Apr6 00:00 UTC → '2020-04-06'
-//   America/New_York: from = Apr5 00:00 EDT = Apr5 04:00 UTC → formatter → '2020-04-05',
-//                     to = Apr6 00:00 EDT = Apr6 04:00 UTC → formatter → '2020-04-06'
-//   Asia/Tokyo:     from = Apr5 00:00 JST = Apr4 15:00 UTC → formatter → '2020-04-05',
-//                   to = Apr6 00:00 JST = Apr5 15:00 UTC → formatter → '2020-04-06'
-//     Without fix: formatDate(Apr4 15:00 UTC) → '2020-04-04' (wrong!)
+// IN_THE_NEXT 1 completed day: tomorrow's start-of-day per TZ
+// Asia/Tokyo: without fix, Apr5 JST = Apr4 UTC → wrong date
 export const filterInTheNextCompletedDayDateFormatterMocks = [
     [
         'UTC',
@@ -850,15 +825,7 @@ export const filterInTheNextCompletedDayDateFormatterMocks = [
     ],
 ];
 
-// IN_THE_NEXT 1 day non-completed with timezone-aware formatter:
-//   System time: 04 Apr 2020 06:12:30 GMT
-//   fromDate = now in local tz → utc → toDate (just "now" round-tripped)
-//   toDate   = now + 1 day in local tz → utc → toDate
-//   UTC:            from = Apr4 06:12:30 → '2020-04-04', to = Apr5 06:12:30 → '2020-04-05'
-//   America/New_York: from = Apr4 02:12:30 EDT → formatter → '2020-04-04',
-//                     to = Apr5 02:12:30 EDT → formatter → '2020-04-05'
-//   Asia/Tokyo:     from = Apr4 15:12:30 JST → formatter → '2020-04-04',
-//                   to = Apr5 15:12:30 JST → formatter → '2020-04-05'
+// IN_THE_NEXT 1 day non-completed: now to now+1d, formatted as dates
 export const filterInTheNextNonCompletedDayDateFormatterMocks = [
     [
         'UTC',
@@ -874,20 +841,10 @@ export const filterInTheNextNonCompletedDayDateFormatterMocks = [
     ],
 ];
 
-// ── Negative-offset edge case near midnight UTC ──────────────────────
+// ── Negative-offset edge case: 02:00 UTC = Apr 3 22:00 EDT ──────────
 // System time: 04 Apr 2020 02:00:00 GMT
-// America/New_York: 02:00 UTC = Apr 3 22:00 EDT (previous calendar day!)
-//
-// IN_THE_CURRENT day:
-//   startOf(day) in EDT = Apr3 00:00 EDT = Apr3 04:00 UTC → formatter → '2020-04-03'
-//   endOf(day) in EDT = Apr3 23:59:59 EDT = Apr4 03:59:59 UTC → formatter → '2020-04-03'
-//     Without fix: formatDate(Apr4 03:59:59 UTC) → '2020-04-04' (WRONG!)
-//     With fix: boundaryFormatter converts to EDT → '2020-04-03' (correct)
-//
-// IN_THE_PAST 1 completed day:
-//   untilDate = startOf(day) in EDT = Apr3 00:00 EDT = Apr3 04:00 UTC → '2020-04-03'
-//   fromDate  = (Apr3 00:00 EDT - 1 day).startOf = Apr2 00:00 EDT = Apr2 04:00 UTC → '2020-04-02'
-//     formatDate gives correct results here because UTC dates are Apr2/Apr3 (no cross-day shift)
+// Without fix: endOf(day) crosses midnight UTC → wrong date (Apr 4)
+// With fix: boundaryFormatter converts to EDT → correct date (Apr 3)
 export const filterNegativeOffsetEdgeCaseCurrentDayMocks = [
     [
         'America/New_York',

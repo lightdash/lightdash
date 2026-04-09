@@ -2164,11 +2164,7 @@ describe('Number Filter SQL Injection Prevention', () => {
         });
     });
 
-    // ── Timezone-aware date formatter boundary tests (GLITCH-323) ───
-    // Verify that createBoundaryDateFormatter produces correct
-    // local dates for positive-offset timezones where the default
-    // formatDate (which receives a UTC Date) would shift the date
-    // back one day.
+    // ── Boundary formatter tests (GLITCH-323) ───
 
     describe('timezone-aware date formatter boundaries with positive-offset timezones', () => {
         test.each(filterInThePastCompletedDayDateFormatterMocks)(
@@ -2290,10 +2286,6 @@ describe('Number Filter SQL Injection Prevention', () => {
     });
 
     // ── Negative-offset edge case near midnight UTC (GLITCH-323) ───
-    // When system time is near midnight UTC and the local timezone is
-    // behind UTC, endOf(day) in local time crosses into the next UTC day.
-    // Without the boundary formatter, formatDate would return the wrong
-    // calendar date.
     describe('negative-offset edge case near midnight UTC', () => {
         test.each(filterNegativeOffsetEdgeCaseCurrentDayMocks)(
             'inTheCurrent day near midnight UTC for timezone %s',
