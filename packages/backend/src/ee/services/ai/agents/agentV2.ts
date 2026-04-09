@@ -598,12 +598,12 @@ export const streamAgentResponse = async ({
                 chunking: 'line',
             }),
             onError: ({ error }) => {
-                console.error(error);
                 const errorMessage =
                     error instanceof Error ? error.message : 'Unknown error';
 
                 Logger.error(
                     `[AiAgent][Stream Agent Response] Error during streaming: ${errorMessage}`,
+                    { error },
                 );
                 Sentry.captureException(error, {
                     tags: {

@@ -87,11 +87,62 @@ const printMessage = (
     } else if (info.requestMethod === 'WEB_APP') {
         client = `[WEB${clientVersion ? `:${clientVersion}` : ''}]`;
     }
-    return `${info.timestamp} [Lightdash]${traceId}${jobId}${serviceName}${client} ${info.level}: ${info.message}`;
+    const base = `${info.timestamp} [Lightdash]${traceId}${jobId}${serviceName}${client} ${info.level}: ${info.message}`;
+    if (typeof info.stack === 'string') return `${base}\n${info.stack}`;
+    if (info.error?.stack) return `${base}\n${info.error.stack}`;
+    return base;
 };
+
+type SerializedError = {
+    message: string;
+    name: string;
+    stack?: string;
+    cause?: SerializedError;
+};
+
+const MAX_CAUSE_DEPTH = 10;
+
+const serializeError = (err: Error, depth = 0): SerializedError => ({
+    message: err.message,
+    name: err.name,
+    stack: err.stack,
+    ...(err.cause instanceof Error && depth < MAX_CAUSE_DEPTH
+        ? { cause: serializeError(err.cause, depth + 1) }
+        : {}),
+});
+
+/**
+ * Extracts error details (stack, cause chain) into structured log fields.
+ * Handles errors passed both as the info object itself (Logger.error(error))
+ * and as metadata (Logger.error('message', error)).
+ */
+const formatError = winston.format((info) => {
+    // Handle: Logger.error(error) — info itself is the Error
+    if (info instanceof Error) {
+        const serialized = serializeError(info);
+        return {
+            ...info,
+            stack: serialized.stack,
+            ...(serialized.cause ? { cause: serialized.cause } : {}),
+        };
+    }
+
+    // Handle: Logger.error('message', { error }) — error in metadata
+    const updates: Record<string, SerializedError> = {};
+    for (const key of Object.keys(info)) {
+        const value = info[key];
+        if (value instanceof Error) {
+            updates[key] = serializeError(value);
+        }
+    }
+
+    return Object.keys(updates).length > 0 ? { ...info, ...updates } : info;
+});
 
 const formatters = {
     plain: winston.format.combine(
+        winston.format.errors({ stack: true }),
+        formatError(),
         addSentryTraceId(),
         addExecutionContent(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -99,6 +150,8 @@ const formatters = {
         winston.format.printf(printMessage),
     ),
     pretty: winston.format.combine(
+        winston.format.errors({ stack: true }),
+        formatError(),
         addSentryTraceId(),
         addExecutionContent(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -106,6 +159,8 @@ const formatters = {
         winston.format.printf(printMessage),
     ),
     json: winston.format.combine(
+        winston.format.errors({ stack: true }),
+        formatError(),
         addSentryTraceId(),
         addExecutionContent(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
