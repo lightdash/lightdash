@@ -67,8 +67,6 @@ import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
-import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
@@ -201,14 +199,17 @@ export class SavedChartService
                 user.userUuid,
                 savedChart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    uuid: savedChart.uuid,
+                    name: savedChart.name,
                 }),
             )
         ) {
@@ -225,12 +226,15 @@ export class SavedChartService
     ): Promise<ChartSummary> {
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
+                    uuid: savedChart.uuid,
+                    name: savedChart.name,
                 }),
             )
         ) {
@@ -471,14 +475,16 @@ export class SavedChartService
                 spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    uuid: savedChartUuid,
                 }),
             )
         ) {
@@ -487,9 +493,13 @@ export class SavedChartService
 
         if (
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: savedChartUuid,
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -575,14 +585,17 @@ export class SavedChartService
                 spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    uuid: savedChartUuid,
+                    name,
                 }),
             )
         ) {
@@ -646,10 +659,15 @@ export class SavedChartService
         const { organizationUuid, projectUuid, pinnedListUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('PinnedItems', { organizationUuid, projectUuid }),
+                subject('PinnedItems', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: savedChartUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -700,19 +718,21 @@ export class SavedChartService
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         const spaceAccessPromises = data.map(async (chart) => {
             const { inheritsFromOrgOrProject, access, organizationUuid } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     chart.spaceUuid,
                 );
-            return user.ability.can(
+            return auditedAbility.can(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    uuid: chart.uuid,
                 }),
             );
         });
@@ -764,20 +784,29 @@ export class SavedChartService
             projectUuid: options?.projectUuid,
         });
 
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'SavedChart',
+                uuid: resolvedUuid,
+                organizationUuid,
+                projectUuid,
+            });
+        } else {
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     spaceUuid,
                 );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        uuid: resolvedUuid,
                     }),
                 )
             ) {
@@ -834,21 +863,30 @@ export class SavedChartService
         savedChartUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'SavedChart',
+                uuid: savedChartUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const chart = await this.savedChartModel.get(savedChartUuid);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     chart.spaceUuid,
                 );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('SavedChart', {
                         organizationUuid: chart.organizationUuid,
                         projectUuid: chart.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        uuid: savedChartUuid,
+                        name: chart.name,
                     }),
                 )
             ) {
@@ -883,8 +921,9 @@ export class SavedChartService
                 user.userUuid,
                 savedChart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...savedChart,
@@ -933,8 +972,9 @@ export class SavedChartService
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...savedChart,
@@ -1002,9 +1042,7 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -1053,9 +1091,7 @@ export class SavedChartService
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -1132,8 +1168,9 @@ export class SavedChartService
             access = dashboardSpaceAccessContext.access;
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('SavedChart', {
                     organizationUuid,
@@ -1236,8 +1273,9 @@ export class SavedChartService
                 user.userUuid,
                 chart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('SavedChart', {
                     ...chart,
@@ -1483,8 +1521,9 @@ export class SavedChartService
                 chart.spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...chart,
@@ -1524,8 +1563,9 @@ export class SavedChartService
                 user.userUuid,
                 chart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...chart,
@@ -1674,7 +1714,8 @@ export class SavedChartService
             spaceUuid,
         );
 
-        const hasPermission = actor.user.ability.can(
+        const auditedAbility = this.createAuditedAbility(actor.user);
+        const hasPermission = auditedAbility.can(
             action,
             subject('SavedChart', {
                 organizationUuid,
@@ -1700,7 +1741,7 @@ export class SavedChartService
                 resource.spaceUuid,
             );
 
-            const hasPermissionInNewSpace = actor.user.ability.can(
+            const hasPermissionInNewSpace = auditedAbility.can(
                 action,
                 subject('SavedChart', {
                     organizationUuid: newSpaceOrganizationUuid,
@@ -1786,20 +1827,30 @@ export class SavedChartService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
+
         // Check if user can view the project
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
         // Check if user is admin (can manage all deleted content)
-        const isAdmin = user.ability.can(
+        const isAdmin = auditedAbility.can(
             'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
+            subject('DeletedContent', {
+                organizationUuid,
+                projectUuid,
+                uuid: projectUuid,
+            }),
         );
 
         // Non-admins can only see their own deleted items
@@ -1829,19 +1880,35 @@ export class SavedChartService
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                uuid: chartUuid,
+                organizationUuid,
+                projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                        uuid: projectUuid,
+                    }),
                 )
             ) {
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
-                subject('DeletedContent', { organizationUuid, projectUuid }),
+                subject('DeletedContent', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: chartUuid,
+                }),
             );
 
             if (
@@ -1885,7 +1952,13 @@ export class SavedChartService
         chartUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                uuid: chartUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
@@ -1893,18 +1966,27 @@ export class SavedChartService
             );
             const { organizationUuid, projectUuid } = deletedChart;
 
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                        uuid: projectUuid,
+                    }),
                 )
             ) {
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
-                subject('DeletedContent', { organizationUuid, projectUuid }),
+                subject('DeletedContent', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: chartUuid,
+                }),
             );
 
             if (
