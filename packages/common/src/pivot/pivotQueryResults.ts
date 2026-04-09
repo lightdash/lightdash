@@ -531,7 +531,7 @@ export const pivotQueryResults = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
-    const visibleMetricFieldIds = pivotConfig.visibleMetricFieldIds;
+    const { visibleMetricFieldIds } = pivotConfig;
 
     const isMetricVisible = (metricId: string): boolean => {
         if (visibleMetricFieldIds) {
@@ -913,7 +913,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
-    const visibleMetricFieldIds = pivotConfig.visibleMetricFieldIds;
+    const { visibleMetricFieldIds } = pivotConfig;
     const columnOrder = pivotConfig.columnOrder || [];
 
     const isMetricVisibleInPivot = (fieldId: string): boolean => {
