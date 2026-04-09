@@ -576,15 +576,17 @@ export class ProjectService extends BaseService {
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         switch (data.type) {
             case ProjectType.DEFAULT:
                 // checks if user has permission to create project on an organization level
                 if (
-                    user.ability.can(
+                    auditedAbility.can(
                         'create',
                         subject('Project', {
-                            organizationUuid: user.organizationUuid,
+                            organizationUuid: user.organizationUuid || '',
                             type: ProjectType.DEFAULT,
+                            uuid: '' /* TODO: pass resource uuid */,
                         }),
                     )
                 ) {
@@ -610,12 +612,13 @@ export class ProjectService extends BaseService {
                         data.upstreamProjectUuid,
                     );
                     if (
-                        user.ability.cannot(
+                        auditedAbility.cannot(
                             'view',
                             subject('Project', {
                                 organizationUuid:
                                     upstreamProject.organizationUuid,
                                 projectUuid: upstreamProject.projectUuid,
+                                uuid: upstreamProject.projectUuid,
                             }),
                         )
                     ) {
@@ -636,12 +639,15 @@ export class ProjectService extends BaseService {
                     }
                     if (
                         // checks if user has permission to create project from an upstream project on a project level
-                        user.ability.can(
+                        auditedAbility.can(
                             'create',
                             subject('Project', {
+                                organizationUuid:
+                                    upstreamProject.organizationUuid,
                                 upstreamProjectUuid:
                                     upstreamProject.projectUuid,
                                 type: ProjectType.PREVIEW,
+                                uuid: '' /* TODO: pass resource uuid */,
                             }),
                         )
                     ) {
@@ -651,11 +657,12 @@ export class ProjectService extends BaseService {
 
                 if (
                     // checks if user has permission to create project on an organization level
-                    user.ability.can(
+                    auditedAbility.can(
                         'create',
                         subject('Project', {
-                            organizationUuid: user.organizationUuid,
+                            organizationUuid: user.organizationUuid || '',
                             type: ProjectType.PREVIEW,
+                            uuid: '' /* TODO: pass resource uuid */,
                         }),
                     )
                 ) {
@@ -1683,12 +1690,15 @@ export class ProjectService extends BaseService {
 
     async getProject(projectUuid: string, account: Account): Promise<Project> {
         const project = await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -2168,14 +2178,17 @@ export class ProjectService extends BaseService {
 
         // manage:DeployProject for non-preview projects (restrictable via custom roles)
         // manage:DeployProject@self for preview projects created by the user
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DeployProject', {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
+                    uuid: projectUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -2283,12 +2296,15 @@ export class ProjectService extends BaseService {
         assertIsAccountWithOrg(account);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: savedProject.name,
                 }),
             )
         ) {
@@ -2391,12 +2407,15 @@ export class ProjectService extends BaseService {
         assertIsAccountWithOrg(account);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: savedProject.name,
                 }),
             )
         ) {
@@ -2478,7 +2497,18 @@ export class ProjectService extends BaseService {
         const updatedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
-        if (user.ability.cannot('update', subject('Project', updatedProject))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: updatedProject.organizationUuid,
+                    projectUuid: updatedProject.projectUuid,
+                    uuid: updatedProject.projectUuid,
+                    name: updatedProject.name,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -2684,14 +2714,17 @@ export class ProjectService extends BaseService {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'delete',
                 subject('Project', {
                     type: project.type,
                     organizationUuid: project.organizationUuid,
                     projectUuid: project.projectUuid,
                     createdByUserUuid: project.createdByUserUuid,
+                    uuid: project.projectUuid,
+                    name: project.name,
                 }),
             )
         ) {
@@ -3083,22 +3116,32 @@ export class ProjectService extends BaseService {
             projectUuid,
         } = args;
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
         if (
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3220,13 +3263,19 @@ export class ProjectService extends BaseService {
 
         const { account, projectUuid, exploreName, metricQuery } = args;
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3316,10 +3365,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('UnderlyingData', { organizationUuid, projectUuid }),
+                subject('UnderlyingData', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3327,9 +3381,13 @@ export class ProjectService extends BaseService {
 
         if (
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3389,16 +3447,22 @@ export class ProjectService extends BaseService {
             ),
         ]);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('SavedChart', spaceCtx),
+                subject('SavedChart', {
+                    ...spaceCtx,
+                    uuid: savedChart.uuid,
+                    name: savedChart.name,
+                }),
             ) ||
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -3477,16 +3541,22 @@ export class ProjectService extends BaseService {
             ),
         ]);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('SavedChart', spaceCtx),
+                subject('SavedChart', {
+                    ...spaceCtx,
+                    uuid: savedChart.uuid,
+                    name: savedChart.name,
+                }),
             ) ||
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -3624,10 +3694,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3635,9 +3710,13 @@ export class ProjectService extends BaseService {
 
         if (
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3977,16 +4056,19 @@ export class ProjectService extends BaseService {
                 try {
                     assertIsAccountWithOrg(account);
 
-                    const { organizationUuid } =
+                    const { organizationUuid, name: projectName } =
                         await this.projectModel.getSummary(projectUuid);
 
+                    const auditedAbility = this.createAuditedAbility(account);
                     if (
                         account.isJwtUser() ||
-                        account.user.ability.cannot(
+                        auditedAbility.cannot(
                             'view',
                             subject('Project', {
                                 organizationUuid,
                                 projectUuid,
+                                uuid: projectUuid,
+                                name: projectName,
                             }),
                         )
                     ) {
@@ -4160,10 +4242,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -4482,12 +4569,18 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         fileId: string,
     ): Promise<Readable> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -4623,13 +4716,19 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
     ) {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -4979,22 +5078,33 @@ export class ProjectService extends BaseService {
     async getJobStatus(jobUuid: string, user: SessionUser): Promise<Job> {
         const job = await this.jobModel.get(jobUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (job.projectUuid) {
             const { organizationUuid } = await this.projectModel.getSummary(
                 job.projectUuid,
             );
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('Project', {
                         organizationUuid,
                         projectUuid: job.projectUuid,
+                        uuid: job.projectUuid,
                     }),
                 )
             ) {
                 throw new NotFoundError(`Cannot find job`);
             }
-        } else if (user.ability.cannot('view', subject('Job', job))) {
+        } else if (
+            auditedAbility.cannot(
+                'view',
+                subject('Job', {
+                    ...job,
+                    organizationUuid: user.organizationUuid || '',
+                    uuid: '' /* TODO: pass resource uuid */,
+                }),
+            )
+        ) {
             throw new NotFoundError(`Cannot find job`);
         }
 
@@ -5008,17 +5118,23 @@ export class ProjectService extends BaseService {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('Job', { organizationUuid, projectUuid }),
+                subject('Job', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
                     type,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -5144,18 +5260,24 @@ export class ProjectService extends BaseService {
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             !skipPermissionCheck &&
-            (user.ability.cannot(
+            (auditedAbility.cannot(
                 'create',
-                subject('Job', { organizationUuid, projectUuid }),
+                subject('Job', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             ) ||
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('CompileProject', {
                         organizationUuid,
                         projectUuid,
                         type,
+                        uuid: projectUuid,
                     }),
                 ))
         ) {
@@ -5199,16 +5321,22 @@ export class ProjectService extends BaseService {
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('Job', { organizationUuid, projectUuid }),
+                subject('Job', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('CompileProject', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -5385,11 +5513,13 @@ export class ProjectService extends BaseService {
             return false;
         }
 
-        return account.user.ability.can(
+        const auditedAbility = this.createAuditedAbility(account);
+        return auditedAbility.can(
             'manage',
             subject('PreAggregation', {
                 organizationUuid,
                 projectUuid,
+                uuid: projectUuid,
             }),
         );
     }
@@ -5401,14 +5531,20 @@ export class ProjectService extends BaseService {
         includeErrors: boolean = true,
         includePreAggregates: boolean = false,
     ): Promise<SummaryExplore[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             ProjectService.isChartEmbed(account) ||
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5525,20 +5661,23 @@ export class ProjectService extends BaseService {
                     ? { organizationUuid }
                     : await this.projectModel.getSummary(projectUuid);
 
+                const auditedAbility = this.createAuditedAbility(account);
                 const isForbidden =
-                    account.user.ability.cannot(
+                    auditedAbility.cannot(
                         'view',
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
+                            uuid: projectUuid,
                         }),
                     ) &&
-                    account.user.ability.cannot(
+                    auditedAbility.cannot(
                         'view',
                         subject('Explore', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
                             exploreNames,
+                            uuid: projectUuid,
                         }),
                     );
 
@@ -5594,12 +5733,18 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5671,10 +5816,15 @@ export class ProjectService extends BaseService {
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5723,10 +5873,15 @@ export class ProjectService extends BaseService {
     ): Promise<WarehouseTablesCatalog> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5776,10 +5931,15 @@ export class ProjectService extends BaseService {
     ): Promise<WarehouseTableSchema> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5843,14 +6003,20 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             ProjectService.isChartEmbed(account) ||
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5864,14 +6030,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -5910,8 +6079,9 @@ export class ProjectService extends BaseService {
                         savedChart.spaceUuid,
                     );
 
+                const auditedAbility = this.createAuditedAbility(account);
                 if (
-                    account.user.ability.cannot(
+                    auditedAbility.cannot(
                         'view',
                         subject('SavedChart', {
                             ...savedChart,
@@ -5987,9 +6157,10 @@ export class ProjectService extends BaseService {
                 return savedCharts.map((savedChart) => {
                     const spaceCtx = spacesCtx[savedChart.spaceUuid];
 
+                    const auditedAbility = this.createAuditedAbility(account);
                     if (
                         !spaceCtx ||
-                        account.user.ability.cannot(
+                        auditedAbility.cannot(
                             'view',
                             subject('SavedChart', {
                                 ...savedChart,
@@ -6101,12 +6272,18 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6137,14 +6314,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         userUuid: string,
     ): Promise<ProjectMemberProfile> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6168,14 +6348,17 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6189,14 +6372,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: CreateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6229,14 +6415,17 @@ export class ProjectService extends BaseService {
         userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6255,14 +6444,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateMetadata,
     ): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6288,14 +6480,17 @@ export class ProjectService extends BaseService {
             );
         }
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6313,14 +6508,17 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6334,15 +6532,18 @@ export class ProjectService extends BaseService {
         actor: SessionUser,
         projectUuid: string,
     ): Promise<ProjectGroupAccess[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(actor);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
                 }),
             )
         ) {
@@ -6355,12 +6556,18 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpaceQuery[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6387,12 +6594,18 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         excludeChartsSavedInDashboard: boolean = false,
     ): Promise<ChartSummary[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6418,12 +6631,15 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<MostPopularAndRecentlyUpdated> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {
@@ -6514,12 +6730,15 @@ export class ProjectService extends BaseService {
         }
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
+                    name: projectSummary.name,
                 }),
             )
         ) {
@@ -6580,12 +6799,18 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpaceSummary[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6604,7 +6829,13 @@ export class ProjectService extends BaseService {
         return spaces
             .filter((space) => {
                 const ctx = userSpacesCtx[space.uuid];
-                return ctx && user.ability.can('view', subject('Space', ctx));
+                return (
+                    ctx &&
+                    auditedAbility.can(
+                        'view',
+                        subject('Space', { ...ctx, uuid: space.uuid }),
+                    )
+                );
             })
             .map((spaceSummary) => {
                 const ctx = userSpacesCtx[spaceSummary.uuid];
@@ -7026,16 +7257,22 @@ export class ProjectService extends BaseService {
                 savedChart.spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('SavedChart', spaceCtx),
+                subject('SavedChart', {
+                    ...spaceCtx,
+                    uuid: savedChart.uuid,
+                    name: savedChart.name,
+                }),
             ) ||
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -7071,10 +7308,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7082,9 +7324,13 @@ export class ProjectService extends BaseService {
 
         if (
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -7221,10 +7467,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7232,9 +7483,13 @@ export class ProjectService extends BaseService {
 
         if (
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomSql', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -7269,7 +7524,16 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<Record<string, DbtExposure>> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('manage', subject('Project', projectSummary))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', {
+                    ...projectSummary,
+                    uuid: projectSummary.projectUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const cachedExplores = await this.projectModel.findExploresFromCache(
@@ -7386,7 +7650,13 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<UserWarehouseCredentials | undefined> {
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { ...project, uuid: project.projectUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         const credentials =
@@ -7405,7 +7675,13 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<UserWarehouseCredentials[]> {
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { ...project, uuid: project.projectUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         return this.userWarehouseCredentialsModel.getAllByUserUuidForProject(
@@ -7427,7 +7703,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { ...project, uuid: project.projectUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
@@ -7490,10 +7772,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('VirtualView', { organizationUuid, projectUuid }),
+                subject('VirtualView', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7566,10 +7853,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('VirtualView', { organizationUuid, projectUuid }),
+                subject('VirtualView', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7624,10 +7916,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'delete',
-                subject('VirtualView', { organizationUuid, projectUuid }),
+                subject('VirtualView', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7653,7 +7950,13 @@ export class ProjectService extends BaseService {
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
-        if (user.ability.cannot('update', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { ...project, uuid: project.projectUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -7683,7 +7986,13 @@ export class ProjectService extends BaseService {
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
-        if (user.ability.cannot('update', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { ...project, uuid: project.projectUuid }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -7724,12 +8033,14 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -7769,12 +8080,14 @@ export class ProjectService extends BaseService {
             tag.projectUuid,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
+                    uuid: tag.projectUuid,
                 }),
             )
         ) {
@@ -7799,12 +8112,14 @@ export class ProjectService extends BaseService {
             tag.projectUuid,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
+                    uuid: tag.projectUuid,
                 }),
             )
         ) {
@@ -7818,10 +8133,15 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Tags', { projectUuid, organizationUuid }),
+                subject('Tags', {
+                    projectUuid,
+                    organizationUuid,
+                    uuid: projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7842,14 +8162,16 @@ export class ProjectService extends BaseService {
         const { organizationUuid, type, createdByUserUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     projectUuid,
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -7876,14 +8198,16 @@ export class ProjectService extends BaseService {
         const { organizationUuid, type, createdByUserUuid } =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     projectUuid,
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
@@ -7905,12 +8229,14 @@ export class ProjectService extends BaseService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
+                    uuid: projectUuid,
                 }),
             )
         ) {
