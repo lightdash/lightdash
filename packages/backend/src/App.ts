@@ -495,6 +495,16 @@ export default class App {
 
         expressApp.use('/embed/*', helmet(helmetConfigForEmbeds));
 
+        // Disable HSTS on /minimal/* routes used by the headless browser.
+        // When INTERNAL_LIGHTDASH_HOST uses HTTP, the HSTS header causes
+        // Chromium to upgrade subresource requests to HTTPS, breaking
+        // scheduled deliveries (Slack, email) in Kubernetes deployments.
+        const helmetConfigForMinimal = produce(helmetConfig, (draft) => {
+            // eslint-disable-next-line no-param-reassign
+            draft.strictTransportSecurity = false;
+        });
+        expressApp.use('/minimal/*', helmet(helmetConfigForMinimal));
+
         expressApp.use('/api/v1/file/*', (_req, res, next) => {
             res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
             next();
