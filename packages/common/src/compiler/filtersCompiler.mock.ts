@@ -760,3 +760,62 @@ export const filterInTheCurrentDayTimezoneMocks = [
         "((customers.created) >= ('2020-04-03 12:00:00+00:00') AND (customers.created) <= ('2020-04-04 11:59:59+00:00'))",
     ],
 ];
+
+// ── Timezone-aware date formatter boundary tests (YYYY-MM-DD) ────────
+// These test createBoundaryDateFormatter which counteracts the
+// .utc().toDate() conversion inside renderDateFilterSql by converting
+// back to the project timezone before formatting. Fixes the positive-
+// offset date shift bug (GLITCH-323).
+//
+// System time: 04 Apr 2020 06:12:30 GMT
+// IN_THE_PAST 1 completed day with timezone-aware formatter:
+//   UTC:            start of day = 2020-04-04 → from 2020-04-03, until 2020-04-04
+//   America/New_York (EDT, UTC-4): start of day = 2020-04-04 (local) → from 2020-04-03, until 2020-04-04
+//   Asia/Tokyo (JST, UTC+9): 06:12 GMT = 15:12 JST → start of day = 2020-04-04 (local) → from 2020-04-03, until 2020-04-04
+//     Without fix: .utc().toDate() → formatDate → '2020-04-03' (wrong!)
+//     With fix: createBoundaryDateFormatter converts back to JST → '2020-04-04' (correct)
+export const filterInThePastCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_CURRENT day with timezone-aware formatter:
+//   UTC:            from 2020-04-04, until 2020-04-04 (same day)
+//   Asia/Tokyo:     06:12 GMT = 15:12 JST Apr 4 → from 2020-04-04, until 2020-04-04
+//     Without fix: .utc().toDate() shifts to Apr 3/Apr 4 UTC → wrong boundaries
+//     With fix: createBoundaryDateFormatter → both 2020-04-04
+export const filterInTheCurrentDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_PAST 1 day non-completed with timezone-aware formatter:
+//   Boundaries are (now - 1 day) to now, formatted as dates.
+//   UTC:            from = 2020-04-03 06:12:30 → '2020-04-03', until = 2020-04-04 06:12:30 → '2020-04-04'
+//   Asia/Tokyo:     from = 2020-04-03 15:12:30 JST → '2020-04-03', until = 2020-04-04 15:12:30 JST → '2020-04-04'
+export const filterInThePastNonCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))",
+    ],
+];
