@@ -90,6 +90,7 @@ export class ContentService extends BaseService {
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         const projectUuids = (
             await wrapSentryTransaction(
                 'ContentService.find.getAllByOrganizationUuid',
@@ -101,11 +102,13 @@ export class ContentService extends BaseService {
             )
         )
             .filter((project) =>
-                user.ability.can(
+                auditedAbility.can(
                     'view',
                     subject('Project', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
+                        uuid: project.projectUuid,
+                        name: project.name,
                     }),
                 ),
             )
@@ -201,12 +204,18 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -291,12 +300,18 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -370,17 +385,28 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Project UUID is required');
         }
 
-        // Check project access
+        const { name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+
+        // Check project access (audited gate)
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
         // Non-admins can only see their own deleted content
+        // (data-scoping decision, not a permission gate — intentionally unaudited)
+        // eslint-disable-next-line no-direct-ability-check
         const isAdmin = user.ability.can(
             'manage',
             subject('DeletedContent', { organizationUuid, projectUuid }),
@@ -418,12 +444,18 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -463,12 +495,18 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                    name: projectName,
+                }),
             )
         ) {
             throw new ForbiddenError();

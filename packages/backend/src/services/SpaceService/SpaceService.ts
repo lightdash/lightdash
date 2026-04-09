@@ -121,7 +121,7 @@ export class SpaceService
      */
     private async assembleFullSpace(
         spaceUuid: string,
-        user: Pick<SessionUser, 'ability' | 'userUuid'>,
+        user: SessionUser,
     ): Promise<Space> {
         const space = await this.spaceModel.get(spaceUuid);
         const [ctx, groupsAccess, rawBreadcrumbs] = await Promise.all([
