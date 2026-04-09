@@ -1,0 +1,46 @@
+# Metadata
+type: model
+name: leads
+
+# Table definition
+sql_from: 'SNOWFLAKE_DATABASE_STAGING.DBT_DEMO.LEADS'
+
+# Metric definitions
+# For more configuration see: https://docs.lightdash.com/references/metrics
+metrics:
+  lead_count:
+    type: count_distinct
+    sql: ${TABLE}.LEAD_ID
+    description: Total unique leads
+  deal_count:
+    type: count_distinct
+    sql: ${TABLE}.DEAL_ID
+    description: Total unique deals
+
+# Dimension definitions
+# For more configuration see: https://docs.lightdash.com/references/dimensions
+dimensions:
+  - name: campaign_name
+    sql: ${TABLE}.CAMPAIGN_NAME
+    type: string
+  - name: lead_source
+    sql: ${TABLE}.LEAD_SOURCE
+    type: string
+  - name: sdr
+    sql: ${TABLE}.SDR
+    type: string
+
+  - name: created_at
+    sql: ${TABLE}.CREATED_AT
+    type: date
+    time_intervals:
+      - DAY
+      - WEEK
+      - MONTH
+  - name: converted_at
+    sql: ${TABLE}.CONVERTED_AT
+    type: date
+    time_intervals:
+      - DAY
+      - WEEK
+      - MONTH
