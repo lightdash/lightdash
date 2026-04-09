@@ -1,3 +1,10 @@
+## [0.2740.4](https://github.com/lightdash/lightdash/compare/0.2740.3...0.2740.4) (2026-04-09)
+
+
+### Bug Fixes
+
+* add error handling for formula parsing and compilation ([#21856](https://github.com/lightdash/lightdash/issues/21856)) ([1dea157](https://github.com/lightdash/lightdash/commit/1dea157520bde6142e4eeb72f2658f4f08b20c36))
+
 ## [0.2740.3](https://github.com/lightdash/lightdash/compare/0.2740.2...0.2740.3) (2026-04-09)
 
 
