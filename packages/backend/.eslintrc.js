@@ -104,7 +104,7 @@ module.exports = {
                 'src/services/DashboardService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
-                'src/services/SpaceService/SpacePermissionService.ts',
+                'src/services/SpaceService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',

@@ -12,7 +12,6 @@ import {
     SpaceDeleteImpact,
     SpaceMemberRole,
     SpaceShare,
-    SpaceSummary,
     UpdateSpace,
     type SpaceAccess,
 } from '@lightdash/common';
@@ -100,21 +99,6 @@ export class SpaceService
         this.dashboardService = args.dashboardService;
     }
 
-    /** @internal For unit testing only */
-    async _userCanActionSpace(
-        user: Pick<SessionUser, 'ability' | 'userUuid'>,
-        contentType: 'Space' | 'Dashboard' | 'Chart',
-        space: Pick<SpaceSummary, 'uuid'>,
-        action: AbilityAction,
-    ): Promise<boolean> {
-        const spaceCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                space.uuid,
-            );
-        return user.ability.can(action, subject(contentType, spaceCtx));
-    }
-
     /**
      * Assembles a full Space object by combining core space data with
      * access info from SpacePermissionService and user metadata.
@@ -194,10 +178,16 @@ export class SpaceService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('Space', { organizationUuid, projectUuid }),
+                subject('Space', {
+                    uuid: '' /* resource doesn't exist yet */,
+                    name: space.name,
+                    organizationUuid,
+                    projectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -478,6 +468,12 @@ export class SpaceService
             ) {
                 throw new ForbiddenError();
             }
+        } else {
+            this.logBypassEvent(user, 'delete', {
+                type: 'Space',
+                uuid: spaceUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
@@ -520,6 +516,12 @@ export class SpaceService
             ) {
                 throw new ForbiddenError();
             }
+        } else {
+            this.logBypassEvent(user, 'delete', {
+                type: 'Space',
+                uuid: spaceUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
         }
 
         // Get all content UUIDs BEFORE soft-deleting
@@ -608,19 +610,40 @@ export class SpaceService
             deleted: true,
         });
 
-        if (!options?.bypassPermissions) {
-            const isAdmin = user.ability.can(
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                uuid: spaceUuid,
+                name: space.name,
+                organizationUuid: space.organizationUuid,
+                projectUuid: space.projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
+            const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
+                    uuid: spaceUuid,
+                    name: space.name,
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
                 }),
             );
 
-            if (!isAdmin && space.deletedBy?.userUuid !== user.userUuid) {
-                throw new ForbiddenError(
-                    'You can only restore content you deleted',
-                );
+            if (!isAdmin) {
+                if (space.deletedBy?.userUuid === user.userUuid) {
+                    this.logBypassEvent(user, 'manage', {
+                        type: 'DeletedContent',
+                        uuid: spaceUuid,
+                        name: space.name,
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                    });
+                } else {
+                    throw new ForbiddenError(
+                        'You can only restore content you deleted',
+                    );
+                }
             }
         }
 
@@ -681,14 +704,23 @@ export class SpaceService
         spaceUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                uuid: spaceUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
             });
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
+                        uuid: spaceUuid,
+                        name: space.name,
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
                     }),
@@ -774,10 +806,16 @@ export class SpaceService
         const existingSpace = await this.spaceModel.get(spaceUuid);
         const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('PinnedItems', { projectUuid, organizationUuid }),
+                subject('PinnedItems', {
+                    uuid: spaceUuid,
+                    name: existingSpace.name,
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
