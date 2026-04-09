@@ -97,6 +97,8 @@ type ExploreConfig = {
     group_label?: string;
     joins?: DbtModelJoin[];
     case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
+    sql_filter?: string;
+    sql_where?: string; // alias for sql_filter
     /**
      * Explore-scoped custom dimensions.
      * These dimensions are only available within this specific explore

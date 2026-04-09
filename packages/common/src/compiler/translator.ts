@@ -1237,6 +1237,10 @@ export const convertExplores = async (
                                   // Override the base table with required filters and explore-scoped dimensions
                                   [model.name]: {
                                       ...baseTable,
+                                      sqlWhere:
+                                          exploreConfig.sql_filter ||
+                                          exploreConfig.sql_where ||
+                                          baseTable.sqlWhere,
                                       requiredFilters:
                                           parseModelRequiredFilters({
                                               requiredFilters:
