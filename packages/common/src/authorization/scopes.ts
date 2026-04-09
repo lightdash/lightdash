@@ -695,7 +695,7 @@ const scopes: Scope[] = [
     {
         name: 'manage:DataApp',
         description: 'Create and manage data apps',
-        isEnterprise: true,
+        isEnterprise: false,
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
     },
