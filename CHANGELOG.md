@@ -1,3 +1,10 @@
+## [0.2740.3](https://github.com/lightdash/lightdash/compare/0.2740.2...0.2740.3) (2026-04-09)
+
+
+### Bug Fixes
+
+* bump tar override 7.5.7 → 7.5.11 (security) ([#21863](https://github.com/lightdash/lightdash/issues/21863)) ([0e25eeb](https://github.com/lightdash/lightdash/commit/0e25eebce5d77afb30fcd42eef0473b2bf744a21))
+
 ## [0.2740.2](https://github.com/lightdash/lightdash/compare/0.2740.1...0.2740.2) (2026-04-09)
 
 
