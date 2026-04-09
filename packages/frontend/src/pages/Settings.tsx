@@ -489,6 +489,13 @@ const Settings: FC = () => {
         return (
             !matchPath(
                 {
+                    path: '/generalSettings/projectManagement',
+                    end: true,
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/projectManagement/:projectUuid/changesets',
                 },
                 location.pathname,
