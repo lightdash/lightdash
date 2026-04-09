@@ -34,9 +34,11 @@ import {
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { v4 as uuid4 } from 'uuid';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
+import { useAppImageUploadUrl } from '../features/apps/hooks/useAppImageUploadUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
@@ -158,6 +160,7 @@ const AppGenerate: FC = () => {
     const { mutate: updateAppMutate } = useUpdateApp();
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
+    const { mutateAsync: getUploadUrl } = useAppImageUploadUrl();
     const health = useHealth();
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -408,26 +411,39 @@ const AppGenerate: FC = () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
-        // Convert image to base64 if attached
-        // Phase 2: swap this for a presigned S3 upload when supporting
-        // larger files or multiple images.
+        // For new apps, pre-generate the UUID so the image upload and
+        // the generate request both use the same app-scoped S3 path.
+        const newAppUuid = activeAppUuid ? undefined : uuid4();
+        const targetAppUuid = activeAppUuid ?? newAppUuid;
+
+        // Upload image to S3 via presigned URL, then reference by key
         let image: AppImageAttachment | undefined;
         if (imageAttachment) {
-            const base64 = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const result = reader.result as string;
-                    // Strip the data:...;base64, prefix
-                    resolve(result.split(',')[1]);
+            try {
+                const { uploadUrl, s3Key } = await getUploadUrl({
+                    projectUuid: projectUuid!,
+                    mimeType: imageAttachment.file.type,
+                    appUuid: targetAppUuid,
+                });
+                const uploadResponse = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    body: imageAttachment.file,
+                    headers: { 'Content-Type': imageAttachment.file.type },
+                });
+                if (!uploadResponse.ok) {
+                    throw new Error(
+                        `Image upload failed: ${uploadResponse.status}`,
+                    );
+                }
+                image = {
+                    s3Key,
+                    mimeType: imageAttachment.file.type,
+                    filename: imageAttachment.file.name,
                 };
-                reader.onerror = reject;
-                reader.readAsDataURL(imageAttachment.file);
-            });
-            image = {
-                data: base64,
-                mimeType: imageAttachment.file.type,
-                filename: imageAttachment.file.name,
-            };
+            } catch {
+                // If upload fails, proceed without the image
+                // rather than blocking the entire submission
+            }
         }
 
         // Capture the preview URL before clearing — it stays in the message bubble.
@@ -494,7 +510,15 @@ const AppGenerate: FC = () => {
                 callbacks,
             );
         } else {
-            generateMutate({ projectUuid, prompt: trimmed, image }, callbacks);
+            generateMutate(
+                {
+                    projectUuid,
+                    prompt: trimmed,
+                    image,
+                    appUuid: newAppUuid,
+                },
+                callbacks,
+            );
         }
     };
 

@@ -6,17 +6,18 @@ export type ApiGenerateAppResponse = ApiSuccess<{
     version: number;
 }>;
 
+export type ApiAppImageUploadUrlResponse = ApiSuccess<{
+    uploadUrl: string;
+    s3Key: string;
+}>;
+
 /**
  * Image attached to a data app generation request.
- *
- * Phase 1: `data` contains the base64-encoded image sent inline in the JSON body.
- * Phase 2: Add an optional `s3Key` field for images pre-uploaded to S3 via
- * presigned URL. When `s3Key` is present, `data` can be omitted and the backend
- * streams the image from S3 into the sandbox. This also enables persisting images
- * alongside the source tarball for use as app assets.
+ * The image is pre-uploaded to S3 via a presigned URL; the s3Key
+ * references the uploaded object.
  */
 export type AppImageAttachment = {
-    data: string; // base64-encoded image content
+    s3Key: string; // S3 object key (e.g. 'apps/images/{uuid}.png')
     mimeType: string; // e.g. 'image/png', 'image/jpeg'
     filename: string; // original filename
 };
@@ -24,6 +25,7 @@ export type AppImageAttachment = {
 export type GenerateAppRequestBody = {
     prompt: string;
     image?: AppImageAttachment;
+    appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
 };
 
 export type ApiPreviewTokenResponse = ApiSuccess<{

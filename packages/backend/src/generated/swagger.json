@@ -8100,16 +8100,19 @@
                     "mimeType": {
                         "type": "string"
                     },
-                    "data": {
+                    "s3Key": {
                         "type": "string"
                     }
                 },
-                "required": ["filename", "mimeType", "data"],
+                "required": ["filename", "mimeType", "s3Key"],
                 "type": "object",
-                "description": "Image attached to a data app generation request.\n\nPhase 1: `data` contains the base64-encoded image sent inline in the JSON body.\nPhase 2: Add an optional `s3Key` field for images pre-uploaded to S3 via\npresigned URL. When `s3Key` is present, `data` can be omitted and the backend\nstreams the image from S3 into the sandbox. This also enables persisting images\nalongside the source tarball for use as app assets."
+                "description": "Image attached to a data app generation request.\nThe image is pre-uploaded to S3 via a presigned URL; the s3Key\nreferences the uploaded object."
             },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "appUuid": {
+                        "type": "string"
+                    },
                     "image": {
                         "$ref": "#/components/schemas/AppImageAttachment"
                     },
@@ -8119,6 +8122,32 @@
                 },
                 "required": ["prompt"],
                 "type": "object"
+            },
+            "ApiSuccess__uploadUrl-string--s3Key-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "s3Key": {
+                                "type": "string"
+                            },
+                            "uploadUrl": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["s3Key", "uploadUrl"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAppImageUploadUrlResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__uploadUrl-string--s3Key-string__"
             },
             "ApiAppVersionSummary": {
                 "properties": {
@@ -29933,7 +29962,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2738.1",
+        "version": "0.2741.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

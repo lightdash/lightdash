@@ -4,6 +4,7 @@ import {
     S3Client,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { subject } from '@casl/ability';
 import {
     ForbiddenError,
@@ -106,6 +107,93 @@ export class AppGenerateService extends BaseService {
         if (!this.lightdashConfig.appRuntime.enabled) {
             throw new ForbiddenError('Data apps are not enabled');
         }
+    }
+
+    private static mimeToExt(mimeType: string): string {
+        const extMap: Record<string, string> = {
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'image/gif': 'gif',
+            'image/webp': 'webp',
+        };
+        return extMap[mimeType] ?? 'png';
+    }
+
+    async getImageUploadUrl(
+        user: SessionUser,
+        projectUuid: string,
+        mimeType: string,
+        appUuid?: string,
+    ): Promise<{ uploadUrl: string; s3Key: string }> {
+        this.assertDataAppsEnabled();
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DataApp', {
+                    organizationUuid: user.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to upload app images',
+            );
+        }
+
+        const validTypes = [
+            'image/png',
+            'image/jpeg',
+            'image/gif',
+            'image/webp',
+        ];
+        if (!validTypes.includes(mimeType)) {
+            throw new ParameterError(
+                `Invalid image type: ${mimeType}. Allowed: ${validTypes.join(', ')}`,
+            );
+        }
+
+        const { bucket } = this.getS3Client();
+        const ext = AppGenerateService.mimeToExt(mimeType);
+        const appDir = appUuid ?? uuidv4();
+        const s3Key = `apps/${appDir}/images/${uuidv4()}.${ext}`;
+
+        // Use the public endpoint for presigned URLs so the browser can
+        // reach S3 directly. Falls back to the internal endpoint, which
+        // works in production where the endpoint is already public.
+        const s3Config = this.lightdashConfig.appRuntime.s3!;
+        const signingEndpoint =
+            s3Config.publicEndpoint || s3Config.endpoint || undefined;
+
+        // Separate signing client with request checksums disabled.
+        // AWS SDK v3 adds x-amz-checksum-crc32 to presigned URLs by
+        // default, but browsers can't compute the matching checksum
+        // header when PUTting, causing signature mismatches.
+        const signingClientConfig: S3ClientConfig = {
+            region: s3Config.region,
+            endpoint: signingEndpoint,
+            forcePathStyle: s3Config.forcePathStyle ?? false,
+            requestChecksumCalculation: 'WHEN_REQUIRED',
+            responseChecksumValidation: 'WHEN_REQUIRED',
+        };
+        if (s3Config.accessKey && s3Config.secretKey) {
+            signingClientConfig.credentials = {
+                accessKeyId: s3Config.accessKey,
+                secretAccessKey: s3Config.secretKey,
+            };
+        }
+        const signingClient = new S3Client(signingClientConfig);
+
+        const command = new PutObjectCommand({
+            Bucket: bucket,
+            Key: s3Key,
+            ContentType: mimeType,
+        });
+
+        const uploadUrl = await getSignedUrl(signingClient, command, {
+            expiresIn: 300,
+        });
+
+        return { uploadUrl, s3Key };
     }
 
     private static truncateEnd(text: string, maxLength: number): string {
@@ -309,7 +397,9 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         projectUuid: string,
         prompt: string,
-        image?: AppImageAttachment,
+        image: AppImageAttachment | undefined,
+        s3Client: S3Client,
+        bucket: string,
     ): Promise<number> {
         const start = performance.now();
 
@@ -334,6 +424,8 @@ export class AppGenerateService extends BaseService {
                 sandbox,
                 appUuid,
                 image,
+                s3Client,
+                bucket,
             );
             finalPrompt = `[Design reference image at ${imagePath} — use the Read tool to view it]\n\n${prompt}`;
         }
@@ -368,28 +460,41 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Decode a base64 image attachment and write it into the sandbox.
+     * Stream an image from S3 and write it into the sandbox.
      * Returns the sandbox file path where the image was written.
-     *
-     * Phase 2: When images are used as app assets, write to /app/src/assets/<filename>
-     * instead and update skill.md to tell Claude the image is available as a static import.
-     * Also persist the image to S3 alongside the source tarball so it survives sandbox teardown.
      */
     private async writeImageToSandbox(
         sandbox: Sandbox,
         appUuid: string,
         image: AppImageAttachment,
+        s3Client: S3Client,
+        bucket: string,
     ): Promise<string> {
-        const extMap: Record<string, string> = {
-            'image/png': 'png',
-            'image/jpeg': 'jpg',
-            'image/gif': 'gif',
-            'image/webp': 'webp',
-        };
-        const ext = extMap[image.mimeType] ?? 'png';
+        const ext = AppGenerateService.mimeToExt(image.mimeType);
         const filePath = `/tmp/images/reference.${ext}`;
 
-        const buffer = Buffer.from(image.data, 'base64');
+        this.logger.info(
+            `App ${appUuid}: streaming image from S3 (key=${image.s3Key}, type=${image.mimeType})`,
+        );
+
+        const response = await s3Client.send(
+            new GetObjectCommand({
+                Bucket: bucket,
+                Key: image.s3Key,
+            }),
+        );
+
+        const chunks: Uint8Array[] = [];
+        const body = response.Body;
+        if (body && typeof (body as NodeJS.ReadableStream).on === 'function') {
+            for await (const chunk of body as AsyncIterable<Uint8Array>) {
+                chunks.push(chunk);
+            }
+        } else {
+            throw new Error('Unexpected S3 response body type');
+        }
+        const buffer = Buffer.concat(chunks);
+
         this.logger.info(
             `App ${appUuid}: writing image to sandbox (${image.mimeType}, ${buffer.length} bytes)`,
         );
@@ -781,6 +886,8 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
                 prompt,
                 image,
+                s3Client,
+                bucket,
             );
         } catch (error) {
             const totalMs = AppGenerateService.elapsed(overallStart);
@@ -923,6 +1030,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         prompt: string,
         image?: AppImageAttachment,
+        preGeneratedAppUuid?: string,
     ): Promise<GenerateAppResult> {
         this.assertDataAppsEnabled();
         if (
@@ -939,7 +1047,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const appUuid = uuidv4();
+        const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
 
         this.logger.info(

@@ -628,6 +628,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const region = process.env.S3_REGION;
     const accessKey = process.env.S3_ACCESS_KEY;
     const secretKey = process.env.S3_SECRET_KEY;
+    const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || undefined;
     const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
     const expirationTime = parseInt(
         process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
@@ -646,6 +647,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
 
     return {
         endpoint,
+        publicEndpoint,
         bucket,
         region,
         accessKey,
@@ -1303,6 +1305,14 @@ export type HeadlessBrowserConfig = {
 export type S3Config = {
     region: string;
     endpoint: string;
+    /**
+     * Browser-facing S3 endpoint for presigned URLs that the browser fetches
+     * directly (e.g. image uploads via PUT). In local dev with MinIO, the
+     * internal endpoint (http://minio:9000) isn't reachable from the browser,
+     * so this can be set to http://localhost:9000. In production with real
+     * S3/GCS, this is unnecessary since the endpoint is already public.
+     */
+    publicEndpoint?: string;
     bucket: string;
     expirationTime?: number;
     accessKey?: string;
@@ -1495,6 +1505,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     if (baseS3Config) {
         const {
             endpoint: baseEndpoint,
+            publicEndpoint: basePublicEndpoint,
             bucket: baseBucket,
             region: baseRegion,
             accessKey: baseAccessKey,
@@ -1510,6 +1521,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
 
         s3 = {
             endpoint: baseEndpoint,
+            publicEndpoint: basePublicEndpoint,
             forcePathStyle: baseForcePathStyle,
             bucket,
             region,
