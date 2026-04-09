@@ -79,6 +79,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     catalogModel: models.getCatalogModel(),
                     appModel: models.getAppModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
