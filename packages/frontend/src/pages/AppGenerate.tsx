@@ -937,7 +937,10 @@ const AppGenerate: FC = () => {
                                     </Text>
                                 </Box>
                             )}
-                            <QueryInspector queries={trackedQueries} />
+                            <QueryInspector
+                                queries={trackedQueries}
+                                projectUuid={projectUuid!}
+                            />
                         </Box>
                     </Box>
                 </Panel>
