@@ -1,3 +1,10 @@
+## [0.2740.2](https://github.com/lightdash/lightdash/compare/0.2740.1...0.2740.2) (2026-04-09)
+
+
+### Bug Fixes
+
+* bump handlebars 4.7.8 → 4.7.9 (security) ([#21862](https://github.com/lightdash/lightdash/issues/21862)) ([506f07a](https://github.com/lightdash/lightdash/commit/506f07a0fdf6ee9e97e88b59b4d41a7a33d3ea45))
+
 ## [0.2740.1](https://github.com/lightdash/lightdash/compare/0.2740.0...0.2740.1) (2026-04-08)
 
 
