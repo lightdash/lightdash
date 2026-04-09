@@ -33,8 +33,10 @@ import {
 
 let admin: ApiClient;
 
-const DIMENSIONS = ['timezone_test_event_timestamp_day'];
-const METRICS = ['timezone_test_count'];
+const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
+const METRIC_KEY = 'timezone_test_count';
+const DIMENSIONS = [DIMENSION_KEY];
+const METRICS = [METRIC_KEY];
 
 describe('Data timezone', () => {
     beforeAll(async () => {
@@ -52,8 +54,12 @@ describe('Data timezone', () => {
                 metrics: METRICS,
             });
             expect(rows).toHaveLength(2);
-            expect(getRowCount(rows, '2024-01-15')).toBe(6);
-            expect(getRowCount(rows, '2024-01-16')).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
         });
 
         it('should filter by UTC day for equals filter', async () => {
@@ -77,7 +83,7 @@ describe('Data timezone', () => {
                     },
                 },
             });
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
         it('should filter by UTC day for greaterThan filter', async () => {
@@ -101,7 +107,7 @@ describe('Data timezone', () => {
                     },
                 },
             });
-            expect(getTotalCount(rows)).toBe(4);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
         });
     });
 
@@ -118,8 +124,12 @@ describe('Data timezone', () => {
             // With timezone-aware DATE_TRUNC, grouping follows queryTimezone (UTC),
             // not dataTimezone (Pago_Pago). The session TZ only affects NTZ interpretation.
             expect(rows).toHaveLength(2);
-            expect(getRowCount(rows, '2024-01-15')).toBe(6);
-            expect(getRowCount(rows, '2024-01-16')).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
         });
 
         it('should filter by UTC day for equals filter (queryTimezone defaults to UTC)', async () => {
@@ -144,7 +154,7 @@ describe('Data timezone', () => {
                 },
             });
             // Filters also use queryTimezone (UTC), not dataTimezone
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
         it('should filter by UTC day for greaterThan filter (queryTimezone defaults to UTC)', async () => {
@@ -169,7 +179,7 @@ describe('Data timezone', () => {
                 },
             });
             // Filters use queryTimezone (UTC): only Jan 16 events (4)
-            expect(getTotalCount(rows)).toBe(4);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
         });
     });
 
@@ -186,8 +196,12 @@ describe('Data timezone', () => {
                 timezone: 'UTC',
             });
             expect(rows).toHaveLength(2);
-            expect(getRowCount(rows, '2024-01-15')).toBe(6);
-            expect(getRowCount(rows, '2024-01-16')).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
         });
 
         it('dataTz=Pago_Pago, queryTz=Pago_Pago: skip optimization, groups by Pago_Pago', async () => {
@@ -199,9 +213,15 @@ describe('Data timezone', () => {
                 timezone: 'Pacific/Pago_Pago',
             });
             expect(rows).toHaveLength(3);
-            expect(getRowCount(rows, '2024-01-14')).toBe(4);
-            expect(getRowCount(rows, '2024-01-15')).toBe(4);
-            expect(getRowCount(rows, '2024-01-16')).toBe(2);
+            expect(
+                getRowCount(rows, '2024-01-14', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(2);
         });
 
         it('dataTz=Pago_Pago, queryTz=Pago_Pago: filter day=Jan15 returns 4 events', async () => {
@@ -227,7 +247,7 @@ describe('Data timezone', () => {
                 },
             });
             expect(rows).toHaveLength(1);
-            expect(getTotalCount(rows)).toBe(4);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
         });
 
         afterAll(async () => {

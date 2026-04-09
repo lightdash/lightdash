@@ -111,19 +111,21 @@ type TimezoneTestRow = Record<
 export function getRowCount(
     rows: TimezoneTestRow[],
     dayFormatted: string,
+    dimensionKey: string,
+    metricKey: string,
 ): number {
     const row = rows.find(
-        (r) =>
-            r.timezone_test_event_timestamp_day?.value?.formatted ===
-            dayFormatted,
+        (r) => r[dimensionKey]?.value?.formatted === dayFormatted,
     );
-    return row ? parseInt(row.timezone_test_count?.value?.raw ?? '0', 10) : 0;
+    return row ? parseInt(row[metricKey]?.value?.raw ?? '0', 10) : 0;
 }
 
-export function getTotalCount(rows: TimezoneTestRow[]): number {
+export function getTotalCount(
+    rows: TimezoneTestRow[],
+    metricKey: string,
+): number {
     return rows.reduce(
-        (sum, r) =>
-            sum + parseInt(r.timezone_test_count?.value?.raw ?? '0', 10),
+        (sum, r) => sum + parseInt(r[metricKey]?.value?.raw ?? '0', 10),
         0,
     );
 }

@@ -39,8 +39,10 @@ import {
 
 let admin: ApiClient;
 
-const DIMENSIONS = ['timezone_test_event_timestamp_day'];
-const METRICS = ['timezone_test_count'];
+const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
+const METRIC_KEY = 'timezone_test_count';
+const DIMENSIONS = [DIMENSION_KEY];
+const METRICS = [METRIC_KEY];
 
 const EQUALS_FILTER = (day: string) => ({
     dimensions: {
@@ -99,8 +101,12 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 metrics: METRICS,
             });
             expect(rows).toHaveLength(2);
-            expect(getRowCount(rows, '2024-01-15')).toBe(6);
-            expect(getRowCount(rows, '2024-01-16')).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
         });
 
         it('Pacific/Pago_Pago: Jan 14=4, Jan 15=4, Jan 16=2', async () => {
@@ -110,9 +116,15 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'Pacific/Pago_Pago',
             });
             expect(rows).toHaveLength(3);
-            expect(getRowCount(rows, '2024-01-14')).toBe(4);
-            expect(getRowCount(rows, '2024-01-15')).toBe(4);
-            expect(getRowCount(rows, '2024-01-16')).toBe(2);
+            expect(
+                getRowCount(rows, '2024-01-14', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(2);
         });
 
         it('America/New_York: Jan 14=1, Jan 15=6, Jan 16=3', async () => {
@@ -122,9 +134,15 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/New_York',
             });
             expect(rows).toHaveLength(3);
-            expect(getRowCount(rows, '2024-01-14')).toBe(1);
-            expect(getRowCount(rows, '2024-01-15')).toBe(6);
-            expect(getRowCount(rows, '2024-01-16')).toBe(3);
+            expect(
+                getRowCount(rows, '2024-01-14', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(1);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(3);
         });
 
         it('America/Chicago: Jan 14=2, Jan 15=5, Jan 16=3', async () => {
@@ -134,9 +152,15 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/Chicago',
             });
             expect(rows).toHaveLength(3);
-            expect(getRowCount(rows, '2024-01-14')).toBe(2);
-            expect(getRowCount(rows, '2024-01-15')).toBe(5);
-            expect(getRowCount(rows, '2024-01-16')).toBe(3);
+            expect(
+                getRowCount(rows, '2024-01-14', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(2);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(5);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(3);
         });
 
         it('Asia/Tokyo: Jan 15=5, Jan 16=4, Jan 17=1', async () => {
@@ -146,9 +170,15 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'Asia/Tokyo',
             });
             expect(rows).toHaveLength(3);
-            expect(getRowCount(rows, '2024-01-15')).toBe(5);
-            expect(getRowCount(rows, '2024-01-16')).toBe(4);
-            expect(getRowCount(rows, '2024-01-17')).toBe(1);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(5);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-17', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(1);
         });
     });
 
@@ -162,7 +192,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 filters: EQUALS_FILTER('2024-01-15'),
             });
             expect(rows).toHaveLength(1);
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
         it('Pacific/Pago_Pago: 4 events on Jan 15', async () => {
@@ -173,7 +203,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 filters: EQUALS_FILTER('2024-01-15'),
             });
             expect(rows).toHaveLength(1);
-            expect(getTotalCount(rows)).toBe(4);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
         });
 
         it('America/New_York: 6 events on Jan 15', async () => {
@@ -184,7 +214,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 filters: EQUALS_FILTER('2024-01-15'),
             });
             expect(rows).toHaveLength(1);
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
         it('America/Chicago: 5 events on Jan 15', async () => {
@@ -195,7 +225,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 filters: EQUALS_FILTER('2024-01-15'),
             });
             expect(rows).toHaveLength(1);
-            expect(getTotalCount(rows)).toBe(5);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(5);
         });
 
         it('Asia/Tokyo: 5 events on Jan 15', async () => {
@@ -206,7 +236,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 filters: EQUALS_FILTER('2024-01-15'),
             });
             expect(rows).toHaveLength(1);
-            expect(getTotalCount(rows)).toBe(5);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(5);
         });
     });
 
@@ -221,7 +251,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 metrics: METRICS,
                 filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
         it('America/New_York: 7 events in Jan 14–15', async () => {
@@ -231,7 +261,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/New_York',
                 filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(7);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(7);
         });
 
         it('America/Chicago: 7 events in Jan 14–15', async () => {
@@ -241,7 +271,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/Chicago',
                 filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(7);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(7);
         });
 
         it('Asia/Tokyo: 5 events in Jan 14–15', async () => {
@@ -251,7 +281,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'Asia/Tokyo',
                 filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(5);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(5);
         });
 
         it('Pacific/Pago_Pago: 8 events in Jan 14–15', async () => {
@@ -261,7 +291,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'Pacific/Pago_Pago',
                 filters: IN_BETWEEN_FILTER('2024-01-14', '2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(8);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(8);
         });
 
         // Single-day inBetween — same as equals, catches off-by-one boundary shifts
@@ -272,7 +302,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/New_York',
                 filters: IN_BETWEEN_FILTER('2024-01-15', '2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
     });
 
@@ -285,7 +315,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 metrics: METRICS,
                 filters: GREATER_THAN_FILTER('2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(4);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
         });
 
         it('Pacific/Pago_Pago: 2 events after Jan 15', async () => {
@@ -295,7 +325,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'Pacific/Pago_Pago',
                 filters: GREATER_THAN_FILTER('2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(2);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(2);
         });
 
         it('America/New_York: 3 events after Jan 15', async () => {
@@ -305,7 +335,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/New_York',
                 filters: GREATER_THAN_FILTER('2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(3);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(3);
         });
 
         it('America/Chicago: 3 events after Jan 15', async () => {
@@ -315,7 +345,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'America/Chicago',
                 filters: GREATER_THAN_FILTER('2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(3);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(3);
         });
 
         it('Asia/Tokyo: 5 events after Jan 15', async () => {
@@ -325,7 +355,7 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 timezone: 'Asia/Tokyo',
                 filters: GREATER_THAN_FILTER('2024-01-15'),
             });
-            expect(getTotalCount(rows)).toBe(5);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(5);
         });
     });
 

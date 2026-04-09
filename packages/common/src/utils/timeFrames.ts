@@ -57,6 +57,8 @@ const timeFrameToDatePartMap: Record<TimeFrames, string | null> = {
 };
 
 type WarehouseConfig = {
+    // `timezone` is only used by BigQuery (native TIMESTAMP_TRUNC support);
+    // other warehouses convert via dateTruncTimezoneConversions instead.
     getSqlForTruncatedDate: (
         timeFrame: TimeFrames,
         originalSql: string,
