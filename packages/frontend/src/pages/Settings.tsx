@@ -1,9 +1,5 @@
 import { subject } from '@casl/ability';
-import {
-    CommercialFeatureFlags,
-    FeatureFlags,
-    ProjectType,
-} from '@lightdash/common';
+import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
     IconAppWindow,
@@ -924,6 +920,9 @@ const Settings: FC = () => {
                                         }
                                     />
 
+                                    {/* TODO: Consider adding a setting to disable pre-aggregate materializations on preview projects,
+                                        or turn them off by default. Currently materializations still run on previews,
+                                        which can be resource-intensive. Admins/developers should be able to control this. */}
                                     {health.preAggregates.enabled && (
                                         <RouterNavLink
                                             label="Pre-aggregates"
@@ -931,10 +930,6 @@ const Settings: FC = () => {
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates`}
                                             leftSection={
                                                 <MantineIcon icon={IconBolt} />
-                                            }
-                                            disabled={
-                                                project.type ===
-                                                ProjectType.PREVIEW
                                             }
                                             defaultOpened={location.pathname.includes(
                                                 `/projectManagement/${project.projectUuid}/preAggregates`,
