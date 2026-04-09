@@ -267,6 +267,25 @@ function getCartesianPivotConfiguration(
                     ),
             );
 
+        // Include metrics/table calculations that are used in sorts but not
+        // displayed in the chart. Without these in valuesColumns, the sort
+        // is silently dropped and PivotQueryBuilder can't generate anchor CTEs.
+        const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
+        const sortOnlyMetrics = metricQuery.sorts
+            .filter(
+                (sort) =>
+                    !valuesRefs.has(sort.fieldId) &&
+                    (metricQuery.metrics.includes(sort.fieldId) ||
+                        (metricQuery.tableCalculations || []).some(
+                            (tc) => tc.name === sort.fieldId,
+                        )),
+            )
+            .map((sort) => ({
+                reference: sort.fieldId,
+                aggregation: VizAggregationOptions.ANY,
+            }));
+        valuesColumns.push(...sortOnlyMetrics);
+
         // Find columns that are not groupBy or value columns (these become index columns)
         const indexColumn = getIndexColumn(
             groupByColumns,

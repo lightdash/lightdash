@@ -531,19 +531,28 @@ export const pivotQueryResults = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const { visibleMetricFieldIds } = pivotConfig;
+
+    const isMetricVisible = (metricId: string): boolean => {
+        if (visibleMetricFieldIds) {
+            return visibleMetricFieldIds.includes(metricId);
+        }
+        return !hiddenMetricFieldIds.includes(metricId);
+    };
 
     const summableMetricFieldIds = metricQuery.metrics.filter((metricId) => {
         const field = getField(metricId);
 
         // Skip if field is not found or is a dimension or is hidden
         if (!field || isDimension(field)) return false;
-        if (hiddenMetricFieldIds.includes(metricId)) return false;
+        if (!isMetricVisible(metricId)) return false;
 
         return isSummable(field);
     });
 
+    const allDimensionIds = new Set(metricQuery.dimensions);
     const columnOrder = (pivotConfig.columnOrder || []).filter(
-        (id) => !hiddenMetricFieldIds.includes(id),
+        (id) => allDimensionIds.has(id) || isMetricVisible(id),
     );
 
     const dimensions = [...metricQuery.dimensions];
@@ -581,7 +590,7 @@ export const pivotQueryResults = ({
         ...metricQuery.metrics,
         ...metricQuery.tableCalculations.map((tc) => tc.name),
     ]
-        .filter((m) => !hiddenMetricFieldIds.includes(m))
+        .filter((m) => isMetricVisible(m))
         .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b))
         .map((id) => ({ fieldId: id }));
 
@@ -892,6 +901,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         | 'columnTotals'
         | 'metricsAsRows'
         | 'hiddenMetricFieldIds'
+        | 'visibleMetricFieldIds'
         | 'columnOrder'
     >; // only use properties that are not part of pivot details metadata
     getField: FieldFunction;
@@ -904,7 +914,15 @@ export const convertSqlPivotedRowsToPivotData = ({
     }
 
     const hiddenMetricFieldIds = pivotConfig.hiddenMetricFieldIds || [];
+    const { visibleMetricFieldIds } = pivotConfig;
     const columnOrder = pivotConfig.columnOrder || [];
+
+    const isMetricVisibleInPivot = (fieldId: string): boolean => {
+        if (visibleMetricFieldIds) {
+            return visibleMetricFieldIds.includes(fieldId);
+        }
+        return !hiddenMetricFieldIds.includes(fieldId);
+    };
 
     // Extract information from pivot details metadata
     let indexColumns: string[];
@@ -922,8 +940,11 @@ export const convertSqlPivotedRowsToPivotData = ({
         indexColumns = [];
     }
 
+    // Filter value columns: visibleMetricFieldIds (allowlist) takes precedence
+    // over hiddenMetricFieldIds (blocklist). Cartesian charts use the allowlist
+    // to exclude sort-only metrics injected for pivot sorting (PROD-6906).
     let filteredValuesColumns = pivotDetails.valuesColumns.filter(
-        ({ referenceField }) => !hiddenMetricFieldIds.includes(referenceField),
+        ({ referenceField }) => isMetricVisibleInPivot(referenceField),
     );
 
     // Apply column limit: keep only the first N unique pivot column groups
@@ -1184,6 +1205,9 @@ export const convertSqlPivotedRowsToPivotData = ({
         metricsAsRows: pivotConfig.metricsAsRows || false,
         columnOrder: pivotConfig.columnOrder,
         hiddenMetricFieldIds: pivotConfig.hiddenMetricFieldIds || [],
+        ...(pivotConfig.visibleMetricFieldIds && {
+            visibleMetricFieldIds: pivotConfig.visibleMetricFieldIds,
+        }),
         columnTotals: pivotConfig.columnTotals,
         rowTotals: pivotConfig.rowTotals,
     };
@@ -1252,7 +1276,7 @@ export const convertSqlPivotedRowsToPivotData = ({
 
         // Skip if field is not found or is a dimension or is hidden
         if (!field || isDimension(field)) return false;
-        if (hiddenMetricFieldIds.includes(metricId)) return false;
+        if (!isMetricVisibleInPivot(metricId)) return false;
 
         return isSummable(field);
     });
