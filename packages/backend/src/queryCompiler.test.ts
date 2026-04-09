@@ -8,6 +8,7 @@ import {
     TableCalculation,
     TableCalculationTemplateType,
     WindowFunctionType,
+    type FormulaTableCalculation,
 } from '@lightdash/common';
 import { compileMetricQuery } from './queryCompiler';
 import {
@@ -1023,4 +1024,115 @@ test('Should compile template table calculations using _order for custom bin dim
             (c) => c.name === 'row_number_over_bins',
         )?.compiledSql,
     ).toBe('ROW_NUMBER() OVER (ORDER BY "age_range_order" ASC)');
+});
+
+// --- Formula table calculation tests ---
+
+test('Should compile a basic formula table calculation', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'formula_calc',
+                displayName: 'Formula Calc',
+                formula: '=table1_dim_1',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const formulaCalc = result.compiledTableCalculations.find(
+        (c) => c.name === 'formula_calc',
+    );
+
+    expect(formulaCalc?.compiledSql).toBe('"table1_dim_1"');
+    expect(formulaCalc?.dependsOn).toEqual([]);
+});
+
+test('Should compile a formula with arithmetic and function calls', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'formula_calc',
+                displayName: 'Formula Calc',
+                formula: '=IF(table_3_metric_1 > 100, table_3_metric_1 * 2, 0)',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const formulaCalc = result.compiledTableCalculations.find(
+        (c) => c.name === 'formula_calc',
+    );
+
+    expect(formulaCalc?.compiledSql).toBe(
+        'CASE WHEN ("table_3_metric_1" > 100) THEN ("table_3_metric_1" * 2) ELSE 0 END',
+    );
+});
+
+test('Should throw error when formula references unknown column', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'bad_formula',
+                displayName: 'Bad Formula',
+                formula: '=nonexistent_field + 1',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    expect(() =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        }),
+    ).toThrow();
+});
+
+test('Should compile a formula that references another table calculation', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'base_calc',
+                displayName: 'Base Calc',
+                sql: '${table_3.metric_1} + 10',
+            },
+            {
+                name: 'formula_on_calc',
+                displayName: 'Formula on Calc',
+                formula: '=base_calc * 2',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const formulaCalc = result.compiledTableCalculations.find(
+        (c) => c.name === 'formula_on_calc',
+    );
+
+    expect(formulaCalc?.compiledSql).toBe('("base_calc" * 2)');
+    expect(formulaCalc?.dependsOn).toEqual(['base_calc']);
 });

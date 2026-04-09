@@ -2,6 +2,7 @@
 
 # version control
 .git
+.worktrees/
 
 # dependencies
 node_modules/
@@ -117,6 +118,9 @@ http-client.private.env.json
 
 # janix
 .janix
+
+# rodney
+.rodney
 
 # HAR replay
 scripts/har-replay-server.ts

@@ -5,6 +5,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
+    UnitOfTime,
     type Explore,
     type PreAggregateDef,
 } from '@lightdash/common';
@@ -259,6 +260,66 @@ describe('buildMaterializationMetricQuery', () => {
             ],
         });
         expect(result.timeDimensionFieldId).toBeNull();
+    });
+
+    it('emits pre-aggregate filters into materialization dimension filters', () => {
+        const preAggregateDef: PreAggregateDef = {
+            name: 'orders_rollup',
+            dimensions: ['status'],
+            metrics: ['order_count'],
+            filters: [
+                {
+                    id: 'relative-date-filter',
+                    target: {
+                        fieldRef: 'order_date',
+                    },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [3],
+                    settings: {
+                        unitOfTime: UnitOfTime.days,
+                    },
+                },
+                {
+                    id: 'qualified-filter',
+                    target: {
+                        fieldRef: 'orders.status',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        };
+
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef,
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.filters.dimensions).toStrictEqual({
+            id: 'pre-aggregate-filters',
+            and: [
+                {
+                    id: 'relative-date-filter',
+                    target: {
+                        fieldId: 'orders_order_date',
+                    },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [3],
+                    settings: {
+                        unitOfTime: UnitOfTime.days,
+                    },
+                },
+                {
+                    id: 'qualified-filter',
+                    target: {
+                        fieldId: 'orders_status',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        });
     });
 
     it('throws when generated average metric component field IDs collide with selected metrics', () => {

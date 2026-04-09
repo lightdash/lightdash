@@ -76,6 +76,52 @@ export async function createPostgresConnection(
     };
 }
 
+export async function createBigQueryConnection(
+    config: WarehouseConfig['bigquery'],
+): Promise<WarehouseConnection> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { BigQuery } = require('@google-cloud/bigquery');
+
+    const clientOptions: Record<string, unknown> = {
+        projectId: config.projectId,
+    };
+    if (config.useADC) {
+        // Application Default Credentials — no keyfile needed
+    } else if (config.keyFilename) {
+        clientOptions.keyFilename = config.keyFilename;
+    }
+
+    const client = new BigQuery(clientOptions);
+    const dataset = config.dataset;
+
+    const defaultDataset = {
+        projectId: config.projectId,
+        datasetId: dataset,
+    };
+
+    return {
+        dialect: 'bigquery',
+        async execute(sql: string) {
+            const [rows] = await client.query({ query: sql, defaultDataset });
+            return rows;
+        },
+        async seed(sql: string) {
+            const statements = sql
+                .split(';')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0 && !s.startsWith('--'));
+            for (const stmt of statements) {
+                await client.query({ query: stmt, defaultDataset });
+            }
+            // BigQuery CREATE TABLE needs a moment before tables are queryable
+            await new Promise((resolve) => { setTimeout(resolve, 5000); });
+        },
+        async close() {
+            // BigQuery client doesn't require explicit close
+        },
+    };
+}
+
 export async function createConnection(
     warehouse: WarehouseType,
     config: WarehouseConfig,
@@ -86,7 +132,7 @@ export async function createConnection(
         case 'postgres':
             return createPostgresConnection(config.postgres);
         case 'bigquery':
-            throw new Error('BigQuery connection not yet implemented');
+            return createBigQueryConnection(config.bigquery);
         case 'snowflake':
             throw new Error('Snowflake connection not yet implemented');
         default: {

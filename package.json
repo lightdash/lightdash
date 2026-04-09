@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2733.0",
+    "version": "0.2740.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -20,7 +20,7 @@
             "form-data@4.0.0": "4.0.4",
             "form-data@4.0.2": "4.0.4",
             "validator": "13.15.23",
-            "node-forge": "1.3.3",
+            "node-forge": "1.4.0",
             "glob@>=10.2.0 <10.5.0": "10.5.0",
             "jws": "4.0.1",
             "qs": "6.14.1",
@@ -28,7 +28,9 @@
             "tar": "7.5.7",
             "eslint": "8.57.1",
             "canvas": "3.2.1",
-            "express-rate-limit": "8.3.0"
+            "express-rate-limit": "8.3.0",
+            "@hapi/content": "6.0.1",
+            "undici": "6.24.1"
         }
     },
     "dependencies": {
@@ -199,6 +201,10 @@
         "packages/api-tests/**/*.(ts|json)": [
             "pnpm -F api-tests run linter --fix",
             "pnpm -F api-tests run formatter"
+        ],
+        "packages/formula/src/**/*.(ts|json)": [
+            "pnpm -F formula run linter --fix",
+            "pnpm -F formula run formatter"
         ]
     },
     "packageManager": "pnpm@9.15.5+sha512.845196026aab1cc3f098a0474b64dfbab2afe7a1b4e91dd86895d8e4aa32a7a6d03049e2d0ad770bbe4de023a7122fb68c1a1d6e0d033c7076085f9d5d4800d4"

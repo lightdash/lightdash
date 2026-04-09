@@ -127,12 +127,16 @@ export const useFieldValues = (
                 setResultCounts(new Map());
             }
             setRefreshedAt(new Date(data.refreshedAt));
-            setSearches((s) => {
-                return s.add(data.search);
+            setSearches((previousSearches) => {
+                const nextSearches = new Set(previousSearches);
+                nextSearches.add(data.search);
+                return nextSearches;
             });
 
-            setResultCounts((map) => {
-                return map.set(data.search, data.results.length);
+            setResultCounts((previousResultCounts) => {
+                const nextResultCounts = new Map(previousResultCounts);
+                nextResultCounts.set(data.search, data.results.length);
+                return nextResultCounts;
             });
 
             setResults((oldSet) => {
@@ -154,6 +158,7 @@ export const useFieldValues = (
         debouncedSearch,
         parameterValues,
     ];
+
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
         () => {

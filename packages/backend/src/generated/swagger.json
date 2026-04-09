@@ -3459,6 +3459,50 @@
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
                 "type": "string"
             },
+            "TableCalculationBase": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationType",
+                        "description": "Data type of the calculation result"
+                    },
+                    "format": {
+                        "$ref": "#/components/schemas/CustomFormat",
+                        "description": "Formatting options for the calculation"
+                    },
+                    "displayName": {
+                        "type": "string",
+                        "description": "Display name shown in the UI"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Internal name of the table calculation"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Display order index"
+                    }
+                },
+                "required": ["displayName", "name"],
+                "type": "object"
+            },
+            "SqlTableCalculation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/TableCalculationBase"
+                    },
+                    {
+                        "properties": {
+                            "sql": {
+                                "type": "string",
+                                "description": "SQL expression for the calculation (can reference fields with ${table.field})"
+                            }
+                        },
+                        "required": ["sql"],
+                        "type": "object"
+                    }
+                ]
+            },
             "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
                 "enum": ["percent_change_from_previous"],
                 "type": "string"
@@ -3727,58 +3771,50 @@
                     }
                 ]
             },
-            "TableCalculation": {
+            "TemplateTableCalculation": {
                 "allOf": [
                     {
-                        "properties": {
-                            "type": {
-                                "$ref": "#/components/schemas/TableCalculationType",
-                                "description": "Data type of the calculation result"
-                            },
-                            "format": {
-                                "$ref": "#/components/schemas/CustomFormat",
-                                "description": "Formatting options for the calculation"
-                            },
-                            "displayName": {
-                                "type": "string",
-                                "description": "Display name shown in the UI"
-                            },
-                            "name": {
-                                "type": "string",
-                                "description": "Internal name of the table calculation"
-                            },
-                            "index": {
-                                "type": "number",
-                                "format": "double",
-                                "description": "Display order index"
-                            }
-                        },
-                        "required": ["displayName", "name"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/TableCalculationBase"
                     },
                     {
-                        "anyOf": [
-                            {
-                                "properties": {
-                                    "sql": {
-                                        "type": "string",
-                                        "description": "SQL expression for the calculation (can reference fields with ${table.field})"
-                                    }
-                                },
-                                "required": ["sql"],
-                                "type": "object"
-                            },
-                            {
-                                "properties": {
-                                    "template": {
-                                        "$ref": "#/components/schemas/TableCalculationTemplate",
-                                        "description": "Template-based calculation (alternative to sql)"
-                                    }
-                                },
-                                "required": ["template"],
-                                "type": "object"
+                        "properties": {
+                            "template": {
+                                "$ref": "#/components/schemas/TableCalculationTemplate",
+                                "description": "Template-based calculation (alternative to sql)"
                             }
-                        ]
+                        },
+                        "required": ["template"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "FormulaTableCalculation": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/TableCalculationBase"
+                    },
+                    {
+                        "properties": {
+                            "formula": {
+                                "type": "string",
+                                "description": "Spreadsheet-like formula compiled to SQL at query time"
+                            }
+                        },
+                        "required": ["formula"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "TableCalculation": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SqlTableCalculation"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TemplateTableCalculation"
+                    },
+                    {
+                        "$ref": "#/components/schemas/FormulaTableCalculation"
                     }
                 ]
             },
@@ -6932,8 +6968,37 @@
                 "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
             },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "UserAttributeValueMap": {
+                "$ref": "#/components/schemas/Record_string.string-Array_"
+            },
+            "PreAggregateMaterializationRole": {
+                "properties": {
+                    "attributes": {
+                        "$ref": "#/components/schemas/UserAttributeValueMap"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["attributes", "email"],
+                "type": "object"
+            },
             "PreAggregateDef": {
                 "properties": {
+                    "materializationRole": {
+                        "$ref": "#/components/schemas/PreAggregateMaterializationRole"
+                    },
                     "refresh": {
                         "properties": {
                             "cron": {
@@ -6951,6 +7016,12 @@
                     },
                     "timeDimension": {
                         "type": "string"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
                     },
                     "metrics": {
                         "items": {
@@ -7251,6 +7322,10 @@
                 "enum": ["filter_dimension_not_in_pre_aggregate"],
                 "type": "string"
             },
+            "PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED": {
+                "enum": ["pre_aggregate_filter_not_satisfied"],
+                "type": "string"
+            },
             "PreAggregateMissReason.GRANULARITY_TOO_FINE": {
                 "enum": ["granularity_too_fine"],
                 "type": "string"
@@ -7341,6 +7416,18 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED"
                             }
                         },
                         "required": ["fieldId", "reason"],
@@ -11518,6 +11605,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
                     "metrics": {
                         "items": {
                             "type": "string"
@@ -11529,6 +11622,14 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "materializationRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PreAggregateMaterializationRole"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "sourceExploreName": {
                         "type": "string"
@@ -11551,8 +11652,10 @@
                     "refreshCron",
                     "granularity",
                     "timeDimension",
+                    "filters",
                     "metrics",
                     "dimensions",
+                    "materializationRole",
                     "sourceExploreName",
                     "preAggExploreName",
                     "preAggregateName",
@@ -29841,7 +29944,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2733.0",
+        "version": "0.2740.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -27,7 +27,9 @@ describe('SQL Code Generation', () => {
 
         it('compiles modulo for bigquery', () => {
             const sql = compile('=A % B', { dialect: 'bigquery', columns });
-            expect(sql).toBe('MOD(`order_amount`, `tax`)');
+            expect(sql).toBe(
+                'MOD(CAST(`order_amount` AS NUMERIC), CAST(`tax` AS NUMERIC))',
+            );
         });
     });
 
@@ -42,6 +44,36 @@ describe('SQL Code Generation', () => {
         it('compiles COALESCE', () => {
             const sql = compile('=COALESCE(A, B)', { dialect: 'postgres', columns });
             expect(sql).toBe('COALESCE("order_amount", "tax")');
+        });
+    });
+
+    describe('conditional aggregates', () => {
+        it('compiles SUMIF', () => {
+            const sql = compile('=SUMIF(A, B > 100)', { dialect: 'postgres', columns });
+            expect(sql).toBe(
+                'SUM(CASE WHEN ("tax" > 100) THEN "order_amount" END)',
+            );
+        });
+
+        it('compiles AVERAGEIF', () => {
+            const sql = compile('=AVERAGEIF(A, C = "Electronics")', { dialect: 'postgres', columns });
+            expect(sql).toBe(
+                'AVG(CASE WHEN ("category" = \'Electronics\') THEN "order_amount" END)',
+            );
+        });
+
+        it('compiles COUNTIF', () => {
+            const sql = compile('=COUNTIF(A > 100)', { dialect: 'postgres', columns });
+            expect(sql).toBe(
+                'COUNT(CASE WHEN ("order_amount" > 100) THEN 1 END)',
+            );
+        });
+
+        it('compiles IF without else', () => {
+            const sql = compile('=IF(A > 0, A)', { dialect: 'postgres', columns });
+            expect(sql).toBe(
+                'CASE WHEN ("order_amount" > 0) THEN "order_amount" ELSE NULL END',
+            );
         });
     });
 

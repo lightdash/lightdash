@@ -1,17 +1,26 @@
 import type {
     ASTNode,
     BinaryOpNode,
-    UnaryOpNode,
-    FunctionCallNode,
-    ColumnRefNode,
-    NumberLiteralNode,
-    StringLiteralNode,
     BooleanLiteralNode,
+    ColumnRefNode,
     ComparisonNode,
-    LogicalNode,
     CompileOptions,
+    ConditionalAggregateNode,
+    CountIfNode,
+    IfNode,
+    LogicalNode,
+    NumberLiteralNode,
+    OneOrTwoArgFnNode,
+    SingleArgFnNode,
+    StringLiteralNode,
+    UnaryOpNode,
+    VariadicFnNode,
     WindowClauseNode,
+    WindowFnNode,
+    ZeroArgFnNode,
+    ZeroOrOneArgFnNode,
 } from '../types';
+import { assertUnreachable } from '../utils';
 
 export abstract class BaseSqlGenerator {
     constructor(protected options: CompileOptions) {}
@@ -22,8 +31,24 @@ export abstract class BaseSqlGenerator {
                 return this.generateBinaryOp(node);
             case 'UnaryOp':
                 return this.generateUnaryOp(node);
-            case 'FunctionCall':
-                return this.generateFunctionCall(node);
+            case 'If':
+                return this.generateIf(node);
+            case 'ConditionalAggregate':
+                return this.generateConditionalAggregate(node);
+            case 'CountIf':
+                return this.generateCountIf(node);
+            case 'ZeroArgFn':
+                return this.generateZeroArgFn(node);
+            case 'SingleArgFn':
+                return this.generateSingleArgFn(node);
+            case 'OneOrTwoArgFn':
+                return this.generateOneOrTwoArgFn(node);
+            case 'ZeroOrOneArgFn':
+                return this.generateZeroOrOneArgFn(node);
+            case 'VariadicFn':
+                return this.generateVariadicFn(node);
+            case 'WindowFn':
+                return this.generateWindowFn(node);
             case 'ColumnRef':
                 return this.generateColumnRef(node);
             case 'NumberLiteral':
@@ -37,11 +62,14 @@ export abstract class BaseSqlGenerator {
             case 'Logical':
                 return this.generateLogical(node);
             case 'WindowClause':
-                throw new Error('WindowClause should not be generated directly');
-            default: {
-                const _exhaustive: never = node;
-                throw new Error(`Unknown node type: ${(node as any).type}`);
-            }
+                throw new Error(
+                    'WindowClause should not be generated directly',
+                );
+            default:
+                return assertUnreachable(
+                    node,
+                    `Unknown node type: ${(node as Record<string, unknown>).type}`,
+                );
         }
     }
 
@@ -60,10 +88,11 @@ export abstract class BaseSqlGenerator {
                 return `POWER(${left}, ${right})`;
             case '%':
                 return this.generateModulo(left, right);
-            default: {
-                const _exhaustive: never = node.op;
-                throw new Error(`Unknown operator: ${node.op}`);
-            }
+            default:
+                return assertUnreachable(
+                    node.op,
+                    `Unknown operator: ${node.op}`,
+                );
         }
     }
 
@@ -78,120 +107,210 @@ export abstract class BaseSqlGenerator {
                 return `(-(${operand}))`;
             case 'NOT':
                 return `(NOT ${operand})`;
-            default: {
-                const _exhaustive: never = node.op;
-                throw new Error(`Unknown unary op: ${node.op}`);
-            }
+            default:
+                return assertUnreachable(
+                    node.op,
+                    `Unknown unary op: ${node.op}`,
+                );
         }
     }
 
-    protected generateFunctionCall(node: FunctionCallNode): string {
-        const name = node.name.toUpperCase();
+    protected generateIf(node: IfNode): string {
+        const condition = this.generate(node.condition);
+        const then = this.generate(node.then);
+        const else_ = node.else ? this.generate(node.else) : 'NULL';
+        return `CASE WHEN ${condition} THEN ${then} ELSE ${else_} END`;
+    }
+
+    protected generateConditionalAggregate(
+        node: ConditionalAggregateNode,
+    ): string {
+        const value = this.generate(node.value);
+        const condition = this.generate(node.condition);
+        switch (node.name) {
+            case 'SUMIF':
+                return `SUM(CASE WHEN ${condition} THEN ${value} END)`;
+            case 'AVERAGEIF':
+                return `AVG(CASE WHEN ${condition} THEN ${value} END)`;
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown conditional aggregate: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateCountIf(node: CountIfNode): string {
+        const condition = this.generate(node.condition);
+        return `COUNT(CASE WHEN ${condition} THEN 1 END)`;
+    }
+
+    protected generateZeroArgFn(node: ZeroArgFnNode): string {
+        switch (node.name) {
+            case 'TODAY':
+                return this.generateToday();
+            case 'NOW':
+                return this.generateNow();
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown zero-arg function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateSingleArgFn(node: SingleArgFnNode): string {
+        const arg = this.generate(node.arg);
+        switch (node.name) {
+            case 'ABS':
+                return `ABS(${arg})`;
+            case 'CEIL':
+            case 'CEILING':
+                return `CEIL(${arg})`;
+            case 'FLOOR':
+                return `FLOOR(${arg})`;
+            case 'LEN':
+            case 'LENGTH':
+                return this.generateLength(arg);
+            case 'TRIM':
+                return `TRIM(${arg})`;
+            case 'LOWER':
+                return `LOWER(${arg})`;
+            case 'UPPER':
+                return `UPPER(${arg})`;
+            case 'YEAR':
+                return this.generateExtract('YEAR', arg);
+            case 'MONTH':
+                return this.generateExtract('MONTH', arg);
+            case 'DAY':
+                return this.generateExtract('DAY', arg);
+            case 'ISNULL':
+                return `(${arg} IS NULL)`;
+            case 'SUM':
+                return `SUM(${arg})`;
+            case 'AVERAGE':
+            case 'AVG':
+                return `AVG(${arg})`;
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown single-arg function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateOneOrTwoArgFn(node: OneOrTwoArgFnNode): string {
         const args = node.args.map((a) => this.generate(a));
-
-        // Dispatch to specific function handlers
-        const handler = this.getFunctionHandler(name);
-        if (handler) {
-            return handler(args, node);
+        switch (node.name) {
+            case 'ROUND':
+                return `ROUND(${args[0]}${args[1] !== undefined ? `, ${args[1]}` : ''})`;
+            case 'MIN':
+                return args.length === 1
+                    ? `MIN(${args[0]})`
+                    : `LEAST(${args.join(', ')})`;
+            case 'MAX':
+                return args.length === 1
+                    ? `MAX(${args[0]})`
+                    : `GREATEST(${args.join(', ')})`;
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown one-or-two-arg function: ${node.name}`,
+                );
         }
-
-        // SECURITY: Unknown functions must be rejected — never pass through to SQL.
-        // Passing through would allow users to call arbitrary warehouse functions
-        // (e.g. pg_sleep, read_csv_auto, dblink) bypassing the semantic layer.
-        throw new Error(
-            `Unknown function: ${name}. Allowed functions: ${Object.keys(this.getAllowedFunctionNames()).join(', ')}`,
-        );
     }
 
-    protected getAllowedFunctionNames(): Record<string, true> {
-        const handlers = this.getFunctionHandler;
-        // Build from the handler registry keys
-        const names: Record<string, true> = {};
-        for (const name of [
-            'IF', 'ABS', 'ROUND', 'CEIL', 'CEILING', 'FLOOR', 'MIN', 'MAX',
-            'CONCAT', 'LEN', 'LENGTH', 'TRIM', 'LOWER', 'UPPER',
-            'TODAY', 'NOW', 'YEAR', 'MONTH', 'DAY',
-            'COALESCE', 'ISNULL',
-            'SUM', 'AVERAGE', 'AVG', 'COUNT',
-            'SUMIF', 'COUNTIF', 'AVERAGEIF',
-            'RUNNING_TOTAL', 'ROW_NUMBER', 'LAG', 'LEAD',
-            'RANK', 'DENSE_RANK', 'NTILE', 'FIRST', 'LAST', 'MOVING_SUM', 'MOVING_AVG',
-        ]) {
-            names[name] = true;
+    protected generateZeroOrOneArgFn(node: ZeroOrOneArgFnNode): string {
+        switch (node.name) {
+            case 'COUNT':
+                return node.arg
+                    ? `COUNT(${this.generate(node.arg)})`
+                    : 'COUNT(*)';
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown zero-or-one-arg function: ${node.name}`,
+                );
         }
-        return names;
     }
 
-    protected getFunctionHandler(
-        name: string,
-    ): ((args: string[], node: FunctionCallNode) => string) | null {
-        const handlers: Record<
-            string,
-            (args: string[], node: FunctionCallNode) => string
-        > = {
-            // Logical
-            IF: (a) => `CASE WHEN ${a[0]} THEN ${a[1]} ELSE ${a[2] ?? 'NULL'} END`,
+    protected generateVariadicFn(node: VariadicFnNode): string {
+        const args = node.args.map((a) => this.generate(a));
+        switch (node.name) {
+            case 'CONCAT':
+                return this.generateConcat(args);
+            case 'COALESCE':
+                return `COALESCE(${args.join(', ')})`;
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown variadic function: ${node.name}`,
+                );
+        }
+    }
 
-            // Math
-            ABS: (a) => `ABS(${a[0]})`,
-            ROUND: (a) => `ROUND(${a[0]}${a[1] !== undefined ? `, ${a[1]}` : ''})`,
-            CEIL: (a) => `CEIL(${a[0]})`,
-            CEILING: (a) => `CEIL(${a[0]})`,
-            FLOOR: (a) => `FLOOR(${a[0]})`,
-            MIN: (a) => a.length === 1 ? `MIN(${a[0]})` : `LEAST(${a.join(', ')})`,
-            MAX: (a) => a.length === 1 ? `MAX(${a[0]})` : `GREATEST(${a.join(', ')})`,
-
-            // String
-            CONCAT: (a) => this.generateConcat(a),
-            LEN: (a) => this.generateLength(a[0]),
-            LENGTH: (a) => this.generateLength(a[0]),
-            TRIM: (a) => `TRIM(${a[0]})`,
-            LOWER: (a) => `LOWER(${a[0]})`,
-            UPPER: (a) => `UPPER(${a[0]})`,
-
-            // Date
-            TODAY: () => this.generateToday(),
-            NOW: () => this.generateNow(),
-            YEAR: (a) => this.generateExtract('YEAR', a[0]),
-            MONTH: (a) => this.generateExtract('MONTH', a[0]),
-            DAY: (a) => this.generateExtract('DAY', a[0]),
-
-            // Null
-            COALESCE: (a) => `COALESCE(${a.join(', ')})`,
-            ISNULL: (a) => `(${a[0]} IS NULL)`,
-
-            // Aggregates
-            SUM: (a) => `SUM(${a[0]})`,
-            AVERAGE: (a) => `AVG(${a[0]})`,
-            AVG: (a) => `AVG(${a[0]})`,
-            COUNT: (a) => a.length === 0 ? 'COUNT(*)' : `COUNT(${a[0]})`,
-
-            // Conditional aggregates
-            SUMIF: (a, node) => `SUM(CASE WHEN ${this.generate(node.args[1])} THEN ${a[0]} END)`,
-            COUNTIF: (a, node) => `COUNT(CASE WHEN ${this.generate(node.args[0])} THEN 1 END)`,
-            AVERAGEIF: (a, node) => `AVG(CASE WHEN ${this.generate(node.args[1])} THEN ${a[0]} END)`,
-
-            // Window functions
-            RUNNING_TOTAL: (a, node) => this.generateWindowFunction('SUM', [a[0]], node, 'ROWS UNBOUNDED PRECEDING'),
-            ROW_NUMBER: (_a, node) => this.generateWindowFunction('ROW_NUMBER', [], node),
-            LAG: (a, node) => this.generateWindowFunction('LAG', a, node),
-            LEAD: (a, node) => this.generateWindowFunction('LEAD', a, node),
-            RANK: (_a, node) => this.generateWindowFunction('RANK', [], node),
-            DENSE_RANK: (_a, node) => this.generateWindowFunction('DENSE_RANK', [], node),
-            NTILE: (a, node) => this.generateWindowFunction('NTILE', [a[0]], node),
-            FIRST: (a, node) => this.generateWindowFunction('FIRST_VALUE', [a[0]], node),
-            LAST: (a, node) => this.generateWindowFunction('LAST_VALUE', [a[0]], node, 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING'),
-            MOVING_SUM: (a, node) => {
+    protected generateWindowFn(node: WindowFnNode): string {
+        const args = node.args.map((a) => this.generate(a));
+        switch (node.name) {
+            case 'ROW_NUMBER':
+                return this.generateWindowFunction('ROW_NUMBER', [], node);
+            case 'RANK':
+                return this.generateWindowFunction('RANK', [], node);
+            case 'DENSE_RANK':
+                return this.generateWindowFunction('DENSE_RANK', [], node);
+            case 'RUNNING_TOTAL':
+                return this.generateWindowFunction(
+                    'SUM',
+                    [args[0]],
+                    node,
+                    'ROWS UNBOUNDED PRECEDING',
+                );
+            case 'NTILE':
+                return this.generateWindowFunction('NTILE', [args[0]], node);
+            case 'FIRST':
+                return this.generateWindowFunction(
+                    'FIRST_VALUE',
+                    [args[0]],
+                    node,
+                );
+            case 'LAST':
+                return this.generateWindowFunction(
+                    'LAST_VALUE',
+                    [args[0]],
+                    node,
+                    'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
+                );
+            case 'LAG':
+                return this.generateWindowFunction('LAG', args, node);
+            case 'LEAD':
+                return this.generateWindowFunction('LEAD', args, node);
+            // TODO: unsafe cast — MOVING_SUM/MOVING_AVG assume second arg is a NumberLiteral
+            // but the grammar accepts any Expression. Fix by adding a grammar rule that
+            // enforces NumberLiteral in the second position (same pattern as BooleanExpression).
+            case 'MOVING_SUM': {
                 const preceding = (node.args[1] as NumberLiteralNode).value;
-                return this.generateWindowFunction('SUM', [a[0]], node, `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`);
-            },
-            MOVING_AVG: (a, node) => {
+                return this.generateWindowFunction(
+                    'SUM',
+                    [args[0]],
+                    node,
+                    `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
+                );
+            }
+            case 'MOVING_AVG': {
                 const preceding = (node.args[1] as NumberLiteralNode).value;
-                return this.generateWindowFunction('AVG', [a[0]], node, `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`);
-            },
-        };
-
-        return handlers[name] ?? null;
+                return this.generateWindowFunction(
+                    'AVG',
+                    [args[0]],
+                    node,
+                    `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
+                );
+            }
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown window function: ${node.name}`,
+                );
+        }
     }
 
     protected generateColumnRef(node: ColumnRefNode): string {
@@ -209,7 +328,6 @@ export abstract class BaseSqlGenerator {
     }
 
     protected generateStringLiteral(node: StringLiteralNode): string {
-        // Escape single quotes for SQL
         const escaped = node.value.replace(/'/g, "''");
         return `'${escaped}'`;
     }
@@ -256,10 +374,13 @@ export abstract class BaseSqlGenerator {
     protected generateWindowFunction(
         sqlFunc: string,
         funcArgs: string[],
-        node: FunctionCallNode,
+        node: { windowClause?: WindowClauseNode | null },
         frameClause?: string,
     ): string {
-        const funcCall = funcArgs.length > 0 ? `${sqlFunc}(${funcArgs.join(', ')})` : `${sqlFunc}()`;
+        const funcCall =
+            funcArgs.length > 0
+                ? `${sqlFunc}(${funcArgs.join(', ')})`
+                : `${sqlFunc}()`;
         const overParts: string[] = [];
 
         const wc = node.windowClause;
@@ -268,7 +389,9 @@ export abstract class BaseSqlGenerator {
         }
         if (wc?.orderBy) {
             const dir = wc.orderBy.direction ? ` ${wc.orderBy.direction}` : '';
-            overParts.push(`ORDER BY ${this.generate(wc.orderBy.column)}${dir}`);
+            overParts.push(
+                `ORDER BY ${this.generate(wc.orderBy.column)}${dir}`,
+            );
         }
 
         const framePart = frameClause ? ` ${frameClause}` : '';

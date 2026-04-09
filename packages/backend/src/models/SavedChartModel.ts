@@ -25,6 +25,7 @@ import {
     isCustomBinDimension,
     isCustomSqlDimension,
     isFormat,
+    isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     KnexPaginateArgs,
@@ -287,6 +288,9 @@ const createSavedChartVersion = async (
                 type: tableCalculation.type,
                 template: isTemplateTableCalculation(tableCalculation)
                     ? tableCalculation.template
+                    : undefined,
+                formula: isFormulaTableCalculation(tableCalculation)
+                    ? tableCalculation.formula
                     : undefined,
             })),
         );
@@ -1089,6 +1093,7 @@ export class SavedChartModel {
                         'format',
                         'type',
                         'template',
+                        'formula',
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -1247,6 +1252,8 @@ export class SavedChartModel {
                                     type: tableCalculation.type || undefined,
                                     template:
                                         tableCalculation.template || undefined,
+                                    formula:
+                                        tableCalculation.formula || undefined,
                                 }) as TableCalculation,
                         ),
                         additionalMetrics,

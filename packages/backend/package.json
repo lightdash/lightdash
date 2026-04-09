@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2733.0",
+    "version": "0.2740.1",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -60,6 +60,7 @@
         "@langchain/core": "0.3.80",
         "@langchain/openai": "0.4.2",
         "@lightdash/common": "workspace:*",
+        "@lightdash/formula": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
         "@mastra/schema-compat": "0.11.2",
         "@modelcontextprotocol/sdk": "1.27.1",

@@ -112,11 +112,17 @@ export type DbtPreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    filters?: Record<string, AnyType>[];
     time_dimension?: string;
     granularity?: string;
     max_rows?: number;
     refresh?: {
         cron?: string;
+    };
+    materialization_role?: {
+        email?: string;
+        attributes?: Record<string, string | string[]>;
+        [key: string]: unknown;
     };
 };
 

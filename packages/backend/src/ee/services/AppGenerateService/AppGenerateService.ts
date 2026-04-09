@@ -14,7 +14,7 @@ import {
     type AppImageAttachment,
     type SessionUser,
 } from '@lightdash/common';
-import { Sandbox } from 'e2b';
+import { ALL_TRAFFIC, Sandbox } from 'e2b';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
@@ -152,6 +152,10 @@ export class AppGenerateService extends BaseService {
             timeoutMs: 60 * 60 * 1000,
             apiKey: e2bApiKey,
             lifecycle: { onTimeout: 'pause' },
+            network: {
+                allowOut: ['api.anthropic.com'],
+                denyOut: [ALL_TRAFFIC],
+            },
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(

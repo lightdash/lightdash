@@ -1,8 +1,11 @@
 import {
     BinType,
+    CompiledDimension,
+    CustomBinDimension,
     CustomDimensionType,
     DimensionType,
     FieldType,
+    ItemsMap,
     MetricType,
     ParameterError,
     SortByDirection,
@@ -11,12 +14,10 @@ import {
     TimeFrames,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseSqlBuilder,
     WeekDay,
-    type CompiledDimension,
-    type CustomBinDimension,
-    type ItemsMap,
-    type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
 
 // Mock warehouse SQL builder
@@ -2389,6 +2390,1019 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
     });
 
+    describe('Pivot table calculations referencing metrics not in valuesColumns', () => {
+        test('Should include implicit metrics in group_by_query when pivot TCs reference them', () => {
+            // Reproduces PROD-6853: table calculations use pivot_index on a metric
+            // that is NOT in valuesColumns (only the TCs are values columns)
+            const itemsMap: ItemsMap = {
+                sla_hit: {
+                    name: 'sla_hit',
+                    table: 'audits',
+                    tableLabel: 'Audits',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'SLA hit',
+                    sql: 'pivot_index(${audits.input_count}, 2) / NULLIF(${limit_val}, 0)',
+                },
+                sla_missed: {
+                    name: 'sla_missed',
+                    table: 'audits',
+                    tableLabel: 'Audits',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'SLA missed',
+                    sql: 'pivot_index(${audits.input_count}, 1) / NULLIF(${limit_val}, 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'audits_hour',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    { reference: 'limit_val', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'sla_hit',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'sla_missed',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'is_sla_met' }],
+                sortBy: [
+                    {
+                        reference: 'is_sla_met',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT audits_hour, limit_val, is_sla_met, audits_input_count, null AS sla_hit, null AS sla_missed FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // The metric audits_input_count should be implicitly added to group_by_query
+            expect(replaceWhitespace(result)).toContain(
+                '(ARRAY_AGG("audits_input_count"))[1] AS "audits_input_count"',
+            );
+
+            // pivot_table_calculations CTE should exist for the TCs
+            expect(result).toContain('pivot_table_calculations');
+
+            // The compiled pivot_index should reference the metric's aliased column name
+            expect(result).toContain('audits_input_count');
+        });
+
+        test('Should not add implicit metrics that are already in valuesColumns', () => {
+            const itemsMap: ItemsMap = {
+                ratio: {
+                    name: 'ratio',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Ratio',
+                    sql: 'pivot_index(${events.revenue}, 1) / NULLIF(pivot_index(${events.revenue}, 2), 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'ratio',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS ratio FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // revenue should appear exactly once as a value column (explicit SUM), not duplicated
+            const revenueMatches = normalized.match(/sum\("events_revenue"\)/g);
+            expect(revenueMatches).toHaveLength(1);
+        });
+
+        test('Should include multiple different hidden metrics from a single TC', () => {
+            const itemsMap: ItemsMap = {
+                ratio: {
+                    name: 'ratio',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Ratio',
+                    sql: 'pivot_index(${events.metric_a}, 1) / NULLIF(pivot_index(${events.metric_b}, 2), 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'ratio',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_metric_a, events_metric_b, null AS ratio FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_metric_a"))[1] AS "events_metric_a"',
+            );
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_metric_b"))[1] AS "events_metric_b"',
+            );
+
+            // Each should appear exactly once as an aggregate
+            expect(
+                normalized.match(/ARRAY_AGG\("events_metric_a"\)/g),
+            ).toHaveLength(1);
+            expect(
+                normalized.match(/ARRAY_AGG\("events_metric_b"\)/g),
+            ).toHaveLength(1);
+        });
+
+        test('Should handle pivot_offset referencing a hidden metric', () => {
+            const itemsMap: ItemsMap = {
+                delta: {
+                    name: 'delta',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Delta',
+                    sql: '${events.revenue} - pivot_offset(${events.revenue}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'delta',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS delta FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Hidden metric should be in group_by_query
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+
+            // pivot_table_calculations CTE should exist
+            expect(result).toContain('pivot_table_calculations');
+
+            // Compiled TC should reference the aliased column name
+            expect(result).toContain('events_revenue');
+        });
+
+        test('Should deduplicate when two TCs reference the same hidden metric', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+                tc2: {
+                    name: 'tc2',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC2',
+                    sql: 'pivot_index(${events.revenue}, 2) + pivot_index(${events.cost}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'tc2',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, events_cost, null AS tc1, null AS tc2 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Both metrics present
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_cost"))[1] AS "events_cost"',
+            );
+
+            // Each exactly once (deduped across TCs)
+            expect(
+                normalized.match(/ARRAY_AGG\("events_revenue"\)/g),
+            ).toHaveLength(1);
+            expect(
+                normalized.match(/ARRAY_AGG\("events_cost"\)/g),
+            ).toHaveLength(1);
+        });
+
+        test('Should NOT include implicit metrics in simple query path (no groupByColumns)', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Implicit metrics should NOT be in group_by_query on simple path —
+            // pivot_table_calculations is not created, so they would just leak
+            // into SELECT * as noise columns.
+            expect(normalized).not.toContain('ARRAY_AGG("events_revenue")');
+
+            // Simple path should NOT have pivot_table_calculations
+            expect(result).not.toContain('pivot_table_calculations');
+        });
+
+        test('Simple path: implicit metrics are excluded from SELECT * output', () => {
+            // On the simple path (no groupByColumns), implicit metrics are
+            // excluded from group_by_query since pivot_table_calculations is
+            // not created on this path — they would just be noise columns.
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // The final query is SELECT * FROM group_by_query
+            expect(result).toContain('SELECT * FROM group_by_query');
+
+            // Implicit metric should NOT be in group_by_query (no leak)
+            expect(replaceWhitespace(result)).not.toContain(
+                'ARRAY_AGG("events_revenue")',
+            );
+
+            // pivot_table_calculations is NOT created on the simple path
+            expect(result).not.toContain('pivot_table_calculations');
+        });
+
+        test('Should not alter SQL when no pivot table calculations exist', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            // No itemsMap = no TCs
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // group_by_query should have exactly one value column
+            expect(normalized).toContain('sum("revenue") AS "revenue_sum"');
+
+            // No extra implicit columns
+            expect(normalized).not.toMatch(
+                /sum\("[^"]+"\) AS "[^"]+_sum".*sum\("[^"]+"\) AS "[^"]+_sum"/,
+            );
+
+            // No pivot_table_calculations CTE
+            expect(result).not.toContain('pivot_table_calculations');
+        });
+
+        test('Should not inflate total_columns with implicit metrics', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+                tc2: {
+                    name: 'tc2',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC2',
+                    sql: 'pivot_index(${events.revenue}, 2)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'tc2',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1, null AS tc2 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // total_columns should multiply by 2 (the visible TCs), not 3 (TCs + implicit metric)
+            expect(result).toContain('COUNT(*) * 2 AS total_columns');
+        });
+
+        test('Edge case: TC referencing a dimension (not a metric) via pivot_index', () => {
+            // Scenario #2: pivot_index on a string dimension that's not in any column list.
+            // This would produce SUM("dimension") which is invalid SQL for strings.
+            // We want to verify what the fix actually generates.
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.STRING,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.status}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'region' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, region, events_status, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // The fix adds ARRAY_AGG("events_status")[1] as an implicit metric.
+            // ANY aggregation is correct here since values are already aggregated
+            // by MetricQueryBuilder.
+            expect(replaceWhitespace(result)).toContain(
+                '(ARRAY_AGG("events_status"))[1] AS "events_status"',
+            );
+        });
+
+        test('Edge case: transitive TC dependency (TC_B depends on pivot TC_A)', () => {
+            // Scenario #1: TC_A uses pivot_index, TC_B references TC_A.
+            // Only TC_B is in valuesColumns. TC_A is a pivot TC but not in any column list.
+            // Our fix scans TC_A (pivot TC) and finds the metric. But TC_A itself
+            // is not added as an implicit column — it stays as a deferred null.
+            const itemsMap: ItemsMap = {
+                tc_a: {
+                    name: 'tc_a',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC A',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+                tc_b: {
+                    name: 'tc_b',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC B',
+                    sql: '${tc_a} * 100',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc_b',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc_a, null AS tc_b FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // tc_a IS a pivot TC → our fix scans it and finds events_revenue → implicit metric
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+
+            // tc_a IS computed in pivot_table_calculations (it's a pivot TC)
+            expect(result).toContain('pivot_table_calculations');
+            expect(result).toContain('tc_a_any');
+
+            // But tc_b is computed in original_query as ${tc_a} * 100.
+            // Since tc_a is NULL in original_query (pivot TCs are deferred),
+            // tc_b = NULL * 100 = NULL. tc_b's value is baked in as null before
+            // tc_a gets computed in pivot_table_calculations.
+            // This is a pre-existing limitation with transitive pivot TC deps.
+            // Our fix correctly carries the metric through, but tc_b can't
+            // benefit because it was already evaluated.
+            expect(normalized).toContain(
+                '(ARRAY_AGG("tc_b"))[1] AS "tc_b_any"',
+            );
+        });
+
+        test('Edge case: all dimensions accounted for means SUM is safe', () => {
+            // Scenario #3: When all dimensions are in index/groupBy columns,
+            // each group in group_by_query has exactly one row from original_query.
+            // SUM(metric) = metric value (single row), so aggregation choice doesn't matter.
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.avg_score}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                // All dimensions accounted for: date (index) + category (groupBy)
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_avg_score, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // SUM is used for avg_score (non-additive metric), but since all dimensions
+            // are in index/groupBy, each group has one row. SUM of one value = that value.
+            expect(replaceWhitespace(result)).toContain(
+                '(ARRAY_AGG("events_avg_score"))[1] AS "events_avg_score"',
+            );
+
+            // The implicit metric survives through to pivot_table_calculations
+            expect(result).toContain('pivot_table_calculations');
+            expect(result).toContain('events_avg_score');
+        });
+
+        test('Should carry implicit metrics through anchor CTE pipeline when sorting by value column', () => {
+            const itemsMap: ItemsMap = {
+                ratio: {
+                    name: 'ratio',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Ratio',
+                    sql: 'pivot_index(${events.cost}, 1) / NULLIF(pivot_index(${events.revenue}, 2), 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'ratio',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'events_revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, events_cost, null AS ratio FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // Implicit metric events_cost should be in group_by_query with ANY_VALUE
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_cost"))[1] AS "events_cost"',
+            );
+
+            // Anchor CTE pipeline should be active (sorting by value column)
+            expect(result).toContain('column_ranking AS (');
+            expect(result).toContain('anchor_column AS (');
+            expect(result).toContain('row_ranking AS (');
+
+            // Implicit metric should be carried through pivot_query SELECT
+            expect(normalized).toContain('g."events_cost"');
+
+            // pivot_table_calculations should exist for the TC
+            expect(result).toContain('pivot_table_calculations');
+        });
+
+        test('Should use BigQuery ANY_VALUE syntax for implicit metrics', () => {
+            const mockBigQueryBuilder = {
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            } as unknown as WarehouseSqlBuilder;
+
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockBigQueryBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+
+            // BigQuery should use ANY_VALUE, not ARRAY_AGG
+            expect(result).toContain(
+                'ANY_VALUE(`events_revenue`) AS `events_revenue`',
+            );
+            expect(result).not.toContain('ARRAY_AGG');
+        });
+
+        test('Postgres: implicit metrics use ARRAY_AGG not SUM/AVG (safe for non-additive metrics)', () => {
+            // Implicit metrics must NOT re-aggregate with the metric's original
+            // aggregation (e.g., SUM, AVG). The values in original_query are
+            // already aggregated by MetricQueryBuilder. Re-aggregating would be
+            // wrong for non-additive metrics like AVG. ANY_VALUE (ARRAY_AGG[1]
+            // on Postgres) picks a single value, which is correct when each
+            // (index, groupBy) cell maps to one row.
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.avg_score}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_avg_score, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // Must use ARRAY_AGG (ANY_VALUE equivalent), NOT SUM or AVG
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_avg_score"))[1] AS "events_avg_score"',
+            );
+            expect(normalized).not.toMatch(
+                /sum\("events_avg_score"\)|avg\("events_avg_score"\)/i,
+            );
+        });
+
+        test('Should not add implicit metrics for fields already in indexColumns', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${date}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // events_revenue should be implicit (not in any column list)
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+
+            // date is already an index column — should NOT be added as implicit
+            expect(normalized).not.toContain('ARRAY_AGG("date")');
+        });
+
+        test('Should not add implicit metrics for fields already in groupByColumns', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${category}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // events_revenue should be implicit
+            expect(normalized).toContain(
+                '(ARRAY_AGG("events_revenue"))[1] AS "events_revenue"',
+            );
+
+            // category is already a groupBy column — should NOT be added as implicit
+            expect(normalized).not.toContain('ARRAY_AGG("category")');
+        });
+
+        test('Should produce no implicit metrics when TC has no variable references', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.revenue}, 1) + 100',
+                },
+            };
+
+            // events_revenue IS in valuesColumns, and 100 is a literal
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // Only the explicit SUM should appear, no extra ARRAY_AGG for implicit metrics
+            expect(normalized).toContain(
+                'sum("events_revenue") AS "events_revenue_sum"',
+            );
+            expect(normalized).not.toMatch(/ARRAY_AGG\("events_revenue"\)/);
+        });
+
+        test('Should not inflate total_columns even with many implicit metrics', () => {
+            const itemsMap: ItemsMap = {
+                tc1: {
+                    name: 'tc1',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC1',
+                    sql: 'pivot_index(${events.m1}, 1) + pivot_index(${events.m2}, 1) + pivot_index(${events.m3}, 1) + pivot_index(${events.m4}, 1) + pivot_index(${events.m5}, 1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'tc1',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_m1, events_m2, events_m3, events_m4, events_m5, null AS tc1 FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            // All 5 implicit metrics should be in group_by_query
+            for (const m of [
+                'events_m1',
+                'events_m2',
+                'events_m3',
+                'events_m4',
+                'events_m5',
+            ]) {
+                expect(normalized).toContain(
+                    `(ARRAY_AGG("${m}"))[1] AS "${m}"`,
+                );
+            }
+
+            // total_columns should count only 1 display value column (tc1), not 6
+            expect(result).toContain('COUNT(*) AS total_columns');
+            expect(result).not.toContain('COUNT(*) * 5');
+            expect(result).not.toContain('COUNT(*) * 6');
+        });
+
+        test('Should produce identical SQL when no pivot TCs exist in itemsMap', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            // With itemsMap (no TCs)
+            const withItems = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                {
+                    revenue: {
+                        name: 'revenue',
+                        table: 'events',
+                        label: 'Revenue',
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.SUM,
+                        tableLabel: 'Events',
+                        sql: '',
+                        hidden: false,
+                    },
+                },
+            );
+
+            // Without itemsMap
+            const withoutItems = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+            );
+
+            expect(withItems.toSql({ columnLimit: 100 })).toBe(
+                withoutItems.toSql({ columnLimit: 100 }),
+            );
+        });
+    });
+
     describe('Table calculations with interdependencies', () => {
         test('Should handle interdependent table calculations in pivot queries', () => {
             // Mock ItemsMap with interdependent table calculations
@@ -2447,10 +3461,11 @@ SELECT * FROM group_by_query LIMIT 50`);
             // The impressions_delta calculation uses LAG function with proper reference replacement
             // The key fix being tested: When replacing field references, it now also checks
             // fieldAliasMap[ref] to handle interdependent table calculation references
+            // Field references must be quoted to handle reserved words and special characters
             expect(result).toContain(
-                'impressions_any - CASE WHEN LAG("row_index", 1)',
+                '"impressions_any" - CASE WHEN LAG("row_index", 1)',
             );
-            expect(result).toContain('LAG(impressions_any, 1)');
+            expect(result).toContain('LAG("impressions_any", 1)');
 
             // Verify that table calculations with pivot functions are properly included
             expect(result).toContain('impressions_delta_any');
@@ -2461,6 +3476,363 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
             expect(result).toContain(
                 '(ARRAY_AGG("impressions_delta"))[1] AS "impressions_delta_any"',
+            );
+        });
+
+        test('Should quote SQL reserved words used as field names in pivot table calculations', () => {
+            const itemsMapWithReservedWord: ItemsMap = {
+                sla_hit: {
+                    name: 'sla_hit',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'SLA hit',
+                    sql: 'pivot_index(${table1.metric1}, 2) / NULLIF(${limit}, 0) + ${category}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'date', type: VizIndexType.TIME },
+                    { reference: 'limit', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'sla_hit',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1, "limit" FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithReservedWord,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // 'limit' is a SQL reserved word — must be quoted as an index column reference
+            expect(result).toContain('NULLIF("limit", 0)');
+            // groupBy column reference should also be quoted
+            expect(result).toContain('+ "category"');
+        });
+
+        test('Should use backtick quoting for BigQuery/Databricks warehouses', () => {
+            const mockBigQuerySqlBuilder = {
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            } as unknown as WarehouseSqlBuilder;
+
+            const itemsMapWithTc: ItemsMap = {
+                doubled: {
+                    name: 'doubled',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Doubled',
+                    sql: 'pivot_offset(${table1.metric1}, 0) * 2',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'doubled',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockBigQuerySqlBuilder,
+                500,
+                itemsMapWithTc,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // BigQuery uses backticks — verify metric ref is backtick-quoted
+            expect(result).toContain('`metric1_sum`');
+            expect(result).not.toContain('"metric1_sum"');
+        });
+
+        test('Should quote both fully-qualified and bare table calc references in pivot TCs', () => {
+            const itemsMapWithBothRefStyles: ItemsMap = {
+                base_calc: {
+                    name: 'base_calc',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Base Calc',
+                    sql: 'pivot_offset(${table1.metric1}, 0) + 1',
+                },
+                derived_calc: {
+                    name: 'derived_calc',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Derived Calc',
+                    sql: '${base_calc} * pivot_offset(${table1.metric1}, 0)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'base_calc',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                    {
+                        reference: 'derived_calc',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithBothRefStyles,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // Bare table calc ref: ${base_calc} → "base_calc_any" (quoted)
+            // Assert the expression to confirm quoting happens in the TC replacement specifically
+            expect(result).toContain('"base_calc_any" *');
+        });
+
+        test('Should resolve unknown field references as implicit metrics in pivot table calculations', () => {
+            const itemsMapWithUnknownRef: ItemsMap = {
+                tc_with_unknown: {
+                    name: 'tc_with_unknown',
+                    table: 'table1',
+                    tableLabel: 'Table 1',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC with unknown',
+                    sql: 'pivot_offset(${table1.metric1}, 0) + ${unknown_field}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'metric1',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_with_unknown',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, metric1 FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMapWithUnknownRef,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('pivot_table_calculations');
+            // Known ref should be quoted with aggregation suffix
+            expect(result).toContain('"metric1_sum"');
+            // Bare ref (unknown_field) is detected as an implicit metric — carried
+            // through group_by_query via ANY_VALUE and resolved to a quoted column
+            // name in pivot_table_calculations (not left as raw ${} syntax).
+            expect(result).toContain('"unknown_field"');
+            expect(result).not.toContain('${unknown_field}');
+        });
+
+        test('Should log a warning for unknown field references', () => {
+            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+
+            const itemsMap: ItemsMap = {
+                tc_unknown: {
+                    name: 'tc_unknown',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Unknown',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${ghost_field}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_unknown',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            // eslint-disable-next-line no-new
+            new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('ghost_field'),
+            );
+            // Warning should describe the actual failure mode (SQL error), not "null values"
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('SQL error'),
+            );
+            expect(warnSpy).not.toHaveBeenCalledWith(
+                expect.stringContaining('null values'),
+            );
+        });
+
+        test('Should filter out TC-to-TC bare references from implicit metrics', () => {
+            const itemsMap: ItemsMap = {
+                tc_pivot: {
+                    name: 'tc_pivot',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Pivot',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${tc_helper}',
+                },
+                tc_helper: {
+                    name: 'tc_helper',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Helper',
+                    sql: '100',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_pivot',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, revenue, null AS tc_pivot, null AS tc_helper FROM t',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // events_revenue IS an implicit metric (table-prefixed, not a TC)
+            expect(normalized).toContain('(ARRAY_AGG("events_revenue"))[1]');
+            // tc_helper should NOT be carried as an implicit metric
+            expect(normalized).not.toContain('ARRAY_AGG("tc_helper")');
+        });
+
+        test('Should handle table-prefixed unknown references', () => {
+            const warnSpy = jest.spyOn(Logger, 'warn').mockImplementation();
+
+            const itemsMap: ItemsMap = {
+                tc_missing: {
+                    name: 'tc_missing',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'TC Missing',
+                    sql: 'pivot_index(${events.revenue}, 1) + ${missing_table.missing_metric}',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'tc_missing',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+            const normalized = replaceWhitespace(result);
+
+            // Table-prefixed unknown ref becomes implicit metric
+            expect(normalized).toContain(
+                '(ARRAY_AGG("missing_table_missing_metric"))[1] AS "missing_table_missing_metric"',
+            );
+            // Warning should fire for unknown table-prefixed ref
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('missing_table_missing_metric'),
             );
         });
     });

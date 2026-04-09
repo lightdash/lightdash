@@ -1,3 +1,95 @@
+## [0.2740.1](https://github.com/lightdash/lightdash/compare/0.2740.0...0.2740.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* include implicit metrics in pivot group_by_query when referenced by TCs ([#21835](https://github.com/lightdash/lightdash/issues/21835)) ([bf5cd24](https://github.com/lightdash/lightdash/commit/bf5cd2416e22f9f25ac421f8a889b540788a9a9a)), closes [#21836](https://github.com/lightdash/lightdash/issues/21836)
+
+# [0.2740.0](https://github.com/lightdash/lightdash/compare/0.2739.1...0.2740.0) (2026-04-08)
+
+
+### Features
+
+* add formula support to table calculation modal ([#21853](https://github.com/lightdash/lightdash/issues/21853)) ([8301946](https://github.com/lightdash/lightdash/commit/83019464d47e898f4155dd4d49a938de8c1fb6b3))
+* add formula support to table calculations ([#21847](https://github.com/lightdash/lightdash/issues/21847)) ([9721380](https://github.com/lightdash/lightdash/commit/9721380d2724599aa09a743b085fb224a75afa9d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.2739.1](https://github.com/lightdash/lightdash/compare/0.2739.0...0.2739.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* quote field references in pivot table calculation SQL ([#21836](https://github.com/lightdash/lightdash/issues/21836)) ([6c5544e](https://github.com/lightdash/lightdash/commit/6c5544e15e73e141785c4ff0cb1cb5500126328f))
+
+# [0.2739.0](https://github.com/lightdash/lightdash/compare/0.2738.1...0.2739.0) (2026-04-08)
+
+
+### Features
+
+* formula table calculations UI with feature flag ([#21850](https://github.com/lightdash/lightdash/issues/21850)) ([9f346cd](https://github.com/lightdash/lightdash/commit/9f346cd151925d6c26748962a3cfc0603893b355))
+
+## [0.2738.1](https://github.com/lightdash/lightdash/compare/0.2738.0...0.2738.1) (2026-04-08)
+
+
+### Bug Fixes
+
+* bump node-forge override 1.3.3 → 1.4.0 (security) ([#21849](https://github.com/lightdash/lightdash/issues/21849)) ([7e3ba69](https://github.com/lightdash/lightdash/commit/7e3ba695ff9f5016881e3e08136d01c8654832c0))
+
+# [0.2738.0](https://github.com/lightdash/lightdash/compare/0.2737.0...0.2738.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* override undici 6.23.0 → 6.24.1 (security) ([#21830](https://github.com/lightdash/lightdash/issues/21830)) ([05d03c1](https://github.com/lightdash/lightdash/commit/05d03c15c5335a85ce92f99341226613a1d961c6))
+
+
+### Features
+
+* restrict e2b sandbox outgoing network ([#21843](https://github.com/lightdash/lightdash/issues/21843)) ([f1e7870](https://github.com/lightdash/lightdash/commit/f1e78701aeaaa8d3169893098d18cf370ec8f0c0))
+
+# [0.2737.0](https://github.com/lightdash/lightdash/compare/0.2736.0...0.2737.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* update schemas for pre-aggregate filters ([#21844](https://github.com/lightdash/lightdash/issues/21844)) ([86ff6bc](https://github.com/lightdash/lightdash/commit/86ff6bcd2fb92e4613aebc4276abd577dfd9800d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add filter support to pre-aggregates ([#21795](https://github.com/lightdash/lightdash/issues/21795)) ([8d442d0](https://github.com/lightdash/lightdash/commit/8d442d068cc23ded758cc6b57e676fc352c3eb27))
+* add filters display to pre-aggregate materialization details ([#21840](https://github.com/lightdash/lightdash/issues/21840)) ([ee49e33](https://github.com/lightdash/lightdash/commit/ee49e336c95c19ebf325e9d41a08f4842ae65b2e))
+* add pre-aggregate filter matching logic ([#21796](https://github.com/lightdash/lightdash/issues/21796)) ([787e0d2](https://github.com/lightdash/lightdash/commit/787e0d21ca3bf8fba28c03b77dc4790ad72a794a))
+
+# [0.2736.0](https://github.com/lightdash/lightdash/compare/0.2735.0...0.2736.0) (2026-04-08)
+
+
+### Features
+
+* migrate formula package from ESLint to oxlint ([#21833](https://github.com/lightdash/lightdash/issues/21833)) ([efc21e5](https://github.com/lightdash/lightdash/commit/efc21e56944ae3708d167e0edd66a6fa11cc3083))
+
+# [0.2735.0](https://github.com/lightdash/lightdash/compare/0.2734.0...0.2735.0) (2026-04-08)
+
+
+### Features
+
+* add materialization role display to pre-aggregate details ([#21837](https://github.com/lightdash/lightdash/issues/21837)) ([e7186eb](https://github.com/lightdash/lightdash/commit/e7186eb735d87224b1a7d677a4a2bd3377bdb3a4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add materialization role support for pre-aggregates ([#21797](https://github.com/lightdash/lightdash/issues/21797)) ([58d9272](https://github.com/lightdash/lightdash/commit/58d92720a33f08efb5f9dffa9523b12a8a3709c7))
+
+# [0.2734.0](https://github.com/lightdash/lightdash/compare/0.2733.0...0.2734.0) (2026-04-08)
+
+
+### Bug Fixes
+
+* override @hapi/content 6.0.0 → 6.0.1 (security) ([#21829](https://github.com/lightdash/lightdash/issues/21829)) ([7cc951d](https://github.com/lightdash/lightdash/commit/7cc951d9ff67684493e01bf20e4cb98fa2afdffa))
+* remove accidentally committed worktree gitlinks ([#21839](https://github.com/lightdash/lightdash/issues/21839)) ([6e38cfa](https://github.com/lightdash/lightdash/commit/6e38cfa14da80e9c32eb3d1d20b4e78fea1a6844))
+* upgrade jspdf 4.2.0 → 4.2.1 (security) ([#21826](https://github.com/lightdash/lightdash/issues/21826)) ([c7ae67b](https://github.com/lightdash/lightdash/commit/c7ae67b5c1b2368515e0de5e5c5ef3344c2d7614))
+
+
+### Features
+
+* add Australia/Brisbane timezone option ([#21828](https://github.com/lightdash/lightdash/issues/21828)) ([bd438ff](https://github.com/lightdash/lightdash/commit/bd438ff424961c23b886a8b9777c5f3b404ea28d)), closes [#21827](https://github.com/lightdash/lightdash/issues/21827)
+* add BigQuery connection to formula test harness ([#21813](https://github.com/lightdash/lightdash/issues/21813)) ([576d15d](https://github.com/lightdash/lightdash/commit/576d15dd98e2368715225f29e670a6c73868a685))
+
 # [0.2733.0](https://github.com/lightdash/lightdash/compare/0.2732.0...0.2733.0) (2026-04-07)
 
 

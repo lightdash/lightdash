@@ -16,6 +16,7 @@ import {
     type ResultsPaginationArgs,
     type RunQueryTags,
     type SortField,
+    type UserAccessControls,
     type UserAttributeValueMap,
 } from '@lightdash/common';
 
@@ -63,6 +64,7 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
+    materializationRole?: UserAccessControls;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {

@@ -49,16 +49,22 @@ async function seedWarehouse(
     warehouse: ReturnType<typeof createConnection> extends Promise<infer T> ? T : never,
 ): Promise<void> {
     const fixturesDir = path.join(__dirname, 'fixtures');
-    const baseSeed = fs.readFileSync(path.join(fixturesDir, 'seed.sql'), 'utf-8');
-    await warehouse.seed(baseSeed);
-
     const dialectSeed = path.join(fixturesDir, `seed.${warehouse.dialect}.sql`);
+
+    // If a dialect-specific seed has real SQL (not just comments), use it
+    // instead of the base seed — some warehouses need different DDL types
     if (fs.existsSync(dialectSeed)) {
         const content = fs.readFileSync(dialectSeed, 'utf-8').trim();
-        if (content && !content.split('\n').every((l) => l.startsWith('--') || l.trim() === '')) {
+        const hasStatements = content && !content.split('\n').every((l) => l.startsWith('--') || l.trim() === '');
+        if (hasStatements) {
             await warehouse.seed(content);
+            return;
         }
     }
+
+    // Fall back to the generic seed
+    const baseSeed = fs.readFileSync(path.join(fixturesDir, 'seed.sql'), 'utf-8');
+    await warehouse.seed(baseSeed);
 }
 
 async function main() {
