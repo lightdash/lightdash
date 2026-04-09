@@ -1,3 +1,11 @@
+## [0.2742.3](https://github.com/lightdash/lightdash/compare/0.2742.2...0.2742.3) (2026-04-09)
+
+
+### Bug Fixes
+
+* dashboard/chart cache invalidation after saving chart changes ([#21888](https://github.com/lightdash/lightdash/issues/21888)) ([456262e](https://github.com/lightdash/lightdash/commit/456262e2f955858dccc1e2280e4ad0ae431038a8)), closes [#21886](https://github.com/lightdash/lightdash/issues/21886)
+* include formula package in docker-dev dependency build step ([#21890](https://github.com/lightdash/lightdash/issues/21890)) ([9e2fbfd](https://github.com/lightdash/lightdash/commit/9e2fbfd5326d9e902579b2e1e10fca14902257bc))
+
 ## [0.2742.2](https://github.com/lightdash/lightdash/compare/0.2742.1...0.2742.2) (2026-04-09)
 
 
