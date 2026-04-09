@@ -352,6 +352,11 @@ export class ProjectModel {
                 'projects.project_id',
                 `${WarehouseCredentialTableName}.project_id`,
             )
+            .leftJoin(
+                'users',
+                'projects.created_by_user_uuid',
+                'users.user_uuid',
+            )
             .select(
                 'projects.project_uuid',
                 'projects.name',
@@ -360,6 +365,9 @@ export class ProjectModel {
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
                 `${WarehouseCredentialTableName}.warehouse_type`,
+                this.database.raw(
+                    "TRIM(CONCAT(users.first_name, ' ', users.last_name)) as created_by_user_name",
+                ),
                 this.database.raw(
                     '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
                 ),
@@ -393,6 +401,7 @@ export class ProjectModel {
                 project_type,
                 created_at,
                 created_by_user_uuid,
+                created_by_user_name,
                 copied_from_project_uuid,
                 warehouse_type,
             }) => ({
@@ -400,6 +409,7 @@ export class ProjectModel {
                 projectUuid: project_uuid,
                 type: project_type,
                 createdByUserUuid: created_by_user_uuid,
+                createdByUserName: created_by_user_name ?? null,
                 createdAt: created_at,
                 upstreamProjectUuid: copied_from_project_uuid,
                 warehouseType:
