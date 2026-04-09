@@ -239,7 +239,7 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.limit = action.payload;
         },
 
-        setTimeZone: (state, action: PayloadAction<TimeZone>) => {
+        setTimeZone: (state, action: PayloadAction<TimeZone | undefined>) => {
             state.unsavedChartVersion.metricQuery.timezone = action.payload;
         },
 
