@@ -381,7 +381,7 @@ fi
 
 ```bash
 pnpm install
-pnpm -F common build && pnpm -F warehouses build
+pnpm -F common build && pnpm -F warehouses build && pnpm -F @lightdash/formula build
 ```
 
 If `pnpm install` fails with canvas errors: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
