@@ -1548,4 +1548,38 @@ describe('visibleMetricFieldIds in pivotQueryResults', () => {
         );
         expect(metricLabels).toEqual(['views', 'views', 'views']);
     });
+
+    it('visibleMetricFieldIds takes precedence when both it and hiddenMetricFieldIds are set', () => {
+        // Edge case: both allowlist and blocklist are provided.
+        // The allowlist (visibleMetricFieldIds) should win — hiddenMetricFieldIds is ignored.
+        const pivotConfig = {
+            pivotDimensions: ['page'],
+            metricsAsRows: false,
+            visibleMetricFieldIds: ['views', 'devices'], // allowlist says show both
+            hiddenMetricFieldIds: ['devices'], // blocklist says hide devices — should be ignored
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_1DIM_2METRIC,
+            rows: RESULT_ROWS_1DIM_2METRIC,
+            options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
+        });
+
+        // Both metrics should appear because allowlist includes both
+        const metricLabels = result.headerValues[1]?.map((v) =>
+            'fieldId' in v ? v.fieldId : undefined,
+        );
+        expect(metricLabels).toEqual([
+            'views',
+            'devices',
+            'views',
+            'devices',
+            'views',
+            'devices',
+        ]);
+        // 3 pages × 2 metrics = 6 data columns
+        expect(result.dataColumnCount).toBe(6);
+    });
 });
