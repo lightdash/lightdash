@@ -1,3 +1,10 @@
+## [0.2742.2](https://github.com/lightdash/lightdash/compare/0.2742.1...0.2742.2) (2026-04-09)
+
+
+### Bug Fixes
+
+* log audit bypass event for owner comment deletion ([#21887](https://github.com/lightdash/lightdash/issues/21887)) ([80e2d0d](https://github.com/lightdash/lightdash/commit/80e2d0df3372b7aa3e5d6029a7a4a015669fdb51))
+
 ## [0.2742.1](https://github.com/lightdash/lightdash/compare/0.2742.0...0.2742.1) (2026-04-09)
 
 
