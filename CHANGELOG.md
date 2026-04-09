@@ -1,3 +1,18 @@
+# [0.2745.0](https://github.com/lightdash/lightdash/compare/0.2744.1...0.2745.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* metric sort not working in pivot charts when metric is not in viz ([#21883](https://github.com/lightdash/lightdash/issues/21883)) ([c7d5205](https://github.com/lightdash/lightdash/commit/c7d520525d28f0cd22dae66d4f2b667bf2f7f590))
+* override path-to-regexp 0.1.12 → 0.1.13 (security) ([#21899](https://github.com/lightdash/lightdash/issues/21899)) ([4cc42b0](https://github.com/lightdash/lightdash/commit/4cc42b0fa399dc0e125da9c839de4a956b3dca86))
+* self host docker-compose ([#21851](https://github.com/lightdash/lightdash/issues/21851)) ([8497136](https://github.com/lightdash/lightdash/commit/8497136ac19fdeb460f508d62a11fd9dca128199))
+
+
+### Features
+
+* auto-detect CJK language for correct font rendering in screenshots ([#21902](https://github.com/lightdash/lightdash/issues/21902)) ([50e6076](https://github.com/lightdash/lightdash/commit/50e607697cf5ec2b0b85ec6cb9be7c6ffd8f99e0)), closes [#21499](https://github.com/lightdash/lightdash/issues/21499)
+* use feature flag for data app enable ([#21855](https://github.com/lightdash/lightdash/issues/21855)) ([6d02090](https://github.com/lightdash/lightdash/commit/6d02090f36adfde0f71be6614ec5ae21a6e807bd))
+
 ## [0.2744.1](https://github.com/lightdash/lightdash/compare/0.2744.0...0.2744.1) (2026-04-09)
 
 
