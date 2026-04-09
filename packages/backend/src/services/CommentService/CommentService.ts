@@ -342,6 +342,15 @@ export class CommentService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (!canRemoveAnyComment && isOwner) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'DashboardComments',
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+                name: dashboard.name,
+            });
+        }
+
         await this.commentModel.deleteComment(commentId);
 
         this.analytics.track({
