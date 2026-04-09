@@ -61,6 +61,16 @@
     }
 }
 
+.editorRootError {
+    border-color: var(--mantine-color-red-6) !important;
+}
+
+.errorText {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-red-6);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm) 0;
+}
+
 .editorRoot:focus-within {
     @mixin light {
         border-color: var(--mantine-color-ldGray-4);

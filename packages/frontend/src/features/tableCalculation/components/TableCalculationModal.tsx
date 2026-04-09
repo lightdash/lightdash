@@ -205,9 +205,15 @@ const TableCalculationModal: FC<Props> = ({
         },
     });
 
-    const isFormulaEmpty =
+    const [formulaParseError, setFormulaParseError] = useState<string | null>(
+        null,
+    );
+
+    const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
-        (!form.values.formula || form.values.formula.trim().length === 0);
+        (!form.values.formula ||
+            form.values.formula.trim().length === 0 ||
+            formulaParseError !== null);
 
     const handleSubmit = form.onSubmit((data) => {
         const { name, sql, formula } = data;
@@ -486,6 +492,7 @@ const TableCalculationModal: FC<Props> = ({
                                             <FormulaForm
                                                 explore={explore}
                                                 metricQuery={metricQuery}
+                                                formula={form.values.formula}
                                                 initialFormula={
                                                     form.values.formula ||
                                                     undefined
@@ -495,6 +502,9 @@ const TableCalculationModal: FC<Props> = ({
                                                         'formula',
                                                         text,
                                                     )
+                                                }
+                                                onValidationChange={
+                                                    setFormulaParseError
                                                 }
                                                 isFullScreen={isExpanded}
                                             />
@@ -609,7 +619,7 @@ const TableCalculationModal: FC<Props> = ({
                                     disabled={
                                         (editMode === EditMode.SQL &&
                                             form.values.sql.length === 0) ||
-                                        isFormulaEmpty
+                                        isFormulaInvalid
                                     }
                                 >
                                     {tableCalculation

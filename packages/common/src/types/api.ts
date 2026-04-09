@@ -255,6 +255,10 @@ export type UpdateMetadata = {
 export type UpdateDefaultUserSpaces = {
     hasDefaultUserSpaces: boolean;
 };
+export type ApiFormulaValidationResults =
+    | { valid: true; compiledSql: string }
+    | { valid: false; error: string };
+
 export type ApiCompiledQueryResults = {
     query: string;
     pivotQuery?: string;
@@ -822,6 +826,7 @@ type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults
     | ApiStatusResults
