@@ -1,3 +1,11 @@
+## [0.2741.1](https://github.com/lightdash/lightdash/compare/0.2741.0...0.2741.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* add formula build step to build.sh ([#21876](https://github.com/lightdash/lightdash/issues/21876)) ([efca7a1](https://github.com/lightdash/lightdash/commit/efca7a10386a99ab23e132245f776f16356d4fa0))
+* harden audit logging for DashboardService ([#21875](https://github.com/lightdash/lightdash/issues/21875)) ([474e0a6](https://github.com/lightdash/lightdash/commit/474e0a6f19ea945d4a7dd0efb8b2aa69346017c6))
+
 # [0.2741.0](https://github.com/lightdash/lightdash/compare/0.2740.5...0.2741.0) (2026-04-09)
 
 
