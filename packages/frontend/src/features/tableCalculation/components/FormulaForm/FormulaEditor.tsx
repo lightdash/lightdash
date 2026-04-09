@@ -5,7 +5,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { listFunctions } from '@lightdash/formula';
-import { Box } from '@mantine-8/core';
+import { Box, Text } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -92,6 +92,8 @@ type Props = {
     metricQuery: MetricQuery;
     initialContent?: string;
     onTextChange?: (text: string) => void;
+    onBlur?: () => void;
+    parseError?: string | null;
     editorRef?: React.MutableRefObject<Editor | null>;
     isFullScreen?: boolean;
 };
@@ -101,6 +103,8 @@ export const FormulaEditor: FC<Props> = ({
     metricQuery,
     initialContent,
     onTextChange,
+    onBlur,
+    parseError,
     editorRef,
     isFullScreen,
 }) => {
@@ -195,6 +199,9 @@ export const FormulaEditor: FC<Props> = ({
                 onTextChange(e.getText());
             }
         },
+        onBlur: () => {
+            onBlur?.();
+        },
     });
 
     // Expose editor ref for parent to call getText()
@@ -221,7 +228,7 @@ export const FormulaEditor: FC<Props> = ({
             <RichTextEditor
                 editor={editor}
                 classNames={{
-                    root: styles.editorRoot,
+                    root: `${styles.editorRoot} ${parseError ? styles.editorRootError : ''}`,
                     content: styles.editorContent,
                 }}
             >
@@ -235,6 +242,9 @@ export const FormulaEditor: FC<Props> = ({
                     />
                 </Box>
             </RichTextEditor>
+            {parseError && (
+                <Text className={styles.errorText}>{parseError}</Text>
+            )}
         </Box>
     );
 };

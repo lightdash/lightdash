@@ -33,6 +33,13 @@ import {
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 
+const formatFormulaError = (displayName: string, error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error);
+    return displayName
+        ? `Error in formula "${displayName}": ${message}`
+        : `Formula error: ${message}`;
+};
+
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
     return matches.map((match) => match.slice(2, -1)); // Remove ${ and }
@@ -84,7 +91,7 @@ const buildTableCalculationDependencyGraph = (
                 };
             } catch (e) {
                 throw new CompileError(
-                    `Error in formula "${calc.displayName}": ${e instanceof Error ? e.message : String(e)}`,
+                    formatFormulaError(calc.displayName, e),
                     {},
                 );
             }
@@ -173,7 +180,9 @@ const compileTableCalculation = (
                 columns[fieldId] = fieldId;
             }
             for (const dep of dependencyGraph) {
-                columns[dep.name] = dep.name;
+                if (dep.name !== tableCalculation.name) {
+                    columns[dep.name] = dep.name;
+                }
             }
             const compiledSql = compileFormula(tableCalculation.formula, {
                 dialect,
@@ -187,7 +196,7 @@ const compileTableCalculation = (
         } catch (e) {
             if (e instanceof CompileError) throw e;
             throw new CompileError(
-                `Error in formula "${tableCalculation.displayName}": ${e instanceof Error ? e.message : String(e)}`,
+                formatFormulaError(tableCalculation.displayName, e),
                 {},
             );
         }

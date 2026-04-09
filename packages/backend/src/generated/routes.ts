@@ -24594,6 +24594,38 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiFormulaValidationResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        compiledSql: { dataType: 'string', required: true },
+                        valid: {
+                            dataType: 'enum',
+                            enums: [true],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        error: { dataType: 'string', required: true },
+                        valid: {
+                            dataType: 'enum',
+                            enums: [false],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiPromoteDashboardResponse: {
         dataType: 'refAlias',
         type: {
@@ -51539,6 +51571,81 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'CheckPreAggregate',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsExploreController_ValidateFormula: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        exploreId: {
+            in: 'path',
+            name: 'exploreId',
+            required: true,
+            dataType: 'string',
+        },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                metricQuery: { ref: 'MetricQuery', required: true },
+                formula: { dataType: 'string', required: true },
+            },
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/explores/:exploreId/validateFormula',
+        ...fetchMiddlewares<RequestHandler>(ExploreController),
+        ...fetchMiddlewares<RequestHandler>(
+            ExploreController.prototype.ValidateFormula,
+        ),
+
+        async function ExploreController_ValidateFormula(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsExploreController_ValidateFormula,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'ValidateFormula',
                     controller,
                     response,
                     next,

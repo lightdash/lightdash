@@ -25753,6 +25753,38 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiFormulaValidationResults": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "compiledSql": {
+                                "type": "string"
+                            },
+                            "valid": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["compiledSql", "valid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "error": {
+                                "type": "string"
+                            },
+                            "valid": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["error", "valid"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiPromoteDashboardResponse": {
                 "properties": {
                     "results": {
@@ -44289,6 +44321,85 @@
                                         "type": "object"
                                     }
                                 ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/explores/{exploreId}/validateFormula": {
+            "post": {
+                "operationId": "ValidateFormula",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiFormulaValidationResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validate a spreadsheet formula against the explore's fields",
+                "summary": "Validate formula",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "exploreId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "metricQuery": {
+                                        "$ref": "#/components/schemas/MetricQuery"
+                                    },
+                                    "formula": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["metricQuery", "formula"],
+                                "type": "object"
                             }
                         }
                     }

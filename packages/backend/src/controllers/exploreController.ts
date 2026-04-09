@@ -6,6 +6,7 @@ import {
     ApiExploresResults,
     ApiSuccessEmpty,
     MetricQuery,
+    type ApiFormulaValidationResults,
     type ApiPreAggregateCheckResponse,
     type ParametersValuesMap,
     type PivotConfiguration,
@@ -194,6 +195,45 @@ export class ExploreController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Validate a spreadsheet formula against the explore's fields
+     * @summary Validate formula
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{exploreId}/validateFormula')
+    @OperationId('ValidateFormula')
+    async ValidateFormula(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            formula: string;
+            metricQuery: MetricQuery;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: ApiFormulaValidationResults;
+    }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .validateFormula({
+                account: req.account!,
+                projectUuid,
+                exploreName: exploreId,
+                formula: body.formula,
+                metricQuery: body.metricQuery,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 }
