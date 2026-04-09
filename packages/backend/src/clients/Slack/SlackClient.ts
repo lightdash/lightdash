@@ -918,9 +918,7 @@ export class SlackClient {
                     Logger.warn(
                         `Slack invalid_blocks error for channel ${channel}`,
                         {
-                            blocks: JSON.stringify(
-                                slackMessageArgs.blocks,
-                            ).slice(0, 10000),
+                            blocks: JSON.stringify(slackMessageArgs.blocks),
                         },
                     );
                 }
