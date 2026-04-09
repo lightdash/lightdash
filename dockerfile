@@ -260,9 +260,10 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     turbo build --filter=backend; \
     fi
 
-# Build frontend package  
+# Build frontend package
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
 
 ARG SENTRY_AUTH_TOKEN=""

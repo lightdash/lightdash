@@ -4,17 +4,25 @@ import {
     type Explore,
     type MetricQuery,
 } from '@lightdash/common';
+import { listFunctions } from '@lightdash/formula';
 import { Box } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
+import { PluginKey } from '@tiptap/pm/state';
 import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, type FC } from 'react';
-import { type FieldSuggestionItem } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput/FieldSuggestionList';
-import { generateFieldSuggestion } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput/generateFieldSuggestion';
+import {
+    generateFieldSuggestion,
+    type FieldSuggestionItem,
+} from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
+import {
+    generateFunctionSuggestion,
+    type FunctionSuggestionItem,
+} from './generateFunctionSuggestion';
 
 const MentionWithLabel = Mention.extend({
     addAttributes() {
@@ -39,9 +47,9 @@ const MentionWithLabel = Mention.extend({
  */
 function buildInitialContent(
     text: string,
-    fieldSuggestions: FieldSuggestionItem[],
+    suggestions: FieldSuggestionItem[],
 ): JSONContent {
-    if (!text || fieldSuggestions.length === 0) {
+    if (!text || suggestions.length === 0) {
         return {
             type: 'doc',
             content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
@@ -49,9 +57,7 @@ function buildInitialContent(
     }
 
     // Sort field IDs by length descending to match longest first
-    const sorted = [...fieldSuggestions].sort(
-        (a, b) => b.id.length - a.id.length,
-    );
+    const sorted = [...suggestions].sort((a, b) => b.id.length - a.id.length);
 
     // Build a regex that matches any field ID as a whole word
     const pattern = new RegExp(
@@ -127,7 +133,25 @@ export const FormulaEditor: FC<Props> = ({
             }));
     }, [explore, metricQuery]);
 
+    const functionSuggestions: FunctionSuggestionItem[] = useMemo(
+        () =>
+            listFunctions().map((fn) => ({
+                id: fn.name,
+                label: fn.name,
+                description: fn.description,
+                definition: fn,
+            })),
+        [],
+    );
+
     const editor = useEditor({
+        editorProps: {
+            attributes: {
+                spellcheck: 'false',
+                autocomplete: 'off',
+                autocapitalize: 'off',
+            },
+        },
         extensions: [
             StarterKit.configure({
                 heading: false,
@@ -140,7 +164,6 @@ export const FormulaEditor: FC<Props> = ({
             MentionWithLabel.configure({
                 suggestion: {
                     ...generateFieldSuggestion(fieldSuggestions),
-                    // Allow @ after any character (e.g. after parentheses)
                     allowedPrefixes: null,
                 },
                 renderText: ({ node }) =>
@@ -151,8 +174,17 @@ export const FormulaEditor: FC<Props> = ({
                     `${node.attrs.label ?? node.attrs.id}`,
                 ],
             }),
+            Mention.extend({ name: 'functionMention' }).configure({
+                suggestion: {
+                    ...generateFunctionSuggestion(functionSuggestions),
+                    pluginKey: new PluginKey('functionMention'),
+                },
+                renderText: ({ node }) => node.attrs.id ?? '',
+                renderHTML: ({ node }) => ['span', {}, node.attrs.id ?? ''],
+            }),
             Placeholder.configure({
-                placeholder: 'IF(@Revenue > 1000, "high", "low")',
+                placeholder:
+                    'Use @ to reference fields, # for functions. e.g. IF(@Revenue > 1000, "high", "low")',
             }),
         ],
         content: initialContent
@@ -172,7 +204,7 @@ export const FormulaEditor: FC<Props> = ({
         }
     }, [editor, editorRef]);
 
-    // Update suggestions when fields change
+    // Update field suggestions when fields change
     useEffect(() => {
         if (editor && fieldSuggestions.length > 0) {
             editor.extensionManager.extensions.forEach((ext) => {
