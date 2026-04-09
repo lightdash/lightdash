@@ -1,3 +1,16 @@
+# [0.2743.0](https://github.com/lightdash/lightdash/compare/0.2742.3...0.2743.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* override basic-ftp 5.0.4 → 5.2.1 (security) ([#21898](https://github.com/lightdash/lightdash/issues/21898)) ([03b9d5f](https://github.com/lightdash/lightdash/commit/03b9d5ffdb1480d56c9c94873522da606d2b4cdf))
+
+
+### Features
+
+* redesign Project Management settings table ([#21877](https://github.com/lightdash/lightdash/issues/21877)) ([953150d](https://github.com/lightdash/lightdash/commit/953150d458f9dabaded8f0a2e34ad83c178782a2))
+* stream file downloads through backend instead of S3 redirects ([#21870](https://github.com/lightdash/lightdash/issues/21870)) ([ba450f6](https://github.com/lightdash/lightdash/commit/ba450f61b6cbb2ebce2b826fc1509a1b93c93219))
+
 ## [0.2742.3](https://github.com/lightdash/lightdash/compare/0.2742.2...0.2742.3) (2026-04-09)
 
 
