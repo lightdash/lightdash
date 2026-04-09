@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     isFeatureFlags,
     LightdashUser,
-    NotFoundError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -99,7 +98,10 @@ export class FeatureFlagModel {
                 args.featureFlagId,
             );
         }
-        throw new NotFoundError(`Feature flag ${args.featureFlagId} not found`);
+
+        // Unknown flags default to disabled.
+        // See: GLITCH-331
+        return { id: args.featureFlagId, enabled: false };
     }
 
     static async getPosthogFeatureFlag(
