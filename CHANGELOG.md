@@ -1,3 +1,10 @@
+# [0.2742.0](https://github.com/lightdash/lightdash/compare/0.2741.1...0.2742.0) (2026-04-09)
+
+
+### Features
+
+* enable pre-aggregates settings link for preview projects ([#21872](https://github.com/lightdash/lightdash/issues/21872)) ([520ecfe](https://github.com/lightdash/lightdash/commit/520ecfe593eb08eb58f3968ca9e83697256fa64f))
+
 ## [0.2741.1](https://github.com/lightdash/lightdash/compare/0.2741.0...0.2741.1) (2026-04-09)
 
 
