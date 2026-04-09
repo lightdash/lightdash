@@ -1,4 +1,5 @@
 import { NotFoundError } from '@lightdash/common';
+import { Readable } from 'stream';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -7,6 +8,7 @@ import { PersistentDownloadFileModel } from '../../models/PersistentDownloadFile
 import { PersistentDownloadFileService } from './PersistentDownloadFileService';
 
 const mockS3GetFileUrl = jest.fn();
+const mockS3GetFileStream = jest.fn();
 const mockModelCreate = jest.fn();
 const mockModelGet = jest.fn();
 
@@ -35,6 +37,7 @@ const createService = (
         } as unknown as PersistentDownloadFileModel,
         fileStorageClient: {
             getFileUrl: mockS3GetFileUrl,
+            getFileStream: mockS3GetFileStream,
         } as unknown as FileStorageClient,
     });
 
@@ -194,6 +197,61 @@ describe('PersistentDownloadFileService', () => {
             await expect(
                 service.getSignedUrl('nonexistent-nanoid1234'),
             ).rejects.toThrow(NotFoundError);
+        });
+    });
+
+    describe('getFileStream', () => {
+        it('should return S3 stream and metadata for valid file', async () => {
+            const futureDate = new Date(Date.now() + 3600 * 1000);
+            mockModelGet.mockResolvedValue({
+                nanoid: 'test-nanoid-123456789',
+                s3_key: 'exports/test-file.csv',
+                file_type: 'csv',
+                expires_at: futureDate,
+            } as DbPersistentDownloadFile);
+            const fakeStream = Readable.from(['hello,world\n']);
+            mockS3GetFileStream.mockResolvedValue(fakeStream);
+
+            const service = createService({ enabled: true });
+            const result = await service.getFileStream('test-nanoid-123456789');
+
+            expect(result.stream).toBe(fakeStream);
+            expect(result.fileType).toBe('csv');
+            expect(result.s3Key).toBe('exports/test-file.csv');
+            expect(mockS3GetFileStream).toHaveBeenCalledWith(
+                'exports/test-file.csv',
+            );
+            expect(mockS3GetFileUrl).not.toHaveBeenCalled();
+        });
+
+        it('should throw NotFoundError for expired file', async () => {
+            const pastDate = new Date(Date.now() - 3600 * 1000);
+            mockModelGet.mockResolvedValue({
+                nanoid: 'test-nanoid-123456789',
+                s3_key: 'exports/test-file.csv',
+                file_type: 'csv',
+                expires_at: pastDate,
+            } as DbPersistentDownloadFile);
+
+            const service = createService({ enabled: true });
+
+            await expect(
+                service.getFileStream('test-nanoid-123456789'),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
+        });
+
+        it('should throw NotFoundError when file does not exist', async () => {
+            mockModelGet.mockRejectedValue(
+                new NotFoundError('Cannot find file'),
+            );
+
+            const service = createService({ enabled: true });
+
+            await expect(
+                service.getFileStream('nonexistent-nanoid1234'),
+            ).rejects.toThrow(NotFoundError);
+            expect(mockS3GetFileStream).not.toHaveBeenCalled();
         });
     });
 });
