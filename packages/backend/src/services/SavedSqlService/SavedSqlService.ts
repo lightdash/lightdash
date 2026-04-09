@@ -811,7 +811,7 @@ export class SavedSqlService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
+                    uuid: savedSqlUuid,
                 }),
             )
         ) {
@@ -839,7 +839,7 @@ export class SavedSqlService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
+                    uuid: savedSqlUuid,
                 }),
             )
         ) {
