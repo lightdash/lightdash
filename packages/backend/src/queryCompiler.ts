@@ -76,11 +76,18 @@ const buildTableCalculationDependencyGraph = (
         }
 
         if (isFormulaTableCalculation(calc)) {
-            const ast = parseFormula(calc.formula);
-            return {
-                name: calc.name,
-                dependencies: extractColumnRefs(ast),
-            };
+            try {
+                const ast = parseFormula(calc.formula);
+                return {
+                    name: calc.name,
+                    dependencies: extractColumnRefs(ast),
+                };
+            } catch (e) {
+                throw new CompileError(
+                    `Error in formula "${calc.displayName}": ${e instanceof Error ? e.message : String(e)}`,
+                    {},
+                );
+            }
         }
 
         throw new CompileError(
@@ -157,25 +164,33 @@ const compileTableCalculation = (
     }
 
     if (isFormulaTableCalculation(tableCalculation)) {
-        const dialect = mapAdapterToFormulaDialect(
-            warehouseSqlBuilder.getAdapterType(),
-        );
-        const columns: Record<string, string> = {};
-        for (const fieldId of validFieldIds) {
-            columns[fieldId] = fieldId;
+        try {
+            const dialect = mapAdapterToFormulaDialect(
+                warehouseSqlBuilder.getAdapterType(),
+            );
+            const columns: Record<string, string> = {};
+            for (const fieldId of validFieldIds) {
+                columns[fieldId] = fieldId;
+            }
+            for (const dep of dependencyGraph) {
+                columns[dep.name] = dep.name;
+            }
+            const compiledSql = compileFormula(tableCalculation.formula, {
+                dialect,
+                columns,
+            });
+            return {
+                ...tableCalculation,
+                compiledSql,
+                dependsOn: tableCalcDependencies,
+            };
+        } catch (e) {
+            if (e instanceof CompileError) throw e;
+            throw new CompileError(
+                `Error in formula "${tableCalculation.displayName}": ${e instanceof Error ? e.message : String(e)}`,
+                {},
+            );
         }
-        for (const dep of dependencyGraph) {
-            columns[dep.name] = dep.name;
-        }
-        const compiledSql = compileFormula(tableCalculation.formula, {
-            dialect,
-            columns,
-        });
-        return {
-            ...tableCalculation,
-            compiledSql,
-            dependsOn: tableCalcDependencies,
-        };
     }
 
     throw new CompileError(
