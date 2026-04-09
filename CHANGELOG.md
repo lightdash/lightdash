@@ -1,3 +1,17 @@
+# [0.2746.0](https://github.com/lightdash/lightdash/compare/0.2745.1...0.2746.0) (2026-04-09)
+
+
+### Bug Fixes
+
+* pass user to data apps feature flag ([#21910](https://github.com/lightdash/lightdash/issues/21910)) ([ac130ee](https://github.com/lightdash/lightdash/commit/ac130eef16a4fa72051b6dbf496684826a93a678))
+
+
+### Features
+
+* add formula function suggestions to formula editor ([#21867](https://github.com/lightdash/lightdash/issues/21867)) ([de63f8b](https://github.com/lightdash/lightdash/commit/de63f8b8e96b83512df25b8f946cf4836ee1be31)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add formula package to build-published-packages script ([#21913](https://github.com/lightdash/lightdash/issues/21913)) ([3f32a5f](https://github.com/lightdash/lightdash/commit/3f32a5ff9a8178de598e389a37a956906a54aec0))
+* add formula validation endpoint and real-time error feedback ([#21892](https://github.com/lightdash/lightdash/issues/21892)) ([52839da](https://github.com/lightdash/lightdash/commit/52839da284ec1fb628401ca9fb48ad8dcef07708)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2745.1](https://github.com/lightdash/lightdash/compare/0.2745.0...0.2745.1) (2026-04-09)
 
 
