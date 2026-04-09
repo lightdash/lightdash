@@ -2992,6 +2992,8 @@ export class ProjectService extends BaseService {
         pivotConfiguration,
         pivotDimensions,
         continueOnError,
+        useTimezoneAwareDateTrunc,
+        dataTimezone,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -3005,6 +3007,8 @@ export class ProjectService extends BaseService {
         pivotConfiguration?: PivotConfiguration;
         pivotDimensions?: string[];
         continueOnError?: boolean;
+        useTimezoneAwareDateTrunc?: boolean;
+        dataTimezone?: string;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -3037,6 +3041,8 @@ export class ProjectService extends BaseService {
             pivotDimensions,
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
+            useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -3165,6 +3171,8 @@ export class ProjectService extends BaseService {
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.isTimezoneAwareDateTruncEnabled();
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -3178,6 +3186,8 @@ export class ProjectService extends BaseService {
             pivotConfiguration,
             pivotDimensions,
             continueOnError: true, // Return SQL even with compilation errors for debugging
+            useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         // Generate pivot query if pivot configuration is provided
@@ -4121,6 +4131,8 @@ export class ProjectService extends BaseService {
                         metricQueryWithLimit,
                         projectTimezone,
                     );
+                    const useTimezoneAwareDateTrunc =
+                        await this.isTimezoneAwareDateTruncEnabled();
 
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
@@ -4133,6 +4145,8 @@ export class ProjectService extends BaseService {
                         parameters,
                         availableParameterDefinitions,
                         pivotDimensions: metricQueryWithLimit.pivotDimensions,
+                        useTimezoneAwareDateTrunc,
+                        dataTimezone: warehouseClient.credentials.dataTimezone,
                     });
 
                     const { query } = fullQuery;
@@ -4757,6 +4771,8 @@ export class ProjectService extends BaseService {
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.isTimezoneAwareDateTruncEnabled();
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,
@@ -4767,6 +4783,8 @@ export class ProjectService extends BaseService {
             timezone,
             parameters: combinedParameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseClient.credentials.dataTimezone,
         });
 
         const cacheKey = metricQuery.timezone
@@ -6854,6 +6872,8 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient,
         availableParameterDefinitions: ParameterDefinitions,
         parameters?: ParametersValuesMap,
+        useTimezoneAwareDateTrunc?: boolean,
+        dataTimezone?: string,
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -6888,6 +6908,8 @@ export class ProjectService extends BaseService {
             timezone,
             parameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         return { query, totalQuery };
@@ -6926,6 +6948,8 @@ export class ProjectService extends BaseService {
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.isTimezoneAwareDateTruncEnabled();
 
         try {
             const { query } = await ProjectService._getCalculateTotalQuery(
@@ -6937,6 +6961,8 @@ export class ProjectService extends BaseService {
                 warehouseClient,
                 availableParameterDefinitions,
                 parameters,
+                useTimezoneAwareDateTrunc,
+                warehouseClient.credentials.dataTimezone,
             );
 
             const queryTags: RunQueryTags = {
@@ -6994,6 +7020,8 @@ export class ProjectService extends BaseService {
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.isTimezoneAwareDateTruncEnabled();
 
         try {
             const { query, totalQuery } =
@@ -7006,6 +7034,8 @@ export class ProjectService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     parameters,
+                    useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const queryTags: RunQueryTags = {
@@ -7780,6 +7810,13 @@ export class ProjectService extends BaseService {
                         : null,
             },
         });
+    }
+
+    async isTimezoneAwareDateTruncEnabled(): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.EnableTimezoneSupport,
+        });
+        return enabled;
     }
 
     async getQueryTimezoneForProject(projectUuid: string): Promise<string> {
