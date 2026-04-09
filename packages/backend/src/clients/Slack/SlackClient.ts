@@ -914,6 +914,14 @@ export class SlackClient {
                 ...slackMessageArgs,
             })
             .catch((e) => {
+                if (getSlackErrorCode(e) === 'invalid_blocks') {
+                    Logger.warn(
+                        `Slack invalid_blocks error for channel ${channel}`,
+                        {
+                            blocks: JSON.stringify(slackMessageArgs.blocks),
+                        },
+                    );
+                }
                 slackErrorHandler(e, 'Unable to post message on Slack');
                 throw e;
             });
