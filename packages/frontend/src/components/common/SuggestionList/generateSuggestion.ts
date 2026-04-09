@@ -1,18 +1,13 @@
 import { type MentionOptions } from '@tiptap/extension-mention';
 import { ReactRenderer } from '@tiptap/react';
+import { type ReactNode } from 'react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
 import {
-    FieldSuggestionList,
-    type FieldSuggestionItem,
-    type FieldSuggestionListRef,
-} from './FieldSuggestionList';
+    SuggestionList,
+    type SuggestionItem,
+    type SuggestionListRef,
+} from './SuggestionList';
 
-/**
- * Workaround for the current typing incompatibility between Tippy.js and Tiptap
- * Suggestion utility.
- *
- * @see https://github.com/ueberdosis/tiptap/issues/2795#issuecomment-1160623792
- */
 const DOM_RECT_FALLBACK: DOMRect = {
     bottom: 0,
     height: 0,
@@ -27,39 +22,37 @@ const DOM_RECT_FALLBACK: DOMRect = {
     },
 };
 
-export const generateFieldSuggestion = (
-    fields: FieldSuggestionItem[],
+type GenerateSuggestionConfig<T extends SuggestionItem> = {
+    items: T[];
+    command: NonNullable<MentionOptions['suggestion']['command']>;
+    renderItem: (
+        item: T,
+        isSelected: boolean,
+        onClick: () => void,
+    ) => ReactNode;
+    emptyMessage?: string;
+};
+
+export const generateSuggestion = <T extends SuggestionItem>(
+    config: GenerateSuggestionConfig<T>,
 ): MentionOptions['suggestion'] => ({
     items: ({ query }) =>
-        fields.filter((item) =>
+        config.items.filter((item) =>
             item.label.toLowerCase().includes(query.toLowerCase()),
         ),
-    // Custom command to ensure both id and label are stored as attrs
-    command: ({ editor, range, props }) => {
-        const suggestion = props as FieldSuggestionItem;
-        editor
-            .chain()
-            .focus()
-            .insertContentAt(range, [
-                {
-                    type: 'mention',
-                    attrs: {
-                        id: suggestion.id,
-                        label: suggestion.label,
-                    },
-                },
-                { type: 'text', text: ' ' },
-            ])
-            .run();
-    },
+    command: config.command,
     render: () => {
-        let component: ReactRenderer<FieldSuggestionListRef> | undefined;
+        let component: ReactRenderer<SuggestionListRef> | undefined;
         let popup: TippyInstance | undefined;
 
         return {
             onStart: (props) => {
-                component = new ReactRenderer(FieldSuggestionList, {
-                    props,
+                component = new ReactRenderer(SuggestionList, {
+                    props: {
+                        ...props,
+                        renderItem: config.renderItem,
+                        emptyMessage: config.emptyMessage,
+                    },
                     editor: props.editor,
                 });
 
@@ -77,8 +70,11 @@ export const generateFieldSuggestion = (
             },
 
             onUpdate(props) {
-                component?.updateProps(props);
-
+                component?.updateProps({
+                    ...props,
+                    renderItem: config.renderItem,
+                    emptyMessage: config.emptyMessage,
+                });
                 popup?.setProps({
                     getReferenceClientRect: () =>
                         props.clientRect?.() ?? DOM_RECT_FALLBACK,
@@ -90,17 +86,13 @@ export const generateFieldSuggestion = (
                     popup?.hide();
                     return true;
                 }
-
-                if (!component?.ref) {
-                    return false;
-                }
-
+                if (!component?.ref) return false;
                 return component.ref.onKeyDown(props);
             },
+
             onExit() {
                 popup?.destroy();
                 component?.destroy();
-
                 popup = undefined;
                 component = undefined;
             },
