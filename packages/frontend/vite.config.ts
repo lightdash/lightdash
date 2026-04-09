@@ -1,6 +1,7 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import reactPlugin from '@vitejs/plugin-react';
 import * as path from 'path';
+import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 import svgrPlugin from 'vite-plugin-svgr';
 import { defineConfig } from 'vitest/config';
@@ -17,6 +18,11 @@ export default defineConfig({
             process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
     },
     plugins: [
+        compression({
+            include: [/\.(js)$/, /\.(css)$/],
+            algorithms: ['gzip'],
+            filename: '[path][base].gzip',
+        }),
         svgrPlugin(),
         reactPlugin(),
         monacoEditorPlugin({
