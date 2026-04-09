@@ -26,6 +26,7 @@ overrides:
   express-rate-limit: 8.3.0
   '@hapi/content': 6.0.1
   undici: 6.24.1
+  handlebars: 4.7.9
 
 pnpmfileChecksum: ljbuipupldntgfel5vaej2gdgy
 
@@ -354,8 +355,8 @@ importers:
         specifier: 5.2.0
         version: 5.2.0(encoding@0.1.13)(graphql@16.8.1)
       handlebars:
-        specifier: 4.7.8
-        version: 4.7.8
+        specifier: 4.7.9
+        version: 4.7.9
       helmet:
         specifier: 7.1.0
         version: 7.1.0
@@ -376,7 +377,7 @@ importers:
         version: 2.5.1(pg@8.13.1)
       langchain:
         specifier: 0.3.37
-        version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
+        version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.9)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
       lodash:
         specifier: 4.17.23
         version: 4.17.23
@@ -761,8 +762,8 @@ importers:
         specifier: 3.1.1
         version: 3.1.1
       handlebars:
-        specifier: 4.7.8
-        version: 4.7.8
+        specifier: 4.7.9
+        version: 4.7.9
       js-yaml:
         specifier: 4.1.1
         version: 4.1.1
@@ -9310,8 +9311,8 @@ packages:
     resolution: {integrity: sha512-+CqsMbHPiSTdtSO14O51eMNlrp9N79gmeqmXeouJOhfucAedHw9noVe/n5uJk3tbKE6a+6ZCQg3RPhVhHByAIw==}
     engines: {node: '>=18'}
 
-  handlebars@4.7.8:
-    resolution: {integrity: sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==}
+  handlebars@4.7.9:
+    resolution: {integrity: sha512-4E71E0rpOaQuJR2A3xDZ+GM1HyWYv1clR58tC8emQNeQe3RH7MAzSbat+V0wG78LQBo6m6bzSG/L4pBuCsgnUQ==}
     engines: {node: '>=0.4.7'}
     hasBin: true
 
@@ -10368,7 +10369,7 @@ packages:
       '@langchain/xai': '*'
       axios: 1.12.2
       cheerio: '*'
-      handlebars: ^4.7.8
+      handlebars: 4.7.9
       peggy: ^3.0.2
       typeorm: '*'
     peerDependenciesMeta:
@@ -20260,7 +20261,7 @@ snapshots:
       '@types/multer': 1.4.12
       fs-extra: 11.3.2
       glob: 10.5.0
-      handlebars: 4.7.8
+      handlebars: 4.7.9
       merge-anything: 5.1.7
       minimatch: 9.0.5
       ts-deepmerge: 7.0.2
@@ -20459,7 +20460,7 @@ snapshots:
 
   '@types/handlebars@4.1.0':
     dependencies:
-      handlebars: 4.7.8
+      handlebars: 4.7.9
 
   '@types/hast@2.3.1':
     dependencies:
@@ -24860,7 +24861,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  handlebars@4.7.8:
+  handlebars@4.7.9:
     dependencies:
       minimist: 1.2.8
       neo-async: 2.6.2
@@ -26273,7 +26274,7 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
+  langchain@0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.9)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0):
     dependencies:
       '@langchain/core': 0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))
       '@langchain/openai': 0.4.2(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(encoding@0.1.13)(ws@8.18.0)
@@ -26289,7 +26290,7 @@ snapshots:
       zod: 3.25.55
     optionalDependencies:
       axios: 1.12.2
-      handlebars: 4.7.8
+      handlebars: 4.7.9
     transitivePeerDependencies:
       - '@opentelemetry/api'
       - '@opentelemetry/exporter-trace-otlp-proto'
