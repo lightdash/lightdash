@@ -791,12 +791,17 @@ export const filterInThePastCompletedDayDateFormatterMocks = [
 
 // IN_THE_CURRENT day with timezone-aware formatter:
 //   UTC:            from 2020-04-04, until 2020-04-04 (same day)
+//   America/New_York (EDT, UTC-4): 06:12 GMT = 02:12 EDT Apr 4 → from 2020-04-04, until 2020-04-04
 //   Asia/Tokyo:     06:12 GMT = 15:12 JST Apr 4 → from 2020-04-04, until 2020-04-04
 //     Without fix: .utc().toDate() shifts to Apr 3/Apr 4 UTC → wrong boundaries
 //     With fix: createBoundaryDateFormatter → both 2020-04-04
 export const filterInTheCurrentDayDateFormatterMocks = [
     [
         'UTC',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'America/New_York',
         "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
     ],
     [
