@@ -98,6 +98,15 @@ module.exports = {
             },
         },
         {
+            // Error on direct ability checks in fully migrated services
+            files: [
+                'src/services/DashboardService/**/*.ts',
+            ],
+            rules: {
+                'no-direct-ability-check': 'error',
+            },
+        },
+        {
             // Require @summary tag in JSDoc comments for controller API endpoints
             // This ensures API documentation has human-readable names
             // Only applies to methods with decorators (API endpoints have @Get, @Post, etc.)
