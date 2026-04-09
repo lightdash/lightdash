@@ -550,8 +550,9 @@ export const pivotQueryResults = ({
         return isSummable(field);
     });
 
-    const columnOrder = (pivotConfig.columnOrder || []).filter((id) =>
-        isMetricVisible(id),
+    const allDimensionIds = new Set(metricQuery.dimensions);
+    const columnOrder = (pivotConfig.columnOrder || []).filter(
+        (id) => allDimensionIds.has(id) || isMetricVisible(id),
     );
 
     const dimensions = [...metricQuery.dimensions];

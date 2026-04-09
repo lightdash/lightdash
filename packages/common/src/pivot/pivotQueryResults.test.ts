@@ -1467,3 +1467,85 @@ describe('convertSqlPivotedRowsToPivotData', () => {
         expect(largeResult).toStrictEqual(fullResult);
     });
 });
+
+describe('visibleMetricFieldIds in pivotQueryResults', () => {
+    it('filters out metrics not in visibleMetricFieldIds', () => {
+        // Simulates PROD-6906: sort-only metric (devices) added to valuesColumns
+        // but should not appear in pivot output when visibleMetricFieldIds = ['views']
+        const pivotConfig = {
+            pivotDimensions: ['page'],
+            metricsAsRows: false,
+            visibleMetricFieldIds: ['views'], // only views should appear
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_1DIM_2METRIC, // has views + devices
+            rows: RESULT_ROWS_1DIM_2METRIC,
+            options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
+        });
+
+        // Only 'views' should appear in headerValues metric labels (second row)
+        const metricLabels = result.headerValues[1]?.map((v) =>
+            'fieldId' in v ? v.fieldId : undefined,
+        );
+        expect(metricLabels).toEqual(['views', 'views', 'views']);
+
+        // dataColumnCount should reflect only visible metrics (3 pages × 1 metric)
+        expect(result.dataColumnCount).toBe(3);
+    });
+
+    it('falls back to hiddenMetricFieldIds when visibleMetricFieldIds is undefined', () => {
+        const pivotConfig = {
+            pivotDimensions: ['page'],
+            metricsAsRows: false,
+            hiddenMetricFieldIds: ['devices'],
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_1DIM_2METRIC,
+            rows: RESULT_ROWS_1DIM_2METRIC,
+            options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
+        });
+
+        const metricLabels = result.headerValues[1]?.map((v) =>
+            'fieldId' in v ? v.fieldId : undefined,
+        );
+        expect(metricLabels).toEqual(['views', 'views', 'views']);
+        expect(result.dataColumnCount).toBe(3);
+    });
+
+    it('preserves dimension IDs in columnOrder when visibleMetricFieldIds is set', () => {
+        // Regression: columnOrder filter must not strip dimension IDs through
+        // the metric visibility check. Dimensions are always visible.
+        const pivotConfig = {
+            pivotDimensions: ['page'],
+            metricsAsRows: false,
+            visibleMetricFieldIds: ['views'],
+            columnOrder: ['site', 'views'], // 'site' is a dimension — must survive filter
+        };
+        const result = pivotQueryResults({
+            pivotConfig,
+            metricQuery: METRIC_QUERY_2DIM_2METRIC,
+            rows: RESULT_ROWS_2DIM_2METRIC,
+            options: { maxColumns: 60 },
+            getFieldLabel: (fieldId) => fieldId,
+            getField: (_fieldId) => undefined,
+        });
+
+        // site dimension must appear as an index dimension
+        const indexFieldIds = result.indexValueTypes
+            .filter((t) => t.type === 'dimension')
+            .map((t) => ('fieldId' in t ? t.fieldId : undefined));
+        expect(indexFieldIds).toContain('site');
+
+        // Only 'views' metric should appear (devices filtered by visibleMetricFieldIds)
+        const metricLabels = result.headerValues[1]?.map((v) =>
+            'fieldId' in v ? v.fieldId : undefined,
+        );
+        expect(metricLabels).toEqual(['views', 'views', 'views']);
+    });
+});
