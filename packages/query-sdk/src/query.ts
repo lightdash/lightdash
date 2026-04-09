@@ -39,6 +39,7 @@ export class QueryBuilder {
     private readonly _filters: InternalFilterDefinition[];
     private readonly _sorts: { fieldId: string; descending: boolean }[];
     private readonly _limit: number;
+    private readonly _label: string | undefined;
 
     constructor(
         explore: string,
@@ -47,6 +48,7 @@ export class QueryBuilder {
         filters: InternalFilterDefinition[] = [],
         sorts: { fieldId: string; descending: boolean }[] = [],
         limit: number = 500,
+        label?: string,
     ) {
         this._explore = explore;
         this._dimensions = dimensions;
@@ -54,6 +56,20 @@ export class QueryBuilder {
         this._filters = filters;
         this._sorts = sorts;
         this._limit = limit;
+        this._label = label;
+    }
+
+    /** Human-readable label for dev tools / query inspector */
+    label(name: string): QueryBuilder {
+        return new QueryBuilder(
+            this._explore,
+            this._dimensions,
+            this._metrics,
+            this._filters,
+            this._sorts,
+            this._limit,
+            name,
+        );
     }
 
     /** Set dimension fields (GROUP BY columns) */
@@ -65,6 +81,7 @@ export class QueryBuilder {
             this._filters,
             this._sorts,
             this._limit,
+            this._label,
         );
     }
 
@@ -77,6 +94,7 @@ export class QueryBuilder {
             this._filters,
             this._sorts,
             this._limit,
+            this._label,
         );
     }
 
@@ -107,6 +125,7 @@ export class QueryBuilder {
             [...this._filters, ...converted],
             this._sorts,
             this._limit,
+            this._label,
         );
     }
 
@@ -124,6 +143,7 @@ export class QueryBuilder {
             this._filters,
             [...this._sorts, ...converted],
             this._limit,
+            this._label,
         );
     }
 
@@ -136,6 +156,7 @@ export class QueryBuilder {
             this._filters,
             this._sorts,
             n,
+            this._label,
         );
     }
 
@@ -148,6 +169,7 @@ export class QueryBuilder {
             filters: this._filters,
             sorts: this._sorts,
             limit: this._limit,
+            ...(this._label ? { label: this._label } : {}),
         };
     }
 }

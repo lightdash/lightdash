@@ -23,7 +23,6 @@ type TrackedQuery = QueryEvent & {
 
 type Props = {
     queries: TrackedQuery[];
-    onClear: () => void;
 };
 
 const statusColor = (status: TrackedQuery['status']): string => {
@@ -59,7 +58,9 @@ const QueryRow: FC<{ query: TrackedQuery }> = ({ query }) => {
                     )}
                 </ActionIcon>
                 <Text size="xs" fw={500} truncate="end">
-                    {query.exploreName || query.queryUuid?.slice(0, 8)}
+                    {query.label ||
+                        query.exploreName ||
+                        query.queryUuid?.slice(0, 8)}
                 </Text>
                 <Badge
                     size="xs"
@@ -138,12 +139,37 @@ const QueryRow: FC<{ query: TrackedQuery }> = ({ query }) => {
     );
 };
 
-const QueryInspector: FC<Props> = ({ queries, onClear }) => {
+const QueryInspector: FC<Props> = ({ queries }) => {
     const [collapsed, setCollapsed] = useState(true);
+    const [dismissed, setDismissed] = useState(false);
 
     const toggle = useCallback(() => setCollapsed((v) => !v), []);
 
+    const handleDismiss = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        setDismissed(true);
+        setCollapsed(true);
+    }, []);
+
+    // Nothing to show
     if (queries.length === 0) return null;
+
+    // Dismissed — show a small icon to reopen
+    if (dismissed) {
+        return (
+            <Box className={classes.iconOnly}>
+                <ActionIcon
+                    variant="filled"
+                    color="gray"
+                    size="md"
+                    radius="xl"
+                    onClick={() => setDismissed(false)}
+                >
+                    <IconDatabase size={14} />
+                </ActionIcon>
+            </Box>
+        );
+    }
 
     return (
         <Box className={classes.container}>
@@ -163,10 +189,7 @@ const QueryInspector: FC<Props> = ({ queries, onClear }) => {
                         variant="subtle"
                         size="xs"
                         color="gray"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onClear();
-                        }}
+                        onClick={handleDismiss}
                     >
                         <IconX size={12} />
                     </ActionIcon>

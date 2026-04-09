@@ -138,6 +138,7 @@ const AppGenerate: FC = () => {
                         q.queryUuid === event.queryUuid
                             ? {
                                   ...q,
+                                  label: event.label ?? q.label,
                                   status: event.status,
                                   rowCount: event.rowCount ?? q.rowCount,
                                   durationMs: event.durationMs ?? q.durationMs,
@@ -158,7 +159,6 @@ const AppGenerate: FC = () => {
             return [...prev, event];
         });
     }, []);
-    const clearQueries = useCallback(() => setTrackedQueries([]), []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
@@ -179,6 +179,7 @@ const AppGenerate: FC = () => {
             setPreviewApp(null);
             versionCacheRef.current.clear();
             versionCacheAppRef.current = undefined;
+            setTrackedQueries([]);
             sentImagesByPrompt.current.forEach((url) =>
                 URL.revokeObjectURL(url),
             );
@@ -936,10 +937,7 @@ const AppGenerate: FC = () => {
                                     </Text>
                                 </Box>
                             )}
-                            <QueryInspector
-                                queries={trackedQueries}
-                                onClear={clearQueries}
-                            />
+                            <QueryInspector queries={trackedQueries} />
                         </Box>
                     </Box>
                 </Panel>

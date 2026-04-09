@@ -88,8 +88,10 @@ The client and provider are already set up in `main.jsx`. Import `query` and `us
 ```tsx
 import { query, useLightdash } from '@lightdash/query-sdk';
 
-// Define queries at module scope — immutable, safe to hoist out of render
+// Define queries at module scope — immutable, safe to hoist out of render.
+// Always use .label() to describe what the query powers (shown in dev tools).
 const revenueQuery = query('orders')
+    .label('Revenue by Segment')
     .dimensions(['customer_segment'])
     .metrics(['total_revenue', 'order_count'])
     .filters([
@@ -127,14 +129,16 @@ The builder is immutable — you can derive variants from a base:
 
 ```ts
 const base = query('orders').metrics(['total_revenue']);
-const bySegment = base.dimensions(['customer_segment']);
-const byRegion = base.dimensions(['region']);
+const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment']);
+const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
 
 KPI cards — metrics without dimensions gives a single aggregated row:
 ```ts
-query('orders').metrics(['total_revenue', 'order_count']).limit(1);
+query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).limit(1);
 ```
+
+**Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
 
 ### `useLightdash(query)` return value
 
