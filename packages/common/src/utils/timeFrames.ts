@@ -79,16 +79,8 @@ type WarehouseConfig = {
     ) => string;
 };
 
-/**
- * Per-warehouse SQL for converting timestamps to the project timezone
- * before DATE_TRUNC. The truncated result stays in local time (NTZ) —
- * no conversion back to UTC is needed because DATE_TRUNC is lossy
- * (always produces midnight, no meaningful time component).
- *
- * BigQuery uses no-ops because TIMESTAMP_TRUNC has native timezone
- * support — the timezone parameter is passed directly inside the
- * function call, not as input wrapping.
- */
+/** Per-warehouse SQL to convert timestamps to the project timezone before DATE_TRUNC.
+ *  BigQuery is a no-op — TIMESTAMP_TRUNC accepts timezone natively. */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string) => string;
 };
@@ -97,7 +89,7 @@ const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
 > = {
-    // BigQuery: no-op — TIMESTAMP_TRUNC handles timezone natively as a parameter
+    // BigQuery: no-op — TIMESTAMP_TRUNC accepts timezone natively
     [SupportedDbtAdapter.BIGQUERY]: {
         toProjectTz: (sql) => sql,
     },
@@ -105,8 +97,7 @@ const dateTruncTimezoneConversions: Record<
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz) => `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
     },
-    // Postgres: ::timestamptz interprets NTZ via session TZ (data timezone),
-    // then AT TIME ZONE converts to project TZ (produces NTZ in local time)
+    // Postgres: cast to timestamptz (session TZ), then AT TIME ZONE to project TZ
     [SupportedDbtAdapter.POSTGRES]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
     },
@@ -121,10 +112,7 @@ const dateTruncTimezoneConversions: Record<
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
     },
-    // Trino/Athena: CAST to timestamptz interprets NTZ via session TZ,
-    // then AT TIME ZONE changes the timezone. Unlike Postgres, Trino's
-    // AT TIME ZONE on timestamptz produces another timestamptz (not NTZ).
-    // The outer CAST to timestamp strips the timezone to get NTZ local time.
+    // Trino/Athena: cast to timestamptz, AT TIME ZONE, then cast back to NTZ
     [SupportedDbtAdapter.TRINO]: {
         toProjectTz: (sql, tz) =>
             `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
@@ -150,9 +138,7 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
 };
 
 const bigqueryConfig: WarehouseConfig = {
-    // BigQuery TIMESTAMP_TRUNC has native timezone support — timezone is
-    // passed as a parameter, not via input/output wrapping. The
-    // dateTruncTimezoneConversions for BigQuery are no-ops for this reason.
+    // BigQuery: timezone passed natively to TIMESTAMP_TRUNC (no input wrapping needed)
     getSqlForTruncatedDate: (
         timeFrame,
         originalSql,
@@ -166,9 +152,7 @@ const bigqueryConfig: WarehouseConfig = {
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
-                // TIMESTAMP_TRUNC returns a UTC TIMESTAMP. Wrap with
-                // DATETIME to convert to local time so the result matches
-                // date literals in filters (e.g., '2024-01-15').
+                // Wrap with DATETIME to convert UTC result to local time
                 return `DATETIME(TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}'), '${timezone}')`;
             }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
@@ -532,16 +516,8 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
 
 /**
  * Generates DATE_TRUNC SQL, optionally with timezone conversion.
- *
- * When timezone is provided, the flow is:
- *   1. Convert input to project timezone (dateTruncTimezoneConversions.toProjectTz)
- *   2. Apply DATE_TRUNC (warehouseConfigs.getSqlForTruncatedDate)
- *      — BigQuery uses timezone natively inside TIMESTAMP_TRUNC; others ignore it
- *
- * The result stays in the project timezone (NTZ). DATE_TRUNC is lossy —
- * it always produces midnight with no meaningful time component — so
- * converting back to UTC is unnecessary and would break filter comparisons
- * (e.g., `= '2024-01-15'` wouldn't match midnight-local expressed as UTC).
+ * When timezone is provided: convert to project TZ, then DATE_TRUNC.
+ * Result stays in project TZ (NTZ) — no back-conversion to UTC.
  */
 export const getSqlForTruncatedDate = (
     adapterType: SupportedDbtAdapter,
@@ -790,11 +766,7 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
               TimeFrames.YEAR,
           ];
 
-/**
- * Time frames that use DATE_TRUNC (truncation to a calendar boundary).
- * Non-truncatable time frames (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.) use
- * EXTRACT/DATE_PART instead and should not be passed to getSqlForTruncatedDate.
- */
+/** Time frames that use DATE_TRUNC (not EXTRACT/DATE_PART). */
 export const truncatableTimeFrames: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.MILLISECOND,
     TimeFrames.SECOND,

@@ -131,17 +131,9 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
-    /**
-     * When true, DATE_TRUNC on timestamp dimensions is wrapped with
-     * timezone conversion to group by day/week/month in the project
-     * timezone instead of UTC. Gated behind EnableTimezoneSupport.
-     */
+    /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
     useTimezoneAwareDateTrunc?: boolean;
-    /**
-     * The warehouse data timezone from credentials. Used to skip
-     * timezone-aware DATE_TRUNC wrapping when the session timezone
-     * already matches the query timezone (no conversion needed).
-     */
+    /** Warehouse session timezone — used to skip wrapping when it matches queryTimezone. */
     dataTimezone?: string;
 };
 
@@ -318,14 +310,7 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
-    /**
-     * Returns the query timezone when timezone-aware DATE_TRUNC is needed,
-     * undefined otherwise. Used to pass timezone to getDimensionFromId and
-     * getSqlForTruncatedDate.
-     *
-     * Skips wrapping when the warehouse session timezone already matches
-     * the query timezone, since bare DATE_TRUNC already groups correctly.
-     */
+    /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise. */
     private get timezoneForDateTrunc(): string | undefined {
         if (!this.args.useTimezoneAwareDateTrunc) return undefined;
         if (this.shouldSkipTimezoneConversion()) return undefined;
@@ -333,21 +318,9 @@ export class MetricQueryBuilder {
     }
 
     /**
-     * Whether timezone conversion can be skipped because the warehouse
-     * input is already in the query timezone.
-     *
-     * Each warehouse's DATE_TRUNC input has an "effective input timezone"
-     * that determines what bare DATE_TRUNC operates on:
-     *
-     * - Snowflake: convertTimezone() in translator.ts normalizes all
-     *   timestamp compiledSql to UTC at compile time, so the effective
-     *   input TZ is always UTC regardless of the session/data timezone.
-     *
-     * - All others: compiledSql is the raw column, interpreted via the
-     *   warehouse session timezone (= dataTimezone, defaulting to UTC).
-     *
-     * When the effective input TZ matches the query TZ, bare DATE_TRUNC
-     * already truncates in the correct timezone — no wrapping needed.
+     * Skip timezone conversion when the effective input TZ matches the query TZ.
+     * Snowflake's effective input is always UTC (convertTimezone normalizes at
+     * compile time); all others use dataTimezone (defaulting to UTC).
      */
     private shouldSkipTimezoneConversion(): boolean {
         const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
@@ -608,12 +581,7 @@ export class MetricQueryBuilder {
         );
     }
 
-    /**
-     * Returns timezone-aware dimension SQL when the dimension has a time
-     * interval and the feature is enabled. Looks up the base dimension's
-     * compiledSql (before DATE_TRUNC) and regenerates the DATE_TRUNC
-     * with timezone conversion via getSqlForTruncatedDate.
-     */
+    /** Regenerates DATE_TRUNC with timezone conversion for truncatable timestamp dimensions. */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
@@ -621,10 +589,8 @@ export class MetricQueryBuilder {
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
-        // Only apply timezone-aware DATE_TRUNC when the feature is enabled
-        // and the dimension uses a truncatable time interval (DAY, WEEK, etc.).
-        // Non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.) use
-        // EXTRACT/DATE_PART and must not be passed to getSqlForTruncatedDate.
+        // Skip non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.)
+        // which use EXTRACT/DATE_PART, not DATE_TRUNC.
         if (
             !useTimezoneAwareDateTrunc ||
             !dimension.timeInterval ||
@@ -633,8 +599,7 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        // Look up the base dimension (without time interval) to check
-        // if it's a timestamp and get its compiledSql before DATE_TRUNC
+        // Get base dimension's compiledSql (before DATE_TRUNC)
         const baseDimensionId = dimension.timeIntervalBaseDimensionName
             ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
             : undefined;
@@ -1387,10 +1352,7 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
-        // When timezone-aware DATE_TRUNC is active, override the filter
-        // dimension's compiledSql to match the SELECT clause. Without this,
-        // filters on time-interval dimensions (e.g., event_timestamp_day = '2024-01-16')
-        // would use UTC DATE_TRUNC while the SELECT groups by project timezone.
+        // Override filter dimension SQL to match the timezone-aware SELECT clause
         const filterField = isDimension(field)
             ? {
                   ...field,
