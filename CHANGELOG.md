@@ -1,3 +1,10 @@
+# [0.2741.0](https://github.com/lightdash/lightdash/compare/0.2740.5...0.2741.0) (2026-04-09)
+
+
+### Features
+
+* add gzip compression for JS and CSS files (regression after vite8) ([#21865](https://github.com/lightdash/lightdash/issues/21865)) ([5cef987](https://github.com/lightdash/lightdash/commit/5cef9871e22a261045fa0d3a04ebf8c721b62abc)), closes [packages/backend/src/App.ts#L618](https://github.com/packages/backend/src/App.ts/issues/L618)
+
 ## [0.2740.5](https://github.com/lightdash/lightdash/compare/0.2740.4...0.2740.5) (2026-04-09)
 
 
