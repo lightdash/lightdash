@@ -57,6 +57,7 @@ export default defineConfig({
     projects: [
         {
             name: 'setup',
+            testDir: './playwright',
             testMatch: /global-setup\.ts/,
         },
         {
