@@ -1,8 +1,9 @@
 import { useRef, type FC } from 'react';
-import { useAppSdkBridge } from './hooks/useAppSdkBridge';
+import { useAppSdkBridge, type QueryEvent } from './hooks/useAppSdkBridge';
 
 type Props = {
     src: string;
+    onQueryEvent?: (event: QueryEvent) => void;
 };
 
 /**
@@ -13,9 +14,9 @@ type Props = {
  * routes all API calls through postMessage, and this component's bridge
  * executes them using the current user's session.
  */
-const AppIframePreview: FC<Props> = ({ src }) => {
+const AppIframePreview: FC<Props> = ({ src, onQueryEvent }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const { handleIframeLoad } = useAppSdkBridge(iframeRef);
+    const { handleIframeLoad } = useAppSdkBridge(iframeRef, onQueryEvent);
 
     return (
         <iframe

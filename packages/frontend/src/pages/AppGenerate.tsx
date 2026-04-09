@@ -41,12 +41,14 @@ import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUploadUrl } from '../features/apps/hooks/useAppImageUploadUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
+import QueryInspector from '../features/apps/QueryInspector';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
@@ -64,7 +66,8 @@ const AppPreview: FC<{
     projectUuid: string;
     appUuid: string;
     version: number;
-}> = ({ projectUuid, appUuid, version }) => {
+    onQueryEvent?: (event: QueryEvent) => void;
+}> = ({ projectUuid, appUuid, version, onQueryEvent }) => {
     const {
         data: token,
         isLoading,
@@ -98,7 +101,7 @@ const AppPreview: FC<{
 
     if (!previewUrl) return null;
 
-    return <AppIframePreview src={previewUrl} />;
+    return <AppIframePreview src={previewUrl} onQueryEvent={onQueryEvent} />;
 };
 
 const LoadingDots: FC = () => (
@@ -122,6 +125,40 @@ const AppGenerate: FC = () => {
         previewUrl: string;
     } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
+    const handleQueryEvent = useCallback((event: QueryEvent) => {
+        setTrackedQueries((prev) => {
+            // If this event has a queryUuid, merge it with an existing entry
+            if (event.queryUuid) {
+                const existing = prev.find(
+                    (q) => q.queryUuid === event.queryUuid,
+                );
+                if (existing) {
+                    return prev.map((q) =>
+                        q.queryUuid === event.queryUuid
+                            ? {
+                                  ...q,
+                                  status: event.status,
+                                  rowCount: event.rowCount ?? q.rowCount,
+                                  durationMs: event.durationMs ?? q.durationMs,
+                                  error: event.error ?? q.error,
+                              }
+                            : q,
+                    );
+                }
+            }
+            // If this is a POST initiation with queryUuid, check if we
+            // have a pending entry from the same request id to merge
+            const pendingIdx = prev.findIndex(
+                (q) => q.id === event.id && q.status === 'pending',
+            );
+            if (pendingIdx >= 0) {
+                return prev.map((q, i) => (i === pendingIdx ? event : q));
+            }
+            return [...prev, event];
+        });
+    }, []);
+    const clearQueries = useCallback(() => setTrackedQueries([]), []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
@@ -889,6 +926,7 @@ const AppGenerate: FC = () => {
                                     projectUuid={projectUuid}
                                     appUuid={previewApp.appUuid}
                                     version={previewApp.version}
+                                    onQueryEvent={handleQueryEvent}
                                 />
                             ) : (
                                 <Box className={classes.previewEmpty}>
@@ -898,6 +936,10 @@ const AppGenerate: FC = () => {
                                     </Text>
                                 </Box>
                             )}
+                            <QueryInspector
+                                queries={trackedQueries}
+                                onClear={clearQueries}
+                            />
                         </Box>
                     </Box>
                 </Panel>
