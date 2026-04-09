@@ -113,7 +113,7 @@
         "graphile-worker": "0.13.0",
         "graphql": "16.8.1",
         "graphql-request": "5.2.0",
-        "handlebars": "4.7.8",
+        "handlebars": "4.7.9",
         "helmet": "7.1.0",
         "immer": "10.1.1",
         "jose": "5.2.3",
