@@ -1,3 +1,10 @@
+## [0.2745.1](https://github.com/lightdash/lightdash/compare/0.2745.0...0.2745.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* support sql_filter in explores config (PROD-6867) ([#21841](https://github.com/lightdash/lightdash/issues/21841)) ([3ea86bb](https://github.com/lightdash/lightdash/commit/3ea86bbc12f65662315628d06bebc4f9b623f01f))
+
 # [0.2745.0](https://github.com/lightdash/lightdash/compare/0.2744.1...0.2745.0) (2026-04-09)
 
 
