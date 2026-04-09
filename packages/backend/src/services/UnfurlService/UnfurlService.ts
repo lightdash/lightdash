@@ -1251,6 +1251,46 @@ export class UnfurlService extends BaseService {
                         'Screenshot ready indicator found - page is ready',
                     );
 
+                    // Auto-detect CJK language from page content and set
+                    // <html lang="..."> so CSS :lang() rules select the
+                    // correct Noto Sans CJK font variant for screenshots.
+                    const detectedLang = await page.evaluate(() => {
+                        const text = document.body.innerText;
+                        if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text))
+                            return 'ja';
+                        if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text))
+                            return 'ko';
+                        if (/[\u4E00-\u9FFF]/.test(text)) {
+                            // Distinguish Simplified vs Traditional Chinese
+                            // by checking for script-specific character variants
+                            const simplified = (
+                                text.match(
+                                    /[\u4EEC\u56FD\u5B66\u5BF9\u8FD9\u8BA9\u8BF4\u4E1C\u7ECF\u5F00]/g,
+                                ) ?? []
+                            ).length;
+                            const traditional = (
+                                text.match(
+                                    /[\u5011\u570B\u5B78\u5C0D\u9019\u8B93\u8AAA\u6771\u7D93\u958B]/g,
+                                ) ?? []
+                            ).length;
+                            return traditional > simplified ? 'zh-TW' : 'zh-CN';
+                        }
+                        return null;
+                    });
+                    if (detectedLang) {
+                        await page.evaluate(
+                            (lang) =>
+                                document.documentElement.setAttribute(
+                                    'lang',
+                                    lang,
+                                ),
+                            detectedLang,
+                        );
+                        this.logger.info(
+                            `Auto-detected CJK language: ${detectedLang}`,
+                        );
+                    }
+
                     const path = `/tmp/${imageId}.png`;
 
                     let finalSelector = selector;
