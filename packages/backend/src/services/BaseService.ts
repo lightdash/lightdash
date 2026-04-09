@@ -1,7 +1,11 @@
 import { type Ability } from '@casl/ability';
 import { isAccount, type Account, type SessionUser } from '@lightdash/common';
-import type { CallStackEntry } from '../logging/auditLog';
-import { CaslAuditWrapper } from '../logging/caslAuditWrapper';
+import type { AuditResource, CallStackEntry } from '../logging/auditLog';
+import {
+    CaslAuditWrapper,
+    createActorFromAccount,
+    createActorFromUser,
+} from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
 import { logAuditEvent } from '../logging/winston';
 
@@ -105,5 +109,39 @@ export abstract class BaseService {
             callStack,
             auditLogger: logAuditEvent,
         });
+    }
+
+    /**
+     * Logs an audit event for operations where permission checks are bypassed
+     * (e.g., cascaded soft-delete/restore where the parent already checked permissions).
+     */
+    protected logBypassEvent(
+        accountOrUser: Account | SessionUser,
+        action: string,
+        resource: AuditResource,
+    ): void {
+        try {
+            const actor = isAccount(accountOrUser)
+                ? createActorFromAccount(accountOrUser)
+                : createActorFromUser(accountOrUser);
+            const callStack = captureCallStack();
+
+            logAuditEvent({
+                id: crypto.randomUUID(),
+                timestamp: new Date().toISOString(),
+                actor,
+                action,
+                resource,
+                context: {},
+                status: 'allowed-bypass',
+                callStack,
+            });
+        } catch (err) {
+            this.logger.warn('Failed to log bypass audit event', {
+                error: err instanceof Error ? err.message : String(err),
+                action,
+                resourceType: resource.type,
+            });
+        }
     }
 }

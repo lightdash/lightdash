@@ -1,9 +1,13 @@
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 
-export type AuditStatusType = 'allowed' | 'denied';
+export type AuditStatusType = 'allowed' | 'denied' | 'allowed-bypass';
 
-export const AuditStatusSchema = z.enum(['allowed', 'denied']);
+export const AuditStatusSchema = z.enum([
+    'allowed',
+    'denied',
+    'allowed-bypass',
+]);
 
 // Discriminated union for audit actors
 const BaseUserActorSchema = z.object({

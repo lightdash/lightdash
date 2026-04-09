@@ -16,6 +16,7 @@ import {
     type AuditStatusType,
     type CallStackEntry,
 } from './auditLog';
+import Logger from './logger';
 
 export type AuditLogger = (event: AuditLogEvent) => void;
 
@@ -35,7 +36,7 @@ export type AuditableUser = Pick<
 
 type AuditableCaslSubject = ForcedSubject<CaslSubjectNames> & {
     organizationUuid: string;
-    uuid: string;
+    uuid?: string;
     name?: string;
     projectUuid?: string;
 };
@@ -206,21 +207,29 @@ export class CaslAuditWrapper<T extends Ability> {
         status: AuditStatusType,
         reason?: string,
     ): void {
-        const resource = createResourceFromSubject(args.subject);
-        const context = createContextFromArgs(args);
+        try {
+            const resource = createResourceFromSubject(args.subject);
+            const context = createContextFromArgs(args);
 
-        const event = createAuditLogEvent(
-            args.actor,
-            args.action,
-            resource,
-            context,
-            status,
-            reason,
-            args.ruleConditions,
-            args.callStack,
-        );
+            const event = createAuditLogEvent(
+                args.actor,
+                args.action,
+                resource,
+                context,
+                status,
+                reason,
+                args.ruleConditions,
+                args.callStack,
+            );
 
-        this.auditLogger(event);
+            this.auditLogger(event);
+        } catch (err) {
+            Logger.warn('Failed to log audit event', {
+                error: err instanceof Error ? err.message : String(err),
+                action: args.action,
+                subjectType: args.subject?.__caslSubjectType__,
+            });
+        }
     }
 
     can(action: string, subject: AuditableCaslSubject): boolean {

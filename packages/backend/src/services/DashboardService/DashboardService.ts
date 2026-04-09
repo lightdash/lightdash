@@ -573,7 +573,6 @@ export class DashboardService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: '',
                 }),
             )
         ) {
@@ -1270,7 +1269,13 @@ export class DashboardService
         dashboardUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'Dashboard',
+                uuid: dashboardUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const dashboard =
                 await this.dashboardModel.getByIdOrSlug(dashboardUuid);
             const { inheritsFromOrgOrProject, access } =
@@ -1323,7 +1328,14 @@ export class DashboardService
             { deleted: true },
         );
 
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                uuid: dashboardUuid,
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            });
+        } else {
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -1366,7 +1378,13 @@ export class DashboardService
         dashboardUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                uuid: dashboardUuid,
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const dashboard = await this.dashboardModel.getByIdOrSlug(
                 dashboardUuid,
                 { deleted: true },
@@ -1517,7 +1535,6 @@ export class DashboardService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             )
         ) {
