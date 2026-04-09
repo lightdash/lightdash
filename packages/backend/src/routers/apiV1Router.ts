@@ -20,6 +20,7 @@ import {
     getDatabricksOidcEndpointsFromHost,
     getDatabricksStrategyName,
 } from '../controllers/authentication/strategies/databricksStrategy';
+import { getInstalledDbtVersions } from '../dbt/dbtVersions';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import Logger from '../logging/logger';
 import { UserModel } from '../models/UserModel';
@@ -205,6 +206,17 @@ apiV1Router.get('/health', async (req, res, next) => {
             res.json({
                 status: 'ok',
                 results: state,
+            }),
+        )
+        .catch(next);
+});
+
+apiV1Router.get('/dbt/installed-versions', async (req, res, next) => {
+    getInstalledDbtVersions()
+        .then((results) =>
+            res.json({
+                status: 'ok',
+                results,
             }),
         )
         .catch(next);

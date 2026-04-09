@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import React, { type FC } from 'react';
+import useInstalledDbtVersions from '../../../hooks/dbt/useInstalledDbtVersions';
 import { useFormContext } from '../formContext';
 
 const DbtVersionSelect: FC<{
@@ -13,6 +14,21 @@ const DbtVersionSelect: FC<{
 }> = ({ disabled }) => {
     const form = useFormContext();
     const field = form.getInputProps('dbtVersion');
+    const { data: installedVersions } = useInstalledDbtVersions();
+
+    const getVersionLabel = (version: SupportedDbtVersions): string => {
+        const patchVersion = installedVersions?.[version];
+        if (patchVersion) {
+            return `${version} (running ${patchVersion})`;
+        }
+        return version;
+    };
+
+    const latestVersion = getLatestSupportDbtVersion();
+    const latestPatchVersion = installedVersions?.[latestVersion];
+    const latestLabel = latestPatchVersion
+        ? `latest (running ${latestPatchVersion})`
+        : `latest (${latestVersion})`;
 
     return (
         <Select
@@ -22,13 +38,13 @@ const DbtVersionSelect: FC<{
             data={[
                 {
                     value: DbtVersionOptionLatest.LATEST,
-                    label: `latest (${getLatestSupportDbtVersion()})`,
+                    label: latestLabel,
                 },
                 ...Object.values(SupportedDbtVersions)
                     .reverse()
                     .map((version) => ({
                         value: version,
-                        label: version,
+                        label: getVersionLabel(version),
                     })),
             ]}
             value={field.value}

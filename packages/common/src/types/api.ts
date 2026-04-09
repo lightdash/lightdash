@@ -166,6 +166,7 @@ import {
     type CreateWarehouseCredentials,
     type DbtProjectConfig,
     type Project,
+    type SupportedDbtVersions,
     type WarehouseCredentials,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
@@ -795,6 +796,9 @@ export type PasswordReset = {
 };
 
 export type ApiHealthResults = HealthState;
+export type ApiInstalledDbtVersionsResults = Partial<
+    Record<SupportedDbtVersions, string>
+>;
 export type InviteLink = {
     expiresAt: Date;
     inviteCode: string;
@@ -828,6 +832,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiHealthResults
+    | ApiInstalledDbtVersionsResults
     | Organization
     | LightdashUser
     | LoginOptions
