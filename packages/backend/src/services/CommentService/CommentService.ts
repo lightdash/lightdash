@@ -158,12 +158,14 @@ export class CommentService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('DashboardComments', {
-                    projectUuid: dashboard.projectUuid,
                     organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    name: dashboard.name,
                 }),
             )
         ) {
@@ -225,12 +227,14 @@ export class CommentService extends BaseService {
             },
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    name: dashboard.name,
                 }),
             )
         ) {
@@ -243,11 +247,12 @@ export class CommentService extends BaseService {
             );
         }
 
-        const canUserRemoveAnyComment = user.ability.can(
+        const canUserRemoveAnyComment = auditedAbility.can(
             'manage',
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
+                name: dashboard.name,
             }),
         );
 
@@ -267,12 +272,14 @@ export class CommentService extends BaseService {
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    name: dashboard.name,
                 }),
             )
         ) {
@@ -318,27 +325,24 @@ export class CommentService extends BaseService {
             );
         }
 
-        const canRemoveAnyComment = user.ability.can(
+        const auditedAbility = this.createAuditedAbility(user);
+        const canRemoveAnyComment = auditedAbility.can(
             'manage',
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
+                name: dashboard.name,
             }),
         );
 
         const comment = await this.commentModel.getComment(commentId);
+        const isOwner = comment.userUuid === user.userUuid;
 
-        if (canRemoveAnyComment) {
-            await this.commentModel.deleteComment(commentId);
-        } else {
-            const isOwner = comment.userUuid === user.userUuid;
-
-            if (isOwner) {
-                await this.commentModel.deleteComment(commentId);
-            }
-
+        if (!canRemoveAnyComment && !isOwner) {
             throw new ForbiddenError();
         }
+
+        await this.commentModel.deleteComment(commentId);
 
         this.analytics.track({
             event: 'comment.deleted',
@@ -347,7 +351,7 @@ export class CommentService extends BaseService {
                 isReply: !!comment.replyTo,
                 dashboardTileUuid: comment.dashboardTileUuid,
                 dashboardUuid,
-                isOwner: comment.userUuid === user.userUuid,
+                isOwner,
                 hasMention: comment.mentions.length > 0,
             },
         });
