@@ -35,6 +35,7 @@ import {
     IconCopy,
     IconDatabase,
     IconDots,
+    IconFilter,
     IconSearch,
     IconSettings,
     IconTerminal2,
@@ -100,6 +101,11 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
                             block
                             fz="xs"
                             p="xs"
+                            className={
+                                copied
+                                    ? classes.copyFlashActive
+                                    : classes.copyFlash
+                            }
                             style={{
                                 cursor: 'pointer',
                                 wordBreak: 'break-all',
@@ -594,6 +600,33 @@ const ProjectManagementPanel: FC = () => {
         mantineTableProps: {
             highlightOnHover: true,
         },
+        renderEmptyRowsFallback: () => (
+            <Center className={classes.emptyState}>
+                <MantineIcon
+                    icon={search ? IconSearch : IconFilter}
+                    size="xl"
+                    color="ldGray.4"
+                    className={classes.emptyStateIcon}
+                />
+                <Text fz="sm" fw={500} c="ldGray.6">
+                    {search
+                        ? `No projects matching "${search}"`
+                        : 'No projects match the current filters'}
+                </Text>
+                <Button
+                    variant="subtle"
+                    size="xs"
+                    onClick={() => {
+                        setSearch('');
+                        setSelectedWarehouses([]);
+                        setSelectedCreators([]);
+                        setActiveFilter(ProjectTypeFilter.ALL);
+                    }}
+                >
+                    Clear all filters
+                </Button>
+            </Center>
+        ),
         state: {
             isLoading: isLoadingProjects || isLoadingLastProject,
         },
