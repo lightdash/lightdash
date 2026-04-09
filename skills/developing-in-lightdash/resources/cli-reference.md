@@ -105,34 +105,6 @@ lightdash upload --force
 lightdash upload --charts my-chart --dashboards my-dashboard
 ```
 
-## Delete Content
-
-```bash
-There is no `lightdash delete` CLI command. Use one of the following approaches instead.
-
-### Via the Lightdash UI
-
-For charts and dashboards visible in the UI:
-
-1. Navigate to the chart or dashboard
-2. Open the three-dot menu → **Delete**
-
-### Via the REST API (v2)
-
-Use the [v2 API](https://docs.lightdash.com/api-reference/v2) to delete content programmatically. Both endpoints accept a UUID **or** slug.
-When you need this: Charts created via lightdash upload with a dashboardSlug are scoped to that dashboard and may not appear in the UI. They still show up in lightdash download output. Use the API to remove these orphaned charts.
-
-[Delete a chart](https://docs.lightdash.com/api-reference/v2/delete-chart)
-curl -s -X DELETE -H "Authorization: ApiKey $LIGHTDASH_API_KEY" \
-  "$LIGHTDASH_URL/api/v2/projects/$PROJECT_UUID/saved/$CHART_UUID_OR_SLUG"
-
-[Delete a dashboard](https://docs.lightdash.com/api-reference/v2/delete-dashboard)
-curl -s -X DELETE -H "Authorization: ApiKey $LIGHTDASH_API_KEY" \
-  "$LIGHTDASH_URL/api/v2/projects/$PROJECT_UUID/dashboards/$DASHBOARD_UUID_OR_SLUG"
-
-Note: The v1 endpoints (/api/v1/saved/{identifier}, /api/v1/dashboards/{identifier}) only accept UUIDs — passing a slug returns a generic error. Prefer the v2 endpoints above.
-```
-
 ## SQL Runner
 
 Execute raw SQL queries against the warehouse using the current project's credentials.
@@ -237,7 +209,6 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 | `lightdash deploy`    | Sync semantic layer to Lightdash |
 | `lightdash upload`    | Upload charts/dashboards         |
 | `lightdash download`  | Download charts/dashboards       |
-| REST API `DELETE`     | Remove charts/dashboards         |
 | `lightdash preview`   | Create temporary test project    |
 | `lightdash validate`  | Validate against server          |
 | `lightdash lint`      | Validate YAML locally            |
