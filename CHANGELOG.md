@@ -1,3 +1,10 @@
+# [0.2744.0](https://github.com/lightdash/lightdash/compare/0.2743.0...0.2744.0) (2026-04-09)
+
+
+### Features
+
+* remove enterprise requirement for data apps ([#21894](https://github.com/lightdash/lightdash/issues/21894)) ([5898905](https://github.com/lightdash/lightdash/commit/5898905772f7f8dd7ac050c7a3739489b2ff209d))
+
 # [0.2743.0](https://github.com/lightdash/lightdash/compare/0.2742.3...0.2743.0) (2026-04-09)
 
 
