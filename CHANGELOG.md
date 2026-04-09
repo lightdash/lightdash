@@ -1,3 +1,10 @@
+## [0.2742.1](https://github.com/lightdash/lightdash/compare/0.2742.0...0.2742.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* log Slack blocks payload on invalid_blocks error ([#21878](https://github.com/lightdash/lightdash/issues/21878)) ([bfa6351](https://github.com/lightdash/lightdash/commit/bfa6351df26507b239a97196eda8e51372453802))
+
 # [0.2742.0](https://github.com/lightdash/lightdash/compare/0.2741.1...0.2742.0) (2026-04-09)
 
 
