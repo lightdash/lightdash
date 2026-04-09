@@ -2164,8 +2164,6 @@ describe('Number Filter SQL Injection Prevention', () => {
         });
     });
 
-    // ── Boundary formatter tests (GLITCH-323) ───
-
     describe('timezone-aware date formatter boundaries with positive-offset timezones', () => {
         test.each(filterInThePastCompletedDayDateFormatterMocks)(
             'inThePast completed day (tz-aware formatter) for timezone %s',
@@ -2285,7 +2283,6 @@ describe('Number Filter SQL Injection Prevention', () => {
         );
     });
 
-    // ── Negative-offset edge case near midnight UTC (GLITCH-323) ───
     describe('negative-offset edge case near midnight UTC', () => {
         test.each(filterNegativeOffsetEdgeCaseCurrentDayMocks)(
             'inTheCurrent day near midnight UTC for timezone %s',

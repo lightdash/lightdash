@@ -763,7 +763,7 @@ export const filterInTheCurrentDayTimezoneMocks = [
 
 // ── Boundary formatter tests (YYYY-MM-DD) ────────────────────────────
 // createBoundaryDateFormatter converts UTC dates back to project TZ
-// before formatting, fixing the positive-offset date shift (GLITCH-323).
+// before formatting, fixing the positive-offset date shift bug.
 // System time: 04 Apr 2020 06:12:30 GMT
 export const filterInThePastCompletedDayDateFormatterMocks = [
     [
