@@ -228,7 +228,7 @@ export const FormulaEditor: FC<Props> = ({
             <RichTextEditor
                 editor={editor}
                 classNames={{
-                    root: `${styles.editorRoot} ${parseError ? styles.editorRootError : ''}`,
+                    root: styles.editorRoot,
                     content: styles.editorContent,
                 }}
             >

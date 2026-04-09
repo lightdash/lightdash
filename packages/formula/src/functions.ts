@@ -135,6 +135,37 @@ type _AssertAllFunctionsDefined = [
       };
 const _assertAllFunctionsDefined: _AssertAllFunctionsDefined = true;
 
+function formatFunctionArgs(fn: FunctionDefinition): string {
+    if (fn.maxArgs === 0) return '()';
+    if (fn.maxArgs === Infinity) return '(arg1, arg2, ...)';
+    const required = Array.from(
+        { length: fn.minArgs },
+        (_, i) => `arg${i + 1}`,
+    ).join(', ');
+    const optional =
+        fn.maxArgs > fn.minArgs
+            ? `, [${Array.from(
+                  { length: fn.maxArgs - fn.minArgs },
+                  (_, i) => `optional${i + 1}`,
+              ).join(', ')}]`
+            : '';
+    return `(${required}${optional})`;
+}
+
+export const FUNCTION_CATALOG: string = (() => {
+    const byCategory: Record<string, string[]> = {};
+    for (const fn of FUNCTION_DEFINITIONS) {
+        const cat = fn.category.toUpperCase();
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(
+            `  ${fn.name}${formatFunctionArgs(fn)} - ${fn.description}`,
+        );
+    }
+    return Object.entries(byCategory)
+        .map(([cat, fns]) => `${cat}:\n${fns.join('\n')}`)
+        .join('\n\n');
+})();
+
 export function getParserOptions() {
     return {
         zeroArgFns: ZERO_ARG_FNS,

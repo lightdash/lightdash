@@ -24,7 +24,7 @@ export type {
 } from './functions';
 export { parse } from './compiler';
 export { extractColumnRefs } from './ast';
-export { FUNCTION_DEFINITIONS } from './functions';
+export { FUNCTION_CATALOG, FUNCTION_DEFINITIONS } from './functions';
 
 export function compile(formula: string, options: CompileOptions): string {
     const ast = parse(formula);

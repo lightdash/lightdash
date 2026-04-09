@@ -9,6 +9,7 @@ import {
     NumberSeparator,
     TableCalculationType,
     type CustomFormat,
+    type GeneratedFormulaTableCalculation,
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
@@ -192,6 +193,8 @@ const TableCalculationModal: FC<Props> = ({
         null,
     );
 
+    const [formulaKey, setFormulaKey] = useState(0);
+
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
         (!form.values.formula ||
@@ -291,6 +294,21 @@ const TableCalculationModal: FC<Props> = ({
             setEditedTemplate(updated);
         },
         [],
+    );
+
+    const handleFormulaAiApply = useCallback(
+        (result: GeneratedFormulaTableCalculation) => {
+            form.setFieldValue('formula', result.formula);
+            form.setFieldValue('name', result.displayName);
+            if (result.type) {
+                form.setFieldValue('type', result.type);
+            }
+            if (result.format) {
+                form.setFieldValue('format', result.format);
+            }
+            setFormulaKey((k) => k + 1);
+        },
+        [form],
     );
 
     const tableCalculationTypeOptions = useMemo(
@@ -436,6 +454,7 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
+                                key={formulaKey}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
@@ -446,6 +465,7 @@ const TableCalculationModal: FC<Props> = ({
                                     form.setFieldValue('formula', text)
                                 }
                                 onValidationChange={setFormulaParseError}
+                                onAiApply={handleFormulaAiApply}
                                 isFullScreen={isExpanded}
                             />
                         ) : (
