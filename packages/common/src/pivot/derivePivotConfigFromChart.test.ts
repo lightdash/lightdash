@@ -697,9 +697,7 @@ describe('derivePivotConfigurationFromChart', () => {
             const mq: MetricQuery = {
                 ...mockMetricQuery,
                 tableCalculations: [mockTableCalc],
-                sorts: [
-                    { fieldId: 'revenue_per_order', descending: true },
-                ],
+                sorts: [{ fieldId: 'revenue_per_order', descending: true }],
             };
 
             const result = derivePivotConfigurationFromChart(
@@ -756,9 +754,7 @@ describe('derivePivotConfigurationFromChart', () => {
             const mq: MetricQuery = {
                 ...mockMetricQuery,
                 metrics: ['payments_total_revenue', 'orders_count'],
-                sorts: [
-                    { fieldId: 'orders_count', descending: true },
-                ],
+                sorts: [{ fieldId: 'orders_count', descending: true }],
             };
 
             const result = derivePivotConfigurationFromChart(
