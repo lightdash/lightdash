@@ -1,3 +1,10 @@
+## [0.2740.5](https://github.com/lightdash/lightdash/compare/0.2740.4...0.2740.5) (2026-04-09)
+
+
+### Bug Fixes
+
+* bump axios override 1.12.2 → 1.13.5 (security) ([#21864](https://github.com/lightdash/lightdash/issues/21864)) ([a04b2a4](https://github.com/lightdash/lightdash/commit/a04b2a4da47f45e9524f0515ffd6d7ad3c08908a))
+
 ## [0.2740.4](https://github.com/lightdash/lightdash/compare/0.2740.3...0.2740.4) (2026-04-09)
 
 
