@@ -1,3 +1,11 @@
+## [0.2744.1](https://github.com/lightdash/lightdash/compare/0.2744.0...0.2744.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* make timezone picker clearable to reset to project default ([#21896](https://github.com/lightdash/lightdash/issues/21896)) ([130a338](https://github.com/lightdash/lightdash/commit/130a3382919cda17f5f17aca03a50c520fe8cd9e))
+* missing ISOs in world maps ([#21901](https://github.com/lightdash/lightdash/issues/21901)) ([4e48340](https://github.com/lightdash/lightdash/commit/4e483400c265a64b71156a652d77ccaeec433743))
+
 # [0.2744.0](https://github.com/lightdash/lightdash/compare/0.2743.0...0.2744.0) (2026-04-09)
 
 
