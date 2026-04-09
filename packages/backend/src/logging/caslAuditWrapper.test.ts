@@ -334,4 +334,81 @@ describe('CaslAuditWrapper', () => {
             ).not.toThrow();
         });
     });
+
+    describe('audit logging resilience', () => {
+        it('should return correct result when audit logger throws on can()', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            const dashboard = createDashboard('1');
+            expect(wrapper.can('read', dashboard)).toBe(true);
+            expect(throwingLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should return correct result when audit logger throws on cannot()', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            const dashboard = createDashboard('1');
+            expect(wrapper.cannot('read', dashboard)).toBe(false);
+            expect(throwingLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should return denied result correctly when audit logger throws', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
+            expect(wrapper.can('read', privateDashboard)).toBe(false);
+            expect(wrapper.cannot('read', privateDashboard)).toBe(true);
+        });
+    });
+
+    describe('capability checks (no resource uuid)', () => {
+        it('should handle subjects without uuid', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            const capabilitySubject = subject('Dashboard', {
+                organizationUuid: 'test-org-uuid',
+                projectUuid: 'test-project-uuid',
+            }) as ForcedSubject<CaslSubjectNames> & {
+                organizationUuid: string;
+            };
+
+            wrapper.can('read', capabilitySubject);
+
+            expect(mockLogger).toHaveBeenCalledTimes(1);
+            const loggedEvent = mockLogger.mock.calls[0][0];
+            expect(loggedEvent.resource.uuid).toBeUndefined();
+            expect(loggedEvent.resource.type).toBe('Dashboard');
+            expect(loggedEvent.resource.organizationUuid).toBe('test-org-uuid');
+        });
+    });
 });
