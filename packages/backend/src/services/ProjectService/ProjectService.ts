@@ -2713,6 +2713,32 @@ export class ProjectService extends BaseService {
         });
     }
 
+    async deleteExpiredPreviewProjects(): Promise<number> {
+        const expiredProjects =
+            await this.projectModel.getExpiredPreviewProjects();
+
+        const results = await Promise.allSettled(
+            expiredProjects.map(({ projectUuid }) =>
+                this.projectModel.delete(projectUuid).then(() => {
+                    this.logger.info(
+                        `Deleted expired preview project: ${projectUuid}`,
+                    );
+                }),
+            ),
+        );
+
+        results
+            .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+            .forEach((r, i) => {
+                this.logger.error(
+                    `Failed to delete expired preview project ${expiredProjects[i].projectUuid}`,
+                    { error: r.reason },
+                );
+            });
+
+        return results.filter((r) => r.status === 'fulfilled').length;
+    }
+
     private async buildAdapter(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
