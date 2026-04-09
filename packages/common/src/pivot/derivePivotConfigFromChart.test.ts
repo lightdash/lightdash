@@ -606,6 +606,247 @@ describe('derivePivotConfigurationFromChart', () => {
         });
     });
 
+    describe('Sort by metric not in viz (PROD-6906)', () => {
+        it('includes sort-only metrics in valuesColumns for Cartesian charts', () => {
+            const itemsWithExtraMetric: ItemsMap = {
+                ...mockItems,
+                orders_count: {
+                    sql: 'COUNT(${TABLE}.order_id)',
+                    name: 'count',
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Order Count',
+                    hidden: false,
+                    index: 0,
+                    filters: [],
+                    groups: [],
+                },
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: mockCartesianChartConfig, // yField: ['payments_total_revenue']
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                metrics: ['payments_total_revenue', 'orders_count'],
+                sorts: [
+                    { fieldId: 'orders_count', descending: true }, // sort by metric NOT in yField
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithExtraMetric,
+            );
+
+            expect(result).toBeDefined();
+            // orders_count should be added to valuesColumns even though it's not in yField
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+                {
+                    reference: 'orders_count',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+            // The sort should be preserved
+            expect(result?.sortBy).toEqual([
+                {
+                    reference: 'orders_count',
+                    direction: SortByDirection.DESC,
+                },
+            ]);
+        });
+
+        it('includes sort-only table calculation in valuesColumns', () => {
+            const mockTableCalc: TableCalculation = {
+                name: 'revenue_per_order',
+                displayName: 'Revenue per Order',
+                sql: '${payments_total_revenue} / ${orders_count}',
+            };
+
+            const cartesianChartWithOneMetric: CartesianChartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'payments_payment_method',
+                        yField: ['payments_total_revenue'], // TC not in yField
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: cartesianChartWithOneMetric,
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                tableCalculations: [mockTableCalc],
+                sorts: [
+                    { fieldId: 'revenue_per_order', descending: true },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+                {
+                    reference: 'revenue_per_order',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+            expect(result?.sortBy).toEqual([
+                {
+                    reference: 'revenue_per_order',
+                    direction: SortByDirection.DESC,
+                },
+            ]);
+        });
+
+        it('sort-only metric does not appear as index column', () => {
+            const itemsWithExtraMetric: ItemsMap = {
+                ...mockItems,
+                orders_count: {
+                    sql: 'COUNT(${TABLE}.order_id)',
+                    name: 'count',
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Order Count',
+                    hidden: false,
+                    index: 0,
+                    filters: [],
+                    groups: [],
+                },
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: mockCartesianChartConfig,
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                metrics: ['payments_total_revenue', 'orders_count'],
+                sorts: [
+                    { fieldId: 'orders_count', descending: true },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithExtraMetric,
+            );
+
+            expect(result).toBeDefined();
+            // orders_count should be in valuesColumns, NOT indexColumn
+            expect(result?.indexColumn).toEqual([
+                {
+                    reference: 'payments_payment_method',
+                    type: VizIndexType.CATEGORY,
+                },
+            ]);
+        });
+
+        it('sort by dimension does not add it to valuesColumns', () => {
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: mockCartesianChartConfig,
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                sorts: [
+                    { fieldId: 'orders_status', descending: false }, // sort by dimension (groupBy)
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+            // Dimension should NOT appear in valuesColumns
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+            // But the sort should still be preserved (it's a groupBy column)
+            expect(result?.sortBy).toEqual([
+                {
+                    reference: 'orders_status',
+                    direction: SortByDirection.ASC,
+                },
+            ]);
+        });
+
+        it('does not duplicate metrics already in yField when also in sorts', () => {
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: mockCartesianChartConfig, // yField: ['payments_total_revenue']
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                sorts: [
+                    { fieldId: 'payments_total_revenue', descending: true },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+        });
+    });
+
     describe('Stacked Bar Chart with Table Calculations', () => {
         it('does not include metrics as index columns when table calculation is on y-axis', () => {
             // This tests that metrics used by table calculations but not on the x-axis

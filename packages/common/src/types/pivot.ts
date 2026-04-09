@@ -8,6 +8,7 @@ export type PivotConfig = {
     metricsAsRows: boolean;
     columnOrder?: string[];
     hiddenMetricFieldIds?: string[];
+    visibleMetricFieldIds?: string[];
     columnTotals?: boolean;
     rowTotals?: boolean;
 };
