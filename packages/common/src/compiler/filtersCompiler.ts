@@ -29,39 +29,16 @@ import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
 import { WeekDay } from '../utils/timeFrames';
 
 /**
- * Creates a formatter for computed Date boundaries in relative date operators
- * (IN_THE_PAST, IN_THE_NEXT, IN_THE_CURRENT, etc.).
- *
- * These operators compute boundaries via .tz(timezone).startOf().utc().toDate(),
- * which shifts the calendar date for non-UTC timezones (e.g., midnight Apr 4 JST
- * → Apr 3 15:00 UTC). This formatter reverses the UTC shift by converting back
- * to the project timezone before formatting as YYYY-MM-DD.
- *
- * NOT used for literal operators (EQUALS, GREATER_THAN, etc.) — those receive
- * plain date strings from the user that already represent the intended local date.
- *
- * Only used when timezone-aware DATE_TRUNC is enabled (EnableTimezoneSupport flag),
- * because the timezone-aware DATE_TRUNC output is NTZ local midnight — filter
- * boundaries must match the same local dates.
+ * Formats computed Date boundaries for relative date operators (IN_THE_PAST, etc.)
+ * by converting UTC back to the project timezone before formatting as YYYY-MM-DD.
+ * Used only when timezone-aware DATE_TRUNC is enabled.
  */
 export const createBoundaryDateFormatter =
     (timezone: string) =>
     (date: Date): string =>
         moment(date).utc().tz(timezone).format('YYYY-MM-DD');
 
-/**
- * Returns the default week start day for a given warehouse adapter.
- * This ensures JavaScript-side week boundary calculations match the warehouse.
- *
- * References:
- * - PostgreSQL: https://www.postgresql.org/docs/current/functions-datetime.html (ISO 8601 weeks start on Monday)
- * - Snowflake: https://docs.snowflake.com/en/sql-reference/functions-date-time (WEEK_START=0 defaults to Monday)
- * - Redshift: https://docs.aws.amazon.com/redshift/latest/dg/r_DATE_TRUNC.html (truncates week to Monday)
- * - Databricks: https://docs.databricks.com/aws/en/sql/language-manual/functions/date_trunc (WEEK truncates to Monday)
- * - Trino: https://trino.io/docs/current/functions/datetime.html (ISO 8601 weeks start on Monday)
- * - BigQuery: https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/date_functions (WEEK is equivalent to WEEK(SUNDAY))
- * - ClickHouse: https://clickhouse.com/docs/sql-reference/functions/date-time-functions (toStartOfWeek default mode=0 is Sunday)
- */
+/** Returns the warehouse's default week start day (Sunday for BQ/Clickhouse, Monday for others). */
 const getDefaultStartOfWeek = (
     adapterType: SupportedDbtAdapter | WarehouseTypes,
 ): WeekDay => {
@@ -74,23 +51,15 @@ const getDefaultStartOfWeek = (
     }
 };
 
-// NOTE: This function requires a complete date as input.
-// The Z format token appends the UTC offset (e.g. +00:00), ensuring the
-// warehouse interprets the literal as UTC regardless of session timezone
-// (which may be set via dataTimezone).
+// Formats as UTC with offset suffix so warehouses interpret it as UTC.
 const formatTimestampAsUTC = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ssZ');
 
-// ClickHouse's date_time_input_format may be set to 'basic', which cannot
-// parse timezone offsets like +00:00. BigQuery's DATETIME type also rejects
-// timezone offsets. Both already interpret bare strings correctly as UTC.
+// Same but without offset — ClickHouse and BigQuery reject timezone suffixes.
 const formatTimestampAsUTCNoOffset = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
 
-/**
- * Cast a date/timestamp string to warehouse-specific SQL literal.
- * Trino/Athena require explicit timestamp casting; others work with bare strings.
- */
+/** Trino/Athena need explicit CAST; others use bare string literals. */
 export const castDateLiteral = (
     dateString: string,
     adapterType: SupportedDbtAdapter | WarehouseTypes,
@@ -283,14 +252,8 @@ export const renderNumberFilterSql = (
 };
 
 /**
- * Shared filter SQL generation for date and timestamp dimensions.
- *
- * Two formatters handle the different value sources:
- * - literalFormatter: for user-provided values (EQUALS, GREATER_THAN, IN_BETWEEN, etc.)
- *   These are already in the correct format and just need type-appropriate pass-through.
- * - boundaryFormatter: for computed Date boundaries (IN_THE_PAST, IN_THE_NEXT, etc.)
- *   These are Date objects from .tz(timezone).startOf().utc().toDate() and may need
- *   timezone conversion to produce the correct local date string.
+ * Shared filter SQL for date and timestamp dimensions.
+ * literalFormatter handles user-provided values; boundaryFormatter handles computed boundaries.
  */
 const renderDateOrTimestampFilterSql = (
     dimensionSql: string,
@@ -573,15 +536,7 @@ const renderDateOrTimestampFilterSql = (
     }
 };
 
-/**
- * Renders filter SQL for DATE-type dimensions (e.g., _day, _week, _month).
- *
- * Literal values (EQUALS '2024-01-15', IN_BETWEEN, etc.) are plain date strings
- * that pass through as-is via formatDate.
- *
- * Computed boundaries (IN_THE_PAST, IN_THE_NEXT, etc.) may need timezone correction
- * via boundaryDateFormatter when timezone-aware DATE_TRUNC is enabled.
- */
+/** Renders filter SQL for DATE-type dimensions. Uses boundaryDateFormatter for computed boundaries. */
 export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
@@ -602,13 +557,7 @@ export const renderDateFilterSql = (
         baseDimensionSql,
     );
 
-/**
- * Renders filter SQL for TIMESTAMP-type dimensions.
- *
- * Both literal values and computed boundaries use the same timestampFormatter
- * (formatTimestampAsUTC or formatTimestampAsUTCNoOffset) to normalize values
- * to UTC for comparison against raw timestamp columns.
- */
+/** Renders filter SQL for TIMESTAMP-type dimensions. Both literals and boundaries use the same UTC formatter. */
 export const renderTimestampFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
