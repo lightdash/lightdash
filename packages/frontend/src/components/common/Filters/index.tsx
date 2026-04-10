@@ -17,6 +17,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Code,
     Divider,
     Group,
     Stack,
@@ -24,7 +25,7 @@ import {
     Tooltip,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
@@ -300,32 +301,33 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                     </>
                 ))}
 
-            {hasInvalidFilterRules &&
-                invalidFilterRules.map((rule, index) => (
-                    <Stack
-                        key={index}
-                        ml={showSimplifiedForm ? undefined : 'xl'}
-                        gap="two"
-                        align="flex-start"
-                    >
+            {hasInvalidFilterRules && (
+                <Stack gap="xs" pl={showSimplifiedForm ? undefined : 36}>
+                    {invalidFilterRules.map((rule) => (
                         <Group
                             key={rule.id}
                             gap="xs"
-                            pl="xs"
+                            px="xs"
+                            h={30}
+                            wrap="nowrap"
                             style={{
-                                border: '1px solid var(--mantine-color-ldGray-2)',
+                                border: '1px solid var(--mantine-color-yellow-6)',
                                 borderRadius: 'var(--mantine-radius-sm)',
                             }}
                         >
-                            <MantineIcon icon={IconAlertCircle} />
-                            <Text c="dimmed" fz="xs">
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="yellow.6"
+                            />
+                            <Text c="yellow.6" fz="xs" style={{ flex: 1 }}>
                                 Tried to reference field with unknown id:{' '}
-                                <Text span fw={500} c="ldGray.7">
+                                <Code fw={500} fz="xs">
                                     {rule.target.fieldId}
-                                </Text>
+                                </Code>
                             </Text>
                             <ActionIcon
                                 variant="subtle"
+                                size="sm"
                                 color="gray"
                                 onClick={() =>
                                     updateFiltersFromGroup(
@@ -339,8 +341,9 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                 <MantineIcon icon={IconX} size="sm" />
                             </ActionIcon>
                         </Group>
-                    </Stack>
-                ))}
+                    ))}
+                </Stack>
+            )}
 
             {isEditMode && (
                 <AddFilterSection
