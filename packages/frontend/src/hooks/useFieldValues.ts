@@ -94,9 +94,9 @@ const getFieldValues = async (
     });
 };
 
-const MAX_POLL_ATTEMPTS = 30; // ~30s with backoff (250ms → 1s)
+export const MAX_POLL_ATTEMPTS = 30; // ~30s with backoff (250ms → 1s)
 
-const pollForFieldValueResults = async (
+export const pollForFieldValueResults = async (
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
