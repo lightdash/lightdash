@@ -556,26 +556,40 @@ const renderDateOrTimestampFilterSql = (
     }
 };
 
-/** Renders filter SQL for DATE-type dimensions. Uses boundaryDateFormatter for computed boundaries. */
+/**
+ * Renders filter SQL for DATE-type dimensions.
+ *
+ * When no explicit boundaryDateFormatter is provided, both boundary
+ * computation and formatting default to UTC.  This matches the warehouse's
+ * UTC-based DATE_TRUNC and removes any dependency on the server's local
+ * timezone.  Callers that enable timezone-aware DATE_TRUNC should pass
+ * createBoundaryDateFormatter(timezone) so both sides use the project
+ * timezone instead.
+ */
 export const renderDateFilterSql = (
     dimensionSql: string,
     filter: DateFilterRule,
     adapterType: SupportedDbtAdapter,
     timezone: string,
-    boundaryDateFormatter: (date: Date) => string = formatDate,
+    boundaryDateFormatter?: (date: Date) => string,
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
-): string =>
-    renderDateOrTimestampFilterSql(
+): string => {
+    const effectiveTimezone = boundaryDateFormatter ? timezone : 'UTC';
+    const effectiveFormatter =
+        boundaryDateFormatter ?? createBoundaryDateFormatter('UTC');
+
+    return renderDateOrTimestampFilterSql(
         dimensionSql,
         filter,
         adapterType,
-        timezone,
+        effectiveTimezone,
         formatDate,
-        boundaryDateFormatter,
+        effectiveFormatter,
         startOfWeek,
         baseDimensionSql,
     );
+};
 
 /** Renders filter SQL for TIMESTAMP-type dimensions. Both literals and boundaries use the same UTC formatter. */
 export const renderTimestampFilterSql = (
