@@ -1,4 +1,9 @@
-import { type SearchItemType, type TimeFrames } from '@lightdash/common';
+import {
+    type CustomFormatType,
+    type SearchItemType,
+    type TableCalculationType,
+    type TimeFrames,
+} from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
     type CategoryName,
@@ -22,8 +27,6 @@ type GenericEvent = {
         | EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_BUTTON_CLICKED
-        | EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED
-        | EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.FORMAT_METRIC_BUTTON_CLICKED
         | EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.ADD_FILTER_CLICKED
@@ -449,6 +452,30 @@ type ThemeToggledEvent = {
     };
 };
 
+export type TableCalculationSaveMode = 'sql' | 'template' | 'formula';
+
+type TableCalculationSaveEvent = {
+    name:
+        | EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED
+        | EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED;
+    properties: {
+        mode: TableCalculationSaveMode;
+        generatedByAi: boolean;
+        resultType: TableCalculationType;
+        formatType: CustomFormatType;
+    };
+};
+
+type FormulaTableCalculationAiGenerateClickedEvent = {
+    name: EventName.FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        isEdit: boolean;
+    };
+};
+
 type DashboardUiVersionToggledEvent = {
     name: EventName.DASHBOARD_UI_VERSION_TOGGLED;
     properties: {
@@ -497,7 +524,9 @@ export type EventData =
     | AiAgentChartCreatedEvent
     | AiAgentChartExploredEvent
     | ThemeToggledEvent
-    | DashboardUiVersionToggledEvent;
+    | DashboardUiVersionToggledEvent
+    | TableCalculationSaveEvent
+    | FormulaTableCalculationAiGenerateClickedEvent;
 
 export type IdentifyData = {
     id: string;

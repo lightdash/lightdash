@@ -33,7 +33,15 @@ import {
     IconMaximize,
     IconMinimize,
 } from '@tabler/icons-react';
-import { lazy, Suspense, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -58,11 +66,19 @@ const SqlForm = lazy(() =>
     import('./SqlForm').then((module) => ({ default: module.SqlForm })),
 );
 
+export type TableCalculationSaveMeta = {
+    mode: 'sql' | 'template' | 'formula';
+    generatedByAi: boolean;
+};
+
 type Props = {
     opened: boolean;
     onClose: () => void;
     tableCalculation?: TableCalculation;
-    onSave: (tableCalculation: TableCalculation) => void;
+    onSave: (
+        tableCalculation: TableCalculation,
+        meta: TableCalculationSaveMeta,
+    ) => void;
 };
 
 type TableCalculationFormInputs = {
@@ -195,6 +211,20 @@ const TableCalculationModal: FC<Props> = ({
 
     const [formulaKey, setFormulaKey] = useState(0);
 
+    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
+    const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
+
+    useEffect(() => {
+        if (opened) {
+            setFormulaGeneratedByAi(false);
+            setSqlGeneratedByAi(false);
+        }
+    }, [opened]);
+
+    const handleSqlAiApplied = useCallback(() => {
+        setSqlGeneratedByAi(true);
+    }, []);
+
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
         (!form.values.formula ||
@@ -234,29 +264,44 @@ const TableCalculationModal: FC<Props> = ({
                 tableCalculation &&
                 isTemplateTableCalculation(tableCalculation)
             ) {
-                onSave({
-                    name: finalName,
-                    displayName: name,
-                    format,
-                    type,
-                    template: editedTemplate ?? tableCalculation.template,
-                });
+                onSave(
+                    {
+                        name: finalName,
+                        displayName: name,
+                        format,
+                        type,
+                        template: editedTemplate ?? tableCalculation.template,
+                    },
+                    { mode: 'template', generatedByAi: false },
+                );
             } else if (editMode === EditMode.FORMULA) {
-                onSave({
-                    name: finalName,
-                    displayName: name,
-                    format,
-                    type,
-                    formula: `=${formula}`,
-                });
+                onSave(
+                    {
+                        name: finalName,
+                        displayName: name,
+                        format,
+                        type,
+                        formula: `=${formula}`,
+                    },
+                    {
+                        mode: 'formula',
+                        generatedByAi: formulaGeneratedByAi,
+                    },
+                );
             } else {
-                onSave({
-                    name: finalName,
-                    displayName: name,
-                    format,
-                    type,
-                    sql,
-                });
+                onSave(
+                    {
+                        name: finalName,
+                        displayName: name,
+                        format,
+                        type,
+                        sql,
+                    },
+                    {
+                        mode: 'sql',
+                        generatedByAi: sqlGeneratedByAi,
+                    },
+                );
             }
         } catch (e) {
             addToastError({
@@ -271,6 +316,8 @@ const TableCalculationModal: FC<Props> = ({
         tableCalculation,
         tableCalculations,
         editedTemplate,
+        formulaGeneratedByAi,
+        sqlGeneratedByAi,
         onSave,
         addToastError,
     ]);
@@ -307,6 +354,7 @@ const TableCalculationModal: FC<Props> = ({
                 form.setFieldValue('format', result.format);
             }
             setFormulaKey((k) => k + 1);
+            setFormulaGeneratedByAi(true);
         },
         [form],
     );
@@ -487,6 +535,7 @@ const TableCalculationModal: FC<Props> = ({
                                         isFullScreen={isExpanded}
                                         focusOnRender={true}
                                         onCmdEnter={handleConfirm}
+                                        onAiApplied={handleSqlAiApplied}
                                     />
                                 </Suspense>
                             </Box>
