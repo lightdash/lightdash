@@ -1,3 +1,10 @@
+## [0.2748.2](https://github.com/lightdash/lightdash/compare/0.2748.1...0.2748.2) (2026-04-10)
+
+
+### Bug Fixes
+
+* disable code splitting in SDK build configuration ([#21939](https://github.com/lightdash/lightdash/issues/21939)) ([7c3e807](https://github.com/lightdash/lightdash/commit/7c3e807869717ca5919beddd8ae466522b0a15b5))
+
 ## [0.2748.1](https://github.com/lightdash/lightdash/compare/0.2748.0...0.2748.1) (2026-04-10)
 
 
