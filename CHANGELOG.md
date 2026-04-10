@@ -1,3 +1,10 @@
+## [0.2751.1](https://github.com/lightdash/lightdash/compare/0.2751.0...0.2751.1) (2026-04-10)
+
+
+### Bug Fixes
+
+* prevent hidden dimensions in required/default filters ([#21944](https://github.com/lightdash/lightdash/issues/21944)) ([e52a98d](https://github.com/lightdash/lightdash/commit/e52a98dfd790384107fd824b704b0fe3f5eaad5a))
+
 # [0.2751.0](https://github.com/lightdash/lightdash/compare/0.2750.0...0.2751.0) (2026-04-10)
 
 
