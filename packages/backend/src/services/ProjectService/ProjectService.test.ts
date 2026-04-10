@@ -998,6 +998,19 @@ describe('ProjectService', () => {
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
 
+        const buildS3CacheMock = (
+            lookups: string[],
+            store: Map<string, string>,
+        ) => ({
+            getIfFresh: jest.fn(async (key: string) => {
+                lookups.push(key);
+                return store.get(key);
+            }),
+            uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
+                store.set(key, buffer.toString());
+            }),
+        });
+
         beforeEach(() => {
             // Clear the warehouse clients cache
             service.warehouseClients = {};
@@ -1092,6 +1105,170 @@ describe('ProjectService', () => {
                                         ORDER BY "a_dim1"
                                         LIMIT 10`),
             );
+        });
+
+        test('should use different cache keys for users with per-user warehouse credentials', async () => {
+            const userA: SessionUser = {
+                ...user,
+                userUuid: 'user-aaaa-1111',
+            };
+
+            const userB: SessionUser = {
+                ...user,
+                userUuid: 'user-bbbb-2222',
+            };
+
+            // Enable autocomplete caching
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
+                },
+            });
+            serviceWithCache.warehouseClients = {};
+
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            // Mock getWarehouseCredentials to simulate per-user credentials
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serviceWithCache as any,
+                'getWarehouseCredentials',
+            ).mockImplementation(async (...args: unknown[]) => {
+                const { userId } = args[0] as { userId: string };
+                return {
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: `cred-${userId}`,
+                };
+            });
+
+            // Mock S3 cache: track all cache key lookups
+            const cacheKeyLookups: string[] = [];
+            const cachedResults = new Map<string, string>();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (serviceWithCache as any).s3CacheClient = buildS3CacheMock(
+                cacheKeyLookups,
+                cachedResults,
+            );
+
+            // User A queries — populates the cache
+            await serviceWithCache.searchFieldUniqueValues(
+                userA,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // User B queries the same field
+            await serviceWithCache.searchFieldUniqueValues(
+                userB,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // Cache keys must differ when users have per-user warehouse credentials
+            expect(cacheKeyLookups[0]).not.toEqual(cacheKeyLookups[1]);
+
+            // Each user should query the warehouse independently
+            expect(runQueryMock).toHaveBeenCalledTimes(2);
+        });
+
+        test('should share cache key when users have shared warehouse credentials', async () => {
+            const userA: SessionUser = {
+                ...user,
+                userUuid: 'user-aaaa-1111',
+            };
+
+            const userB: SessionUser = {
+                ...user,
+                userUuid: 'user-bbbb-2222',
+            };
+
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
+                },
+            });
+            serviceWithCache.warehouseClients = {};
+
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            // No userWarehouseCredentialsUuid — shared project credentials
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serviceWithCache as any,
+                'getWarehouseCredentials',
+            ).mockImplementation(async () => ({
+                ...warehouseClientMock.credentials,
+            }));
+
+            const cacheKeyLookups: string[] = [];
+            const cachedResults = new Map<string, string>();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (serviceWithCache as any).s3CacheClient = buildS3CacheMock(
+                cacheKeyLookups,
+                cachedResults,
+            );
+
+            await serviceWithCache.searchFieldUniqueValues(
+                userA,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            await serviceWithCache.searchFieldUniqueValues(
+                userB,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // Cache keys must be the same — shared credentials, no per-user scoping
+            expect(cacheKeyLookups[0]).toEqual(cacheKeyLookups[1]);
+
+            // Warehouse should only be queried once — second call hits the cache
+            expect(runQueryMock).toHaveBeenCalledTimes(1);
         });
     });
 

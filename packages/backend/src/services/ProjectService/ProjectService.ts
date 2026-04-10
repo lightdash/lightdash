@@ -191,7 +191,6 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
@@ -254,6 +253,7 @@ import {
     wrapSentryTransaction,
     wrapSentryTransactionSync,
 } from '../../utils';
+import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -3903,14 +3903,9 @@ export class ProjectService extends BaseService {
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
-                // TODO: put this hash function in a util somewhere
-                const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${userUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${userUuid}.${query}`;
-                const queryHash = crypto
-                    .createHash('sha256')
-                    .update(queryHashKey)
-                    .digest('hex');
+                const hashParts = [projectUuid, userUuid, query];
+                if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+                const queryHash = buildCacheHash(hashParts);
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
@@ -4217,10 +4212,10 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const userUuid =
-                        warehouseCredentials.userWarehouseCredentialsUuid
-                            ? account.user.id
-                            : null;
+                    const userUuid = getCacheUserUuid(
+                        warehouseCredentials,
+                        account.user.id,
+                    );
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
@@ -4740,13 +4735,14 @@ export class ProjectService extends BaseService {
                 filters,
             });
 
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -4793,35 +4789,31 @@ export class ProjectService extends BaseService {
             dataTimezone: warehouseClient.credentials.dataTimezone,
         });
 
-        const cacheKey = metricQuery.timezone
-            ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
-            : `${projectUuid}.cache_autocomplete.${query}`;
-        const queryHash = crypto
-            .createHash('sha256')
-            .update(cacheKey)
-            .digest('hex');
+        const isUserCacheEnabled =
+            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
 
-        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
+        const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
-        if (!forceRefresh && isCacheEnabled) {
-            const isCached =
-                await this.s3CacheClient.getResultsMetadata(queryHash);
+        const hashParts = [projectUuid, userUuid, 'cache_autocomplete', query];
+        if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+        const queryHash = buildCacheHash(hashParts);
 
-            if (isCached !== undefined) {
-                const cacheEntry =
-                    await this.s3CacheClient.getResults(queryHash);
-                const stringResults =
-                    await cacheEntry.Body?.transformToString();
-                if (stringResults) {
-                    try {
-                        await sshTunnel.disconnect();
-                        return JSON.parse(stringResults);
-                    } catch (e) {
-                        this.logger.error(
-                            'Error parsing autocomplete cache results:',
-                            e,
-                        );
-                    }
+        if (!forceRefresh && isUserCacheEnabled) {
+            const stringResults = await this.s3CacheClient
+                .getIfFresh(
+                    queryHash,
+                    this.lightdashConfig.results.cacheStateTimeSeconds,
+                )
+                .catch(() => undefined);
+            if (stringResults) {
+                try {
+                    await sshTunnel.disconnect();
+                    return JSON.parse(stringResults);
+                } catch (e) {
+                    this.logger.error(
+                        'Error parsing autocomplete cache results:',
+                        e,
+                    );
                 }
             }
         }
@@ -4843,7 +4835,7 @@ export class ProjectService extends BaseService {
             }
         }
 
-        if (isCacheEnabled) {
+        if (isUserCacheEnabled) {
             const searchResults = {
                 search,
                 results: Array.from(allResults),
@@ -7056,9 +7048,10 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
-            const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
-                ? account.user.id
-                : null;
+            const userUuid = getCacheUserUuid(
+                warehouseCredentials,
+                account.user.id,
+            );
             const { rows, cacheMetadata } =
                 await this.getResultsFromCacheOrWarehouse({
                     projectUuid,
