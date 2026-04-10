@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
+    getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
     isField,
@@ -443,20 +444,11 @@ export const useColumns = (): TableColumn[] => {
             return baseItemsMap;
         }
 
-        // Build a map from PoP metric IDs to their base metric IDs
-        // so we can inherit format overrides from the base metric
-        const popToBaseMetricId: Record<string, string> = {};
-        if (additionalMetrics) {
-            for (const am of additionalMetrics) {
-                if (
-                    am.baseMetricId &&
-                    am.generationType === 'periodOverPeriod'
-                ) {
-                    const popId = getItemId(am);
-                    popToBaseMetricId[popId] = am.baseMetricId;
-                }
-            }
-        }
+        // Resolve PoP metric overrides from their base metric (shared util)
+        const resolvedMetricOverrides = getMetricOverridesWithPopInheritance({
+            metricOverrides,
+            additionalMetrics,
+        });
 
         // Only apply overrides to items that have them
         return Object.fromEntries(
@@ -466,11 +458,7 @@ export const useColumns = (): TableColumn[] => {
                     return [key, value];
                 }
 
-                // Fall back to base metric override for PoP metrics
-                const override =
-                    metricOverrides[key] ||
-                    (popToBaseMetricId[key] &&
-                        metricOverrides[popToBaseMetricId[key]]);
+                const override = resolvedMetricOverrides[key];
                 if (!override) return [key, value];
 
                 const itemWithoutLegacyFormat = omit(value, [
