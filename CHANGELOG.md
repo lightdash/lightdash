@@ -1,3 +1,10 @@
+# [0.2748.0](https://github.com/lightdash/lightdash/compare/0.2747.0...0.2748.0) (2026-04-10)
+
+
+### Features
+
+* enable timezone flag per-org via database overrides ([#21925](https://github.com/lightdash/lightdash/issues/21925)) ([f1c6960](https://github.com/lightdash/lightdash/commit/f1c696063a1fb8ba264489e5b0b7547502409a06))
+
 # [0.2747.0](https://github.com/lightdash/lightdash/compare/0.2746.3...0.2747.0) (2026-04-10)
 
 
