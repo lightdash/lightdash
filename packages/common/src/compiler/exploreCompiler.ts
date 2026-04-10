@@ -25,6 +25,7 @@ import {
     type FieldCompilationError,
     type Metric,
 } from '../types/field';
+import { type ModelRequiredFilterRule } from '../types/filter';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
 import { type PreAggregateDef } from '../types/preAggregate';
 import {
@@ -180,6 +181,59 @@ export const getParsedReference = (
     return { refTable, refName };
 };
 
+const getDimensionFromRequiredFilter = ({
+    requiredFilter,
+    baseTable,
+    tables,
+}: {
+    requiredFilter: ModelRequiredFilterRule;
+    baseTable: string;
+    tables: Record<string, Table>;
+}): Dimension | undefined => {
+    const { refTable, refName } = getParsedReference(
+        requiredFilter.target.fieldRef,
+        baseTable,
+    );
+    const table = tables[refTable];
+
+    if (!table) {
+        return undefined;
+    }
+
+    // Keep required/default filter reference matching case-insensitive,
+    // consistent with metric filter dimension matching in this compiler.
+    const dimensionRefName = Object.keys(table.dimensions).find(
+        (key) => key.toLowerCase() === refName.toLowerCase(),
+    );
+
+    return dimensionRefName ? table.dimensions[dimensionRefName] : undefined;
+};
+
+const getHiddenRequiredFilterRefs = ({
+    requiredFilters,
+    baseTable,
+    tables,
+}: {
+    requiredFilters: ModelRequiredFilterRule[] | undefined;
+    baseTable: string;
+    tables: Record<string, Table>;
+}): string[] => {
+    if (!requiredFilters || requiredFilters.length === 0) {
+        return [];
+    }
+
+    return requiredFilters
+        .filter((requiredFilter) => {
+            const dimension = getDimensionFromRequiredFilter({
+                requiredFilter,
+                baseTable,
+                tables,
+            });
+            return dimension?.hidden === true;
+        })
+        .map((requiredFilter) => requiredFilter.target.fieldRef);
+};
+
 export const getAllReferences = (raw: string): string[] =>
     (raw.match(lightdashVariablePattern) || []).map(
         (value) => value.slice(2, value.length - 1), // value without brackets
@@ -277,6 +331,21 @@ export class ExploreCompiler {
         if (!tables[baseTable]) {
             throw new CompileError(
                 `Failed to compile explore "${name}". Tried to find base table but cannot find table with name "${baseTable}"`,
+                {},
+            );
+        }
+
+        const hiddenRequiredFilterRefs = getHiddenRequiredFilterRefs({
+            requiredFilters: tables[baseTable].requiredFilters,
+            baseTable,
+            tables,
+        });
+
+        if (hiddenRequiredFilterRefs.length > 0) {
+            throw new CompileError(
+                `Failed to compile explore "${name}". Hidden fields can't be used in default_filters or required_filters: ${hiddenRequiredFilterRefs.join(
+                    ', ',
+                )}.`,
                 {},
             );
         }

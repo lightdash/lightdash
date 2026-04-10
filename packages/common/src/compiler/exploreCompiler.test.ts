@@ -1,6 +1,7 @@
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import { DimensionType, FieldType, friendlyName } from '../types/field';
+import { FilterOperator } from '../types/filter';
 import {
     ExploreCompiler,
     parseAllReferences,
@@ -23,6 +24,7 @@ import {
     compiledSimpleJoinedExplore,
     compiledSimpleJoinedExploreWithAlwaysTrue,
     compiledSimpleJoinedExploreWithBaseTableDescription,
+    createExploreWithRequiredFilters,
     customSqlDimensionWithNoReferences,
     customSqlDimensionWithReferences,
     expectedCompiledCustomSqlDimensionWithNoReferences,
@@ -73,6 +75,60 @@ import {
 } from './exploreCompiler.mock';
 
 const compiler = new ExploreCompiler(warehouseClientMock);
+
+test('Should throw when required/default filters reference a hidden dimension', () => {
+    const exploreWithHiddenRequiredFilter = createExploreWithRequiredFilters([
+        {
+            id: 'hidden-filter',
+            target: { fieldRef: 'credit_card_amount' },
+            operator: FilterOperator.GREATER_THAN_OR_EQUAL,
+            values: [0],
+            required: true,
+        },
+        {
+            id: 'visible-filter',
+            target: { fieldRef: 'has_credit_card_payment' },
+            operator: FilterOperator.EQUALS,
+            values: ['true'],
+            required: true,
+        },
+    ]);
+
+    const compileExplore = () =>
+        compiler.compileExplore(exploreWithHiddenRequiredFilter);
+
+    expect(compileExplore).toThrowError(
+        /Hidden fields can't be used in default_filters or required_filters/,
+    );
+    expect(compileExplore).toThrowError(/credit_card_amount/);
+});
+
+test('Should allow required/default filters on visible additional dimensions', () => {
+    const exploreWithVisibleAdditionalRequiredFilter =
+        createExploreWithRequiredFilters([
+            {
+                id: 'visible-filter',
+                target: { fieldRef: 'has_credit_card_payment' },
+                operator: FilterOperator.EQUALS,
+                values: ['true'],
+                required: true,
+            },
+        ]);
+
+    const compiledExplore = compiler.compileExplore(
+        exploreWithVisibleAdditionalRequiredFilter,
+    );
+
+    expect(compiledExplore.tables.orders.requiredFilters).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({
+                target: expect.objectContaining({
+                    fieldRef: 'has_credit_card_payment',
+                }),
+            }),
+        ]),
+    );
+});
 
 test('Should compile empty table', () => {
     expect(compiler.compileExplore(exploreOneEmptyTable)).toStrictEqual(
