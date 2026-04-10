@@ -137,9 +137,9 @@ export function formatDate(
     timezone?: string,
 ): string {
     // DATE values are already the correct date — timezone-aware DATE_TRUNC
-    // truncated in the project timezone at the SQL level, and formatRawValue
-    // normalized to midnight UTC. Just format as UTC to avoid browser timezone
-    // shifts. (TIMESTAMP values use formatTimestamp which does the tz conversion.)
+    // truncated in the project timezone at the SQL level, and formatRow
+    // passes the normalized raw value (midnight UTC) to formatItemValue.
+    // Format as UTC to avoid browser timezone shifts.
     const momentDate = timezone ? moment.utc(date) : moment(date);
 
     if (!momentDate.isValid()) {
