@@ -1,3 +1,10 @@
+# [0.2751.0](https://github.com/lightdash/lightdash/compare/0.2750.0...0.2751.0) (2026-04-10)
+
+
+### Features
+
+* add warning callout for pre-aggregates with personal warehouse connections ([#21942](https://github.com/lightdash/lightdash/issues/21942)) ([e4a9b74](https://github.com/lightdash/lightdash/commit/e4a9b74dbba20ca25b9ab1bcc92ae811419dce61))
+
 # [0.2750.0](https://github.com/lightdash/lightdash/compare/0.2749.0...0.2750.0) (2026-04-10)
 
 
