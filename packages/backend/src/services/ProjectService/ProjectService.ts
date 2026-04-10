@@ -4765,7 +4765,8 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
         });
 
-        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
+        const isUserCacheEnabled =
+            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
@@ -4773,7 +4774,7 @@ export class ProjectService extends BaseService {
         if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
         const queryHash = buildCacheHash(hashParts);
 
-        if (!forceRefresh && isCacheEnabled) {
+        if (!forceRefresh && isUserCacheEnabled) {
             const stringResults = await this.s3CacheClient
                 .getIfFresh(
                     queryHash,
@@ -4810,7 +4811,7 @@ export class ProjectService extends BaseService {
             }
         }
 
-        if (isCacheEnabled) {
+        if (isUserCacheEnabled) {
             const searchResults = {
                 search,
                 results: Array.from(allResults),
