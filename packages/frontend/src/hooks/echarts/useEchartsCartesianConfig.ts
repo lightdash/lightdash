@@ -2876,6 +2876,16 @@ const useEchartsCartesianConfig = (
         const xFieldId = validCartesianConfig?.layout?.xField;
         const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
+        // When xField is EMPTY_X_AXIS (no x-axis dimension, bars are pivoted series),
+        // row-based sorting is meaningless (single row) and produces undefined category values.
+        // Series-level sorting for this case is handled separately in sortedSeriesForChart.
+        if (xFieldId === EMPTY_X_AXIS) {
+            return {
+                xAxisSortedResults: sortedResults,
+                xAxisSortedCategoryValues: undefined,
+            };
+        }
+
         // Handle bar totals sorting
         if (
             xFieldId &&
@@ -3375,6 +3385,77 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.flipAxes,
     ]);
 
+    // When xField is EMPTY_X_AXIS (pivoted bars with no x-axis dimension),
+    // sorting must reorder the series array since bars are series, not categories.
+    const sortedSeriesForChart = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments?.length) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        if (xFieldId !== EMPTY_X_AXIS) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+        const sortType = xAxisConfig?.sortType ?? XAxisSortType.DEFAULT;
+        const isInverse = xAxisConfig?.inverse ?? false;
+
+        if (sortType === XAxisSortType.DEFAULT && !isInverse) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const sorted = [...stackedSeriesWithColorAssignments];
+
+        if (sortType === XAxisSortType.CATEGORY) {
+            // Sort by series name (pivot value label) alphabetically
+            sorted.sort((a, b) => {
+                const nameA = String(a.name ?? '');
+                const nameB = String(b.name ?? '');
+                return nameA.localeCompare(nameB);
+            });
+        } else if (sortType === XAxisSortType.BAR_TOTALS) {
+            // Sort by metric value from the dataset row
+            const row = xAxisSortedResults[0];
+            if (row) {
+                sorted.sort((a, b) => {
+                    const yKeyA = a.encode?.y;
+                    const yKeyB = b.encode?.y;
+                    const rawA = yKeyA
+                        ? (row as Record<string, unknown>)[yKeyA]
+                        : undefined;
+                    const rawB = yKeyB
+                        ? (row as Record<string, unknown>)[yKeyB]
+                        : undefined;
+                    const valA = Number(
+                        typeof rawA === 'object' && rawA !== null
+                            ? (rawA as { value: unknown }).value
+                            : (rawA ?? 0),
+                    );
+                    const valB = Number(
+                        typeof rawB === 'object' && rawB !== null
+                            ? (rawB as { value: unknown }).value
+                            : (rawB ?? 0),
+                    );
+                    return valA - valB;
+                });
+            }
+        }
+
+        // For DEFAULT with inverse, or CATEGORY/BAR_TOTALS with inverse (descending),
+        // reverse the sorted order
+        if (isInverse) {
+            sorted.reverse();
+        }
+
+        return sorted;
+    }, [
+        stackedSeriesWithColorAssignments,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig.xAxis,
+        xAxisSortedResults,
+    ]);
+
     const eChartsOptions = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
@@ -3384,7 +3465,7 @@ const useEchartsCartesianConfig = (
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             useUTC: true,
-            series: stackedSeriesWithColorAssignments,
+            series: sortedSeriesForChart,
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
@@ -3425,7 +3506,7 @@ const useEchartsCartesianConfig = (
         };
     }, [
         sortedAxes,
-        stackedSeriesWithColorAssignments,
+        sortedSeriesForChart,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,
