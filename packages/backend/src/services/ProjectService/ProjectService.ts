@@ -3865,6 +3865,22 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private static getCacheUserUuid(
+        warehouseCredentials: { userWarehouseCredentialsUuid?: string },
+        userId: string,
+    ): string | null {
+        return warehouseCredentials.userWarehouseCredentialsUuid
+            ? userId
+            : null;
+    }
+
+    private static buildCacheHash(parts: (string | null)[]): string {
+        return crypto
+            .createHash('sha256')
+            .update(parts.join('.'))
+            .digest('hex');
+    }
+
     async getResultsFromCacheOrWarehouse({
         projectUuid,
         userUuid,
@@ -3891,14 +3907,9 @@ export class ProjectService extends BaseService {
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
-                // TODO: put this hash function in a util somewhere
-                const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${userUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${userUuid}.${query}`;
-                const queryHash = crypto
-                    .createHash('sha256')
-                    .update(queryHashKey)
-                    .digest('hex');
+                const hashParts = [projectUuid, userUuid, query];
+                if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+                const queryHash = ProjectService.buildCacheHash(hashParts);
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
@@ -4197,10 +4208,10 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const userUuid =
-                        warehouseCredentials.userWarehouseCredentialsUuid
-                            ? account.user.id
-                            : null;
+                    const userUuid = ProjectService.getCacheUserUuid(
+                        warehouseCredentials,
+                        account.user.id,
+                    );
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
@@ -4772,46 +4783,31 @@ export class ProjectService extends BaseService {
 
         const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
 
-        const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
-            ? user.userUuid
-            : null;
+        const userUuid = ProjectService.getCacheUserUuid(
+            warehouseCredentials,
+            user.userUuid,
+        );
 
-        let queryHash: string | undefined;
-        if (isCacheEnabled) {
-            const cacheKey = metricQuery.timezone
-                ? `${projectUuid}.${userUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
-                : `${projectUuid}.${userUuid}.cache_autocomplete.${query}`;
-            queryHash = crypto
-                .createHash('sha256')
-                .update(cacheKey)
-                .digest('hex');
-        }
+        const hashParts = [projectUuid, userUuid, 'cache_autocomplete', query];
+        if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+        const queryHash = ProjectService.buildCacheHash(hashParts);
 
-        if (!forceRefresh && isCacheEnabled && queryHash) {
-            const cacheEntryMetadata = await this.s3CacheClient
-                .getResultsMetadata(queryHash)
+        if (!forceRefresh && isCacheEnabled) {
+            const stringResults = await this.s3CacheClient
+                .getIfFresh(
+                    queryHash,
+                    this.lightdashConfig.results.cacheStateTimeSeconds,
+                )
                 .catch(() => undefined);
-
-            if (
-                cacheEntryMetadata?.LastModified &&
-                new Date().getTime() -
-                    cacheEntryMetadata.LastModified.getTime() <
-                    this.lightdashConfig.results.cacheStateTimeSeconds * 1000
-            ) {
-                const cacheEntry =
-                    await this.s3CacheClient.getResults(queryHash);
-                const stringResults =
-                    await cacheEntry.Body?.transformToString();
-                if (stringResults) {
-                    try {
-                        await sshTunnel.disconnect();
-                        return JSON.parse(stringResults);
-                    } catch (e) {
-                        this.logger.error(
-                            'Error parsing autocomplete cache results:',
-                            e,
-                        );
-                    }
+            if (stringResults) {
+                try {
+                    await sshTunnel.disconnect();
+                    return JSON.parse(stringResults);
+                } catch (e) {
+                    this.logger.error(
+                        'Error parsing autocomplete cache results:',
+                        e,
+                    );
                 }
             }
         }
@@ -4833,7 +4829,7 @@ export class ProjectService extends BaseService {
             }
         }
 
-        if (isCacheEnabled && queryHash) {
+        if (isCacheEnabled) {
             const searchResults = {
                 search,
                 results: Array.from(allResults),
@@ -7030,9 +7026,10 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
-            const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
-                ? account.user.id
-                : null;
+            const userUuid = ProjectService.getCacheUserUuid(
+                warehouseCredentials,
+                account.user.id,
+            );
             const { rows, cacheMetadata } =
                 await this.getResultsFromCacheOrWarehouse({
                     projectUuid,

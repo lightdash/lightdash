@@ -998,6 +998,19 @@ describe('ProjectService', () => {
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
 
+        const buildS3CacheMock = (
+            lookups: string[],
+            store: Map<string, string>,
+        ) => ({
+            getIfFresh: jest.fn(async (key: string) => {
+                lookups.push(key);
+                return store.get(key);
+            }),
+            uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
+                store.set(key, buffer.toString());
+            }),
+        });
+
         beforeEach(() => {
             // Clear the warehouse clients cache
             service.warehouseClients = {};
@@ -1144,22 +1157,10 @@ describe('ProjectService', () => {
             const cachedResults = new Map<string, string>();
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (serviceWithCache as any).s3CacheClient = {
-                getResultsMetadata: jest.fn(async (key: string) => {
-                    cacheKeyLookups.push(key);
-                    return cachedResults.has(key)
-                        ? { LastModified: new Date() }
-                        : undefined;
-                }),
-                getResults: jest.fn(async (key: string) => ({
-                    Body: {
-                        transformToString: async () => cachedResults.get(key),
-                    },
-                })),
-                uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
-                    cachedResults.set(key, buffer.toString());
-                }),
-            };
+            (serviceWithCache as any).s3CacheClient = buildS3CacheMock(
+                cacheKeyLookups,
+                cachedResults,
+            );
 
             // User A queries — populates the cache
             await serviceWithCache.searchFieldUniqueValues(
@@ -1236,22 +1237,10 @@ describe('ProjectService', () => {
             const cachedResults = new Map<string, string>();
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (serviceWithCache as any).s3CacheClient = {
-                getResultsMetadata: jest.fn(async (key: string) => {
-                    cacheKeyLookups.push(key);
-                    return cachedResults.has(key)
-                        ? { LastModified: new Date() }
-                        : undefined;
-                }),
-                getResults: jest.fn(async (key: string) => ({
-                    Body: {
-                        transformToString: async () => cachedResults.get(key),
-                    },
-                })),
-                uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
-                    cachedResults.set(key, buffer.toString());
-                }),
-            };
+            (serviceWithCache as any).s3CacheClient = buildS3CacheMock(
+                cacheKeyLookups,
+                cachedResults,
+            );
 
             await serviceWithCache.searchFieldUniqueValues(
                 userA,
