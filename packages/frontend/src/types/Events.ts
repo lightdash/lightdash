@@ -83,6 +83,7 @@ export enum EventName {
     UPDATE_TABLE_CALCULATION_BUTTON_CLICKED = 'update_table_calculation_button.click',
     DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'delete_table_calculation_button.click',
     CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'confirm_delete_table_calculation_button.click',
+    FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED = 'formula_table_calculation_ai_generate.clicked',
     UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
     CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',

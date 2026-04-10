@@ -12,6 +12,10 @@ import {
 } from '../../../../../../features/explorer/store';
 import { useExplore } from '../../../../../../hooks/useExplore';
 import { useGenerateFormulaTableCalculation } from '../../../../../../hooks/useGenerateFormulaTableCalculation';
+import { useProject } from '../../../../../../hooks/useProject';
+import useApp from '../../../../../../providers/App/useApp';
+import useTracking from '../../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../../types/Events';
 import { AiPromptEditor } from './AiPromptInput';
 import styles from './AiTableCalculationInput.module.css';
 
@@ -28,6 +32,9 @@ export const AiFormulaTableCalculationInput: FC<Props> = ({
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data: explore } = useExplore(tableName);
+    const { data: project } = useProject(projectUuid);
+    const { user } = useApp();
+    const { track } = useTracking();
 
     const [shouldClearEditor, setShouldClearEditor] = useState(false);
     const editorRef = useRef<Editor | null>(null);
@@ -47,13 +54,39 @@ export const AiFormulaTableCalculationInput: FC<Props> = ({
         onSuccess: handleSuccess,
     });
 
+    const trackGenerateClicked = useCallback(() => {
+        if (
+            !projectUuid ||
+            !project?.organizationUuid ||
+            !user?.data?.userUuid
+        ) {
+            return;
+        }
+        track({
+            name: EventName.FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED,
+            properties: {
+                userId: user.data.userUuid,
+                organizationId: project.organizationUuid,
+                projectId: projectUuid,
+                isEdit: !!currentFormula,
+            },
+        });
+    }, [
+        track,
+        projectUuid,
+        project?.organizationUuid,
+        user?.data?.userUuid,
+        currentFormula,
+    ]);
+
     const handleGenerate = useCallback(() => {
         if (!editorRef.current) return;
         const promptText = editorRef.current.getText();
         if (promptText.trim()) {
+            trackGenerateClicked();
             generate(promptText, currentFormula);
         }
-    }, [generate, currentFormula]);
+    }, [generate, currentFormula, trackGenerateClicked]);
 
     const handleEditorUpdate = useCallback((editor: Editor | null) => {
         editorRef.current = editor;
@@ -62,10 +95,11 @@ export const AiFormulaTableCalculationInput: FC<Props> = ({
     const handleSubmit = useCallback(
         (text: string) => {
             if (text.trim()) {
+                trackGenerateClicked();
                 generate(text, currentFormula);
             }
         },
-        [generate, currentFormula],
+        [generate, currentFormula, trackGenerateClicked],
     );
 
     return (
