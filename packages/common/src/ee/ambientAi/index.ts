@@ -66,6 +66,26 @@ export type ApiAiGenerateTableCalculationResponse = {
     results: GeneratedTableCalculation;
 };
 
+export type GenerateFormulaTableCalculationRequest = {
+    prompt: string;
+    tableName: string;
+    fieldsContext: TableCalculationFieldContext[];
+    existingTableCalculations?: string[];
+    currentFormula?: string;
+};
+
+export type GeneratedFormulaTableCalculation = {
+    formula: string;
+    displayName: TableCalculation['displayName'];
+    type: TableCalculation['type'];
+    format: TableCalculation['format'];
+};
+
+export type ApiAiGenerateFormulaTableCalculationResponse = {
+    status: 'ok';
+    results: GeneratedFormulaTableCalculation;
+};
+
 export type TooltipFieldContext = {
     name: string;
     label?: string;

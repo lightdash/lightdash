@@ -2,12 +2,14 @@ import {
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomVizResponse,
+    ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
     DashboardSummary,
     GenerateChartMetadataRequest,
+    GenerateFormulaTableCalculationRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     ItemsMap,
@@ -140,6 +142,26 @@ export class AiController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiService().generateTableCalculation(
+                req.user!,
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/formula-table-calculation/generate')
+    @OperationId('generateFormulaTableCalculation')
+    async generateFormulaTableCalculation(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: GenerateFormulaTableCalculationRequest,
+    ): Promise<ApiAiGenerateFormulaTableCalculationResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().generateFormulaTableCalculation(
                 req.user!,
                 projectUuid,
                 body,
