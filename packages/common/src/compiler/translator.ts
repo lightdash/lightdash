@@ -7,6 +7,7 @@ import {
     convertToAiHints,
     convertToGroups,
     isV9MetricRef,
+    patchPathParts,
     SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
@@ -1289,7 +1290,9 @@ export const convertExplores = async (
                     targetDatabase: adapterType,
                     warehouse: model.config?.snowflake_warehouse,
                     databricksCompute: model.config?.databricks_compute,
-                    ymlPath: model.patch_path?.split('://')?.[1],
+                    ymlPath: model.patch_path
+                        ? patchPathParts(model.patch_path).path
+                        : undefined,
                     sqlPath: model.path,
                     spotlightConfig: lightdashProjectConfig.spotlight,
                     ...(meta.ai_hint
