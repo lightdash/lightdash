@@ -185,9 +185,12 @@ export const findAndUpdateModelYaml = async ({
     if (patchPath) {
         const { project: expectedYamlProject, path: expectedYamlSubPath } =
             patchPathParts(patchPath);
+        // dbt-fusion omits the project prefix from patch_path — fall back to the
+        // model's packageName, which carries the same information.
+        const resolvedProject = expectedYamlProject ?? packageName;
         const projectSubpath =
-            expectedYamlProject !== projectName
-                ? path.join('dbt_packages', expectedYamlProject)
+            resolvedProject !== projectName
+                ? path.join('dbt_packages', resolvedProject)
                 : '.';
         const expectedYamlPath = path.join(
             projectDir,

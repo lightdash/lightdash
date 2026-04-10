@@ -11,7 +11,7 @@ import {
     type CompiledModelNode,
     type ParsedMetric,
 } from './dbtFromSchema';
-import { DbtError, ParseError } from './errors';
+import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
     FieldType,
@@ -309,16 +309,22 @@ export const normaliseModelDatabase = (
             );
     }
 };
-export const patchPathParts = (patchPath: string) => {
-    const [project, ...rest] = patchPath.split('://');
-    if (rest.length === 0) {
-        throw new DbtError(
-            'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
-        );
+export const patchPathParts = (
+    patchPath: string,
+): { project: string | null; path: string } => {
+    // dbt-core format: `project://path/to/file.yml`
+    // dbt-fusion format: raw path with no project prefix, may contain Windows backslashes
+    const normalized = patchPath.replace(/\\/g, '/');
+    const separatorIndex = normalized.indexOf('://');
+    if (separatorIndex === -1) {
+        return {
+            project: null,
+            path: normalized,
+        };
     }
     return {
-        project,
-        path: rest.join('://'),
+        project: normalized.slice(0, separatorIndex),
+        path: normalized.slice(separatorIndex + '://'.length),
     };
 };
 
