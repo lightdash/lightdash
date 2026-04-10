@@ -1,3 +1,16 @@
+# [0.2749.0](https://github.com/lightdash/lightdash/compare/0.2748.3...0.2749.0) (2026-04-10)
+
+
+### Bug Fixes
+
+* include userUuid in filter autocomplete cache key ([#21937](https://github.com/lightdash/lightdash/issues/21937)) ([712c1e2](https://github.com/lightdash/lightdash/commit/712c1e238790af7eec27623e5e339d5c0f0c769c))
+* resolve cross-model sum_distinct metric references in type:number metrics ([#21923](https://github.com/lightdash/lightdash/issues/21923)) ([ef69d2e](https://github.com/lightdash/lightdash/commit/ef69d2ed108e624a17c27bead9b6fdcdb550e3f8))
+
+
+### Features
+
+* timezone-aware DATE_TRUNC for all warehouses ([#21874](https://github.com/lightdash/lightdash/issues/21874)) ([6e4500b](https://github.com/lightdash/lightdash/commit/6e4500bedb33cd88eeb049864e670cfa1d1dd5a0)), closes [#21925](https://github.com/lightdash/lightdash/issues/21925)
+
 ## [0.2748.3](https://github.com/lightdash/lightdash/compare/0.2748.2...0.2748.3) (2026-04-10)
 
 
