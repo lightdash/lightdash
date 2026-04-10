@@ -1,3 +1,11 @@
+## [0.2746.2](https://github.com/lightdash/lightdash/compare/0.2746.1...0.2746.2) (2026-04-10)
+
+
+### Bug Fixes
+
+* fix data apps setting page ([#21916](https://github.com/lightdash/lightdash/issues/21916)) ([f51f6ac](https://github.com/lightdash/lightdash/commit/f51f6ac658bb57adf4dafe8390e2d5e4062086f0))
+* upgrade @octokit/rest 20.1.1 → 20.1.2 (security) ([#21918](https://github.com/lightdash/lightdash/issues/21918)) ([ef4edca](https://github.com/lightdash/lightdash/commit/ef4edca7cd01803ebecb8a2664de43c9d7225b43)), closes [#21609](https://github.com/lightdash/lightdash/issues/21609) [#21609](https://github.com/lightdash/lightdash/issues/21609) [/github.com/lightdash/lightdash/pull/21609#issuecomment-4221737833](https://github.com//github.com/lightdash/lightdash/pull/21609/issues/issuecomment-4221737833)
+
 ## [0.2746.1](https://github.com/lightdash/lightdash/compare/0.2746.0...0.2746.1) (2026-04-10)
 
 
