@@ -71,7 +71,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
                         onClick={() => handleSortClick(sortDirection)}
                     >
                         Sort{' '}
-                        <Text span fz="sm" fw="bold">
+                        <Text span fz="inherit" lh="inherit" fw="bold">
                             {getSortLabel(item, sortDirection)}
                         </Text>
                     </Menu.Item>
