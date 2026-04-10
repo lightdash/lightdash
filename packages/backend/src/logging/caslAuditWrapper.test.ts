@@ -411,4 +411,82 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.resource.organizationUuid).toBe('test-org-uuid');
         });
     });
+
+    describe('bare-string subjects', () => {
+        it('should return the same result as the raw ability for can() with bare-string subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+            const ability = createTestAbility();
+
+            expect(wrapper.can('read', 'Dashboard')).toBe(
+                ability.can('read', 'Dashboard'),
+            );
+        });
+
+        it('should return the same result as the raw ability for cannot() with bare-string subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+            const ability = createTestAbility();
+
+            expect(wrapper.cannot('read', 'Dashboard')).toBe(
+                ability.cannot('read', 'Dashboard'),
+            );
+        });
+
+        it('should log audit event with type from bare-string subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            wrapper.can('read', 'Dashboard');
+
+            expect(mockLogger).toHaveBeenCalledTimes(1);
+            const loggedEvent = mockLogger.mock.calls[0][0];
+            expect(loggedEvent.resource.type).toBe('Dashboard');
+            expect(loggedEvent.resource.organizationUuid).toBe('unknown');
+            expect(loggedEvent.resource.uuid).toBeUndefined();
+            expect(loggedEvent.resource.name).toBeUndefined();
+            expect(loggedEvent.resource.projectUuid).toBeUndefined();
+        });
+
+        it('should return true for bare-string when conditional rules exist (can-create-somewhere semantics)', () => {
+            const conditionalAbility = defineAbility((can) => {
+                can('create', 'SavedChart', {
+                    authorId: mockUser.userUuid,
+                    status: 'published',
+                });
+            });
+
+            const mockLogger = createMockLogger();
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                conditionalAbility as any,
+                mockUser,
+                { auditLogger: mockLogger as AuditLogger },
+            );
+
+            expect(wrapper.can('create', 'SavedChart')).toBe(true);
+            expect(wrapper.cannot('create', 'SavedChart')).toBe(false);
+
+            expect(mockLogger).toHaveBeenCalledTimes(2);
+            const loggedEvent = mockLogger.mock.calls[0][0];
+            expect(loggedEvent.status).toBe('allowed');
+            expect(loggedEvent.resource.type).toBe('SavedChart');
+        });
+
+        it('should not throw when audit logger fails on bare-string subject', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            expect(wrapper.can('read', 'Dashboard')).toBe(true);
+            expect(throwingLogger).toHaveBeenCalledTimes(1);
+        });
+    });
 });

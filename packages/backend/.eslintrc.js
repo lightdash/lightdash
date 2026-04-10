@@ -104,6 +104,7 @@ module.exports = {
                 'src/services/DashboardService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
+                'src/services/SchedulerService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
             ],
             rules: {

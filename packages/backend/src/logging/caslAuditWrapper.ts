@@ -34,12 +34,14 @@ export type AuditableUser = Pick<
     | 'role'
 >;
 
-type AuditableCaslSubject = ForcedSubject<CaslSubjectNames> & {
+type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
     organizationUuid: string;
     uuid?: string;
     name?: string;
     projectUuid?: string;
 };
+
+type AuditableCaslSubject = AuditableCaslSubjectObject | CaslSubjectNames;
 
 type AuditHelperArgs = {
     actor: AuditActor;
@@ -126,14 +128,22 @@ export const createActorFromUser = (user: AuditableUser): AuditActor => ({
 });
 
 const createResourceFromSubject = (
-    subject: AuditableCaslSubject,
-): AuditResource => ({
-    type: subject.__caslSubjectType__ || 'unknown',
-    uuid: subject.uuid,
-    name: subject.name,
-    organizationUuid: subject.organizationUuid || 'unknown',
-    projectUuid: subject.projectUuid,
-});
+    subjectArg: AuditableCaslSubject,
+): AuditResource => {
+    if (typeof subjectArg === 'string') {
+        return {
+            type: subjectArg,
+            organizationUuid: 'unknown',
+        };
+    }
+    return {
+        type: subjectArg.__caslSubjectType__ || 'unknown',
+        uuid: subjectArg.uuid,
+        name: subjectArg.name,
+        organizationUuid: subjectArg.organizationUuid || 'unknown',
+        projectUuid: subjectArg.projectUuid,
+    };
+};
 
 const createContextFromArgs = (args: AuditHelperArgs): AuditContext => ({
     ip: args.ip,
@@ -227,7 +237,10 @@ export class CaslAuditWrapper<T extends Ability> {
             Logger.warn('Failed to log audit event', {
                 error: err instanceof Error ? err.message : String(err),
                 action: args.action,
-                subjectType: args.subject?.__caslSubjectType__,
+                subjectType:
+                    typeof args.subject === 'string'
+                        ? args.subject
+                        : args.subject?.__caslSubjectType__,
             });
         }
     }
