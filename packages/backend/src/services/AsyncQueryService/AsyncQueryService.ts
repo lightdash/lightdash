@@ -1904,6 +1904,7 @@ export class AsyncQueryService extends ProjectService {
      */
     public async runAsyncWarehouseQuery({
         userUuid,
+        organizationUuid,
         isRegisteredUser,
         isServiceAccount,
         projectUuid,
@@ -1990,6 +1991,7 @@ export class AsyncQueryService extends ProjectService {
             const { enabled: isTimezoneSupportEnabled } =
                 await this.featureFlagModel.get({
                     featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                    user: { userUuid, organizationUuid },
                 });
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
@@ -2308,6 +2310,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             projectUuid: query.projectUuid ?? '',
             userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
@@ -2341,6 +2344,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             projectUuid: query.projectUuid ?? '',
             userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
@@ -3108,6 +3112,7 @@ export class AsyncQueryService extends ProjectService {
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
+                        organizationUuid,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
                         projectUuid,
