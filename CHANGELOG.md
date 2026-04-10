@@ -1,3 +1,10 @@
+# [0.2750.0](https://github.com/lightdash/lightdash/compare/0.2749.0...0.2750.0) (2026-04-10)
+
+
+### Features
+
+* add tracking for formula table calculation ([#21941](https://github.com/lightdash/lightdash/issues/21941)) ([4ef64b5](https://github.com/lightdash/lightdash/commit/4ef64b51588667b646cd9721228672b40b6421c4))
+
 # [0.2749.0](https://github.com/lightdash/lightdash/compare/0.2748.3...0.2749.0) (2026-04-10)
 
 
