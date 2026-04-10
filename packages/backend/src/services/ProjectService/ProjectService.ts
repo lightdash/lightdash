@@ -4770,20 +4770,21 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
         });
 
-        const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
-            ? user.userUuid
-            : null;
-        const cacheKey = metricQuery.timezone
-            ? `${projectUuid}.${userUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
-            : `${projectUuid}.${userUuid}.cache_autocomplete.${query}`;
-        const queryHash = crypto
-            .createHash('sha256')
-            .update(cacheKey)
-            .digest('hex');
+        const isCacheEnabled =
+            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
 
-        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
+        let queryHash: string | undefined;
+        if (isCacheEnabled) {
+            const cacheKey = metricQuery.timezone
+                ? `${projectUuid}.${user.userUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
+                : `${projectUuid}.${user.userUuid}.cache_autocomplete.${query}`;
+            queryHash = crypto
+                .createHash('sha256')
+                .update(cacheKey)
+                .digest('hex');
+        }
 
-        if (!forceRefresh && isCacheEnabled) {
+        if (!forceRefresh && isCacheEnabled && queryHash) {
             const isCached =
                 await this.s3CacheClient.getResultsMetadata(queryHash);
 
@@ -4823,7 +4824,7 @@ export class ProjectService extends BaseService {
             }
         }
 
-        if (isCacheEnabled) {
+        if (isCacheEnabled && queryHash) {
             const searchResults = {
                 search,
                 results: Array.from(allResults),
