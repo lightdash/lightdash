@@ -27,10 +27,12 @@ import {
     bigqueryClientMock,
     EXPLORE,
     EXPLORE_WITH_AVERAGE_DISTINCT,
+    EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
     EXPLORE_WITH_NESTED_AGG,
+    EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITH_SUM_DISTINCT,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
@@ -39,6 +41,8 @@ import {
     METRIC_QUERY,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
     METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+    METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
+    METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
     METRIC_QUERY_NESTED_AGG_COMPLEX,
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
@@ -54,6 +58,7 @@ import {
     METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED,
     METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF,
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
+    METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
@@ -2266,6 +2271,82 @@ LIMIT 10`;
             );
             expect(result.query).toContain('GROUP BY');
             expect(result.query).toContain('dd_orders_avg_shipping_cost');
+        });
+
+        test('type:number metric referencing cross-model sum_distinct should use CTE', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // The sum_distinct metric should get a deduplication CTE
+            expect(result.query).toContain('dd_orders_total_revenue');
+            // The CTE should use ROW_NUMBER for deduplication
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            // The type:number metric should reference the CTE alias,
+            // NOT inline the raw SUM("orders".amount)
+            expect(result.query).toContain(
+                'dd_orders_total_revenue."orders_total_revenue"',
+            );
+            // The inlined fallback SUM should NOT appear in the final SELECT
+            // (it's OK inside the CTE, but not in the outer query)
+            const outerSelect =
+                result.query.split('FROM')[
+                    result.query.split('FROM').length - 1
+                ];
+            // Check the final SELECT doesn't use the raw inlined SQL
+            expect(result.query).not.toMatch(
+                /SELECT[\s\S]*\(SUM\("orders"\.amount\)\) \* 1\.1[\s\S]*FROM(?![\s\S]*AS \()/,
+            );
+        });
+
+        test('same-model type:number referencing sum_distinct + regular aggregate should not break', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // The dd CTE should exist for the sum_distinct metric
+            expect(result.query).toContain('dd_orders_total_revenue');
+            // The type:number metric should reference the dd CTE for sum_distinct
+            expect(result.query).toContain(
+                'dd_orders_total_revenue."orders_total_revenue"',
+            );
+            // The non-dd metric (order_count) should reference dd_base, not raw SQL
+            expect(result.query).toContain('dd_base."orders_order_count"');
+            // The outer SELECT after dd_base should use the CTE alias, not
+            // recompile to raw COUNT("orders".order_id)
+            const outerSelect = result.query
+                .split('FROM dd_base')[0]
+                .split('SELECT')
+                .pop();
+            expect(outerSelect).not.toContain('COUNT("orders".order_id)');
+        });
+
+        test('type:number referencing cross-model sum_distinct works without dimensions', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should still have CTE-based deduplication
+            expect(result.query).toContain('dd_orders_total_revenue');
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            // Should reference CTE, not inlined SQL
+            expect(result.query).toContain(
+                'dd_orders_total_revenue."orders_total_revenue"',
+            );
         });
     });
 

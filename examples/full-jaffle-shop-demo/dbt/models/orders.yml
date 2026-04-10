@@ -53,6 +53,17 @@ models:
             drivers:
               - total_order_amount
               - total_completed_order_amount
+          # PROD-6869: Cross-model type:number referencing sum_distinct
+          # This metric references customers.total_order_amount_deduped (sum_distinct)
+          # from the joined customers model. Before the fix, this would fail
+          # with "invalid identifier" because the sum_distinct's deduplication
+          # CTE metadata was lost during cross-model reference compilation.
+          deduped_revenue_per_order:
+            type: number
+            sql: ${customers.total_order_amount_deduped} / NULLIF(${unique_order_count}, 0)
+            description: "Average deduped revenue per order. References a cross-model sum_distinct metric to test PROD-6869."
+            format: usd
+            round: 2
         default_time_dimension:
           field: order_date
           interval: MONTH

@@ -884,6 +884,54 @@ export class MetricQueryBuilder {
         });
     }
 
+    /**
+     * Returns the set of non-aggregate metric IDs whose SQL templates
+     * reference at least one sum_distinct / average_distinct metric.
+     * These metrics must be excluded from the regular SELECT and instead
+     * handled in the dd CTE outer SELECT so their references can be
+     * rewritten to point at the deduplication CTE aliases.
+     */
+    private getNonAggregateMetricsReferencingDistinct(): Set<string> {
+        const allMetricIds = this.getSelectedAndReferencedMetricIds();
+        const ddMetricIds = new Set(
+            allMetricIds.filter((id) => {
+                try {
+                    const m = this.getMetricFromId(id);
+                    return (
+                        m.type === MetricType.SUM_DISTINCT ||
+                        m.type === MetricType.AVERAGE_DISTINCT
+                    );
+                } catch {
+                    return false;
+                }
+            }),
+        );
+        if (ddMetricIds.size === 0) return new Set();
+
+        const result = new Set<string>();
+        for (const metricId of allMetricIds) {
+            try {
+                const metric = this.getMetricFromId(metricId);
+                if (isNonAggregateMetric(metric)) {
+                    const refs = parseAllReferences(metric.sql, metric.table);
+                    for (const ref of refs) {
+                        const refId = getItemId({
+                            table: ref.refTable,
+                            name: ref.refName,
+                        });
+                        if (ddMetricIds.has(refId)) {
+                            result.add(metricId);
+                            break;
+                        }
+                    }
+                }
+            } catch {
+                // skip
+            }
+        }
+        return result;
+    }
+
     private getMetricsSQL(): {
         tables: string[];
         selects: string[];
@@ -947,6 +995,12 @@ export class MetricQueryBuilder {
                 }
             }
         }
+        // Non-aggregate metrics that reference sum_distinct/average_distinct
+        // metrics are handled in the dd CTE outer SELECT so their references
+        // can be rewritten to point at the deduplication CTE aliases.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
+
         metrics.forEach((field) => {
             try {
                 const alias = field;
@@ -964,6 +1018,14 @@ export class MetricQueryBuilder {
                 }
                 // Metrics with nested aggregate dependencies are handled via CTE
                 if (nestedAggOuterIds.has(field) || innerDepIds.has(field)) {
+                    (metric.tablesReferences || [metric.table]).forEach(
+                        (table) => tables.add(table),
+                    );
+                    return;
+                }
+                // Non-aggregate metrics referencing distinct metrics are
+                // handled in the dd CTE outer SELECT
+                if (nonAggReferencingDd.has(field)) {
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
                     );
@@ -3913,7 +3975,48 @@ export class MetricQueryBuilder {
             });
             ctes.push(...ddCtes);
 
-            if (hasNonDdSelects) {
+            // Build selects for non-aggregate metrics that reference dd metrics.
+            // Their SQL templates are recompiled so ${ref} expressions pointing
+            // at sum_distinct/average_distinct metrics resolve to the dd CTE
+            // aliases instead of the inlined fallback SUM/AVG SQL.
+            const nonAggDdMetricIds =
+                this.getNonAggregateMetricsReferencingDistinct();
+            const nonAggDdSelects: string[] = [];
+
+            // Build CTE map for replaceMetricReferencesWithCteReferences.
+            // dd_base must come first (its name is used for dimension resolution).
+            // Include all non-dd metrics that land in dd_base so that references
+            // like ${unique_customer_count} resolve to dd_base."metric_id"
+            // instead of being recompiled as raw SQL (which would reference
+            // tables not available in the outer SELECT).
+            const ddMetricIdSet = new Set(ddMetricIds);
+            const metricsInDdBase =
+                this.getSelectedAndReferencedMetricIds().filter(
+                    (id) =>
+                        !ddMetricIdSet.has(id) && !nonAggDdMetricIds.has(id),
+                );
+            const ddCteMap: Array<{ name: string; metrics: string[] }> = [
+                { name: ddBaseCteName, metrics: metricsInDdBase },
+                ...ddMetricIds.map((id) => ({
+                    name: `dd_${snakeCaseName(id)}`,
+                    metrics: [id],
+                })),
+            ];
+            const ddFieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+            for (const metricId of nonAggDdMetricIds) {
+                const metric = this.getMetricFromId(metricId);
+                const rewrittenSql =
+                    this.replaceMetricReferencesWithCteReferences(
+                        metric,
+                        ddCteMap,
+                    );
+                nonAggDdSelects.push(
+                    `  ${rewrittenSql} AS ${ddFieldQuoteChar}${metricId}${ddFieldQuoteChar}`,
+                );
+            }
+
+            if (hasNonDdSelects || nonAggDdSelects.length > 0) {
                 ctes.push(
                     MetricQueryBuilder.wrapAsCte(
                         ddBaseCteName,
@@ -3923,7 +4026,11 @@ export class MetricQueryBuilder {
 
                 finalSelectParts = [
                     `SELECT`,
-                    [`  ${ddBaseCteName}.*`, ...ddMetricSelects].join(',\n'),
+                    [
+                        `  ${ddBaseCteName}.*`,
+                        ...ddMetricSelects,
+                        ...nonAggDdSelects,
+                    ].join(',\n'),
                     `FROM ${ddBaseCteName}`,
                     ...ddJoins,
                 ];
