@@ -54,6 +54,7 @@ export function registerFormulaHover(
                     contents: [
                         { value: `**${formatFunctionSignature(fn)}**` },
                         { value: fn.description },
+                        { value: `e.g. \`${fn.example}\`` },
                         { value: `_${fn.category}_` },
                     ],
                 };
