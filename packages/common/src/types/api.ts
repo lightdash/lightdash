@@ -462,6 +462,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
+    hasResultsCaching: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
@@ -670,6 +671,11 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         appliedDashboardFilters: DashboardFilters;
     };
+
+export type ApiExecuteAsyncFieldValueSearchResults = {
+    queryUuid: string;
+    cacheMetadata: CacheMetadata;
+};
 
 export type QueryResultsPerformance = {
     initialQueryExecutionMs: number | null;
@@ -950,6 +956,7 @@ type ApiResults =
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
+    | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults

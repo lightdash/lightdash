@@ -272,6 +272,7 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
+import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 
 export type ProjectServiceArguments = {
@@ -4611,94 +4612,16 @@ export class ProjectService extends BaseService {
         limit: number;
         filters: AndFilterGroup | undefined;
     }) {
-        if (limit > this.lightdashConfig.query.maxLimit) {
-            throw new ParameterError(
-                `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
-            );
-        }
-
-        let explore = await this.projectModel.findExploreByTableName(
+        return getFieldValuesMetricQuery({
             projectUuid,
             table,
-        );
-        let fieldId = initialFieldId;
-        if (!explore) {
-            // fallback: find explore by join alias and replace fieldId
-            explore = await this.projectModel.findJoinAliasExplore(
-                projectUuid,
-                table,
-            );
-            if (explore && !isExploreError(explore)) {
-                fieldId = initialFieldId.replace(table, explore.baseTable);
-            }
-        }
-
-        if (!explore) {
-            throw new NotFoundError(`Explore ${table} does not exist`);
-        } else if (isExploreError(explore)) {
-            throw new NotFoundError(`Explore ${table} has errors`);
-        }
-
-        const field = findFieldByIdInExplore(explore, fieldId);
-
-        if (!field) {
-            throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
-        }
-
-        if (!isDimension(field)) {
-            throw new ParameterError(
-                `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
-            );
-        }
-        const autocompleteDimensionFilters: FilterGroupItem[] = [
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.INCLUDE,
-                values: [search],
-            },
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.NOT_NULL,
-                values: [],
-            },
-        ];
-        if (filters) {
-            const filtersCompatibleWithExplore = filters.and.filter(
-                (filter) =>
-                    isFilterRule(filter) &&
-                    findFieldByIdInExplore(
-                        explore as Explore,
-                        filter.target.fieldId,
-                    ),
-            );
-            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
-        }
-        const metricQuery: MetricQuery = {
-            exploreName: explore.name,
-            dimensions: [getItemId(field)],
-            metrics: [],
-            filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    and: autocompleteDimensionFilters,
-                },
-            },
-            tableCalculations: [],
-            sorts: [
-                {
-                    fieldId: getItemId(field),
-                    descending: false,
-                },
-            ],
+            initialFieldId,
+            search,
             limit,
-        };
-        return { metricQuery, explore, field };
+            maxLimit: this.lightdashConfig.query.maxLimit,
+            filters,
+            exploreResolver: this.projectModel,
+        });
     }
 
     async searchFieldUniqueValues(

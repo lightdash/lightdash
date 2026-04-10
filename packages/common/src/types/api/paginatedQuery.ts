@@ -1,7 +1,7 @@
 import { type ParametersValuesMap, type PivotConfiguration } from '../..';
 import type { QueryExecutionContext } from '../analytics';
 import type { DownloadFileType } from '../downloadFile';
-import type { DashboardFilters, Filters } from '../filter';
+import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type { DateGranularity } from '../timeFrames';
@@ -123,10 +123,21 @@ export type DownloadAsyncQueryResultsRequestParams = {
     attachmentDownloadName?: string;
 };
 
+export type ExecuteAsyncFieldValueSearchRequestParams =
+    CommonExecuteQueryRequestParams & {
+        table: string;
+        fieldId: string;
+        search: string;
+        limit?: number;
+        filters?: AndFilterGroup;
+        forceRefresh?: boolean;
+    };
+
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
     | ExecuteAsyncSqlQueryRequestParams
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
-    | ExecuteAsyncDashboardSqlChartRequestParams;
+    | ExecuteAsyncDashboardSqlChartRequestParams
+    | ExecuteAsyncFieldValueSearchRequestParams;

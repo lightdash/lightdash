@@ -75,6 +75,7 @@ import {
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncFieldValueSearchResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
@@ -82,6 +83,7 @@ import {
     type CompiledMetric,
     type CustomDimension,
     type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -142,6 +144,7 @@ import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
@@ -170,6 +173,7 @@ import {
     type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
+    type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -3495,6 +3499,134 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             resolvedTimezone,
+        };
+    }
+
+    async executeAsyncFieldValueSearch({
+        account,
+        projectUuid,
+        table,
+        fieldId: initialFieldId,
+        search,
+        limit = 50,
+        filters,
+        forceRefresh,
+        invalidateCache,
+        parameters,
+        userAttributeOverrides,
+    }: ExecuteAsyncFieldValueSearchArgs): Promise<ApiExecuteAsyncFieldValueSearchResults> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
+
+        const { metricQuery, explore, fieldId } =
+            await getFieldValuesMetricQuery({
+                projectUuid,
+                table,
+                initialFieldId,
+                search,
+                limit,
+                maxLimit: this.lightdashConfig.query.maxLimit,
+                filters,
+                exploreResolver: this.projectModel,
+            });
+
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            explore_name: explore.name,
+            query_context: context,
+        };
+
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
+        );
+
+        const { sql, fields, missingParameterReferences, resolvedTimezone } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                account,
+                metricQuery,
+                explore,
+                warehouseSqlBuilder,
+                parameters: combinedParameters,
+                projectUuid,
+                userAttributeOverrides,
+                dataTimezone: warehouseCredentials.dataTimezone,
+            });
+
+        const requestParameters: ExecuteAsyncFieldValueSearchRequestParams = {
+            context,
+            table,
+            fieldId: initialFieldId,
+            search,
+            limit,
+            filters,
+            forceRefresh,
+            parameters: combinedParameters,
+        };
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                account,
+                metricQuery,
+                projectUuid,
+                explore,
+                context,
+                queryTags,
+                invalidateCache: invalidateCache || forceRefresh,
+                parameters: combinedParameters,
+                fields,
+                sql,
+                originalColumns: undefined,
+                missingParameterReferences,
+                timezone: resolvedTimezone,
+                routingTarget: 'warehouse',
+            },
+            requestParameters,
+        );
+
+        this.analytics.track({
+            event: 'field_value.search',
+            userId: account.user.id,
+            properties: {
+                projectId: projectUuid,
+                fieldId,
+                searchCharCount: search.length,
+                resultsCount: 0, // not known at execute time — tracked via query.executed
+                searchLimit: limit,
+            },
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata,
         };
     }
 

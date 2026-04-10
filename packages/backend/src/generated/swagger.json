@@ -9942,6 +9942,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "success",
                                                             "error"
                                                         ]
@@ -28135,6 +28148,64 @@
                     }
                 ]
             },
+            "ApiExecuteAsyncFieldValueSearchResults": {
+                "properties": {
+                    "cacheMetadata": {
+                        "$ref": "#/components/schemas/CacheMetadata"
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["cacheMetadata", "queryUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiExecuteAsyncFieldValueSearchResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncFieldValueSearchResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExecuteAsyncFieldValueSearchRequestParams": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CommonExecuteQueryRequestParams"
+                    },
+                    {
+                        "properties": {
+                            "forceRefresh": {
+                                "type": "boolean"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/AndFilterGroup"
+                            },
+                            "limit": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "search": {
+                                "type": "string"
+                            },
+                            "fieldId": {
+                                "type": "string"
+                            },
+                            "table": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["search", "fieldId", "table"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ExecuteAsyncSavedChartRequestParams": {
                 "allOf": [
                     {
@@ -30051,7 +30122,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2745.0",
+        "version": "0.2749.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -47833,6 +47904,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ExecuteAsyncMetricQueryRequestParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/query/field-values": {
+            "post": {
+                "operationId": "executeAsyncFieldValueSearch",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncFieldValueSearchResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Searches for unique field values asynchronously, returning a query UUID to poll for results",
+                "summary": "Search field values",
+                "tags": ["v2", "Query"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ExecuteAsyncFieldValueSearchRequestParams"
                             }
                         }
                     }
