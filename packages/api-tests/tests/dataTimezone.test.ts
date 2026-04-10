@@ -1,151 +1,42 @@
-import { SEED_PROJECT } from '@lightdash/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ApiClient, Body } from '../helpers/api-client';
+import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
-
-const apiUrl = '/api/v2';
-const projectUuid = SEED_PROJECT.project_uuid;
+import {
+    getRowCount,
+    getTotalCount,
+    runTimezoneTestQuery,
+    updateDataTimezone,
+} from '../helpers/timezone-test';
 
 /**
  * Data timezone tests.
  *
  * Uses the `timezone_test` model which has 10 events with timestamptz values
- * at specific UTC times. When the warehouse session timezone changes (via
- * dataTimezone on credentials), DATE_TRUNC day boundaries shift, producing
- * different per-day counts.
+ * at specific UTC times. Tests that `dataTimezone` sets the warehouse session
+ * timezone correctly.
  *
- * Expected counts by day (no filter):
- *   UTC (default):              Jan 15 = 6, Jan 16 = 4
- *   Pacific/Pago_Pago (UTC-11): Jan 14 = 4, Jan 15 = 4, Jan 16 = 2
+ * With timezone-aware DATE_TRUNC enabled, grouping is controlled by
+ * `queryTimezone` (project timezone), NOT `dataTimezone` (session timezone).
+ * Since these tests don't set `queryTimezone`, it defaults to UTC, so
+ * grouping is always by UTC day boundaries regardless of `dataTimezone`.
  *
- * Expected counts with "equals Jan 15" filter:
- *   UTC: 6
- *   Pacific/Pago_Pago: 4
+ * The `dataTimezone` setting controls how the warehouse interprets NTZ
+ * (no-timezone) columns, not how timestamptz grouping works. For timestamptz
+ * columns (which this test uses), `dataTimezone` only affects display
+ * formatting, not grouping when timezone-aware DATE_TRUNC is active.
+ *
+ * Expected counts by day (queryTimezone = UTC, all cases):
+ *   Jan 15 = 6, Jan 16 = 4
  *
  * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true in the environment.
  */
 
 let admin: ApiClient;
 
-async function getProjectConfig(client: ApiClient): Promise<{
-    dbtConnection: Record<string, unknown>;
-    warehouseConnection: Record<string, unknown>;
-}> {
-    const resp = await client.request<
-        Body<{
-            dbtConnection: Record<string, unknown>;
-            warehouseConnection: Record<string, unknown>;
-        }>
-    >(`/api/v1/projects/${projectUuid}`);
-    expect(resp.status).toBe(200);
-    return {
-        dbtConnection: resp.body.results.dbtConnection,
-        warehouseConnection: resp.body.results.warehouseConnection,
-    };
-}
-
-async function updateDataTimezone(
-    client: ApiClient,
-    dataTimezone?: string,
-): Promise<void> {
-    const { dbtConnection, warehouseConnection } =
-        await getProjectConfig(client);
-    const resp = await client.request(`/api/v1/projects/${projectUuid}`, {
-        method: 'PATCH',
-        body: {
-            dbtConnection,
-            warehouseConnection: {
-                ...warehouseConnection,
-                dataTimezone: dataTimezone ?? null,
-            },
-        },
-    });
-    expect(resp.status).toBe(200);
-}
-
-async function runAsyncQuery(
-    client: ApiClient,
-    options: {
-        dimensions: string[];
-        metrics: string[];
-        filters?: Record<string, unknown>;
-        sorts?: Array<{ fieldId: string; descending: boolean }>;
-    },
-): Promise<
-    Array<Record<string, { value: { raw: string; formatted: string } }>>
-> {
-    // Start the query
-    const startResp = await client.request<Body<{ queryUuid: string }>>(
-        `${apiUrl}/projects/${projectUuid}/query/metric-query`,
-        {
-            method: 'POST',
-            body: {
-                query: {
-                    exploreName: 'timezone_test',
-                    dimensions: options.dimensions,
-                    metrics: options.metrics,
-                    filters: options.filters ?? {},
-                    sorts: options.sorts ?? [
-                        {
-                            fieldId: options.dimensions[0],
-                            descending: false,
-                        },
-                    ],
-                    limit: 500,
-                    tableCalculations: [],
-                },
-            },
-        },
-    );
-    expect(startResp.status).toBe(200);
-    const { queryUuid } = startResp.body.results;
-
-    // Poll for results
-    let attempts = 0;
-    while (attempts < 30) {
-        const pollResp = await client.request<
-            Body<{ status: string; rows: Array<Record<string, unknown>> }>
-        >(
-            `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=500`,
-        );
-        expect(pollResp.status).toBe(200);
-
-        if (pollResp.body.results.status === 'ready') {
-            return pollResp.body.results.rows as Array<
-                Record<string, { value: { raw: string; formatted: string } }>
-            >;
-        }
-        if (pollResp.body.results.status === 'error') {
-            const errorDetails = JSON.stringify(pollResp.body.results, null, 2);
-            throw new Error(`Query failed: ${errorDetails}`);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        attempts++;
-    }
-    throw new Error('Query timed out');
-}
-
-function getRowCount(
-    rows: Array<Record<string, { value: { raw: string; formatted: string } }>>,
-    dayFormatted: string,
-): number {
-    const row = rows.find(
-        (r) =>
-            r.timezone_test_event_timestamp_day?.value?.formatted ===
-            dayFormatted,
-    );
-    return row ? parseInt(row.timezone_test_count?.value?.raw ?? '0', 10) : 0;
-}
-
-function getTotalCount(
-    rows: Array<Record<string, { value: { raw: string; formatted: string } }>>,
-): number {
-    return rows.reduce(
-        (sum, r) =>
-            sum + parseInt(r.timezone_test_count?.value?.raw ?? '0', 10),
-        0,
-    );
-}
+const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
+const METRIC_KEY = 'timezone_test_count';
+const DIMENSIONS = [DIMENSION_KEY];
+const METRICS = [METRIC_KEY];
 
 describe('Data timezone', () => {
     beforeAll(async () => {
@@ -158,20 +49,23 @@ describe('Data timezone', () => {
         });
 
         it('should group events by UTC day boundaries', async () => {
-            const rows = await runAsyncQuery(admin, {
-                dimensions: ['timezone_test_event_timestamp_day'],
-                metrics: ['timezone_test_count'],
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
             });
-
             expect(rows).toHaveLength(2);
-            expect(getRowCount(rows, '2024-01-15')).toBe(6);
-            expect(getRowCount(rows, '2024-01-16')).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
         });
 
         it('should filter by UTC day for equals filter', async () => {
-            const rows = await runAsyncQuery(admin, {
-                dimensions: ['timezone_test_event_timestamp_day'],
-                metrics: ['timezone_test_count'],
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
                 filters: {
                     dimensions: {
                         id: 'tz-test',
@@ -189,14 +83,13 @@ describe('Data timezone', () => {
                     },
                 },
             });
-
-            expect(getTotalCount(rows)).toBe(6);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
         it('should filter by UTC day for greaterThan filter', async () => {
-            const rows = await runAsyncQuery(admin, {
-                dimensions: ['timezone_test_event_timestamp_day'],
-                metrics: ['timezone_test_count'],
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
                 filters: {
                     dimensions: {
                         id: 'tz-test',
@@ -214,9 +107,7 @@ describe('Data timezone', () => {
                     },
                 },
             });
-
-            // Only Jan 16 events (4)
-            expect(getTotalCount(rows)).toBe(4);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
         });
     });
 
@@ -225,22 +116,26 @@ describe('Data timezone', () => {
             await updateDataTimezone(admin, 'Pacific/Pago_Pago');
         });
 
-        it('should group events by Pago Pago day boundaries', async () => {
-            const rows = await runAsyncQuery(admin, {
-                dimensions: ['timezone_test_event_timestamp_day'],
-                metrics: ['timezone_test_count'],
+        it('should still group by UTC day boundaries (queryTimezone defaults to UTC)', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
             });
-
-            expect(rows).toHaveLength(3);
-            expect(getRowCount(rows, '2024-01-14')).toBe(4);
-            expect(getRowCount(rows, '2024-01-15')).toBe(4);
-            expect(getRowCount(rows, '2024-01-16')).toBe(2);
+            // With timezone-aware DATE_TRUNC, grouping follows queryTimezone (UTC),
+            // not dataTimezone (Pago_Pago). The session TZ only affects NTZ interpretation.
+            expect(rows).toHaveLength(2);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
         });
 
-        it('should filter by Pago Pago day for equals filter', async () => {
-            const rows = await runAsyncQuery(admin, {
-                dimensions: ['timezone_test_event_timestamp_day'],
-                metrics: ['timezone_test_count'],
+        it('should filter by UTC day for equals filter (queryTimezone defaults to UTC)', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
                 filters: {
                     dimensions: {
                         id: 'tz-test',
@@ -258,14 +153,14 @@ describe('Data timezone', () => {
                     },
                 },
             });
-
-            expect(getTotalCount(rows)).toBe(4);
+            // Filters also use queryTimezone (UTC), not dataTimezone
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(6);
         });
 
-        it('should filter by Pago Pago day for greaterThan filter', async () => {
-            const rows = await runAsyncQuery(admin, {
-                dimensions: ['timezone_test_event_timestamp_day'],
-                metrics: ['timezone_test_count'],
+        it('should filter by UTC day for greaterThan filter (queryTimezone defaults to UTC)', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
                 filters: {
                     dimensions: {
                         id: 'tz-test',
@@ -283,9 +178,80 @@ describe('Data timezone', () => {
                     },
                 },
             });
+            // Filters use queryTimezone (UTC): only Jan 16 events (4)
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
+        });
+    });
 
-            // Only Jan 16 events in Pago Pago (2)
-            expect(getTotalCount(rows)).toBe(2);
+    describe('dataTimezone + queryTimezone interaction', () => {
+        beforeAll(async () => {
+            await updateDataTimezone(admin, 'Pacific/Pago_Pago');
+        });
+
+        it('dataTz=Pago_Pago, queryTz=UTC: groups by UTC despite non-UTC session', async () => {
+            // queryTimezone controls grouping, not dataTimezone
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'UTC',
+            });
+            expect(rows).toHaveLength(2);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(6);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+        });
+
+        it('dataTz=Pago_Pago, queryTz=Pago_Pago: skip optimization, groups by Pago_Pago', async () => {
+            // When dataTimezone === queryTimezone, bare DATE_TRUNC is used
+            // (session TZ already produces correct grouping)
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'Pacific/Pago_Pago',
+            });
+            expect(rows).toHaveLength(3);
+            expect(
+                getRowCount(rows, '2024-01-14', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(4);
+            expect(
+                getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY),
+            ).toBe(2);
+        });
+
+        it('dataTz=Pago_Pago, queryTz=Pago_Pago: filter day=Jan15 returns 4 events', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: DIMENSIONS,
+                metrics: METRICS,
+                timezone: 'Pacific/Pago_Pago',
+                filters: {
+                    dimensions: {
+                        id: 'tz-test',
+                        and: [
+                            {
+                                id: 'tz-equals',
+                                target: {
+                                    fieldId:
+                                        'timezone_test_event_timestamp_day',
+                                },
+                                operator: 'equals',
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            });
+            expect(rows).toHaveLength(1);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(4);
+        });
+
+        afterAll(async () => {
+            await updateDataTimezone(admin, undefined);
         });
     });
 

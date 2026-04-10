@@ -26,6 +26,7 @@ import {
     getMetricsMapFromTables,
     getParsedReference,
     getPopComparisonConfigKey,
+    getSqlForTruncatedDate,
     hashPopComparisonConfigKeyToSuffix,
     hasPivotFunctions,
     hasRowFunctions,
@@ -34,6 +35,7 @@ import {
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
+    isDimension,
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
@@ -57,11 +59,13 @@ import {
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
     TimeFrames,
+    truncatableTimeFrames,
     UserAttributeValueMap,
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { compilePostCalculationMetric } from '../../queryCompiler';
@@ -127,6 +131,10 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
+    /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
+    useTimezoneAwareDateTrunc?: boolean;
+    /** Warehouse session timezone — used to skip wrapping when it matches queryTimezone. */
+    dataTimezone?: string;
 };
 
 /**
@@ -302,6 +310,29 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
+    /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise. */
+    private get timezoneForDateTrunc(): string | undefined {
+        if (!this.args.useTimezoneAwareDateTrunc) return undefined;
+        if (this.shouldSkipTimezoneConversion()) return undefined;
+        return this.args.timezone;
+    }
+
+    /**
+     * Skip timezone conversion when the effective input TZ matches the query TZ.
+     * Snowflake's effective input is always UTC (convertTimezone normalizes at
+     * compile time); all others use dataTimezone (defaulting to UTC).
+     */
+    private shouldSkipTimezoneConversion(): boolean {
+        const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
+
+        const effectiveInputTz =
+            adapterType === SupportedDbtAdapter.SNOWFLAKE
+                ? 'UTC'
+                : (this.args.dataTimezone ?? 'UTC');
+
+        return effectiveInputTz === this.args.timezone;
+    }
+
     // Contains the metrics from the Explore and the custom metrics from the metric query
     private readonly availableMetrics: Record<string, CompiledMetric> = {};
 
@@ -447,6 +478,7 @@ export class MetricQueryBuilder {
             dimensionsWithoutAccess: this.exploreDimensionsWithoutAccess,
             adapterType,
             startOfWeek,
+            timezone: this.timezoneForDateTrunc,
         });
         const popDimensionBaseId = `${popDimension.table}_${
             popDimension.timeIntervalBaseDimensionName ?? popDimension.name
@@ -549,6 +581,50 @@ export class MetricQueryBuilder {
         );
     }
 
+    /** Regenerates DATE_TRUNC with timezone conversion for truncatable timestamp dimensions. */
+    private getTimezoneAwareDimensionSql(
+        dimension: CompiledDimension,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+    ): string {
+        const { timezone, useTimezoneAwareDateTrunc } = this.args;
+
+        // Skip non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.)
+        // which use EXTRACT/DATE_PART, not DATE_TRUNC.
+        if (
+            !useTimezoneAwareDateTrunc ||
+            !dimension.timeInterval ||
+            !truncatableTimeFrames.has(dimension.timeInterval)
+        ) {
+            return dimension.compiledSql;
+        }
+
+        // Get base dimension's compiledSql (before DATE_TRUNC)
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+
+        const baseDimension = baseDimensionId
+            ? this.exploreDimensions[baseDimensionId]
+            : undefined;
+
+        if (
+            !baseDimension?.compiledSql ||
+            baseDimension.type !== DimensionType.TIMESTAMP
+        ) {
+            return dimension.compiledSql;
+        }
+
+        return getSqlForTruncatedDate(
+            adapterType,
+            dimension.timeInterval,
+            baseDimension.compiledSql,
+            baseDimension.type,
+            startOfWeek,
+            timezone,
+        );
+    }
+
     private buildDimensionsWhereClause(
         dimensionsFilterGroup?: FilterGroup,
     ): string | undefined {
@@ -632,6 +708,7 @@ export class MetricQueryBuilder {
                             this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
                     });
 
                     assertValidDimensionRequiredAttribute(
@@ -731,7 +808,12 @@ export class MetricQueryBuilder {
         dimensionsObjects.forEach((dimension) => {
             const id = getItemId(dimension);
             const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
-            selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
+            const sql = this.getTimezoneAwareDimensionSql(
+                dimension,
+                adapterType,
+                startOfWeek,
+            );
+            selects[id] = `  ${sql} AS ${quotedAlias}`;
         });
 
         if (customBinDimensionSql?.selects) {
@@ -918,6 +1000,7 @@ export class MetricQueryBuilder {
                         this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
+                    timezone: this.timezoneForDateTrunc,
                 });
 
                 assertValidDimensionRequiredAttribute(
@@ -1269,6 +1352,18 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
+        // Override filter dimension SQL to match the timezone-aware SELECT clause
+        const filterField = isDimension(field)
+            ? {
+                  ...field,
+                  compiledSql: this.getTimezoneAwareDimensionSql(
+                      field,
+                      adapterType,
+                      startOfWeek,
+                  ),
+              }
+            : field;
+
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
         let baseDimensionSql: string | undefined;
@@ -1294,7 +1389,7 @@ export class MetricQueryBuilder {
         return renderWithErrorHandling(() =>
             renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
-                field,
+                filterField,
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeString,
@@ -1303,6 +1398,7 @@ export class MetricQueryBuilder {
                 timezone,
                 this.args.explore.caseSensitive ?? true,
                 baseDimensionSql,
+                this.args.useTimezoneAwareDateTrunc,
             ),
         );
     }
@@ -2028,6 +2124,7 @@ export class MetricQueryBuilder {
                                 this.exploreDimensionsWithoutAccess,
                             adapterType,
                             startOfWeek,
+                            timezone: this.timezoneForDateTrunc,
                         });
                         const popDimensionFilters =
                             this.getPopDimensionsFilterSQL(popFieldId);
@@ -2233,6 +2330,7 @@ export class MetricQueryBuilder {
                             this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
                     });
                     const popDimensionFilters =
                         this.getPopDimensionsFilterSQL(popFieldId);
@@ -3779,6 +3877,7 @@ export class MetricQueryBuilder {
                         this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
+                    timezone: this.timezoneForDateTrunc,
                 });
                 const popDimensionFilters =
                     this.getPopDimensionsFilterSQL(popFieldId);

@@ -43,12 +43,14 @@ export const getDimensionFromId = ({
     dimensionsWithoutAccess,
     adapterType,
     startOfWeek,
+    timezone,
 }: {
     dimId: FieldId;
     dimensions: Record<string, CompiledDimension>;
     dimensionsWithoutAccess?: Record<string, CompiledDimension>;
     adapterType: SupportedDbtAdapter;
     startOfWeek: WeekDay | null | undefined;
+    timezone?: string;
 }): CompiledDimension => {
     const dimension = dimensions[dimId];
 
@@ -62,6 +64,7 @@ export const getDimensionFromId = ({
                 dimensionsWithoutAccess,
                 adapterType,
                 startOfWeek,
+                timezone,
             });
             if (baseField && newTimeFrame)
                 return {
@@ -72,6 +75,7 @@ export const getDimensionFromId = ({
                         baseField.compiledSql,
                         baseField.type,
                         startOfWeek,
+                        timezone,
                     ),
                     timeInterval: newTimeFrame,
                 };

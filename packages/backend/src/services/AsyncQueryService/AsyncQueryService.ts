@@ -24,7 +24,6 @@ import {
     Explore,
     ExploreCompiler,
     ExploreType,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -1655,6 +1654,7 @@ export class AsyncQueryService extends ProjectService {
         userAccessControls,
         availableParameterDefinitions,
         queryUuid,
+        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         warehouseQuery: string;
@@ -1670,6 +1670,7 @@ export class AsyncQueryService extends ProjectService {
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
         queryUuid: string;
+        useTimezoneAwareDateTrunc?: boolean;
     }): Promise<AsyncQueryExecutionPlan> {
         if (routingTarget === 'materialization') {
             return { target: 'materialization', warehouseQuery };
@@ -1694,6 +1695,7 @@ export class AsyncQueryService extends ProjectService {
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
             },
         });
 
@@ -1991,10 +1993,10 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
-            const { enabled: isTimezoneSupportEnabled } =
-                await this.featureFlagModel.get({
-                    featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                    user: { userUuid, organizationUuid },
+            const isTimezoneSupportEnabled =
+                await this.isTimezoneSupportEnabled({
+                    userUuid,
+                    organizationUuid,
                 });
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
@@ -2635,6 +2637,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         userAttributeOverrides,
         materializationRole,
+        dataTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2648,6 +2651,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        dataTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -2672,6 +2676,11 @@ export class AsyncQueryService extends ProjectService {
             projectTimezone,
         );
 
+        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
+
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
@@ -2685,6 +2694,8 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             pivotConfiguration,
             pivotDimensions: metricQuery.pivotDimensions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
@@ -3041,6 +3052,13 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
+                    const useTimezoneAwareDateTrunc =
+                        await this.isTimezoneSupportEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
+
                     const resolveStart = Date.now();
                     const executionPlan =
                         await this.resolveAsyncQueryExecutionPlan({
@@ -3058,6 +3076,7 @@ export class AsyncQueryService extends ProjectService {
                             userAccessControls,
                             availableParameterDefinitions,
                             queryUuid: queryHistoryUuid,
+                            useTimezoneAwareDateTrunc,
                         });
                     const resolveMs = Date.now() - resolveStart;
 
@@ -3409,6 +3428,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             materializationRole,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -3654,6 +3674,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3969,6 +3990,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -4273,6 +4295,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
