@@ -198,10 +198,12 @@ const ValueCellMenuDropdownContent: FC<{
                     }
                     onClick={handleOpenDrillIntoModal}
                 >
-                    Drill into{' '}
-                    <Text span fw={500}>
-                        {value.formatted}
-                    </Text>
+                    <>
+                        Drill into{' '}
+                        <Text span fz="inherit" lh="inherit" fw={500}>
+                            {value.formatted}
+                        </Text>
+                    </>
                 </Menu.Item>
             )}
             {isDashboardPage && filters.length > 0 && (
