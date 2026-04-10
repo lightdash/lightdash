@@ -112,6 +112,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         component={Text}
                         highlight={query ?? ''}
                         truncate
+                        fz="inherit"
                     >
                         {displayLabel}
                     </Highlight>
