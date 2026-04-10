@@ -1,5 +1,5 @@
 import { QueryHistoryStatus } from '@lightdash/common';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../api';
 import { MAX_POLL_ATTEMPTS, pollForFieldValueResults } from './useFieldValues';
 
