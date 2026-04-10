@@ -4788,10 +4788,16 @@ export class ProjectService extends BaseService {
         }
 
         if (!forceRefresh && isCacheEnabled && queryHash) {
-            const isCached =
-                await this.s3CacheClient.getResultsMetadata(queryHash);
+            const cacheEntryMetadata = await this.s3CacheClient
+                .getResultsMetadata(queryHash)
+                .catch(() => undefined);
 
-            if (isCached !== undefined) {
+            if (
+                cacheEntryMetadata?.LastModified &&
+                new Date().getTime() -
+                    cacheEntryMetadata.LastModified.getTime() <
+                    this.lightdashConfig.results.cacheStateTimeSeconds * 1000
+            ) {
                 const cacheEntry =
                     await this.s3CacheClient.getResults(queryHash);
                 const stringResults =

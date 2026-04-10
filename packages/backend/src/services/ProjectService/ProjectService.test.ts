@@ -1111,6 +1111,7 @@ describe('ProjectService', () => {
                 results: {
                     ...lightdashConfigMock.results,
                     autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
                 },
             });
             serviceWithCache.warehouseClients = {};
@@ -1207,6 +1208,7 @@ describe('ProjectService', () => {
                 results: {
                     ...lightdashConfigMock.results,
                     autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
                 },
             });
             serviceWithCache.warehouseClients = {};
