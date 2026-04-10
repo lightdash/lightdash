@@ -4720,13 +4720,14 @@ export class ProjectService extends BaseService {
                 filters,
             });
 
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -4769,9 +4770,12 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
         });
 
+        const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
+            ? user.userUuid
+            : null;
         const cacheKey = metricQuery.timezone
-            ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
-            : `${projectUuid}.cache_autocomplete.${query}`;
+            ? `${projectUuid}.${userUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
+            : `${projectUuid}.${userUuid}.cache_autocomplete.${query}`;
         const queryHash = crypto
             .createHash('sha256')
             .update(cacheKey)

@@ -1093,6 +1093,105 @@ describe('ProjectService', () => {
                                         LIMIT 10`),
             );
         });
+
+        test('should use different cache keys for users with per-user warehouse credentials', async () => {
+            // Two users with different userUuids who have per-user warehouse credentials
+            const userA: SessionUser = {
+                ...user,
+                userUuid: 'user-aaaa-1111',
+            };
+
+            const userB: SessionUser = {
+                ...user,
+                userUuid: 'user-bbbb-2222',
+            };
+
+            // Enable autocomplete caching
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                },
+            });
+            serviceWithCache.warehouseClients = {};
+
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            // Mock getWarehouseCredentials to simulate per-user credentials
+            // Each user gets credentials with a userWarehouseCredentialsUuid
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serviceWithCache as any,
+                'getWarehouseCredentials',
+            ).mockImplementation(async (...args: unknown[]) => {
+                const { userId } = args[0] as { userId: string };
+                return {
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: `cred-${userId}`,
+                };
+            });
+
+            // Mock S3 cache: track all cache key lookups
+            const cacheKeyLookups: string[] = [];
+            const cachedResults = new Map<string, string>();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (serviceWithCache as any).s3CacheClient = {
+                getResultsMetadata: jest.fn(async (key: string) => {
+                    cacheKeyLookups.push(key);
+                    return cachedResults.has(key)
+                        ? { LastModified: new Date() }
+                        : undefined;
+                }),
+                getResults: jest.fn(async (key: string) => ({
+                    Body: {
+                        transformToString: async () => cachedResults.get(key),
+                    },
+                })),
+                uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
+                    cachedResults.set(key, buffer.toString());
+                }),
+            };
+
+            // User A queries — populates the cache
+            await serviceWithCache.searchFieldUniqueValues(
+                userA,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // User B queries the same field
+            await serviceWithCache.searchFieldUniqueValues(
+                userB,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // Cache keys must differ when users have per-user warehouse credentials
+            expect(cacheKeyLookups[0]).not.toEqual(cacheKeyLookups[1]);
+
+            // Each user should query the warehouse independently
+            expect(runQueryMock).toHaveBeenCalledTimes(2);
+        });
     });
 
     describe('updateDefaultUserSpaces', () => {
