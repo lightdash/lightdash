@@ -5,6 +5,8 @@ import { type Metric } from './field';
 import {
     isPeriodOverPeriodAdditionalMetric,
     type AdditionalMetric,
+    type MetricOverrides,
+    type MetricQuery,
 } from './metricQuery';
 import { TimeFrames } from './timeFrames';
 
@@ -210,4 +212,31 @@ const GRANULARITY_ORDER: TimeFrames[] = [
 export const getGranularityRank = (granularity: TimeFrames): number => {
     const index = GRANULARITY_ORDER.indexOf(granularity);
     return index === -1 ? Infinity : index;
+};
+
+/**
+ * Returns a `MetricOverrides` map where period-over-period metric IDs
+ * inherit the format override from their base metric when they don't have
+ * one of their own. Leaves any existing PoP overrides untouched.
+ *
+ * This lets downstream consumers (query services, frontend tables) use a
+ * single resolved override map without needing to know about PoP metrics.
+ */
+export const getMetricOverridesWithPopInheritance = (
+    metricQuery: Pick<MetricQuery, 'metricOverrides' | 'additionalMetrics'>,
+): MetricOverrides => {
+    const baseOverrides = metricQuery.metricOverrides ?? {};
+    const additionalMetrics = metricQuery.additionalMetrics ?? [];
+
+    const resolved: MetricOverrides = { ...baseOverrides };
+    for (const am of additionalMetrics) {
+        if (isPeriodOverPeriodAdditionalMetric(am)) {
+            const popId = getItemId(am);
+            const baseOverride = baseOverrides[am.baseMetricId];
+            if (!resolved[popId] && baseOverride) {
+                resolved[popId] = baseOverride;
+            }
+        }
+    }
+    return resolved;
 };

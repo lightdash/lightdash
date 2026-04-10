@@ -73,6 +73,7 @@ import {
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
+    getMetricOverridesWithPopInheritance,
     getMetrics,
     getPreAggregateExploreName,
     getTimeDimensionsMap,
@@ -3908,30 +3909,17 @@ export class ProjectService extends BaseService {
 
                     const { query } = fullQuery;
 
-                    // Build a map from PoP metric IDs to their base metric IDs
-                    // so we can inherit format overrides from the base metric
-                    const popToBaseMetricId: Record<string, string> = {};
-                    for (const am of metricQuery.additionalMetrics || []) {
-                        if (
-                            am.baseMetricId &&
-                            am.generationType === 'periodOverPeriod'
-                        ) {
-                            const popId = `${am.table}_${am.name}`;
-                            popToBaseMetricId[popId] = am.baseMetricId;
-                        }
-                    }
+                    const resolvedMetricOverrides =
+                        getMetricOverridesWithPopInheritance(metricQuery);
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fullQuery.fields).map(([key, value]) => {
-                            // Check for metric or dimension overrides,
-                            // falling back to base metric override for PoP metrics
+                            // Check for metric or dimension overrides. PoP
+                            // metric overrides are inherited from their base
+                            // metric by the shared util above.
                             const override =
-                                metricQuery.metricOverrides?.[key] ||
-                                metricQuery.dimensionOverrides?.[key] ||
-                                (popToBaseMetricId[key] &&
-                                    metricQuery.metricOverrides?.[
-                                        popToBaseMetricId[key]
-                                    ]);
+                                resolvedMetricOverrides[key] ||
+                                metricQuery.dimensionOverrides?.[key];
                             if (override) {
                                 return [
                                     key,
