@@ -1,3 +1,10 @@
+# [0.2752.0](https://github.com/lightdash/lightdash/compare/0.2751.1...0.2752.0) (2026-04-10)
+
+
+### Features
+
+* migrate filter autocomplete to async query service ([#21948](https://github.com/lightdash/lightdash/issues/21948)) ([a8506d2](https://github.com/lightdash/lightdash/commit/a8506d2f7448eaf714a45de39bd41f64eb7fba03))
+
 ## [0.2751.1](https://github.com/lightdash/lightdash/compare/0.2751.0...0.2751.1) (2026-04-10)
 
 
