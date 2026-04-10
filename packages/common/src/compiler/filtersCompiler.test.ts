@@ -1,11 +1,14 @@
+import momentTz from 'moment-timezone';
 import moment from 'moment/moment';
 import { SupportedDbtAdapter } from '../types/dbt';
+import { DimensionType } from '../types/field';
 import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
     createBoundaryDateFormatter,
     renderBooleanFilterSql,
     renderDateFilterSql,
+    renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderNumberFilterSql,
     renderStringFilterSql,
@@ -2378,4 +2381,93 @@ describe('Number Filter SQL Injection Prevention', () => {
             },
         );
     });
+});
+
+describe('DATE dimension filters are server-timezone-independent', () => {
+    // Regression: the default boundaryFormatter (formatDate) used moment(date)
+    // which formats in the server's local timezone. On a server with a positive
+    // UTC offset, endOf('day') in UTC (23:59 UTC) gets shifted to the next
+    // calendar day, producing a 2-day filter range instead of 1.
+    const systemTime = new Date('10 Apr 2026 14:00:00 GMT');
+
+    beforeEach(() => {
+        jest.setSystemTime(systemTime.getTime());
+    });
+
+    afterEach(() => {
+        // Reset moment default timezone so other tests are unaffected
+        momentTz.tz.setDefault();
+    });
+
+    test.each([
+        ['UTC', 'UTC'],
+        ['Europe/Moscow', 'UTC'],
+        ['Asia/Tokyo', 'UTC'],
+        ['America/New_York', 'UTC'],
+        ['Pacific/Auckland', 'UTC'],
+    ])(
+        'inTheCurrent day for DATE dimension produces single-day range regardless of server TZ=%s',
+        (serverTz, projectTz) => {
+            // Simulate a server running in a non-UTC timezone
+            momentTz.tz.setDefault(serverTz);
+
+            const sql = renderFilterRuleSql(
+                {
+                    id: 'id',
+                    target: { fieldId: 'fieldId' },
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    values: [1],
+                    settings: { unitOfTime: UnitOfTime.days },
+                },
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                projectTz,
+            );
+
+            // Both boundaries must be the same UTC date — no 2-day range
+            expect(sql).toBe(
+                `((${DimensionSqlMock}) >= ('2026-04-10') AND (${DimensionSqlMock}) <= ('2026-04-10'))`,
+            );
+        },
+    );
+
+    test.each([
+        ['Europe/Moscow', 'UTC'],
+        ['Asia/Tokyo', 'UTC'],
+        ['America/New_York', 'UTC'],
+    ])(
+        'inThePast 1 completed day for DATE dimension is server-TZ-independent (server TZ=%s)',
+        (serverTz, projectTz) => {
+            momentTz.tz.setDefault(serverTz);
+
+            const sql = renderFilterRuleSql(
+                {
+                    id: 'id',
+                    target: { fieldId: 'fieldId' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [1],
+                    settings: {
+                        unitOfTime: UnitOfTime.days,
+                        completed: true,
+                    },
+                },
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                projectTz,
+            );
+
+            // Yesterday in UTC: April 9
+            expect(sql).toBe(
+                `((${DimensionSqlMock}) >= ('2026-04-09') AND (${DimensionSqlMock}) < ('2026-04-10'))`,
+            );
+        },
+    );
 });
