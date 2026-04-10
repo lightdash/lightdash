@@ -24,7 +24,6 @@ import {
     Explore,
     ExploreCompiler,
     ExploreType,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -1994,10 +1993,10 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
-            const { enabled: isTimezoneSupportEnabled } =
-                await this.featureFlagModel.get({
-                    featureFlagId: FeatureFlags.EnableTimezoneSupport,
-                    user: { userUuid, organizationUuid },
+            const isTimezoneSupportEnabled =
+                await this.isTimezoneSupportEnabled({
+                    userUuid,
+                    organizationUuid,
                 });
             const resolvedDataTimezone = isTimezoneSupportEnabled
                 ? warehouseClient.credentials.dataTimezone
@@ -2677,8 +2676,10 @@ export class AsyncQueryService extends ProjectService {
             projectTimezone,
         );
 
-        const useTimezoneAwareDateTrunc =
-            await this.isTimezoneAwareDateTruncEnabled();
+        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -3052,7 +3053,11 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     const useTimezoneAwareDateTrunc =
-                        await this.isTimezoneAwareDateTruncEnabled();
+                        await this.isTimezoneSupportEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
 
                     const resolveStart = Date.now();
                     const executionPlan =

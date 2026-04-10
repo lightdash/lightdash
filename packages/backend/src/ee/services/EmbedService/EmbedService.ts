@@ -864,7 +864,10 @@ export class EmbedService extends BaseService {
         );
 
         const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneAwareDateTruncEnabled();
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            });
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -1389,7 +1392,10 @@ export class EmbedService extends BaseService {
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
         const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneAwareDateTruncEnabled();
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            });
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1653,7 +1659,10 @@ export class EmbedService extends BaseService {
             projectTimezone,
         );
         const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneAwareDateTruncEnabled();
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            });
 
         try {
             const { totalQuery: totalMetricQuery } =
