@@ -1759,6 +1759,8 @@ describe('AsyncQueryService', () => {
 
                 const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
                     userUuid: sessionAccount.user.id,
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid!,
                     isRegisteredUser: true,
                     projectUuid,
                     query: 'SELECT * FROM test',
@@ -1854,6 +1856,7 @@ describe('AsyncQueryService', () => {
 
             const runAsyncArgs: RunAsyncWarehouseQueryArgs = {
                 userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
                 isRegisteredUser: true,
                 projectUuid,
                 query: 'SELECT * FROM test_table',

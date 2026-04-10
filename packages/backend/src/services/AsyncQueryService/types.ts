@@ -176,7 +176,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 export type RunAsyncWarehouseQueryArgs = {
     projectUuid: string;
     userUuid: string;
-    organizationUuid?: string;
+    organizationUuid: string;
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;

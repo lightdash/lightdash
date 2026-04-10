@@ -1731,6 +1731,7 @@ export class AsyncQueryService extends ProjectService {
 
     public async runAsyncPreAggregateQuery({
         userUuid,
+        organizationUuid,
         isRegisteredUser,
         isServiceAccount,
         projectUuid,
@@ -1751,6 +1752,7 @@ export class AsyncQueryService extends ProjectService {
 
             await this.runAsyncWarehouseQuery({
                 userUuid,
+                organizationUuid,
                 isRegisteredUser,
                 isServiceAccount,
                 projectUuid,
@@ -1786,6 +1788,7 @@ export class AsyncQueryService extends ProjectService {
             );
             await this.runAsyncWarehouseQuery({
                 userUuid,
+                organizationUuid,
                 isRegisteredUser,
                 isServiceAccount,
                 projectUuid,
