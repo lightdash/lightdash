@@ -426,14 +426,7 @@ export class SchedulerService extends BaseService {
         // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
         // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'create',
-                subject('ScheduledDeliveries', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
+        if (auditedAbility.cannot('create', 'ScheduledDeliveries')) {
             throw new ForbiddenError();
         }
 
