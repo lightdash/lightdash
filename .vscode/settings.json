@@ -12,6 +12,10 @@
             "okteto.yaml",
             "okteto.preview.yaml",
             "okteto.dev.yaml"
+        ],
+        "https://raw.githubusercontent.com/lightdash/lightdash/main/packages/common/src/schemas/json/lightdash-dbt-2.0.json": [
+            "/**/models/**/*.yml",
+            "/**/models/**/*.yaml"
         ]
     },
     "eslint.workingDirectories": [
