@@ -23,6 +23,7 @@ module.exports = {
             },
         ],
         '@typescript-eslint/only-throw-error': 'warn',
+        '@typescript-eslint/no-throw-literal': 'warn',
         '@typescript-eslint/no-unused-vars': [
             'error',
             {
