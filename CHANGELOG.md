@@ -1,3 +1,10 @@
+# [0.2747.0](https://github.com/lightdash/lightdash/compare/0.2746.3...0.2747.0) (2026-04-10)
+
+
+### Features
+
+* add AI formula generation for table calculations ([#21914](https://github.com/lightdash/lightdash/issues/21914)) ([f9f2db8](https://github.com/lightdash/lightdash/commit/f9f2db8bdfe1128627959ca4ae38752f82196875))
+
 ## [0.2746.3](https://github.com/lightdash/lightdash/compare/0.2746.2...0.2746.3) (2026-04-10)
 
 
