@@ -191,7 +191,6 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
@@ -254,6 +253,7 @@ import {
     wrapSentryTransaction,
     wrapSentryTransactionSync,
 } from '../../utils';
+import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -3865,22 +3865,6 @@ export class ProjectService extends BaseService {
         );
     }
 
-    private static getCacheUserUuid(
-        warehouseCredentials: { userWarehouseCredentialsUuid?: string },
-        userId: string,
-    ): string | null {
-        return warehouseCredentials.userWarehouseCredentialsUuid
-            ? userId
-            : null;
-    }
-
-    private static buildCacheHash(parts: (string | null)[]): string {
-        return crypto
-            .createHash('sha256')
-            .update(parts.join('.'))
-            .digest('hex');
-    }
-
     async getResultsFromCacheOrWarehouse({
         projectUuid,
         userUuid,
@@ -3909,7 +3893,7 @@ export class ProjectService extends BaseService {
             async (span) => {
                 const hashParts = [projectUuid, userUuid, query];
                 if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
-                const queryHash = ProjectService.buildCacheHash(hashParts);
+                const queryHash = buildCacheHash(hashParts);
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
@@ -4208,7 +4192,7 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const userUuid = ProjectService.getCacheUserUuid(
+                    const userUuid = getCacheUserUuid(
                         warehouseCredentials,
                         account.user.id,
                     );
@@ -4783,14 +4767,11 @@ export class ProjectService extends BaseService {
 
         const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
 
-        const userUuid = ProjectService.getCacheUserUuid(
-            warehouseCredentials,
-            user.userUuid,
-        );
+        const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
         const hashParts = [projectUuid, userUuid, 'cache_autocomplete', query];
         if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
-        const queryHash = ProjectService.buildCacheHash(hashParts);
+        const queryHash = buildCacheHash(hashParts);
 
         if (!forceRefresh && isCacheEnabled) {
             const stringResults = await this.s3CacheClient
@@ -7026,7 +7007,7 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
-            const userUuid = ProjectService.getCacheUserUuid(
+            const userUuid = getCacheUserUuid(
                 warehouseCredentials,
                 account.user.id,
             );
