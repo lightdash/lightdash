@@ -138,6 +138,10 @@ const Settings: FC = () => {
         FeatureFlags.DefaultUserSpaces,
     );
 
+    const { data: dataAppsFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataApps,
+    );
+
     const { track } = useTracking();
     const {
         data: organization,
@@ -249,10 +253,7 @@ const Settings: FC = () => {
                 ),
             });
         }
-        if (
-            health?.dataApps?.enabled &&
-            user?.ability.can('manage', 'DataApp')
-        ) {
+        if (dataAppsFlag?.enabled && user?.ability.can('manage', 'DataApp')) {
             allowedRoutes.push({
                 path: '/myApps',
                 element: (
@@ -480,7 +481,7 @@ const Settings: FC = () => {
         health?.hasSlack,
         health?.hasGithub,
         health?.hasGitlab,
-        health?.dataApps?.enabled,
+        dataAppsFlag?.enabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -657,7 +658,7 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
-                                {health?.dataApps?.enabled &&
+                                {dataAppsFlag?.enabled &&
                                     user.ability.can('manage', 'DataApp') && (
                                         <RouterNavLink
                                             label="My apps"
