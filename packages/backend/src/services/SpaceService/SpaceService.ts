@@ -12,6 +12,7 @@ import {
     SpaceDeleteImpact,
     SpaceMemberRole,
     SpaceShare,
+    SpaceSummary,
     UpdateSpace,
     type SpaceAccess,
 } from '@lightdash/common';
@@ -97,6 +98,22 @@ export class SpaceService
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
         this.dashboardService = args.dashboardService;
+    }
+
+    /** @internal For unit testing only */
+    async _userCanActionSpace(
+        user: Pick<SessionUser, 'ability' | 'userUuid'>,
+        contentType: 'Space' | 'Dashboard' | 'Chart',
+        space: Pick<SpaceSummary, 'uuid'>,
+        action: AbilityAction,
+    ): Promise<boolean> {
+        const spaceCtx =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                space.uuid,
+            );
+        // eslint-disable-next-line no-direct-ability-check -- test-only method exercises raw CASL abilities
+        return user.ability.can(action, subject(contentType, spaceCtx));
     }
 
     /**
