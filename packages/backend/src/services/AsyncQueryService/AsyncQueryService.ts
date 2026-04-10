@@ -2698,12 +2698,30 @@ export class AsyncQueryService extends ProjectService {
             dataTimezone,
         });
 
+        // Build a map from PoP metric IDs to their base metric IDs
+        // so we can inherit format overrides from the base metric
+        const popToBaseMetricId: Record<string, string> = {};
+        for (const am of metricQuery.additionalMetrics || []) {
+            if (
+                am.baseMetricId &&
+                am.generationType === 'periodOverPeriod'
+            ) {
+                const popId = `${am.table}_${am.name}`;
+                popToBaseMetricId[popId] = am.baseMetricId;
+            }
+        }
+
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
             Object.entries(fullQuery.fields).map(([key, value]) => {
-                // Check for metric or dimension overrides
+                // Check for metric or dimension overrides,
+                // falling back to base metric override for PoP metrics
                 const override =
                     metricQuery.metricOverrides?.[key] ||
-                    metricQuery.dimensionOverrides?.[key];
+                    metricQuery.dimensionOverrides?.[key] ||
+                    (popToBaseMetricId[key] &&
+                        metricQuery.metricOverrides?.[
+                            popToBaseMetricId[key]
+                        ]);
                 if (override) {
                     const { formatOptions } = override;
 

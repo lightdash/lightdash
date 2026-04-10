@@ -443,6 +443,21 @@ export const useColumns = (): TableColumn[] => {
             return baseItemsMap;
         }
 
+        // Build a map from PoP metric IDs to their base metric IDs
+        // so we can inherit format overrides from the base metric
+        const popToBaseMetricId: Record<string, string> = {};
+        if (additionalMetrics) {
+            for (const am of additionalMetrics) {
+                if (
+                    am.baseMetricId &&
+                    am.generationType === 'periodOverPeriod'
+                ) {
+                    const popId = getItemId(am);
+                    popToBaseMetricId[popId] = am.baseMetricId;
+                }
+            }
+        }
+
         // Only apply overrides to items that have them
         return Object.fromEntries(
             Object.entries(baseItemsMap).map(([key, value]) => {
@@ -451,7 +466,12 @@ export const useColumns = (): TableColumn[] => {
                     return [key, value];
                 }
 
-                if (!metricOverrides[key]) return [key, value];
+                // Fall back to base metric override for PoP metrics
+                const override =
+                    metricOverrides[key] ||
+                    (popToBaseMetricId[key] &&
+                        metricOverrides[popToBaseMetricId[key]]);
+                if (!override) return [key, value];
 
                 const itemWithoutLegacyFormat = omit(value, [
                     'format',
@@ -461,12 +481,12 @@ export const useColumns = (): TableColumn[] => {
                     key,
                     {
                         ...itemWithoutLegacyFormat,
-                        ...metricOverrides[key],
+                        ...override,
                     },
                 ];
             }),
         );
-    }, [baseItemsMap, metricOverrides, resultsFields]);
+    }, [baseItemsMap, metricOverrides, resultsFields, additionalMetrics]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
