@@ -4770,14 +4770,17 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
         });
 
-        const isCacheEnabled =
-            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
+        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
+
+        const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
+            ? user.userUuid
+            : null;
 
         let queryHash: string | undefined;
         if (isCacheEnabled) {
             const cacheKey = metricQuery.timezone
-                ? `${projectUuid}.${user.userUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
-                : `${projectUuid}.${user.userUuid}.cache_autocomplete.${query}`;
+                ? `${projectUuid}.${userUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
+                : `${projectUuid}.${userUuid}.cache_autocomplete.${query}`;
             queryHash = crypto
                 .createHash('sha256')
                 .update(cacheKey)

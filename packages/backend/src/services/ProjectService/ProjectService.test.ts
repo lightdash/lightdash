@@ -1095,7 +1095,6 @@ describe('ProjectService', () => {
         });
 
         test('should use different cache keys for users with per-user warehouse credentials', async () => {
-            // Two users with different userUuids who have per-user warehouse credentials
             const userA: SessionUser = {
                 ...user,
                 userUuid: 'user-aaaa-1111',
@@ -1127,7 +1126,6 @@ describe('ProjectService', () => {
             }));
 
             // Mock getWarehouseCredentials to simulate per-user credentials
-            // Each user gets credentials with a userWarehouseCredentialsUuid
             jest.spyOn(
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceWithCache as any,
@@ -1191,6 +1189,95 @@ describe('ProjectService', () => {
 
             // Each user should query the warehouse independently
             expect(runQueryMock).toHaveBeenCalledTimes(2);
+        });
+
+        test('should share cache key when users have shared warehouse credentials', async () => {
+            const userA: SessionUser = {
+                ...user,
+                userUuid: 'user-aaaa-1111',
+            };
+
+            const userB: SessionUser = {
+                ...user,
+                userUuid: 'user-bbbb-2222',
+            };
+
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                },
+            });
+            serviceWithCache.warehouseClients = {};
+
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            // No userWarehouseCredentialsUuid — shared project credentials
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serviceWithCache as any,
+                'getWarehouseCredentials',
+            ).mockImplementation(async () => ({
+                ...warehouseClientMock.credentials,
+            }));
+
+            const cacheKeyLookups: string[] = [];
+            const cachedResults = new Map<string, string>();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (serviceWithCache as any).s3CacheClient = {
+                getResultsMetadata: jest.fn(async (key: string) => {
+                    cacheKeyLookups.push(key);
+                    return cachedResults.has(key)
+                        ? { LastModified: new Date() }
+                        : undefined;
+                }),
+                getResults: jest.fn(async (key: string) => ({
+                    Body: {
+                        transformToString: async () => cachedResults.get(key),
+                    },
+                })),
+                uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
+                    cachedResults.set(key, buffer.toString());
+                }),
+            };
+
+            await serviceWithCache.searchFieldUniqueValues(
+                userA,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            await serviceWithCache.searchFieldUniqueValues(
+                userB,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // Cache keys must be the same — shared credentials, no per-user scoping
+            expect(cacheKeyLookups[0]).toEqual(cacheKeyLookups[1]);
+
+            // Warehouse should only be queried once — second call hits the cache
+            expect(runQueryMock).toHaveBeenCalledTimes(1);
         });
     });
 
