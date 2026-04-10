@@ -161,4 +161,5 @@ export interface FunctionDefinition {
     minArgs: number;
     maxArgs: number;
     category: FunctionCategory;
+    example: string;
 }

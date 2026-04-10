@@ -70,52 +70,52 @@ export type FunctionName = (typeof ALL_FUNCTION_NAMES)[number];
 // oxfmt-ignore
 export const FUNCTION_DEFINITIONS = [
     // Logical
-    { name: 'IF', description: 'Conditional expression', minArgs: 2, maxArgs: 3, category: 'logical' },
+    { name: 'IF', description: 'Conditional expression', minArgs: 2, maxArgs: 3, category: 'logical', example: 'IF(price > 100, "expensive", "cheap")' },
     // Math
-    { name: 'ABS', description: 'Absolute value', minArgs: 1, maxArgs: 1, category: 'math' },
-    { name: 'ROUND', description: 'Round to decimal places', minArgs: 1, maxArgs: 2, category: 'math' },
-    { name: 'CEIL', description: 'Round up to integer', minArgs: 1, maxArgs: 1, category: 'math' },
-    { name: 'CEILING', description: 'Round up to integer', minArgs: 1, maxArgs: 1, category: 'math' },
-    { name: 'FLOOR', description: 'Round down to integer', minArgs: 1, maxArgs: 1, category: 'math' },
-    { name: 'MIN', description: 'Minimum (scalar or aggregate)', minArgs: 1, maxArgs: 2, category: 'math' },
-    { name: 'MAX', description: 'Maximum (scalar or aggregate)', minArgs: 1, maxArgs: 2, category: 'math' },
+    { name: 'ABS', description: 'Absolute value', minArgs: 1, maxArgs: 1, category: 'math', example: 'ABS(profit)' },
+    { name: 'ROUND', description: 'Round to decimal places', minArgs: 1, maxArgs: 2, category: 'math', example: 'ROUND(price, 2)' },
+    { name: 'CEIL', description: 'Round up to integer', minArgs: 1, maxArgs: 1, category: 'math', example: 'CEIL(price)' },
+    { name: 'CEILING', description: 'Round up to integer', minArgs: 1, maxArgs: 1, category: 'math', example: 'CEILING(price)' },
+    { name: 'FLOOR', description: 'Round down to integer', minArgs: 1, maxArgs: 1, category: 'math', example: 'FLOOR(price)' },
+    { name: 'MIN', description: 'Minimum (scalar or aggregate)', minArgs: 1, maxArgs: 2, category: 'math', example: 'MIN(price, cost)' },
+    { name: 'MAX', description: 'Maximum (scalar or aggregate)', minArgs: 1, maxArgs: 2, category: 'math', example: 'MAX(price, cost)' },
     // String
-    { name: 'CONCAT', description: 'Concatenate strings', minArgs: 1, maxArgs: Infinity, category: 'string' },
-    { name: 'LEN', description: 'String length', minArgs: 1, maxArgs: 1, category: 'string' },
-    { name: 'LENGTH', description: 'String length', minArgs: 1, maxArgs: 1, category: 'string' },
-    { name: 'TRIM', description: 'Remove whitespace', minArgs: 1, maxArgs: 1, category: 'string' },
-    { name: 'LOWER', description: 'To lowercase', minArgs: 1, maxArgs: 1, category: 'string' },
-    { name: 'UPPER', description: 'To uppercase', minArgs: 1, maxArgs: 1, category: 'string' },
+    { name: 'CONCAT', description: 'Concatenate strings', minArgs: 1, maxArgs: Infinity, category: 'string', example: 'CONCAT(first_name, " ", last_name)' },
+    { name: 'LEN', description: 'String length', minArgs: 1, maxArgs: 1, category: 'string', example: 'LEN(name)' },
+    { name: 'LENGTH', description: 'String length', minArgs: 1, maxArgs: 1, category: 'string', example: 'LENGTH(name)' },
+    { name: 'TRIM', description: 'Remove whitespace', minArgs: 1, maxArgs: 1, category: 'string', example: 'TRIM(name)' },
+    { name: 'LOWER', description: 'To lowercase', minArgs: 1, maxArgs: 1, category: 'string', example: 'LOWER(status)' },
+    { name: 'UPPER', description: 'To uppercase', minArgs: 1, maxArgs: 1, category: 'string', example: 'UPPER(status)' },
     // Date
-    { name: 'TODAY', description: 'Current date', minArgs: 0, maxArgs: 0, category: 'date' },
-    { name: 'NOW', description: 'Current timestamp', minArgs: 0, maxArgs: 0, category: 'date' },
-    { name: 'YEAR', description: 'Extract year', minArgs: 1, maxArgs: 1, category: 'date' },
-    { name: 'MONTH', description: 'Extract month', minArgs: 1, maxArgs: 1, category: 'date' },
-    { name: 'DAY', description: 'Extract day', minArgs: 1, maxArgs: 1, category: 'date' },
+    { name: 'TODAY', description: 'Current date', minArgs: 0, maxArgs: 0, category: 'date', example: 'TODAY()' },
+    { name: 'NOW', description: 'Current timestamp', minArgs: 0, maxArgs: 0, category: 'date', example: 'NOW()' },
+    { name: 'YEAR', description: 'Extract year', minArgs: 1, maxArgs: 1, category: 'date', example: 'YEAR(order_date)' },
+    { name: 'MONTH', description: 'Extract month', minArgs: 1, maxArgs: 1, category: 'date', example: 'MONTH(order_date)' },
+    { name: 'DAY', description: 'Extract day', minArgs: 1, maxArgs: 1, category: 'date', example: 'DAY(order_date)' },
     // Null
-    { name: 'COALESCE', description: 'First non-null value', minArgs: 1, maxArgs: Infinity, category: 'null' },
-    { name: 'ISNULL', description: 'Check if null', minArgs: 1, maxArgs: 1, category: 'null' },
+    { name: 'COALESCE', description: 'First non-null value', minArgs: 1, maxArgs: Infinity, category: 'null', example: 'COALESCE(discount, 0)' },
+    { name: 'ISNULL', description: 'Check if null', minArgs: 1, maxArgs: 1, category: 'null', example: 'ISNULL(discount)' },
     // Aggregates
-    { name: 'SUM', description: 'Sum values', minArgs: 1, maxArgs: 1, category: 'aggregate' },
-    { name: 'AVERAGE', description: 'Average values', minArgs: 1, maxArgs: 1, category: 'aggregate' },
-    { name: 'AVG', description: 'Average values', minArgs: 1, maxArgs: 1, category: 'aggregate' },
-    { name: 'COUNT', description: 'Count values', minArgs: 0, maxArgs: 1, category: 'aggregate' },
+    { name: 'SUM', description: 'Sum values', minArgs: 1, maxArgs: 1, category: 'aggregate', example: 'SUM(revenue)' },
+    { name: 'AVERAGE', description: 'Average values', minArgs: 1, maxArgs: 1, category: 'aggregate', example: 'AVERAGE(price)' },
+    { name: 'AVG', description: 'Average values', minArgs: 1, maxArgs: 1, category: 'aggregate', example: 'AVG(price)' },
+    { name: 'COUNT', description: 'Count values', minArgs: 0, maxArgs: 1, category: 'aggregate', example: 'COUNT(order_id)' },
     // Conditional aggregates
-    { name: 'SUMIF', description: 'Sum with condition', minArgs: 2, maxArgs: 2, category: 'aggregate' },
-    { name: 'AVERAGEIF', description: 'Average with condition', minArgs: 2, maxArgs: 2, category: 'aggregate' },
-    { name: 'COUNTIF', description: 'Count with condition', minArgs: 1, maxArgs: 1, category: 'aggregate' },
+    { name: 'SUMIF', description: 'Sum with condition', minArgs: 2, maxArgs: 2, category: 'aggregate', example: 'SUMIF(revenue, status = "completed")' },
+    { name: 'AVERAGEIF', description: 'Average with condition', minArgs: 2, maxArgs: 2, category: 'aggregate', example: 'AVERAGEIF(price, quantity > 0)' },
+    { name: 'COUNTIF', description: 'Count with condition', minArgs: 1, maxArgs: 1, category: 'aggregate', example: 'COUNTIF(status = "active")' },
     // Window functions
-    { name: 'RUNNING_TOTAL', description: 'Running total (cumulative sum)', minArgs: 1, maxArgs: 1, category: 'window' },
-    { name: 'ROW_NUMBER', description: 'Row number', minArgs: 0, maxArgs: 0, category: 'window' },
-    { name: 'LAG', description: 'Previous row value', minArgs: 1, maxArgs: 3, category: 'window' },
-    { name: 'LEAD', description: 'Next row value', minArgs: 1, maxArgs: 3, category: 'window' },
-    { name: 'RANK', description: 'Rank with gaps', minArgs: 0, maxArgs: 0, category: 'window' },
-    { name: 'DENSE_RANK', description: 'Rank without gaps', minArgs: 0, maxArgs: 0, category: 'window' },
-    { name: 'NTILE', description: 'Distribute rows into buckets', minArgs: 1, maxArgs: 1, category: 'window' },
-    { name: 'FIRST', description: 'First value in window', minArgs: 1, maxArgs: 1, category: 'window' },
-    { name: 'LAST', description: 'Last value in window', minArgs: 1, maxArgs: 1, category: 'window' },
-    { name: 'MOVING_SUM', description: 'Moving sum over preceding rows', minArgs: 2, maxArgs: 2, category: 'window' },
-    { name: 'MOVING_AVG', description: 'Moving average over preceding rows', minArgs: 2, maxArgs: 2, category: 'window' },
+    { name: 'RUNNING_TOTAL', description: 'Running total (cumulative sum)', minArgs: 1, maxArgs: 1, category: 'window', example: 'RUNNING_TOTAL(revenue)' },
+    { name: 'ROW_NUMBER', description: 'Row number', minArgs: 0, maxArgs: 0, category: 'window', example: 'ROW_NUMBER()' },
+    { name: 'LAG', description: 'Previous row value', minArgs: 1, maxArgs: 3, category: 'window', example: 'LAG(revenue, 1, 0)' },
+    { name: 'LEAD', description: 'Next row value', minArgs: 1, maxArgs: 3, category: 'window', example: 'LEAD(revenue, 1, 0)' },
+    { name: 'RANK', description: 'Rank with gaps', minArgs: 0, maxArgs: 0, category: 'window', example: 'RANK()' },
+    { name: 'DENSE_RANK', description: 'Rank without gaps', minArgs: 0, maxArgs: 0, category: 'window', example: 'DENSE_RANK()' },
+    { name: 'NTILE', description: 'Distribute rows into buckets', minArgs: 1, maxArgs: 1, category: 'window', example: 'NTILE(4)' },
+    { name: 'FIRST', description: 'First value in window', minArgs: 1, maxArgs: 1, category: 'window', example: 'FIRST(revenue)' },
+    { name: 'LAST', description: 'Last value in window', minArgs: 1, maxArgs: 1, category: 'window', example: 'LAST(revenue)' },
+    { name: 'MOVING_SUM', description: 'Moving sum over preceding rows', minArgs: 2, maxArgs: 2, category: 'window', example: 'MOVING_SUM(revenue, 3)' },
+    { name: 'MOVING_AVG', description: 'Moving average over preceding rows', minArgs: 2, maxArgs: 2, category: 'window', example: 'MOVING_AVG(revenue, 7)' },
 ] as const satisfies readonly FunctionDefinition[];
 
 export type FunctionDefinitionEntry = (typeof FUNCTION_DEFINITIONS)[number];
@@ -158,7 +158,7 @@ export const FUNCTION_CATALOG: string = (() => {
         const cat = fn.category.toUpperCase();
         if (!byCategory[cat]) byCategory[cat] = [];
         byCategory[cat].push(
-            `  ${fn.name}${formatFunctionArgs(fn)} - ${fn.description}`,
+            `  ${fn.name}${formatFunctionArgs(fn)} - ${fn.description}${fn.example ? ` (e.g. ${fn.example})` : ''}`,
         );
     }
     return Object.entries(byCategory)
