@@ -4,6 +4,7 @@ import {
     MetricQuery,
     PivotConfig,
     PivotConfiguration,
+    type AndFilterGroup,
     type CacheMetadata,
     type DashboardFilters,
     type DateZoom,
@@ -59,6 +60,15 @@ export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
     'invalidateCache' | 'context' | 'parameters'
 > &
     Omit<DownloadAsyncQueryResultsPayload, 'userUuid' | 'organizationUuid'>;
+
+export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
+    table: string;
+    fieldId: string;
+    search: string;
+    limit?: number;
+    filters?: AndFilterGroup;
+    forceRefresh?: boolean;
+};
 
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;

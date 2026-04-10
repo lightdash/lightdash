@@ -671,6 +671,11 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
         appliedDashboardFilters: DashboardFilters;
     };
 
+export type ApiExecuteAsyncFieldValueSearchResults = {
+    queryUuid: string;
+    cacheMetadata: CacheMetadata;
+};
+
 export type QueryResultsPerformance = {
     initialQueryExecutionMs: number | null;
     resultsPageExecutionMs: number;
@@ -950,6 +955,7 @@ type ApiResults =
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
+    | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults

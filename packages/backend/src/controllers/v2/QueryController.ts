@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiExecuteAsyncFieldValueSearchResults,
     ApiExecuteAsyncSqlQueryResults,
     ApiGetAsyncQueryResults,
     ApiSuccess,
@@ -21,6 +22,7 @@ import {
     type ApiJobScheduledResponse,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
+    type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncSqlChartRequestParams,
@@ -169,6 +171,44 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Searches for unique field values asynchronously, returning a query UUID to poll for results
+     * @summary Search field values
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/field-values')
+    @OperationId('executeAsyncFieldValueSearch')
+    async executeAsyncFieldValueSearch(
+        @Body()
+        body: ExecuteAsyncFieldValueSearchRequestParams,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncFieldValueSearchResults>> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncFieldValueSearch({
+                account: req.account!,
+                projectUuid,
+                table: body.table,
+                fieldId: body.fieldId,
+                search: body.search,
+                limit: body.limit,
+                filters: body.filters,
+                forceRefresh: body.forceRefresh,
+                invalidateCache: body.invalidateCache,
+                parameters: body.parameters,
+                context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
             });
 
         return {
