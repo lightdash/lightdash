@@ -153,13 +153,6 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
-
-    /**
-     * Route filter autocomplete queries through AsyncQueryService instead
-     * of the synchronous ProjectService path. Enables unified caching via
-     * query_history and non-blocking warehouse execution.
-     */
-    AsyncFilterAutocomplete = 'async-filter-autocomplete',
 }
 
 export type FeatureFlag = {

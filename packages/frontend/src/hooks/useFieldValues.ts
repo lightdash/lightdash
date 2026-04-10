@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getFilterRulesFromGroup,
     getItemId,
     isField,
@@ -18,7 +17,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
+import useHealth from './health/useHealth';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 50;
 
@@ -201,10 +200,8 @@ export const useFieldValues = (
     parameterValues?: ParametersValuesMap,
 ) => {
     const { embedToken } = useEmbed();
-    const { data: asyncFlag } = useServerFeatureFlag(
-        FeatureFlags.AsyncFilterAutocomplete,
-    );
-    const useAsyncPath = asyncFlag?.enabled === true;
+    const { data: healthData } = useHealth();
+    const useAsyncPath = healthData?.hasResultsCaching === true;
     const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
