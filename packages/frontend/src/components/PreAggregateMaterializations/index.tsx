@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Button,
     Group,
@@ -165,7 +166,10 @@ const StatusFilter: FC<{
 };
 
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
-    const { isLoading: isLoadingProject } = useProject(projectUuid);
+    const { data: project, isLoading: isLoadingProject } =
+        useProject(projectUuid);
+    const requiresUserCredentials =
+        project?.warehouseConnection?.requireUserCredentials ?? false;
     const { hasActiveJobs } = useSchedulerJobsContext();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
         useRefreshAllPreAggregates(projectUuid, { showToast: true });
@@ -737,6 +741,25 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         </Button>
                     </Group>
                 </Group>
+
+                {requiresUserCredentials && (
+                    <Callout variant="warning">
+                        <Text fz="xs">
+                            Pre-aggregates aren't compatible with personal
+                            warehouse connections. Materialized results are
+                            shared across all viewers and may not match what
+                            each user would see querying the warehouse directly.{' '}
+                            <Anchor
+                                href="https://docs.lightdash.com/references/pre-aggregates/overview#personal-warehouse-connections"
+                                target="_blank"
+                                inherit
+                            >
+                                Learn more
+                            </Anchor>
+                            .
+                        </Text>
+                    </Callout>
+                )}
 
                 {!isLoading && materializations.length === 0 ? (
                     <Paper withBorder radius="md" p="xxl">
