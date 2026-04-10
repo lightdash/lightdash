@@ -1,3 +1,12 @@
+## [0.2746.3](https://github.com/lightdash/lightdash/compare/0.2746.2...0.2746.3) (2026-04-10)
+
+
+### Bug Fixes
+
+* **cli:** support dbt-fusion patch_path format in generate ([#21921](https://github.com/lightdash/lightdash/issues/21921)) ([78e0049](https://github.com/lightdash/lightdash/commit/78e00491468eb7a4710a4041e4db66bdac873b42))
+* handle series sorting for pivoted bar charts with no x-axis dimension ([#21920](https://github.com/lightdash/lightdash/issues/21920)) ([2e8a87d](https://github.com/lightdash/lightdash/commit/2e8a87d809fe894bf7bf1ba24c9d1e173938d563))
+* improve invalid filter rules styling and layout ([#21919](https://github.com/lightdash/lightdash/issues/21919)) ([787df1b](https://github.com/lightdash/lightdash/commit/787df1b15f803cf2787a85f72f0cc745bc1db04a))
+
 ## [0.2746.2](https://github.com/lightdash/lightdash/compare/0.2746.1...0.2746.2) (2026-04-10)
 
 
