@@ -466,6 +466,44 @@ Then start:
 pnpm pm2:start
 ```
 
+### Monitor Logs with Monitor Tool
+
+After PM2 is running, start **two persistent Monitor watchers** to stream backend and frontend errors in real-time. These run for the lifetime of the session — you'll be notified whenever an error or warning appears without needing to poll logs.
+
+**Backend monitor** (API + scheduler errors/warnings):
+
+Use the **Monitor tool** with:
+- description: `Backend errors (API + scheduler)`
+- persistent: `true`
+- command:
+```bash
+pm2 logs "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" --raw 2>/dev/null | grep --line-buffered -E '(\[31m| error: |ERR!|unhandled|ECONNREFUSED|EADDRINUSE|crash|fatal|Cannot find module|TypeError:|ReferenceError:|SyntaxError:|DatabaseError)' | grep --line-buffered -v -E '(last [0-9]+ lines|TAILING|^$)'
+```
+
+**Filter design notes:**
+- `\[31m` matches ANSI red (error-level log lines in raw pm2 output)
+- ` error: ` (with spaces) matches the log-level field without catching `"0 errors"` in info messages
+- `DatabaseError` catches migration/connection issues specifically
+- The `-v` pipeline excludes pm2 metadata lines (TAILING headers, blank lines)
+
+**Frontend monitor** (Vite build errors and warnings):
+
+Use the **Monitor tool** with:
+- description: `Frontend errors (Vite)`
+- persistent: `true`
+- command:
+```bash
+pm2 logs "${LD_INSTANCE_ID}-frontend" --raw 2>/dev/null | grep --line-buffered -E '(ERROR|ELIFECYCLE|✘|Build failed|Could not resolve|Failed to)' | grep --line-buffered -v -E '(last [0-9]+ lines|TAILING|^$)'
+```
+
+**Launch both monitors in parallel** (two Monitor tool calls in a single message). They filter for actionable signals only — not raw log streams — so you won't be overwhelmed.
+
+If a monitor fires, investigate the error. Common responses:
+- **EADDRINUSE**: Port conflict — run `./scripts/dev-ports.sh gc` then restart the process
+- **Cannot find module**: Missing build — run `pnpm -F common build`
+- **ECONNREFUSED on 5432**: PostgreSQL container down — restart with `docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml up -d`
+- **TypeErrors/build failures**: Code issue — read the full log with `pm2 logs ${LD_INSTANCE_ID}-api --lines 50 --nostream`
+
 **Instance-specific PM2 commands:**
 
 | Command | Description |
