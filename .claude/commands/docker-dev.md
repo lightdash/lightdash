@@ -493,7 +493,7 @@ Use the **Monitor tool** with:
 - persistent: `true`
 - command:
 ```bash
-pm2 logs "${LD_INSTANCE_ID}-frontend" --raw 2>/dev/null | grep --line-buffered -E '(ERROR|ELIFECYCLE|✘|Build failed|Could not resolve|Failed to)' | grep --line-buffered -v '(last [0-9]+ lines|^$)'
+pm2 logs "${LD_INSTANCE_ID}-frontend" --raw 2>/dev/null | grep --line-buffered -E '(ERROR|ELIFECYCLE|✘|Build failed|Could not resolve|Failed to)' | grep --line-buffered -v -E '(last [0-9]+ lines|TAILING|^$)'
 ```
 
 **Launch both monitors in parallel** (two Monitor tool calls in a single message). They filter for actionable signals only — not raw log streams — so you won't be overwhelmed.
