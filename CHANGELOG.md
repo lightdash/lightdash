@@ -1,3 +1,12 @@
+## [0.2748.1](https://github.com/lightdash/lightdash/compare/0.2748.0...0.2748.1) (2026-04-10)
+
+
+### Bug Fixes
+
+* inherit font size and line height in menu item text spans ([#21934](https://github.com/lightdash/lightdash/issues/21934)) ([5d54db3](https://github.com/lightdash/lightdash/commit/5d54db3e099cd2bc36fc8566b65f62bacd75e504)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* inherit font size and line height in table cell header menu item text spans ([#21935](https://github.com/lightdash/lightdash/issues/21935)) ([b8abc46](https://github.com/lightdash/lightdash/commit/b8abc462353c5d238964662756eef6ca92f5fdaf))
+* inherit font size in ExploreNavLink highlight component ([#21933](https://github.com/lightdash/lightdash/issues/21933)) ([5abbd55](https://github.com/lightdash/lightdash/commit/5abbd55d39519a05afe37c8e1a2a95773f32a73b))
+
 # [0.2748.0](https://github.com/lightdash/lightdash/compare/0.2747.0...0.2748.0) (2026-04-10)
 
 
