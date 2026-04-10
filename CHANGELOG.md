@@ -1,3 +1,10 @@
+## [0.2748.3](https://github.com/lightdash/lightdash/compare/0.2748.2...0.2748.3) (2026-04-10)
+
+
+### Bug Fixes
+
+* date filter boundaries no longer depend on server timezone ([#21940](https://github.com/lightdash/lightdash/issues/21940)) ([71a65fd](https://github.com/lightdash/lightdash/commit/71a65fd055eebca24cdebcde3d222c895e1b4322))
+
 ## [0.2748.2](https://github.com/lightdash/lightdash/compare/0.2748.1...0.2748.2) (2026-04-10)
 
 
