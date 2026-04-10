@@ -94,11 +94,18 @@ const getFieldValues = async (
     });
 };
 
+const MAX_POLL_ATTEMPTS = 30; // ~30s with backoff (250ms → 1s)
+
 const pollForFieldValueResults = async (
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
+    attempt: number = 0,
 ): Promise<ApiGetAsyncQueryResults> => {
+    if (attempt >= MAX_POLL_ATTEMPTS) {
+        throw new Error('Field value search timed out. Please try again.');
+    }
+
     const results = await lightdashApi<ApiGetAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/${queryUuid}`,
         version: 'v2',
@@ -115,7 +122,12 @@ const pollForFieldValueResults = async (
         await new Promise((resolve) => {
             setTimeout(resolve, backoffMs);
         });
-        return pollForFieldValueResults(projectUuid, queryUuid, nextBackoff);
+        return pollForFieldValueResults(
+            projectUuid,
+            queryUuid,
+            nextBackoff,
+            attempt + 1,
+        );
     }
 
     return results;
