@@ -5,12 +5,22 @@ import type {
 } from '../../types/field';
 import { getItemId } from '../../utils/item';
 
+const SIMPLE_TABLE_COLUMN_SQL_PATTERN =
+    /^\$\{TABLE\}\.(?:"([^"]+)"|`([^`]+)`|([a-zA-Z_][a-zA-Z0-9_$]*))$/;
+
 export const getDimensionBaseName = (
     dimension: Pick<
         CompiledDimension,
         'name' | 'timeIntervalBaseDimensionName'
     >,
 ): string => dimension.timeIntervalBaseDimensionName ?? dimension.name;
+
+export const getSimpleSqlColumnName = (
+    dimension: Pick<CompiledDimension, 'sql'>,
+): string | null => {
+    const match = dimension.sql.match(SIMPLE_TABLE_COLUMN_SQL_PATTERN);
+    return match ? (match[1] ?? match[2] ?? match[3] ?? null) : null;
+};
 
 export const getDimensionReferences = ({
     dimension,
@@ -52,6 +62,40 @@ export type PreAggregateMetricReferenceLookup = {
     fieldId: FieldId;
     metric: CompiledMetric;
 };
+
+export type PreAggregateDimensionReferenceLookup = {
+    fieldId: FieldId;
+    dimension: CompiledDimension;
+};
+
+export const getDimensionsByReference = ({
+    tables,
+    baseTable,
+}: {
+    tables: Record<string, { dimensions: Record<string, CompiledDimension> }>;
+    baseTable: string;
+}): Map<string, PreAggregateDimensionReferenceLookup[]> =>
+    Object.values(tables).reduce<
+        Map<string, PreAggregateDimensionReferenceLookup[]>
+    >((acc, table) => {
+        Object.values(table.dimensions).forEach((dimension) => {
+            const fieldId = getItemId(dimension);
+            new Set([
+                fieldId,
+                ...getDimensionReferences({
+                    dimension,
+                    baseTable,
+                }),
+            ]).forEach((reference) => {
+                const existingReferences = acc.get(reference) ?? [];
+                acc.set(reference, [
+                    ...existingReferences,
+                    { fieldId, dimension },
+                ]);
+            });
+        });
+        return acc;
+    }, new Map<string, PreAggregateDimensionReferenceLookup[]>());
 
 export const getMetricsByReference = ({
     tables,

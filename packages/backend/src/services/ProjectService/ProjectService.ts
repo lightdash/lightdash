@@ -215,6 +215,7 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import { rebuildAndTranspilePreAggregateSqlFilters } from '../../ee/preAggregates/sqlFilters';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
@@ -1469,70 +1470,83 @@ export class ProjectService extends BaseService {
         );
 
         const definitionRows: DbPreAggregateDefinitionIn[] = [];
+        const resolvedDefinitionRows = await Promise.all(
+            Object.entries(exploresByUuid).flatMap(
+                ([sourceCachedExploreUuid, sourceExplore]) => {
+                    if (
+                        isExploreError(sourceExplore) ||
+                        !sourceExplore.preAggregates ||
+                        sourceExplore.preAggregates.length === 0
+                    ) {
+                        return [];
+                    }
 
-        Object.entries(exploresByUuid).forEach(
-            ([sourceCachedExploreUuid, sourceExplore]) => {
-                if (
-                    isExploreError(sourceExplore) ||
-                    !sourceExplore.preAggregates ||
-                    sourceExplore.preAggregates.length === 0
-                ) {
-                    return;
-                }
+                    return sourceExplore.preAggregates.map(
+                        async (
+                            preAggregateDefinition,
+                        ): Promise<DbPreAggregateDefinitionIn | null> => {
+                            const preAggregateExploreName =
+                                getPreAggregateExploreName(
+                                    sourceExplore.name,
+                                    preAggregateDefinition.name,
+                                );
+                            const preAggCachedExploreUuid =
+                                preAggregateExploreUuidByName.get(
+                                    preAggregateExploreName,
+                                );
 
-                sourceExplore.preAggregates.forEach(
-                    (preAggregateDefinition) => {
-                        const preAggregateExploreName =
-                            getPreAggregateExploreName(
-                                sourceExplore.name,
-                                preAggregateDefinition.name,
-                            );
-                        const preAggCachedExploreUuid =
-                            preAggregateExploreUuidByName.get(
-                                preAggregateExploreName,
-                            );
+                            if (!preAggCachedExploreUuid) {
+                                this.logger.warn(
+                                    `Skipping pre-aggregate definition "${preAggregateDefinition.name}" for source explore "${sourceExplore.name}" in project ${projectUuid}: generated pre-aggregate explore "${preAggregateExploreName}" not found in cache`,
+                                );
+                                return null;
+                            }
 
-                        if (!preAggCachedExploreUuid) {
-                            this.logger.warn(
-                                `Skipping pre-aggregate definition "${preAggregateDefinition.name}" for source explore "${sourceExplore.name}" in project ${projectUuid}: generated pre-aggregate explore "${preAggregateExploreName}" not found in cache`,
-                            );
-                            return;
-                        }
+                            let materializationMetricQuery = null;
+                            let materializationQueryError = null;
 
-                        let materializationMetricQuery = null;
-                        let materializationQueryError = null;
+                            try {
+                                materializationMetricQuery =
+                                    await buildMaterializationMetricQuery({
+                                        sourceExplore,
+                                        preAggregateDef: preAggregateDefinition,
+                                        materializationConfig: {
+                                            maxRows:
+                                                this.lightdashConfig
+                                                    .preAggregates
+                                                    .materializationMaxRows,
+                                        },
+                                    });
+                            } catch (error) {
+                                materializationQueryError =
+                                    getErrorMessage(error);
+                            }
 
-                        try {
-                            materializationMetricQuery =
-                                buildMaterializationMetricQuery({
-                                    sourceExplore,
-                                    preAggregateDef: preAggregateDefinition,
-                                    materializationConfig: {
-                                        maxRows:
-                                            this.lightdashConfig.preAggregates
-                                                .materializationMaxRows,
-                                    },
-                                });
-                        } catch (error) {
-                            materializationQueryError = getErrorMessage(error);
-                        }
-
-                        definitionRows.push({
-                            project_uuid: projectUuid,
-                            source_cached_explore_uuid: sourceCachedExploreUuid,
-                            pre_agg_cached_explore_uuid:
-                                preAggCachedExploreUuid,
-                            pre_aggregate_definition: preAggregateDefinition,
-                            materialization_metric_query:
-                                materializationMetricQuery,
-                            materialization_query_error:
-                                materializationQueryError,
-                            refresh_cron:
-                                preAggregateDefinition.refresh?.cron ?? null,
-                        });
-                    },
-                );
-            },
+                            return {
+                                project_uuid: projectUuid,
+                                source_cached_explore_uuid:
+                                    sourceCachedExploreUuid,
+                                pre_agg_cached_explore_uuid:
+                                    preAggCachedExploreUuid,
+                                pre_aggregate_definition:
+                                    preAggregateDefinition,
+                                materialization_metric_query:
+                                    materializationMetricQuery,
+                                materialization_query_error:
+                                    materializationQueryError,
+                                refresh_cron:
+                                    preAggregateDefinition.refresh?.cron ??
+                                    null,
+                            };
+                        },
+                    );
+                },
+            ),
+        );
+        definitionRows.push(
+            ...resolvedDefinitionRows.filter(
+                (row): row is DbPreAggregateDefinitionIn => row !== null,
+            ),
         );
 
         await this.preAggregateModel.upsertPreAggregateDefinitions(
@@ -3067,6 +3081,80 @@ export class ProjectService extends BaseService {
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
 
+    private async resolveExploreForQuery({
+        account,
+        projectUuid,
+        sourceExplore,
+        metricQuery,
+        warehouseSqlBuilder,
+        usePreAggregateCache = true,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceExplore: Explore;
+        metricQuery: MetricQuery;
+        warehouseSqlBuilder: WarehouseSqlBuilder;
+        usePreAggregateCache?: boolean;
+    }): Promise<Explore> {
+        let explore = sourceExplore;
+
+        if (usePreAggregateCache) {
+            const matchResult = preAggregateUtils.findMatch(
+                metricQuery,
+                sourceExplore,
+            );
+            if (matchResult.hit) {
+                const preAggExploreName = getPreAggregateExploreName(
+                    sourceExplore.name,
+                    matchResult.preAggregateName,
+                );
+                try {
+                    explore = await this.getExplore(
+                        account,
+                        projectUuid,
+                        preAggExploreName,
+                    );
+                } catch {
+                    this.logger.warn(
+                        `Pre-aggregate explore "${preAggExploreName}" not found, falling back to source explore`,
+                    );
+                }
+            }
+        }
+
+        if (
+            explore.type === ExploreType.PRE_AGGREGATE &&
+            explore.preAggregateSource
+        ) {
+            try {
+                const rebuiltTables =
+                    await rebuildAndTranspilePreAggregateSqlFilters({
+                        sourceExplore,
+                        preAggExplore: explore,
+                        warehouseSqlBuilder,
+                    });
+
+                explore = {
+                    ...explore,
+                    tables: rebuiltTables,
+                };
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to rebuild sql_filter for pre-aggregate explore "${explore.name}", falling back to source explore`,
+                    {
+                        projectUuid,
+                        sourceExploreName: sourceExplore.name,
+                        preAggExploreName: explore.name,
+                        error: getErrorMessage(error),
+                    },
+                );
+                explore = sourceExplore;
+            }
+        }
+
+        return explore;
+    }
+
     async compileQuery(
         args: {
             account: Account;
@@ -3117,32 +3205,6 @@ export class ProjectService extends BaseService {
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
 
-        // Pre-aggregate routing: compile against the pre-agg explore when cache is enabled and there's a match
-        let explore = sourceExplore;
-        if (args.usePreAggregateCache !== false) {
-            const matchResult = preAggregateUtils.findMatch(
-                metricQuery,
-                sourceExplore,
-            );
-            if (matchResult.hit) {
-                const preAggExploreName = getPreAggregateExploreName(
-                    sourceExplore.name,
-                    matchResult.preAggregateName,
-                );
-                try {
-                    explore = await this.getExplore(
-                        account,
-                        projectUuid,
-                        preAggExploreName,
-                    );
-                } catch {
-                    this.logger.warn(
-                        `Pre-aggregate explore "${preAggExploreName}" not found, falling back to source explore`,
-                    );
-                }
-            }
-        }
-
         // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
         const warehouseCredentials =
             await this.projectModel.getWarehouseCredentialsForProject(
@@ -3153,6 +3215,15 @@ export class ProjectService extends BaseService {
             warehouseCredentials.type,
             warehouseCredentials.startOfWeek,
         );
+
+        const explore = await this.resolveExploreForQuery({
+            account,
+            projectUuid,
+            sourceExplore,
+            metricQuery,
+            warehouseSqlBuilder,
+            usePreAggregateCache: args.usePreAggregateCache !== false,
+        });
 
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
@@ -6844,14 +6915,28 @@ export class ProjectService extends BaseService {
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
+        if (
+            explore.type === ExploreType.PRE_AGGREGATE &&
+            explore.preAggregateSource
+        ) {
+            // TODO: Falling back to empty totals here regresses totals for source explores
+            // that resolve onto pre-aggregates; route totals through DuckDB or fall back
+            // to the source explore/warehouse until pre-aggregate totals are supported.
+            this.logger.warn(
+                `Skipping totals for pre-aggregate explore "${explore.name}" until totals run through async DuckDB execution`,
+            );
+            return { row: {} };
+        }
+
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -6917,6 +7002,19 @@ export class ProjectService extends BaseService {
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
+        if (
+            explore.type === ExploreType.PRE_AGGREGATE &&
+            explore.preAggregateSource
+        ) {
+            // TODO: Falling back to empty totals here regresses totals for source explores
+            // that resolve onto pre-aggregates; route totals through DuckDB or fall back
+            // to the source explore/warehouse until pre-aggregate totals are supported.
+            this.logger.warn(
+                `Skipping cached totals for pre-aggregate explore "${explore.name}" until totals run through async DuckDB execution`,
+            );
+            return { row: {}, cacheMetadata: { cacheHit: false } };
+        }
+
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
             userId: account.user.id,
@@ -7073,9 +7171,25 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+        const resolvedExplore = await this.resolveExploreForQuery({
+            account,
+            projectUuid,
+            sourceExplore: explore,
+            metricQuery,
+            warehouseSqlBuilder,
+        });
+
         const combinedParameters = await this.combineParameters(
             projectUuid,
-            explore,
+            resolvedExplore,
             parameters,
             savedChart.parameters,
         );
@@ -7083,7 +7197,7 @@ export class ProjectService extends BaseService {
         const results = await this._calculateTotalFromCacheOrWarehouse(
             account,
             projectUuid,
-            explore,
+            resolvedExplore,
             metricQuery,
             invalidateCache,
             savedChart.organizationUuid,
@@ -7128,16 +7242,32 @@ export class ProjectService extends BaseService {
             organizationUuid,
         );
 
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+        const resolvedExplore = await this.resolveExploreForQuery({
+            account,
+            projectUuid,
+            sourceExplore: explore,
+            metricQuery: data.metricQuery,
+            warehouseSqlBuilder,
+        });
+
         const combinedParameters = await this.combineParameters(
             projectUuid,
-            explore,
+            resolvedExplore,
             data.parameters,
         );
 
         const results = await this._calculateTotal(
             account,
             projectUuid,
-            explore,
+            resolvedExplore,
             data.metricQuery,
             organizationUuid,
             combinedParameters,

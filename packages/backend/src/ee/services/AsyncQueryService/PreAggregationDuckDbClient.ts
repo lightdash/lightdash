@@ -31,6 +31,7 @@ import { ProjectService } from '../../../services/ProjectService/ProjectService'
 import { wrapSentryTransaction } from '../../../utils';
 import { PivotQueryBuilder } from '../../../utils/QueryBuilder/PivotQueryBuilder';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
+import { rebuildAndTranspilePreAggregateSqlFilters } from '../../preAggregates/sqlFilters';
 import {
     getDuckdbPreAggregateSqlTable,
     getPreAggregateDuckdbLocator,
@@ -327,18 +328,48 @@ export class PreAggregationDuckDbClient {
             );
         }
 
+        const sourceExplore = await Sentry.startSpan(
+            {
+                op: 'cache.read',
+                name: 'preagg.getSourceExploreFromCache',
+                attributes: {
+                    'lightdash.projectUuid': args.projectUuid,
+                    'lightdash.sourceExploreName':
+                        args.preAggregationRoute.sourceExploreName,
+                },
+            },
+            () =>
+                this.projectModel.getExploreFromCache(
+                    args.projectUuid,
+                    args.preAggregationRoute.sourceExploreName,
+                ),
+        );
+        if (isExploreError(sourceExplore)) {
+            throw new Error(
+                `Source explore ${args.preAggregationRoute.sourceExploreName} is not queryable`,
+            );
+        }
+
+        const sourceWarehouseSqlBuilder = warehouseSqlBuilderFromType(
+            sourceExplore.targetDatabase,
+            args.startOfWeek,
+        );
+        const rebuiltTables = await rebuildAndTranspilePreAggregateSqlFilters({
+            sourceExplore,
+            preAggExplore,
+            warehouseSqlBuilder: sourceWarehouseSqlBuilder,
+        });
+
         const patchedPreAggExplore = {
             ...preAggExplore,
             tables: Object.fromEntries(
-                Object.entries(preAggExplore.tables).map(
-                    ([tableName, table]) => [
-                        tableName,
-                        {
-                            ...table,
-                            sqlTable,
-                        },
-                    ],
-                ),
+                Object.entries(rebuiltTables).map(([tableName, table]) => [
+                    tableName,
+                    {
+                        ...table,
+                        sqlTable,
+                    },
+                ]),
             ),
         };
 
