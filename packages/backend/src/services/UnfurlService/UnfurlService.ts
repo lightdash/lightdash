@@ -1075,14 +1075,6 @@ export class UnfurlService extends BaseService {
 
                     page = await browser.newPage({
                         viewport: initialViewport,
-                        extraHTTPHeaders: {
-                            [LightdashRequestMethodHeader]:
-                                RequestMethod.HEADLESS_BROWSER,
-                            'Lightdash-Headless-Browser-Context': context,
-                            'Lightdash-Headless-Browser-Context-Id': contextId
-                                ? contextId.toString()
-                                : 'undefined',
-                        },
                         // Allow self-signed / untrusted certs when the
                         // internal Lightdash host is reached through an
                         // HTTPS ingress whose cert isn't in the browserless
@@ -1091,6 +1083,28 @@ export class UnfurlService extends BaseService {
                         ignoreHTTPSErrors:
                             this.lightdashConfig.headlessBrowser
                                 .internalLightdashHostIgnoreHttpsErrors,
+                    });
+
+                    // Add custom headers only to internal Lightdash API requests.
+                    // Using extraHTTPHeaders on newPage() would add these headers to ALL requests
+                    // including cross-origin ones (e.g. Google Fonts), causing CORS preflight failures.
+                    // See: https://github.com/lightdash/lightdash/issues/17452
+                    const internalHost =
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost;
+                    await page.route(`${internalHost}/**`, async (route) => {
+                        await route.continue({
+                            headers: {
+                                ...route.request().headers(),
+                                [LightdashRequestMethodHeader]:
+                                    RequestMethod.HEADLESS_BROWSER,
+                                'Lightdash-Headless-Browser-Context': context,
+                                'Lightdash-Headless-Browser-Context-Id':
+                                    contextId
+                                        ? contextId.toString()
+                                        : 'undefined',
+                            },
+                        });
                     });
 
                     if (lightdashPage === LightdashPage.APP) {
