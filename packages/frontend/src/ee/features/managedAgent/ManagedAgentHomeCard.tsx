@@ -54,9 +54,9 @@ const PixelGrid: FC = () => {
             6, 7, 2, 9, 5, 0, 4, 8, 1, 6, 3, 7, 9, 2, 5, 0, 8, 4, 1, 6, 3, 7, 9,
             2, 5, 8, 0, 4, 1, 3, 6, 7, 9,
         ];
-        for (let row = 0; row < 6; row++) {
-            for (let col = 0; col < 14; col++) {
-                const idx = row * 14 + col;
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 18; col++) {
+                const idx = row * 18 + col;
                 const val = seed[idx % seed.length];
                 if (val > 5) {
                     grid.push({
@@ -73,9 +73,10 @@ const PixelGrid: FC = () => {
     return (
         <svg
             className={classes.pixelGrid}
-            width="126"
-            height="54"
-            viewBox="0 0 126 54"
+            width="162"
+            height="100%"
+            viewBox="0 0 162 72"
+            preserveAspectRatio="xMaxYMid meet"
         >
             {cells.map((cell, i) => (
                 <rect
@@ -186,37 +187,37 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     return (
         <UnstyledButton onClick={handleClick} className={classes.card}>
             <PixelGrid />
-            <Stack gap="sm">
+            <Stack gap="md">
                 <Group gap="md" align="center">
                     <Box className={classes.orb}>
-                        <IconBolt size={14} />
+                        <IconBolt size={18} />
                     </Box>
-                    <Text fz="sm" fw={600}>
-                        Self-improving agent
-                    </Text>
+                    <Stack gap={4}>
+                        <Text fz="lg" fw={700}>
+                            Self-improving agent
+                        </Text>
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            key={featureIdx}
+                            className={classes.featureCarousel}
+                        >
+                            <currentFeature.icon
+                                size={15}
+                                color="var(--mantine-color-violet-4)"
+                            />
+                            <Text fz="sm" fw={500} c="dimmed">
+                                {currentFeature.label}
+                            </Text>
+                        </Group>
+                    </Stack>
                 </Group>
 
-                <Group
-                    gap={5}
-                    wrap="nowrap"
-                    key={featureIdx}
-                    className={classes.featureCarousel}
-                    ml={44}
-                >
-                    <currentFeature.icon
-                        size={13}
-                        color="var(--mantine-color-violet-4)"
-                    />
-                    <Text fz="xs" c="dimmed" fw={500}>
-                        {currentFeature.label}
-                    </Text>
-                </Group>
-
-                <Box ml={44}>
+                <Box ml={52}>
                     <Button
                         variant="filled"
                         color="dark"
-                        size="compact-xs"
+                        size="sm"
                         rightSection={<IconArrowRight size={14} />}
                     >
                         Enable
