@@ -1,3 +1,10 @@
+# [0.2753.0](https://github.com/lightdash/lightdash/compare/0.2752.1...0.2753.0) (2026-04-13)
+
+
+### Features
+
+* support dbt seeds as join targets (PROD-6187) ([#21812](https://github.com/lightdash/lightdash/issues/21812)) ([eda449c](https://github.com/lightdash/lightdash/commit/eda449cf0a3bdd18fb8939f4539d2616bd3c4a34))
+
 ## [0.2752.1](https://github.com/lightdash/lightdash/compare/0.2752.0...0.2752.1) (2026-04-13)
 
 
