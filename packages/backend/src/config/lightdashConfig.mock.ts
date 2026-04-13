@@ -311,7 +311,7 @@ export const lightdashConfigMock: LightdashConfig = {
     managedAgent: {
         enabled: false,
         anthropicApiKey: null,
-        schedule: '* * * * *',
+        schedule: '*/30 * * * *',
         sessionTimeoutMs: 300000,
         agentId: null,
     },
