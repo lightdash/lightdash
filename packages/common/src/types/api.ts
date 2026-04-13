@@ -503,6 +503,9 @@ export type HealthState = {
     dataApps: {
         enabled: boolean;
     };
+    managedAgent: {
+        enabled: boolean;
+    };
 };
 
 // Deploy Session Types

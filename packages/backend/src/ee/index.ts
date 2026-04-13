@@ -401,6 +401,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     spaceModel: models.getSpaceModel(),
                     userModel: models.getUserModel(),
+                    personalAccessTokenModel:
+                        models.getPersonalAccessTokenModel(),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
@@ -429,8 +431,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
                 new ServiceAccountModel({ database }),
-            managedAgentModel: ({ database }) =>
-                new ManagedAgentModel({ database }),
+            managedAgentModel: ({ database, utils }) =>
+                new ManagedAgentModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
         },

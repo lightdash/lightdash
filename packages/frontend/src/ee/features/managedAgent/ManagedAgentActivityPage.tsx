@@ -2,7 +2,9 @@ import {
     Box,
     Group,
     Loader,
+    Select,
     Stack,
+    Switch,
     Table,
     Text,
     Title,
@@ -15,14 +17,123 @@ import {
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FC, useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useParams } from 'react-router';
+import { lightdashApi } from '../../../api';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import type { ManagedAgentAction } from './types';
+
+const updateSettings = async (
+    projectUuid: string,
+    body: { enabled?: boolean; scheduleCron?: string },
+) =>
+    lightdashApi({
+        url: `/projects/${projectUuid}/managed-agent/settings`,
+        method: 'PATCH',
+        body: JSON.stringify(body),
+    });
+
+const SCHEDULE_OPTIONS = [
+    { value: '*/5 * * * *', label: 'Every 5 min' },
+    { value: '*/15 * * * *', label: 'Every 15 min' },
+    { value: '*/30 * * * *', label: 'Every 30 min' },
+    { value: '0 * * * *', label: 'Hourly' },
+    { value: '0 */6 * * *', label: 'Every 6 hours' },
+    { value: '0 0 * * *', label: 'Daily' },
+];
+
+const SetupSection: FC<{
+    projectUuid: string;
+    enabled: boolean;
+    schedule: string;
+    isLoading: boolean;
+}> = ({ projectUuid, enabled, schedule: initialSchedule, isLoading }) => {
+    const queryClient = useQueryClient();
+    const [schedule, setSchedule] = useState(initialSchedule);
+
+    const mutation = useMutation({
+        mutationFn: (body: { enabled?: boolean; scheduleCron?: string }) =>
+            updateSettings(projectUuid, body),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-settings', projectUuid],
+            });
+        },
+    });
+
+    const handleToggle = (val: boolean) => {
+        mutation.mutate({ enabled: val, scheduleCron: schedule });
+    };
+
+    const handleScheduleChange = (val: string | null) => {
+        if (!val) return;
+        setSchedule(val);
+        if (enabled) {
+            mutation.mutate({ scheduleCron: val });
+        }
+    };
+
+    return (
+        <Box className={classes.setupCard}>
+            {/* Header row */}
+            <Group
+                justify="space-between"
+                align="center"
+                className={classes.setupHeader}
+            >
+                <Group gap="sm" align="center">
+                    {enabled && <Box className={classes.liveDot} />}
+                    <Title order={5} fw={600}>
+                        Self-improving agent
+                    </Title>
+                    {enabled && (
+                        <Text fz={11} c="dimmed">
+                            Active
+                        </Text>
+                    )}
+                </Group>
+                <Switch
+                    checked={enabled}
+                    onChange={(e) => handleToggle(e.currentTarget.checked)}
+                    disabled={isLoading || mutation.isLoading}
+                    size="sm"
+                />
+            </Group>
+
+            {/* Body */}
+            <Box className={classes.setupBody}>
+                <Text fz="xs" c="dimmed" lh={1.6}>
+                    Monitors your project on a schedule. Flags stale content,
+                    fixes broken charts, creates useful visualizations, and
+                    surfaces insights. All actions are reversible.
+                </Text>
+
+                {enabled && (
+                    <Group gap="sm" mt="md">
+                        <Text fz="xs" fw={500}>
+                            Frequency
+                        </Text>
+                        <Select
+                            data={SCHEDULE_OPTIONS}
+                            value={schedule}
+                            onChange={handleScheduleChange}
+                            size="xs"
+                            w={140}
+                            disabled={isLoading}
+                            variant="default"
+                        />
+                    </Group>
+                )}
+            </Box>
+        </Box>
+    );
+};
 
 const ACTION_CONFIG: Record<
     ManagedAgentAction['actionType'],
@@ -222,19 +333,21 @@ const ActionRow: FC<{
 
 // ts-unused-exports:disable-next-line
 export const ManagedAgentActivityPage: FC = () => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: actions, isLoading } = useManagedAgentActions();
-    const { data: settings } = useManagedAgentSettings();
+    const { data: settings, isLoading: settingsLoading } =
+        useManagedAgentSettings();
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const lastActionAt = actions?.[0]?.createdAt ?? null;
     const heartbeat = useHeartbeatInfo(
-        settings?.scheduleCron ?? '*/5 * * * *',
+        settings?.scheduleCron ?? '*/30 * * * *',
         lastActionAt,
         settings?.enabled ?? false,
     );
 
     const filtered = actions ?? [];
 
-    if (isLoading) {
+    if (isLoading || settingsLoading) {
         return (
             <Box className={classes.loading}>
                 <Loader size="sm" />
@@ -255,51 +368,57 @@ export const ManagedAgentActivityPage: FC = () => {
                     minSize={40}
                 >
                     <Box className={classes.page}>
-                        <Stack gap="md">
-                            <Group gap="sm" align="center">
-                                <Title order={4} fw={600}>
-                                    Agent Activity
-                                </Title>
-                                <Tooltip
-                                    label={
-                                        heartbeat.enabled
-                                            ? heartbeat.isRecent
+                        <Stack gap="lg">
+                            <SetupSection
+                                projectUuid={projectUuid!}
+                                enabled={settings?.enabled ?? false}
+                                schedule={
+                                    settings?.scheduleCron ?? '*/30 * * * *'
+                                }
+                                isLoading={settingsLoading}
+                            />
+
+                            {filtered.length > 0 && (
+                                <Group gap="sm" align="center">
+                                    <Text fz="sm" fw={600}>
+                                        Activity
+                                    </Text>
+                                    <Tooltip
+                                        label={
+                                            heartbeat.isRecent
                                                 ? 'Running now'
                                                 : `Runs every ${heartbeat.interval}`
-                                            : 'Disabled'
-                                    }
-                                >
-                                    <Group
-                                        gap={5}
-                                        className={classes.statusPill}
+                                        }
                                     >
-                                        <Box
-                                            className={
-                                                heartbeat.enabled &&
-                                                heartbeat.isRecent
-                                                    ? classes.statusDotPulse
-                                                    : classes.statusDot
-                                            }
-                                            style={{
-                                                backgroundColor:
-                                                    heartbeat.enabled
-                                                        ? 'var(--mantine-color-green-5)'
-                                                        : 'var(--mantine-color-gray-4)',
-                                            }}
-                                        />
-                                        <Text fz={11} fw={500} c="dimmed">
-                                            {heartbeat.enabled
-                                                ? heartbeat.interval
-                                                : 'Off'}
+                                        <Group
+                                            gap={5}
+                                            className={classes.statusPill}
+                                        >
+                                            <Box
+                                                className={
+                                                    heartbeat.isRecent
+                                                        ? classes.statusDotPulse
+                                                        : classes.statusDot
+                                                }
+                                                style={{
+                                                    backgroundColor:
+                                                        heartbeat.enabled
+                                                            ? 'var(--mantine-color-green-5)'
+                                                            : 'var(--mantine-color-gray-4)',
+                                                }}
+                                            />
+                                            <Text fz={11} fw={500} c="dimmed">
+                                                {heartbeat.interval}
+                                            </Text>
+                                        </Group>
+                                    </Tooltip>
+                                    {lastActionAt && (
+                                        <Text fz={11} c="dimmed">
+                                            {formatRelative(lastActionAt)}
                                         </Text>
-                                    </Group>
-                                </Tooltip>
-                                {lastActionAt && (
-                                    <Text fz={11} c="dimmed">
-                                        {formatRelative(lastActionAt)}
-                                    </Text>
-                                )}
-                            </Group>
+                                    )}
+                                </Group>
+                            )}
 
                             {filtered.length === 0 ? (
                                 <Box className={classes.empty}>

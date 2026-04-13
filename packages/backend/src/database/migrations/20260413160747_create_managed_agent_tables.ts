@@ -19,6 +19,10 @@ export const up = async (knex: Knex): Promise<void> => {
             .references('user_uuid')
             .inTable('users')
             .onDelete('SET NULL');
+        // Service account PAT created automatically when agent is enabled.
+        // Encrypted at rest via EncryptionUtil (AES-256-GCM).
+        // Used for MCP authentication via Anthropic vault.
+        table.binary('service_account_token').nullable();
         table
             .timestamp('created_at', { useTz: false })
             .notNullable()

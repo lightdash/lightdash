@@ -6,6 +6,7 @@ import {
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
     ManagedAgentSettingsTableName,
@@ -16,8 +17,17 @@ import {
 export class ManagedAgentModel {
     private readonly database: Knex;
 
-    constructor({ database }: { database: Knex }) {
+    private readonly encryptionUtil: EncryptionUtil;
+
+    constructor({
+        database,
+        encryptionUtil,
+    }: {
+        database: Knex;
+        encryptionUtil: EncryptionUtil;
+    }) {
         this.database = database;
+        this.encryptionUtil = encryptionUtil;
     }
 
     // --- Settings ---
@@ -31,6 +41,27 @@ export class ManagedAgentModel {
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
+    }
+
+    async getServiceAccountToken(projectUuid: string): Promise<string | null> {
+        const row = await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .select('service_account_token')
+            .first();
+        if (!row?.service_account_token) {
+            return null;
+        }
+        return this.encryptionUtil.decrypt(row.service_account_token);
+    }
+
+    async setServiceAccountToken(
+        projectUuid: string,
+        token: string,
+    ): Promise<void> {
+        const encrypted = this.encryptionUtil.encrypt(token);
+        await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .update({ service_account_token: encrypted });
     }
 
     async getSettings(

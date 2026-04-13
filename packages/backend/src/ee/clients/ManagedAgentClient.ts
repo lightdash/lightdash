@@ -1,17 +1,14 @@
-import Anthropic, { toFile } from '@anthropic-ai/sdk';
-import fs from 'fs';
-import path from 'path';
+import Anthropic from '@anthropic-ai/sdk';
 import Logger from '../../logging/logger';
-import {
-    CUSTOM_TOOL_DEFINITIONS,
-    MANAGED_AGENT_SYSTEM_PROMPT,
-} from '../services/ManagedAgentService/managedAgentTools';
+import { CUSTOM_TOOL_DEFINITIONS } from '../services/ManagedAgentService/managedAgentTools';
 
 type ManagedAgentClientConfig = {
     anthropicApiKey: string;
     siteUrl: string;
     serviceAccountPat: string;
     sessionTimeoutMs: number;
+    agentId: string | null;
+    skillId: string | null;
 };
 
 type CustomToolHandler = (
@@ -35,97 +32,6 @@ export class ManagedAgentClient {
         this.client = new Anthropic({ apiKey: config.anthropicApiKey });
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    private async uploadSkill(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        betaAny: any,
-    ): Promise<string | null> {
-        // Find the developing-in-lightdash skill directory
-        const skillDir = path.resolve(
-            __dirname,
-            '../../../../../skills/developing-in-lightdash',
-        );
-
-        if (!fs.existsSync(path.join(skillDir, 'SKILL.md'))) {
-            Logger.warn(
-                `[ManagedAgent] Skill directory not found at ${skillDir}, skipping skill upload`,
-            );
-            return null;
-        }
-
-        Logger.info(
-            '[ManagedAgent] Uploading developing-in-lightdash skill...',
-        );
-
-        // Collect all files recursively
-        const collectFiles = (
-            dir: string,
-            prefix: string,
-        ): Array<{ filePath: string; relativePath: string }> => {
-            const entries = fs.readdirSync(dir, { withFileTypes: true });
-            const files: Array<{
-                filePath: string;
-                relativePath: string;
-            }> = [];
-            for (const entry of entries) {
-                const fullPath = path.join(dir, entry.name);
-                const relPath = path.join(prefix, entry.name);
-                if (entry.isDirectory()) {
-                    files.push(...collectFiles(fullPath, relPath));
-                } else {
-                    files.push({ filePath: fullPath, relativePath: relPath });
-                }
-            }
-            return files;
-        };
-
-        const allFiles = collectFiles(skillDir, 'developing-in-lightdash');
-
-        const fileUploads = await Promise.all(
-            allFiles.map(({ filePath, relativePath }) =>
-                toFile(fs.createReadStream(filePath), relativePath),
-            ),
-        );
-
-        try {
-            // Try to find an existing skill first
-            const existingSkills = await betaAny.skills.list(
-                { source: 'custom' },
-                { headers: { 'anthropic-beta': 'skills-2025-10-02' } },
-            );
-            const existing = existingSkills?.data?.find(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (s: any) => s.display_title === 'Developing in Lightdash',
-            );
-            if (existing) {
-                Logger.info(
-                    `[ManagedAgent] Reusing existing skill: ${existing.id}`,
-                );
-                return existing.id;
-            }
-
-            const skill = await betaAny.skills.create(
-                {
-                    display_title: 'Developing in Lightdash',
-                    files: fileUploads,
-                },
-                {
-                    headers: {
-                        'anthropic-beta': 'skills-2025-10-02',
-                    },
-                },
-            );
-
-            Logger.info(`[ManagedAgent] Skill uploaded: ${skill.id}`);
-            return skill.id;
-        } catch (error) {
-            Logger.warn(
-                `[ManagedAgent] Failed to upload skill, continuing without it: ${error instanceof Error ? error.message : error}`,
-            );
-            return null;
-        }
-    }
-
     private async ensureAgentAndEnvironment(): Promise<{
         agentId: string;
         environmentId: string;
@@ -139,87 +45,23 @@ export class ManagedAgentClient {
             };
         }
 
-        Logger.info('Setting up managed agent, environment, and vault...');
+        const { agentId: configAgentId } = this.config;
+        if (!configAgentId) {
+            throw new Error(
+                'MANAGED_AGENT_AGENT_ID is required. Create an agent at https://platform.claude.com and set the ID.',
+            );
+        }
+
+        Logger.info(`[ManagedAgent] Using agent: ${configAgentId}`);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const betaAny = this.client.beta as any;
 
-        // Try to find an existing agent to reuse
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let agent: any = null;
-        try {
-            const existingAgents = await betaAny.agents.list({
-                limit: 50,
-            });
-            const existing = existingAgents?.data?.find(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (a: any) =>
-                    a.name === 'Lightdash Project Health Agent' &&
-                    !a.archived_at,
-            );
-            if (existing) {
-                agent = existing;
-                Logger.info(
-                    `[ManagedAgent] Reusing existing agent: ${existing.id}`,
-                );
-            }
-        } catch (e) {
-            // List failed, will create new
-        }
-
-        // Upload the developing-in-lightdash skill
-        const skillId = await this.uploadSkill(betaAny);
-
-        if (!agent) {
-            agent = await betaAny.agents.create({
-                name: 'Lightdash Project Health Agent',
-                model: 'claude-sonnet-4-6',
-                system: MANAGED_AGENT_SYSTEM_PROMPT,
-                ...(skillId
-                    ? {
-                          skills: [
-                              {
-                                  type: 'custom',
-                                  skill_id: skillId,
-                                  version: 'latest',
-                              },
-                          ],
-                      }
-                    : {}),
-                mcp_servers: [
-                    {
-                        type: 'url',
-                        name: 'lightdash',
-                        url: `${this.config.siteUrl}/api/v1/mcp`,
-                    },
-                ],
-                tools: [
-                    {
-                        // Disable all built-in agent tools (file read/write, shell, etc.)
-                        // The agent only needs MCP and custom tools for Lightdash operations
-                        type: 'agent_toolset_20260401',
-                        default_config: { enabled: false },
-                    },
-                    {
-                        type: 'mcp_toolset',
-                        mcp_server_name: 'lightdash',
-                        default_config: {
-                            permission_policy: { type: 'always_allow' },
-                        },
-                    },
-                    ...CUSTOM_TOOL_DEFINITIONS,
-                ],
-            });
-            Logger.info(`[ManagedAgent] Created new agent: ${agent.id}`);
-        }
-
-        // Use "limited" networking — restricts the agent's network access
-        // to only the configured MCP servers (i.e., the Lightdash MCP endpoint).
         const environment = await betaAny.environments.create({
             name: 'lightdash-agent-env',
             config: {
                 type: 'cloud',
-                networking: { type: 'limited' },
+                networking: { type: 'limited', allow_mcp_servers: true },
             },
         });
 
@@ -237,16 +79,16 @@ export class ManagedAgentClient {
             },
         });
 
-        this.agentId = agent.id;
+        this.agentId = configAgentId;
         this.environmentId = environment.id;
         this.vaultId = vault.id;
 
         Logger.info(
-            `Managed agent created: agentId=${agent.id}, environmentId=${environment.id}, vaultId=${vault.id}`,
+            `Managed agent ready: agentId=${configAgentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
         );
 
         return {
-            agentId: agent.id,
+            agentId: configAgentId,
             environmentId: environment.id,
             vaultId: vault.id,
         };

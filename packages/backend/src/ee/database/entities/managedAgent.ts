@@ -8,6 +8,7 @@ export type DbManagedAgentSettings = {
     enabled: boolean;
     schedule_cron: string;
     enabled_by_user_uuid: string | null;
+    service_account_token: Buffer | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -19,14 +20,21 @@ export type DbManagedAgentSettingsCreate = Pick<
     Partial<
         Pick<
             DbManagedAgentSettings,
-            'enabled' | 'schedule_cron' | 'enabled_by_user_uuid'
+            | 'enabled'
+            | 'schedule_cron'
+            | 'enabled_by_user_uuid'
+            | 'service_account_token'
         >
     >;
 
 export type DbManagedAgentSettingsUpdate = Partial<
     Pick<
         DbManagedAgentSettings,
-        'enabled' | 'schedule_cron' | 'enabled_by_user_uuid' | 'updated_at'
+        | 'enabled'
+        | 'schedule_cron'
+        | 'enabled_by_user_uuid'
+        | 'service_account_token'
+        | 'updated_at'
     >
 >;
 

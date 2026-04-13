@@ -1169,8 +1169,9 @@ export type LightdashConfig = {
         enabled: boolean;
         anthropicApiKey: string | null;
         schedule: string;
-        serviceAccountPat: string | null;
         sessionTimeoutMs: number;
+        agentId: string | null;
+        skillId: string | null;
     };
 
     initialSetup?: {
@@ -2234,12 +2235,12 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
             anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '* * * * *',
-            serviceAccountPat:
-                process.env.MANAGED_AGENT_SERVICE_ACCOUNT_PAT || null,
             sessionTimeoutMs: parseInt(
                 process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
                 10,
             ), // 5 minutes default
+            agentId: process.env.MANAGED_AGENT_AGENT_ID || null,
+            skillId: process.env.MANAGED_AGENT_SKILL_ID || null,
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),

@@ -137,6 +137,9 @@ export const BaseResponse: HealthState = {
     dataApps: {
         enabled: false,
     },
+    managedAgent: {
+        enabled: false,
+    },
 };
 
 export const userMock = {

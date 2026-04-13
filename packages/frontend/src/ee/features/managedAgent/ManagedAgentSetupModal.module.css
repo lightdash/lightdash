@@ -1,0 +1,29 @@
+.capability {
+    padding: 8px 10px;
+    border-radius: 8px;
+    transition: background-color 100ms ease;
+}
+
+.capability:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.divider {
+    height: 1px;
+    background-color: light-dark(
+        var(--mantine-color-gray-2),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.activeIndicator {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background-color: light-dark(
+        var(--mantine-color-green-0),
+        var(--mantine-color-dark-6)
+    );
+}

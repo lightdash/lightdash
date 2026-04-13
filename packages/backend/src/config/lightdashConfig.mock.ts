@@ -312,8 +312,9 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         anthropicApiKey: null,
         schedule: '* * * * *',
-        serviceAccountPat: null,
         sessionTimeoutMs: 300000,
+        agentId: null,
+        skillId: null,
     },
     mcp: {
         enabled: true,
