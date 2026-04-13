@@ -111,6 +111,8 @@ data/
 .local/*
 
 CLAUDE.local.md
+AGENTS.override.md
+
 http-client.private.env.json
 
 # turbo
