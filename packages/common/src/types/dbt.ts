@@ -50,7 +50,13 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
 };
-export type DbtRawModelNode = CompiledModelNode & {
+export type DbtRawModelNode = Omit<
+    CompiledModelNode,
+    'resource_type' | 'compiled' | 'language'
+> & {
+    resource_type: 'model' | 'seed';
+    compiled?: boolean;
+    language?: string;
     columns: { [name: string]: DbtModelColumn };
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
@@ -791,7 +797,7 @@ export const getModelsFromManifest = (
 ): DbtModelNode[] => {
     const models = Object.values(manifest.nodes).filter(
         (node) =>
-            node.resource_type === 'model' &&
+            ['model', 'seed'].includes(node.resource_type) &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
 
@@ -812,6 +818,10 @@ export function getCompiledModels(
     const isAnyModelCompiled = manifestModels.some((model) => model.compiled);
 
     return manifestModels.filter((model) => {
+        // Seeds are always included — they don't appear in dbt ls output
+        // and don't have a compiled field.
+        if (model.resource_type === 'seed') return true;
+
         if (compiledModelIds) {
             return compiledModelIds.includes(model.unique_id);
         }

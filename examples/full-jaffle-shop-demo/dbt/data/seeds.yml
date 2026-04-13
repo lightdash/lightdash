@@ -91,6 +91,40 @@ seeds:
     config:
       column_types:
         metadata: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino', 'duckdb', 'clickhouse'] else 'jsonb') }}"
+  - name: raw_order_statuses
+    description: "Order status lookup table — labels and priority for each status"
+    config:
+      meta:
+        joins: []
+      column_types:
+        status_priority: integer
+        is_active: boolean
+    columns:
+      - name: status
+        description: "Order status code"
+        config:
+          meta:
+            dimension:
+              type: string
+              hidden: true
+      - name: status_label
+        description: "Human-readable status label"
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: status_priority
+        description: "Sort priority (1 = earliest stage)"
+        config:
+          meta:
+            dimension:
+              type: number
+      - name: is_active
+        description: "Whether the order is still active in this status"
+        config:
+          meta:
+            dimension:
+              type: boolean
   - name: raw_buildings
     config:
       column_types:
