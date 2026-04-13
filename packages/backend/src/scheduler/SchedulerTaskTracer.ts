@@ -182,6 +182,7 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
+    [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: () => ({}),
 } as const;
 
 // Generic accessor function
