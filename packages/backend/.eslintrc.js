@@ -105,6 +105,7 @@ module.exports = {
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
+                'src/services/SchedulerService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',

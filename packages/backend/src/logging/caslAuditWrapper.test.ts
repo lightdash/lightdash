@@ -390,6 +390,60 @@ describe('CaslAuditWrapper', () => {
         });
     });
 
+    describe('bare string vs subject() equivalence', () => {
+        it('should produce same permission result for unconditional rules', () => {
+            const ability = defineAbility((can) => {
+                can('create', 'ScheduledDeliveries');
+            });
+
+            const bareResult = ability.can(
+                'create',
+                'ScheduledDeliveries' as CaslSubjectNames,
+            );
+            const subjectResult = ability.can(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: 'test-org-uuid',
+                }),
+            );
+
+            expect(bareResult).toBe(true);
+            expect(subjectResult).toBe(true);
+        });
+
+        it('should produce same permission result for conditional rules with matching conditions', () => {
+            const ability = defineAbility((can) => {
+                can('create', 'ScheduledDeliveries', {
+                    organizationUuid: 'test-org-uuid',
+                });
+            });
+
+            const bareResult = ability.can(
+                'create',
+                'ScheduledDeliveries' as CaslSubjectNames,
+            );
+            const matchingSubjectResult = ability.can(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: 'test-org-uuid',
+                }),
+            );
+            const nonMatchingSubjectResult = ability.can(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: 'other-org-uuid',
+                }),
+            );
+
+            // Bare string skips condition checks — always allowed
+            expect(bareResult).toBe(true);
+            // subject() with matching condition — allowed
+            expect(matchingSubjectResult).toBe(true);
+            // subject() with non-matching condition — denied (more restrictive)
+            expect(nonMatchingSubjectResult).toBe(false);
+        });
+    });
+
     describe('capability checks (no resource uuid)', () => {
         it('should handle subjects without uuid', () => {
             const mockLogger = createMockLogger();
