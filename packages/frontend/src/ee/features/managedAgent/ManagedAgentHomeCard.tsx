@@ -1,4 +1,11 @@
-import { Box, Group, Stack, Text, UnstyledButton } from '@mantine-8/core';
+import {
+    Box,
+    Button,
+    Group,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine-8/core';
 import {
     IconArrowRight,
     IconChartBar,
@@ -148,12 +155,14 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             </Text>
                         </Stack>
                     </Group>
-                    <Group gap={4} c="dimmed" className={classes.viewLink}>
-                        <Text fz="xs" fw={500}>
-                            View
-                        </Text>
-                        <IconArrowRight size={14} />
-                    </Group>
+                    <Button
+                        variant="default"
+                        size="compact-xs"
+                        rightSection={<IconArrowRight size={14} />}
+                        className={classes.viewLink}
+                    >
+                        View
+                    </Button>
                 </Group>
             </UnstyledButton>
         );
@@ -171,8 +180,15 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             Self-improving agent
                         </Text>
                         <Group gap="md">
-                            {FEATURES.map((f) => (
-                                <Group key={f.label} gap={4}>
+                            {FEATURES.map((f, i) => (
+                                <Group
+                                    key={f.label}
+                                    gap={4}
+                                    className={classes.featureItem}
+                                    style={{
+                                        animationDelay: `${200 + i * 100}ms`,
+                                    }}
+                                >
                                     <f.icon
                                         size={12}
                                         color="var(--mantine-color-dimmed)"
@@ -185,12 +201,15 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         </Group>
                     </Stack>
                 </Group>
-                <Group gap={4} c="dimmed" className={classes.viewLink}>
-                    <Text fz="xs" fw={500}>
-                        Enable
-                    </Text>
-                    <IconArrowRight size={14} />
-                </Group>
+                <Button
+                    variant="filled"
+                    color="dark"
+                    size="compact-xs"
+                    rightSection={<IconArrowRight size={14} />}
+                    className={classes.viewLink}
+                >
+                    Enable
+                </Button>
             </Group>
         </UnstyledButton>
     );

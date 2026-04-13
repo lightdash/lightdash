@@ -21,6 +21,47 @@
     animation: cardIn 400ms var(--ease-out-quart) both;
 }
 
+/* Glistening border — a light that orbits the card edge */
+.card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: conic-gradient(
+        from var(--glisten-angle, 0deg),
+        transparent 0%,
+        transparent 70%,
+        light-dark(rgba(139, 92, 246, 0.35), rgba(139, 92, 246, 0.25)) 80%,
+        transparent 90%,
+        transparent 100%
+    );
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    padding: 1px;
+    opacity: 0;
+    transition: opacity 400ms var(--ease-out-quart);
+    animation: glisten 4s linear infinite;
+    pointer-events: none;
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+@keyframes glisten {
+    to {
+        --glisten-angle: 360deg;
+    }
+}
+
+@property --glisten-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
 .pixelGrid {
     position: absolute;
     bottom: 6px;
@@ -104,6 +145,18 @@
     }
 }
 
+/* Feature items — staggered slide in */
+.featureItem {
+    animation: featureSlideIn 400ms var(--ease-out-quart) both;
+}
+
+@keyframes featureSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
 /* Schedule badge */
 .scheduleBadge {
     display: inline-flex;
@@ -130,10 +183,7 @@
 }
 
 .card:hover .viewLink {
-    color: light-dark(
-        var(--mantine-color-violet-6),
-        var(--mantine-color-violet-4)
-    );
+    /* keep default colors on hover */
 }
 
 @keyframes pulse {
