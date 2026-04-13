@@ -69,6 +69,18 @@ describe('DbtSchemaEditor', () => {
     });
 });
 
+describe('long description preservation', () => {
+    it('should not insert line breaks into long description strings', () => {
+        const longDesc =
+            'This is a very long description that exceeds eighty characters and should not be reformatted with line breaks by the YAML serializer when round-tripping through DbtSchemaEditor';
+        const schema = `version: 2\nmodels:\n  - name: my_model\n    description: "${longDesc}"\n    columns:\n      - name: col_a\n        description: A column\n`;
+        const editor = new DbtSchemaEditor(schema);
+        const output = editor.toString();
+        expect(output).toContain(`description: "${longDesc}"`);
+        expect(output).not.toMatch(/description: ".*\n\s+.*"/);
+    });
+});
+
 describe('case-insensitive column matching', () => {
     const MIXED_CASE_SCHEMA = `version: 2
 models:
