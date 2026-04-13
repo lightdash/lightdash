@@ -37,6 +37,54 @@ const formatSchedule = (cron: string) => {
     return cron;
 };
 
+/** Generates a deterministic grid of subtle squares for the pattern */
+const PixelGrid: FC = () => {
+    // Deterministic "random" pattern using a simple hash
+    const cells = useMemo(() => {
+        const grid: Array<{ x: number; y: number; opacity: number }> = [];
+        const seed = [
+            3, 7, 1, 9, 4, 6, 2, 8, 5, 0, 7, 3, 1, 8, 6, 2, 9, 4, 5, 0, 3, 8, 1,
+            6,
+        ];
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 6; col++) {
+                const idx = row * 6 + col;
+                const val = seed[idx % seed.length];
+                if (val > 4) {
+                    grid.push({
+                        x: col * 10,
+                        y: row * 10,
+                        opacity: val > 7 ? 0.12 : 0.06,
+                    });
+                }
+            }
+        }
+        return grid;
+    }, []);
+
+    return (
+        <svg
+            className={classes.pixelGrid}
+            width="60"
+            height="40"
+            viewBox="0 0 60 40"
+        >
+            {cells.map((cell, i) => (
+                <rect
+                    key={i}
+                    x={cell.x}
+                    y={cell.y}
+                    width="8"
+                    height="8"
+                    rx="2"
+                    fill="currentColor"
+                    opacity={cell.opacity}
+                />
+            ))}
+        </svg>
+    );
+};
+
 // ts-unused-exports:disable-next-line
 export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     projectUuid,
@@ -75,11 +123,10 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     if (isEnabled) {
         return (
             <UnstyledButton onClick={handleClick} className={classes.card}>
+                <PixelGrid />
                 <Group justify="space-between" align="center">
                     <Group gap="md" align="center">
-                        <Box className={classes.activeRing}>
-                            <Box className={classes.activeDot} />
-                        </Box>
+                        <Box className={classes.orbActive} />
                         <Stack gap={2}>
                             <Group gap={8} align="center">
                                 <Text fz="sm" fw={600}>
@@ -115,11 +162,10 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     // Setup state
     return (
         <UnstyledButton onClick={handleClick} className={classes.card}>
+            <PixelGrid />
             <Group justify="space-between" align="center">
                 <Group gap="md" align="center">
-                    <Box className={classes.idleRing}>
-                        <Box className={classes.idleDot} />
-                    </Box>
+                    <Box className={classes.orb} />
                     <Stack gap={2}>
                         <Text fz="sm" fw={600}>
                             Self-improving agent

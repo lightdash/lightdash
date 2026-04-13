@@ -6,6 +6,8 @@
     display: block;
     width: 100%;
     padding: 14px 18px;
+    position: relative;
+    overflow: hidden;
     border: 1px solid
         light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
     border-radius: var(--mantine-radius-md);
@@ -17,6 +19,26 @@
         border-color 150ms var(--ease-out-quart),
         box-shadow 150ms var(--ease-out-quart);
     animation: cardIn 400ms var(--ease-out-quart) both;
+}
+
+.pixelGrid {
+    position: absolute;
+    bottom: 6px;
+    right: 50px;
+    color: light-dark(
+        var(--mantine-color-violet-4),
+        var(--mantine-color-violet-6)
+    );
+    pointer-events: none;
+    transition:
+        transform 300ms var(--ease-out-quart),
+        opacity 300ms var(--ease-out-quart);
+    opacity: 0.6;
+}
+
+.card:hover .pixelGrid {
+    transform: scale(1.15) translateX(-2px);
+    opacity: 1;
 }
 
 .card:hover {
@@ -38,52 +60,48 @@
     }
 }
 
-/* Active state — green ring */
-.activeRing {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: light-dark(
-        var(--mantine-color-green-0),
-        var(--mantine-color-dark-5)
-    );
+/* Orb — idle state */
+.orb {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
     flex-shrink: 0;
-}
-
-.activeDot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: var(--mantine-color-green-5);
-    animation: pulse 2s ease-in-out infinite;
-}
-
-/* Idle state — gray ring */
-.idleRing {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: light-dark(
-        var(--mantine-color-gray-1),
-        var(--mantine-color-dark-5)
+    background: linear-gradient(
+        135deg,
+        var(--mantine-color-violet-3),
+        var(--mantine-color-violet-5)
     );
-    flex-shrink: 0;
+    opacity: 0.5;
+    animation: orbBreathe 3s ease-in-out infinite;
 }
 
-.idleDot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: light-dark(
-        var(--mantine-color-gray-4),
-        var(--mantine-color-dark-3)
+/* Orb — active state */
+.orbActive {
+    composes: orb;
+    opacity: 0.8;
+    background: linear-gradient(
+        135deg,
+        var(--mantine-color-green-3),
+        var(--mantine-color-green-5)
     );
+    box-shadow: 0 0 12px
+        light-dark(rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.15));
+}
+
+.card:hover .orb {
+    opacity: 0.8;
+    box-shadow: 0 0 16px
+        light-dark(rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.2));
+}
+
+@keyframes orbBreathe {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.92);
+    }
 }
 
 /* Schedule badge */
@@ -104,14 +122,18 @@
     );
 }
 
-/* View link */
+/* View link — always visible */
 .viewLink {
-    opacity: 0;
-    transition: opacity 150ms var(--ease-out-quart);
+    position: relative;
+    z-index: 1;
+    transition: color 150ms var(--ease-out-quart);
 }
 
 .card:hover .viewLink {
-    opacity: 1;
+    color: light-dark(
+        var(--mantine-color-violet-6),
+        var(--mantine-color-violet-4)
+    );
 }
 
 @keyframes pulse {
@@ -131,10 +153,11 @@
     .card:active {
         transform: none;
     }
-    .activeDot {
+    .orb,
+    .orbActive {
         animation: none;
     }
-    .viewLink {
-        opacity: 1;
+    .pixelGrid {
+        transition: none;
     }
 }
