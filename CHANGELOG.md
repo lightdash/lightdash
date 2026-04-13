@@ -1,3 +1,10 @@
+## [0.2752.1](https://github.com/lightdash/lightdash/compare/0.2752.0...0.2752.1) (2026-04-13)
+
+
+### Bug Fixes
+
+* prevent $ref pointers in MCP schema generation ([#21954](https://github.com/lightdash/lightdash/issues/21954)) ([bf1acdd](https://github.com/lightdash/lightdash/commit/bf1acddb7b48629b982ee122315e218c3adc6033))
+
 # [0.2752.0](https://github.com/lightdash/lightdash/compare/0.2751.1...0.2752.0) (2026-04-10)
 
 
