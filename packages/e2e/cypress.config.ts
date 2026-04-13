@@ -35,24 +35,32 @@ export default defineConfig({
         trashAssetsBeforeRuns: true,
         experimentalMemoryManagement: true,
         setupNodeEvents(on, config) {
-            // Count dbt models and read thread count so CLI tests can
+            // Count dbt models+seeds and read thread count so CLI tests can
             // scale timeouts dynamically based on parallel execution.
+            // Seeds are included because `lightdash generate` processes them
+            // alongside SQL models since seed support was added.
             const demoDir = join(
                 __dirname,
                 '../../examples/full-jaffle-shop-demo',
             );
             const modelsDir = join(demoDir, 'dbt/models');
-            const countSqlFiles = (dir: string): number =>
+            const seedsDir = join(demoDir, 'dbt/data');
+            const countFiles = (
+                dir: string,
+                ext: string,
+            ): number =>
                 readdirSync(dir, { withFileTypes: true }).reduce(
                     (count, entry) =>
                         entry.isDirectory()
                             ? count +
-                              countSqlFiles(join(dir, entry.name))
+                              countFiles(join(dir, entry.name), ext)
                             : count +
-                              (entry.name.endsWith('.sql') ? 1 : 0),
+                              (entry.name.endsWith(ext) ? 1 : 0),
                     0,
                 );
-            config.env.MODEL_COUNT = countSqlFiles(modelsDir);
+            config.env.MODEL_COUNT =
+                countFiles(modelsDir, '.sql') +
+                countFiles(seedsDir, '.csv');
 
             const DBT_DEFAULT_THREADS = 4;
             const profilesPath = join(demoDir, 'profiles/profiles.yml');
