@@ -5,6 +5,7 @@ import {
     SCHEDULER_TASKS,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
 import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
@@ -12,12 +13,14 @@ import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
+import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
     aiAgentService: AiAgentService;
     embedService: EmbedService;
+    managedAgentService: ManagedAgentService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -25,10 +28,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly embedService: EmbedService;
 
+    protected readonly managedAgentService: ManagedAgentService;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
         this.embedService = args.embedService;
+        this.managedAgentService = args.managedAgentService;
     }
 
     protected getTaskList(): Partial<TypedEETaskList> {
@@ -104,6 +110,37 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         });
                     },
                 );
+            },
+            [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
+                if (!this.lightdashConfig.managedAgent.enabled) {
+                    return;
+                }
+
+                Logger.info('Starting managed agent heartbeat');
+
+                try {
+                    const enabledProjects =
+                        await this.managedAgentService.getEnabledProjects();
+
+                    if (enabledProjects.length === 0) {
+                        Logger.debug('No projects with managed agent enabled');
+                        return;
+                    }
+
+                    // v1: single project support
+                    const project = enabledProjects[0];
+                    await this.managedAgentService.runHeartbeat(
+                        project.projectUuid,
+                    );
+
+                    Logger.info('Managed agent heartbeat completed');
+                } catch (error) {
+                    Logger.error(
+                        'Error during managed agent heartbeat:',
+                        error,
+                    );
+                    throw error;
+                }
             },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,

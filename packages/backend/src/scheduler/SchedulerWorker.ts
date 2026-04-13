@@ -1140,6 +1140,9 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
             },
+            [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
+                // EE-only: implemented in CommercialSchedulerWorker
+            },
         };
     }
 }
