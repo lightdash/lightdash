@@ -137,6 +137,17 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                 <Button
                     size="xs"
                     variant="default"
+                    styles={{
+                        inner: {
+                            color: 'foreground',
+                        },
+                        label: {
+                            maxWidth: '300px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                        },
+                    }}
                     leftSection={
                         isDraggable && (
                             <MantineIcon
