@@ -2203,7 +2203,6 @@ export default class SchedulerTask {
             if (payload.pivotConfig) {
                 // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                 // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
-                // TODO(GLITCH-293): resolve and pass timezone for scheduled deliveries
                 const formattedRows = formatRows(rows, itemMap);
 
                 const pivotedResults = pivotResultsAsCsv({
@@ -2812,7 +2811,6 @@ export default class SchedulerTask {
                 ) {
                     // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                     // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
-                    // TODO(GLITCH-293): resolve and pass timezone for scheduled deliveries
                     const formattedRows = formatRows(rows, itemMap);
 
                     const pivotedResults = pivotResultsAsCsv({
@@ -2965,7 +2963,6 @@ export default class SchedulerTask {
                         ) {
                             // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                             // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
-                            // TODO(GLITCH-293): resolve and pass timezone for scheduled deliveries
                             const formattedRows = formatRows(rows, itemMap);
 
                             const pivotedResults = pivotResultsAsCsv({
