@@ -604,6 +604,26 @@ importers:
 
   packages/cli:
     dependencies:
+      '@duckdb/node-api':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
+    optionalDependencies:
+      '@duckdb/node-bindings-darwin-arm64':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
+      '@duckdb/node-bindings-darwin-x64':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
+      '@duckdb/node-bindings-linux-arm64':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
+      '@duckdb/node-bindings-linux-x64':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
+      '@duckdb/node-bindings-win32-x64':
+        specifier: 1.4.4-r.1
+        version: 1.4.4-r.1
+    devDependencies:
       '@actions/core':
         specifier: 1.11.1
         version: 1.11.1
@@ -619,6 +639,33 @@ importers:
       '@types/columnify':
         specifier: 1.5.1
         version: 1.5.1
+      '@types/inquirer':
+        specifier: 8.2.4
+        version: 8.2.4
+      '@types/js-yaml':
+        specifier: 4.0.9
+        version: 4.0.9
+      '@types/lodash':
+        specifier: 4.14.202
+        version: 4.14.202
+      '@types/node-fetch':
+        specifier: 2.6.13
+        version: 2.6.13
+      '@types/nunjucks':
+        specifier: 3.2.1
+        version: 3.2.1
+      '@types/parse-node-version':
+        specifier: 1.0.0
+        version: 1.0.0
+      '@types/uuid':
+        specifier: 10.0.0
+        version: 10.0.0
+      '@vercel/ncc':
+        specifier: 0.38.4
+        version: 0.38.4
+      '@yao-pkg/pkg':
+        specifier: 6.7.0
+        version: 6.7.0(encoding@0.1.13)
       ajv:
         specifier: 8.18.0
         version: 8.18.0
@@ -673,6 +720,12 @@ importers:
       parse-node-version:
         specifier: 2.0.0
         version: 2.0.0
+      ts-node:
+        specifier: 10.9.2
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(typescript@6.0.0-beta)
+      typescript:
+        specifier: 6.0.0-beta
+        version: 6.0.0-beta
       unique-names-generator:
         specifier: 4.7.1
         version: 4.7.1
@@ -682,40 +735,6 @@ importers:
       yaml:
         specifier: 2.7.0
         version: 2.7.0
-    devDependencies:
-      '@types/inquirer':
-        specifier: 8.2.4
-        version: 8.2.4
-      '@types/js-yaml':
-        specifier: 4.0.9
-        version: 4.0.9
-      '@types/lodash':
-        specifier: 4.14.202
-        version: 4.14.202
-      '@types/node-fetch':
-        specifier: 2.6.13
-        version: 2.6.13
-      '@types/nunjucks':
-        specifier: 3.2.1
-        version: 3.2.1
-      '@types/parse-node-version':
-        specifier: 1.0.0
-        version: 1.0.0
-      '@types/uuid':
-        specifier: 10.0.0
-        version: 10.0.0
-      '@vercel/ncc':
-        specifier: 0.38.4
-        version: 0.38.4
-      '@yao-pkg/pkg':
-        specifier: 6.7.0
-        version: 6.7.0(encoding@0.1.13)
-      ts-node:
-        specifier: 10.9.2
-        version: 10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(typescript@6.0.0-beta)
-      typescript:
-        specifier: 6.0.0-beta
-        version: 6.0.0-beta
 
   packages/common:
     dependencies:

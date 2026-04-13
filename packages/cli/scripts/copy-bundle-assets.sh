@@ -20,6 +20,15 @@ SUPPORTED_DUCKDB_BINDINGS=(
 cp "$WAREHOUSES_DIR"/ca-bundle-*.crt "$BUNDLE_DIR"/
 cp "$WAREHOUSES_DIR"/ca-bundle-*.pem "$BUNDLE_DIR"/
 
+# When --npm-only is passed, skip DuckDB native bindings. The npm package
+# relies on optionalDependencies in package.json to install the correct
+# platform-specific DuckDB binding at install time. This avoids bundling
+# all platform binaries into the npm tarball.
+if [ "${1:-}" = "--npm-only" ]; then
+    echo "Skipping DuckDB native bindings (npm publish mode)"
+    exit 0
+fi
+
 mkdir -p "$DUCKDB_BUNDLE_DIR"
 
 # Resolve package directories via Node so the script works with pnpm's
