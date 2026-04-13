@@ -6,7 +6,9 @@ describe('CLI', () => {
     // Scale timeout based on the number of models and thread count (both
     // read dynamically in cypress.config.ts). dbt runs models in parallel,
     // so we estimate batches rather than sequential model count.
-    const TIMEOUT_PER_BATCH_MS = 3000;
+    // Use 6 s/batch — lightdash generate also writes YAML sequentially after
+    // the dbt compile step, so 3 s/batch proved too tight in CI.
+    const TIMEOUT_PER_BATCH_MS = 6000;
     const BASE_TIMEOUT_MS = 30000;
     const modelCount = Number(Cypress.env('MODEL_COUNT')) || 50;
     const dbtThreads = Number(Cypress.env('DBT_THREADS')) || 4;
