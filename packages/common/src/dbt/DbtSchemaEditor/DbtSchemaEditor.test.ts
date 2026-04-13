@@ -56,6 +56,23 @@ describe('DbtSchemaEditor', () => {
         );
     });
 
+    it('should preserve long descriptions without inserting line breaks', () => {
+        const longDescription =
+            'This is a very long description that exceeds eighty characters and should not be wrapped by the YAML serializer under any circumstances.';
+        const yaml = `version: 2
+models:
+  - name: my_model
+    description: ${longDescription}
+    columns:
+      - name: my_column
+        description: ${longDescription}
+`;
+        const editor = new DbtSchemaEditor(yaml);
+        const result = editor.toString();
+        expect(result).toContain(longDescription);
+        expect(result).toEqual(yaml);
+    });
+
     it('should create a new file', () => {
         const editor = new DbtSchemaEditor('');
         // confirm it has no models
