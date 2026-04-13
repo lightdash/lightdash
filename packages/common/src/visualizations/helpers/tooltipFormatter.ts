@@ -345,6 +345,7 @@ const getHeader = (
     params: (TooltipFormatterParams | TooltipParam)[],
     itemsMap?: ItemsMap,
     xFieldId?: string,
+    timezone?: string,
 ): string => {
     const firstParam = params[0];
 
@@ -362,7 +363,12 @@ const getHeader = (
     const rawAxisValue = firstParam?.axisValue;
     if (rawAxisValue !== undefined && rawAxisValue !== null) {
         if (itemsMap && xFieldId) {
-            return getFormattedValue(rawAxisValue, xFieldId, itemsMap, 'UTC');
+            return getFormattedValue(
+                rawAxisValue,
+                xFieldId,
+                itemsMap,
+                timezone ?? 'UTC',
+            );
         }
         return String(rawAxisValue);
     }
@@ -374,7 +380,12 @@ const getHeader = (
         if (xValue !== undefined && xValue !== null) {
             // Use getFormattedValue for consistent formatting with axis labels
             if (itemsMap && xFieldId) {
-                return getFormattedValue(xValue, xFieldId, itemsMap, 'UTC');
+                return getFormattedValue(
+                    xValue,
+                    xFieldId,
+                    itemsMap,
+                    timezone ?? 'UTC',
+                );
             }
             return String(xValue);
         }
@@ -496,6 +507,7 @@ export function createStack100TooltipFormatter(
     xAxisField: string,
     itemsMap?: ItemsMap,
     xAxisDateFormat?: string,
+    timezone?: string,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
@@ -514,9 +526,9 @@ export function createStack100TooltipFormatter(
                           rawValue as string | number,
                           xAxisDateFormat,
                       )
-                    : getHeader(params, itemsMap, xAxisField);
+                    : getHeader(params, itemsMap, xAxisField, timezone);
         } else {
-            header = getHeader(params, itemsMap, xAxisField);
+            header = getHeader(params, itemsMap, xAxisField, timezone);
         }
 
         const rowsHtml = params
@@ -843,6 +855,7 @@ export const buildCartesianTooltipFormatter =
         pivotValuesColumnsMap,
         parameters,
         rows,
+        timezone,
     }: {
         itemsMap?: ItemsMap;
         stackValue: string | boolean | undefined;
@@ -857,6 +870,7 @@ export const buildCartesianTooltipFormatter =
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
         parameters?: ParametersValuesMap;
         rows?: (ResultRow | Record<string, unknown>)[];
+        timezone?: string;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -882,10 +896,12 @@ export const buildCartesianTooltipFormatter =
                 },
                 xFieldId,
                 itemsMap,
+                undefined, // xAxisDateFormat
+                timezone,
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params, itemsMap, xFieldId);
+        const header = getHeader(params, itemsMap, xFieldId, timezone);
 
         const sortedParams = sortTooltipParams(
             params,

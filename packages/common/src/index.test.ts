@@ -1,9 +1,12 @@
 import moment from 'moment';
 import {
+    DimensionType,
+    formatRawValue,
     getDateGroupLabel,
     getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
     isValidEmailAddress,
+    MetricType,
 } from '.';
 import {
     dateDayDimension,
@@ -175,6 +178,48 @@ describe('getDateGroupLabel', () => {
                 label: 'day date (day)',
             }),
         ).toEqual('Day date day'); // doesn't recognize (day) as a valid time frame
+    });
+});
+
+describe('formatRawValue', () => {
+    test('DATE field: normalizes timezone offset to midnight UTC', () => {
+        expect(formatRawValue(dateDayDimension, '2024-01-15T11:00:00Z')).toBe(
+            '2024-01-15T00:00:00Z',
+        );
+    });
+
+    test('DATE field: midnight UTC is preserved', () => {
+        expect(formatRawValue(dateDayDimension, '2024-01-15T00:00:00Z')).toBe(
+            '2024-01-15T00:00:00Z',
+        );
+    });
+
+    test('TIMESTAMP field: time component is preserved', () => {
+        const timestampDim = {
+            ...dateDayDimension,
+            type: DimensionType.TIMESTAMP,
+        };
+        expect(formatRawValue(timestampDim, '2024-01-15T11:00:00Z')).toBe(
+            '2024-01-15T11:00:00Z',
+        );
+    });
+
+    test('DATE metric: normalized like DATE dimension', () => {
+        const dateMetric = {
+            ...dateDayDimension,
+            type: MetricType.DATE,
+        };
+        expect(formatRawValue(dateMetric, '2024-01-15T05:00:00Z')).toBe(
+            '2024-01-15T00:00:00Z',
+        );
+    });
+
+    test('null value returns null', () => {
+        expect(formatRawValue(dateDayDimension, null)).toBeNull();
+    });
+
+    test('non-date field returns raw value', () => {
+        expect(formatRawValue(stringDimension, 'hello')).toBe('hello');
     });
 });
 

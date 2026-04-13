@@ -23,13 +23,14 @@ export const valueFormatter =
         itemsMap: ItemsMap,
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
         parameters?: ParametersValuesMap,
+        timezone?: string,
     ) =>
     (rawValue: AnyType) =>
         getFormattedValue(
             rawValue,
             yFieldId,
             itemsMap,
-            undefined,
+            timezone,
             pivotValuesColumnsMap,
             parameters,
         );

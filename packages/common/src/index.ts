@@ -715,8 +715,17 @@ export function formatRawValue(
             field.type === DimensionType.TIMESTAMP);
 
     if (isTimestamp && value !== null) {
-        // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
-        return dayjs(value).utc(true).format();
+        // DATE values from timezone-aware DATE_TRUNC are `timestamp without tz`
+        // in the warehouse. The PG client parses them in server-local time, so
+        // JSON.stringify shifts them by the server's UTC offset. Use utc(true)
+        // to reinterpret the local representation as UTC, recovering the
+        // intended date, then normalize to midnight.
+        if (isField(field) && field.type === DimensionType.DATE) {
+            return dayjs(value).utc(true).startOf('day').format();
+        }
+        // TIMESTAMP values come from `timestamptz` columns — the PG client
+        // already returns the correct UTC. Just normalize to a clean ISO string.
+        return dayjs.utc(value).format();
     }
 
     return value;
@@ -757,10 +766,23 @@ export function formatRow(
         const pivotValuesColumn = pivotValuesColumns?.[columnName];
         const item = itemsMap[pivotValuesColumn?.referenceField ?? columnName];
 
+        const raw = formatRawValue(item, value);
+        // For DATE types, use the normalized raw value for formatting.
+        // formatRawValue recovers the intended date from the S3-serialized
+        // value (PG parses `timestamp without tz` in server-local time,
+        // shifting the UTC representation). The normalized value is midnight
+        // UTC, which moment.utc() in formatDate reads correctly.
+        // For all other types, use the original value.
+        const isDateType = isField(item) && item.type === DimensionType.DATE;
         resultRow[columnName] = {
             value: {
-                raw: formatRawValue(item, value),
-                formatted: formatItemValue(item, value, timezone, parameters),
+                raw,
+                formatted: formatItemValue(
+                    item,
+                    isDateType ? raw : value,
+                    timezone,
+                    parameters,
+                ),
             },
         };
     }

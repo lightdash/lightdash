@@ -1763,14 +1763,16 @@ describe('Formatting', () => {
                 );
             });
 
-            test('formats in specified timezone', () => {
+            test('formats as UTC when timezone is specified (DATE values are pre-normalized to midnight UTC)', () => {
+                // DATE values are normalized to midnight UTC by formatRawValue.
+                // formatDate uses moment.utc() so the timezone doesn't shift the date.
                 expect(
                     formatDate(
-                        utcTimestamp,
+                        '2020-04-04T00:00:00.000Z',
                         TimeFrames.DAY,
                         'America/New_York',
                     ),
-                ).toBe('2020-04-03');
+                ).toBe('2020-04-04');
             });
 
             test('formats in process timezone when no timezone provided (flag off)', () => {
