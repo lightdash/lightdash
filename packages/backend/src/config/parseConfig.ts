@@ -1170,6 +1170,7 @@ export type LightdashConfig = {
         anthropicApiKey: string | null;
         schedule: string;
         serviceAccountPat: string | null;
+        sessionTimeoutMs: number;
     };
 
     initialSetup?: {
@@ -2235,6 +2236,10 @@ export const parseConfig = (): LightdashConfig => {
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '* * * * *',
             serviceAccountPat:
                 process.env.MANAGED_AGENT_SERVICE_ACCOUNT_PAT || null,
+            sessionTimeoutMs: parseInt(
+                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
+                10,
+            ), // 5 minutes default
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),

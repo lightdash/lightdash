@@ -340,6 +340,14 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         ),
     },
     {
+        path: 'improve',
+        lazy: async () => {
+            const { ManagedAgentActivityPage } =
+                await import('./ee/features/managedAgent/ManagedAgentActivityPage');
+            return { Component: ManagedAgentActivityPage };
+        },
+    },
+    {
         path: 'apps/generate',
         element: <AppGenerate />,
     },

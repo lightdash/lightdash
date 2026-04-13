@@ -94,8 +94,20 @@ const returnHeaderIfUnauthenticated = (
 // - MCP protocol requirements don't align with REST/TSOA patterns
 // - We need full control over HTTP streaming and headers
 // - It follows the same pattern as other protocol-specific endpoints (OAuth)
+// Anthropic Managed Agents vault sends PATs as "Bearer <token>" but
+// Lightdash PAT auth expects "ApiKey <token>". This middleware normalizes
+// Bearer tokens that look like PATs (ldpat_ prefix) so they're accepted.
+const normalizeBearerToPat: express.RequestHandler = (req, _res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ldpat_')) {
+        req.headers.authorization = `ApiKey ${authHeader.slice(7)}`;
+    }
+    next();
+};
+
 mcpRouter.all(
     '/',
+    normalizeBearerToPat,
     allowApiKeyAuthentication,
     returnHeaderIfUnauthenticated,
     async (req, res) => {

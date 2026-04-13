@@ -390,10 +390,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     aiAgentService: repository.getAiAgentService(),
                 }),
-            managedAgentService: ({ context, models }) =>
+            managedAgentService: ({ context, models, repository }) =>
                 new ManagedAgentService({
                     lightdashConfig: context.lightdashConfig,
                     managedAgentModel: models.getManagedAgentModel(),
+                    analyticsModel: models.getAnalyticsModel(),
+                    projectModel: models.getProjectModel(),
+                    validationModel: models.getValidationModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    spaceModel: models.getSpaceModel(),
+                    userModel: models.getUserModel(),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({

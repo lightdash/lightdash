@@ -25,11 +25,22 @@ Call get_stale_charts and get_stale_dashboards.
 Include last_viewed_at and views_count in the description.
 
 ### 3. Broken Content
-Call get_broken_content. Flag all broken content with the specific errors.
+Call get_broken_content. For each broken chart:
+- First, try to fix it using fix_broken_chart. Read the chart with get_chart_details, remove invalid field references from the metricQuery and chartConfig, then save the fixed version.
+- If you can't determine the fix, flag it instead.
 
-### 4. Content Creation
-Use the MCP tools to explore the data model. If you identify clear gaps (popular dimensions with no chart, commonly queried metrics with no visualization), create charts using create_content_from_code.
-Only create content when there's a clear need. Quality over quantity.
+### 4. Content Creation (ALWAYS do this step)
+You MUST create at least 1-2 charts per run. Follow these steps:
+1. Call get_chart_schema to get the exact JSON format required
+2. Call set_project with the project UUID to set context
+3. Call list_explores to see available data models
+4. Call find_fields to discover interesting dimensions and metrics
+5. Call run_metric_query to validate the data looks good
+6. Create charts using create_content_from_code
+
+CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "big_number", or "pie". Do NOT use "line" or "bar" as the type.
+
+Create charts that would be genuinely useful — revenue trends, top customers, order breakdowns, etc. Place all in the "Agent Suggestions" space for admin review. Max 3 charts per run.
 
 ### 5. Insights
 Call get_popular_content.
@@ -238,16 +249,87 @@ export const CUSTOM_TOOL_DEFINITIONS = [
     },
     {
         type: 'custom' as const,
+        name: 'get_chart_details',
+        description:
+            'Get the full details of a chart including its metricQuery, chartConfig, and tableName. Use this to understand a chart before fixing it.',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                chart_uuid: {
+                    type: 'string',
+                    description: 'UUID of the chart',
+                },
+            },
+            required: ['chart_uuid'],
+        },
+    },
+    {
+        type: 'custom' as const,
+        name: 'fix_broken_chart',
+        description:
+            'Fix a broken chart by updating its metricQuery and/or chartConfig. Provide the chart UUID and the corrected metricQuery and chartConfig objects. This creates a new version of the chart (the old version is preserved in history).',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                chart_uuid: {
+                    type: 'string',
+                    description: 'UUID of the chart to fix',
+                },
+                chart_name: {
+                    type: 'string',
+                    description: 'Name of the chart (for logging)',
+                },
+                metric_query: {
+                    type: 'object',
+                    description:
+                        'The corrected metricQuery object. Remove invalid field references.',
+                },
+                chart_config: {
+                    type: 'object',
+                    description:
+                        'The corrected chartConfig object. Remove references to fields that no longer exist.',
+                },
+                table_config: {
+                    type: 'object',
+                    description: 'The corrected tableConfig object (optional).',
+                },
+                description: {
+                    type: 'string',
+                    description: 'What was wrong and what you fixed',
+                },
+            },
+            required: [
+                'chart_uuid',
+                'chart_name',
+                'metric_query',
+                'chart_config',
+                'description',
+            ],
+        },
+    },
+    {
+        type: 'custom' as const,
+        name: 'get_chart_schema',
+        description:
+            'Get the chart-as-code JSON schema. Call this BEFORE creating any charts to understand the exact format required. The schema defines all valid field types, chart config types, and metric query structure.',
+        input_schema: {
+            type: 'object' as const,
+            properties: {},
+            required: [] as string[],
+        },
+    },
+    {
+        type: 'custom' as const,
         name: 'create_content_from_code',
         description:
-            'Create a new chart from a chart-as-code JSON definition. The chart will be placed in an "Agent Suggestions" space for admin review. Use MCP tools first to explore the data model and validate with run_metric_query before creating.',
+            'Create a new chart from a chart-as-code JSON definition. IMPORTANT: Call get_chart_schema first to understand the format. The chart will be placed in an "Agent Suggestions" space for admin review. Use MCP tools to explore the data model and validate with run_metric_query before creating.',
         input_schema: {
             type: 'object' as const,
             properties: {
                 chart_as_code: {
                     type: 'object',
                     description:
-                        'The full chart-as-code JSON definition. Must include: name, slug, tableName, metricQuery, chartConfig, tableConfig. Use spaceSlug "agent-suggestions".',
+                        'The full chart-as-code JSON definition. Must match the schema from get_chart_schema. Key: chartConfig.type must be "cartesian" for line/bar/area charts, "table" for tables, "big_number" for big numbers, "pie" for pie charts.',
                 },
                 description: {
                     type: 'string',
