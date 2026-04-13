@@ -186,44 +186,43 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     return (
         <UnstyledButton onClick={handleClick} className={classes.card}>
             <PixelGrid />
-            <Group justify="space-between" align="center">
+            <Stack gap="sm">
                 <Group gap="md" align="center">
                     <Box className={classes.orb}>
                         <IconBolt size={14} />
                     </Box>
-                    <Group gap={8} align="center">
-                        <Text fz="sm" fw={600}>
-                            Self-improving agent
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            &middot;
-                        </Text>
-                        <Group
-                            gap={5}
-                            wrap="nowrap"
-                            key={featureIdx}
-                            className={classes.featureCarousel}
-                        >
-                            <currentFeature.icon
-                                size={13}
-                                color="var(--mantine-color-violet-4)"
-                            />
-                            <Text fz="xs" c="dimmed" fw={500}>
-                                {currentFeature.label}
-                            </Text>
-                        </Group>
-                    </Group>
+                    <Text fz="sm" fw={600}>
+                        Self-improving agent
+                    </Text>
                 </Group>
-                <Button
-                    variant="filled"
-                    color="dark"
-                    size="compact-xs"
-                    rightSection={<IconArrowRight size={14} />}
-                    className={classes.viewLink}
+
+                <Group
+                    gap={5}
+                    wrap="nowrap"
+                    key={featureIdx}
+                    className={classes.featureCarousel}
+                    ml={44}
                 >
-                    Enable
-                </Button>
-            </Group>
+                    <currentFeature.icon
+                        size={13}
+                        color="var(--mantine-color-violet-4)"
+                    />
+                    <Text fz="xs" c="dimmed" fw={500}>
+                        {currentFeature.label}
+                    </Text>
+                </Group>
+
+                <Box ml={44}>
+                    <Button
+                        variant="filled"
+                        color="dark"
+                        size="compact-xs"
+                        rightSection={<IconArrowRight size={14} />}
+                    >
+                        Enable
+                    </Button>
+                </Box>
+            </Stack>
         </UnstyledButton>
     );
 };
