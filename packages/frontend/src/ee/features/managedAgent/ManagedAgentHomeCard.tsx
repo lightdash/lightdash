@@ -8,11 +8,12 @@ import {
 } from '@mantine-8/core';
 import {
     IconArrowRight,
+    IconBolt,
     IconChartBar,
     IconShieldCheck,
     IconTrendingUp,
 } from '@tabler/icons-react';
-import { type FC, useMemo } from 'react';
+import { type FC, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import useHealth from '../../../hooks/health/useHealth';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
@@ -44,24 +45,24 @@ const formatSchedule = (cron: string) => {
     return cron;
 };
 
-/** Generates a deterministic grid of subtle squares for the pattern */
+/** Generates a deterministic grid of subtle squares */
 const PixelGrid: FC = () => {
-    // Deterministic "random" pattern using a simple hash
     const cells = useMemo(() => {
         const grid: Array<{ x: number; y: number; opacity: number }> = [];
         const seed = [
             3, 7, 1, 9, 4, 6, 2, 8, 5, 0, 7, 3, 1, 8, 6, 2, 9, 4, 5, 0, 3, 8, 1,
-            6,
+            6, 7, 2, 9, 5, 0, 4, 8, 1, 6, 3, 7, 9, 2, 5, 0, 8, 4, 1, 6, 3, 7, 9,
+            2, 5, 8, 0, 4, 1, 3, 6, 7, 9,
         ];
-        for (let row = 0; row < 4; row++) {
-            for (let col = 0; col < 6; col++) {
-                const idx = row * 6 + col;
+        for (let row = 0; row < 6; row++) {
+            for (let col = 0; col < 14; col++) {
+                const idx = row * 14 + col;
                 const val = seed[idx % seed.length];
-                if (val > 4) {
+                if (val > 5) {
                     grid.push({
-                        x: col * 10,
-                        y: row * 10,
-                        opacity: val > 7 ? 0.12 : 0.06,
+                        x: col * 9,
+                        y: row * 9,
+                        opacity: val > 7 ? 0.14 : 0.07,
                     });
                 }
             }
@@ -72,18 +73,18 @@ const PixelGrid: FC = () => {
     return (
         <svg
             className={classes.pixelGrid}
-            width="60"
-            height="40"
-            viewBox="0 0 60 40"
+            width="126"
+            height="54"
+            viewBox="0 0 126 54"
         >
             {cells.map((cell, i) => (
                 <rect
                     key={i}
                     x={cell.x}
                     y={cell.y}
-                    width="8"
-                    height="8"
-                    rx="2"
+                    width="7"
+                    height="7"
+                    rx="1.5"
                     fill="currentColor"
                     opacity={cell.opacity}
                 />
@@ -105,6 +106,15 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     const actionCount = actions?.length ?? 0;
     const lastActionAt = actions?.[0]?.createdAt ?? null;
     const schedule = settings?.scheduleCron ?? '*/30 * * * *';
+
+    // Feature carousel — must be before any early returns (hooks rule)
+    const [featureIdx, setFeatureIdx] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setFeatureIdx((prev) => (prev + 1) % FEATURES.length);
+        }, 2500);
+        return () => clearInterval(interval);
+    }, []);
 
     const actionSummary = useMemo(() => {
         if (!actions || actions.length === 0) return null;
@@ -133,7 +143,9 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                 <PixelGrid />
                 <Group justify="space-between" align="center">
                     <Group gap="md" align="center">
-                        <Box className={classes.orbActive} />
+                        <Box className={classes.orbActive}>
+                            <IconBolt size={14} />
+                        </Box>
                         <Stack gap={2}>
                             <Group gap={8} align="center">
                                 <Text fz="sm" fw={600}>
@@ -169,37 +181,38 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     }
 
     // Setup state
+    const currentFeature = FEATURES[featureIdx];
+
     return (
         <UnstyledButton onClick={handleClick} className={classes.card}>
             <PixelGrid />
             <Group justify="space-between" align="center">
                 <Group gap="md" align="center">
-                    <Box className={classes.orb} />
-                    <Stack gap={2}>
+                    <Box className={classes.orb}>
+                        <IconBolt size={14} />
+                    </Box>
+                    <Group gap={8} align="center">
                         <Text fz="sm" fw={600}>
                             Self-improving agent
                         </Text>
-                        <Group gap="md">
-                            {FEATURES.map((f, i) => (
-                                <Group
-                                    key={f.label}
-                                    gap={4}
-                                    className={classes.featureItem}
-                                    style={{
-                                        animationDelay: `${200 + i * 100}ms`,
-                                    }}
-                                >
-                                    <f.icon
-                                        size={12}
-                                        color="var(--mantine-color-dimmed)"
-                                    />
-                                    <Text fz={11} c="dimmed">
-                                        {f.label}
-                                    </Text>
-                                </Group>
-                            ))}
+                        <Text fz="xs" c="dimmed">
+                            &middot;
+                        </Text>
+                        <Group
+                            gap={5}
+                            wrap="nowrap"
+                            key={featureIdx}
+                            className={classes.featureCarousel}
+                        >
+                            <currentFeature.icon
+                                size={13}
+                                color="var(--mantine-color-violet-4)"
+                            />
+                            <Text fz="xs" c="dimmed" fw={500}>
+                                {currentFeature.label}
+                            </Text>
                         </Group>
-                    </Stack>
+                    </Group>
                 </Group>
                 <Button
                     variant="filled"

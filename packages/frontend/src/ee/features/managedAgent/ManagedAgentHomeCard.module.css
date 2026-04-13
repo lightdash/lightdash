@@ -31,7 +31,7 @@
         from var(--glisten-angle, 0deg),
         transparent 0%,
         transparent 70%,
-        light-dark(rgba(139, 92, 246, 0.35), rgba(139, 92, 246, 0.25)) 80%,
+        light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.15)) 80%,
         transparent 90%,
         transparent 100%
     );
@@ -107,26 +107,31 @@
     height: 28px;
     border-radius: 8px;
     flex-shrink: 0;
-    background: linear-gradient(
-        135deg,
-        var(--mantine-color-violet-3),
-        var(--mantine-color-violet-5)
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
     );
-    opacity: 0.5;
+    border: 1px solid
+        light-dark(var(--mantine-color-violet-1), var(--mantine-color-violet-7));
+    color: var(--mantine-color-violet-5);
     animation: orbBreathe 3s ease-in-out infinite;
 }
 
 /* Orb — active state */
 .orbActive {
     composes: orb;
-    opacity: 0.8;
-    background: linear-gradient(
-        135deg,
-        var(--mantine-color-green-3),
-        var(--mantine-color-green-5)
+    background-color: light-dark(
+        var(--mantine-color-green-1),
+        var(--mantine-color-green-9)
     );
-    box-shadow: 0 0 12px
-        light-dark(rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.15));
+    border-color: light-dark(
+        var(--mantine-color-green-3),
+        var(--mantine-color-green-7)
+    );
+    color: var(--mantine-color-green-6);
 }
 
 .card:hover .orb {
@@ -145,15 +150,15 @@
     }
 }
 
-/* Feature items — staggered slide in */
-.featureItem {
-    animation: featureSlideIn 400ms var(--ease-out-quart) both;
+/* Feature carousel — vertical slide */
+.featureCarousel {
+    animation: featureSlideUp 350ms var(--ease-out-quart) both;
 }
 
-@keyframes featureSlideIn {
+@keyframes featureSlideUp {
     from {
         opacity: 0;
-        transform: translateY(6px);
+        transform: translateY(8px);
     }
 }
 
