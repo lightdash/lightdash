@@ -111,7 +111,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                                     formatDate(
                                         dateValue,
                                         TimeFrames.WEEK,
-                                        false,
+                                        undefined,
                                     ),
                                 );
                             }}
@@ -128,7 +128,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                                     formatDate(
                                         dateValue,
                                         TimeFrames.MONTH,
-                                        false,
+                                        undefined,
                                     ),
                                 );
                             }}
@@ -146,7 +146,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                                     formatDate(
                                         dateValue,
                                         TimeFrames.YEAR,
-                                        false,
+                                        undefined,
                                     ),
                                 );
                             }}
@@ -161,7 +161,9 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                     value={parsedDate}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     onChange={(newValue) => {
-                        onChange(formatDate(newValue, TimeFrames.DAY, false));
+                        onChange(
+                            formatDate(newValue, TimeFrames.DAY, undefined),
+                        );
                     }}
                 />
             );

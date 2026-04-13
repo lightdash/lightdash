@@ -274,7 +274,7 @@ const useEchartsGaugeConfig = ({
                         return formatItemValue(
                             fieldItem,
                             value,
-                            false,
+                            undefined,
                             parameters,
                         );
                     }
@@ -300,7 +300,7 @@ const useEchartsGaugeConfig = ({
                     const formattedValue = formatItemValue(
                         fieldItem,
                         value,
-                        false,
+                        undefined,
                         parameters,
                     );
 

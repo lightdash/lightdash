@@ -385,7 +385,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                                                           axisValue,
                                                           dim,
                                                           itemsMap,
-                                                          true,
+                                                          'UTC',
                                                       )
                                                     : axisValue;
 

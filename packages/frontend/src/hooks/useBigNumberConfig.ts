@@ -76,7 +76,7 @@ const formatComparisonValue = (
                 return `${prefix}${formatItemValue(
                     item,
                     value,
-                    false,
+                    undefined,
                     parameters,
                 )}`;
             }
@@ -90,12 +90,12 @@ const formatComparisonValue = (
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value, false, parameters);
+                : formatItemValue(item, value, undefined, parameters);
 
             return `${prefix}${formattedValue}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
-                return formatItemValue(item, value, false, parameters);
+                return formatItemValue(item, value, undefined, parameters);
             }
             return bigNumberComparisonStyle
                 ? applyCustomFormat(
@@ -106,7 +106,7 @@ const formatComparisonValue = (
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value, false, parameters);
+                : formatItemValue(item, value, undefined, parameters);
     }
 };
 
@@ -308,13 +308,23 @@ const useBigNumberConfig = (
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
         } else if (item !== undefined && isTableCalculation(item)) {
-            return formatItemValue(item, firstRowValueRaw, false, parameters);
+            return formatItemValue(
+                item,
+                firstRowValueRaw,
+                undefined,
+                parameters,
+            );
         } else if (
             item !== undefined &&
             hasValidFormatExpression(item) &&
             !bigNumberStyle // If the big number has a comparison style, don't use the format expression returned by the backend
         ) {
-            return formatItemValue(item, firstRowValueRaw, false, parameters);
+            return formatItemValue(
+                item,
+                firstRowValueRaw,
+                undefined,
+                parameters,
+            );
         } else if (item !== undefined && hasFormatOptions(item)) {
             // Custom metrics case
 
