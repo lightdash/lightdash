@@ -153,7 +153,7 @@ export class ManagedAgentService extends BaseService {
     private getClient(serviceAccountToken: string): ManagedAgentClient {
         // Recreate if token changes (different project)
         if (!this.client) {
-            const { anthropicApiKey, sessionTimeoutMs, agentId, skillId } =
+            const { anthropicApiKey, sessionTimeoutMs, agentId } =
                 this.lightdashConfig.managedAgent;
             if (!anthropicApiKey) {
                 throw new Error(
@@ -166,7 +166,6 @@ export class ManagedAgentService extends BaseService {
                 serviceAccountPat: serviceAccountToken,
                 sessionTimeoutMs,
                 agentId,
-                skillId,
             });
         }
         return this.client;

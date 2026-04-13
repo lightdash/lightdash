@@ -8,7 +8,6 @@ type ManagedAgentClientConfig = {
     serviceAccountPat: string;
     sessionTimeoutMs: number;
     agentId: string | null;
-    skillId: string | null;
 };
 
 type CustomToolHandler = (

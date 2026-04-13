@@ -314,7 +314,6 @@ export const lightdashConfigMock: LightdashConfig = {
         schedule: '* * * * *',
         sessionTimeoutMs: 300000,
         agentId: null,
-        skillId: null,
     },
     mcp: {
         enabled: true,

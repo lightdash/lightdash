@@ -1171,7 +1171,6 @@ export type LightdashConfig = {
         schedule: string;
         sessionTimeoutMs: number;
         agentId: string | null;
-        skillId: string | null;
     };
 
     initialSetup?: {
@@ -2240,7 +2239,6 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ), // 5 minutes default
             agentId: process.env.MANAGED_AGENT_AGENT_ID || null,
-            skillId: process.env.MANAGED_AGENT_SKILL_ID || null,
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
