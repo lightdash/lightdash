@@ -15,7 +15,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useId } from '@mantine-8/hooks';
-import { IconX } from '@tabler/icons-react';
+import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
@@ -33,6 +33,7 @@ type Props = {
     projectUuid?: string;
     isRequired?: boolean;
     isEditMode?: boolean;
+    isDraggable?: boolean;
 };
 
 const Parameter: FC<Props> = ({
@@ -46,6 +47,7 @@ const Parameter: FC<Props> = ({
     onParameterChange,
     projectUuid,
     isRequired = false,
+    isDraggable = false,
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
@@ -140,6 +142,15 @@ const Parameter: FC<Props> = ({
                             hasUnsetRequiredParameter
                                 ? styles.unsetRequired
                                 : ''
+                        }
+                        leftSection={
+                            isDraggable && (
+                                <MantineIcon
+                                    icon={IconGripVertical}
+                                    cursor="grab"
+                                    size="sm"
+                                />
+                            )
                         }
                         rightSection={
                             hasValue && (
