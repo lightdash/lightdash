@@ -62,6 +62,7 @@ export type FindFieldFn = (
         table: ToolFindFieldsArgs['table'];
         fieldSearchQuery: ToolFindFieldsArgs['fieldSearchQueries'][number];
         explore: Explore;
+        includeRelationships?: boolean;
     },
 ) => Promise<{
     fields: CatalogField[];

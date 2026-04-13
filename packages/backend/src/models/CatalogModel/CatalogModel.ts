@@ -1739,6 +1739,73 @@ export class CatalogModel {
         };
     }
 
+    async getMetricRelationshipsForFields(
+        projectUuid: string,
+        catalogSearchUuids: string[],
+    ): Promise<CatalogMetricsTreeEdge[]> {
+        if (catalogSearchUuids.length === 0) {
+            return [];
+        }
+
+        const edges = await this.database(MetricsTreeEdgesTableName)
+            .select<
+                (DbMetricsTreeEdge & {
+                    source_metric_name: string;
+                    source_metric_table_name: string;
+                    target_metric_name: string;
+                    target_metric_table_name: string;
+                })[]
+            >({
+                source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                created_at: `${MetricsTreeEdgesTableName}.created_at`,
+                created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+                source: `${MetricsTreeEdgesTableName}.source`,
+                source_metric_name: `source_metric.name`,
+                source_metric_table_name: `source_metric.table_name`,
+                target_metric_name: `target_metric.name`,
+                target_metric_table_name: `target_metric.table_name`,
+            })
+            .innerJoin(
+                { source_metric: CatalogTableName },
+                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                `source_metric.catalog_search_uuid`,
+            )
+            .innerJoin(
+                { target_metric: CatalogTableName },
+                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                `target_metric.catalog_search_uuid`,
+            )
+            .where(function eitherSideMatches() {
+                void this.whereIn(
+                    `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                    catalogSearchUuids,
+                ).orWhereIn(
+                    `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                    catalogSearchUuids,
+                );
+            })
+            .andWhere('source_metric.project_uuid', projectUuid)
+            .andWhere('target_metric.project_uuid', projectUuid);
+
+        return edges.map((e) => ({
+            source: {
+                catalogSearchUuid: e.source_metric_catalog_search_uuid,
+                name: e.source_metric_name,
+                tableName: e.source_metric_table_name,
+            },
+            target: {
+                catalogSearchUuid: e.target_metric_catalog_search_uuid,
+                name: e.target_metric_name,
+                tableName: e.target_metric_table_name,
+            },
+            createdAt: e.created_at,
+            createdByUserUuid: e.created_by_user_uuid,
+            projectUuid,
+            createdFrom: e.source,
+        }));
+    }
+
     async getAllMetricsTreeEdges(
         projectUuid: string,
     ): Promise<CatalogMetricsTreeEdge[]> {
