@@ -130,6 +130,7 @@ interface ServiceManifest {
     cacheService: unknown;
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
+    managedAgentService: unknown;
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
@@ -1171,6 +1172,12 @@ export class ServiceRepository
 
     public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
         return this.getService('supportService');
+    }
+
+    public getManagedAgentService<
+        ManagedAgentServiceImplT,
+    >(): ManagedAgentServiceImplT {
+        return this.getService('managedAgentService');
     }
 
     public getMcpService<McpServiceImplT>(): McpServiceImplT {
