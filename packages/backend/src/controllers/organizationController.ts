@@ -49,6 +49,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -619,14 +620,30 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
         @Body() body: CreateProjectOptionalCredentials,
     ): Promise<ApiSuccess<ApiCreateProjectResults>> {
-        const results = await this.services
-            .getProjectService()
-            .createWithoutCompile(
-                req.user!,
-                body,
-                getRequestMethod(req.header(LightdashRequestMethodHeader)),
+        Logger.debug(
+            `createProject request received: name=${body.name}, type=${body.type}`,
+        );
+        let results: ApiCreateProjectResults;
+        try {
+            Logger.debug(
+                'createProject: calling projectService.createWithoutCompile',
             );
-
+            results = await this.services
+                .getProjectService()
+                .createWithoutCompile(
+                    req.user!,
+                    body,
+                    getRequestMethod(req.header(LightdashRequestMethodHeader)),
+                );
+        } catch (e) {
+            Logger.debug(
+                `createProject: error creating project: ${e instanceof Error ? e.message : String(e)}`,
+            );
+            throw e;
+        }
+        Logger.debug(
+            `createProject: project created successfully, uuid=${results.project.projectUuid}`,
+        );
         return {
             status: 'ok',
             results,
