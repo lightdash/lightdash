@@ -308,6 +308,12 @@ export const lightdashConfigMock: LightdashConfig = {
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },
+    managedAgent: {
+        enabled: false,
+        anthropicApiKey: null,
+        schedule: '* * * * *',
+        serviceAccountPat: null,
+    },
     mcp: {
         enabled: true,
     },

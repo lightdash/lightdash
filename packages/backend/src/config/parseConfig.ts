@@ -1165,6 +1165,12 @@ export type LightdashConfig = {
     googleCloudPlatform: {
         projectId?: string;
     };
+    managedAgent: {
+        enabled: boolean;
+        anthropicApiKey: string | null;
+        schedule: string;
+        serviceAccountPat: string | null;
+    };
 
     initialSetup?: {
         organization: {
@@ -2222,6 +2228,13 @@ export const parseConfig = (): LightdashConfig => {
         },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        },
+        managedAgent: {
+            enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
+            anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
+            schedule: process.env.MANAGED_AGENT_SCHEDULE || '* * * * *',
+            serviceAccountPat:
+                process.env.MANAGED_AGENT_SERVICE_ACCOUNT_PAT || null,
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
