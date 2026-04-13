@@ -247,6 +247,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
         useState<boolean>(false);
 
+    // Parameter order state
+    const [parameterOrder, setParameterOrderState] = useState<string[]>([]);
+    const [hasParameterOrderChanged, setHasParameterOrderChanged] =
+        useState<boolean>(false);
+
     // Date zoom granularities state
     const allStandardGranularities = useMemo(
         () => Object.values(DateGranularity),
@@ -284,6 +289,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             setPinnedParametersState([]);
         }
     }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
+
+    // Set parameter order when dashboard is loaded
+    useEffect(() => {
+        if (dashboard?.config?.parameterOrder !== undefined) {
+            setParameterOrderState(dashboard.config.parameterOrder);
+        } else if (dashboard?.config !== undefined) {
+            setParameterOrderState([]);
+        }
+    }, [dashboard?.config?.parameterOrder, dashboard?.config]);
 
     // Sync date zoom granularities from dashboard config
     // Note: Custom granularities from explores are added by DashboardGranularitySync
@@ -383,6 +397,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             return newPinnedParams;
         });
         setHavePinnedParametersChanged(true);
+    }, []);
+
+    const setParameterOrder = useCallback((order: string[]) => {
+        setParameterOrderState(order);
+        setHasParameterOrderChanged(true);
     }, []);
 
     const setDateZoomGranularities = useCallback(
@@ -1401,6 +1420,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         toggleParameterPin,
         havePinnedParametersChanged,
         setHavePinnedParametersChanged,
+        parameterOrder,
+        setParameterOrder,
+        hasParameterOrderChanged,
+        setHasParameterOrderChanged,
         dateZoomGranularities,
         setDateZoomGranularities,
         haveDateZoomGranularitiesChanged,
