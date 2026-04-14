@@ -3,6 +3,7 @@ import { useCallback, useEffect, type RefObject } from 'react';
 export type QueryEvent = {
     id: string;
     timestamp: number;
+    label: string | null;
     exploreName: string;
     dimensions: string[];
     metrics: string[];
@@ -72,7 +73,7 @@ export function useAppSdkBridge(
             const { data } = event;
             if (data?.type !== 'lightdash:sdk:fetch') return;
 
-            const { id, method, path, body } = data;
+            const { id, method, path, body, metadata } = data;
 
             const respond = (response: {
                 result?: unknown;
@@ -93,10 +94,14 @@ export function useAppSdkBridge(
             if (isMetricQueryPost(method, path) && onQueryEvent && body) {
                 const query = (body as { query?: Record<string, unknown> })
                     ?.query;
+                const sdkLabel = (
+                    metadata as Record<string, unknown> | undefined
+                )?.label as string | undefined;
                 if (query) {
                     onQueryEvent({
                         id,
                         timestamp: Date.now(),
+                        label: sdkLabel ?? null,
                         exploreName: (query.exploreName as string) ?? 'unknown',
                         dimensions: (query.dimensions as string[]) ?? [],
                         metrics: (query.metrics as string[]) ?? [],
@@ -128,9 +133,13 @@ export function useAppSdkBridge(
                         onQueryEvent &&
                         json.results?.queryUuid
                     ) {
+                        const initLabel = (
+                            metadata as Record<string, unknown> | undefined
+                        )?.label as string | undefined;
                         onQueryEvent({
                             id,
                             timestamp: Date.now(),
+                            label: initLabel ?? null,
                             exploreName:
                                 json.results?.metricQuery?.exploreName ??
                                 'unknown',
@@ -155,6 +164,7 @@ export function useAppSdkBridge(
                             onQueryEvent({
                                 id,
                                 timestamp: Date.now(),
+                                label: null,
                                 exploreName: '',
                                 dimensions: [],
                                 metrics: [],
@@ -176,6 +186,7 @@ export function useAppSdkBridge(
                             onQueryEvent({
                                 id,
                                 timestamp: Date.now(),
+                                label: null,
                                 exploreName: '',
                                 dimensions: [],
                                 metrics: [],

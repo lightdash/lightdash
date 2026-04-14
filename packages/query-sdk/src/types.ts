@@ -57,6 +57,8 @@ export type QueryDefinition = {
     filters: InternalFilterDefinition[];
     sorts: { fieldId: string; descending: boolean }[];
     limit: number;
+    /** Human-readable label for dev tools / query inspector (not sent to the API) */
+    label?: string;
 };
 
 // --- Query results ---

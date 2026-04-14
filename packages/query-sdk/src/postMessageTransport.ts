@@ -22,6 +22,8 @@ export type SdkFetchRequest = {
     method: string;
     path: string;
     body?: unknown;
+    /** Transport metadata for dev tools (not sent to the API) */
+    metadata?: Record<string, unknown>;
 };
 
 export type SdkFetchResponse = {
@@ -96,7 +98,12 @@ function createPostMessageFetchAdapter(config: {
         }
     });
 
-    return async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+    return async <T>(
+        method: string,
+        path: string,
+        body?: unknown,
+        metadata?: Record<string, unknown>,
+    ): Promise<T> => {
         await readyPromise;
 
         const id = crypto.randomUUID();
@@ -119,6 +126,7 @@ function createPostMessageFetchAdapter(config: {
                 method,
                 path,
                 body,
+                ...(metadata ? { metadata } : {}),
             };
             targetWindow.postMessage(message, '*');
         });

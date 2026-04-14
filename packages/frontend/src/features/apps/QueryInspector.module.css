@@ -1,3 +1,10 @@
+.iconOnly {
+    position: absolute;
+    bottom: var(--mantine-spacing-sm);
+    left: var(--mantine-spacing-sm);
+    z-index: 10;
+}
+
 .container {
     position: absolute;
     bottom: var(--mantine-spacing-sm);
