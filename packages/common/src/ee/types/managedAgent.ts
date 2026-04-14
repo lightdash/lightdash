@@ -19,6 +19,7 @@ export type ManagedAgentSettings = {
     enabled: boolean;
     scheduleCron: string;
     enabledByUserUuid: string | null;
+    slackChannelId: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -41,6 +42,7 @@ export type ManagedAgentAction = {
 export type UpdateManagedAgentSettings = {
     enabled?: boolean;
     scheduleCron?: string;
+    slackChannelId?: string | null;
 };
 
 export type CreateManagedAgentAction = {

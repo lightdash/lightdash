@@ -15,6 +15,7 @@ import {
     type UpdateManagedAgentSettings,
     type ValidationResponse,
 } from '@lightdash/common';
+import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -41,6 +42,7 @@ type ManagedAgentServiceDependencies = {
     userModel: UserModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     schedulerClient: SchedulerClient;
+    slackClient: SlackClient;
 };
 
 export class ManagedAgentService extends BaseService {
@@ -66,6 +68,8 @@ export class ManagedAgentService extends BaseService {
 
     private readonly schedulerClient: SchedulerClient;
 
+    private readonly slackClient: SlackClient;
+
     private client: ManagedAgentClient | null = null;
 
     constructor(deps: ManagedAgentServiceDependencies) {
@@ -81,6 +85,7 @@ export class ManagedAgentService extends BaseService {
         this.userModel = deps.userModel;
         this.personalAccessTokenModel = deps.personalAccessTokenModel;
         this.schedulerClient = deps.schedulerClient;
+        this.slackClient = deps.slackClient;
     }
 
     // --- Validation helpers ---
@@ -388,6 +393,160 @@ export class ManagedAgentService extends BaseService {
         sessionId = await client.runSession(projectUuid, onToolCall);
 
         this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
+
+        // Post summary to Slack if configured
+        if (settings.slackChannelId && sessionId) {
+            await this.postHeartbeatSummaryToSlack(
+                projectUuid,
+                sessionId,
+                settings.slackChannelId,
+            );
+        }
+    }
+
+    private async postHeartbeatSummaryToSlack(
+        projectUuid: string,
+        sessionId: string,
+        slackChannelId: string,
+    ): Promise<void> {
+        try {
+            const actions = await this.managedAgentModel.getActions(
+                projectUuid,
+                { sessionId },
+            );
+
+            if (actions.length === 0) {
+                return; // Nothing to report
+            }
+
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            const { siteUrl } = this.lightdashConfig;
+            const activityUrl = `${siteUrl}/projects/${projectUuid}/improve`;
+
+            // Build action summary counts
+            const counts: Record<string, number> = {};
+            for (const a of actions) {
+                counts[a.actionType] = (counts[a.actionType] || 0) + 1;
+            }
+
+            const summaryParts: string[] = [];
+            if (counts.fixed_broken)
+                summaryParts.push(
+                    `*${counts.fixed_broken}* chart${counts.fixed_broken > 1 ? 's' : ''} fixed`,
+                );
+            if (counts.created_content)
+                summaryParts.push(
+                    `*${counts.created_content}* chart${counts.created_content > 1 ? 's' : ''} created`,
+                );
+            if (counts.flagged_stale)
+                summaryParts.push(
+                    `*${counts.flagged_stale}* item${counts.flagged_stale > 1 ? 's' : ''} flagged as stale`,
+                );
+            if (counts.flagged_broken)
+                summaryParts.push(
+                    `*${counts.flagged_broken}* item${counts.flagged_broken > 1 ? 's' : ''} flagged as broken`,
+                );
+            if (counts.soft_deleted)
+                summaryParts.push(
+                    `*${counts.soft_deleted}* item${counts.soft_deleted > 1 ? 's' : ''} cleaned up`,
+                );
+            if (counts.insight)
+                summaryParts.push(
+                    `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,
+                );
+
+            const ACTION_ICONS: Record<string, string> = {
+                [ManagedAgentActionType.FIXED_BROKEN]: ':wrench:',
+                [ManagedAgentActionType.CREATED_CONTENT]: ':sparkles:',
+                [ManagedAgentActionType.FLAGGED_STALE]: ':warning:',
+                [ManagedAgentActionType.FLAGGED_BROKEN]: ':x:',
+                [ManagedAgentActionType.SOFT_DELETED]: ':wastebasket:',
+                [ManagedAgentActionType.INSIGHT]: ':bulb:',
+            };
+
+            const RESOURCE_URL_PATTERNS: Record<string, string> = {
+                [ManagedAgentTargetType.CHART]: 'saved',
+                [ManagedAgentTargetType.DASHBOARD]: 'dashboards',
+            };
+
+            // Build per-action detail lines with links
+            const detailLines = actions.slice(0, 10).map((a) => {
+                const urlSegment = RESOURCE_URL_PATTERNS[a.targetType];
+                const resourceUrl = urlSegment
+                    ? `${siteUrl}/projects/${projectUuid}/${urlSegment}/${a.targetUuid}`
+                    : null;
+
+                const icon = ACTION_ICONS[a.actionType] || ':bulb:';
+
+                const nameLink = resourceUrl
+                    ? `<${resourceUrl}|${a.targetName}>`
+                    : a.targetName;
+
+                return `${icon} ${nameLink} — ${a.description}`;
+            });
+
+            const moreCount = actions.length - 10;
+            if (moreCount > 0) {
+                detailLines.push(
+                    `_...and ${moreCount} more action${moreCount > 1 ? 's' : ''}_`,
+                );
+            }
+
+            const blocks = [
+                {
+                    type: 'header' as const,
+                    text: {
+                        type: 'plain_text' as const,
+                        text: ':zap: Improve agent completed a run',
+                        emoji: true,
+                    },
+                },
+                {
+                    type: 'section' as const,
+                    text: {
+                        type: 'mrkdwn' as const,
+                        text: summaryParts.join('  ·  '),
+                    },
+                },
+                {
+                    type: 'section' as const,
+                    text: {
+                        type: 'mrkdwn' as const,
+                        text: detailLines.join('\n'),
+                    },
+                },
+                {
+                    type: 'actions' as const,
+                    elements: [
+                        {
+                            type: 'button' as const,
+                            text: {
+                                type: 'plain_text' as const,
+                                text: 'View all activity',
+                                emoji: true,
+                            },
+                            url: activityUrl,
+                        },
+                    ],
+                },
+            ];
+
+            await this.slackClient.postMessage({
+                organizationUuid,
+                channel: slackChannelId,
+                text: `Improve agent: ${summaryParts.join(', ')}`,
+                blocks,
+            });
+
+            this.logger.info(
+                `Posted heartbeat summary to Slack channel ${slackChannelId}`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to post heartbeat summary to Slack: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+        }
     }
 
     // --- Tool Handlers ---

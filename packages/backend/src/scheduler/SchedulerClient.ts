@@ -1568,7 +1568,7 @@ export class SchedulerClient {
 
         const arr = stringToArray(cronPattern);
         const schedule = getSchedule(arr, new Date(), 'UTC');
-        const nextRun = schedule.next();
+        const nextRun = schedule.next().toJSDate();
 
         await graphileClient.addJob(
             SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,

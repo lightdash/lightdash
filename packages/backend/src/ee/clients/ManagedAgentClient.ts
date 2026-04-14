@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { AnyType } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { CUSTOM_TOOL_DEFINITIONS } from '../services/ManagedAgentService/managedAgentTools';
 
@@ -77,36 +78,19 @@ export class ManagedAgentClient {
             };
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const betaAny = this.client.beta as any;
+        const betaAny = this.client.beta as AnyType;
 
-        const environment = await betaAny.environments.create({
-            name: 'lightdash-agent-env',
-            config: {
-                type: 'cloud',
-                networking: { type: 'limited', allow_mcp_servers: true },
-            },
-        });
+        // Reuse existing environment if one exists, otherwise create
+        const environment = await this.findOrCreateEnvironment(betaAny);
 
-        // Create a vault and add a static bearer credential for MCP auth
-        const vault = await betaAny.vaults.create({
-            display_name: 'Lightdash MCP Auth',
-        });
-
-        await betaAny.vaults.credentials.create(vault.id, {
-            display_name: 'Lightdash PAT',
-            auth: {
-                type: 'static_bearer',
-                mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
-                token: this.config.serviceAccountPat,
-            },
-        });
+        // Reuse existing vault if one exists, otherwise create with credentials
+        const vault = await this.findOrCreateVault(betaAny);
 
         this.agentId = configAgentId;
         this.environmentId = environment.id;
         this.vaultId = vault.id;
 
-        // Persist the new IDs so they survive service restarts
+        // Persist the IDs so they survive service restarts
         await this.config.onResourcesCreated(environment.id, vault.id);
 
         Logger.info(
@@ -120,6 +104,74 @@ export class ManagedAgentClient {
         };
     }
 
+    // eslint-disable-next-line class-methods-use-this
+    private async findOrCreateEnvironment(
+        betaAny: AnyType,
+    ): Promise<{ id: string }> {
+        const ENV_NAME = 'lightdash-agent-env';
+        try {
+            const list = await betaAny.environments.list();
+            const existing = list?.data?.find(
+                (e: { name: string }) => e.name === ENV_NAME,
+            );
+            if (existing) {
+                Logger.info(
+                    `[ManagedAgent] Reusing existing environment: ${existing.id}`,
+                );
+                return existing;
+            }
+        } catch (error) {
+            Logger.warn(
+                `[ManagedAgent] Could not list environments, creating new: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+        }
+
+        Logger.info('[ManagedAgent] Creating new environment');
+        return betaAny.environments.create({
+            name: ENV_NAME,
+            config: {
+                type: 'cloud',
+                networking: { type: 'limited', allow_mcp_servers: true },
+            },
+        });
+    }
+
+    private async findOrCreateVault(betaAny: AnyType): Promise<{ id: string }> {
+        const VAULT_NAME = 'Lightdash MCP Auth';
+        try {
+            const list = await betaAny.vaults.list();
+            const existing = list?.data?.find(
+                (v: { display_name: string }) => v.display_name === VAULT_NAME,
+            );
+            if (existing) {
+                Logger.info(
+                    `[ManagedAgent] Reusing existing vault: ${existing.id}`,
+                );
+                return existing;
+            }
+        } catch (error) {
+            Logger.warn(
+                `[ManagedAgent] Could not list vaults, creating new: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+        }
+
+        Logger.info('[ManagedAgent] Creating new vault');
+        const vault = await betaAny.vaults.create({
+            display_name: VAULT_NAME,
+        });
+
+        await betaAny.vaults.credentials.create(vault.id, {
+            display_name: 'Lightdash PAT',
+            auth: {
+                type: 'static_bearer',
+                mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
+                token: this.config.serviceAccountPat,
+            },
+        });
+
+        return vault;
+    }
+
     async runSession(
         projectName: string,
         onCustomToolUse: CustomToolHandler,
@@ -127,8 +179,7 @@ export class ManagedAgentClient {
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment();
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const betaAny = this.client.beta as any;
+        const betaAny = this.client.beta as AnyType;
 
         const session = await betaAny.sessions.create({
             agent: agentId,
