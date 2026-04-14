@@ -896,14 +896,10 @@ export class PivotQueryBuilder {
             ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
         );
 
-        // Check if we need row anchor CTEs (only when sorting by a metric value AND have index columns)
-        // When sorting by a metric, we need additional CTEs to identify the "first pivot column"
-        // and compute row anchor values from that specific column only.
-        // When there are no index columns, row sorting is not needed (all rows have row_index = 1)
+        // Check if any sort references a value column (metric sort)
         const hasMetricSort = valuesColumns?.some((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
-        const needsRowAnchor = hasMetricSort && indexColumns.length > 0;
 
         let columnRankingCTE: string | null = null;
         let anchorColumnCTE: string | null = null;
@@ -911,8 +907,11 @@ export class PivotQueryBuilder {
         let rowAnchorQueries: Record<string, { cteName: string; sql: string }> =
             {};
 
-        if (needsRowAnchor) {
-            // Generate column_ranking CTE
+        if (hasMetricSort) {
+            // Generate column_ranking CTE whenever metric sorting is active.
+            // This isolates the DENSE_RANK + column anchor references in a
+            // self-contained CTE so Databricks/Spark can resolve them even
+            // when there are no index columns.
             const columnRankingSQL = this.getColumnRankingSQL(
                 groupByColumns,
                 valuesColumns,
@@ -921,23 +920,27 @@ export class PivotQueryBuilder {
             );
             columnRankingCTE = `column_ranking AS (${columnRankingSQL})`;
 
-            // Generate anchor_column CTE
-            const anchorColumnSQL = this.getAnchorColumnSQL(
-                groupByColumns,
-                sortBy,
-            );
-            anchorColumnCTE = `anchor_column AS (${anchorColumnSQL})`;
+            // Row anchor CTEs are only needed when there are index columns —
+            // without them all rows have row_index = 1 and no row sorting is needed.
+            if (indexColumns.length > 0) {
+                // Generate anchor_column CTE
+                const anchorColumnSQL = this.getAnchorColumnSQL(
+                    groupByColumns,
+                    sortBy,
+                );
+                anchorColumnCTE = `anchor_column AS (${anchorColumnSQL})`;
 
-            // Generate row anchor CTEs using anchor_column
-            rowAnchorQueries = this.getRowAnchorCTEs(
-                indexColumns,
-                valuesColumns,
-                groupByColumns,
-                sortBy,
-            );
-            rowAnchorCTEs = Object.values(rowAnchorQueries).map(
-                ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
-            );
+                // Generate row anchor CTEs using anchor_column
+                rowAnchorQueries = this.getRowAnchorCTEs(
+                    indexColumns,
+                    valuesColumns,
+                    groupByColumns,
+                    sortBy,
+                );
+                rowAnchorCTEs = Object.values(rowAnchorQueries).map(
+                    ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
+                );
+            }
         }
 
         // Combine all queries for the metricFirstValueQueries map (used by getPivotQuerySQL)
@@ -1294,15 +1297,14 @@ export class PivotQueryBuilder {
             sortBy,
         );
 
-        // When metric sorting with index columns is active (needsRowAnchor),
-        // compute rankings in separate CTEs instead of inline Window functions.
-        // This prevents Databricks/Spark from failing when it inlines CTEs and
-        // can't resolve anchor column references in Window ORDER BY clauses.
-        const needsPrecomputedRankings =
-            columnRankingCTE !== null && indexColumns.length > 0;
+        // When metric sorting is active, compute rankings in separate CTEs
+        // instead of inline Window functions. This prevents Databricks/Spark
+        // from failing when it inlines CTEs and can't resolve anchor column
+        // references in Window ORDER BY clauses.
+        const needsPrecomputedRankings = columnRankingCTE !== null;
 
         let rowRankingCTE: string | null = null;
-        if (needsPrecomputedRankings) {
+        if (needsPrecomputedRankings && indexColumns.length > 0) {
             // Extract only row anchor queries for the row_ranking CTE
             const rowAnchorQueries = Object.fromEntries(
                 Object.entries(metricFirstValueQueries).filter(([key]) =>
