@@ -2,6 +2,7 @@ import {
     FilterOperator,
     NotFoundError,
     ParameterError,
+    type AndFilterGroup,
     type Explore,
 } from '@lightdash/common';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
@@ -173,6 +174,51 @@ describe('getFieldValuesMetricQuery', () => {
                 limit: 10000,
                 maxLimit: 5000,
                 filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when table is undefined', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: undefined as unknown as string,
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when table is empty string', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: '',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when filters is truthy but missing .and', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: { id: 'filter-group' } as unknown as AndFilterGroup,
                 exploreResolver: mockExploreResolver,
             }),
         ).rejects.toThrow(ParameterError);
