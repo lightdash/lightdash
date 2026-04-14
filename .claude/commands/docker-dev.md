@@ -90,8 +90,20 @@ test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Crea
 # Check 3: CLAUDE.local.md has local dev instructions
 grep -q "## Starting Development Services" CLAUDE.local.md 2>/dev/null && echo "OK: CLAUDE.local.md has local dev instructions" || echo "NEED: Add local dev instructions to CLAUDE.local.md"
 
-# Check 4: Dependencies installed
-test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies installed" || echo "NEED: Run pnpm install and build"
+# Check 4: Dependencies installed and generated build artifacts present
+#  - common/dist:                        compiled @lightdash/common
+#  - formula/dist/grammar/parser.js:     Peggy-generated parser (gitignored, requires `pnpm build:grammar`)
+#  - warehouses/.../ca-bundle-aws-redshift.crt: runtime asset copied by warehouses `copy-files` script
+# All three must exist or the scheduler will crash-loop with `Cannot find module '../grammar/parser'`
+# and ENOENT on the Redshift CA bundle.
+if test -d node_modules \
+  && test -f packages/common/dist/cjs/index.js \
+  && test -f packages/formula/dist/grammar/parser.js \
+  && test -f packages/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt; then
+  echo "OK: Dependencies installed"
+else
+  echo "NEED: Run pnpm install and build"
+fi
 
 # Check 5: Python/dbt environment ready
 test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
