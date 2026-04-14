@@ -130,6 +130,21 @@ models:
     });
 });
 
+describe('lineWidth preservation', () => {
+    const LONG_DESC_SCHEMA = `version: 2
+models:
+  - name: my_model
+    columns:
+      - name: my_column
+        description: This is a very long description that exceeds eighty characters and should not be wrapped onto multiple lines by the YAML serializer`;
+
+    it('should not insert line breaks into long descriptions', () => {
+        const editor = new DbtSchemaEditor(LONG_DESC_SCHEMA);
+        const output = editor.toString();
+        expect(output).toEqual(`${LONG_DESC_SCHEMA}\n`);
+    });
+});
+
 describe('dbt v1.10+ compatibility', () => {
     it('should add custom metrics under config.meta for dbt v1.10', () => {
         const editor = new DbtSchemaEditor(
