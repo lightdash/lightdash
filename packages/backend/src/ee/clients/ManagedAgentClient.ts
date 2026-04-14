@@ -235,7 +235,7 @@ export class ManagedAgentClient {
         projectName: string,
         onCustomToolUse: CustomToolHandler,
         onSessionCreated?: (sessionId: string) => void,
-    ): Promise<string> {
+    ): Promise<{ sessionId: string; summary: string }> {
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment();
 
@@ -283,12 +283,16 @@ export class ManagedAgentClient {
             );
         });
 
+        // Capture the agent's final summary text from message events
+        let lastAgentMessage = '';
+
         const eventLoop = async () => {
             for await (const event of stream) {
                 if (event.type === 'agent.message') {
                     for (const block of event.content) {
                         if ('text' in block) {
                             Logger.debug(`[ManagedAgent] ${block.text}`);
+                            lastAgentMessage = block.text;
                         }
                     }
                 } else if (event.type === 'agent.tool_use') {
@@ -368,6 +372,6 @@ export class ManagedAgentClient {
             );
         }
 
-        return session.id;
+        return { sessionId: session.id, summary: lastAgentMessage };
     }
 }
