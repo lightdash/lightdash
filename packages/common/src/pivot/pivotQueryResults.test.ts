@@ -1,3 +1,17 @@
+import { type ReadyQueryResultsPage } from '../types/api';
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type ItemsMap,
+} from '../types/field';
+import { type ResultRow } from '../types/results';
+import * as formattingModule from '../utils/formatting';
+import {
+    SortByDirection,
+    VizAggregationOptions,
+    VizIndexType,
+} from '../visualizations/types';
 import {
     convertSqlPivotedRowsToPivotData,
     pivotQueryResults,
@@ -1581,5 +1595,223 @@ describe('visibleMetricFieldIds in pivotQueryResults', () => {
         ]);
         // 3 pages × 2 metrics = 6 data columns
         expect(result.dataColumnCount).toBe(6);
+    });
+});
+
+describe('convertSqlPivotedRowsToPivotData date dimension consistency', () => {
+    const dateDimField: ItemsMap[string] = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.DATE,
+        name: 'order_date_day',
+        label: 'Order Date Day',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.order_date',
+        hidden: false,
+    };
+
+    const categoryField: ItemsMap[string] = {
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.STRING,
+        name: 'category',
+        label: 'Category',
+        table: 'products',
+        tableLabel: 'Products',
+        sql: '${TABLE}.category',
+        hidden: false,
+    };
+
+    const revenueField: ItemsMap[string] = {
+        fieldType: FieldType.METRIC,
+        type: MetricType.SUM,
+        name: 'revenue',
+        label: 'Revenue',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: 'SUM(${TABLE}.amount)',
+        hidden: false,
+    };
+
+    const dateGetField = (fieldId: string): ItemsMap[string] | undefined => {
+        if (fieldId === 'orders_order_date_day') return dateDimField;
+        if (fieldId === 'products_category') return categoryField;
+        if (fieldId === 'orders_revenue') return revenueField;
+        return undefined;
+    };
+
+    const originalTZ = process.env.TZ;
+
+    afterEach(() => {
+        process.env.TZ = originalTZ;
+    });
+
+    it('should format date groupBy header values as UTC dates in non-UTC timezone', () => {
+        process.env.TZ = 'America/New_York';
+
+        const dateValue = '2026-03-29T00:00:00.000Z';
+
+        const sqlRows: ResultRow[] = [
+            {
+                products_category: {
+                    value: { raw: 'electronics', formatted: 'electronics' },
+                },
+                orders_revenue_any_2026_03_29: {
+                    value: { raw: 500, formatted: '500' },
+                },
+            },
+        ];
+
+        const pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']> =
+            {
+                totalColumnCount: 1,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: dateValue,
+                                referenceField: 'orders_order_date_day',
+                            },
+                        ],
+                        referenceField: 'orders_revenue',
+                        pivotColumnName: 'orders_revenue_any_2026_03_29',
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.CATEGORY,
+                        reference: 'products_category',
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_order_date_day' }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: 'products_category',
+                    },
+                ],
+                originalColumns: {},
+            };
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: sqlRows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_day',
+                    'products_category',
+                    'orders_revenue',
+                ],
+            },
+            getField: dateGetField,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        const headerDateValue = result.headerValues[0]?.[0];
+        expect('value' in headerDateValue!).toBe(true);
+        if ('value' in headerDateValue!) {
+            expect(headerDateValue.value.formatted).toBe('2026-03-29');
+        }
+    });
+
+    it('should pass convertToUTC=true to formatItemValue for row totals in convertSqlPivotedRowsToPivotData', () => {
+        const spy = jest.spyOn(formattingModule, 'formatItemValue');
+
+        const dstDateA = '2026-03-29T00:00:00.000Z';
+        const dstDateB = '2026-03-30T00:00:00.000Z';
+
+        const sqlRows: ResultRow[] = [
+            {
+                orders_order_date_day: {
+                    value: { raw: 'electronics', formatted: 'electronics' },
+                },
+                orders_revenue_any_2026_03_29: {
+                    value: { raw: 100, formatted: '100' },
+                },
+                orders_revenue_any_2026_03_30: {
+                    value: { raw: 200, formatted: '200' },
+                },
+            },
+        ];
+
+        const pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']> =
+            {
+                totalColumnCount: 2,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: dstDateA,
+                                referenceField: 'products_category',
+                            },
+                        ],
+                        referenceField: 'orders_revenue',
+                        pivotColumnName: 'orders_revenue_any_2026_03_29',
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: dstDateB,
+                                referenceField: 'products_category',
+                            },
+                        ],
+                        referenceField: 'orders_revenue',
+                        pivotColumnName: 'orders_revenue_any_2026_03_30',
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.CATEGORY,
+                        reference: 'orders_order_date_day',
+                    },
+                ],
+                groupByColumns: [{ reference: 'products_category' }],
+                sortBy: [
+                    {
+                        direction: SortByDirection.ASC,
+                        reference: 'orders_order_date_day',
+                    },
+                ],
+                originalColumns: {},
+            };
+
+        spy.mockClear();
+
+        convertSqlPivotedRowsToPivotData({
+            rows: sqlRows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_day',
+                    'products_category',
+                    'orders_revenue',
+                ],
+            },
+            getField: dateGetField,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        const allCalls = spy.mock.calls;
+        const callsWithFalseConvertToUTC = allCalls.filter(
+            (call) => call[2] === false,
+        );
+        expect(callsWithFalseConvertToUTC).toHaveLength(0);
+
+        const callsWithTrueConvertToUTC = allCalls.filter(
+            (call) => call[2] === true,
+        );
+        expect(callsWithTrueConvertToUTC.length).toBeGreaterThan(0);
+
+        spy.mockRestore();
     });
 });
