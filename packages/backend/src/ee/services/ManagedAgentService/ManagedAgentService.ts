@@ -390,17 +390,23 @@ export class ManagedAgentService extends BaseService {
         ): Promise<string> =>
             this.handleToolCall(projectUuid, sessionId, toolName, input);
 
-        sessionId = await client.runSession(projectUuid, onToolCall);
-
-        this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
-
-        // Post summary to Slack if configured
-        if (settings.slackChannelId && sessionId) {
-            await this.postHeartbeatSummaryToSlack(
-                projectUuid,
-                sessionId,
-                settings.slackChannelId,
+        try {
+            sessionId = await client.runSession(projectUuid, onToolCall);
+            this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
+        } catch (error) {
+            this.logger.error(
+                `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
+        } finally {
+            // Post summary to Slack even if the session errored — actions
+            // recorded via custom tools before the crash are still valuable.
+            if (settings.slackChannelId && sessionId) {
+                await this.postHeartbeatSummaryToSlack(
+                    projectUuid,
+                    sessionId,
+                    settings.slackChannelId,
+                );
+            }
         }
     }
 
