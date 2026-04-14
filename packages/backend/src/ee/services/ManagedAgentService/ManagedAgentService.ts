@@ -390,17 +390,34 @@ export class ManagedAgentService extends BaseService {
         ): Promise<string> =>
             this.handleToolCall(projectUuid, sessionId, toolName, input);
 
-        sessionId = await client.runSession(projectUuid, onToolCall);
+        const onSessionCreated = (id: string) => {
+            sessionId = id;
+        };
 
-        this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
-
-        // Post summary to Slack if configured
-        if (settings.slackChannelId && sessionId) {
-            await this.postHeartbeatSummaryToSlack(
+        try {
+            sessionId = await client.runSession(
                 projectUuid,
-                sessionId,
-                settings.slackChannelId,
+                onToolCall,
+                onSessionCreated,
             );
+            this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
+        } catch (error) {
+            this.logger.error(
+                `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+        } finally {
+            // Post summary to Slack even if the session errored — actions
+            // recorded via custom tools before the crash are still valuable.
+            this.logger.info(
+                `Slack notification check: slackChannelId=${settings.slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
+            );
+            if (settings.slackChannelId && sessionId) {
+                await this.postHeartbeatSummaryToSlack(
+                    projectUuid,
+                    sessionId,
+                    settings.slackChannelId,
+                );
+            }
         }
     }
 
@@ -409,14 +426,22 @@ export class ManagedAgentService extends BaseService {
         sessionId: string,
         slackChannelId: string,
     ): Promise<void> {
+        this.logger.info(
+            `Posting Slack summary: project=${projectUuid}, session=${sessionId}, channel=${slackChannelId}`,
+        );
         try {
             const actions = await this.managedAgentModel.getActions(
                 projectUuid,
                 { sessionId },
             );
 
+            this.logger.info(
+                `Found ${actions.length} actions for session ${sessionId}`,
+            );
+
             if (actions.length === 0) {
-                return; // Nothing to report
+                this.logger.info('No actions to report, skipping Slack');
+                return;
             }
 
             const { organizationUuid } =
@@ -470,8 +495,8 @@ export class ManagedAgentService extends BaseService {
                 [ManagedAgentTargetType.DASHBOARD]: 'dashboards',
             };
 
-            // Build per-action detail lines with links
-            const detailLines = actions.slice(0, 10).map((a) => {
+            // Build per-action detail lines with links (max 5 to stay under Slack's 3000 char limit)
+            const detailLines = actions.slice(0, 5).map((a) => {
                 const urlSegment = RESOURCE_URL_PATTERNS[a.targetType];
                 const resourceUrl = urlSegment
                     ? `${siteUrl}/projects/${projectUuid}/${urlSegment}/${a.targetUuid}`
@@ -483,10 +508,14 @@ export class ManagedAgentService extends BaseService {
                     ? `<${resourceUrl}|${a.targetName}>`
                     : a.targetName;
 
-                return `${icon} ${nameLink} — ${a.description}`;
+                const desc =
+                    a.description.length > 120
+                        ? `${a.description.slice(0, 117)}...`
+                        : a.description;
+                return `${icon} ${nameLink} — ${desc}`;
             });
 
-            const moreCount = actions.length - 10;
+            const moreCount = actions.length - 5;
             if (moreCount > 0) {
                 detailLines.push(
                     `_...and ${moreCount} more action${moreCount > 1 ? 's' : ''}_`,
