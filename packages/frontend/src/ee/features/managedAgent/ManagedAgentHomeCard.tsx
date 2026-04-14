@@ -58,11 +58,11 @@ const PixelGrid: FC = () => {
             for (let col = 0; col < 28; col++) {
                 const idx = row * 28 + col;
                 const val = seed[idx % seed.length];
-                if (val > 5) {
+                if (val > 6) {
                     grid.push({
-                        x: col * 9,
-                        y: row * 9,
-                        opacity: val > 7 ? 0.14 : 0.07,
+                        x: col * 9 + ((val * 3) % 4) - 2,
+                        y: row * 9 + ((val * 7) % 4) - 2,
+                        opacity: val > 8 ? 0.18 : 0.08,
                     });
                 }
             }
