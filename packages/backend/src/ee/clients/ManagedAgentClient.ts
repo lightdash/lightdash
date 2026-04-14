@@ -191,37 +191,39 @@ export class ManagedAgentClient {
         credPayload: Record<string, unknown>,
     ): Promise<void> {
         try {
-            // List credentials and delete all existing ones, then recreate
-            const creds = await betaAny.vaults.credentials.list(vaultId);
-            const credList = creds?.data ?? [];
-            Logger.debug(
-                `[ManagedAgent] Vault ${vaultId} has ${credList.length} credentials`,
+            // Create new credential first — if this fails, the old one still works
+            const newCred = await betaAny.vaults.credentials.create(
+                vaultId,
+                credPayload,
             );
-            // Delete all existing credentials in parallel
-            const deletePromises = credList.map(
+            const newCredId =
+                newCred?.credential_id ??
+                newCred?.id ??
+                newCred?.credential_uuid;
+            Logger.info(
+                `[ManagedAgent] Created new vault credential ${newCredId} in ${vaultId}`,
+            );
+
+            // Then clean up old credentials, keeping only the one we just created
+            const creds = await betaAny.vaults.credentials.list(vaultId);
+            const oldCreds = (creds?.data ?? []).filter(
                 (cred: Record<string, unknown>) => {
                     const credId =
                         cred.credential_id ?? cred.id ?? cred.credential_uuid;
-                    if (credId) {
-                        Logger.debug(
-                            `[ManagedAgent] Deleting credential ${credId} from vault ${vaultId}`,
-                        );
-                        return betaAny.vaults.credentials.delete(
-                            vaultId,
-                            credId,
-                        );
-                    }
-                    Logger.warn(
-                        `[ManagedAgent] Credential has no recognizable ID field: ${JSON.stringify(Object.keys(cred))}`,
+                    return credId && credId !== newCredId;
+                },
+            );
+            const deletePromises = oldCreds.map(
+                (cred: Record<string, unknown>) => {
+                    const credId =
+                        cred.credential_id ?? cred.id ?? cred.credential_uuid;
+                    Logger.debug(
+                        `[ManagedAgent] Deleting old credential ${credId} from vault ${vaultId}`,
                     );
-                    return Promise.resolve();
+                    return betaAny.vaults.credentials.delete(vaultId, credId);
                 },
             );
             await Promise.all(deletePromises);
-            await betaAny.vaults.credentials.create(vaultId, credPayload);
-            Logger.info(
-                `[ManagedAgent] Refreshed vault credential in ${vaultId}`,
-            );
         } catch (error) {
             Logger.warn(
                 `[ManagedAgent] Could not refresh vault credential: ${error instanceof Error ? error.message : 'Unknown'}`,
