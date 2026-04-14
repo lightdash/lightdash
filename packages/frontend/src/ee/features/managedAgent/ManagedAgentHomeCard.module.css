@@ -1,0 +1,243 @@
+:root {
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.card {
+    display: block;
+    width: 100%;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    transition:
+        border-color 150ms var(--ease-out-quart),
+        box-shadow 150ms var(--ease-out-quart);
+    animation: cardIn 400ms var(--ease-out-quart) both;
+}
+
+/* Glistening border — a light that orbits the card edge */
+.card::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background: conic-gradient(
+        from var(--glisten-angle, 0deg),
+        transparent 0%,
+        transparent 70%,
+        light-dark(rgba(0, 0, 0, 0.15), rgba(255, 255, 255, 0.15)) 80%,
+        transparent 90%,
+        transparent 100%
+    );
+    mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    padding: 1px;
+    opacity: 0;
+    transition: opacity 400ms var(--ease-out-quart);
+    animation: glisten 4s linear infinite;
+    pointer-events: none;
+}
+
+.card:hover::before {
+    opacity: 1;
+}
+
+@keyframes glisten {
+    to {
+        --glisten-angle: 360deg;
+    }
+}
+
+@property --glisten-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+.pixelGrid {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    color: light-dark(
+        var(--mantine-color-violet-4),
+        var(--mantine-color-violet-6)
+    );
+    pointer-events: none;
+    transition:
+        transform 300ms var(--ease-out-quart),
+        opacity 300ms var(--ease-out-quart);
+    opacity: 0.6;
+}
+
+.card:hover .pixelGrid {
+    opacity: 1;
+}
+
+.card:hover {
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-3)
+    );
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.card:active {
+    transform: scale(0.995);
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+}
+
+/* Orb — idle state */
+.orb {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-violet-1), var(--mantine-color-violet-7));
+    color: var(--mantine-color-violet-5);
+    animation: orbBreathe 3s ease-in-out infinite;
+}
+
+/* Orb — active state */
+.orbActive {
+    composes: orb;
+    background-color: light-dark(
+        var(--mantine-color-green-1),
+        var(--mantine-color-green-9)
+    );
+    border-color: light-dark(
+        var(--mantine-color-green-3),
+        var(--mantine-color-green-7)
+    );
+    color: var(--mantine-color-green-6);
+}
+
+.card:hover .orb {
+    opacity: 0.8;
+    box-shadow: 0 0 16px
+        light-dark(rgba(139, 92, 246, 0.25), rgba(139, 92, 246, 0.2));
+}
+
+@keyframes orbBreathe {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(0.92);
+    }
+}
+
+/* Feature carousel — vertical slide */
+.featureCarousel {
+    animation: featureSlideUp 350ms var(--ease-out-quart) both;
+}
+
+@keyframes featureSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+/* Schedule badge */
+.scheduleBadge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 1px 7px;
+    border-radius: 6px;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-4));
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.activePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 10px;
+    border-radius: 8px;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-4));
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.activeDotSmall {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-green-5);
+    flex-shrink: 0;
+}
+
+/* View link — always visible */
+.viewLink {
+    position: relative;
+    z-index: 1;
+    transition: color 150ms var(--ease-out-quart);
+}
+
+.card:hover .viewLink {
+    /* keep default colors on hover */
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card {
+        animation: none;
+    }
+    .card:active {
+        transform: none;
+    }
+    .orb,
+    .orbActive {
+        animation: none;
+    }
+    .pixelGrid {
+        transition: none;
+    }
+}

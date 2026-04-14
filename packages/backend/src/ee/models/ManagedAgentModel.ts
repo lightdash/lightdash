@@ -1,0 +1,231 @@
+import {
+    type CreateManagedAgentAction,
+    type ManagedAgentAction,
+    type ManagedAgentActionFilters,
+    type ManagedAgentSettings,
+    type UpdateManagedAgentSettings,
+} from '@lightdash/common';
+import { type Knex } from 'knex';
+import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    ManagedAgentActionsTableName,
+    ManagedAgentSettingsTableName,
+    type DbManagedAgentAction,
+    type DbManagedAgentSettings,
+} from '../database/entities/managedAgent';
+
+export class ManagedAgentModel {
+    private readonly database: Knex;
+
+    private readonly encryptionUtil: EncryptionUtil;
+
+    constructor({
+        database,
+        encryptionUtil,
+    }: {
+        database: Knex;
+        encryptionUtil: EncryptionUtil;
+    }) {
+        this.database = database;
+        this.encryptionUtil = encryptionUtil;
+    }
+
+    // --- Settings ---
+
+    static mapDbSettings(row: DbManagedAgentSettings): ManagedAgentSettings {
+        return {
+            projectUuid: row.project_uuid,
+            enabled: row.enabled,
+            scheduleCron: row.schedule_cron,
+            enabledByUserUuid: row.enabled_by_user_uuid,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
+    }
+
+    async getServiceAccountToken(projectUuid: string): Promise<string | null> {
+        const row = await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .select('service_account_token')
+            .first();
+        if (!row?.service_account_token) {
+            return null;
+        }
+        return this.encryptionUtil.decrypt(row.service_account_token);
+    }
+
+    async setServiceAccountToken(
+        projectUuid: string,
+        token: string,
+    ): Promise<void> {
+        const encrypted = this.encryptionUtil.encrypt(token);
+        await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .update({ service_account_token: encrypted });
+    }
+
+    async getAnthropicResourceIds(
+        projectUuid: string,
+    ): Promise<{ environmentId: string | null; vaultId: string | null }> {
+        const row = await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .select('anthropic_environment_id', 'anthropic_vault_id')
+            .first();
+        return {
+            environmentId: row?.anthropic_environment_id ?? null,
+            vaultId: row?.anthropic_vault_id ?? null,
+        };
+    }
+
+    async setAnthropicResourceIds(
+        projectUuid: string,
+        environmentId: string,
+        vaultId: string,
+    ): Promise<void> {
+        await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .update({
+                anthropic_environment_id: environmentId,
+                anthropic_vault_id: vaultId,
+            });
+    }
+
+    async getSettings(
+        projectUuid: string,
+    ): Promise<ManagedAgentSettings | null> {
+        const row = await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .first();
+        return row ? ManagedAgentModel.mapDbSettings(row) : null;
+    }
+
+    async upsertSettings(
+        projectUuid: string,
+        userUuid: string,
+        update: UpdateManagedAgentSettings,
+    ): Promise<ManagedAgentSettings> {
+        const [row] = await this.database(ManagedAgentSettingsTableName)
+            .insert({
+                project_uuid: projectUuid,
+                enabled: update.enabled ?? false,
+                schedule_cron: update.scheduleCron ?? '*/30 * * * *',
+                enabled_by_user_uuid: update.enabled ? userUuid : null,
+                updated_at: new Date(),
+            })
+            .onConflict('project_uuid')
+            .merge({
+                enabled: update.enabled,
+                ...(update.scheduleCron !== undefined && {
+                    schedule_cron: update.scheduleCron,
+                }),
+                enabled_by_user_uuid: update.enabled ? userUuid : undefined,
+                updated_at: new Date(),
+            })
+            .returning('*');
+        return ManagedAgentModel.mapDbSettings(row);
+    }
+
+    async getEnabledProjects(): Promise<ManagedAgentSettings[]> {
+        const rows = await this.database(ManagedAgentSettingsTableName).where({
+            enabled: true,
+        });
+        return rows.map(ManagedAgentModel.mapDbSettings);
+    }
+
+    // --- Actions ---
+
+    static mapDbAction(row: DbManagedAgentAction): ManagedAgentAction {
+        return {
+            actionUuid: row.action_uuid,
+            projectUuid: row.project_uuid,
+            sessionId: row.session_id,
+            actionType: row.action_type as ManagedAgentAction['actionType'],
+            targetType: row.target_type as ManagedAgentAction['targetType'],
+            targetUuid: row.target_uuid,
+            targetName: row.target_name,
+            description: row.description,
+            metadata: row.metadata,
+            reversedAt: row.reversed_at,
+            reversedByUserUuid: row.reversed_by_user_uuid,
+            createdAt: row.created_at,
+        };
+    }
+
+    async createAction(
+        action: CreateManagedAgentAction,
+    ): Promise<ManagedAgentAction> {
+        const [row] = await this.database(ManagedAgentActionsTableName)
+            .insert({
+                project_uuid: action.projectUuid,
+                session_id: action.sessionId,
+                action_type: action.actionType,
+                target_type: action.targetType,
+                target_uuid: action.targetUuid,
+                target_name: action.targetName,
+                description: action.description,
+                metadata: JSON.stringify(action.metadata),
+            })
+            .returning('*');
+        return ManagedAgentModel.mapDbAction(row);
+    }
+
+    async getActions(
+        projectUuid: string,
+        filters: ManagedAgentActionFilters = {},
+    ): Promise<ManagedAgentAction[]> {
+        let query = this.database(ManagedAgentActionsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('created_at', 'desc');
+
+        if (filters.date) {
+            query = query.whereRaw('created_at::date = ?', [filters.date]);
+        }
+        if (filters.actionType) {
+            query = query.where({ action_type: filters.actionType });
+        }
+        if (filters.sessionId) {
+            query = query.where({ session_id: filters.sessionId });
+        }
+
+        const rows = await query;
+        return rows.map(ManagedAgentModel.mapDbAction);
+    }
+
+    async getRecentActions(
+        projectUuid: string,
+        limit: number = 50,
+    ): Promise<ManagedAgentAction[]> {
+        const rows = await this.database(ManagedAgentActionsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('created_at', 'desc')
+            .limit(limit);
+        return rows.map(ManagedAgentModel.mapDbAction);
+    }
+
+    async getAction(actionUuid: string): Promise<ManagedAgentAction | null> {
+        const row = await this.database(ManagedAgentActionsTableName)
+            .where({ action_uuid: actionUuid })
+            .first();
+        return row ? ManagedAgentModel.mapDbAction(row) : null;
+    }
+
+    async reverseAction(
+        actionUuid: string,
+        userUuid: string,
+    ): Promise<ManagedAgentAction> {
+        const [row] = await this.database(ManagedAgentActionsTableName)
+            .where({ action_uuid: actionUuid })
+            .whereNull('reversed_at')
+            .update({
+                reversed_at: new Date(),
+                reversed_by_user_uuid: userUuid,
+            })
+            .returning('*');
+        if (!row) {
+            throw new Error(
+                `Action ${actionUuid} not found or already reversed`,
+            );
+        }
+        return ManagedAgentModel.mapDbAction(row);
+    }
+}

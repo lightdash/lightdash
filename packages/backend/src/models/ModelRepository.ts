@@ -129,6 +129,7 @@ export type ModelManifest = {
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
@@ -697,6 +698,10 @@ export class ModelRepository
             'tagsModel',
             () => new TagsModel({ database: this.database }),
         );
+    }
+
+    public getManagedAgentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('managedAgentModel');
     }
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {

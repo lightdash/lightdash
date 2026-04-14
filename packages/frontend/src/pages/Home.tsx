@@ -13,6 +13,7 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
@@ -81,6 +82,9 @@ const Home: FC = () => {
                     <FavoritesProvider projectUuid={project.data.projectUuid}>
                         <LandingPanel
                             userName={user.data?.firstName}
+                            projectUuid={project.data.projectUuid}
+                        />
+                        <ManagedAgentHomeCard
                             projectUuid={project.data.projectUuid}
                         />
                         {isAiAgentsEnabled && (

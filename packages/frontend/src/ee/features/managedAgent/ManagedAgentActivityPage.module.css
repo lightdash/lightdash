@@ -1,0 +1,406 @@
+/* Easing tokens */
+:root {
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-lg);
+    animation: pageIn 400ms var(--ease-out-quart) both;
+    height: 100%;
+    overflow: auto;
+}
+
+@keyframes pageIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+}
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--mantine-spacing-3xl) 0;
+    animation: fadeIn 500ms var(--ease-out-quart) both;
+    animation-delay: 200ms;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+}
+
+/* Table container — slides in */
+.tableWrapper {
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    animation: tableIn 400ms var(--ease-out-quart) both;
+    animation-delay: 100ms;
+}
+
+@keyframes tableIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+.table {
+    border-collapse: collapse;
+}
+
+.table thead th {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+    padding: 7px 12px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+/* Row — staggered entrance + smooth hover */
+.row {
+    transition: background-color 120ms var(--ease-out-quart);
+    animation: rowIn 300ms var(--ease-out-quart) both;
+    cursor: pointer;
+}
+
+@keyframes rowIn {
+    from {
+        opacity: 0;
+        transform: translateX(-4px);
+    }
+}
+
+/* Stagger rows — CSS counters via nth-child */
+.row:nth-child(1) {
+    animation-delay: 40ms;
+}
+.row:nth-child(2) {
+    animation-delay: 60ms;
+}
+.row:nth-child(3) {
+    animation-delay: 80ms;
+}
+.row:nth-child(4) {
+    animation-delay: 100ms;
+}
+.row:nth-child(5) {
+    animation-delay: 120ms;
+}
+.row:nth-child(6) {
+    animation-delay: 140ms;
+}
+.row:nth-child(7) {
+    animation-delay: 160ms;
+}
+.row:nth-child(8) {
+    animation-delay: 180ms;
+}
+.row:nth-child(9) {
+    animation-delay: 200ms;
+}
+.row:nth-child(10) {
+    animation-delay: 220ms;
+}
+.row:nth-child(n + 11) {
+    animation-delay: 240ms;
+}
+
+.row:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.row td {
+    padding: 8px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    vertical-align: middle;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+}
+
+.row:last-child td {
+    border-bottom: none;
+}
+
+.timestamp {
+    color: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
+    white-space: nowrap;
+    font-size: 12px;
+    font-family: var(--mantine-font-family-monospace);
+}
+
+/* Heartbeat status */
+.statusPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 10px;
+    border-radius: 8px;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.statusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.statusDotPulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Action dot */
+.dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Message cell — fills remaining space */
+.messageCell {
+    max-width: 0;
+    width: 100%;
+    overflow: hidden;
+}
+
+.messageCell p {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+
+/* Action pill — shadcn style */
+.actionPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    white-space: nowrap;
+    padding: 2px 10px;
+    border-radius: 8px;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 150ms var(--ease-out-quart);
+}
+
+.row:hover .actionPill {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.rowSelected {
+    background-color: light-dark(
+        var(--mantine-color-blue-0),
+        var(--mantine-color-dark-5)
+    );
+}
+
+/* Resize handle */
+.resizeHandle {
+    width: 1px;
+    transition: background-color 150ms ease;
+}
+
+.resizeHandle:hover,
+.resizeHandle[data-resize-handle-state='drag'] {
+    background-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-4)
+    );
+}
+
+/* Sidebar */
+.sidebar {
+    border-left: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+}
+
+.sidebarHeader {
+    padding: 12px 16px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.closeBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    transition: background-color 100ms ease;
+}
+
+.closeBtn:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+
+/* unused — kept for reference */
+
+/* Chart link */
+.chartLink {
+    text-decoration: none;
+    transition: opacity 100ms ease;
+}
+
+.chartLink:hover {
+    opacity: 0.7;
+}
+
+/* Metadata collapsible */
+.metaToggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--mantine-color-dimmed);
+    padding: 4px 0;
+}
+
+.metaToggle:hover {
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-3));
+}
+
+.metaBlock {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.metaPre {
+    margin: 0;
+    font-size: 11px;
+    font-family: var(--mantine-font-family-monospace);
+    color: var(--mantine-color-dimmed);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Page header */
+.headerDivider {
+    height: 1px;
+    background-color: light-dark(
+        var(--mantine-color-gray-2),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.setupOrb {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-violet-1), var(--mantine-color-violet-7));
+    color: var(--mantine-color-violet-5);
+}
+
+.activeBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 10px;
+    border-radius: 8px;
+    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-4));
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.activeDotInline {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-green-5);
+    flex-shrink: 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .page,
+    .tableWrapper,
+    .row,
+    .empty {
+        animation: none;
+    }
+
+    .statusDotPulse {
+        animation: none;
+    }
+}

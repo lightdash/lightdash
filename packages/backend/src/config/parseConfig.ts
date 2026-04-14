@@ -1165,6 +1165,13 @@ export type LightdashConfig = {
     googleCloudPlatform: {
         projectId?: string;
     };
+    managedAgent: {
+        enabled: boolean;
+        anthropicApiKey: string | null;
+        schedule: string;
+        sessionTimeoutMs: number;
+        agentId: string | null;
+    };
 
     initialSetup?: {
         organization: {
@@ -2222,6 +2229,17 @@ export const parseConfig = (): LightdashConfig => {
         },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        },
+        managedAgent: {
+            enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
+            anthropicApiKey:
+                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY || null,
+            schedule: process.env.MANAGED_AGENT_SCHEDULE || '*/30 * * * *',
+            sessionTimeoutMs: parseInt(
+                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
+                10,
+            ), // 5 minutes default
+            agentId: process.env.MANAGED_AGENT_AGENT_ID || null,
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),

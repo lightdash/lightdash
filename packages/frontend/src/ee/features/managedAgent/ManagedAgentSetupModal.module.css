@@ -1,0 +1,27 @@
+.capRow {
+    padding: 10px 12px;
+    border-radius: 8px;
+    transition: background-color 100ms ease;
+}
+
+.capRow:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.capIcon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-4));
+}

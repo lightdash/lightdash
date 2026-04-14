@@ -115,6 +115,8 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
+                // Managed agent heartbeat is self-scheduling (not a static cron).
+                // See SchedulerClient.scheduleManagedAgentHeartbeat().
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
@@ -1126,6 +1128,9 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
+            },
+            [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
+                // EE-only: implemented in CommercialSchedulerWorker
             },
         };
     }
