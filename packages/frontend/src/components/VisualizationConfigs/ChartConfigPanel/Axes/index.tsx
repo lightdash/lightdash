@@ -4,6 +4,7 @@ import {
     getDateGroupLabel,
     getItemLabelWithoutTableName,
     getXAxisSort,
+    hasPercentageFormat,
     isNumericItem,
     XAxisSort,
     type ItemsMap,
@@ -66,6 +67,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setYAxisName,
         setYMinValue,
         setYMaxValue,
+        setYAxisStartAtZero,
         setXMinValue,
         setXMinOffsetValue,
         setXMaxValue,
@@ -106,6 +108,24 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             if (!itemsMap) return acc;
             const seriesField = itemsMap[series.encode.yRef.field];
             if (isNumericItem(seriesField)) {
+                acc[series.yAxisIndex || 0] = true;
+            }
+            return acc;
+        },
+        [false, false],
+    );
+
+    const isLineOrArea =
+        dirtyChartType === CartesianSeriesType.LINE ||
+        dirtyChartType === CartesianSeriesType.AREA;
+
+    const [showFirstAxisStartAtZero, showSecondAxisStartAtZero] = (
+        dirtyEchartsConfig?.series || []
+    ).reduce<[boolean, boolean]>(
+        (acc, series) => {
+            if (!itemsMap) return acc;
+            const seriesField = itemsMap[series.encode.yRef.field];
+            if (hasPercentageFormat(seriesField) && isLineOrArea) {
                 acc[series.yAxisIndex || 0] = true;
             }
             return acc;
@@ -316,6 +336,18 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             setMax={(newValue) => setYMaxValue(0, newValue)}
                         />
                     )}
+                    {showFirstAxisStartAtZero && (
+                        <Switch
+                            label="Start axis at zero"
+                            checked={
+                                dirtyEchartsConfig?.yAxis?.[0]?.startAtZero ??
+                                false
+                            }
+                            onChange={(e) =>
+                                setYAxisStartAtZero(0, e.target.checked)
+                            }
+                        />
+                    )}
                 </Config.Section>
             </Config>
 
@@ -352,6 +384,18 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             max={dirtyEchartsConfig?.yAxis?.[1]?.max}
                             setMin={(newValue) => setYMinValue(1, newValue)}
                             setMax={(newValue) => setYMaxValue(1, newValue)}
+                        />
+                    )}
+                    {showSecondAxisStartAtZero && (
+                        <Switch
+                            label="Start axis at zero"
+                            checked={
+                                dirtyEchartsConfig?.yAxis?.[1]?.startAtZero ??
+                                false
+                            }
+                            onChange={(e) =>
+                                setYAxisStartAtZero(1, e.target.checked)
+                            }
                         />
                     )}
                 </Config.Section>

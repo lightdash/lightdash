@@ -3,6 +3,7 @@ import {
     CartesianSeriesType,
     FeatureFlags,
     getSeriesId,
+    hasPercentageFormat,
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
@@ -25,7 +26,7 @@ import {
     type XAxis,
 } from '@lightdash/common';
 import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     getMarkLineAxis,
     type ReferenceLineField,
@@ -324,6 +325,22 @@ const useCartesianChartConfig = ({
         },
         [],
     );
+
+    const setYAxisStartAtZero = useCallback((index: number, value: boolean) => {
+        setDirtyEchartsConfig((prevState) => {
+            return {
+                ...prevState,
+                yAxis: [
+                    prevState?.yAxis?.[0] || {},
+                    prevState?.yAxis?.[1] || {},
+                ].map((axis, axisIndex) =>
+                    axisIndex === index
+                        ? { ...axis, startAtZero: value }
+                        : axis,
+                ),
+            };
+        });
+    }, []);
 
     const setXMinValue = useCallback(
         (index: number, value: string | undefined) => {
@@ -1282,6 +1299,50 @@ const useCartesianChartConfig = ({
         initialChartConfig?.columnLimit,
     ]);
 
+    const hasAppliedPercentageDefault = useRef(false);
+    useEffect(() => {
+        if (initialChartConfig?.eChartsConfig) return;
+        if (hasAppliedPercentageDefault.current) return;
+        if (!itemsMap || !dirtyEchartsConfig?.series?.length) return;
+
+        const hasLineOrArea = dirtyEchartsConfig.series.some(
+            (s) =>
+                s.type === CartesianSeriesType.LINE ||
+                s.type === CartesianSeriesType.AREA,
+        );
+        if (!hasLineOrArea) return;
+
+        const axesNeedingDefault = new Set<number>();
+        dirtyEchartsConfig.series.forEach((s) => {
+            if (
+                s.type !== CartesianSeriesType.LINE &&
+                s.type !== CartesianSeriesType.AREA
+            )
+                return;
+            const axisIndex = s.yAxisIndex || 0;
+            const field = itemsMap[s.encode.yRef.field];
+            if (
+                hasPercentageFormat(field) &&
+                dirtyEchartsConfig.yAxis?.[axisIndex]?.startAtZero === undefined
+            ) {
+                axesNeedingDefault.add(axisIndex);
+            }
+        });
+
+        if (axesNeedingDefault.size > 0) {
+            hasAppliedPercentageDefault.current = true;
+            axesNeedingDefault.forEach((index) => {
+                setYAxisStartAtZero(index, true);
+            });
+        }
+    }, [
+        initialChartConfig?.eChartsConfig,
+        itemsMap,
+        dirtyEchartsConfig?.series,
+        dirtyEchartsConfig?.yAxis,
+        setYAxisStartAtZero,
+    ]);
+
     const updateMetadata = useCallback(
         (metadata: Record<string, SeriesMetadata>) => {
             setDirtyMetadata(metadata);
@@ -1310,6 +1371,7 @@ const useCartesianChartConfig = ({
         setFlipAxis,
         setYMinValue,
         setYMaxValue,
+        setYAxisStartAtZero,
         setXMinValue,
         setXMinOffsetValue,
         setXMaxValue,

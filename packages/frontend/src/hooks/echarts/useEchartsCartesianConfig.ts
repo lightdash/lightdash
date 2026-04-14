@@ -1980,8 +1980,10 @@ const getEchartAxes = ({
     const minYAxisValue =
         leftAxisType === 'value'
             ? yAxisConfiguration?.[0]?.min ||
-              referenceLineMinBound(referenceLineMinLeftY) ||
-              maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
+              (yAxisConfiguration?.[0]?.startAtZero === true
+                  ? 0
+                  : referenceLineMinBound(referenceLineMinLeftY) ||
+                    maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange))
             : undefined;
 
     const showSecondaryXAxis = validCartesianConfig.layout.flipAxes
@@ -2198,10 +2200,12 @@ const getEchartAxes = ({
                 min:
                     rightAxisType === 'value'
                         ? yAxisConfiguration?.[1]?.min ||
-                          referenceLineMinBound(referenceLineMinRightY) ||
-                          maybeGetAxisDefaultMinValue(
-                              allowSecondAxisDefaultRange,
-                          )
+                          (yAxisConfiguration?.[1]?.startAtZero === true
+                              ? 0
+                              : referenceLineMinBound(referenceLineMinRightY) ||
+                                maybeGetAxisDefaultMinValue(
+                                    allowSecondAxisDefaultRange,
+                                ))
                         : undefined,
                 max:
                     rightAxisType === 'value'

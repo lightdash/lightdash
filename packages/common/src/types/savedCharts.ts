@@ -621,6 +621,8 @@ type Axis = {
     inverse?: boolean;
     /** Rotation angle for axis labels */
     rotate?: number;
+    /** Force y-axis to start at zero (useful for percentage-formatted axes) */
+    startAtZero?: boolean;
 };
 
 export type XAxis = Axis & {
