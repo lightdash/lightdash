@@ -180,6 +180,27 @@
     );
 }
 
+.activePill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 10px;
+    border-radius: 8px;
+    color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-gray-4));
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.activeDotSmall {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-green-5);
+    flex-shrink: 0;
+}
+
 /* View link — always visible */
 .viewLink {
     position: relative;

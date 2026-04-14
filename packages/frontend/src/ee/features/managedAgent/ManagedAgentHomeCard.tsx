@@ -149,41 +149,41 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
         return (
             <UnstyledButton onClick={handleClick} className={classes.card}>
                 <PixelGrid />
-                <Group justify="space-between" align="center">
+                <Stack gap="md">
                     <Group gap="md" align="center">
                         <Box className={classes.orbActive}>
-                            <IconBolt size={14} />
+                            <IconBolt size={18} />
                         </Box>
-                        <Stack gap={2}>
+                        <Stack gap={4}>
                             <Group gap={8} align="center">
-                                <Text fz="sm" fw={600}>
-                                    Agent active
+                                <Text fz="lg" fw={700}>
+                                    Improve
                                 </Text>
-                                <Box className={classes.scheduleBadge}>
-                                    {formatSchedule(schedule)}
+                                <Box className={classes.activePill}>
+                                    <Box className={classes.activeDotSmall} />
+                                    Active &middot; {formatSchedule(schedule)}
                                 </Box>
-                                {lastActionAt && (
-                                    <Text fz={11} c="dimmed">
-                                        Last run {formatRelative(lastActionAt)}
-                                    </Text>
-                                )}
                             </Group>
-                            <Text fz="xs" c="dimmed">
+                            <Text fz="sm" c="dimmed" fw={500}>
                                 {actionCount > 0
                                     ? `${actionCount} actions — ${actionSummary}`
                                     : 'Monitoring your project'}
+                                {lastActionAt &&
+                                    ` · last run ${formatRelative(lastActionAt)}`}
                             </Text>
                         </Stack>
                     </Group>
-                    <Button
-                        variant="default"
-                        size="compact-xs"
-                        rightSection={<IconArrowRight size={14} />}
-                        className={classes.viewLink}
-                    >
-                        View
-                    </Button>
-                </Group>
+
+                    <Box ml={52}>
+                        <Button
+                            variant="default"
+                            size="sm"
+                            rightSection={<IconArrowRight size={14} />}
+                        >
+                            View progress
+                        </Button>
+                    </Box>
+                </Stack>
             </UnstyledButton>
         );
     }
