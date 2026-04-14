@@ -1218,6 +1218,49 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
+
+        test('Should use precomputed column_ranking CTE when sorting by metric without row dimensions', () => {
+            const pivotConfiguration = {
+                indexColumn: undefined,
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // column_ranking CTE should be generated for metric sorting even without index columns
+            expect(result).toContain('column_ranking AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'LEFT JOIN column_ranking cr ON g."category" = cr."category"',
+            );
+
+            // Row index should be constant (no row dimensions)
+            expect(result).toContain('1 AS "row_index"');
+
+            // Column index should come from precomputed column_ranking, not inline DENSE_RANK
+            expect(replaceWhitespace(result)).toContain(
+                'cr."col_idx" AS "column_index"',
+            );
+
+            // Should NOT have row_ranking CTE (no index columns to rank)
+            expect(result).not.toContain('row_ranking AS (');
+            // Should NOT have anchor_column or row_anchor CTEs
+            expect(result).not.toContain('anchor_column AS (');
+            expect(result).not.toContain('"revenue_row_anchor" AS (');
+        });
     });
 
     describe('Warehouse type compatibility', () => {
