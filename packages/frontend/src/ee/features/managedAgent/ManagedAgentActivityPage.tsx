@@ -137,9 +137,14 @@ const SetupSection: FC<{
                     <Box className={classes.setupOrb}>
                         <IconBolt size={16} />
                     </Box>
-                    <Title order={4} fw={700}>
-                        Project health
-                    </Title>
+                    <Stack gap={0}>
+                        <Title order={4} fw={700}>
+                            Dash
+                        </Title>
+                        <Text fz="xs" c="dimmed">
+                            Project health agent
+                        </Text>
+                    </Stack>
                     {enabled && (
                         <Box className={classes.activeBadge}>
                             <Box className={classes.activeDotInline} />
