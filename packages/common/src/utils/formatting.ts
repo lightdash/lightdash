@@ -136,7 +136,12 @@ export function formatDate(
     timeInterval: TimeFrames = TimeFrames.DAY,
     convertToUTC: boolean = false,
 ): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    // Use moment.utc(date) to parse the value *as* UTC rather than
+    // moment(date).utc() which first parses in the local timezone then
+    // switches to UTC view.  The latter causes date-only strings like
+    // "2026-03-14" to be treated as local midnight and shifted one day
+    // back in browsers running in a UTC+ timezone (e.g. JST / UTC+9).
+    const momentDate = convertToUTC ? moment.utc(date) : moment(date);
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -150,7 +155,7 @@ export function formatTimestamp(
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
 ): string {
-    const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+    const momentDate = convertToUTC ? moment.utc(value) : moment(value);
 
     if (!momentDate.isValid()) {
         return 'NaT';
