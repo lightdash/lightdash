@@ -10,12 +10,13 @@ const getActions = async (projectUuid: string): Promise<ManagedAgentAction[]> =>
         body: undefined,
     });
 
-export const useManagedAgentActions = () => {
+export const useManagedAgentActions = (opts: { enabled?: boolean } = {}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const isEnabled = opts.enabled ?? true;
     return useQuery<ManagedAgentAction[]>({
         queryKey: ['managed-agent-actions', projectUuid],
         queryFn: () => getActions(projectUuid!),
-        enabled: !!projectUuid,
-        refetchInterval: 30000, // Refresh every 30s to catch new heartbeats
+        enabled: !!projectUuid && isEnabled,
+        refetchInterval: isEnabled ? 30000 : false,
     });
 };

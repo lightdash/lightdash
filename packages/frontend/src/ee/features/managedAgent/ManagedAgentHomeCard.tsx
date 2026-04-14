@@ -101,8 +101,13 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
 }) => {
     const navigate = useNavigate();
     const { data: health } = useHealth();
-    const { data: settings } = useManagedAgentSettings();
-    const { data: actions } = useManagedAgentActions();
+    const managedAgentEnabled = !!health?.managedAgent?.enabled;
+    const { data: settings } = useManagedAgentSettings({
+        enabled: managedAgentEnabled,
+    });
+    const { data: actions } = useManagedAgentActions({
+        enabled: managedAgentEnabled,
+    });
 
     const isEnabled = settings?.enabled ?? false;
     const actionCount = actions?.length ?? 0;

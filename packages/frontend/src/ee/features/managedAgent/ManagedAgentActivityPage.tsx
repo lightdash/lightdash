@@ -72,7 +72,7 @@ const SetupSection: FC<{
     const scheduleLabel =
         SCHEDULE_OPTIONS.find(
             (o) => o.value === initialSchedule,
-        )?.label?.replace(' (recommended)', '') ?? schedule;
+        )?.label?.replace(' (recommended)', '') ?? initialSchedule;
 
     return (
         <Stack gap={0}>

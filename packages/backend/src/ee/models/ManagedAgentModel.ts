@@ -64,6 +64,32 @@ export class ManagedAgentModel {
             .update({ service_account_token: encrypted });
     }
 
+    async getAnthropicResourceIds(
+        projectUuid: string,
+    ): Promise<{ environmentId: string | null; vaultId: string | null }> {
+        const row = await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .select('anthropic_environment_id', 'anthropic_vault_id')
+            .first();
+        return {
+            environmentId: row?.anthropic_environment_id ?? null,
+            vaultId: row?.anthropic_vault_id ?? null,
+        };
+    }
+
+    async setAnthropicResourceIds(
+        projectUuid: string,
+        environmentId: string,
+        vaultId: string,
+    ): Promise<void> {
+        await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .update({
+                anthropic_environment_id: environmentId,
+                anthropic_vault_id: vaultId,
+            });
+    }
+
     async getSettings(
         projectUuid: string,
     ): Promise<ManagedAgentSettings | null> {

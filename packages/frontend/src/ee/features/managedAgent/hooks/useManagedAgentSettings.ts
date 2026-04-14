@@ -20,11 +20,12 @@ const getSettings = async (
         body: undefined,
     });
 
-export const useManagedAgentSettings = () => {
+export const useManagedAgentSettings = (opts: { enabled?: boolean } = {}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const isEnabled = opts.enabled ?? true;
     return useQuery<ManagedAgentSettings | null>({
         queryKey: ['managed-agent-settings', projectUuid],
         queryFn: () => getSettings(projectUuid!),
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && isEnabled,
     });
 };

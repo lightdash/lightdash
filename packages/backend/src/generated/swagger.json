@@ -1239,6 +1239,7 @@
                     "flagged_stale",
                     "soft_deleted",
                     "flagged_broken",
+                    "fixed_broken",
                     "created_content",
                     "insight"
                 ],
@@ -9999,6 +10000,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],

@@ -23,6 +23,10 @@ export const up = async (knex: Knex): Promise<void> => {
         // Encrypted at rest via EncryptionUtil (AES-256-GCM).
         // Used for MCP authentication via Anthropic vault.
         table.binary('service_account_token').nullable();
+        // Anthropic platform resource IDs — persisted to avoid creating
+        // duplicate environments and vaults on every service restart.
+        table.text('anthropic_environment_id').nullable();
+        table.text('anthropic_vault_id').nullable();
         table
             .timestamp('created_at', { useTz: false })
             .notNullable()

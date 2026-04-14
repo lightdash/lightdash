@@ -9,6 +9,8 @@ export type DbManagedAgentSettings = {
     schedule_cron: string;
     enabled_by_user_uuid: string | null;
     service_account_token: Buffer | null;
+    anthropic_environment_id: string | null;
+    anthropic_vault_id: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -24,6 +26,8 @@ export type DbManagedAgentSettingsCreate = Pick<
             | 'schedule_cron'
             | 'enabled_by_user_uuid'
             | 'service_account_token'
+            | 'anthropic_environment_id'
+            | 'anthropic_vault_id'
         >
     >;
 
@@ -34,6 +38,8 @@ export type DbManagedAgentSettingsUpdate = Partial<
         | 'schedule_cron'
         | 'enabled_by_user_uuid'
         | 'service_account_token'
+        | 'anthropic_environment_id'
+        | 'anthropic_vault_id'
         | 'updated_at'
     >
 >;

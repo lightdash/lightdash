@@ -8,6 +8,12 @@ type ManagedAgentClientConfig = {
     serviceAccountPat: string;
     sessionTimeoutMs: number;
     agentId: string | null;
+    persistedEnvironmentId: string | null;
+    persistedVaultId: string | null;
+    onResourcesCreated: (
+        environmentId: string,
+        vaultId: string,
+    ) => Promise<void>;
 };
 
 type CustomToolHandler = (
@@ -53,6 +59,24 @@ export class ManagedAgentClient {
 
         Logger.info(`[ManagedAgent] Using agent: ${configAgentId}`);
 
+        // Reuse persisted Anthropic resource IDs when available to avoid
+        // creating duplicate environments and vaults on every restart.
+        const { persistedEnvironmentId, persistedVaultId } = this.config;
+
+        if (persistedEnvironmentId && persistedVaultId) {
+            Logger.info(
+                `[ManagedAgent] Reusing persisted resources: env=${persistedEnvironmentId}, vault=${persistedVaultId}`,
+            );
+            this.agentId = configAgentId;
+            this.environmentId = persistedEnvironmentId;
+            this.vaultId = persistedVaultId;
+            return {
+                agentId: configAgentId,
+                environmentId: persistedEnvironmentId,
+                vaultId: persistedVaultId,
+            };
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const betaAny = this.client.beta as any;
 
@@ -81,6 +105,9 @@ export class ManagedAgentClient {
         this.agentId = configAgentId;
         this.environmentId = environment.id;
         this.vaultId = vault.id;
+
+        // Persist the new IDs so they survive service restarts
+        await this.config.onResourcesCreated(environment.id, vault.id);
 
         Logger.info(
             `Managed agent ready: agentId=${configAgentId}, environmentId=${environment.id}, vaultId=${vault.id}`,

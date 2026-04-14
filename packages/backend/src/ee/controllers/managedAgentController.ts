@@ -44,8 +44,10 @@ export class ManagedAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentSettings | null }> {
-        const results =
-            await this.getManagedAgentService().getSettings(projectUuid);
+        const results = await this.getManagedAgentService().getSettings(
+            req.user!,
+            projectUuid,
+        );
         this.setStatus(200);
         return { status: 'ok', results };
     }
@@ -59,6 +61,7 @@ export class ManagedAgentController extends BaseController {
         @Body() body: UpdateManagedAgentSettings,
     ): Promise<{ status: 'ok'; results: ManagedAgentSettings }> {
         const results = await this.getManagedAgentService().updateSettings(
+            req.user!,
             projectUuid,
             req.user!.userUuid,
             body,
@@ -78,6 +81,7 @@ export class ManagedAgentController extends BaseController {
         @Query() sessionId?: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction[] }> {
         const results = await this.getManagedAgentService().getActions(
+            req.user!,
             projectUuid,
             {
                 date,
@@ -98,6 +102,8 @@ export class ManagedAgentController extends BaseController {
         @Path() actionUuid: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction }> {
         const results = await this.getManagedAgentService().reverseAction(
+            req.user!,
+            projectUuid,
             actionUuid,
             req.user!.userUuid,
         );
