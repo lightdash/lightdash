@@ -138,6 +138,16 @@ export class ManagedAgentClient {
 
     private async findOrCreateVault(betaAny: AnyType): Promise<{ id: string }> {
         const VAULT_NAME = 'Lightdash MCP Auth';
+        const CRED_NAME = 'Lightdash PAT';
+        const credPayload = {
+            display_name: CRED_NAME,
+            auth: {
+                type: 'static_bearer',
+                mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
+                token: this.config.serviceAccountPat,
+            },
+        };
+
         try {
             const list = await betaAny.vaults.list();
             const existing = list?.data?.find(
@@ -146,6 +156,14 @@ export class ManagedAgentClient {
             if (existing) {
                 Logger.info(
                     `[ManagedAgent] Reusing existing vault: ${existing.id}`,
+                );
+                // Refresh the credential so the PAT stays in sync.
+                // Delete existing credentials and recreate with current PAT.
+                await this.refreshVaultCredential(
+                    betaAny,
+                    existing.id,
+                    CRED_NAME,
+                    credPayload,
                 );
                 return existing;
             }
@@ -160,16 +178,36 @@ export class ManagedAgentClient {
             display_name: VAULT_NAME,
         });
 
-        await betaAny.vaults.credentials.create(vault.id, {
-            display_name: 'Lightdash PAT',
-            auth: {
-                type: 'static_bearer',
-                mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
-                token: this.config.serviceAccountPat,
-            },
-        });
+        await betaAny.vaults.credentials.create(vault.id, credPayload);
 
         return vault;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async refreshVaultCredential(
+        betaAny: AnyType,
+        vaultId: string,
+        credName: string,
+        credPayload: Record<string, unknown>,
+    ): Promise<void> {
+        try {
+            // List credentials and delete the old one, then create fresh
+            const creds = await betaAny.vaults.credentials.list(vaultId);
+            const existing = creds?.data?.find(
+                (c: { display_name: string }) => c.display_name === credName,
+            );
+            if (existing) {
+                await betaAny.vaults.credentials.delete(vaultId, existing.id);
+            }
+            await betaAny.vaults.credentials.create(vaultId, credPayload);
+            Logger.info(
+                `[ManagedAgent] Refreshed vault credential in ${vaultId}`,
+            );
+        } catch (error) {
+            Logger.warn(
+                `[ManagedAgent] Could not refresh vault credential: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+        }
     }
 
     async runSession(
