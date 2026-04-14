@@ -432,16 +432,9 @@ export default class DbtSchemaEditor {
     // Returns the updated schema as a string(YAML)
     toString(options?: { quoteChar?: `'` | `"` }): string {
         return this.doc.toString({
-            /**
-             * Use 'single quote' rather than "double quote" where applicable.
-             * Set to `false` to disable single quotes completely.
-             * Set to `null` to keep the original quotes.
-             *
-             * Once we allow the user to set the quote char in the UI, we can enforce the quote char for the entire file.
-             * Until then, we try to keep the original quotes by defaulting to null.
-             */
             singleQuote:
                 options?.quoteChar && options.quoteChar === `'` ? true : null,
+            lineWidth: 0,
         });
     }
 
