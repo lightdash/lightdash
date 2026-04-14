@@ -177,4 +177,66 @@ describe('getFieldValuesMetricQuery', () => {
             }),
         ).rejects.toThrow(ParameterError);
     });
+
+    test('throws ParameterError when table is undefined', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: undefined as unknown as string,
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when table is empty string', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: '',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when filters is truthy but missing .and', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                // @ts-expect-error testing malformed input
+                filters: {},
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when filters.and is not an array', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                // @ts-expect-error testing malformed input
+                filters: { and: 'not-an-array' },
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
 });
