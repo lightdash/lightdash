@@ -144,8 +144,13 @@ jobs:
           CURRENT_TAG="${{ github.event.release.tag_name }}"
           PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
           if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
-            echo "No previous tag found, diffing against HEAD~20"
-            echo "base=HEAD~20" >> $GITHUB_OUTPUT
+            echo "No previous tag found, checking commit count for safe fallback"
+            COMMIT_COUNT=$(git rev-list --count HEAD)
+            if [ "$COMMIT_COUNT" -lt 20 ]; then
+              echo "base=HEAD~$((COMMIT_COUNT-1))" >> $GITHUB_OUTPUT
+            else
+              echo "base=HEAD~20" >> $GITHUB_OUTPUT
+            fi
           else
             echo "Diffing $CURRENT_TAG against $PREVIOUS_TAG"
             echo "base=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
