@@ -1,4 +1,12 @@
 import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type ItemsMap,
+} from '../types/field';
+import { TimeFrames } from '../types/timeFrames';
+import { VizAggregationOptions, VizIndexType } from '../visualizations/types';
+import {
     convertSqlPivotedRowsToPivotData,
     pivotQueryResults,
 } from './pivotQueryResults';
@@ -1424,6 +1432,110 @@ describe('convertSqlPivotedRowsToPivotData', () => {
 
         const limitedColumnCount = limitedResult.headerValues[0]?.length ?? 0;
         expect(limitedColumnCount).toBe(1);
+    });
+
+    it('should not UTC-convert date dimension values in pivot headers (DST fix)', () => {
+        const dstDateGetField = (
+            fieldId: string,
+        ): ItemsMap[string] | undefined => {
+            if (fieldId === 'orders_created_day') {
+                return {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'created_day',
+                    label: 'Created Day',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.created_at',
+                    hidden: false,
+                    timeInterval: TimeFrames.DAY,
+                } as ItemsMap[string];
+            }
+            if (fieldId === 'orders_count') {
+                return {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.COUNT,
+                    name: 'count',
+                    label: 'Count',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: 'COUNT(*)',
+                    hidden: false,
+                };
+            }
+            return undefined;
+        };
+
+        const dstDate = '2026-04-01T00:00:00.000+01:00';
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: [
+                {
+                    orders_created_day: {
+                        value: {
+                            raw: dstDate,
+                            formatted: '2026-04-01',
+                        },
+                    },
+                    orders_count_any_user_a: {
+                        value: { raw: 5, formatted: '5' },
+                    },
+                    orders_count_any_user_b: {
+                        value: { raw: 3, formatted: '3' },
+                    },
+                },
+            ],
+            pivotDetails: {
+                totalColumnCount: 2,
+                indexColumn: {
+                    reference: 'orders_created_day',
+                    type: VizIndexType.TIME,
+                },
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: dstDate,
+                                referenceField: 'orders_created_day',
+                            },
+                        ],
+                        referenceField: 'orders_count',
+                        pivotColumnName: 'orders_count_any_user_a',
+                    },
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: dstDate,
+                                referenceField: 'orders_created_day',
+                            },
+                        ],
+                        referenceField: 'orders_count',
+                        pivotColumnName: 'orders_count_any_user_b',
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_created_day' }],
+                sortBy: undefined,
+                originalColumns: {},
+            },
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: ['orders_created_day', 'orders_count'],
+            },
+            getField: dstDateGetField,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        const headerDateValues = result.headerValues[0].map((h) =>
+            'value' in h ? h.value.formatted : undefined,
+        );
+        headerDateValues.forEach((formatted) => {
+            expect(formatted).toBe('2026-04-01');
+        });
     });
 
     it('should return all columns when columnLimit exceeds available', () => {
