@@ -2,13 +2,11 @@ import {
     Box,
     Group,
     Loader,
-    Select,
     Stack,
     Switch,
     Table,
     Text,
     Title,
-    Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
 import {
@@ -19,7 +17,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type FC, useMemo, useState } from 'react';
+import { type FC, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
@@ -56,10 +54,9 @@ const SetupSection: FC<{
     isLoading: boolean;
 }> = ({ projectUuid, enabled, schedule: initialSchedule, isLoading }) => {
     const queryClient = useQueryClient();
-    const [schedule, setSchedule] = useState(initialSchedule);
 
     const mutation = useMutation({
-        mutationFn: (body: { enabled?: boolean; scheduleCron?: string }) =>
+        mutationFn: (body: { enabled?: boolean }) =>
             updateSettings(projectUuid, body),
         onSuccess: () => {
             void queryClient.invalidateQueries({
@@ -69,68 +66,41 @@ const SetupSection: FC<{
     });
 
     const handleToggle = (val: boolean) => {
-        mutation.mutate({ enabled: val, scheduleCron: schedule });
+        mutation.mutate({ enabled: val });
     };
 
-    const handleScheduleChange = (val: string | null) => {
-        if (!val) return;
-        setSchedule(val);
-        if (enabled) {
-            mutation.mutate({ scheduleCron: val });
-        }
-    };
+    const scheduleLabel =
+        SCHEDULE_OPTIONS.find(
+            (o) => o.value === initialSchedule,
+        )?.label?.replace(' (recommended)', '') ?? schedule;
 
     return (
-        <Box className={classes.setupCard}>
-            <Stack gap="md" p="lg">
-                <Group justify="space-between" align="flex-start">
-                    <Group gap="md" align="center">
-                        <Box className={classes.setupOrb}>
-                            <IconBolt size={18} />
+        <Stack gap={0}>
+            <Group justify="space-between" align="center" pb="md">
+                <Group gap="sm" align="center">
+                    <Box className={classes.setupOrb}>
+                        <IconBolt size={16} />
+                    </Box>
+                    <Title order={4} fw={700}>
+                        Improve
+                    </Title>
+                    {enabled && (
+                        <Box className={classes.activeBadge}>
+                            <Box className={classes.activeDotInline} />
+                            Active &middot; {scheduleLabel}
                         </Box>
-                        <Stack gap={2}>
-                            <Group gap={8} align="center">
-                                <Title order={4} fw={700}>
-                                    Self-improving agent
-                                </Title>
-                                {enabled && (
-                                    <Box className={classes.activeBadge}>
-                                        Active
-                                    </Box>
-                                )}
-                            </Group>
-                            <Text fz="sm" c="dimmed">
-                                Flags stale content, fixes broken charts,
-                                creates visualizations, and surfaces insights
-                            </Text>
-                        </Stack>
-                    </Group>
-                    <Switch
-                        checked={enabled}
-                        onChange={(e) => handleToggle(e.currentTarget.checked)}
-                        disabled={isLoading || mutation.isLoading}
-                        size="sm"
-                        color="dark"
-                    />
+                    )}
                 </Group>
-
-                {enabled && (
-                    <Group gap="sm" ml={54} align="center">
-                        <Text fz="xs" fw={500} c="dimmed">
-                            Frequency
-                        </Text>
-                        <Select
-                            data={SCHEDULE_OPTIONS}
-                            value={schedule}
-                            onChange={handleScheduleChange}
-                            size="xs"
-                            w={160}
-                            disabled={isLoading}
-                        />
-                    </Group>
-                )}
-            </Stack>
-        </Box>
+                <Switch
+                    checked={enabled}
+                    onChange={(e) => handleToggle(e.currentTarget.checked)}
+                    disabled={isLoading || mutation.isLoading}
+                    size="sm"
+                    color="dark"
+                />
+            </Group>
+            <Box className={classes.headerDivider} />
+        </Stack>
     );
 };
 
@@ -183,34 +153,6 @@ const formatTimestamp = (dateStr: string) => {
         minute: '2-digit',
         second: '2-digit',
     });
-};
-
-const formatRelative = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-};
-
-const useHeartbeatInfo = (
-    schedule: string,
-    lastActionAt: string | null,
-    enabled: boolean,
-) => {
-    const interval = useMemo(() => {
-        const match = schedule.match(/^\*\/(\d+) /);
-        if (match) return `${match[1]}m`;
-        return schedule;
-    }, [schedule]);
-
-    const isRecent = lastActionAt
-        ? Date.now() - new Date(lastActionAt).getTime() < 120000
-        : false;
-
-    return { interval, isRecent, enabled };
 };
 
 // --- Detail Sidebar ---
@@ -337,13 +279,6 @@ export const ManagedAgentActivityPage: FC = () => {
     const { data: settings, isLoading: settingsLoading } =
         useManagedAgentSettings();
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
-    const lastActionAt = actions?.[0]?.createdAt ?? null;
-    const heartbeat = useHeartbeatInfo(
-        settings?.scheduleCron ?? '*/30 * * * *',
-        lastActionAt,
-        settings?.enabled ?? false,
-    );
-
     const filtered = actions ?? [];
 
     if (isLoading || settingsLoading) {
@@ -376,48 +311,6 @@ export const ManagedAgentActivityPage: FC = () => {
                                 }
                                 isLoading={settingsLoading}
                             />
-
-                            {filtered.length > 0 && (
-                                <Group gap="sm" align="center">
-                                    <Text fz="sm" fw={600}>
-                                        Activity
-                                    </Text>
-                                    <Tooltip
-                                        label={
-                                            heartbeat.isRecent
-                                                ? 'Running now'
-                                                : `Runs every ${heartbeat.interval}`
-                                        }
-                                    >
-                                        <Group
-                                            gap={5}
-                                            className={classes.statusPill}
-                                        >
-                                            <Box
-                                                className={
-                                                    heartbeat.isRecent
-                                                        ? classes.statusDotPulse
-                                                        : classes.statusDot
-                                                }
-                                                style={{
-                                                    backgroundColor:
-                                                        heartbeat.enabled
-                                                            ? 'var(--mantine-color-green-5)'
-                                                            : 'var(--mantine-color-gray-4)',
-                                                }}
-                                            />
-                                            <Text fz={11} fw={500} c="dimmed">
-                                                {heartbeat.interval}
-                                            </Text>
-                                        </Group>
-                                    </Tooltip>
-                                    {lastActionAt && (
-                                        <Text fz={11} c="dimmed">
-                                            {formatRelative(lastActionAt)}
-                                        </Text>
-                                    )}
-                                </Group>
-                            )}
 
                             {filtered.length === 0 ? (
                                 <Box className={classes.empty}>
