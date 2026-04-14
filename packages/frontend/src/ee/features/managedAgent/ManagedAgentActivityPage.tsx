@@ -22,7 +22,9 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
+import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
+import useHealth from '../../../hooks/health/useHealth';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
@@ -30,7 +32,11 @@ import type { ManagedAgentAction } from './types';
 
 const updateSettings = async (
     projectUuid: string,
-    body: { enabled?: boolean; scheduleCron?: string },
+    body: {
+        enabled?: boolean;
+        scheduleCron?: string;
+        slackChannelId?: string | null;
+    },
 ) =>
     lightdashApi({
         url: `/projects/${projectUuid}/managed-agent/settings`,
@@ -51,12 +57,21 @@ const SetupSection: FC<{
     projectUuid: string;
     enabled: boolean;
     schedule: string;
+    slackChannelId: string | null;
     isLoading: boolean;
-}> = ({ projectUuid, enabled, schedule: initialSchedule, isLoading }) => {
+}> = ({
+    projectUuid,
+    enabled,
+    schedule: initialSchedule,
+    slackChannelId: initialSlackChannelId,
+    isLoading,
+}) => {
     const queryClient = useQueryClient();
+    const { data: health } = useHealth();
+    const hasSlack = health?.hasSlack ?? false;
 
     const mutation = useMutation({
-        mutationFn: (body: { enabled?: boolean }) =>
+        mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
             updateSettings(projectUuid, body),
         onSuccess: () => {
             void queryClient.invalidateQueries({
@@ -67,6 +82,10 @@ const SetupSection: FC<{
 
     const handleToggle = (val: boolean) => {
         mutation.mutate({ enabled: val });
+    };
+
+    const handleSlackChannelChange = (channelId: string | null) => {
+        mutation.mutate({ slackChannelId: channelId });
     };
 
     const scheduleLabel =
@@ -91,13 +110,26 @@ const SetupSection: FC<{
                         </Box>
                     )}
                 </Group>
-                <Switch
-                    checked={enabled}
-                    onChange={(e) => handleToggle(e.currentTarget.checked)}
-                    disabled={isLoading || mutation.isLoading}
-                    size="sm"
-                    color="dark"
-                />
+                <Group gap="md" align="center">
+                    {hasSlack && enabled && (
+                        <Box w={240}>
+                            <SlackChannelSelect
+                                placeholder="Post summaries to..."
+                                size="xs"
+                                value={initialSlackChannelId}
+                                onChange={handleSlackChannelChange}
+                                disabled={isLoading || mutation.isLoading}
+                            />
+                        </Box>
+                    )}
+                    <Switch
+                        checked={enabled}
+                        onChange={(e) => handleToggle(e.currentTarget.checked)}
+                        disabled={isLoading || mutation.isLoading}
+                        size="sm"
+                        color="dark"
+                    />
+                </Group>
             </Group>
             <Box className={classes.headerDivider} />
         </Stack>
@@ -308,6 +340,9 @@ export const ManagedAgentActivityPage: FC = () => {
                                 enabled={settings?.enabled ?? false}
                                 schedule={
                                     settings?.scheduleCron ?? '*/30 * * * *'
+                                }
+                                slackChannelId={
+                                    settings?.slackChannelId ?? null
                                 }
                                 isLoading={settingsLoading}
                             />

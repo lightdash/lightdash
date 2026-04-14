@@ -11,6 +11,7 @@ export type DbManagedAgentSettings = {
     service_account_token: Buffer | null;
     anthropic_environment_id: string | null;
     anthropic_vault_id: string | null;
+    slack_channel_id: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -28,6 +29,7 @@ export type DbManagedAgentSettingsCreate = Pick<
             | 'service_account_token'
             | 'anthropic_environment_id'
             | 'anthropic_vault_id'
+            | 'slack_channel_id'
         >
     >;
 
@@ -40,6 +42,7 @@ export type DbManagedAgentSettingsUpdate = Partial<
         | 'service_account_token'
         | 'anthropic_environment_id'
         | 'anthropic_vault_id'
+        | 'slack_channel_id'
         | 'updated_at'
     >
 >;
