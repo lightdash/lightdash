@@ -887,14 +887,28 @@ export class UnfurlService extends BaseService {
                                       ...viewport,
                                       width: gridWidth ?? viewport.width,
                                   },
-                        extraHTTPHeaders: {
-                            [LightdashRequestMethodHeader]:
-                                RequestMethod.HEADLESS_BROWSER,
-                            'Lightdash-Headless-Browser-Context': context,
-                            'Lightdash-Headless-Browser-Context-Id': contextId
-                                ? contextId.toString()
-                                : 'undefined',
-                        },
+                    });
+
+                    // Add custom headers only to internal Lightdash API requests.
+                    // Using extraHTTPHeaders on newPage() would add these headers to ALL requests
+                    // including cross-origin ones (e.g. Google Fonts), causing CORS preflight failures.
+                    // See: https://github.com/lightdash/lightdash/issues/17452
+                    const internalHost =
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost;
+                    await page.route(`${internalHost}/**`, async (route) => {
+                        await route.continue({
+                            headers: {
+                                ...route.request().headers(),
+                                [LightdashRequestMethodHeader]:
+                                    RequestMethod.HEADLESS_BROWSER,
+                                'Lightdash-Headless-Browser-Context': context,
+                                'Lightdash-Headless-Browser-Context-Id':
+                                    contextId
+                                        ? contextId.toString()
+                                        : 'undefined',
+                            },
+                        });
                     });
 
                     // Polyfill crypto.randomUUID (needed for Loom iframes)
