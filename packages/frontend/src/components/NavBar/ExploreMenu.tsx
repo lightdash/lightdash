@@ -6,14 +6,12 @@ import {
     IconFolder,
     IconFolderPlus,
     IconLayoutDashboard,
-    IconSparkles,
     IconSquareRoundedPlus,
     IconTable,
     IconTerminal2,
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
@@ -32,13 +30,11 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const location = useLocation();
 
     const { user } = useApp();
-    const { data: health } = useHealth();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
     const [isCreateDashboardOpen, setIsCreateDashboardOpen] = useState(false);
-    const managedAgentEnabled = health?.managedAgent?.enabled ?? false;
 
     return (
         <>
@@ -158,29 +154,6 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconFolder}
                             />
                         </Can>
-
-                        {managedAgentEnabled && (
-                            <Can
-                                I="update"
-                                this={subject('Project', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <>
-                                    <Menu.Divider />
-                                    <LargeMenuItem
-                                        component={Link}
-                                        title="Self-improving agent"
-                                        description="Enable an AI agent to monitor and improve this project."
-                                        to={`/projects/${projectUuid}/improve`}
-                                        icon={IconSparkles}
-                                        isBeta
-                                    />
-                                </>
-                            </Can>
-                        )}
                     </Menu.Dropdown>
                 </Menu>
             </Can>
