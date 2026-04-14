@@ -133,25 +133,25 @@ const SetupSection: FC<{
     return (
         <Stack gap={0}>
             <Group justify="space-between" align="center" pb="md">
-                <Group gap="sm" align="center">
-                    <Box className={classes.setupOrb}>
-                        <IconBolt size={16} />
-                    </Box>
-                    <Stack gap={0}>
+                <Stack gap={0}>
+                    <Group gap="sm" align="center">
+                        <Box className={classes.setupOrb}>
+                            <IconBolt size={16} />
+                        </Box>
                         <Title order={4} fw={700}>
                             Dash
                         </Title>
-                        <Text fz="xs" c="dimmed">
-                            Project health agent
-                        </Text>
-                    </Stack>
-                    {enabled && (
-                        <Box className={classes.activeBadge}>
-                            <Box className={classes.activeDotInline} />
-                            Active &middot; {scheduleLabel}
-                        </Box>
-                    )}
-                </Group>
+                        {enabled && (
+                            <Box className={classes.activeBadge}>
+                                <Box className={classes.activeDotInline} />
+                                Active &middot; {scheduleLabel}
+                            </Box>
+                        )}
+                    </Group>
+                    <Text fz="xs" c="dimmed" ml={46}>
+                        Project health agent
+                    </Text>
+                </Stack>
                 <Group gap="sm" align="center">
                     {organizationHasSlack && enabled && (
                         <>
