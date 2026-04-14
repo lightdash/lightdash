@@ -232,6 +232,7 @@ export class ManagedAgentClient {
     async runSession(
         projectName: string,
         onCustomToolUse: CustomToolHandler,
+        onSessionCreated?: (sessionId: string) => void,
     ): Promise<string> {
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment();
@@ -246,6 +247,7 @@ export class ManagedAgentClient {
         });
 
         Logger.info(`[ManagedAgent] Session created: ${session.id}`);
+        onSessionCreated?.(session.id);
 
         const stream = await betaAny.sessions.events.stream(session.id);
 

@@ -390,8 +390,16 @@ export class ManagedAgentService extends BaseService {
         ): Promise<string> =>
             this.handleToolCall(projectUuid, sessionId, toolName, input);
 
+        const onSessionCreated = (id: string) => {
+            sessionId = id;
+        };
+
         try {
-            sessionId = await client.runSession(projectUuid, onToolCall);
+            sessionId = await client.runSession(
+                projectUuid,
+                onToolCall,
+                onSessionCreated,
+            );
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
