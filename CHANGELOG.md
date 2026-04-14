@@ -1,3 +1,10 @@
+# [0.2756.0](https://github.com/lightdash/lightdash/compare/0.2755.0...0.2756.0) (2026-04-14)
+
+
+### Features
+
+* add automated Claude QA agent for release testing ([#21991](https://github.com/lightdash/lightdash/issues/21991)) ([9c5809c](https://github.com/lightdash/lightdash/commit/9c5809c34060d30443df1ba0f5792b194dc75773))
+
 # [0.2755.0](https://github.com/lightdash/lightdash/compare/0.2754.0...0.2755.0) (2026-04-14)
 
 
