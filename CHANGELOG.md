@@ -1,3 +1,10 @@
+# [0.2758.0](https://github.com/lightdash/lightdash/compare/0.2757.2...0.2758.0) (2026-04-14)
+
+
+### Features
+
+* **ee:** enhanced activity sidebar — chart details, revert menu ([#22019](https://github.com/lightdash/lightdash/issues/22019)) ([0f2b650](https://github.com/lightdash/lightdash/commit/0f2b65082f1ecbf8675d88be2cd0fe8efd41c50b))
+
 ## [0.2757.2](https://github.com/lightdash/lightdash/compare/0.2757.1...0.2757.2) (2026-04-14)
 
 
