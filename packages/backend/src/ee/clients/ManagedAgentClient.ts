@@ -354,7 +354,15 @@ export class ManagedAgentClient {
             }
         };
 
-        await Promise.race([eventLoop(), timeoutPromise]);
+        try {
+            await Promise.race([eventLoop(), timeoutPromise]);
+        } catch (error) {
+            // Always return the session ID even on timeout so the caller
+            // can still look up actions recorded before the error.
+            Logger.error(
+                `[ManagedAgent] Session ${session.id} error: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+        }
 
         return session.id;
     }
