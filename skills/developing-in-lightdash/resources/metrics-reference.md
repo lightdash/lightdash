@@ -2,6 +2,8 @@
 
 Metrics are aggregated calculations performed on your data. They answer questions like "how much?", "how many?", and "what's the average?".
 
+> **Schema Reference**: For dbt projects, see [lightdash-dbt-2.0.json](schemas/lightdash-dbt-2.0.json). For pure Lightdash projects, see [model-as-code-1.0.json](schemas/model-as-code-1.0.json).
+
 ## Metric Locations
 
 Metrics can be defined in two places:

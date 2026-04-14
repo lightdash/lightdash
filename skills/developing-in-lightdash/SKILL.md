@@ -115,6 +115,19 @@ dimensions:
     type: string
 ```
 
+### YAML Schema References
+
+Use these JSON schemas to validate Lightdash YAML files. The schema you need depends on the project type and content type:
+
+| Schema | Use For | Path |
+|--------|---------|------|
+| [lightdash-dbt-2.0.json](./resources/schemas/lightdash-dbt-2.0.json) | dbt model YAML with Lightdash metadata (`meta:` properties) | `resources/schemas/lightdash-dbt-2.0.json` |
+| [model-as-code-1.0.json](./resources/schemas/model-as-code-1.0.json) | Pure Lightdash model YAML (no dbt, top-level properties) | `resources/schemas/model-as-code-1.0.json` |
+| [chart-as-code-1.0.json](./resources/schemas/chart-as-code-1.0.json) | Chart YAML files | `resources/schemas/chart-as-code-1.0.json` |
+| [dashboard-as-code-1.0.json](./resources/schemas/dashboard-as-code-1.0.json) | Dashboard YAML files | `resources/schemas/dashboard-as-code-1.0.json` |
+
+When editing or creating Lightdash YAML files, validate the structure against the appropriate schema. These schemas define all valid properties, types, and enums for each content type.
+
 ## Setting Up Warehouse Connection
 
 If the project needs a different warehouse connection (e.g., switching from Postgres to BigQuery), update it from your profiles.yml:

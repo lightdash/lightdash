@@ -2,6 +2,8 @@
 
 Dimensions are attributes used to segment and filter data. They describe the "who", "what", "where", and "when" of your data.
 
+> **Schema Reference**: For dbt projects, see [lightdash-dbt-2.0.json](schemas/lightdash-dbt-2.0.json). For pure Lightdash projects, see [model-as-code-1.0.json](schemas/model-as-code-1.0.json).
+
 ## Basic Configuration
 
 ```yaml

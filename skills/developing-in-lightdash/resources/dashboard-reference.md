@@ -2,6 +2,8 @@
 
 Dashboards combine multiple charts, KPIs, and content tiles into a cohesive view for analysis and monitoring.
 
+> **Schema Reference**: For the complete schema definition, see [dashboard-as-code-1.0.json](schemas/dashboard-as-code-1.0.json).
+
 ## Dashboard Structure
 
 ```yaml
