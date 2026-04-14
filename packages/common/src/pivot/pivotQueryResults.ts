@@ -259,7 +259,7 @@ const combinedRetrofit = (
         if (!isSummable(item)) {
             return null;
         }
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, true, undefined);
 
         return {
             raw: total,
@@ -274,7 +274,7 @@ const combinedRetrofit = (
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
         const item = getField(field.fieldId);
 
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, true, undefined);
 
         return {
             raw: total,
@@ -1399,12 +1399,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                 if (rowTotalValue !== undefined) {
                     const field = getField(baseMetricsArray[0]);
                     const formattedValue = field
-                        ? formatItemValue(
-                              field,
-                              rowTotalValue,
-                              false,
-                              undefined,
-                          )
+                        ? formatItemValue(field, rowTotalValue, true, undefined)
                         : String(rowTotalValue);
 
                     return {
