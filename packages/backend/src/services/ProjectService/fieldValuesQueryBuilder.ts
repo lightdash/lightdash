@@ -51,8 +51,20 @@ export async function getFieldValuesMetricQuery({
     field: Dimension;
     fieldId: string;
 }> {
+    if (!table) {
+        throw new ParameterError(
+            'Field value search requires a non-empty "table"',
+        );
+    }
+
     if (limit > maxLimit) {
         throw new ParameterError(`Query limit can not exceed ${maxLimit}`);
+    }
+
+    if (filters && !Array.isArray(filters.and)) {
+        throw new ParameterError(
+            'Field value search "filters" must include an "and" array',
+        );
     }
 
     let explore = await exploreResolver.findExploreByTableName(
