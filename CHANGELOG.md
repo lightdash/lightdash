@@ -1,3 +1,10 @@
+## [0.2757.1](https://github.com/lightdash/lightdash/compare/0.2757.0...0.2757.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* **e2e:** bump dbt CLI cypress timeouts ([#22009](https://github.com/lightdash/lightdash/issues/22009)) ([3a5ef87](https://github.com/lightdash/lightdash/commit/3a5ef87bd79213eb5c86b17e850805097afd99fc))
+
 # [0.2757.0](https://github.com/lightdash/lightdash/compare/0.2756.0...0.2757.0) (2026-04-14)
 
 
