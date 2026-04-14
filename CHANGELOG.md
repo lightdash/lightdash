@@ -1,3 +1,10 @@
+# [0.2755.0](https://github.com/lightdash/lightdash/compare/0.2754.0...0.2755.0) (2026-04-14)
+
+
+### Features
+
+* add QA blast radius generation to post-release workflow ([#21993](https://github.com/lightdash/lightdash/issues/21993)) ([9089111](https://github.com/lightdash/lightdash/commit/90891116f6eecd9fdfe1d2b2a86d11e885ffa64c))
+
 # [0.2754.0](https://github.com/lightdash/lightdash/compare/0.2753.0...0.2754.0) (2026-04-14)
 
 
