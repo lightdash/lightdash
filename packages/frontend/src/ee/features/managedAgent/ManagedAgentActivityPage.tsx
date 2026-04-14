@@ -24,7 +24,7 @@ import { lightdashApi } from '../../../api';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
-import useHealth from '../../../hooks/health/useHealth';
+import { useGetSlack } from '../../../hooks/slack/useSlack';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
@@ -67,8 +67,8 @@ const SetupSection: FC<{
     isLoading,
 }) => {
     const queryClient = useQueryClient();
-    const { data: health } = useHealth();
-    const hasSlack = health?.hasSlack ?? false;
+    const { data: slackInstallation } = useGetSlack();
+    const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
     const mutation = useMutation({
         mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
@@ -111,10 +111,10 @@ const SetupSection: FC<{
                     )}
                 </Group>
                 <Group gap="md" align="center">
-                    {hasSlack && enabled && (
-                        <Box w={240}>
+                    {organizationHasSlack && enabled && (
+                        <Box w={220}>
                             <SlackChannelSelect
-                                placeholder="Post summaries to..."
+                                placeholder="Slack channel..."
                                 size="xs"
                                 value={initialSlackChannelId}
                                 onChange={handleSlackChannelChange}
