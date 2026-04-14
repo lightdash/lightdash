@@ -2,6 +2,7 @@ import {
     FilterOperator,
     NotFoundError,
     ParameterError,
+    type AndFilterGroup,
     type Explore,
 } from '@lightdash/common';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
@@ -176,5 +177,53 @@ describe('getFieldValuesMetricQuery', () => {
                 exploreResolver: mockExploreResolver,
             }),
         ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when table is undefined', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: undefined as unknown as string,
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when table is empty string', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: '',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('handles filters without .and property gracefully', async () => {
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: 'test',
+            limit: 10,
+            maxLimit: 5000,
+            filters: { id: 'f1' } as unknown as AndFilterGroup,
+            exploreResolver: mockExploreResolver,
+        });
+
+        const dims = result.metricQuery.filters?.dimensions;
+        const filterRules = dims && 'and' in dims ? dims.and : [];
+        // Only the 2 autocomplete filters — no crash, malformed filters silently skipped
+        expect(filterRules).toHaveLength(2);
     });
 });
