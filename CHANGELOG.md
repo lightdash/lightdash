@@ -1,3 +1,15 @@
+# [0.2757.0](https://github.com/lightdash/lightdash/compare/0.2756.0...0.2757.0) (2026-04-14)
+
+
+### Bug Fixes
+
+* **docker-dev:** detect missing generated build artifacts ([#22002](https://github.com/lightdash/lightdash/issues/22002)) ([eb0ade8](https://github.com/lightdash/lightdash/commit/eb0ade8931a2272243aadc215f023dd617225e4f))
+
+
+### Features
+
+* **ee:** Slack notifications + CronDate bugfix for managed agent ([#21995](https://github.com/lightdash/lightdash/issues/21995)) ([aa7ca1f](https://github.com/lightdash/lightdash/commit/aa7ca1fa57d66744cfb16eafbe13414d87512fae))
+
 # [0.2756.0](https://github.com/lightdash/lightdash/compare/0.2755.0...0.2756.0) (2026-04-14)
 
 
