@@ -125,6 +125,7 @@ jobs:
   qa-blast-radius:
     name: Generate QA Blast Radius
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: write
     steps:
@@ -152,7 +153,7 @@ jobs:
 
       - name: Build code graph and detect changes
         run: |
-          pip install code-review-graph
+          pip install code-review-graph==2.3.1
           code-review-graph build --skip-postprocess
           code-review-graph detect-changes --base ${{ steps.prev-tag.outputs.base }} > blast-radius.json
 
