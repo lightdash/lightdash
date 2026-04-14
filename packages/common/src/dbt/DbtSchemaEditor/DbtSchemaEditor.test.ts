@@ -130,6 +130,24 @@ models:
     });
 });
 
+describe('toString lineWidth', () => {
+    it('should not insert line breaks into long descriptions', () => {
+        const longDescription =
+            'This is a very long description that exceeds eighty characters and should not be reformatted with line breaks by the YAML serializer';
+        const schema = `version: 2
+models:
+  - name: my_model
+    columns:
+      - name: my_column
+        description: ${longDescription}`;
+
+        const editor = new DbtSchemaEditor(schema);
+        const output = editor.toString();
+        expect(output).toContain(`description: ${longDescription}`);
+        expect(output).not.toMatch(/description:[\s\S]*\n\s+/m);
+    });
+});
+
 describe('dbt v1.10+ compatibility', () => {
     it('should add custom metrics under config.meta for dbt v1.10', () => {
         const editor = new DbtSchemaEditor(
