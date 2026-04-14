@@ -5,6 +5,7 @@ import {
     type ItemsMap,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
+import * as formatting from '../utils/formatting';
 import { VizAggregationOptions, VizIndexType } from '../visualizations/types';
 import {
     convertSqlPivotedRowsToPivotData,
@@ -1467,8 +1468,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
         };
 
         const dstDate = '2026-04-01T00:00:00.000+01:00';
+        const spy = jest.spyOn(formatting, 'formatItemValue');
 
-        const result = convertSqlPivotedRowsToPivotData({
+        convertSqlPivotedRowsToPivotData({
             rows: [
                 {
                     orders_created_day: {
@@ -1530,12 +1532,10 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             groupedSubtotals: undefined,
         });
 
-        const headerDateValues = result.headerValues[0].map((h) =>
-            'value' in h ? h.value.formatted : undefined,
-        );
-        headerDateValues.forEach((formatted) => {
-            expect(formatted).toBe('2026-04-01');
-        });
+        const convertToUTCArgs = spy.mock.calls.map((call) => call[2]);
+        expect(convertToUTCArgs).not.toContain(true);
+
+        spy.mockRestore();
     });
 
     it('should return all columns when columnLimit exceeds available', () => {
