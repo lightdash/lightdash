@@ -77,6 +77,47 @@ describe('TimeFrames', () => {
                 "DATE_TRUNC('WEEK', ${TABLE}.created)", // start of week is set in the session
             );
         });
+
+        test('ClickHouse week truncation should use Monday-based toStartOfWeek', () => {
+            // Monday (0): toStartOfWeek with mode 1 returns Monday, no shift needed
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(
+                'addDays(toStartOfWeek(addDays(${TABLE}.created, -0), 1), 0)',
+            );
+
+            // Wednesday (2): shift back 2 days, truncate to Monday-week, shift forward 2
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.WEDNESDAY,
+                ),
+            ).toEqual(
+                'addDays(toStartOfWeek(addDays(${TABLE}.created, -2), 1), 2)',
+            );
+
+            // Sunday (6): shift back 6 days, truncate to Monday-week, shift forward 6
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.SUNDAY,
+                ),
+            ).toEqual(
+                'addDays(toStartOfWeek(addDays(${TABLE}.created, -6), 1), 6)',
+            );
+        });
     });
 
     describe('getSqlForDatePart - DAY_OF_WEEK_INDEX with startOfWeek', () => {
