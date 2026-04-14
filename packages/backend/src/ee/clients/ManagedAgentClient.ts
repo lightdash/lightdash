@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { AnyType } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { CUSTOM_TOOL_DEFINITIONS } from '../services/ManagedAgentService/managedAgentTools';
 
@@ -77,8 +78,7 @@ export class ManagedAgentClient {
             };
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const betaAny = this.client.beta as any;
+        const betaAny = this.client.beta as AnyType;
 
         // Reuse existing environment if one exists, otherwise create
         const environment = await this.findOrCreateEnvironment(betaAny);
@@ -104,9 +104,9 @@ export class ManagedAgentClient {
         };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, class-methods-use-this
+    // eslint-disable-next-line class-methods-use-this
     private async findOrCreateEnvironment(
-        betaAny: any,
+        betaAny: AnyType,
     ): Promise<{ id: string }> {
         const ENV_NAME = 'lightdash-agent-env';
         try {
@@ -136,8 +136,7 @@ export class ManagedAgentClient {
         });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private async findOrCreateVault(betaAny: any): Promise<{ id: string }> {
+    private async findOrCreateVault(betaAny: AnyType): Promise<{ id: string }> {
         const VAULT_NAME = 'Lightdash MCP Auth';
         try {
             const list = await betaAny.vaults.list();
@@ -180,8 +179,7 @@ export class ManagedAgentClient {
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment();
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const betaAny = this.client.beta as any;
+        const betaAny = this.client.beta as AnyType;
 
         const session = await betaAny.sessions.create({
             agent: agentId,
