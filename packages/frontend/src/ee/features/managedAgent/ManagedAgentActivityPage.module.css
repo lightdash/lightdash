@@ -300,6 +300,17 @@
     );
 }
 
+.fieldPill {
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
 /* unused — kept for reference */
 
 /* Chart link */

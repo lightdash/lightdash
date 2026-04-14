@@ -3,6 +3,7 @@ import {
     Box,
     Group,
     Loader,
+    Menu,
     Popover,
     Stack,
     Switch,
@@ -12,9 +13,11 @@ import {
     UnstyledButton,
 } from '@mantine-8/core';
 import {
+    IconArrowBackUp,
     IconBolt,
     IconBrandSlack,
     IconChartBar,
+    IconDots,
     IconExternalLink,
     IconLayoutDashboard,
     IconX,
@@ -28,10 +31,18 @@ import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import type { ManagedAgentAction } from './types';
+
+const reverseAction = async (projectUuid: string, actionUuid: string) =>
+    lightdashApi({
+        url: `/projects/${projectUuid}/managed-agent/actions/${actionUuid}/reverse`,
+        method: 'POST',
+        body: undefined,
+    });
 
 const updateSettings = async (
     projectUuid: string,
@@ -262,11 +273,137 @@ const formatTimestamp = (dateStr: string) => {
 
 // --- Detail Sidebar ---
 
+const MetadataLabel: FC<{ label: string }> = ({ label }) => (
+    <Text fz={10} fw={600} c="dimmed" tt="uppercase" lts={0.5}>
+        {label}
+    </Text>
+);
+
+const MetadataFieldList: FC<{ label: string; fields: string[] }> = ({
+    label,
+    fields,
+}) =>
+    fields.length > 0 ? (
+        <Stack gap={4}>
+            <MetadataLabel label={label} />
+            <Group gap={4}>
+                {fields.map((f) => (
+                    <Text
+                        key={f}
+                        fz={11}
+                        ff="monospace"
+                        className={classes.fieldPill}
+                    >
+                        {f}
+                    </Text>
+                ))}
+            </Group>
+        </Stack>
+    ) : null;
+
+const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
+    metadata,
+}) => {
+    const chartAsCode = metadata.chart_as_code as
+        | Record<string, unknown>
+        | undefined;
+    if (!chartAsCode) return null;
+
+    const metricQuery = chartAsCode.metricQuery as
+        | Record<string, unknown>
+        | undefined;
+    const chartConfig = chartAsCode.chartConfig as
+        | Record<string, unknown>
+        | undefined;
+    const dimensions = (metricQuery?.dimensions as string[]) ?? [];
+    const metrics = (metricQuery?.metrics as string[]) ?? [];
+    const exploreName = (metricQuery?.exploreName as string) ?? null;
+    const chartType = (chartConfig?.type as string) ?? null;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label="Chart info" />
+            <Group gap="lg">
+                {chartType && (
+                    <Stack gap={2}>
+                        <Text fz={10} c="dimmed">
+                            Type
+                        </Text>
+                        <Text fz="xs" fw={500}>
+                            {chartType}
+                        </Text>
+                    </Stack>
+                )}
+                {exploreName && (
+                    <Stack gap={2}>
+                        <Text fz={10} c="dimmed">
+                            Explore
+                        </Text>
+                        <Text fz="xs" fw={500}>
+                            {exploreName}
+                        </Text>
+                    </Stack>
+                )}
+            </Group>
+            <MetadataFieldList label="Dimensions" fields={dimensions} />
+            <MetadataFieldList label="Metrics" fields={metrics} />
+        </Stack>
+    );
+};
+
+const StaleDetails: FC<{ metadata: Record<string, unknown> }> = ({
+    metadata,
+}) => {
+    const viewsCount = metadata.views_count as number | undefined;
+    const lastViewedAt = metadata.last_viewed_at as string | undefined;
+
+    if (viewsCount === undefined && !lastViewedAt) return null;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label="Usage" />
+            <Group gap="lg">
+                {viewsCount !== undefined && (
+                    <Stack gap={2}>
+                        <Text fz={10} c="dimmed">
+                            Total views
+                        </Text>
+                        <Text fz="xs" fw={500}>
+                            {viewsCount}
+                        </Text>
+                    </Stack>
+                )}
+                {lastViewedAt && (
+                    <Stack gap={2}>
+                        <Text fz={10} c="dimmed">
+                            Last viewed
+                        </Text>
+                        <Text fz="xs" fw={500}>
+                            {new Date(lastViewedAt).toLocaleDateString()}
+                        </Text>
+                    </Stack>
+                )}
+            </Group>
+        </Stack>
+    );
+};
+
 const DetailSidebar: FC<{
     action: ManagedAgentAction;
     onClose: () => void;
 }> = ({ action, onClose }) => {
+    const queryClient = useQueryClient();
     const config = ACTION_CONFIG[action.actionType];
+    const isReversed = !!action.reversedAt;
+
+    const revertMutation = useMutation({
+        mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-actions', action.projectUuid],
+            });
+        },
+    });
 
     const chartLink =
         action.targetType === 'chart'
@@ -275,9 +412,24 @@ const DetailSidebar: FC<{
               ? `/projects/${action.projectUuid}/dashboards/${action.targetUuid}`
               : null;
 
+    const TargetIcon = TARGET_ICON[action.targetType];
+
+    // Fetch chart description from the API when viewing a chart action
+    const { data: savedChart } = useSavedQuery({
+        uuidOrSlug:
+            action.targetType === 'chart' ? action.targetUuid : undefined,
+        projectUuid: action.projectUuid,
+    });
+    const chartDescription = savedChart?.description ?? null;
+
+    const hasChartDetails = !!action.metadata.chart_as_code;
+    const hasStaleDetails =
+        action.metadata.views_count !== undefined ||
+        !!action.metadata.last_viewed_at;
+
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
-            {/* Header: action label + link icon + close */}
+            {/* Header */}
             <Stack gap={2} className={classes.sidebarHeader}>
                 <Group justify="space-between" align="center">
                     <Group gap={6}>
@@ -286,19 +438,42 @@ const DetailSidebar: FC<{
                             style={{ backgroundColor: config.dotColor }}
                         />
                         <Text fz="xs" c="dimmed">
-                            {config.label} &middot; {action.targetType}
+                            {config.label}
                         </Text>
                     </Group>
                     <Group gap={2}>
-                        {chartLink && (
-                            <UnstyledButton
-                                component="a"
-                                href={chartLink}
-                                className={classes.closeBtn}
-                            >
-                                <IconExternalLink size={14} />
-                            </UnstyledButton>
-                        )}
+                        <Menu position="bottom-end" withinPortal>
+                            <Menu.Target>
+                                <UnstyledButton className={classes.closeBtn}>
+                                    <IconDots size={14} />
+                                </UnstyledButton>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {chartLink && (
+                                    <Menu.Item
+                                        component="a"
+                                        href={chartLink}
+                                        leftSection={
+                                            <IconExternalLink size={14} />
+                                        }
+                                    >
+                                        Open {action.targetType}
+                                    </Menu.Item>
+                                )}
+                                <Menu.Item
+                                    leftSection={<IconArrowBackUp size={14} />}
+                                    disabled={
+                                        isReversed || revertMutation.isLoading
+                                    }
+                                    onClick={() => revertMutation.mutate()}
+                                    color={isReversed ? undefined : 'red'}
+                                >
+                                    {isReversed
+                                        ? 'Already reverted'
+                                        : 'Revert action'}
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
                         <UnstyledButton
                             onClick={onClose}
                             className={classes.closeBtn}
@@ -307,19 +482,49 @@ const DetailSidebar: FC<{
                         </UnstyledButton>
                     </Group>
                 </Group>
-                <Text fz="sm" fw={600} lineClamp={1}>
-                    {action.targetName}
-                </Text>
+                <Group gap={6} wrap="nowrap">
+                    {(action.targetType === 'chart' ||
+                        action.targetType === 'dashboard') && (
+                        <TargetIcon
+                            size={16}
+                            color="var(--mantine-color-dimmed)"
+                            style={{ flexShrink: 0 }}
+                        />
+                    )}
+                    <TruncatedText maxWidth={260} fz="sm" fw={600}>
+                        {action.targetName}
+                    </TruncatedText>
+                </Group>
             </Stack>
 
             {/* Content */}
-            <Stack gap="sm" p="md" style={{ overflow: 'auto', flex: 1 }}>
-                <Text fz="sm" fw={600}>
-                    Description
-                </Text>
-                <Text fz="xs" lh={1.7} c="dimmed">
-                    {action.description}
-                </Text>
+            <Stack gap="md" p="md" style={{ overflow: 'auto', flex: 1 }}>
+                {/* Chart or stale details */}
+                {hasChartDetails && <ChartDetails metadata={action.metadata} />}
+                {hasStaleDetails && <StaleDetails metadata={action.metadata} />}
+
+                {/* Divider if we showed details above */}
+                {(hasChartDetails || hasStaleDetails) && (
+                    <Box className={classes.headerDivider} />
+                )}
+
+                {/* Chart description if available */}
+                {chartDescription && (
+                    <Stack gap={4}>
+                        <MetadataLabel label="Description" />
+                        <Text fz="xs" lh={1.7}>
+                            {chartDescription}
+                        </Text>
+                    </Stack>
+                )}
+
+                {/* Agent reasoning */}
+                <Stack gap={4}>
+                    <MetadataLabel label="Agent reasoning" />
+                    <Text fz="xs" lh={1.7} c="dimmed">
+                        {action.description}
+                    </Text>
+                </Stack>
             </Stack>
         </Stack>
     );
