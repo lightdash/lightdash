@@ -363,6 +363,82 @@ describe('validation', () => {
         );
     });
 
+    it('Should validate dashboard filters when referenced table no longer exists', async () => {
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'deleted_table_dimension',
+                                tableName: 'deleted_table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.map((error) => error.error)).toContain(
+            "Table 'deleted_table' no longer exists",
+        );
+    });
+
+    it('Should validate dashboard tile targets when referenced table no longer exists', async () => {
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'table_dimension',
+                                tableName: 'table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            tileTargets: {
+                                'tile-uuid': {
+                                    fieldId: 'deleted_table_dimension',
+                                    tableName: 'deleted_table',
+                                },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.map((error) => error.error)).toContain(
+            "Table 'deleted_table' no longer exists",
+        );
+    });
+
     it('Should validate only tables and charts in project', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock
