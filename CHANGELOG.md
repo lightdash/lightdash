@@ -1,3 +1,10 @@
+# [0.2754.0](https://github.com/lightdash/lightdash/compare/0.2753.0...0.2754.0) (2026-04-14)
+
+
+### Features
+
+* **ee:** add claude-managed self-improving agent ([#21975](https://github.com/lightdash/lightdash/issues/21975)) ([cd0858a](https://github.com/lightdash/lightdash/commit/cd0858a787c84e90a3e7e8844f06268e5654494c))
+
 # [0.2753.0](https://github.com/lightdash/lightdash/compare/0.2752.1...0.2753.0) (2026-04-13)
 
 
