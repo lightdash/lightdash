@@ -1,7 +1,10 @@
 import {
+    ActionIcon,
+    Badge,
     Box,
     Group,
     Loader,
+    Popover,
     Stack,
     Switch,
     Table,
@@ -11,20 +14,21 @@ import {
 } from '@mantine-8/core';
 import {
     IconBolt,
+    IconBrandSlack,
     IconChartBar,
     IconExternalLink,
     IconLayoutDashboard,
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type FC, useState } from 'react';
+import { useCallback, type FC, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
-import { useGetSlack } from '../../../hooks/slack/useSlack';
+import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
@@ -70,6 +74,19 @@ const SetupSection: FC<{
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
+    const { data: resolvedChannels } = useSlackChannels(
+        '',
+        {
+            includeChannelIds: initialSlackChannelId
+                ? [initialSlackChannelId]
+                : undefined,
+        },
+        { enabled: !!initialSlackChannelId && organizationHasSlack },
+    );
+    const slackChannelName =
+        resolvedChannels?.find((c) => c.id === initialSlackChannelId)?.name ??
+        initialSlackChannelId;
+
     const mutation = useMutation({
         mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
             updateSettings(projectUuid, body),
@@ -84,9 +101,19 @@ const SetupSection: FC<{
         mutation.mutate({ enabled: val });
     };
 
-    const handleSlackChannelChange = (channelId: string | null) => {
-        mutation.mutate({ slackChannelId: channelId });
-    };
+    const [slackPopoverOpen, setSlackPopoverOpen] = useState(false);
+
+    const handleSlackChannelChange = useCallback(
+        (channelId: string | null) => {
+            mutation.mutate({ slackChannelId: channelId });
+            setSlackPopoverOpen(false);
+        },
+        [mutation],
+    );
+
+    const handleClearSlack = useCallback(() => {
+        mutation.mutate({ slackChannelId: null });
+    }, [mutation]);
 
     const scheduleLabel =
         SCHEDULE_OPTIONS.find(
@@ -110,17 +137,62 @@ const SetupSection: FC<{
                         </Box>
                     )}
                 </Group>
-                <Group gap="md" align="center">
+                <Group gap="sm" align="center">
                     {organizationHasSlack && enabled && (
-                        <Box w={220}>
-                            <SlackChannelSelect
-                                placeholder="Slack channel..."
-                                size="xs"
-                                value={initialSlackChannelId}
-                                onChange={handleSlackChannelChange}
-                                disabled={isLoading || mutation.isLoading}
-                            />
-                        </Box>
+                        <>
+                            {initialSlackChannelId ? (
+                                <Badge
+                                    variant="light"
+                                    color="gray"
+                                    size="lg"
+                                    leftSection={<IconBrandSlack size={14} />}
+                                    rightSection={
+                                        <ActionIcon
+                                            variant="transparent"
+                                            size="xs"
+                                            color="gray"
+                                            onClick={handleClearSlack}
+                                        >
+                                            <IconX size={12} />
+                                        </ActionIcon>
+                                    }
+                                >
+                                    #{slackChannelName}
+                                </Badge>
+                            ) : (
+                                <Popover
+                                    opened={slackPopoverOpen}
+                                    onChange={setSlackPopoverOpen}
+                                    position="bottom-end"
+                                    width={280}
+                                    shadow="md"
+                                >
+                                    <Popover.Target>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="md"
+                                            onClick={() =>
+                                                setSlackPopoverOpen((o) => !o)
+                                            }
+                                        >
+                                            <IconBrandSlack size={18} />
+                                        </ActionIcon>
+                                    </Popover.Target>
+                                    <Popover.Dropdown>
+                                        <Text fz="xs" fw={500} mb="xs">
+                                            Post summaries to Slack
+                                        </Text>
+                                        <SlackChannelSelect
+                                            placeholder="Search channels..."
+                                            size="xs"
+                                            value={null}
+                                            onChange={handleSlackChannelChange}
+                                        />
+                                    </Popover.Dropdown>
+                                </Popover>
+                            )}
+                        </>
                     )}
                     <Switch
                         checked={enabled}
