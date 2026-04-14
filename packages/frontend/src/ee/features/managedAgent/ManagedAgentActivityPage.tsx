@@ -109,7 +109,8 @@ const SetupSection: FC<{
                         checked={enabled}
                         onChange={(e) => handleToggle(e.currentTarget.checked)}
                         disabled={isLoading || mutation.isLoading}
-                        size="md"
+                        size="sm"
+                        color="dark"
                     />
                 </Group>
 
