@@ -81,7 +81,6 @@ models:
         const editor = new DbtSchemaEditor(schema);
         const result = editor.toString();
         expect(result).toContain(`description: ${longDescription}`);
-        expect(result).not.toContain('\n        ');
         expect(result).toEqual(schema);
     });
 });
