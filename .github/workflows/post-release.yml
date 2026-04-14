@@ -120,7 +120,58 @@ jobs:
             SENTRY_ENVIRONMENT=cloud_beta
 
   # ============================================================================
-  # Job 2: CLI Release Binaries
+  # Job 2: QA Blast Radius
+  # ============================================================================
+  qa-blast-radius:
+    name: Generate QA Blast Radius
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Find previous release tag
+        id: prev-tag
+        run: |
+          CURRENT_TAG="${{ github.event.release.tag_name }}"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${CURRENT_TAG}$" | tail -1)
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$CURRENT_TAG" ]; then
+            echo "No previous tag found, checking commit count for safe fallback"
+            COMMIT_COUNT=$(git rev-list --count HEAD)
+            if [ "$COMMIT_COUNT" -lt 20 ]; then
+              echo "base=HEAD~$((COMMIT_COUNT-1))" >> $GITHUB_OUTPUT
+            else
+              echo "base=HEAD~20" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "Diffing $CURRENT_TAG against $PREVIOUS_TAG"
+            echo "base=$PREVIOUS_TAG" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build code graph and detect changes
+        run: |
+          pip install code-review-graph==2.3.1
+          code-review-graph build --skip-postprocess
+          code-review-graph detect-changes --base ${{ steps.prev-tag.outputs.base }} > blast-radius.json
+
+      - name: Upload blast radius to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" \
+            blast-radius.json \
+            --clobber
+
+  # ============================================================================
+  # Job 3: CLI Release Binaries
   # ============================================================================
   check-cli-changes:
     name: Check if CLI files changed
