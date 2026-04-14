@@ -16,6 +16,7 @@ import {
     type UpdateManagedAgentSettings,
     type ValidationResponse,
 } from '@lightdash/common';
+import type { KnownBlock } from '@slack/bolt';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
@@ -484,13 +485,13 @@ export class ManagedAgentService extends BaseService {
             // Convert agent's markdown summary to Slack mrkdwn
             const slackSummary = agentSummary
                 ? agentSummary
-                      .replace(/^#{1,3}\s+/gm, '*') // ### Header → *Header
+                      .replace(/^#{1,3}\s+(.+)$/gm, '*$1*') // ### Header → *Header*
                       .replace(/\*{2}([^*]+)\*{2}/g, '*$1*') // **bold** → *bold*
                       .replace(/\|---[|\-\s]*\|/g, '') // Remove table separator rows
-                      .slice(0, 2800) // Stay under 3000 char limit
+                      .slice(0, 2800) // Stay under Slack's 3000 char section limit
                 : '';
 
-            const blocks: Record<string, unknown>[] = [
+            const blocks: KnownBlock[] = [
                 {
                     type: 'header',
                     text: {
@@ -543,7 +544,7 @@ export class ManagedAgentService extends BaseService {
                 organizationUuid,
                 channel: slackChannelId,
                 text: `Dash: ${summaryParts.join(', ')}`,
-                blocks: blocks as never[],
+                blocks,
             });
 
             this.logger.info(
