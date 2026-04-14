@@ -400,6 +400,9 @@ export class ManagedAgentService extends BaseService {
         } finally {
             // Post summary to Slack even if the session errored — actions
             // recorded via custom tools before the crash are still valuable.
+            this.logger.info(
+                `Slack notification check: slackChannelId=${settings.slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
+            );
             if (settings.slackChannelId && sessionId) {
                 await this.postHeartbeatSummaryToSlack(
                     projectUuid,
@@ -415,14 +418,22 @@ export class ManagedAgentService extends BaseService {
         sessionId: string,
         slackChannelId: string,
     ): Promise<void> {
+        this.logger.info(
+            `Posting Slack summary: project=${projectUuid}, session=${sessionId}, channel=${slackChannelId}`,
+        );
         try {
             const actions = await this.managedAgentModel.getActions(
                 projectUuid,
                 { sessionId },
             );
 
+            this.logger.info(
+                `Found ${actions.length} actions for session ${sessionId}`,
+            );
+
             if (actions.length === 0) {
-                return; // Nothing to report
+                this.logger.info('No actions to report, skipping Slack');
+                return;
             }
 
             const { organizationUuid } =
