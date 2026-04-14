@@ -422,14 +422,14 @@ const clickhouseConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = startOfWeek;
-            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff})), ${intervalDiff})`;
+            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff}), 1), ${intervalDiff})`;
         }
 
         switch (timeFrame) {
             case TimeFrames.DAY:
                 return `toStartOfDay(${originalSql})`;
             case TimeFrames.WEEK:
-                return `toStartOfWeek(${originalSql})`;
+                return `toStartOfWeek(${originalSql}, 1)`;
             case TimeFrames.MONTH:
                 return `toStartOfMonth(${originalSql})`;
             case TimeFrames.QUARTER:
