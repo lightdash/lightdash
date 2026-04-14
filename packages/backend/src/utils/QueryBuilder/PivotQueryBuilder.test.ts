@@ -1218,6 +1218,50 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
+
+        test('Metric sort without index columns: should use precomputed column_ranking CTE (Databricks compatibility)', () => {
+            const pivotConfiguration = {
+                indexColumn: [],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Should create column_ranking CTE even without index columns
+            expect(result).toContain('column_ranking AS (');
+
+            // pivot_query should JOIN with precomputed column_ranking
+            expect(replaceWhitespace(result)).toContain(
+                'LEFT JOIN column_ranking cr ON g."category" = cr."category"',
+            );
+
+            // pivot_query should use precomputed col_idx, not inline DENSE_RANK for column_index
+            expect(replaceWhitespace(result)).toContain(
+                'cr."col_idx" AS "column_index"',
+            );
+
+            // row_index should be constant 1 (no index columns)
+            expect(replaceWhitespace(result)).toContain('1 AS "row_index"');
+
+            // Should NOT have row_ranking or row_anchor CTEs (no index columns)
+            expect(result).not.toContain('row_ranking AS (');
+            expect(result).not.toContain('_row_anchor');
+        });
     });
 
     describe('Warehouse type compatibility', () => {
