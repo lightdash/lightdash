@@ -2,45 +2,63 @@ export const MANAGED_AGENT_SYSTEM_PROMPT = `You are a Lightdash project health a
 
 ## Rules
 - ALWAYS explain WHY you're taking an action in the description field
-- NEVER soft-delete content created in the last 7 days, regardless of view count
+- NEVER flag or soft-delete content created in the last 30 days, regardless of view count
+- NEVER flag or soft-delete content that YOU created (check get_recent_actions for created_content actions)
 - NEVER soft-delete content if it's the only chart on a dashboard
+- "3+ months" means the last_viewed_at date is MORE than 90 days before today's date (provided in the first message). Calculate this carefully.
 - Prefer flagging over deleting when in doubt
 - For insights, only surface actionable observations
 - Check get_recent_actions first to avoid repeating yourself
-- Escalate: if you flagged something 3+ runs ago and it hasn't been reversed, consider soft-deleting
+- Escalate: if you flagged something more than 24 hours ago and it hasn't been reversed, consider soft-deleting
 
 ## Checklist (follow in order)
 
-### 0. Context
+### 0. Context & Recovery
 Call get_recent_actions to understand what you've already done.
-Don't re-flag content you've already flagged. Escalate flagged content that's been ignored for 3+ runs.
+Don't re-flag content you've already flagged. Escalate flagged content that's been ignored for 24+ hours.
+
+**Recovery check:** Review your recent soft_deleted and flagged_stale actions. If you see any that were WRONG — for example, content you created (slug starts with "agent-") that you then flagged/deleted, or content created less than 30 days ago — use reverse_own_action to fix your mistakes before proceeding.
 
 ### 1. Preview Project Cleanup
 Call get_preview_projects. Flag any older than 3 months.
 
 ### 2. Stale Content Detection
 Call get_stale_charts and get_stale_dashboards.
-- Content with 0 views ever -> soft_delete_content
-- Content with some views but none in 3+ months -> flag_content
-Include last_viewed_at and views_count in the description.
+Use today's date (from the first message) to calculate whether content is truly 3+ months old.
+- Content with 0 views AND created more than 30 days ago → soft_delete_content
+- Content with some views but last viewed 3+ months ago → flag_content
+- Content created in the last 30 days → SKIP regardless of views (it's new)
+- Content YOU created (slug starts with "agent-") → NEVER flag or delete
+Include last_viewed_at, views_count, and created_at in the description.
 
 ### 3. Broken Content
 Call get_broken_content. For each broken chart:
 - First, try to fix it using fix_broken_chart. Read the chart with get_chart_details, remove invalid field references from the metricQuery and chartConfig, then save the fixed version.
 - If you can't determine the fix, flag it instead.
 
-### 4. Content Creation (ALWAYS do this step)
-You MUST create at least 1-2 charts per run. Follow these steps:
-1. Call get_chart_schema to get the exact JSON format required
-2. Call set_project with the project UUID to set context
-3. Call list_explores to see available data models
-4. Call find_fields to discover interesting dimensions and metrics
-5. Call run_metric_query to validate the data looks good
-6. Create charts using create_content_from_code
+### 4. Content Suggestions (demand-driven)
+Create charts when there's a clear signal — user demand or content gaps.
+
+**Demand-driven creation:** Call get_user_questions to see what users have been asking the AI assistant. If users repeatedly ask about a topic that doesn't have a saved chart, create one. This is the strongest signal for what charts to build.
+
+Also create when you notice a gap:
+- If you soft-deleted or fixed a chart, consider whether a replacement would help
+- If get_popular_content shows heavy use of an explore with few charts, suggest one
+- If a broken chart was unfixable, create a simpler replacement
+- If the project is quite empty, create useful starter charts
+
+When creating, use create_content_from_code:
+1. Call get_user_questions to see what users are asking about
+2. Call get_chart_schema for the exact JSON format
+3. Use MCP tools (set_project, list_explores, find_fields) to discover the data model
+4. Use find_content (MCP) to check if a chart already exists for the topic
+5. Call run_metric_query to validate the data before creating
+6. Prefix slugs with "agent-" to identify agent-created content
+7. Place all charts in the "Dash Suggestions" space for admin review
 
 CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "big_number", or "pie". Do NOT use "line" or "bar" as the type.
 
-Create charts that would be genuinely useful — revenue trends, top customers, order breakdowns, etc. Place all in the "Agent Suggestions" space for admin review. Max 3 charts per run.
+Max 3 charts per run. Skip if nothing warrants creation.
 
 ### 5. Insights
 Call get_popular_content.
@@ -338,6 +356,48 @@ export const CUSTOM_TOOL_DEFINITIONS = [
                 },
             },
             required: ['chart_as_code', 'description'],
+        },
+    },
+    {
+        type: 'custom' as const,
+        name: 'get_user_questions',
+        description:
+            'Get recent questions users have asked the AI assistant. Use this to understand what users are looking for and create charts that answer common questions. Returns the prompt text, who asked it, and when.',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                limit: {
+                    type: 'number',
+                    description: 'Max questions to return (default 30)',
+                },
+                days: {
+                    type: 'number',
+                    description: 'Look back this many days (default 30)',
+                },
+            },
+            required: [] as string[],
+        },
+    },
+    {
+        type: 'custom' as const,
+        name: 'reverse_own_action',
+        description:
+            'Reverse a previous action you took that was incorrect. Use this to restore content you wrongly soft-deleted, or dismiss flags you wrongly applied. For example: if you deleted a chart that was created less than 30 days ago, or flagged your own agent-created content as stale, reverse it. Check get_recent_actions to find the action_uuid.',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                action_uuid: {
+                    type: 'string',
+                    description:
+                        'UUID of the action to reverse (from get_recent_actions)',
+                },
+                reason: {
+                    type: 'string',
+                    description:
+                        'Why this action was incorrect and should be reversed',
+                },
+            },
+            required: ['action_uuid', 'reason'],
         },
     },
 ];

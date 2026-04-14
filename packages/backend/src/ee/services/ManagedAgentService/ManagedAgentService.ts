@@ -255,7 +255,7 @@ export class ManagedAgentService extends BaseService {
             update,
         );
 
-        // Auto-create a service account for MCP auth when enabling the agent.
+        // Create a service account for MCP auth if one doesn't exist yet.
         // Service accounts use Bearer auth which the MCP endpoint accepts.
         if (update.enabled) {
             const existingToken =
@@ -595,6 +595,10 @@ export class ManagedAgentService extends BaseService {
                 return this.handleFixBrokenChart(projectUuid, sessionId, input);
             case 'create_content_from_code':
                 return this.handleCreateContent(projectUuid, sessionId, input);
+            case 'get_user_questions':
+                return this.handleGetUserQuestions(projectUuid, input);
+            case 'reverse_own_action':
+                return this.handleReverseOwnAction(projectUuid, input);
             default:
                 return JSON.stringify({ error: `Unknown tool: ${toolName}` });
         }
@@ -1078,6 +1082,24 @@ chartConfig:
             'target_type',
         );
 
+        // Block flagging agent-created charts as stale
+        if (
+            flagType === ManagedAgentActionType.FLAGGED_STALE &&
+            targetType === ManagedAgentTargetType.CHART
+        ) {
+            try {
+                const chart = await this.savedChartModel.get(targetUuid);
+                if (chart.slug?.startsWith('agent-')) {
+                    return JSON.stringify({
+                        error: `Chart "${targetName}" was created by the agent (slug: ${chart.slug}). Cannot flag own content as stale.`,
+                        blocked: true,
+                    });
+                }
+            } catch {
+                // Chart may not exist (already deleted) — allow flagging
+            }
+        }
+
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
@@ -1115,7 +1137,10 @@ chartConfig:
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
 
-        // Verify entity exists, belongs to this project, and matches declared type
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        // Verify entity exists, belongs to this project, and apply guardrails
         if (targetType === ManagedAgentTargetType.CHART) {
             const chart = await this.savedChartModel.get(targetUuid);
             ManagedAgentService.assertProjectOwnership(
@@ -1124,6 +1149,22 @@ chartConfig:
                 'Chart',
                 targetUuid,
             );
+            // Hard guardrail: never delete agent-created charts
+            if (chart.slug?.startsWith('agent-')) {
+                return JSON.stringify({
+                    error: `Chart "${targetName}" was created by the agent (slug: ${chart.slug}). Cannot soft-delete own content.`,
+                    blocked: true,
+                });
+            }
+            // Hard guardrail: never delete charts created in the last 30 days
+            const chartCreatedAt =
+                await this.managedAgentModel.getChartCreatedAt(targetUuid);
+            if (chartCreatedAt && chartCreatedAt > thirtyDaysAgo) {
+                return JSON.stringify({
+                    error: `Chart "${targetName}" was created on ${chartCreatedAt.toISOString().split('T')[0]}, less than 30 days ago. Cannot soft-delete recent content.`,
+                    blocked: true,
+                });
+            }
             await this.savedChartModel.softDelete(targetUuid, actorUuid);
         } else if (targetType === ManagedAgentTargetType.DASHBOARD) {
             const dashboard =
@@ -1134,6 +1175,15 @@ chartConfig:
                 'Dashboard',
                 targetUuid,
             );
+            // Hard guardrail: never delete dashboards created in the last 30 days
+            const dashCreatedAt =
+                await this.managedAgentModel.getDashboardCreatedAt(targetUuid);
+            if (dashCreatedAt && dashCreatedAt > thirtyDaysAgo) {
+                return JSON.stringify({
+                    error: `Dashboard "${targetName}" was created on ${dashCreatedAt.toISOString().split('T')[0]}, less than 30 days ago. Cannot soft-delete recent content.`,
+                    blocked: true,
+                });
+            }
             await this.dashboardModel.softDelete(targetUuid, actorUuid);
         } else {
             throw new Error(
@@ -1188,5 +1238,97 @@ chartConfig:
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
         return JSON.stringify({ action_uuid: action.actionUuid });
+    }
+
+    private async handleGetUserQuestions(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const limit = (input.limit as number) ?? 30;
+        const days = (input.days as number) ?? 30;
+
+        const questions = await this.managedAgentModel.getUserQuestions(
+            projectUuid,
+            days,
+            limit,
+        );
+
+        return JSON.stringify(
+            questions.map((q) => ({
+                question: q.prompt,
+                asked_by: q.userName,
+                asked_at: q.createdAt,
+            })),
+        );
+    }
+
+    private async handleReverseOwnAction(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const actionUuid = input.action_uuid as string;
+        const reason = input.reason as string;
+        if (!actionUuid || !reason) {
+            throw new Error('action_uuid and reason are required');
+        }
+
+        const action = await this.managedAgentModel.getAction(actionUuid);
+        if (!action) {
+            return JSON.stringify({ error: `Action ${actionUuid} not found` });
+        }
+        if (action.projectUuid !== projectUuid) {
+            return JSON.stringify({
+                error: `Action does not belong to this project`,
+            });
+        }
+        if (action.reversedAt) {
+            return JSON.stringify({
+                error: `Action already reversed`,
+                reversed_at: action.reversedAt,
+            });
+        }
+
+        // Perform the reversal
+        switch (action.actionType) {
+            case ManagedAgentActionType.SOFT_DELETED:
+                if (action.targetType === ManagedAgentTargetType.CHART) {
+                    await this.savedChartModel.restore(action.targetUuid);
+                } else if (
+                    action.targetType === ManagedAgentTargetType.DASHBOARD
+                ) {
+                    await this.dashboardModel.restore(action.targetUuid);
+                }
+                break;
+            case ManagedAgentActionType.CREATED_CONTENT:
+                if (action.targetType === ManagedAgentTargetType.CHART) {
+                    const settings =
+                        await this.managedAgentModel.getSettings(projectUuid);
+                    const actorUuid =
+                        settings?.enabledByUserUuid ?? projectUuid;
+                    await this.savedChartModel.softDelete(
+                        action.targetUuid,
+                        actorUuid,
+                    );
+                }
+                break;
+            default:
+                // Flagged/insight actions — just mark as reversed
+                break;
+        }
+
+        const reversed = await this.managedAgentModel.reverseAction(
+            actionUuid,
+            'agent', // reversed by the agent itself
+        );
+
+        this.logger.info(`Agent reversed action ${actionUuid}: ${reason}`);
+
+        return JSON.stringify({
+            reversed: true,
+            action_uuid: reversed.actionUuid,
+            action_type: reversed.actionType,
+            target_name: reversed.targetName,
+            reason,
+        });
     }
 }

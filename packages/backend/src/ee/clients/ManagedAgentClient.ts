@@ -138,9 +138,8 @@ export class ManagedAgentClient {
 
     private async findOrCreateVault(betaAny: AnyType): Promise<{ id: string }> {
         const VAULT_NAME = 'Lightdash MCP Auth';
-        const CRED_NAME = 'Lightdash PAT';
         const credPayload = {
-            display_name: CRED_NAME,
+            display_name: 'Lightdash PAT',
             auth: {
                 type: 'static_bearer',
                 mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
@@ -148,31 +147,10 @@ export class ManagedAgentClient {
             },
         };
 
-        try {
-            const list = await betaAny.vaults.list();
-            const existing = list?.data?.find(
-                (v: { display_name: string }) => v.display_name === VAULT_NAME,
-            );
-            if (existing) {
-                Logger.info(
-                    `[ManagedAgent] Reusing existing vault: ${existing.id}`,
-                );
-                // Refresh the credential so the PAT stays in sync.
-                // Delete existing credentials and recreate with current PAT.
-                await this.refreshVaultCredential(
-                    betaAny,
-                    existing.id,
-                    CRED_NAME,
-                    credPayload,
-                );
-                return existing;
-            }
-        } catch (error) {
-            Logger.warn(
-                `[ManagedAgent] Could not list vaults, creating new: ${error instanceof Error ? error.message : 'Unknown'}`,
-            );
-        }
-
+        // Always create a new vault with fresh credentials.
+        // The Anthropic credentials API doesn't support reliable
+        // delete+recreate, so we create a new vault each time
+        // instead of trying to update an existing one's credentials.
         Logger.info('[ManagedAgent] Creating new vault');
         const vault = await betaAny.vaults.create({
             display_name: VAULT_NAME,
@@ -181,54 +159,6 @@ export class ManagedAgentClient {
         await betaAny.vaults.credentials.create(vault.id, credPayload);
 
         return vault;
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    private async refreshVaultCredential(
-        betaAny: AnyType,
-        vaultId: string,
-        credName: string,
-        credPayload: Record<string, unknown>,
-    ): Promise<void> {
-        try {
-            // Create new credential first — if this fails, the old one still works
-            const newCred = await betaAny.vaults.credentials.create(
-                vaultId,
-                credPayload,
-            );
-            const newCredId =
-                newCred?.credential_id ??
-                newCred?.id ??
-                newCred?.credential_uuid;
-            Logger.info(
-                `[ManagedAgent] Created new vault credential ${newCredId} in ${vaultId}`,
-            );
-
-            // Then clean up old credentials, keeping only the one we just created
-            const creds = await betaAny.vaults.credentials.list(vaultId);
-            const oldCreds = (creds?.data ?? []).filter(
-                (cred: Record<string, unknown>) => {
-                    const credId =
-                        cred.credential_id ?? cred.id ?? cred.credential_uuid;
-                    return credId && credId !== newCredId;
-                },
-            );
-            const deletePromises = oldCreds.map(
-                (cred: Record<string, unknown>) => {
-                    const credId =
-                        cred.credential_id ?? cred.id ?? cred.credential_uuid;
-                    Logger.debug(
-                        `[ManagedAgent] Deleting old credential ${credId} from vault ${vaultId}`,
-                    );
-                    return betaAny.vaults.credentials.delete(vaultId, credId);
-                },
-            );
-            await Promise.all(deletePromises);
-        } catch (error) {
-            Logger.warn(
-                `[ManagedAgent] Could not refresh vault credential: ${error instanceof Error ? error.message : 'Unknown'}`,
-            );
-        }
     }
 
     async runSession(
@@ -260,7 +190,7 @@ export class ManagedAgentClient {
                     content: [
                         {
                             type: 'text',
-                            text: `Analyze project "${projectName}". Follow your checklist.`,
+                            text: `Today's date is ${new Date().toISOString().split('T')[0]}. Analyze project "${projectName}". Follow your checklist.`,
                         },
                     ],
                 },

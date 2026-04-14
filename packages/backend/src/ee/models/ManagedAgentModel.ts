@@ -233,4 +233,60 @@ export class ManagedAgentModel {
         }
         return ManagedAgentModel.mapDbAction(row);
     }
+
+    async getUserQuestions(
+        projectUuid: string,
+        days: number = 30,
+        limit: number = 30,
+    ): Promise<
+        Array<{
+            prompt: string;
+            userName: string;
+            createdAt: Date;
+        }>
+    > {
+        const rows = await this.database('ai_prompt as p')
+            .join('ai_thread as t', 't.ai_thread_uuid', 'p.ai_thread_uuid')
+            .join('users as u', 'u.user_uuid', 'p.created_by_user_uuid')
+            .join('projects as proj', 'proj.project_uuid', 't.project_uuid')
+            .where('t.project_uuid', projectUuid)
+            .where(
+                'p.created_at',
+                '>',
+                this.database.raw(`now() - interval '${days} days'`),
+            )
+            .select(
+                'p.prompt',
+                this.database.raw(
+                    `u.first_name || ' ' || u.last_name as user_name`,
+                ),
+                'p.created_at',
+            )
+            .orderBy('p.created_at', 'desc')
+            .limit(limit);
+
+        return rows.map(
+            (r: { prompt: string; user_name: string; created_at: Date }) => ({
+                prompt: r.prompt,
+                userName: r.user_name,
+                createdAt: r.created_at,
+            }),
+        );
+    }
+
+    async getChartCreatedAt(chartUuid: string): Promise<Date | null> {
+        const row = await this.database('saved_queries')
+            .where({ saved_query_uuid: chartUuid })
+            .select('created_at')
+            .first();
+        return row?.created_at ?? null;
+    }
+
+    async getDashboardCreatedAt(dashboardUuid: string): Promise<Date | null> {
+        const row = await this.database('dashboards')
+            .where({ dashboard_uuid: dashboardUuid })
+            .select('created_at')
+            .first();
+        return row?.created_at ?? null;
+    }
 }
