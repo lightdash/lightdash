@@ -1,6 +1,5 @@
 import {
     ActionIcon,
-    Badge,
     Box,
     Group,
     Loader,
@@ -141,24 +140,26 @@ const SetupSection: FC<{
                     {organizationHasSlack && enabled && (
                         <>
                             {initialSlackChannelId ? (
-                                <Badge
-                                    variant="light"
-                                    color="gray"
-                                    size="lg"
-                                    leftSection={<IconBrandSlack size={14} />}
-                                    rightSection={
-                                        <ActionIcon
-                                            variant="transparent"
-                                            size="xs"
-                                            color="gray"
-                                            onClick={handleClearSlack}
-                                        >
-                                            <IconX size={12} />
-                                        </ActionIcon>
-                                    }
+                                <Group
+                                    gap={6}
+                                    px="sm"
+                                    py={4}
+                                    bg="white"
+                                    className={classes.slackBadge}
                                 >
-                                    #{slackChannelName}
-                                </Badge>
+                                    <IconBrandSlack size={14} />
+                                    <Text fz="xs" fw={500}>
+                                        {slackChannelName}
+                                    </Text>
+                                    <ActionIcon
+                                        variant="transparent"
+                                        size="xs"
+                                        color="gray"
+                                        onClick={handleClearSlack}
+                                    >
+                                        <IconX size={12} />
+                                    </ActionIcon>
+                                </Group>
                             ) : (
                                 <Popover
                                     opened={slackPopoverOpen}
