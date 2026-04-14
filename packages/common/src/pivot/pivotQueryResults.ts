@@ -1024,7 +1024,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                         ? formatItemValue(
                               field,
                               pivotValue.value,
-                              true,
+                              false,
                               undefined,
                           )
                         : String(pivotValue.value));
