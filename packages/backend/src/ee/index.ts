@@ -404,6 +404,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     personalAccessTokenModel:
                         models.getPersonalAccessTokenModel(),
                     schedulerClient: clients.getSchedulerClient(),
+                    slackClient: clients.getSlackClient(),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({

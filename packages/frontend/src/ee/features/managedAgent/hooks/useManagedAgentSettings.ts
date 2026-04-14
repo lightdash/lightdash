@@ -7,6 +7,7 @@ type ManagedAgentSettings = {
     enabled: boolean;
     scheduleCron: string;
     enabledByUserUuid: string | null;
+    slackChannelId: string | null;
     createdAt: string;
     updatedAt: string;
 };
