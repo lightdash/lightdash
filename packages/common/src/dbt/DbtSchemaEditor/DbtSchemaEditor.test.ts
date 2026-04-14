@@ -130,6 +130,49 @@ models:
     });
 });
 
+describe('long description preservation', () => {
+    it('should not wrap long descriptions at 80 characters', () => {
+        const longDescription =
+            'This is a very long description that exceeds eighty characters and should not be wrapped onto multiple lines by the yaml serializer';
+        const schema = `version: 2
+models:
+  - name: my_model
+    description: "${longDescription}"
+    columns:
+      - name: col_a
+        description: short`;
+
+        const editor = new DbtSchemaEditor(schema);
+        const output = editor.toString();
+        // The long description must remain on a single line — the yaml library
+        // must not insert hard line breaks at lineWidth (default 80).
+        expect(output).toContain(`description: "${longDescription}"`);
+        expect(output).not.toMatch(
+            /This is a very long description.*\n\s+.*should not be wrapped/,
+        );
+    });
+
+    it('should preserve long descriptions through a round-trip with column additions', () => {
+        const longDescription =
+            'This is a very long description that exceeds eighty characters and should not be wrapped onto multiple lines by the yaml serializer';
+        const schema = `version: 2
+models:
+  - name: my_model
+    description: "${longDescription}"
+    columns:
+      - name: col_a
+        description: short`;
+
+        const editor = new DbtSchemaEditor(schema);
+        editor.addColumn('my_model', {
+            name: 'col_b',
+            description: 'new column',
+        });
+        const output = editor.toString();
+        expect(output).toContain(`description: "${longDescription}"`);
+    });
+});
+
 describe('dbt v1.10+ compatibility', () => {
     it('should add custom metrics under config.meta for dbt v1.10', () => {
         const editor = new DbtSchemaEditor(
