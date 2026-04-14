@@ -12,6 +12,7 @@ import {
     UnstyledButton,
 } from '@mantine-8/core';
 import {
+    IconBolt,
     IconChartBar,
     IconExternalLink,
     IconLayoutDashboard,
@@ -81,42 +82,40 @@ const SetupSection: FC<{
 
     return (
         <Box className={classes.setupCard}>
-            {/* Header row */}
-            <Group
-                justify="space-between"
-                align="center"
-                className={classes.setupHeader}
-            >
-                <Group gap="sm" align="center">
-                    {enabled && <Box className={classes.liveDot} />}
-                    <Title order={5} fw={600}>
-                        Self-improving agent
-                    </Title>
-                    {enabled && (
-                        <Text fz={11} c="dimmed">
-                            Active
-                        </Text>
-                    )}
+            <Stack gap="md" p="lg">
+                <Group justify="space-between" align="flex-start">
+                    <Group gap="md" align="center">
+                        <Box className={classes.setupOrb}>
+                            <IconBolt size={18} />
+                        </Box>
+                        <Stack gap={2}>
+                            <Group gap={8} align="center">
+                                <Title order={4} fw={700}>
+                                    Self-improving agent
+                                </Title>
+                                {enabled && (
+                                    <Box className={classes.activeBadge}>
+                                        Active
+                                    </Box>
+                                )}
+                            </Group>
+                            <Text fz="sm" c="dimmed">
+                                Flags stale content, fixes broken charts,
+                                creates visualizations, and surfaces insights
+                            </Text>
+                        </Stack>
+                    </Group>
+                    <Switch
+                        checked={enabled}
+                        onChange={(e) => handleToggle(e.currentTarget.checked)}
+                        disabled={isLoading || mutation.isLoading}
+                        size="md"
+                    />
                 </Group>
-                <Switch
-                    checked={enabled}
-                    onChange={(e) => handleToggle(e.currentTarget.checked)}
-                    disabled={isLoading || mutation.isLoading}
-                    size="sm"
-                />
-            </Group>
-
-            {/* Body */}
-            <Box className={classes.setupBody}>
-                <Text fz="xs" c="dimmed" lh={1.6}>
-                    Monitors your project on a schedule. Flags stale content,
-                    fixes broken charts, creates useful visualizations, and
-                    surfaces insights. All actions are reversible.
-                </Text>
 
                 {enabled && (
-                    <Group gap="sm" mt="md">
-                        <Text fz="xs" fw={500}>
+                    <Group gap="sm" ml={54} align="center">
+                        <Text fz="xs" fw={500} c="dimmed">
                             Frequency
                         </Text>
                         <Select
@@ -124,13 +123,12 @@ const SetupSection: FC<{
                             value={schedule}
                             onChange={handleScheduleChange}
                             size="xs"
-                            w={140}
+                            w={160}
                             disabled={isLoading}
-                            variant="default"
                         />
                     </Group>
                 )}
-            </Box>
+            </Stack>
         </Box>
     );
 };

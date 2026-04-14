@@ -356,22 +356,35 @@
     overflow: hidden;
 }
 
-.setupHeader {
-    padding: 12px 16px;
-    border-bottom: 1px solid
-        light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
+.setupOrb {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-violet-1), var(--mantine-color-violet-7));
+    color: var(--mantine-color-violet-5);
 }
 
-.setupBody {
-    padding: 14px 16px;
-}
-
-.liveDot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-color: var(--mantine-color-green-5);
-    animation: pulse 2s ease-in-out infinite;
+.activeBadge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 8px;
+    border-radius: 6px;
+    background-color: light-dark(
+        var(--mantine-color-green-0),
+        var(--mantine-color-green-9)
+    );
+    color: var(--mantine-color-green-6);
+    border: 1px solid
+        light-dark(var(--mantine-color-green-2), var(--mantine-color-green-7));
 }
 
 /* Reduced motion */
