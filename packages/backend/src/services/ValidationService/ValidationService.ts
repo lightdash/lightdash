@@ -603,6 +603,7 @@ export class ValidationService extends BaseService {
         dashboardUuid?: string,
     ): Promise<CreateDashboardValidation[]> {
         const existingFieldIds = existingFields.map(getItemId);
+        const existingTableNames = new Set(existingFields.map((f) => f.table));
 
         // Pre-build Map for O(1) broken chart lookup instead of O(n) array.find()
         const brokenChartMap = new Map(
@@ -653,6 +654,21 @@ export class ValidationService extends BaseService {
                         return acc;
                     };
 
+                    const checkTableExists = (
+                        fieldId: string,
+                        tableName: string | undefined,
+                    ): CreateDashboardValidation | undefined => {
+                        if (tableName && !existingTableNames.has(tableName)) {
+                            return {
+                                ...commonValidation,
+                                errorType: ValidationErrorType.Filter,
+                                error: `Table '${tableName}' no longer exists`,
+                                fieldName: fieldId,
+                            };
+                        }
+                        return undefined;
+                    };
+
                     const checkTableFieldConsistency = (
                         fieldId: string,
                         tableName: string | undefined,
@@ -689,6 +705,14 @@ export class ValidationService extends BaseService {
                             )
                                 ? filter.target.tableName
                                 : undefined;
+
+                            const tableExistsError = checkTableExists(
+                                fieldId,
+                                tableName,
+                            );
+                            if (tableExistsError) {
+                                return [...acc, tableExistsError];
+                            }
 
                             const consistencyError = checkTableFieldConsistency(
                                 fieldId,
@@ -737,6 +761,14 @@ export class ValidationService extends BaseService {
                                 !tileTarget.isSqlColumn // Skip SQL column targets
                             ) {
                                 const { fieldId, tableName } = tileTarget;
+
+                                const tableExistsError = checkTableExists(
+                                    fieldId,
+                                    tableName,
+                                );
+                                if (tableExistsError) {
+                                    return [...acc, tableExistsError];
+                                }
 
                                 const consistencyError =
                                     checkTableFieldConsistency(
