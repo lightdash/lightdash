@@ -51,6 +51,18 @@ export async function getFieldValuesMetricQuery({
     field: Dimension;
     fieldId: string;
 }> {
+    if (!table) {
+        throw new ParameterError(
+            'Field value search requires a non-empty "table" parameter',
+        );
+    }
+
+    if (filters && !Array.isArray(filters.and)) {
+        throw new ParameterError(
+            'Field value search "filters" must include an "and" array',
+        );
+    }
+
     if (limit > maxLimit) {
         throw new ParameterError(`Query limit can not exceed ${maxLimit}`);
     }
