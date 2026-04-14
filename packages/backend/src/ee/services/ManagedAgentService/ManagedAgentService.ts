@@ -24,6 +24,7 @@ import type { SavedChartModel } from '../../../models/SavedChartModel';
 import type { SpaceModel } from '../../../models/SpaceModel';
 import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
+import { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
 import { ManagedAgentClient } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
@@ -39,6 +40,7 @@ type ManagedAgentServiceDependencies = {
     spaceModel: SpaceModel;
     userModel: UserModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
+    schedulerClient: SchedulerClient;
 };
 
 export class ManagedAgentService extends BaseService {
@@ -62,6 +64,8 @@ export class ManagedAgentService extends BaseService {
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
+    private readonly schedulerClient: SchedulerClient;
+
     private client: ManagedAgentClient | null = null;
 
     constructor(deps: ManagedAgentServiceDependencies) {
@@ -76,6 +80,7 @@ export class ManagedAgentService extends BaseService {
         this.spaceModel = deps.spaceModel;
         this.userModel = deps.userModel;
         this.personalAccessTokenModel = deps.personalAccessTokenModel;
+        this.schedulerClient = deps.schedulerClient;
     }
 
     // --- Validation helpers ---
@@ -268,6 +273,15 @@ export class ManagedAgentService extends BaseService {
                     `Created PAT for managed agent in project ${projectUuid}`,
                 );
             }
+
+            // Schedule the first heartbeat job
+            const schedule =
+                settings.scheduleCron ??
+                this.lightdashConfig.managedAgent.schedule;
+            await this.schedulerClient.scheduleManagedAgentHeartbeat(schedule);
+        } else if (update.enabled === false) {
+            // Cancel pending heartbeat when disabling
+            await this.schedulerClient.cancelManagedAgentHeartbeat();
         }
 
         return settings;

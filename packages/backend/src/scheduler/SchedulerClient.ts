@@ -1554,4 +1554,50 @@ export class SchedulerClient {
 
         return jobId;
     }
+
+    // --- Managed Agent Heartbeat (self-scheduling) ---
+
+    private static readonly MANAGED_AGENT_JOB_KEY = 'managed-agent-heartbeat';
+
+    /**
+     * Schedule the next managed agent heartbeat at the given cron interval from now.
+     * Uses a stable jobKey so duplicate calls replace the existing pending job.
+     */
+    async scheduleManagedAgentHeartbeat(cronPattern: string): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+
+        const arr = stringToArray(cronPattern);
+        const schedule = getSchedule(arr, new Date(), 'UTC');
+        const nextRun = schedule.next();
+
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,
+            {} as TraceTaskBase,
+            {
+                runAt: nextRun,
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+                jobKey: SchedulerClient.MANAGED_AGENT_JOB_KEY,
+            },
+        );
+
+        Logger.info(
+            `Scheduled managed agent heartbeat at ${nextRun.toISOString()}`,
+        );
+    }
+
+    /**
+     * Cancel any pending managed agent heartbeat job.
+     */
+    async cancelManagedAgentHeartbeat(): Promise<void> {
+        const graphileClient = await this.graphileUtils;
+        await graphileClient.withPgClient(async (pgClient) => {
+            await pgClient.query(
+                `DELETE FROM graphile_worker.jobs
+                 WHERE key = $1 AND locked_by IS NULL`,
+                [SchedulerClient.MANAGED_AGENT_JOB_KEY],
+            );
+        });
+        Logger.info('Cancelled pending managed agent heartbeat job');
+    }
 }

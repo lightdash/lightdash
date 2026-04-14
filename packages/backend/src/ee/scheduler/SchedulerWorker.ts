@@ -140,6 +140,22 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         error,
                     );
                     throw error;
+                } finally {
+                    // Self-schedule the next heartbeat if any projects are still enabled.
+                    // This replaces the static cron — disabling all projects stops the loop.
+                    const stillEnabled =
+                        await this.managedAgentService.getEnabledProjects();
+                    if (
+                        stillEnabled.length > 0 &&
+                        this.lightdashConfig.managedAgent.enabled
+                    ) {
+                        const schedule =
+                            stillEnabled[0].scheduleCron ??
+                            this.lightdashConfig.managedAgent.schedule;
+                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
+                            schedule,
+                        );
+                    }
                 }
             },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (

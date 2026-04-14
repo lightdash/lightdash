@@ -115,19 +115,8 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
-                ...(this.lightdashConfig.managedAgent.enabled
-                    ? [
-                          {
-                              task: SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,
-                              pattern:
-                                  this.lightdashConfig.managedAgent.schedule,
-                              options: {
-                                  backfillPeriod: 60 * 1000, // 1 minute in ms
-                                  maxAttempts: 1,
-                              },
-                          },
-                      ]
-                    : []),
+                // Managed agent heartbeat is self-scheduling (not a static cron).
+                // See SchedulerClient.scheduleManagedAgentHeartbeat().
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
