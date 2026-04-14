@@ -1,3 +1,10 @@
+## [0.2759.1](https://github.com/lightdash/lightdash/compare/0.2759.0...0.2759.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ee:** service account auth for MCP + rich Slack summaries ([#22025](https://github.com/lightdash/lightdash/issues/22025)) ([996b02f](https://github.com/lightdash/lightdash/commit/996b02feaeeac6c92912084833baa472041d1304))
+
 # [0.2759.0](https://github.com/lightdash/lightdash/compare/0.2758.0...0.2759.0) (2026-04-14)
 
 
