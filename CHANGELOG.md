@@ -1,3 +1,10 @@
+## [0.2757.2](https://github.com/lightdash/lightdash/compare/0.2757.1...0.2757.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ee:** managed agent — vault refresh, session ID, Slack reliability ([#22017](https://github.com/lightdash/lightdash/issues/22017)) ([3bc8a70](https://github.com/lightdash/lightdash/commit/3bc8a7089654228a05ca806f8c795b0e7cdef9b6))
+
 ## [0.2757.1](https://github.com/lightdash/lightdash/compare/0.2757.0...0.2757.1) (2026-04-14)
 
 
