@@ -4,10 +4,12 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    type Dimension,
 } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
 import { type PivotData } from '../types/pivot';
 import { type ResultRow } from '../types/results';
+import { TimeFrames } from '../types/timeFrames';
 import {
     SortByDirection,
     VizAggregationOptions,
@@ -135,6 +137,19 @@ export const getFieldMock = (fieldId: string): ItemsMap[string] | undefined => {
             sql: '${TABLE}.order_date_year',
             hidden: false,
         };
+    }
+    if (fieldId === 'orders_order_date_day') {
+        return {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.DATE,
+            name: 'order_date_day',
+            label: 'Order Date Day',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: '${TABLE}.order_date_day',
+            hidden: false,
+            timeInterval: TimeFrames.DAY,
+        } satisfies Dimension as Dimension;
     }
     if (fieldId === 'payments_total_revenue') {
         return {

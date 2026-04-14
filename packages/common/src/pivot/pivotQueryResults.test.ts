@@ -1,3 +1,6 @@
+import type { ReadyQueryResultsPage } from '../index';
+import type { ResultRow } from '../types/results';
+import { VizAggregationOptions, VizIndexType } from '../visualizations/types';
 import {
     convertSqlPivotedRowsToPivotData,
     pivotQueryResults,
@@ -1465,6 +1468,91 @@ describe('convertSqlPivotedRowsToPivotData', () => {
         });
 
         expect(largeResult).toStrictEqual(fullResult);
+    });
+
+    it('should not shift date dimensions during DST transitions (convertToUTC consistency)', () => {
+        const origTZ = process.env.TZ;
+        process.env.TZ = 'Europe/London';
+
+        try {
+            // Simulate a stacked bar chart where a date dimension (day-truncated)
+            // is the groupBy (pivot) column, with timestamps during BST (UTC+1).
+            // The raw value '2026-03-29T00:30:00.000+01:00' is 00:30 BST on March 29.
+            // With convertToUTC: true, moment converts to UTC → 23:30 on March 28 → wrong day.
+            // With convertToUTC: false (correct), moment keeps local time → March 29.
+            const dstPivotRows: ResultRow[] = [
+                {
+                    payments_payment_method: {
+                        value: { raw: 'credit_card', formatted: 'credit_card' },
+                    },
+                    payments_total_revenue_any_2026_03_29: {
+                        value: { raw: 100, formatted: '100.00' },
+                    },
+                },
+            ];
+
+            const dstPivotDetails: NonNullable<
+                ReadyQueryResultsPage['pivotDetails']
+            > = {
+                totalColumnCount: 1,
+                valuesColumns: [
+                    {
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                value: '2026-03-29T00:30:00.000+01:00',
+                                referenceField: 'orders_order_date_day',
+                            },
+                        ],
+                        referenceField: 'payments_total_revenue',
+                        pivotColumnName:
+                            'payments_total_revenue_any_2026_03_29',
+                    },
+                ],
+                indexColumn: [
+                    {
+                        type: VizIndexType.CATEGORY,
+                        reference: 'payments_payment_method',
+                    },
+                ],
+                groupByColumns: [
+                    {
+                        reference: 'orders_order_date_day',
+                    },
+                ],
+                sortBy: [],
+                originalColumns: {},
+            };
+
+            const result = convertSqlPivotedRowsToPivotData({
+                rows: dstPivotRows,
+                pivotDetails: dstPivotDetails,
+                pivotConfig: {
+                    rowTotals: false,
+                    columnTotals: false,
+                    metricsAsRows: false,
+                    columnOrder: [
+                        'orders_order_date_day',
+                        'payments_payment_method',
+                        'payments_total_revenue',
+                    ],
+                },
+                getField: getFieldMock,
+                getFieldLabel: (fieldId) => fieldId,
+                groupedSubtotals: undefined,
+            });
+
+            // The header should format the date as March 29, not March 28.
+            // Before the fix, convertToUTC: true shifts this to March 28.
+            const headerValue = result.headerValues[0]?.[0];
+            expect(headerValue).toBeDefined();
+            expect(headerValue?.type).toBe('value');
+            if (headerValue?.type === 'value') {
+                expect(headerValue.value.formatted).toBe('2026-03-29');
+            }
+        } finally {
+            process.env.TZ = origTZ;
+        }
     });
 });
 
