@@ -1,3 +1,10 @@
+# [0.2759.0](https://github.com/lightdash/lightdash/compare/0.2758.0...0.2759.0) (2026-04-14)
+
+
+### Features
+
+* **ee:** rename to Dash — project health agent copy + modal fix ([#22022](https://github.com/lightdash/lightdash/issues/22022)) ([2fb77c3](https://github.com/lightdash/lightdash/commit/2fb77c36c404f2b5ec6119ca6056e4550eb069d7))
+
 # [0.2758.0](https://github.com/lightdash/lightdash/compare/0.2757.2...0.2758.0) (2026-04-14)
 
 
