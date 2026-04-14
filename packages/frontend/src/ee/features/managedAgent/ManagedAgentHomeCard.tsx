@@ -162,7 +162,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         <Stack gap={4}>
                             <Group gap={8} align="center">
                                 <Text fz="lg" fw={700}>
-                                    Improve
+                                    Project health
                                 </Text>
                                 <Box className={classes.activePill}>
                                     <Box className={classes.activeDotSmall} />
@@ -171,8 +171,8 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             </Group>
                             <Text fz="sm" c="dimmed" fw={500}>
                                 {actionCount > 0
-                                    ? `${actionCount} actions — ${actionSummary}`
-                                    : 'Monitoring your project'}
+                                    ? `Dash took ${actionCount} actions — ${actionSummary}`
+                                    : 'Dash is monitoring your project'}
                                 {lastActionAt &&
                                     ` · last run ${formatRelative(lastActionAt)}`}
                             </Text>
@@ -197,45 +197,47 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     const currentFeature = FEATURES[featureIdx];
 
     return (
-        <UnstyledButton onClick={handleClick} className={classes.card}>
-            <PixelGrid />
-            <Stack gap="md">
-                <Group gap="md" align="center">
-                    <Box className={classes.orb}>
-                        <IconBolt size={18} />
-                    </Box>
-                    <Stack gap={4}>
-                        <Text fz="lg" fw={700}>
-                            Self-improving agent
-                        </Text>
-                        <Group
-                            gap={6}
-                            wrap="nowrap"
-                            key={featureIdx}
-                            className={classes.featureCarousel}
-                        >
-                            <currentFeature.icon
-                                size={15}
-                                color="var(--mantine-color-violet-4)"
-                            />
-                            <Text fz="sm" fw={500} c="dimmed">
-                                {currentFeature.label}
+        <>
+            <UnstyledButton onClick={handleClick} className={classes.card}>
+                <PixelGrid />
+                <Stack gap="md">
+                    <Group gap="md" align="center">
+                        <Box className={classes.orb}>
+                            <IconBolt size={18} />
+                        </Box>
+                        <Stack gap={4}>
+                            <Text fz="lg" fw={700}>
+                                Project health agent
                             </Text>
-                        </Group>
-                    </Stack>
-                </Group>
+                            <Group
+                                gap={6}
+                                wrap="nowrap"
+                                key={featureIdx}
+                                className={classes.featureCarousel}
+                            >
+                                <currentFeature.icon
+                                    size={15}
+                                    color="var(--mantine-color-violet-4)"
+                                />
+                                <Text fz="sm" fw={500} c="dimmed">
+                                    {currentFeature.label}
+                                </Text>
+                            </Group>
+                        </Stack>
+                    </Group>
 
-                <Box ml={52}>
-                    <Button
-                        variant="filled"
-                        color="dark"
-                        size="sm"
-                        rightSection={<IconArrowRight size={14} />}
-                    >
-                        Get started
-                    </Button>
-                </Box>
-            </Stack>
+                    <Box ml={52}>
+                        <Button
+                            variant="filled"
+                            color="dark"
+                            size="sm"
+                            rightSection={<IconArrowRight size={14} />}
+                        >
+                            Get started
+                        </Button>
+                    </Box>
+                </Stack>
+            </UnstyledButton>
             <ManagedAgentSetupModal
                 projectUuid={projectUuid}
                 opened={setupOpen}
@@ -245,6 +247,6 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                     void navigate(`/projects/${projectUuid}/improve`);
                 }}
             />
-        </UnstyledButton>
+        </>
     );
 };
