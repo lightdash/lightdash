@@ -162,7 +162,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         <Stack gap={4}>
                             <Group gap={8} align="center">
                                 <Text fz="lg" fw={700}>
-                                    Improve
+                                    Project health
                                 </Text>
                                 <Box className={classes.activePill}>
                                     <Box className={classes.activeDotSmall} />
@@ -171,8 +171,8 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             </Group>
                             <Text fz="sm" c="dimmed" fw={500}>
                                 {actionCount > 0
-                                    ? `${actionCount} actions — ${actionSummary}`
-                                    : 'Monitoring your project'}
+                                    ? `Dash took ${actionCount} actions — ${actionSummary}`
+                                    : 'Dash is monitoring your project'}
                                 {lastActionAt &&
                                     ` · last run ${formatRelative(lastActionAt)}`}
                             </Text>
@@ -206,7 +206,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                     </Box>
                     <Stack gap={4}>
                         <Text fz="lg" fw={700}>
-                            Self-improving agent
+                            Project health agent
                         </Text>
                         <Group
                             gap={6}

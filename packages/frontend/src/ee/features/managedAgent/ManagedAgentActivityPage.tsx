@@ -138,7 +138,7 @@ const SetupSection: FC<{
                         <IconBolt size={16} />
                     </Box>
                     <Title order={4} fw={700}>
-                        Improve
+                        Project health
                     </Title>
                     {enabled && (
                         <Box className={classes.activeBadge}>

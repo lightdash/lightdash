@@ -527,7 +527,7 @@ export class ManagedAgentService extends BaseService {
                     type: 'header' as const,
                     text: {
                         type: 'plain_text' as const,
-                        text: ':zap: Improve agent completed a run',
+                        text: ':zap: Dash completed a health check',
                         emoji: true,
                     },
                 },
@@ -564,7 +564,7 @@ export class ManagedAgentService extends BaseService {
             await this.slackClient.postMessage({
                 organizationUuid,
                 channel: slackChannelId,
-                text: `Improve agent: ${summaryParts.join(', ')}`,
+                text: `Dash: ${summaryParts.join(', ')}`,
                 blocks,
             });
 
