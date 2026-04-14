@@ -1,0 +1,189 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`MetricQueryBuilder snapshot: semi-additive queries matches snapshot for a semi-additive last metric with account + date dimensions 1`] = `
+"WITH
+  sa_daily_balances_total_balance AS (
+    SELECT
+      "daily_balances_account",
+      "daily_balances_date",
+      SUM(
+        CASE
+          WHEN __sa_rn = 1 THEN __sa_val
+          ELSE NULL
+        END
+      ) AS "daily_balances_total_balance"
+    FROM
+      (
+        SELECT
+          "daily_balances".account AS "daily_balances_account",
+          "daily_balances".date AS "daily_balances_date",
+          "daily_balances".balance AS __sa_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "daily_balances".account,
+              "daily_balances".date
+            ORDER BY
+              "daily_balances".date DESC
+          ) AS __sa_rn
+        FROM
+          "db"."schema"."daily_balances" AS "daily_balances"
+      ) __sa_sub
+    GROUP BY
+      1,
+      2
+  ),
+  sa_base AS (
+    SELECT
+      "daily_balances".account AS "daily_balances_account",
+      "daily_balances".date AS "daily_balances_date"
+    FROM
+      "db"."schema"."daily_balances" AS "daily_balances"
+    GROUP BY
+      1,
+      2
+  )
+SELECT
+  sa_base.*,
+  sa_daily_balances_total_balance."daily_balances_total_balance" AS "daily_balances_total_balance"
+FROM
+  sa_base
+  INNER JOIN sa_daily_balances_total_balance ON (
+    sa_base."daily_balances_account" = sa_daily_balances_total_balance."daily_balances_account"
+    OR (
+      sa_base."daily_balances_account" IS NULL
+      AND sa_daily_balances_total_balance."daily_balances_account" IS NULL
+    )
+  )
+  AND (
+    sa_base."daily_balances_date" = sa_daily_balances_total_balance."daily_balances_date"
+    OR (
+      sa_base."daily_balances_date" IS NULL
+      AND sa_daily_balances_total_balance."daily_balances_date" IS NULL
+    )
+  )
+ORDER BY
+  "daily_balances_total_balance" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: semi-additive queries matches snapshot for a semi-additive last metric with monthly time grain 1`] = `
+"WITH
+  sa_daily_balances_total_balance AS (
+    SELECT
+      "daily_balances_account",
+      "daily_balances_date",
+      SUM(
+        CASE
+          WHEN __sa_rn = 1 THEN __sa_val
+          ELSE NULL
+        END
+      ) AS "daily_balances_total_balance"
+    FROM
+      (
+        SELECT
+          "daily_balances".account AS "daily_balances_account",
+          DATE_TRUNC('MONTH', "daily_balances".date) AS "daily_balances_date",
+          "daily_balances".balance AS __sa_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "daily_balances".account,
+              DATE_TRUNC('MONTH', "daily_balances".date)
+            ORDER BY
+              "daily_balances".date DESC
+          ) AS __sa_rn
+        FROM
+          "db"."schema"."daily_balances" AS "daily_balances"
+      ) __sa_sub
+    GROUP BY
+      1,
+      2
+  ),
+  sa_base AS (
+    SELECT
+      "daily_balances".account AS "daily_balances_account",
+      DATE_TRUNC('MONTH', "daily_balances".date) AS "daily_balances_date"
+    FROM
+      "db"."schema"."daily_balances" AS "daily_balances"
+    GROUP BY
+      1,
+      2
+  )
+SELECT
+  sa_base.*,
+  sa_daily_balances_total_balance."daily_balances_total_balance" AS "daily_balances_total_balance"
+FROM
+  sa_base
+  INNER JOIN sa_daily_balances_total_balance ON (
+    sa_base."daily_balances_account" = sa_daily_balances_total_balance."daily_balances_account"
+    OR (
+      sa_base."daily_balances_account" IS NULL
+      AND sa_daily_balances_total_balance."daily_balances_account" IS NULL
+    )
+  )
+  AND (
+    sa_base."daily_balances_date" = sa_daily_balances_total_balance."daily_balances_date"
+    OR (
+      sa_base."daily_balances_date" IS NULL
+      AND sa_daily_balances_total_balance."daily_balances_date" IS NULL
+    )
+  )
+ORDER BY
+  "daily_balances_total_balance" DESC
+LIMIT
+  10"
+`;
+
+exports[`MetricQueryBuilder snapshot: semi-additive queries matches snapshot for a semi-additive last metric with only date dimension 1`] = `
+"WITH
+  sa_daily_balances_total_balance AS (
+    SELECT
+      "daily_balances_date",
+      SUM(
+        CASE
+          WHEN __sa_rn = 1 THEN __sa_val
+          ELSE NULL
+        END
+      ) AS "daily_balances_total_balance"
+    FROM
+      (
+        SELECT
+          "daily_balances".date AS "daily_balances_date",
+          "daily_balances".balance AS __sa_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              "daily_balances".date
+            ORDER BY
+              "daily_balances".date DESC
+          ) AS __sa_rn
+        FROM
+          "db"."schema"."daily_balances" AS "daily_balances"
+      ) __sa_sub
+    GROUP BY
+      1
+  ),
+  sa_base AS (
+    SELECT
+      "daily_balances".date AS "daily_balances_date"
+    FROM
+      "db"."schema"."daily_balances" AS "daily_balances"
+    GROUP BY
+      1
+  )
+SELECT
+  sa_base.*,
+  sa_daily_balances_total_balance."daily_balances_total_balance" AS "daily_balances_total_balance"
+FROM
+  sa_base
+  INNER JOIN sa_daily_balances_total_balance ON (
+    sa_base."daily_balances_date" = sa_daily_balances_total_balance."daily_balances_date"
+    OR (
+      sa_base."daily_balances_date" IS NULL
+      AND sa_daily_balances_total_balance."daily_balances_date" IS NULL
+    )
+  )
+ORDER BY
+  "daily_balances_total_balance" DESC
+LIMIT
+  10"
+`;

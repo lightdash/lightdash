@@ -1,4 +1,11 @@
-import { getModelsFromManifest, patchPathParts, type DbtManifest } from './dbt';
+import {
+    convertModelMetric,
+    getModelsFromManifest,
+    patchPathParts,
+    type DbtColumnLightdashMetric,
+    type DbtManifest,
+} from './dbt';
+import { MetricType, SemiAdditiveAggregation } from './field';
 
 const makeManifest = (nodes: Record<string, object>): DbtManifest =>
     ({
@@ -231,5 +238,82 @@ describe('patchPathParts', () => {
             project: 'my_project',
             path: 'models/weird://name.yml',
         });
+    });
+});
+
+describe('convertModelMetric with semi_additive', () => {
+    const baseMetric: DbtColumnLightdashMetric = {
+        type: MetricType.SUM,
+        sql: '${TABLE}.balance',
+    };
+
+    const baseArgs = {
+        modelName: 'daily_balances',
+        name: 'total_balance',
+        source: undefined,
+        tableLabel: 'Daily Balances',
+    };
+
+    it('should parse a valid semi_additive config with aggregation "last"', () => {
+        const metric: DbtColumnLightdashMetric = {
+            ...baseMetric,
+            semi_additive: {
+                time_dimension: 'date',
+                aggregation: 'last',
+            },
+        };
+
+        const result = convertModelMetric({
+            ...baseArgs,
+            metric: { ...metric, sql: metric.sql! },
+        });
+
+        expect(result.semiAdditive).toEqual({
+            timeDimension: 'date',
+            aggregation: SemiAdditiveAggregation.LAST,
+        });
+    });
+
+    it('should not set semiAdditive when semi_additive is not provided', () => {
+        const result = convertModelMetric({
+            ...baseArgs,
+            metric: { ...baseMetric, sql: baseMetric.sql! },
+        });
+
+        expect(result.semiAdditive).toBeUndefined();
+    });
+
+    it('should throw when semi_additive has an unsupported aggregation', () => {
+        const metric: DbtColumnLightdashMetric = {
+            ...baseMetric,
+            semi_additive: {
+                time_dimension: 'date',
+                aggregation: 'first',
+            },
+        };
+
+        expect(() =>
+            convertModelMetric({
+                ...baseArgs,
+                metric: { ...metric, sql: metric.sql! },
+            }),
+        ).toThrow(/only "last" are supported/);
+    });
+
+    it('should throw when semi_additive is missing time_dimension', () => {
+        const metric: DbtColumnLightdashMetric = {
+            ...baseMetric,
+            semi_additive: {
+                time_dimension: '',
+                aggregation: 'last',
+            },
+        };
+
+        expect(() =>
+            convertModelMetric({
+                ...baseArgs,
+                metric: { ...metric, sql: metric.sql! },
+            }),
+        ).toThrow(/missing "time_dimension"/);
     });
 });

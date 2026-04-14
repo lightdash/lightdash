@@ -872,6 +872,15 @@ export const AggregateMetricTypes = [
     MetricType.PERCENTILE,
 ] as const;
 
+export enum SemiAdditiveAggregation {
+    LAST = 'last',
+}
+
+export type SemiAdditiveConfig = {
+    timeDimension: string;
+    aggregation: SemiAdditiveAggregation;
+};
+
 export const isAggregateMetricType = (type: MetricType): boolean =>
     (AggregateMetricTypes as readonly MetricType[]).includes(type);
 
@@ -910,6 +919,7 @@ export interface Metric extends Field {
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     aiHint?: string | string[];
     richText?: string; // The markdown/HTML template with LiquidJS variables
+    semiAdditive?: SemiAdditiveConfig;
 }
 
 export const isFilterableDimension = (

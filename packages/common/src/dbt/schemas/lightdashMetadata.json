@@ -342,6 +342,22 @@
                 },
                 "tags": {
                     "$ref": "#/definitions/Tags"
+                },
+                "semi_additive": {
+                    "type": "object",
+                    "description": "Configures semi-additive metric behavior for point-in-time / snapshot data",
+                    "properties": {
+                        "time_dimension": {
+                            "type": "string",
+                            "description": "The name of the time dimension field used to determine recency"
+                        },
+                        "aggregation": {
+                            "type": "string",
+                            "enum": ["last"],
+                            "description": "How to select the representative row within each time grain"
+                        }
+                    },
+                    "required": ["time_dimension", "aggregation"]
                 }
             }
         },

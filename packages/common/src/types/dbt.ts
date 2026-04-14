@@ -16,12 +16,14 @@ import { type JoinRelationship } from './explore';
 import {
     FieldType,
     friendlyName,
+    SemiAdditiveAggregation,
     type CompactOrAlias,
     type DimensionType,
     type FieldUrl,
     type Format,
     type Metric,
     type MetricType,
+    type SemiAdditiveConfig,
     type Source,
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
@@ -280,6 +282,10 @@ export type DbtColumnLightdashMetric = {
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     ai_hint?: string | string[];
     richText?: string;
+    semi_additive?: {
+        time_dimension: string;
+        aggregation: string;
+    };
 } & DbtLightdashFieldTags;
 
 export type DbtModelLightdashMetric = DbtColumnLightdashMetric &
@@ -586,6 +592,31 @@ type ConvertModelMetricArgs = {
     modelOwner?: string;
     defaultShowUnderlyingValues?: string[];
 };
+const parseSemiAdditiveConfig = (
+    raw: { time_dimension: string; aggregation: string },
+    metricName: string,
+): SemiAdditiveConfig => {
+    if (!raw.time_dimension) {
+        throw new ParseError(
+            `Metric "${metricName}" has semi_additive config but is missing "time_dimension"`,
+            {},
+        );
+    }
+    const validAggregations = Object.values(SemiAdditiveAggregation);
+    if (
+        !validAggregations.includes(raw.aggregation as SemiAdditiveAggregation)
+    ) {
+        throw new ParseError(
+            `Metric "${metricName}" has semi_additive.aggregation "${raw.aggregation}" but only "${validAggregations.join('", "')}" are supported`,
+            {},
+        );
+    }
+    return {
+        timeDimension: raw.time_dimension,
+        aggregation: raw.aggregation as SemiAdditiveAggregation,
+    };
+};
+
 export const convertModelMetric = ({
     modelName,
     name,
@@ -672,6 +703,14 @@ export const convertModelMetric = ({
         ...(metric.drivers ? { drivers: metric.drivers } : {}),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
         ...(metric.richText ? { richText: metric.richText } : {}),
+        ...(metric.semi_additive
+            ? {
+                  semiAdditive: parseSemiAdditiveConfig(
+                      metric.semi_additive,
+                      name,
+                  ),
+              }
+            : {}),
     };
 };
 

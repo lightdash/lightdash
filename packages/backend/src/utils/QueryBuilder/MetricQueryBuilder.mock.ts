@@ -16,6 +16,7 @@ import {
     JoinModelRequiredFilterRule,
     JoinRelationship,
     MetricType,
+    SemiAdditiveAggregation,
     SupportedDbtAdapter,
     TimeFrames,
     TimeIntervalUnit,
@@ -3272,3 +3273,107 @@ export const METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery 
         compiledAdditionalMetrics: [],
         compiledCustomDimensions: [],
     };
+
+export const EXPLORE_WITH_SEMI_ADDITIVE: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'daily_balances',
+    label: 'Daily Balances',
+    baseTable: 'daily_balances',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        daily_balances: {
+            name: 'daily_balances',
+            label: 'Daily Balances',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."daily_balances"',
+            primaryKey: ['id'],
+            dimensions: {
+                date: {
+                    type: DimensionType.DATE,
+                    name: 'date',
+                    label: 'Date',
+                    table: 'daily_balances',
+                    tableLabel: 'Daily Balances',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.date',
+                    compiledSql: '"daily_balances".date',
+                    tablesReferences: ['daily_balances'],
+                    hidden: false,
+                },
+                account: {
+                    type: DimensionType.STRING,
+                    name: 'account',
+                    label: 'Account',
+                    table: 'daily_balances',
+                    tableLabel: 'Daily Balances',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.account',
+                    compiledSql: '"daily_balances".account',
+                    tablesReferences: ['daily_balances'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_balance: {
+                    type: MetricType.SUM,
+                    fieldType: FieldType.METRIC,
+                    table: 'daily_balances',
+                    tableLabel: 'Daily Balances',
+                    name: 'total_balance',
+                    label: 'Total Balance',
+                    sql: '${TABLE}.balance',
+                    compiledSql: 'SUM("daily_balances".balance)',
+                    compiledValueSql: '"daily_balances".balance',
+                    tablesReferences: ['daily_balances'],
+                    hidden: false,
+                    semiAdditive: {
+                        timeDimension: 'date',
+                        aggregation: SemiAdditiveAggregation.LAST,
+                    },
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_SEMI_ADDITIVE_WITH_DIMS: CompiledMetricQuery = {
+    exploreName: 'daily_balances',
+    dimensions: ['daily_balances_account', 'daily_balances_date'],
+    metrics: ['daily_balances_total_balance'],
+    filters: {},
+    sorts: [{ fieldId: 'daily_balances_total_balance', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_SEMI_ADDITIVE_MONTHLY: CompiledMetricQuery = {
+    exploreName: 'daily_balances',
+    dimensions: ['daily_balances_account', 'daily_balances_date_month'],
+    metrics: ['daily_balances_total_balance'],
+    filters: {},
+    sorts: [{ fieldId: 'daily_balances_total_balance', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_SEMI_ADDITIVE_NO_DIMS: CompiledMetricQuery = {
+    exploreName: 'daily_balances',
+    dimensions: ['daily_balances_date'],
+    metrics: ['daily_balances_total_balance'],
+    filters: {},
+    sorts: [{ fieldId: 'daily_balances_total_balance', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};

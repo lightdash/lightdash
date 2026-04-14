@@ -749,6 +749,25 @@
                                         "type": "string"
                                     },
                                     "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
+                                },
+                                "semi_additive": {
+                                    "type": "object",
+                                    "description": "Configures semi-additive metric behavior for point-in-time / snapshot data (e.g. balances, headcount, inventory).",
+                                    "properties": {
+                                        "time_dimension": {
+                                            "type": "string",
+                                            "description": "The name of the time dimension field used to determine recency"
+                                        },
+                                        "aggregation": {
+                                            "type": "string",
+                                            "enum": ["last"],
+                                            "description": "How to select the representative row within each time grain"
+                                        }
+                                    },
+                                    "required": [
+                                        "time_dimension",
+                                        "aggregation"
+                                    ]
                                 }
                             },
                             "required": ["type", "sql"]
@@ -1324,6 +1343,25 @@
                                         "type": "string"
                                     },
                                     "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
+                                },
+                                "semi_additive": {
+                                    "type": "object",
+                                    "description": "Configures semi-additive metric behavior for point-in-time / snapshot data (e.g. balances, headcount, inventory).",
+                                    "properties": {
+                                        "time_dimension": {
+                                            "type": "string",
+                                            "description": "The name of the time dimension field used to determine recency"
+                                        },
+                                        "aggregation": {
+                                            "type": "string",
+                                            "enum": ["last"],
+                                            "description": "How to select the representative row within each time grain"
+                                        }
+                                    },
+                                    "required": [
+                                        "time_dimension",
+                                        "aggregation"
+                                    ]
                                 }
                             },
                             "required": ["type"]

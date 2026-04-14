@@ -52,6 +52,7 @@ import {
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
+    SemiAdditiveAggregation,
     snakeCaseName,
     SortField,
     sqlAggregationWrapsReferences,
@@ -1094,6 +1095,13 @@ export class MetricQueryBuilder {
                     metric.type === MetricType.AVERAGE_DISTINCT
                 ) {
                     // Still track table references for JOIN generation
+                    (metric.tablesReferences || [metric.table]).forEach(
+                        (table) => tables.add(table),
+                    );
+                    return;
+                }
+                // Semi-additive metrics are handled separately via CTE
+                if (metric.semiAdditive) {
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
                     );
@@ -2724,6 +2732,190 @@ export class MetricQueryBuilder {
         return { ctes, ddJoins, ddMetricSelects };
     }
 
+    private getSemiAdditiveMetricIds(): string[] {
+        return this.getSelectedAndReferencedMetricIds().filter((id) => {
+            try {
+                const metric = this.getMetricFromId(id);
+                return metric.semiAdditive !== undefined;
+            } catch {
+                return false;
+            }
+        });
+    }
+
+    private validateSemiAdditiveMetrics(): void {
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const adapterType = warehouseSqlBuilder.getAdapterType();
+        const saMetricIds = this.getSemiAdditiveMetricIds();
+        if (saMetricIds.length === 0) return;
+
+        if (adapterType !== SupportedDbtAdapter.POSTGRES) {
+            throw new CompileError(
+                `Semi-additive metrics are currently only supported on Postgres. Adapter "${adapterType}" is not yet supported.`,
+                {},
+            );
+        }
+
+        for (const metricId of saMetricIds) {
+            const metric = this.getMetricFromId(metricId);
+            const saConfig = metric.semiAdditive!;
+            const timeDimFieldId = getItemId({
+                table: metric.table,
+                name: saConfig.timeDimension,
+            });
+
+            const baseDim = this.exploreDimensions[timeDimFieldId];
+            if (!baseDim) {
+                throw new CompileError(
+                    `Semi-additive metric "${metricId}" references time_dimension "${saConfig.timeDimension}" which does not exist in table "${metric.table}"`,
+                    {},
+                );
+            }
+
+            const hasTimeDimSelected = compiledMetricQuery.dimensions.some(
+                (dimId) => {
+                    if (dimId === timeDimFieldId) return true;
+                    const parts = dimId.split('_');
+                    for (let i = parts.length - 1; i >= 1; i -= 1) {
+                        const candidate = parts.slice(0, i).join('_');
+                        if (candidate === timeDimFieldId) return true;
+                    }
+                    return false;
+                },
+            );
+
+            if (!hasTimeDimSelected) {
+                throw new CompileError(
+                    `Semi-additive metric "${metricId}" requires time dimension "${saConfig.timeDimension}" (or a time-grain variant like ${timeDimFieldId}_MONTH) to be selected in the query`,
+                    {},
+                );
+            }
+        }
+    }
+
+    private buildSemiAdditiveCtes({
+        dimensionSelects,
+        dimensionFilters,
+        sqlFrom,
+        joinsSql,
+        dimensionJoins,
+        baseCteName,
+    }: {
+        dimensionSelects: Record<string, string>;
+        dimensionFilters: string | undefined;
+        sqlFrom: string;
+        joinsSql: string | undefined;
+        dimensionJoins: string[];
+        baseCteName: string;
+    }): {
+        ctes: string[];
+        saJoins: string[];
+        saMetricSelects: string[];
+    } {
+        const { warehouseSqlBuilder } = this.args;
+        const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const saMetricIds = this.getSemiAdditiveMetricIds();
+
+        const dimensionAlias = Object.keys(dimensionSelects).map(
+            (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+        );
+
+        const saGroupBy =
+            dimensionAlias.length > 0
+                ? `GROUP BY ${dimensionAlias.map((_, i) => i + 1).join(',')}`
+                : undefined;
+
+        const ctes: string[] = [];
+        const saJoins: string[] = [];
+        const saMetricSelects: string[] = [];
+
+        const dimensionExprs = Object.entries(dimensionSelects).map(
+            ([id, selectStr]) => {
+                const suffix = ` AS ${fieldQuoteChar}${id}${fieldQuoteChar}`;
+                const idx = selectStr.lastIndexOf(suffix);
+                return idx > -1
+                    ? selectStr.substring(0, idx).trim()
+                    : selectStr.trim();
+            },
+        );
+
+        for (const metricId of saMetricIds) {
+            const metric = this.getMetricFromId(metricId);
+            const saConfig = metric.semiAdditive!;
+
+            if (!metric.compiledValueSql) {
+                // eslint-disable-next-line no-continue -- skip metrics without raw value SQL
+                continue;
+            }
+
+            const timeDimFieldId = getItemId({
+                table: metric.table,
+                name: saConfig.timeDimension,
+            });
+            const timeDim = this.exploreDimensions[timeDimFieldId];
+            if (!timeDim) {
+                // eslint-disable-next-line no-continue -- skip metrics with unresolvable time dimension
+                continue;
+            }
+
+            const saCteName = `sa_${snakeCaseName(metricId)}`;
+
+            const partitionExprs = [...dimensionExprs];
+
+            let orderExpr: string;
+            if (saConfig.aggregation === SemiAdditiveAggregation.LAST) {
+                orderExpr = `${timeDim.compiledSql} DESC`;
+            } else {
+                orderExpr = `${timeDim.compiledSql} ASC`;
+            }
+
+            const innerSelects = [
+                ...Object.values(dimensionSelects),
+                `  ${metric.compiledValueSql} AS __sa_val`,
+                `  ROW_NUMBER() OVER (PARTITION BY ${partitionExprs.join(', ')} ORDER BY ${orderExpr}) AS __sa_rn`,
+            ];
+
+            const innerSubquery = MetricQueryBuilder.assembleSqlParts([
+                `SELECT\n${innerSelects.join(',\n')}`,
+                sqlFrom,
+                joinsSql,
+                ...dimensionJoins,
+                dimensionFilters,
+            ]);
+
+            const outerAgg = this.args.warehouseSqlBuilder.getMetricSql(
+                'CASE WHEN __sa_rn = 1 THEN __sa_val ELSE NULL END',
+                metric,
+            );
+            const outerSelects = [
+                ...dimensionAlias,
+                `  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+            ];
+
+            const cteSql = `${saCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __sa_sub\n${saGroupBy ?? ''}\n)`;
+            ctes.push(cteSql);
+
+            if (dimensionAlias.length === 0) {
+                saJoins.push(`CROSS JOIN ${saCteName}`);
+            } else {
+                saJoins.push(
+                    `INNER JOIN ${saCteName} ON ${dimensionAlias
+                        .map(
+                            (alias) =>
+                                `( ${baseCteName}.${alias} = ${saCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${saCteName}.${alias} IS NULL ) )`,
+                        )
+                        .join(' AND ')}`,
+                );
+            }
+
+            saMetricSelects.push(
+                `  ${saCteName}.${fieldQuoteChar}${metricId}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
+            );
+        }
+
+        return { ctes, saJoins, saMetricSelects };
+    }
+
     /**
      * Detects metrics that have nested aggregate problems.
      * A metric has a nested aggregate problem when:
@@ -3850,6 +4042,8 @@ export class MetricQueryBuilder {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
 
+        this.validateSemiAdditiveMetrics();
+
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
 
@@ -4146,6 +4340,59 @@ export class MetricQueryBuilder {
                 for (let i = 1; i < ddMetricIds.length; i += 1) {
                     const ddCteName = `dd_${snakeCaseName(ddMetricIds[i])}`;
                     finalSelectParts.push(`CROSS JOIN ${ddCteName}`);
+                }
+            }
+        }
+
+        // Semi-additive CTEs: build separate CTEs for semi-additive metrics
+        // that use ROW_NUMBER to select the last row per time grain, then
+        // apply the outer aggregation.
+        const saMetricIds = this.getSemiAdditiveMetricIds();
+        if (saMetricIds.length > 0) {
+            const saBaseCteName = 'sa_base';
+
+            const hasNonSaSelects =
+                Object.keys(dimensionsSQL.selects).length > 0 ||
+                metricsSQL.selects.length > 0;
+
+            const {
+                ctes: saCtes,
+                saJoins,
+                saMetricSelects,
+            } = this.buildSemiAdditiveCtes({
+                dimensionSelects: dimensionsSQL.selects,
+                dimensionFilters: dimensionsSQL.filtersSQL,
+                sqlFrom,
+                joinsSql: joins.joinSQL,
+                dimensionJoins: dimensionsSQL.joins,
+                baseCteName: saBaseCteName,
+            });
+            ctes.push(...saCtes);
+
+            if (hasNonSaSelects) {
+                ctes.push(
+                    MetricQueryBuilder.wrapAsCte(
+                        saBaseCteName,
+                        finalSelectParts,
+                    ),
+                );
+
+                finalSelectParts = [
+                    `SELECT`,
+                    [`  ${saBaseCteName}.*`, ...saMetricSelects].join(',\n'),
+                    `FROM ${saBaseCteName}`,
+                    ...saJoins,
+                ];
+            } else {
+                finalSelectParts = [
+                    `SELECT`,
+                    saMetricSelects.join(',\n'),
+                    `FROM ${saCtes.length > 0 ? `sa_${snakeCaseName(saMetricIds[0])}` : 'sa_base'}`,
+                ];
+
+                for (let i = 1; i < saMetricIds.length; i += 1) {
+                    const saCteName = `sa_${snakeCaseName(saMetricIds[i])}`;
+                    finalSelectParts.push(`CROSS JOIN ${saCteName}`);
                 }
             }
         }
