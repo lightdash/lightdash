@@ -137,11 +137,14 @@ export function formatDate(
     convertToUTC: boolean = false,
     timezone?: string,
 ): string {
+    // moment.utc(date) parses date-only strings as UTC. moment(date).utc()
+    // parses in the local timezone first, shifting the date back a day
+    // in UTC+ browsers (e.g. JST).
     let momentDate;
     if (timezone) {
         momentDate = moment.utc(date).tz(timezone);
     } else if (convertToUTC) {
-        momentDate = moment(date).utc();
+        momentDate = moment.utc(date);
     } else {
         momentDate = moment(date);
     }
@@ -163,7 +166,7 @@ export function formatTimestamp(
     if (timezone) {
         momentDate = moment.utc(value).tz(timezone);
     } else if (convertToUTC) {
-        momentDate = moment(value).utc();
+        momentDate = moment.utc(value);
     } else {
         momentDate = moment(value);
     }
