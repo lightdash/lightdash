@@ -130,6 +130,36 @@ models:
     });
 });
 
+describe('long description preservation', () => {
+    const LONG_DESC_SCHEMA = `version: 2
+models:
+  - name: my_model
+    description: This is a very long description that exceeds eighty characters and should not be reformatted or wrapped by the yaml serializer at all
+    columns:
+      - name: col_a
+        description: Another long column description that is well over eighty characters and must remain on a single line without any wrapping`;
+
+    it('should preserve long descriptions without inserting line breaks', () => {
+        const editor = new DbtSchemaEditor(LONG_DESC_SCHEMA);
+        expect(editor.toString()).toEqual(`${LONG_DESC_SCHEMA}\n`);
+    });
+
+    it('should preserve long descriptions after adding a column', () => {
+        const editor = new DbtSchemaEditor(LONG_DESC_SCHEMA);
+        editor.addColumn('my_model', {
+            name: 'col_b',
+            description: 'new column',
+        });
+        const result = editor.toString();
+        expect(result).toContain(
+            'description: This is a very long description that exceeds eighty characters and should not be reformatted or wrapped by the yaml serializer at all',
+        );
+        expect(result).toContain(
+            'description: Another long column description that is well over eighty characters and must remain on a single line without any wrapping',
+        );
+    });
+});
+
 describe('dbt v1.10+ compatibility', () => {
     it('should add custom metrics under config.meta for dbt v1.10', () => {
         const editor = new DbtSchemaEditor(
