@@ -19,6 +19,7 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentHomeCard.module.css';
+import { ManagedAgentSetupModal } from './ManagedAgentSetupModal';
 
 const FEATURES = [
     { icon: IconShieldCheck, label: 'Fixes broken charts' },
@@ -132,10 +133,16 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
         return parts.join(', ');
     }, [actions]);
 
+    const [setupOpen, setSetupOpen] = useState(false);
+
     if (!health?.managedAgent?.enabled) return null;
 
     const handleClick = () => {
-        void navigate(`/projects/${projectUuid}/improve`);
+        if (isEnabled) {
+            void navigate(`/projects/${projectUuid}/improve`);
+        } else {
+            setSetupOpen(true);
+        }
     };
 
     if (isEnabled) {
@@ -220,10 +227,19 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                         size="sm"
                         rightSection={<IconArrowRight size={14} />}
                     >
-                        Enable
+                        Get started
                     </Button>
                 </Box>
             </Stack>
+            <ManagedAgentSetupModal
+                projectUuid={projectUuid}
+                opened={setupOpen}
+                onClose={() => setSetupOpen(false)}
+                onEnabled={() => {
+                    setSetupOpen(false);
+                    void navigate(`/projects/${projectUuid}/improve`);
+                }}
+            />
         </UnstyledButton>
     );
 };
