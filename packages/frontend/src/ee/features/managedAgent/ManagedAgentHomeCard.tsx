@@ -54,9 +54,9 @@ const PixelGrid: FC = () => {
             6, 7, 2, 9, 5, 0, 4, 8, 1, 6, 3, 7, 9, 2, 5, 0, 8, 4, 1, 6, 3, 7, 9,
             2, 5, 8, 0, 4, 1, 3, 6, 7, 9,
         ];
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 18; col++) {
-                const idx = row * 18 + col;
+        for (let row = 0; row < 12; row++) {
+            for (let col = 0; col < 28; col++) {
+                const idx = row * 28 + col;
                 const val = seed[idx % seed.length];
                 if (val > 5) {
                     grid.push({
@@ -73,10 +73,10 @@ const PixelGrid: FC = () => {
     return (
         <svg
             className={classes.pixelGrid}
-            width="162"
+            width="252"
             height="100%"
-            viewBox="0 0 162 72"
-            preserveAspectRatio="xMaxYMid meet"
+            viewBox="0 0 252 108"
+            preserveAspectRatio="xMaxYMid slice"
         >
             {cells.map((cell, i) => (
                 <rect
