@@ -27,8 +27,6 @@ export const up = async (knex: Knex): Promise<void> => {
         // duplicate environments and vaults on every service restart.
         table.text('anthropic_environment_id').nullable();
         table.text('anthropic_vault_id').nullable();
-        // Slack channel ID for posting heartbeat summaries
-        table.text('slack_channel_id').nullable();
         table
             .timestamp('created_at', { useTz: false })
             .notNullable()
