@@ -24,6 +24,7 @@ import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
+import CellErrorBoundary from './CellErrorBoundary';
 import CellMenu from './CellMenu';
 import CellTooltip from './CellTooltip';
 
@@ -166,7 +167,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                         : undefined
                 }
             >
-                <span>{children}</span>
+                <CellErrorBoundary>
+                    <span>{children}</span>
+                </CellErrorBoundary>
             </Td>
 
             {shouldRenderMenu ? (

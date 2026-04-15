@@ -196,7 +196,7 @@ export const Tr = forwardRef<HTMLTableRowElement, TrProps>(
 );
 Tr.displayName = 'Tr';
 
-export const Td = styled.td<{
+export const Td = styled.td.attrs({ translate: 'no' })<{
     $isNaN: boolean;
     $rowIndex: number;
     $isSelected: boolean;
