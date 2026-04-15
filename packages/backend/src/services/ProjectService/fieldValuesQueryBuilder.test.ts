@@ -177,4 +177,35 @@ describe('getFieldValuesMetricQuery', () => {
             }),
         ).rejects.toThrow(ParameterError);
     });
+
+    test('throws ParameterError when table is empty', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: '',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when filters is missing .and', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                filters: { id: 'test' } as any,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
 });
