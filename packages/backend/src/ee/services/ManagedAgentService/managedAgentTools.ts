@@ -60,7 +60,14 @@ CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "bi
 
 Max 3 charts per run. Skip if nothing warrants creation.
 
-### 5. Insights
+### 5. Slow Queries
+Call get_slow_queries. For each slow chart or dashboard:
+- Flag with flag_content using flag_type "flagged_slow"
+- Include execution time and context in the description
+- Don't re-flag content you've already flagged as slow in a previous run
+- Only flag if the query consistently takes >2 seconds (not a one-off spike)
+
+### 6. Insights
 Call get_popular_content.
 - Surface content that is popular but not pinned
 - Surface content with high views but restricted access (private space)
@@ -162,7 +169,7 @@ export const CUSTOM_TOOL_DEFINITIONS = [
                 },
                 flag_type: {
                     type: 'string',
-                    enum: ['flagged_stale', 'flagged_broken'],
+                    enum: ['flagged_stale', 'flagged_broken', 'flagged_slow'],
                     description: 'Why this content is being flagged',
                 },
                 description: {
@@ -398,6 +405,27 @@ export const CUSTOM_TOOL_DEFINITIONS = [
                 },
             },
             required: ['action_uuid', 'reason'],
+        },
+    },
+    {
+        type: 'custom' as const,
+        name: 'get_slow_queries',
+        description:
+            'Get the slowest warehouse queries in the project from the last 30 days. Returns the chart or dashboard name, execution time in ms, query context, and when it ran. Use this to flag charts or dashboards with consistently slow queries so admins can optimize them.',
+        input_schema: {
+            type: 'object' as const,
+            properties: {
+                threshold_ms: {
+                    type: 'number',
+                    description:
+                        'Minimum execution time in ms to consider slow (default 2000)',
+                },
+                limit: {
+                    type: 'number',
+                    description: 'Max results to return (default 20)',
+                },
+            },
+            required: [] as string[],
         },
     },
 ];

@@ -6,6 +6,7 @@ export type ManagedAgentAction = {
         | 'flagged_stale'
         | 'soft_deleted'
         | 'flagged_broken'
+        | 'flagged_slow'
         | 'fixed_broken'
         | 'created_content'
         | 'insight';

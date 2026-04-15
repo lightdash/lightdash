@@ -2,6 +2,7 @@ export enum ManagedAgentActionType {
     FLAGGED_STALE = 'flagged_stale',
     SOFT_DELETED = 'soft_deleted',
     FLAGGED_BROKEN = 'flagged_broken',
+    FLAGGED_SLOW = 'flagged_slow',
     FIXED_BROKEN = 'fixed_broken',
     CREATED_CONTENT = 'created_content',
     INSIGHT = 'insight',

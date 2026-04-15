@@ -281,6 +281,10 @@ const ACTION_CONFIG: Record<
         label: 'Broken',
         dotColor: 'var(--mantine-color-red-5)',
     },
+    flagged_slow: {
+        label: 'Slow',
+        dotColor: 'var(--mantine-color-yellow-6)',
+    },
     fixed_broken: {
         label: 'Fixed',
         dotColor: 'var(--mantine-color-teal-5)',
