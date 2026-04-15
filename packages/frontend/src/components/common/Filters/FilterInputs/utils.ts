@@ -325,6 +325,12 @@ export const getFilterRuleTables = (
 };
 
 export const formatDisplayValue = (value: string): string => {
+    // Guard against non-string values at runtime: DashboardFilterRule.values is
+    // typed as any[], so numbers, booleans, null, or undefined can reach here.
+    // null/undefined → '' to avoid displaying literal "null"/"undefined" text.
+    if (typeof value !== 'string') {
+        return String(value ?? '');
+    }
     return value
         .replace(/^\s+|\s+$/g, (match) => '␣'.repeat(match.length))
         .replace(/\n/g, '↵');

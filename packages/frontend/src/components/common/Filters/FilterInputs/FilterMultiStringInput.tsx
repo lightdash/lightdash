@@ -72,7 +72,7 @@ const FilterMultiStringInput: FC<Props> = ({
         // also we are merging status indicator as a first item
         return uniq([...results, ...values]).map((value) => ({
             value,
-            label: formatDisplayValue(value),
+            label: formatDisplayValue(String(value)),
         }));
     }, [results, values]);
 
