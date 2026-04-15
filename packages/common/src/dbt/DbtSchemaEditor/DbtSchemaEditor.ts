@@ -442,6 +442,10 @@ export default class DbtSchemaEditor {
              */
             singleQuote:
                 options?.quoteChar && options.quoteChar === `'` ? true : null,
+            // Disable line wrapping (yaml v2.x defaults to lineWidth: 80, which
+            // inserts line breaks into long descriptions and SQL strings, silently
+            // reformatting YAML files when only column additions were requested).
+            lineWidth: 0,
         });
     }
 
