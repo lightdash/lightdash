@@ -1,10 +1,12 @@
 import {
+    Badge,
     Card,
     createPolymorphicComponent,
     Group,
     Menu,
     Stack,
     Text,
+    Tooltip,
     type MenuItemProps,
 } from '@mantine-8/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
@@ -18,13 +20,25 @@ interface LargeMenuItemProps extends Omit<MenuItemProps, 'leftSection'> {
     title: string;
     description: string | ReactNode;
     isBeta?: boolean;
+    isExperimental?: boolean;
 }
 
 const LargeMenuItem: ReturnType<
     typeof createPolymorphicComponent<'button', LargeMenuItemProps>
 > = createPolymorphicComponent<'button', LargeMenuItemProps>(
     forwardRef<HTMLButtonElement, LargeMenuItemProps>(
-        ({ icon, title, description, iconProps, isBeta, ...rest }, ref) => {
+        (
+            {
+                icon,
+                title,
+                description,
+                iconProps,
+                isBeta,
+                isExperimental,
+                ...rest
+            },
+            ref,
+        ) => {
             return (
                 <Menu.Item
                     ref={ref}
@@ -46,6 +60,18 @@ const LargeMenuItem: ReturnType<
                                 {title}
                             </Text>
                             {isBeta && <BetaBadge />}
+                            {isExperimental && (
+                                <Tooltip label="This feature is experimental. It may change or be removed.">
+                                    <Badge
+                                        color="red"
+                                        size="xs"
+                                        radius="sm"
+                                        fz="xs"
+                                    >
+                                        Experimental
+                                    </Badge>
+                                </Tooltip>
+                            )}
                         </Group>
                         <Text c="ldDark.8" fz="xs">
                             {description}
