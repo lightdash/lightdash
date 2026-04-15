@@ -20,9 +20,31 @@ const mockMetric: Metric = {
 };
 
 describe('generateTableCalculationTemplate', () => {
-    // Regression guard for LIGHTDASH-FRONTEND-1FS: the old getSqlForQuickCalculation
-    // would crash with TypeError reading 'value' on undefined items. The function was
-    // replaced by this template-based approach which never accesses raw result values.
+    // Regression guard for LIGHTDASH-FRONTEND-1FS (Sentry LIGHTDASH-FRONTEND-1FS).
+    //
+    // The original crash site was `getSqlForQuickCalculation` in QuickCalculations.tsx,
+    // which had this signature (deleted in commit 095bd7a600, PR #17099, Oct 3 2025):
+    //
+    //   const getSqlForQuickCalculation = (
+    //       quickCalculation: QuickCalculation,
+    //       fieldReference: string,
+    //       sorts: SortField[],
+    //       warehouseType: WarehouseTypes | undefined,  // ← could be undefined
+    //   ) => { ... getFieldQuoteChar(warehouseType) ... }
+    //
+    // When `project?.warehouseConnection?.type` was undefined (project not yet loaded),
+    // `getFieldQuoteChar(undefined)` accessed `.value` on an undefined lookup result,
+    // producing: TypeError: Cannot read properties of undefined (reading 'value')
+    //
+    // The fix replaced the function with `generateTableCalculationTemplate`, which
+    // produces a declarative template object instead of raw SQL. The backend compiles
+    // the template to SQL at query time and never reads raw result `.value` properties
+    // in the frontend render path.
+    //
+    // The second Sentry frame (Table.styles.ts:333) was a source-map artifact: the
+    // `.ts` file was 322 lines when deleted in PR #18365 (dark mode), line 333 was
+    // past EOF, and the file never contained .value access. The Array.map/forEach
+    // frames in the stack trace are styled-components CSS template evaluation internals.
     it('returns PERCENT_CHANGE_FROM_PREVIOUS template without accessing result values', () => {
         const result = generateTableCalculationTemplate(
             {
