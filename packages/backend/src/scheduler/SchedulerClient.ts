@@ -1557,18 +1557,23 @@ export class SchedulerClient {
 
     // --- Managed Agent Heartbeat (self-scheduling) ---
 
-    private static readonly MANAGED_AGENT_JOB_KEY = 'managed-agent-heartbeat';
-
     /**
-     * Schedule the next managed agent heartbeat at the given cron interval from now.
-     * Uses a stable jobKey so duplicate calls replace the existing pending job.
+     * Schedule the next managed agent heartbeat for a specific project.
+     * Uses a per-project jobKey so each project has its own schedule.
      */
-    async scheduleManagedAgentHeartbeat(cronPattern: string): Promise<void> {
+    async scheduleManagedAgentHeartbeat(
+        cronPattern: string,
+        projectUuid?: string,
+    ): Promise<void> {
         const graphileClient = await this.graphileUtils;
 
         const arr = stringToArray(cronPattern);
         const schedule = getSchedule(arr, new Date(), 'UTC');
         const nextRun = schedule.next().toJSDate();
+
+        const jobKey = projectUuid
+            ? `managed-agent-heartbeat:${projectUuid}`
+            : 'managed-agent-heartbeat';
 
         await graphileClient.addJob(
             SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,
@@ -1577,27 +1582,38 @@ export class SchedulerClient {
                 runAt: nextRun,
                 maxAttempts: 1,
                 priority: JobPriority.LOW,
-                jobKey: SchedulerClient.MANAGED_AGENT_JOB_KEY,
+                jobKey,
             },
         );
 
         Logger.info(
-            `Scheduled managed agent heartbeat at ${nextRun.toISOString()}`,
+            `Scheduled managed agent heartbeat for ${projectUuid ?? 'default'} at ${nextRun.toISOString()}`,
         );
     }
 
     /**
-     * Cancel any pending managed agent heartbeat job.
+     * Cancel pending managed agent heartbeat job(s).
+     * If projectUuid is provided, cancels only that project's job.
+     * Otherwise cancels all managed agent heartbeat jobs.
      */
-    async cancelManagedAgentHeartbeat(): Promise<void> {
+    async cancelManagedAgentHeartbeat(projectUuid?: string): Promise<void> {
         const graphileClient = await this.graphileUtils;
         await graphileClient.withPgClient(async (pgClient) => {
-            await pgClient.query(
-                `DELETE FROM graphile_worker.jobs
-                 WHERE key = $1 AND locked_by IS NULL`,
-                [SchedulerClient.MANAGED_AGENT_JOB_KEY],
-            );
+            if (projectUuid) {
+                await pgClient.query(
+                    `DELETE FROM graphile_worker.jobs
+                     WHERE key = $1 AND locked_by IS NULL`,
+                    [`managed-agent-heartbeat:${projectUuid}`],
+                );
+            } else {
+                await pgClient.query(
+                    `DELETE FROM graphile_worker.jobs
+                     WHERE key LIKE 'managed-agent-heartbeat%' AND locked_by IS NULL`,
+                );
+            }
         });
-        Logger.info('Cancelled pending managed agent heartbeat job');
+        Logger.info(
+            `Cancelled pending managed agent heartbeat job${projectUuid ? ` for ${projectUuid}` : 's'}`,
+        );
     }
 }

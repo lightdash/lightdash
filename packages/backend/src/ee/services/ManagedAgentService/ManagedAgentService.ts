@@ -287,10 +287,13 @@ export class ManagedAgentService extends BaseService {
             const schedule =
                 settings.scheduleCron ??
                 this.lightdashConfig.managedAgent.schedule;
-            await this.schedulerClient.scheduleManagedAgentHeartbeat(schedule);
+            await this.schedulerClient.scheduleManagedAgentHeartbeat(
+                schedule,
+                projectUuid,
+            );
         } else if (update.enabled === false) {
-            // Cancel pending heartbeat when disabling
-            await this.schedulerClient.cancelManagedAgentHeartbeat();
+            // Cancel pending heartbeat for this specific project
+            await this.schedulerClient.cancelManagedAgentHeartbeat(projectUuid);
         }
 
         return settings;
