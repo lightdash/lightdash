@@ -1,3 +1,10 @@
+## [0.2759.4](https://github.com/lightdash/lightdash/compare/0.2759.3...0.2759.4) (2026-04-15)
+
+
+### Bug Fixes
+
+* **ee:** rename to Autopilot with "Your project health agent" subtitle ([#22032](https://github.com/lightdash/lightdash/issues/22032)) ([1cddd7b](https://github.com/lightdash/lightdash/commit/1cddd7bcfa66ef546b918d8df7c310b4345dcf3b))
+
 ## [0.2759.3](https://github.com/lightdash/lightdash/compare/0.2759.2...0.2759.3) (2026-04-15)
 
 
