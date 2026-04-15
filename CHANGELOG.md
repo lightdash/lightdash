@@ -1,3 +1,10 @@
+## [0.2761.3](https://github.com/lightdash/lightdash/compare/0.2761.2...0.2761.3) (2026-04-15)
+
+
+### Bug Fixes
+
+* validate table and filters.and in getFieldValuesMetricQuery to return 400 instead of 500 ([#22055](https://github.com/lightdash/lightdash/issues/22055)) ([66c969e](https://github.com/lightdash/lightdash/commit/66c969e4735d6e80e7d12c880f61dc070aae5fec))
+
 ## [0.2761.2](https://github.com/lightdash/lightdash/compare/0.2761.1...0.2761.2) (2026-04-15)
 
 
