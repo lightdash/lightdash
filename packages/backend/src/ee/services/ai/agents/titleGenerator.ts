@@ -16,6 +16,36 @@ const TitleSchema = z.object({
 
 export type GeneratedTitle = z.infer<typeof TitleSchema>;
 
+/**
+ * Extracts a fallback title from the conversation messages when AI title
+ * generation fails. Uses the first user message text, truncated at a word
+ * boundary if it exceeds the max length. Falls back to "New conversation"
+ * if no user message with string content is found.
+ */
+export function getFallbackTitle(messages: ModelMessage[]): string {
+    const firstUserMessage = messages.find((m) => m.role === 'user');
+
+    if (!firstUserMessage || typeof firstUserMessage.content !== 'string') {
+        return 'New conversation';
+    }
+
+    const content = firstUserMessage.content.trim();
+    if (!content) {
+        return 'New conversation';
+    }
+
+    if (content.length <= TITLE_MAX_LENGTH_CHARS) {
+        return content;
+    }
+
+    // Truncate at the last word boundary before TITLE_MAX_LENGTH_CHARS - 3 chars
+    // (reserve space for "...")
+    const truncated = content.slice(0, TITLE_MAX_LENGTH_CHARS - 3);
+    const lastSpace = truncated.lastIndexOf(' ');
+    const cutPoint = lastSpace > 0 ? lastSpace : TITLE_MAX_LENGTH_CHARS - 3;
+    return `${content.slice(0, cutPoint)}...`;
+}
+
 export async function generateThreadTitle(
     modelOptions: GeneratorModelOptions,
     messages: ModelMessage[],

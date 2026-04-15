@@ -125,7 +125,10 @@ import {
 import { generateEmbedding } from '../ai/agents/embeddingGenerator';
 import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
 import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
-import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
+import {
+    generateThreadTitle as generateTitleFromMessages,
+    getFallbackTitle,
+} from '../ai/agents/titleGenerator';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
@@ -1375,38 +1378,49 @@ export class AiAgentService {
             threadUuid: string;
         },
     ): Promise<string> {
+        // Auth/not-found errors from prepareAgentThreadResponse (ForbiddenError,
+        // NotFoundError) propagate directly with the correct HTTP status codes.
+        // Only the AI model call is wrapped in try/catch below.
+        const { chatHistoryMessages } = await this.prepareAgentThreadResponse(
+            user,
+            {
+                agentUuid,
+                threadUuid,
+                retrieveRelevantArtifacts: false,
+            },
+        );
+
+        // Use fast model for title generation (lightweight task)
+        const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: false,
+            useFastModel: true,
+        });
+
+        let title: string;
         try {
-            // Reuse existing validation and data fetching logic
-            const { chatHistoryMessages } =
-                await this.prepareAgentThreadResponse(user, {
-                    agentUuid,
-                    threadUuid,
-                    retrieveRelevantArtifacts: false,
-                });
-
-            // Use fast model for title generation (lightweight task)
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
-                enableReasoning: false,
-                useFastModel: true,
-            });
-
             // Generate title using the dedicated title generator
-            const title = await generateTitleFromMessages(
+            title = await generateTitleFromMessages(
                 modelOptions,
                 chatHistoryMessages,
             );
-
-            // Save the title to the database
-            await this.aiAgentModel.updateThreadTitle({
-                threadUuid,
-                title,
-            });
-
-            return title;
         } catch (e) {
-            Logger.error('Failed to generate thread title:', e);
-            throw new Error('Failed to generate thread title');
+            // AI call failed (API error, rate limit, Zod validation, etc.).
+            // Fall back to extracting a title from the first user message so
+            // the thread always gets a title and no 500 is surfaced to Sentry.
+            Logger.warn(
+                'Failed to generate AI thread title, using fallback:',
+                e,
+            );
+            title = getFallbackTitle(chatHistoryMessages);
         }
+
+        // Save the title to the database
+        await this.aiAgentModel.updateThreadTitle({
+            threadUuid,
+            title,
+        });
+
+        return title;
     }
 
     async evaluateReadiness(
