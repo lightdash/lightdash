@@ -1,4 +1,5 @@
 import {
+    Badge,
     Card,
     createPolymorphicComponent,
     Group,
@@ -9,7 +10,6 @@ import {
 } from '@mantine-8/core';
 import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { forwardRef, type ReactNode } from 'react';
-import { BetaBadge } from './BetaBadge';
 import MantineIcon, { type MantineIconProps } from './MantineIcon';
 
 interface LargeMenuItemProps extends Omit<MenuItemProps, 'leftSection'> {
@@ -17,14 +17,17 @@ interface LargeMenuItemProps extends Omit<MenuItemProps, 'leftSection'> {
     iconProps?: Omit<MantineIconProps, 'icon'>;
     title: string;
     description: string | ReactNode;
-    isBeta?: boolean;
+    isExperimental?: boolean;
 }
 
 const LargeMenuItem: ReturnType<
     typeof createPolymorphicComponent<'button', LargeMenuItemProps>
 > = createPolymorphicComponent<'button', LargeMenuItemProps>(
     forwardRef<HTMLButtonElement, LargeMenuItemProps>(
-        ({ icon, title, description, iconProps, isBeta, ...rest }, ref) => {
+        (
+            { icon, title, description, iconProps, isExperimental, ...rest },
+            ref,
+        ) => {
             return (
                 <Menu.Item
                     ref={ref}
@@ -45,7 +48,16 @@ const LargeMenuItem: ReturnType<
                             <Text c="white" fw={600} fz="sm">
                                 {title}
                             </Text>
-                            {isBeta && <BetaBadge />}
+                            {isExperimental && (
+                                <Badge
+                                    color="red"
+                                    size="xs"
+                                    radius="sm"
+                                    fz="xs"
+                                >
+                                    Experimental
+                                </Badge>
+                            )}
                         </Group>
                         <Text c="ldDark.8" fz="xs">
                             {description}
