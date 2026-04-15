@@ -442,6 +442,13 @@ export default class DbtSchemaEditor {
              */
             singleQuote:
                 options?.quoteChar && options.quoteChar === `'` ? true : null,
+            /**
+             * Disable line wrapping entirely (yaml v2 defaults to lineWidth: 80).
+             * Without this, any plain scalar string exceeding 80 characters gets
+             * re-wrapped with line breaks, reformatting existing descriptions even
+             * when the CLI is only supposed to add missing columns.
+             */
+            lineWidth: 0,
         });
     }
 
