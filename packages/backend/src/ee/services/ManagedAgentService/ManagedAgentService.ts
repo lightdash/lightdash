@@ -269,7 +269,7 @@ export class ManagedAgentService extends BaseService {
                     user,
                     data: {
                         organizationUuid,
-                        description: `Dash — project health agent (${projectUuid})`,
+                        description: `Autopilot (${projectUuid})`,
                         expiresAt: null,
                         scopes: [ServiceAccountScope.ORG_ADMIN],
                     },
@@ -483,69 +483,67 @@ export class ManagedAgentService extends BaseService {
                 );
 
             // Convert agent's markdown summary to Slack mrkdwn
-            const slackSummary = agentSummary
-                ? agentSummary
-                      .replace(/^#{1,3}\s+(.+)$/gm, '*$1*') // ### Header → *Header*
-                      .replace(/\*{2}([^*]+)\*{2}/g, '*$1*') // **bold** → *bold*
-                      .replace(/\|---[|\-\s]*\|/g, '') // Remove table separator rows
-                      .slice(0, 2800) // Stay under Slack's 3000 char section limit
-                : '';
-
-            const blocks: KnownBlock[] = [
+            // Main message: compact summary with CTA
+            const mainBlocks: KnownBlock[] = [
                 {
-                    type: 'header',
-                    text: {
-                        type: 'plain_text',
-                        text: ':zap: Dash completed a health check',
-                        emoji: true,
-                    },
-                },
-            ];
-
-            if (summaryParts.length > 0) {
-                blocks.push({
                     type: 'section',
                     text: {
                         type: 'mrkdwn',
-                        text: summaryParts.join('  ·  '),
+                        text: `:zap: *Autopilot completed a health check*\n${summaryParts.length > 0 ? summaryParts.join('  ·  ') : '_No actions this run_'}`,
                     },
-                });
-            }
-
-            if (slackSummary) {
-                blocks.push(
-                    { type: 'divider' },
-                    {
-                        type: 'section',
-                        text: {
-                            type: 'mrkdwn',
-                            text: slackSummary,
-                        },
-                    },
-                );
-            }
-
-            blocks.push({
-                type: 'actions',
-                elements: [
-                    {
+                    accessory: {
                         type: 'button',
                         text: {
                             type: 'plain_text',
-                            text: 'View activity feed',
+                            text: 'View activity',
                             emoji: true,
                         },
                         url: activityUrl,
                     },
-                ],
-            });
+                },
+            ];
 
-            await this.slackClient.postMessage({
+            const mainMessage = await this.slackClient.postMessage({
                 organizationUuid,
                 channel: slackChannelId,
-                text: `Dash: ${summaryParts.join(', ')}`,
-                blocks,
+                text: `Autopilot: ${summaryParts.join(', ') || 'health check complete'}`,
+                blocks: mainBlocks,
             });
+
+            // Thread reply: full detailed report
+            if (agentSummary && mainMessage?.ts) {
+                const slackSummary = agentSummary
+                    .replace(/^#{1,3}\s+(.+)$/gm, '*$1*')
+                    .replace(/\*{2}([^*]+)\*{2}/g, '*$1*')
+                    .replace(/\|---[|\-\s]*\|/g, '');
+
+                // Split into chunks of 2800 chars to stay under Slack's 3000 limit
+                const chunks: string[] = [];
+                let remaining = slackSummary;
+                while (remaining.length > 0) {
+                    chunks.push(remaining.slice(0, 2800));
+                    remaining = remaining.slice(2800);
+                }
+
+                for (const chunk of chunks) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.slackClient.postMessage({
+                        organizationUuid,
+                        channel: slackChannelId,
+                        thread_ts: mainMessage.ts,
+                        text: chunk,
+                        blocks: [
+                            {
+                                type: 'section',
+                                text: {
+                                    type: 'mrkdwn',
+                                    text: chunk,
+                                },
+                            },
+                        ],
+                    });
+                }
+            }
 
             this.logger.info(
                 `Posted heartbeat summary to Slack channel ${slackChannelId}`,

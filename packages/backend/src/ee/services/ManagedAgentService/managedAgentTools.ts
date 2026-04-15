@@ -54,7 +54,7 @@ When creating, use create_content_from_code:
 4. Use find_content (MCP) to check if a chart already exists for the topic
 5. Call run_metric_query to validate the data before creating
 6. Prefix slugs with "agent-" to identify agent-created content
-7. Place all charts in the "Dash Suggestions" space for admin review
+7. Place all charts in the "Agent Suggestions" space for admin review
 
 CRITICAL: chartConfig.type must be "cartesian" (for line/bar/area), "table", "big_number", or "pie". Do NOT use "line" or "bar" as the type.
 
