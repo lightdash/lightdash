@@ -115,10 +115,23 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 lightdashConfig.siteUrl,
             ).href;
 
+            // Guard against expired/lost session: if the OAuth state is missing,
+            // the openid-client library will throw TypeError when Okta's redirect
+            // includes a state parameter. Fail gracefully instead of returning a 500.
+            if (!req.session.oauth?.state) {
+                return this.fail(
+                    {
+                        message:
+                            'Your login session has expired. Please try logging in again.',
+                    },
+                    401,
+                );
+            }
+
             const params = client.callbackParams(req);
             const tokenSet = await client.callback(redirectUri, params, {
                 code_verifier: req.session.oauth?.codeVerifier,
-                state: req.session.oauth?.state,
+                state: req.session.oauth.state,
             });
 
             const userInfo = tokenSet.access_token
