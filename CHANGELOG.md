@@ -1,3 +1,10 @@
+## [0.2759.2](https://github.com/lightdash/lightdash/compare/0.2759.1...0.2759.2) (2026-04-15)
+
+
+### Bug Fixes
+
+* **ee:** vault credential refresh, guardrails, user questions, self-recovery ([#22028](https://github.com/lightdash/lightdash/issues/22028)) ([d2b9412](https://github.com/lightdash/lightdash/commit/d2b94124f5b5448c1cc739dad3613e1a16be6db4))
+
 ## [0.2759.1](https://github.com/lightdash/lightdash/compare/0.2759.0...0.2759.1) (2026-04-14)
 
 
