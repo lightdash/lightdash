@@ -26,7 +26,7 @@ describe('Space', () => {
         });
 
         cy.contains('New').click();
-        cy.contains('Organize your saved charts and dashboards.').click();
+        cy.contains('Organise your saved charts and dashboards.').click();
         cy.findByText('Restricted access').click();
         cy.findByPlaceholderText('eg. KPIs')
             .click()
