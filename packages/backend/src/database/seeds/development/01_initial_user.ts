@@ -285,13 +285,38 @@ export async function seed(knex: Knex): Promise<void> {
             explores,
         );
 
+        // Seed spotlight categories and parameters from lightdash project config.
+        // This must happen before indexCatalog so that catalog items are correctly
+        // associated with their yaml_reference tags.
+        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
+            projectUuid,
+            organizationUuid,
+            userUuid: user.user_uuid,
+        });
+        await new ProjectParametersModel({
+            database: knex,
+        }).replace(projectUuid, lightdashProjectConfig.parameters ?? {});
+
+        const tagsModel = new TagsModel({ database: knex });
+        await tagsModel.replaceYamlTags(
+            projectUuid,
+            Object.entries(
+                lightdashProjectConfig.spotlight?.categories ?? {},
+            ).map(([yamlReference, category]) => ({
+                project_uuid: projectUuid,
+                name: category.label,
+                color: category.color ?? 'gray',
+                yaml_reference: yamlReference,
+                created_by_user_uuid: user.user_uuid,
+            })),
+        );
+
         // Index catalog after saving explores to cache
         // This is needed for catalog_search table to be populated in PR/preview environments
         const catalogModel = new CatalogModel({
             database: knex,
             lightdashConfig,
         });
-        const tagsModel = new TagsModel({ database: knex });
         const projectYamlTags = await tagsModel.getYamlTags(projectUuid);
         const cachedExploresMap = await projectModel.findExploresFromCache(
             projectUuid,
@@ -304,16 +329,6 @@ export async function seed(knex: Knex): Promise<void> {
             projectYamlTags,
             user.user_uuid,
         );
-
-        // Seed parameters
-        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
-            projectUuid,
-            organizationUuid,
-            userUuid: user.user_uuid,
-        });
-        await new ProjectParametersModel({
-            database: knex,
-        }).replace(projectUuid, lightdashProjectConfig.parameters ?? {});
     } catch (e) {
         console.error(e);
         throw e;
