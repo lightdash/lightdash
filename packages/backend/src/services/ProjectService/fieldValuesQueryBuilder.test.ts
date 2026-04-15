@@ -2,6 +2,7 @@ import {
     FilterOperator,
     NotFoundError,
     ParameterError,
+    type AndFilterGroup,
     type Explore,
 } from '@lightdash/common';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
@@ -176,5 +177,41 @@ describe('getFieldValuesMetricQuery', () => {
                 exploreResolver: mockExploreResolver,
             }),
         ).rejects.toThrow(ParameterError);
+    });
+
+    test('throws ParameterError when table is empty string', async () => {
+        // Regression test: req.body.table missing → undefined at runtime, cast here as empty string hits the same !table guard
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: '',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    test('handles filters with missing .and gracefully (no crash)', async () => {
+        // Regression test: filters truthy but .and is undefined causes TypeError at line 110
+        const result = await getFieldValuesMetricQuery({
+            projectUuid: 'project-uuid',
+            table: 'a',
+            initialFieldId: 'a_dim1',
+            search: '',
+            limit: 10,
+            maxLimit: 5000,
+            // Cast to bypass TS: simulates a malformed runtime payload where .and is absent
+            filters: { id: 'filter-group' } as unknown as AndFilterGroup,
+            exploreResolver: mockExploreResolver,
+        });
+
+        // Malformed filters should be silently skipped; only the 2 autocomplete filters remain
+        const dims = result.metricQuery.filters?.dimensions;
+        const filterRules = dims && 'and' in dims ? dims.and : [];
+        expect(filterRules).toHaveLength(2);
     });
 });
