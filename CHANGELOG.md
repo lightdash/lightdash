@@ -1,3 +1,10 @@
+# [0.2761.0](https://github.com/lightdash/lightdash/compare/0.2760.0...0.2761.0) (2026-04-15)
+
+
+### Features
+
+* **ee:** add slow query detection to project health agent ([#22037](https://github.com/lightdash/lightdash/issues/22037)) ([9da5e40](https://github.com/lightdash/lightdash/commit/9da5e40f7731ea3674d02162f48a09946b82ab9c))
+
 # [0.2760.0](https://github.com/lightdash/lightdash/compare/0.2759.4...0.2760.0) (2026-04-15)
 
 
