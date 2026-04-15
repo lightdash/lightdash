@@ -442,6 +442,13 @@ export default class DbtSchemaEditor {
              */
             singleQuote:
                 options?.quoteChar && options.quoteChar === `'` ? true : null,
+            /**
+             * Disable line-folding. The yaml library defaults to lineWidth:80,
+             * which inserts line breaks into plain scalars exceeding 80 chars.
+             * Setting lineWidth:0 preserves existing strings as-is, so the CLI
+             * does not reformat content it did not write.
+             */
+            lineWidth: 0,
         });
     }
 
