@@ -177,4 +177,57 @@ describe('getFieldValuesMetricQuery', () => {
             }),
         ).rejects.toThrow(ParameterError);
     });
+
+    test('throws ParameterError when table is undefined', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: undefined as unknown as string,
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            mockExploreResolver.findExploreByTableName,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('throws ParameterError when table is empty string', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: '',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            mockExploreResolver.findExploreByTableName,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('throws ParameterError when filters is truthy but missing .and', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: 10,
+                maxLimit: 5000,
+                filters: {
+                    id: 'some-id',
+                } as unknown as import('@lightdash/common').AndFilterGroup,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
 });
