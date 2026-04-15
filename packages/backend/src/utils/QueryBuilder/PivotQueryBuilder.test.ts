@@ -1218,6 +1218,99 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
+
+        test('Metric sort without index columns should use precomputed column_ranking CTE (not inline DENSE_RANK)', () => {
+            // Repro for: pivot tables with metric-based sorting and no row dimensions fail on
+            // Databricks because the inline DENSE_RANK path references column anchor CTEs that
+            // Databricks can't resolve due to CTE inlining.
+            const pivotConfiguration = {
+                indexColumn: [],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'event_id',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Should generate column_ranking CTE (precomputed, Databricks-safe)
+            expect(result).toContain('column_ranking AS (');
+
+            // Should NOT generate row_ranking or anchor_column CTEs
+            // (no index columns means no row dimensions to rank)
+            expect(result).not.toContain('row_ranking AS (');
+            expect(result).not.toContain('anchor_column AS (');
+
+            // pivot_query should use constant 1 for row_index (no index columns)
+            expect(result).toContain('1 AS "row_index"');
+
+            // pivot_query should join column_ranking for column_index
+            expect(replaceWhitespace(result)).toContain(
+                'LEFT JOIN column_ranking cr ON g."event_type" = cr."event_type"',
+            );
+
+            // pivot_query should NOT contain inline DENSE_RANK (rankings are precomputed)
+            const pivotQueryMatch = result.match(
+                /pivot_query AS \(([\s\S]*?)\)\s*,/,
+            );
+            expect(pivotQueryMatch?.[1]).not.toContain('DENSE_RANK');
+        });
+
+        test('Metric sort without index columns (undefined) should use precomputed column_ranking CTE', () => {
+            // Same as above but with indexColumn: undefined (both normalize to [])
+            const pivotConfiguration = {
+                indexColumn: undefined,
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'event_id',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Should generate column_ranking CTE (precomputed, Databricks-safe)
+            expect(result).toContain('column_ranking AS (');
+
+            // Should NOT generate row_ranking or anchor_column CTEs
+            expect(result).not.toContain('row_ranking AS (');
+            expect(result).not.toContain('anchor_column AS (');
+
+            // pivot_query should use constant 1 for row_index
+            expect(result).toContain('1 AS "row_index"');
+
+            // pivot_query should join column_ranking for column_index
+            expect(replaceWhitespace(result)).toContain(
+                'LEFT JOIN column_ranking cr ON g."event_type" = cr."event_type"',
+            );
+        });
     });
 
     describe('Warehouse type compatibility', () => {
