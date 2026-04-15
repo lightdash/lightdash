@@ -118,45 +118,51 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
                 Logger.info('Starting managed agent heartbeat');
 
-                try {
-                    const enabledProjects =
-                        await this.managedAgentService.getEnabledProjects();
+                const enabledProjects =
+                    await this.managedAgentService.getEnabledProjects();
 
-                    if (enabledProjects.length === 0) {
-                        Logger.debug('No projects with managed agent enabled');
-                        return;
-                    }
+                if (enabledProjects.length === 0) {
+                    Logger.debug('No projects with managed agent enabled');
+                    return;
+                }
 
-                    // v1: single project support
-                    const project = enabledProjects[0];
-                    await this.managedAgentService.runHeartbeat(
-                        project.projectUuid,
-                    );
-
-                    Logger.info('Managed agent heartbeat completed');
-                } catch (error) {
-                    Logger.error(
-                        'Error during managed agent heartbeat:',
-                        error,
-                    );
-                    throw error;
-                } finally {
-                    // Self-schedule the next heartbeat if any projects are still enabled.
-                    // This replaces the static cron — disabling all projects stops the loop.
-                    const stillEnabled =
-                        await this.managedAgentService.getEnabledProjects();
-                    if (
-                        stillEnabled.length > 0 &&
-                        this.lightdashConfig.managedAgent.enabled
-                    ) {
+                // Run each project's heartbeat independently.
+                // Errors in one project don't block others.
+                for (const project of enabledProjects) {
+                    try {
+                        Logger.info(
+                            `Running heartbeat for project ${project.projectUuid}`,
+                        );
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.managedAgentService.runHeartbeat(
+                            project.projectUuid,
+                        );
+                        Logger.info(
+                            `Heartbeat completed for project ${project.projectUuid}`,
+                        );
+                    } catch (error) {
+                        Logger.error(
+                            `Error during heartbeat for project ${project.projectUuid}:`,
+                            error,
+                        );
+                        // Continue to next project
+                    } finally {
+                        // Self-schedule the next heartbeat for THIS project
+                        // using its own cron pattern and a per-project job key.
                         const schedule =
-                            stillEnabled[0].scheduleCron ??
+                            project.scheduleCron ??
                             this.lightdashConfig.managedAgent.schedule;
+                        // eslint-disable-next-line no-await-in-loop
                         await this.schedulerClient.scheduleManagedAgentHeartbeat(
                             schedule,
+                            project.projectUuid,
                         );
                     }
                 }
+
+                Logger.info(
+                    `Managed agent heartbeat completed for ${enabledProjects.length} project(s)`,
+                );
             },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,
