@@ -1,3 +1,10 @@
+## [0.2761.2](https://github.com/lightdash/lightdash/compare/0.2761.1...0.2761.2) (2026-04-15)
+
+
+### Bug Fixes
+
+* ClickHouse start-of-week off-by-one in Date Zoom week truncation ([#22057](https://github.com/lightdash/lightdash/issues/22057)) ([00a13e2](https://github.com/lightdash/lightdash/commit/00a13e28574cd2613c9802123ea45afbbdc7a680))
+
 ## [0.2761.1](https://github.com/lightdash/lightdash/compare/0.2761.0...0.2761.1) (2026-04-15)
 
 
