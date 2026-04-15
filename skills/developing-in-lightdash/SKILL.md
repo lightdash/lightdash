@@ -131,6 +131,26 @@ To target a specific project:
 lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --project <uuid> --assume-yes
 ```
 
+## YAML Schema Validation
+
+JSON schemas are included in `./resources/schemas/` for validating Lightdash YAML files. Reference these when writing or reviewing YAML to catch structural errors before deploying.
+
+| Schema | Validates | File Patterns |
+|--------|-----------|---------------|
+| [model-as-code-1.0.json](./resources/schemas/model-as-code-1.0.json) | Pure Lightdash model definitions (dimensions, metrics, joins) | `lightdash/models/*.yml` |
+| [chart-as-code-1.0.json](./resources/schemas/chart-as-code-1.0.json) | Chart YAML (all chart types, metric queries, filters) | `lightdash/**/charts/*.yml` |
+| [dashboard-as-code-1.0.json](./resources/schemas/dashboard-as-code-1.0.json) | Dashboard YAML (tiles, tabs, filters, layout) | `lightdash/**/dashboards/*.yml` |
+
+**How to use:**
+1. When writing or editing Lightdash YAML, read the relevant schema to verify property names, types, required fields, and allowed values
+2. For large schemas (especially `chart-as-code-1.0.json` at ~120KB), read only the specific `$defs` subsection you need rather than the entire file (e.g. `$defs/cartesianChart` for bar/line charts)
+3. Always run `lightdash lint` after changes to catch errors early
+
+**Schema URLs** (for external tools like VS Code YAML extension):
+- Model: `https://raw.githubusercontent.com/lightdash/lightdash/refs/heads/main/packages/common/src/schemas/json/model-as-code-1.0.json`
+- Chart: `https://raw.githubusercontent.com/lightdash/lightdash/refs/heads/main/packages/common/src/schemas/json/chart-as-code-1.0.json`
+- Dashboard: `https://raw.githubusercontent.com/lightdash/lightdash/refs/heads/main/packages/common/src/schemas/json/dashboard-as-code-1.0.json`
+
 ## Core Workflows
 
 ### Verify Filter Values Before Using Them
