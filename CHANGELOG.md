@@ -1,3 +1,10 @@
+## [0.2759.3](https://github.com/lightdash/lightdash/compare/0.2759.2...0.2759.3) (2026-04-15)
+
+
+### Bug Fixes
+
+* **ee:** reverse_own_action used string 'agent' instead of UUID ([#22031](https://github.com/lightdash/lightdash/issues/22031)) ([d1776d8](https://github.com/lightdash/lightdash/commit/d1776d86deab72b41ce33a73b7a019639310ab08))
+
 ## [0.2759.2](https://github.com/lightdash/lightdash/compare/0.2759.1...0.2759.2) (2026-04-15)
 
 
