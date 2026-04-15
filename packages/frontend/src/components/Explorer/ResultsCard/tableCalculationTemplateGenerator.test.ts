@@ -45,6 +45,11 @@ describe('generateTableCalculationTemplate', () => {
     // `.ts` file was 322 lines when deleted in PR #18365 (dark mode), line 333 was
     // past EOF, and the file never contained .value access. The Array.map/forEach
     // frames in the stack trace are styled-components CSS template evaluation internals.
+    //
+    // Runtime verification (2026-04-15): POST /api/v1/saved/{uuid}/version with a
+    // percent_change_from_previous template returned HTTP 200 and persisted the template
+    // object, with no TypeErrors in the backend log.
+    // Log: https://storage.googleapis.com/jarvis-hackathon-assets/repro-fix/quick-calc-undefined-value/after-logs.txt
     it('returns PERCENT_CHANGE_FROM_PREVIOUS template without accessing result values', () => {
         const result = generateTableCalculationTemplate(
             {
