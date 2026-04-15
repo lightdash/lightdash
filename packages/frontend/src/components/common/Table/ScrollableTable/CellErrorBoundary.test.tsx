@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import CellErrorBoundary from './CellErrorBoundary';
@@ -22,6 +23,33 @@ afterEach(() => {
 const ThrowingChild = ({ error }: { error: Error }) => {
     throw error;
 };
+
+// Simulates the page-level ErrorBoundary in Page.tsx — the outer boundary
+// that would catch unhandled errors from any descendant component.
+class PageLevelBoundary extends Component<
+    { children: ReactNode; onCatch?: (e: Error) => void },
+    { hasError: boolean }
+> {
+    constructor(props: { children: ReactNode; onCatch?: (e: Error) => void }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(): { hasError: boolean } {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, _info: ErrorInfo): void {
+        this.props.onCatch?.(error);
+    }
+
+    render(): ReactNode {
+        if (this.state.hasError) {
+            return <div>page crashed</div>;
+        }
+        return this.props.children;
+    }
+}
 
 describe('CellErrorBoundary', () => {
     it('renders children normally when no error is thrown', () => {
@@ -78,6 +106,63 @@ describe('CellErrorBoundary', () => {
             </CellErrorBoundary>,
         );
 
+        expect(screen.getByText('-')).toBeInTheDocument();
+    });
+});
+
+describe('CellErrorBoundary — error propagation path', () => {
+    const domException = new DOMException(
+        'The object can not be found here.',
+        'NotFoundError',
+    );
+
+    it('[BEFORE FIX] without CellErrorBoundary, a DOMException propagates to the page-level boundary and crashes the page', () => {
+        // This simulates the pre-fix BodyCell render: children were wrapped in
+        // a plain <span> with no cell-level error boundary. The DOMException
+        // thrown by browser translation extensions would escape all the way to
+        // the page-level ErrorBoundary, showing a blank/error page.
+        const caught: Error[] = [];
+
+        renderWithProviders(
+            // Outer boundary = page-level ErrorBoundary in Page.tsx
+            <PageLevelBoundary onCatch={(e) => caught.push(e)}>
+                {/* Pre-fix BodyCell structure: no CellErrorBoundary */}
+                <span>
+                    <ThrowingChild error={domException} />
+                </span>
+            </PageLevelBoundary>,
+        );
+
+        // The outer boundary DOES catch it → page crashes
+        expect(caught).toHaveLength(1);
+        expect(caught[0].message).toBe('The object can not be found here.');
+        expect(screen.getByText('page crashed')).toBeInTheDocument();
+    });
+
+    it('[AFTER FIX] with CellErrorBoundary, the same DOMException is caught at cell level — the page-level boundary is never triggered', () => {
+        // This simulates the fixed BodyCell render: children are now wrapped
+        // in CellErrorBoundary before being placed in the <span>. The
+        // DOMException is caught at cell level; the outer (page-level) boundary
+        // never sees it.
+        const caught: Error[] = [];
+
+        renderWithProviders(
+            // Outer boundary = page-level ErrorBoundary in Page.tsx
+            <PageLevelBoundary onCatch={(e) => caught.push(e)}>
+                {/* Fixed BodyCell structure: CellErrorBoundary wraps the children */}
+                <CellErrorBoundary>
+                    <span>
+                        <ThrowingChild error={domException} />
+                    </span>
+                </CellErrorBoundary>
+            </PageLevelBoundary>,
+        );
+
+        // The outer boundary was NOT triggered → page does not crash
+        expect(caught).toHaveLength(0);
+        expect(screen.queryByText('page crashed')).not.toBeInTheDocument();
+
+        // The cell shows its graceful '-' fallback instead
         expect(screen.getByText('-')).toBeInTheDocument();
     });
 });
