@@ -1316,9 +1316,12 @@ chartConfig:
                 break;
         }
 
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+
         const reversed = await this.managedAgentModel.reverseAction(
             actionUuid,
-            'agent', // reversed by the agent itself
+            actorUuid,
         );
 
         this.logger.info(`Agent reversed action ${actionUuid}: ${reason}`);
