@@ -37,6 +37,23 @@ describe('DbtSchemaEditor', () => {
         );
     });
 
+    it('should preserve long descriptions without adding line breaks', () => {
+        const longDescription =
+            'This is a very long description that exceeds eighty characters and should not be reformatted by the YAML serializer when round-tripping through DbtSchemaEditor';
+        const schema = `version: 2
+models:
+  - name: my_model
+    description: ${longDescription}
+    columns:
+      - name: my_column
+        description: short desc
+`;
+        const editor = new DbtSchemaEditor(schema);
+        const result = editor.toString();
+        expect(result).toEqual(schema);
+        expect(result).toContain(`description: ${longDescription}`);
+    });
+
     it('should update a model with custom metrics and custom dimensions', () => {
         const editor = new DbtSchemaEditor(SCHEMA_YML);
         // confirms it has models
