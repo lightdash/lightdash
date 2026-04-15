@@ -13,10 +13,10 @@ export const enhanceExploresForPreAggregates = ({
     explores: (Explore | ExploreError)[];
     enabled: boolean;
 }): (Explore | ExploreError)[] => {
-    if (!enabled) {
-        return explores;
-    }
-
+    // Always run validation (generatePreAggregateExplores) so that warnings
+    // for unsupported metric types are attached to the source explore even when
+    // pre-aggregates are disabled (e.g. in preview projects). Virtual pre-aggregate
+    // explores are only emitted when enabled=true.
     const existingExploreNames = new Set<string>(
         explores
             .filter((explore): explore is Explore => !isExploreError(explore))
@@ -42,6 +42,12 @@ export const enhanceExploresForPreAggregates = ({
             generatedExplores.find(
                 (generatedExplore) => generatedExplore.name === explore.name,
             ) ?? explore;
+
+        // When pre-aggregates are disabled, return only the source explore
+        // with any validation warnings attached — skip virtual explore generation.
+        if (!enabled) {
+            return [enhancedSourceExplore];
+        }
 
         const generatedPreAggregateExplores = generatedExplores.filter(
             (generatedExplore) => generatedExplore.name !== explore.name,
