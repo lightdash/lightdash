@@ -5,6 +5,7 @@ import {
     Loader,
     Menu,
     Popover,
+    Select,
     Stack,
     Switch,
     Table,
@@ -112,11 +113,22 @@ const SetupSection: FC<{
     };
 
     const [slackPopoverOpen, setSlackPopoverOpen] = useState(false);
+    const [schedulePopoverOpen, setSchedulePopoverOpen] = useState(false);
 
     const handleSlackChannelChange = useCallback(
         (channelId: string | null) => {
             mutation.mutate({ slackChannelId: channelId });
             setSlackPopoverOpen(false);
+        },
+        [mutation],
+    );
+
+    const handleScheduleChange = useCallback(
+        (value: string | null) => {
+            if (value) {
+                mutation.mutate({ scheduleCron: value });
+                setSchedulePopoverOpen(false);
+            }
         },
         [mutation],
     );
@@ -142,10 +154,38 @@ const SetupSection: FC<{
                             Autopilot
                         </Title>
                         {enabled && (
-                            <Box className={classes.activeBadge}>
-                                <Box className={classes.activeDotInline} />
-                                Active &middot; {scheduleLabel}
-                            </Box>
+                            <Popover
+                                opened={schedulePopoverOpen}
+                                onChange={setSchedulePopoverOpen}
+                                position="bottom-start"
+                                width={220}
+                                shadow="md"
+                            >
+                                <Popover.Target>
+                                    <UnstyledButton
+                                        className={classes.activeBadge}
+                                        onClick={() =>
+                                            setSchedulePopoverOpen((o) => !o)
+                                        }
+                                    >
+                                        <Box
+                                            className={classes.activeDotInline}
+                                        />
+                                        Active &middot; {scheduleLabel}
+                                    </UnstyledButton>
+                                </Popover.Target>
+                                <Popover.Dropdown>
+                                    <Text fz="xs" fw={500} mb="xs">
+                                        Run frequency
+                                    </Text>
+                                    <Select
+                                        data={SCHEDULE_OPTIONS}
+                                        value={initialSchedule}
+                                        onChange={handleScheduleChange}
+                                        size="xs"
+                                    />
+                                </Popover.Dropdown>
+                            </Popover>
                         )}
                     </Group>
                     <Text fz="xs" c="dimmed" ml={46}>
