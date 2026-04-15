@@ -257,4 +257,46 @@ describe('FilterStringAutoComplete', () => {
             });
         });
     });
+
+    describe('non-string value tolerance (LIGHTDASH-FRONTEND-431)', () => {
+        it('renders without throwing when values array contains numbers', () => {
+            // DashboardFilterRule.values is typed as any[], so numbers can reach
+            // the component at runtime. Before the fix this triggered:
+            // TypeError: value.replace is not a function
+            const valuesWithNumbers = [42, 100, 7] as unknown as string[];
+
+            expect(() => {
+                renderWithProviders(
+                    <FilterStringAutoComplete
+                        filterId="test-filter"
+                        field={mockField}
+                        values={valuesWithNumbers}
+                        suggestions={[]}
+                        onChange={vi.fn()}
+                    />,
+                );
+            }).not.toThrow();
+        });
+
+        it('renders without throwing when values array contains null or boolean', () => {
+            const mixedValues = [
+                null,
+                true,
+                'valid',
+                undefined,
+            ] as unknown as string[];
+
+            expect(() => {
+                renderWithProviders(
+                    <FilterStringAutoComplete
+                        filterId="test-filter"
+                        field={mockField}
+                        values={mixedValues}
+                        suggestions={[]}
+                        onChange={vi.fn()}
+                    />,
+                );
+            }).not.toThrow();
+        });
+    });
 });

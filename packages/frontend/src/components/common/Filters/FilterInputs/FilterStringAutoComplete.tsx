@@ -274,7 +274,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         // also we are merging status indicator as a first item
         return uniq([...results, ...values]).map((value) => ({
             value,
-            label: formatDisplayValue(String(value)),
+            label: formatDisplayValue(value),
         }));
     }, [results, values]);
 
