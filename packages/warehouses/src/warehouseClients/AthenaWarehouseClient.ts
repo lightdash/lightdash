@@ -322,6 +322,10 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
                     ResultConfiguration: {
                         OutputLocation: this.credentials.s3StagingDir,
                     },
+                    ResultReuseConfiguration: {
+                        Enabled: true,
+                        MaxAgeInMinutes: 12*60,
+                    },
                     WorkGroup: this.credentials.workGroup,
                 }),
             );
