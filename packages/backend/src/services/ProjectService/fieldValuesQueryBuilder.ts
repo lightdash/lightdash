@@ -55,6 +55,12 @@ export async function getFieldValuesMetricQuery({
         throw new ParameterError(`Query limit can not exceed ${maxLimit}`);
     }
 
+    if (!table) {
+        throw new ParameterError(
+            'Field value search requires a non-empty "table"',
+        );
+    }
+
     let explore = await exploreResolver.findExploreByTableName(
         projectUuid,
         table,
@@ -106,7 +112,7 @@ export async function getFieldValuesMetricQuery({
             values: [],
         },
     ];
-    if (filters) {
+    if (filters?.and) {
         const filtersCompatibleWithExplore = filters.and.filter(
             (filter) =>
                 isFilterRule(filter) &&
