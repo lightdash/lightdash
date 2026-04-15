@@ -1,3 +1,10 @@
+# [0.2760.0](https://github.com/lightdash/lightdash/compare/0.2759.4...0.2760.0) (2026-04-15)
+
+
+### Features
+
+* **ee:** clickable frequency badge to edit agent schedule ([#22038](https://github.com/lightdash/lightdash/issues/22038)) ([6e0040c](https://github.com/lightdash/lightdash/commit/6e0040c591a8620d94c41fb82c186c83eaab3df2))
+
 ## [0.2759.4](https://github.com/lightdash/lightdash/compare/0.2759.3...0.2759.4) (2026-04-15)
 
 
