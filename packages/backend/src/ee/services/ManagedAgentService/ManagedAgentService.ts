@@ -595,6 +595,8 @@ export class ManagedAgentService extends BaseService {
                 return this.handleCreateContent(projectUuid, sessionId, input);
             case 'get_user_questions':
                 return this.handleGetUserQuestions(projectUuid, input);
+            case 'get_slow_queries':
+                return this.handleGetSlowQueries(projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(projectUuid, input);
             default:
@@ -1051,6 +1053,7 @@ chartConfig:
     private static readonly VALID_FLAG_TYPES = new Set<string>([
         ManagedAgentActionType.FLAGGED_STALE,
         ManagedAgentActionType.FLAGGED_BROKEN,
+        ManagedAgentActionType.FLAGGED_SLOW,
     ]);
 
     private async handleFlagContent(
@@ -1256,6 +1259,33 @@ chartConfig:
                 question: q.prompt,
                 asked_by: q.userName,
                 asked_at: q.createdAt,
+            })),
+        );
+    }
+
+    private async handleGetSlowQueries(
+        projectUuid: string,
+        input: Record<string, unknown>,
+    ): Promise<string> {
+        const thresholdMs = (input.threshold_ms as number) ?? 2000;
+        const limit = (input.limit as number) ?? 20;
+
+        const slowQueries = await this.managedAgentModel.getSlowQueries(
+            projectUuid,
+            thresholdMs,
+            limit,
+        );
+
+        return JSON.stringify(
+            slowQueries.map((q) => ({
+                execution_time_ms: q.executionTimeMs,
+                execution_time_seconds: (q.executionTimeMs / 1000).toFixed(1),
+                context: q.context,
+                chart_uuid: q.chartUuid,
+                chart_name: q.chartName,
+                dashboard_uuid: q.dashboardUuid,
+                dashboard_name: q.dashboardName,
+                ran_at: q.createdAt,
             })),
         );
     }

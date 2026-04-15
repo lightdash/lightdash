@@ -289,4 +289,76 @@ export class ManagedAgentModel {
             .first();
         return row?.created_at ?? null;
     }
+
+    async getSlowQueries(
+        projectUuid: string,
+        thresholdMs: number = 2000,
+        limit: number = 20,
+    ): Promise<
+        Array<{
+            executionTimeMs: number;
+            context: string;
+            chartUuid: string | null;
+            chartName: string | null;
+            dashboardUuid: string | null;
+            dashboardName: string | null;
+            createdAt: Date;
+        }>
+    > {
+        const rows = await this.database('query_history as qh')
+            .leftJoin(
+                'saved_queries as sq',
+                this.database.raw(
+                    `sq.saved_query_uuid = (qh.request_parameters->>'savedChartUuid')::uuid AND sq.deleted_at IS NULL`,
+                ),
+            )
+            .leftJoin(
+                'dashboards as d',
+                this.database.raw(
+                    `d.dashboard_uuid = (qh.request_parameters->>'dashboardUuid')::uuid AND d.deleted_at IS NULL`,
+                ),
+            )
+            .where('qh.project_uuid', projectUuid)
+            .where('qh.warehouse_execution_time_ms', '>=', thresholdMs)
+            .where(
+                'qh.created_at',
+                '>',
+                this.database.raw(`now() - interval '30 days'`),
+            )
+            .select(
+                'qh.warehouse_execution_time_ms as execution_time_ms',
+                'qh.context',
+                this.database.raw(
+                    `qh.request_parameters->>'savedChartUuid' as chart_uuid`,
+                ),
+                'sq.name as chart_name',
+                this.database.raw(
+                    `qh.request_parameters->>'dashboardUuid' as dashboard_uuid`,
+                ),
+                'd.name as dashboard_name',
+                'qh.created_at',
+            )
+            .orderBy('qh.warehouse_execution_time_ms', 'desc')
+            .limit(limit);
+
+        return rows.map(
+            (r: {
+                execution_time_ms: number;
+                context: string;
+                chart_uuid: string | null;
+                chart_name: string | null;
+                dashboard_uuid: string | null;
+                dashboard_name: string | null;
+                created_at: Date;
+            }) => ({
+                executionTimeMs: r.execution_time_ms,
+                context: r.context,
+                chartUuid: r.chart_uuid,
+                chartName: r.chart_name,
+                dashboardUuid: r.dashboard_uuid,
+                dashboardName: r.dashboard_name,
+                createdAt: r.created_at,
+            }),
+        );
+    }
 }
