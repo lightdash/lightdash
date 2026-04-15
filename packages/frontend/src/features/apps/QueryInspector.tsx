@@ -1,5 +1,7 @@
+import { ChartType, type CreateSavedChartVersion } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Box,
     Collapse,
@@ -11,9 +13,11 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconDatabase,
+    IconExternalLink,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import type { QueryEvent } from './hooks/useAppSdkBridge';
 import classes from './QueryInspector.module.css';
 
@@ -23,6 +27,7 @@ type TrackedQuery = QueryEvent & {
 
 type Props = {
     queries: TrackedQuery[];
+    projectUuid: string;
 };
 
 const statusColor = (status: TrackedQuery['status']): string => {
@@ -39,7 +44,43 @@ const statusColor = (status: TrackedQuery['status']): string => {
     }
 };
 
-const QueryRow: FC<{ query: TrackedQuery }> = ({ query }) => {
+const buildExploreUrl = (
+    projectUuid: string,
+    query: TrackedQuery,
+): string | null => {
+    if (!query.exploreName) return null;
+    const chartVersion: CreateSavedChartVersion = {
+        tableName: query.exploreName,
+        metricQuery: {
+            exploreName: query.exploreName,
+            dimensions: query.dimensions,
+            metrics: query.metrics,
+            filters:
+                (query.filters as CreateSavedChartVersion['metricQuery']['filters']) ??
+                {},
+            sorts:
+                (query.sorts as CreateSavedChartVersion['metricQuery']['sorts']) ??
+                [],
+            limit: query.limit,
+            tableCalculations: [],
+        },
+        chartConfig: {
+            type: ChartType.TABLE,
+            config: {},
+        },
+        tableConfig: { columnOrder: [] },
+    };
+    const { pathname, search } = getExplorerUrlFromCreateSavedChartVersion(
+        projectUuid,
+        chartVersion,
+    );
+    return `${pathname}?${search}`;
+};
+
+const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
+    query,
+    projectUuid,
+}) => {
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -133,13 +174,24 @@ const QueryRow: FC<{ query: TrackedQuery }> = ({ query }) => {
                             <Text size="xs">{query.durationMs}ms</Text>
                         </Box>
                     )}
+                    {(() => {
+                        const exploreUrl = buildExploreUrl(projectUuid, query);
+                        return exploreUrl ? (
+                            <Anchor href={exploreUrl} target="_blank" size="xs">
+                                <Group gap={4}>
+                                    <IconExternalLink size={12} />
+                                    Open in Explore
+                                </Group>
+                            </Anchor>
+                        ) : null;
+                    })()}
                 </Box>
             </Collapse>
         </Box>
     );
 };
 
-const QueryInspector: FC<Props> = ({ queries }) => {
+const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
     const [collapsed, setCollapsed] = useState(true);
     const [dismissed, setDismissed] = useState(false);
 
@@ -206,7 +258,11 @@ const QueryInspector: FC<Props> = ({ queries }) => {
                 <ScrollArea.Autosize mah={300}>
                     <Box className={classes.queryList}>
                         {queries.map((q) => (
-                            <QueryRow key={q.queryUuid ?? q.id} query={q} />
+                            <QueryRow
+                                key={q.queryUuid ?? q.id}
+                                query={q}
+                                projectUuid={projectUuid}
+                            />
                         ))}
                     </Box>
                 </ScrollArea.Autosize>
