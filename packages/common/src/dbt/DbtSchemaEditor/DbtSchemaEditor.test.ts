@@ -235,6 +235,20 @@ describe('dbt v1.10+ compatibility', () => {
         );
     });
 
+    it('should preserve long descriptions without inserting line breaks', () => {
+        // Regression test for: lightdash dbt run reformats long descriptions by adding line breaks
+        // The yaml library defaults lineWidth to 80, which causes strings > 80 chars to wrap
+        // at word boundaries. This test uses a description with spaces to trigger that behavior.
+        const longDesc =
+            'This is a very long description that should definitely exceed eighty characters and trigger the line wrapping behavior in the yaml library default settings for plain scalars';
+        const yamlInput = `version: 2\nmodels:\n  - name: my_model\n    description: ${longDesc}\n    columns:\n      - name: col_a\n        description: Short`;
+        const editor = new DbtSchemaEditor(yamlInput);
+        editor.addColumn('my_model', { name: 'new_col', description: '' });
+        const output = editor.toString();
+        // The long description must remain on a single line, not wrapped across multiple lines
+        expect(output).toContain(`description: ${longDesc}`);
+    });
+
     it('should handle dbt versions correctly in isDbtVersion110OrHigher', () => {
         // Test v1.9 and below
         const editorV19 = new DbtSchemaEditor(
