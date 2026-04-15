@@ -85,18 +85,19 @@ export const ManagedAgentSetupModal: FC<{
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title="Enable project health agent"
+            title="Enable Autopilot"
             icon={IconBolt}
             size="lg"
             onConfirm={() => mutation.mutate()}
-            confirmLabel="Enable Dash"
+            confirmLabel="Enable"
         >
             <Stack gap="xl">
                 {/* Description */}
                 <Text fz="sm" c="dimmed">
-                    Dash monitors your project&apos;s health automatically —
-                    cleaning up stale content, fixing broken charts, and
-                    surfacing insights. All actions are logged and reversible.
+                    An AI agent that monitors your project&apos;s health
+                    automatically — cleaning up stale content, fixing broken
+                    charts, and surfacing insights. All actions are logged and
+                    reversible.
                 </Text>
 
                 {/* Capabilities */}
@@ -147,7 +148,7 @@ export const ManagedAgentSetupModal: FC<{
                     />
                     <Text fz="xs" c="dimmed" mt={6}>
                         All actions are logged and reversible. Created charts go
-                        to a &quot;Dash Suggestions&quot; space for review.
+                        to an &quot;Agent Suggestions&quot; space for review.
                     </Text>
                 </Box>
             </Stack>

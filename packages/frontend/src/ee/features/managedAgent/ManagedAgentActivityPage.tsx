@@ -139,7 +139,7 @@ const SetupSection: FC<{
                             <IconBolt size={16} />
                         </Box>
                         <Title order={4} fw={700}>
-                            Dash
+                            Autopilot
                         </Title>
                         {enabled && (
                             <Box className={classes.activeBadge}>
@@ -149,7 +149,7 @@ const SetupSection: FC<{
                         )}
                     </Group>
                     <Text fz="xs" c="dimmed" ml={46}>
-                        Project health agent
+                        Your project health agent
                     </Text>
                 </Stack>
                 <Group gap="sm" align="center">
