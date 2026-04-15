@@ -67,6 +67,23 @@ describe('DbtSchemaEditor', () => {
         expect(editor.toJS()).toEqual(EXPECTED_SCHEMA_JSON_WITH_NEW_MODEL);
         expect(editor.toString()).toEqual(EXPECTED_SCHEMA_YML_WITH_NEW_MODEL);
     });
+
+    it('should preserve long descriptions without adding line breaks', () => {
+        const longDescription =
+            'This is a very long description that exceeds eighty characters and should not be wrapped or reformatted by the YAML serializer under any circumstances';
+        const schema = `version: 2
+models:
+  - name: my_model
+    description: ${longDescription}
+    columns:
+      - name: my_column
+        description: A short description
+`;
+        const editor = new DbtSchemaEditor(schema);
+        const result = editor.toString();
+        expect(result).toEqual(schema);
+        expect(result).toContain(`description: ${longDescription}`);
+    });
 });
 
 describe('case-insensitive column matching', () => {
