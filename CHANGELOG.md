@@ -1,3 +1,10 @@
+## [0.2761.1](https://github.com/lightdash/lightdash/compare/0.2761.0...0.2761.1) (2026-04-15)
+
+
+### Bug Fixes
+
+* **ee:** multi-project heartbeat with per-project job keys ([#22045](https://github.com/lightdash/lightdash/issues/22045)) ([f6e5a61](https://github.com/lightdash/lightdash/commit/f6e5a613a10d27778349f1cba4c2d3c0facd9a59))
+
 # [0.2761.0](https://github.com/lightdash/lightdash/compare/0.2760.0...0.2761.0) (2026-04-15)
 
 
