@@ -119,3 +119,47 @@ export const createAuditLogEvent = (
         ruleConditions,
         callStack,
     });
+
+/**
+ * Creates a minimal audit actor for failed auth attempts where the user
+ * may not exist in the system.
+ */
+export const createUnknownActor = (email?: string): AuditActor => ({
+    type: 'session' as const,
+    uuid: 'unknown',
+    email: email || 'unknown',
+    organizationUuid: 'unknown',
+    organizationRole: 'unknown',
+});
+
+/**
+ * Creates an audit log event for authentication actions (login, logout, etc.).
+ * Unlike CASL audit events, these don't have CASL rules or conditions.
+ */
+export const createAuthAuditEvent = ({
+    actor,
+    action,
+    resourceType,
+    resourceUuid,
+    organizationUuid,
+    context,
+    status,
+    reason,
+}: {
+    actor: AuditActor;
+    action: string;
+    resourceType: string;
+    resourceUuid?: string;
+    organizationUuid: string;
+    context?: AuditContext;
+    status: AuditStatusType;
+    reason?: string;
+}): AuditLogEvent =>
+    createAuditLogEvent(
+        actor,
+        action,
+        { type: resourceType, uuid: resourceUuid, organizationUuid },
+        context || {},
+        status,
+        reason,
+    );
