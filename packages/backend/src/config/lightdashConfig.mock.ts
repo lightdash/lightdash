@@ -317,6 +317,8 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     mcp: {
         enabled: true,
+        sqlBlockedPatterns: [],
+        sqlBlockedPatternsSanitise: true,
     },
     customRoles: {
         enabled: false,

@@ -78,6 +78,7 @@ import {
     validateUserAttributeOverrides,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
+import { matchesBlockedPattern } from './SqlPatternBlocker';
 import { streamJsonlData } from '../../../utils/FileDownloadUtils/FileDownloadUtils';
 import { VERSION } from '../../../version';
 import {
@@ -1467,12 +1468,32 @@ export class McpService extends BaseService {
                 );
 
                 try {
+                    if (
+                        matchesBlockedPattern(
+                            args.sql,
+                            this.lightdashConfig.mcp.sqlBlockedPatterns,
+                            this.lightdashConfig.mcp
+                                .sqlBlockedPatternsSanitise,
+                        )
+                    ) {
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: 'Query blocked: the SQL matches a restricted pattern configured by your organisation. Abandon this query.',
+                                },
+                            ],
+                            isError: true,
+                        };
+                    }
+
                     const { jobId } =
                         await this.savedSqlService.getResultJobFromSql(
                             user,
                             projectUuid,
                             args.sql,
                             args.limit ?? 500,
+                            QueryExecutionContext.MCP,
                         );
 
                     const jobResult = await this.pollSqlJobToCompletion(

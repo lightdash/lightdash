@@ -583,6 +583,7 @@ export class SavedSqlService
         projectUuid: string,
         sql: string,
         limit?: number,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -614,7 +615,7 @@ export class SavedSqlService
             projectUuid,
             sql,
             limit,
-            context: QueryExecutionContext.SQL_RUNNER,
+            context,
         });
 
         return { jobId };
