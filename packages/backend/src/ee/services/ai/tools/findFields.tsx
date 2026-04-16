@@ -79,6 +79,27 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
             {isEmojiIcon(catalogField.icon) ? (
                 <emoji>{catalogField.icon.unicode}</emoji>
             ) : null}
+            {(catalogField.metricDrivers?.length ?? 0) > 0 ||
+            (catalogField.metricDependents?.length ?? 0) > 0 ? (
+                <relationships>
+                    {catalogField.metricDrivers &&
+                    catalogField.metricDrivers.length > 0 ? (
+                        <drivers>
+                            {catalogField.metricDrivers.map((d) => (
+                                <metric table={d.tableName} name={d.name} />
+                            ))}
+                        </drivers>
+                    ) : null}
+                    {catalogField.metricDependents &&
+                    catalogField.metricDependents.length > 0 ? (
+                        <dependents>
+                            {catalogField.metricDependents.map((d) => (
+                                <metric table={d.tableName} name={d.name} />
+                            ))}
+                        </dependents>
+                    ) : null}
+                </relationships>
+            ) : null}
         </field>
     );
 };
@@ -129,6 +150,7 @@ export const getFindFields = ({
                             page: args.page ?? 1,
                             pageSize,
                             explore,
+                            includeRelationships: args.includeRelationships,
                         });
                         return {
                             searchQuery: fieldSearchQuery.label,

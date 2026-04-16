@@ -95,6 +95,8 @@ export type CatalogField = Pick<
         spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
         spotlightSegmentBy?: string[]; // dimension IDs allowlist (metrics only)
         owner: CatalogOwner | null; // resolved metric owner
+        metricDrivers?: Pick<CatalogMetricsTreeNode, 'name' | 'tableName'>[];
+        metricDependents?: Pick<CatalogMetricsTreeNode, 'name' | 'tableName'>[];
     };
 
 export type CatalogTable = Pick<
