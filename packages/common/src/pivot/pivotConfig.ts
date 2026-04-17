@@ -5,8 +5,6 @@ import type { PivotConfig } from '../types/pivot';
 import {
     ChartType,
     getHiddenTableFields,
-    isCartesianChartConfig,
-    type CartesianChartConfig,
     type CreateSavedChartVersion,
     type TableChartConfig,
 } from '../types/savedCharts';
@@ -29,29 +27,16 @@ const getTablePivotConfig = (
         : undefined;
 
 const getCartesianPivotConfig = (
-    chartConfig: CartesianChartConfig,
     pivotConfig: CreateSavedChartVersion['pivotConfig'],
 ): PivotConfig | undefined => {
     if (!pivotConfig || pivotConfig.columns.length === 0) {
         return undefined;
     }
 
-    const result: PivotConfig = {
+    return {
         pivotDimensions: pivotConfig.columns,
         metricsAsRows: false,
     };
-
-    // When sort-only metrics are injected into valuesColumns (PROD-6906),
-    // they would bleed into exports/UI. Set visibleMetricFieldIds to the
-    // chart's yField so only displayed metrics appear in pivot output.
-    if (isCartesianChartConfig(chartConfig.config)) {
-        const { yField } = chartConfig.config.layout;
-        if (yField && yField.length > 0) {
-            result.visibleMetricFieldIds = yField;
-        }
-    }
-
-    return result;
 };
 
 export const getPivotConfig = (
@@ -68,10 +53,7 @@ export const getPivotConfig = (
                 savedChart.tableConfig,
             );
         case ChartType.CARTESIAN:
-            return getCartesianPivotConfig(
-                savedChart.chartConfig,
-                savedChart.pivotConfig,
-            );
+            return getCartesianPivotConfig(savedChart.pivotConfig);
         default:
             return undefined;
     }
