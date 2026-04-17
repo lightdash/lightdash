@@ -1,3 +1,10 @@
+# [0.2764.0](https://github.com/lightdash/lightdash/compare/0.2763.0...0.2764.0) (2026-04-17)
+
+
+### Features
+
+* analytics tracking for verified charts and dashboards ([#22089](https://github.com/lightdash/lightdash/issues/22089)) ([a5476d7](https://github.com/lightdash/lightdash/commit/a5476d73cfdaa6b616fb153db078fa2aec5370ad))
+
 # [0.2763.0](https://github.com/lightdash/lightdash/compare/0.2762.0...0.2763.0) (2026-04-17)
 
 
