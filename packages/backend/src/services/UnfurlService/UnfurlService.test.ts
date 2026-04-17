@@ -25,6 +25,7 @@ const mockFileStorageClient = {
     isEnabled: jest.fn(),
     uploadImage: jest.fn(),
     getFileUrl: jest.fn(),
+    objectExists: jest.fn(),
     uploadPdf: jest.fn(),
     uploadTxt: jest.fn(),
     uploadCsv: jest.fn(),
@@ -39,6 +40,7 @@ const mockFileStorageClient = {
 const mockSlackUnfurlImageModel = {
     create: jest.fn(),
     get: jest.fn(),
+    delete: jest.fn(),
 };
 
 const mockDownloadFileModel = {
@@ -76,13 +78,14 @@ describe('UnfurlService', () => {
     describe('getPreviewSignedUrl', () => {
         const service = createService();
 
-        it('returns a signed URL for a valid record', async () => {
+        it('returns a signed URL when the storage object exists', async () => {
             mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
                 nanoid: 'abcdefghijklmnopqrstu',
                 s3_key: 'slack-image-xyz.png',
                 organization_uuid: '00000000-0000-0000-0000-000000000001',
                 created_at: new Date(),
             });
+            mockFileStorageClient.objectExists.mockResolvedValueOnce(true);
             mockFileStorageClient.getFileUrl.mockResolvedValueOnce(
                 'https://s3.example.com/signed-url',
             );
@@ -95,10 +98,14 @@ describe('UnfurlService', () => {
             expect(mockSlackUnfurlImageModel.get).toHaveBeenCalledWith(
                 'abcdefghijklmnopqrstu',
             );
+            expect(mockFileStorageClient.objectExists).toHaveBeenCalledWith(
+                'slack-image-xyz.png',
+            );
             expect(mockFileStorageClient.getFileUrl).toHaveBeenCalledWith(
                 'slack-image-xyz.png',
                 300,
             );
+            expect(mockSlackUnfurlImageModel.delete).not.toHaveBeenCalled();
         });
 
         it('propagates NotFoundError when record does not exist', async () => {
@@ -110,7 +117,73 @@ describe('UnfurlService', () => {
                 service.getPreviewSignedUrl('nonexistentnanoid12345'),
             ).rejects.toThrow(NotFoundError);
 
+            expect(mockFileStorageClient.objectExists).not.toHaveBeenCalled();
             expect(mockFileStorageClient.getFileUrl).not.toHaveBeenCalled();
+            expect(mockSlackUnfurlImageModel.delete).not.toHaveBeenCalled();
+        });
+
+        it('throws NotFoundError and lazy-deletes row when storage object is missing', async () => {
+            mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
+                nanoid: 'deadkeyabcdefghijklmn',
+                s3_key: 'slack-image-deleted.png',
+                organization_uuid: '00000000-0000-0000-0000-000000000001',
+                created_at: new Date(),
+            });
+            mockFileStorageClient.objectExists.mockResolvedValueOnce(false);
+            mockSlackUnfurlImageModel.delete.mockResolvedValueOnce(undefined);
+
+            await expect(
+                service.getPreviewSignedUrl('deadkeyabcdefghijklmn'),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(mockFileStorageClient.objectExists).toHaveBeenCalledWith(
+                'slack-image-deleted.png',
+            );
+            expect(mockFileStorageClient.getFileUrl).not.toHaveBeenCalled();
+            expect(mockSlackUnfurlImageModel.delete).toHaveBeenCalledWith(
+                'deadkeyabcdefghijklmn',
+            );
+        });
+
+        it('still throws NotFoundError when lazy-delete itself fails', async () => {
+            mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
+                nanoid: 'deadkeyabcdefghijklmn',
+                s3_key: 'slack-image-deleted.png',
+                organization_uuid: '00000000-0000-0000-0000-000000000001',
+                created_at: new Date(),
+            });
+            mockFileStorageClient.objectExists.mockResolvedValueOnce(false);
+            mockSlackUnfurlImageModel.delete.mockRejectedValueOnce(
+                new Error('db unavailable'),
+            );
+
+            await expect(
+                service.getPreviewSignedUrl('deadkeyabcdefghijklmn'),
+            ).rejects.toThrow(NotFoundError);
+
+            expect(mockSlackUnfurlImageModel.delete).toHaveBeenCalledWith(
+                'deadkeyabcdefghijklmn',
+            );
+        });
+
+        it('propagates storage errors from objectExists unchanged', async () => {
+            mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
+                nanoid: 'abcdefghijklmnopqrstu',
+                s3_key: 'slack-image-xyz.png',
+                organization_uuid: '00000000-0000-0000-0000-000000000001',
+                created_at: new Date(),
+            });
+            const storageError = new Error('GCS unreachable');
+            mockFileStorageClient.objectExists.mockRejectedValueOnce(
+                storageError,
+            );
+
+            await expect(
+                service.getPreviewSignedUrl('abcdefghijklmnopqrstu'),
+            ).rejects.toBe(storageError);
+
+            expect(mockFileStorageClient.getFileUrl).not.toHaveBeenCalled();
+            expect(mockSlackUnfurlImageModel.delete).not.toHaveBeenCalled();
         });
     });
 

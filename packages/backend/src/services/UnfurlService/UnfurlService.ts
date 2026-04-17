@@ -15,6 +15,7 @@ import {
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
+    NotFoundError,
     ParameterError,
     QueryHistoryStatus,
     RequestMethod,
@@ -339,6 +340,24 @@ export class UnfurlService extends BaseService {
 
     async getPreviewSignedUrl(previewId: string): Promise<string> {
         const record = await this.slackUnfurlImageModel.get(previewId);
+
+        const exists = await this.fileStorageClient.objectExists(record.s3_key);
+        if (!exists) {
+            this.logger.info(
+                `Slack unfurl preview object missing from storage: ${previewId}`,
+            );
+            await this.slackUnfurlImageModel
+                .delete(previewId)
+                .catch((deleteError) => {
+                    this.logger.warn(
+                        `Failed to delete orphan slack_unfurl_images row ${previewId}: ${getErrorMessage(
+                            deleteError,
+                        )}`,
+                    );
+                });
+            throw new NotFoundError('Slack unfurl image object missing');
+        }
+
         return this.fileStorageClient.getFileUrl(record.s3_key, 300);
     }
 
