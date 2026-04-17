@@ -6,7 +6,6 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -60,7 +59,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -585,26 +583,16 @@ export class UnfurlService extends BaseService {
                 );
 
                 if (details?.organizationUuid) {
-                    const usePersistentUrls = await isFeatureFlagEnabled(
-                        FeatureFlags.SlackUnfurlPersistentImages,
-                        {
-                            userUuid: authUserUuid,
-                            organizationUuid: details.organizationUuid,
-                        },
-                    );
-
-                    if (usePersistentUrls) {
-                        const previewId = useNanoid();
-                        await this.slackUnfurlImageModel.create({
-                            nanoid: previewId,
-                            s3Key: `${imageId}.png`,
-                            organizationUuid: details.organizationUuid,
-                        });
-                        imageUrl = new URL(
-                            `/api/v1/slack/preview/${previewId}`,
-                            this.lightdashConfig.siteUrl,
-                        ).href;
-                    }
+                    const previewId = useNanoid();
+                    await this.slackUnfurlImageModel.create({
+                        nanoid: previewId,
+                        s3Key: `${imageId}.png`,
+                        organizationUuid: details.organizationUuid,
+                    });
+                    imageUrl = new URL(
+                        `/api/v1/slack/preview/${previewId}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href;
                 }
             } else {
                 const filePath = `/tmp/${imageId}.png`;
