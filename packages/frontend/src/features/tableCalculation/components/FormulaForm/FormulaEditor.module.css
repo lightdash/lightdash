@@ -15,7 +15,8 @@
     font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-sm);
     font-weight: 600;
-    padding: var(--mantine-spacing-md) 0 0 var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0
+        var(--mantine-spacing-sm);
     user-select: none;
     flex-shrink: 0;
 
@@ -33,6 +34,12 @@
     min-width: 0;
     padding-top: var(--mantine-spacing-xs);
     position: relative;
+}
+
+.editorInner :global(#formula-editor .monaco-editor),
+.editorInner :global(#formula-editor .monaco-editor-background),
+.editorInner :global(#formula-editor .monaco-editor .margin) {
+    background-color: transparent;
 }
 
 .placeholderText {

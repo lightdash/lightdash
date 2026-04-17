@@ -36,6 +36,9 @@ import {
     registerFormulaLanguage,
 } from './monaco/language';
 
+const stripEqualsPrefix = (value: string): string =>
+    value.replace(/^=+\s*/, '');
+
 const MONACO_OPTIONS: EditorProps['options'] = {
     cursorBlinking: 'smooth',
     folding: false,
@@ -54,6 +57,11 @@ const MONACO_OPTIONS: EditorProps['options'] = {
     renderLineHighlight: 'none',
     fontFamily: 'var(--mantine-font-family-monospace)',
     fontSize: 13,
+    scrollbar: {
+        horizontal: 'hidden',
+        vertical: 'auto',
+        alwaysConsumeMouseWheel: false,
+    },
 };
 
 type Props = {
@@ -107,7 +115,13 @@ export const FormulaEditor: FC<Props> = ({
 
     const functionItems = useMemo(() => listFunctions(), []);
 
-    const [localValue, setLocalValue] = useState(initialContent ?? '');
+    // The `=` prefix is editor chrome, not part of the formula grammar. Strip
+    // it from anything entering local state so the buffer and the stored
+    // formula are always in sync, regardless of whether the user types `=X`
+    // or we receive a legacy value that was double-prefixed.
+    const [localValue, setLocalValue] = useState(
+        stripEqualsPrefix(initialContent ?? ''),
+    );
     const [debouncedValue] = useDebouncedValue(localValue, 250);
     const [monaco, setMonaco] = useState<Monaco | null>(null);
 
@@ -119,8 +133,10 @@ export const FormulaEditor: FC<Props> = ({
     onTextChangeRef.current = onTextChange;
 
     useEffect(() => {
-        if (initialContent !== undefined && initialContent !== localValue) {
-            setLocalValue(initialContent);
+        if (initialContent === undefined) return;
+        const stripped = stripEqualsPrefix(initialContent);
+        if (stripped !== localValue) {
+            setLocalValue(stripped);
         }
         // Only sync when parent-driven initialContent changes, not on local edits
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +205,12 @@ export const FormulaEditor: FC<Props> = ({
     const onMount: OnMount = useCallback((monacoEditor) => {
         blurDisposableRef.current?.dispose();
         blurDisposableRef.current = monacoEditor.onDidBlurEditorWidget(() => {
+            // Flush latest editor text to the parent before validation fires.
+            // Without this, a user who edits and blurs within the 250ms debounce
+            // window would trigger validation against the stale parent state.
+            onTextChangeRef.current?.(
+                stripEqualsPrefix(monacoEditor.getValue()),
+            );
             onBlurRef.current?.();
         });
     }, []);
@@ -221,7 +243,9 @@ export const FormulaEditor: FC<Props> = ({
                         onMount={onMount}
                         value={localValue}
                         options={monacoOptions}
-                        onChange={(v) => setLocalValue(v ?? '')}
+                        onChange={(v) =>
+                            setLocalValue(stripEqualsPrefix(v ?? ''))
+                        }
                         language={FORMULA_LANGUAGE_ID}
                         height={isFullScreen ? '300px' : '120px'}
                         width="100%"

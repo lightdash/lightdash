@@ -137,7 +137,7 @@ const TableCalculationModal: FC<Props> = ({
                     : '',
             formula:
                 tableCalculation && isFormulaTableCalculation(tableCalculation)
-                    ? tableCalculation.formula.replace(/^=/, '')
+                    ? tableCalculation.formula.replace(/^=+\s*/, '')
                     : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
@@ -281,7 +281,7 @@ const TableCalculationModal: FC<Props> = ({
                         displayName: name,
                         format,
                         type,
-                        formula: `=${formula}`,
+                        formula: `=${formula.replace(/^=+\s*/, '')}`,
                     },
                     {
                         mode: 'formula',

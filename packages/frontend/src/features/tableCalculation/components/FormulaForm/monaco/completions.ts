@@ -63,6 +63,13 @@ export function registerFormulaCompletions(
                     }),
                 );
 
+                // Deliberately no `documentation` field: the docs panel is
+                // an overlay widget that Monaco renders inside the editor
+                // (not via overflowWidgetsDomNode). When the editor lives
+                // inside a Mantine Modal, the modal's transform creates a
+                // containing block that traps the panel and forces modal
+                // scrollbars. Label.description + detail already carry the
+                // info we want to show.
                 const functionSuggestions: languages.CompletionItem[] =
                     functions.map((fn) => ({
                         label: { label: fn.name, description: fn.description },
@@ -72,7 +79,6 @@ export function registerFormulaCompletions(
                             monaco.languages.CompletionItemInsertTextRule
                                 .InsertAsSnippet,
                         detail: `${fn.category} · ${fn.name}${formatFunctionArgs(fn)}`,
-                        documentation: { value: fn.description },
                         sortText: `1_${fn.name}`,
                         range,
                     }));
