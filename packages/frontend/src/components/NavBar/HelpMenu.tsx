@@ -14,6 +14,7 @@ import useHealth from '../../hooks/health/useHealth';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
+import DocsAssistantChat from './DocsAssistantChat';
 
 const HelpMenu: FC = () => {
     const health = useHealth();
@@ -59,9 +60,15 @@ const HelpMenu: FC = () => {
 
             <Menu.Dropdown>
                 <LargeMenuItem
-                    component="a"
-                    href="https://docs.lightdash.com/"
-                    target="_blank"
+                    onClick={() => {
+                        modals.open({
+                            id: 'docs-assistant',
+                            title: 'Ask the docs',
+                            size: 'lg',
+                            children: <DocsAssistantChat />,
+                            zIndex: 1000,
+                        });
+                    }}
                     title="Ask the docs"
                     description="Chat with the Lightdash docs AI assistant"
                     icon={IconBook}
@@ -89,7 +96,7 @@ const HelpMenu: FC = () => {
                     href="https://join.slack.com/t/lightdash-community/shared_invite/zt-2wgtavou8-VRhwXI%7EQbjCAHQs0WBac3w"
                     target="_blank"
                     title="Join the Slack community"
-                    description="Get advice share best practices with other users."
+                    description="Get advice, share best practices with other users"
                     icon={IconUsers}
                 />
 
