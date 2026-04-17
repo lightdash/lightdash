@@ -1077,6 +1077,7 @@ export class SavedChartService
             event: 'content_verification.created',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.CHART,
                 contentId: chartUuid,
@@ -1117,6 +1118,7 @@ export class SavedChartService
             event: 'content_verification.deleted',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.CHART,
                 contentId: chartUuid,

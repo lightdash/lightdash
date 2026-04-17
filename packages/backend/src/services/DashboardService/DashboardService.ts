@@ -237,6 +237,7 @@ export class DashboardService
             event: 'content_verification.created',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.DASHBOARD,
                 contentId: dashboardUuid,
@@ -281,6 +282,7 @@ export class DashboardService
             event: 'content_verification.deleted',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.DASHBOARD,
                 contentId: dashboardUuid,
