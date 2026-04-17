@@ -1,3 +1,10 @@
+# [0.2763.0](https://github.com/lightdash/lightdash/compare/0.2762.0...0.2763.0) (2026-04-17)
+
+
+### Features
+
+* add error boundaries to dashboard tiles and grid layout ([#22087](https://github.com/lightdash/lightdash/issues/22087)) ([bee9543](https://github.com/lightdash/lightdash/commit/bee95430bf21f02e561fa9b1be81d09da9ecb124))
+
 # [0.2762.0](https://github.com/lightdash/lightdash/compare/0.2761.4...0.2762.0) (2026-04-17)
 
 
