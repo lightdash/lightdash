@@ -504,7 +504,7 @@ export class PivotQueryBuilder {
                         sort.nullsFirst,
                     );
                     // Use column anchor value for value columns
-                    const colAnchorCteName = `${sort.reference}_column_anchor`;
+                    const colAnchorCteName = `${sort.reference}_ca`;
 
                     // todo: current SQL does not work with value sorting and multiple group columns
                     if (
@@ -600,7 +600,7 @@ export class PivotQueryBuilder {
 
             if (isValueColumn) {
                 // Use the anchor value from the row anchor CTE
-                const rowAnchorCteName = `${sort.reference}_row_anchor`;
+                const rowAnchorCteName = `${sort.reference}_ra`;
                 if (metricFirstValueQueries[rowAnchorCteName]) {
                     const nullsClause = PivotQueryBuilder.getNullsFirstLast(
                         sort.nullsFirst,
@@ -684,7 +684,7 @@ export class PivotQueryBuilder {
                 sortConfig.nullsFirst,
             );
 
-            const colAnchorCteName = `${valCol.reference}_column_anchor`;
+            const colAnchorCteName = `${valCol.reference}_ca`;
             const groupColumnReferences = groupByColumns
                 .map((col) => `${q}${col.reference}${q}`)
                 .join(', ');
@@ -844,7 +844,7 @@ export class PivotQueryBuilder {
                 valCol.aggregation,
             );
 
-            const rowAnchorCteName = `${valCol.reference}_row_anchor`;
+            const rowAnchorCteName = `${valCol.reference}_ra`;
 
             // Use CROSS JOIN with anchor_column and conditional aggregation
             // MAX is used because there should be at most one value per (indexCols, anchorCol)
@@ -1093,7 +1093,7 @@ export class PivotQueryBuilder {
         // Add joins for metric first value CTEs
         // Use LEFT JOIN to preserve all rows even when anchor values are NULL
         Object.values(metricFirstValueQueries).forEach(({ cteName }) => {
-            if (cteName.endsWith('_row_anchor')) {
+            if (cteName.endsWith('_ra')) {
                 // Join on index columns for row anchor CTEs
                 // Skip if no index columns (row anchor CTEs shouldn't exist in this case)
                 if (indexColumns.length > 0) {
@@ -1107,7 +1107,7 @@ export class PivotQueryBuilder {
                         `LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`,
                     );
                 }
-            } else if (cteName.endsWith('_column_anchor')) {
+            } else if (cteName.endsWith('_ca')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
                     .map(
@@ -1306,7 +1306,7 @@ export class PivotQueryBuilder {
             // Extract only row anchor queries for the row_ranking CTE
             const rowAnchorQueries = Object.fromEntries(
                 Object.entries(metricFirstValueQueries).filter(([key]) =>
-                    key.endsWith('_row_anchor'),
+                    key.endsWith('_ra'),
                 ),
             );
             const rowRankingSQL = this.getRowRankingSQL(
