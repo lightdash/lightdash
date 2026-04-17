@@ -135,13 +135,6 @@ export enum FeatureFlags {
     ShowHideColumns = 'show-hide-columns',
 
     /**
-     * Use persistent preview URLs for Slack unfurl images instead of
-     * raw S3 signed URLs. When enabled, unfurl images are served via
-     * /api/v1/slack/preview/:id which mints fresh signed URLs on demand.
-     */
-    SlackUnfurlPersistentImages = 'slack-unfurl-persistent-images',
-
-    /**
      * Enable Google Sheets-like formula editor in Table Calculations modal.
      * When enabled, a "Formula" tab appears alongside SQL and Template tabs.
      */

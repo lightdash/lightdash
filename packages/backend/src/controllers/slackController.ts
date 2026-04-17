@@ -5,10 +5,12 @@ import {
     ApiSlackCustomSettingsResponse,
     ApiSlackGetInstallationResponse,
     ApiSuccessEmpty,
+    getErrorMessage,
     NotFoundError,
     OpenIdIdentityIssuerType,
     SlackAppCustomSettings,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { ExpressReceiver } from '@slack/bolt';
 import {
     Body,
@@ -29,6 +31,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
+import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -231,6 +234,21 @@ export class SlackController extends BaseController {
             this.setStatus(302);
             this.setHeader('Location', signedUrl);
         } catch (e) {
+            if (e instanceof NotFoundError) {
+                Logger.info(
+                    `Slack unfurl preview miss, serving placeholder: ${id}`,
+                );
+            } else {
+                Logger.error(
+                    `Slack unfurl preview failed, serving placeholder: ${id} ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+                Sentry.captureException(e, {
+                    tags: { feature: 'slack-unfurl-preview' },
+                    extra: { previewId: id },
+                });
+            }
             await SlackController.sendPlaceholder(req.res!);
         }
     }
@@ -243,7 +261,7 @@ export class SlackController extends BaseController {
             );
             res.status(200);
             res.setHeader('Content-Type', 'image/png');
-            res.setHeader('Cache-Control', 'public, max-age=86400');
+            res.setHeader('Cache-Control', 'public, max-age=300');
             res.setHeader('X-Robots-Tag', 'noindex, nofollow');
             const stream = fs.createReadStream(placeholderPath);
             stream.on('error', reject);

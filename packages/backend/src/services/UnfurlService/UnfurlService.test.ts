@@ -13,18 +13,11 @@ import { type SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UnfurlService } from './UnfurlService';
 
-jest.mock('../../postHog', () => ({
-    isFeatureFlagEnabled: jest.fn(),
-}));
-
-const { isFeatureFlagEnabled } = jest.requireMock('../../postHog') as {
-    isFeatureFlagEnabled: jest.Mock;
-};
-
 const mockFileStorageClient = {
     isEnabled: jest.fn(),
     uploadImage: jest.fn(),
     getFileUrl: jest.fn(),
+    objectExists: jest.fn(),
     uploadPdf: jest.fn(),
     uploadTxt: jest.fn(),
     uploadCsv: jest.fn(),
@@ -39,6 +32,7 @@ const mockFileStorageClient = {
 const mockSlackUnfurlImageModel = {
     create: jest.fn(),
     get: jest.fn(),
+    delete: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockDownloadFileModel = {
@@ -76,13 +70,14 @@ describe('UnfurlService', () => {
     describe('getPreviewSignedUrl', () => {
         const service = createService();
 
-        it('returns a signed URL for a valid record', async () => {
+        it('returns a signed URL when the storage object exists', async () => {
             mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
                 nanoid: 'abcdefghijklmnopqrstu',
                 s3_key: 'slack-image-xyz.png',
                 organization_uuid: '00000000-0000-0000-0000-000000000001',
                 created_at: new Date(),
             });
+            mockFileStorageClient.objectExists.mockResolvedValueOnce(true);
             mockFileStorageClient.getFileUrl.mockResolvedValueOnce(
                 'https://s3.example.com/signed-url',
             );
@@ -92,16 +87,9 @@ describe('UnfurlService', () => {
             );
 
             expect(result).toBe('https://s3.example.com/signed-url');
-            expect(mockSlackUnfurlImageModel.get).toHaveBeenCalledWith(
-                'abcdefghijklmnopqrstu',
-            );
-            expect(mockFileStorageClient.getFileUrl).toHaveBeenCalledWith(
-                'slack-image-xyz.png',
-                300,
-            );
         });
 
-        it('propagates NotFoundError when record does not exist', async () => {
+        it('throws NotFoundError when the DB row does not exist', async () => {
             mockSlackUnfurlImageModel.get.mockRejectedValueOnce(
                 new NotFoundError('Slack unfurl image not found'),
             );
@@ -109,12 +97,24 @@ describe('UnfurlService', () => {
             await expect(
                 service.getPreviewSignedUrl('nonexistentnanoid12345'),
             ).rejects.toThrow(NotFoundError);
+        });
 
-            expect(mockFileStorageClient.getFileUrl).not.toHaveBeenCalled();
+        it('throws NotFoundError when the storage object is missing', async () => {
+            mockSlackUnfurlImageModel.get.mockResolvedValueOnce({
+                nanoid: 'deadkeyabcdefghijklmn',
+                s3_key: 'slack-image-deleted.png',
+                organization_uuid: '00000000-0000-0000-0000-000000000001',
+                created_at: new Date(),
+            });
+            mockFileStorageClient.objectExists.mockResolvedValueOnce(false);
+
+            await expect(
+                service.getPreviewSignedUrl('deadkeyabcdefghijklmn'),
+            ).rejects.toThrow(NotFoundError);
         });
     });
 
-    describe('unfurlImage feature flag branching', () => {
+    describe('unfurlImage image URL strategy', () => {
         const service = createService();
         const imageBuffer = Buffer.from('fake-png');
 
@@ -153,12 +153,11 @@ describe('UnfurlService', () => {
             });
         };
 
-        it('flag ON + orgUuid → creates preview record and returns preview URL', async () => {
+        it('S3 enabled + orgUuid → creates preview record and returns preview URL', async () => {
             mockFileStorageClient.isEnabled.mockReturnValue(true);
             mockFileStorageClient.uploadImage.mockResolvedValue(
                 'https://s3.example.com/raw-signed-url',
             );
-            isFeatureFlagEnabled.mockResolvedValue(true);
             mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
 
             const result = await callUnfurlImage('org-uuid-1');
@@ -166,13 +165,6 @@ describe('UnfurlService', () => {
             expect(mockFileStorageClient.uploadImage).toHaveBeenCalledWith(
                 imageBuffer,
                 'slack-image-test_abc',
-            );
-            expect(isFeatureFlagEnabled).toHaveBeenCalledWith(
-                'slack-unfurl-persistent-images',
-                {
-                    userUuid: 'user-uuid-1',
-                    organizationUuid: 'org-uuid-1',
-                },
             );
             expect(mockSlackUnfurlImageModel.create).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -185,24 +177,7 @@ describe('UnfurlService', () => {
             );
         });
 
-        it('flag OFF + orgUuid → returns raw S3 signed URL, no DB create', async () => {
-            mockFileStorageClient.isEnabled.mockReturnValue(true);
-            mockFileStorageClient.uploadImage.mockResolvedValue(
-                'https://s3.example.com/raw-signed-url',
-            );
-            isFeatureFlagEnabled.mockResolvedValue(false);
-
-            const result = await callUnfurlImage('org-uuid-1');
-
-            expect(mockFileStorageClient.uploadImage).toHaveBeenCalled();
-            expect(isFeatureFlagEnabled).toHaveBeenCalled();
-            expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
-            expect(result.imageUrl).toBe(
-                'https://s3.example.com/raw-signed-url',
-            );
-        });
-
-        it('missing orgUuid → returns raw S3 URL, flag not checked', async () => {
+        it('missing orgUuid → returns raw S3 URL, no DB create', async () => {
             mockFileStorageClient.isEnabled.mockReturnValue(true);
             mockFileStorageClient.uploadImage.mockResolvedValue(
                 'https://s3.example.com/raw-signed-url',
@@ -211,14 +186,13 @@ describe('UnfurlService', () => {
             const result = await callUnfurlImage(undefined);
 
             expect(mockFileStorageClient.uploadImage).toHaveBeenCalled();
-            expect(isFeatureFlagEnabled).not.toHaveBeenCalled();
             expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
             expect(result.imageUrl).toBe(
                 'https://s3.example.com/raw-signed-url',
             );
         });
 
-        it('S3 disabled → uses local /tmp path, flag not checked', async () => {
+        it('S3 disabled → uses local /tmp path', async () => {
             mockFileStorageClient.isEnabled.mockReturnValue(false);
             mockDownloadFileModel.createDownloadFile.mockResolvedValue(
                 undefined,
@@ -226,7 +200,6 @@ describe('UnfurlService', () => {
 
             const result = await callUnfurlImage('org-uuid-1');
 
-            expect(isFeatureFlagEnabled).not.toHaveBeenCalled();
             expect(mockSlackUnfurlImageModel.create).not.toHaveBeenCalled();
             expect(mockDownloadFileModel.createDownloadFile).toHaveBeenCalled();
             expect(result.imageUrl).toMatch(

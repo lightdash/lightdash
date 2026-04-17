@@ -6,7 +6,6 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -15,6 +14,7 @@ import {
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
+    NotFoundError,
     ParameterError,
     QueryHistoryStatus,
     RequestMethod,
@@ -59,7 +59,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -339,6 +338,24 @@ export class UnfurlService extends BaseService {
 
     async getPreviewSignedUrl(previewId: string): Promise<string> {
         const record = await this.slackUnfurlImageModel.get(previewId);
+
+        const exists = await this.fileStorageClient.objectExists(record.s3_key);
+        if (!exists) {
+            this.logger.info(
+                `Slack unfurl preview object missing from storage: ${previewId}`,
+            );
+            await this.slackUnfurlImageModel
+                .delete(previewId)
+                .catch((deleteError) => {
+                    this.logger.warn(
+                        `Failed to delete orphan slack_unfurl_images row ${previewId}: ${getErrorMessage(
+                            deleteError,
+                        )}`,
+                    );
+                });
+            throw new NotFoundError('Slack unfurl image object missing');
+        }
+
         return this.fileStorageClient.getFileUrl(record.s3_key, 300);
     }
 
@@ -566,26 +583,16 @@ export class UnfurlService extends BaseService {
                 );
 
                 if (details?.organizationUuid) {
-                    const usePersistentUrls = await isFeatureFlagEnabled(
-                        FeatureFlags.SlackUnfurlPersistentImages,
-                        {
-                            userUuid: authUserUuid,
-                            organizationUuid: details.organizationUuid,
-                        },
-                    );
-
-                    if (usePersistentUrls) {
-                        const previewId = useNanoid();
-                        await this.slackUnfurlImageModel.create({
-                            nanoid: previewId,
-                            s3Key: `${imageId}.png`,
-                            organizationUuid: details.organizationUuid,
-                        });
-                        imageUrl = new URL(
-                            `/api/v1/slack/preview/${previewId}`,
-                            this.lightdashConfig.siteUrl,
-                        ).href;
-                    }
+                    const previewId = useNanoid();
+                    await this.slackUnfurlImageModel.create({
+                        nanoid: previewId,
+                        s3Key: `${imageId}.png`,
+                        organizationUuid: details.organizationUuid,
+                    });
+                    imageUrl = new URL(
+                        `/api/v1/slack/preview/${previewId}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href;
                 }
             } else {
                 const filePath = `/tmp/${imageId}.png`;
