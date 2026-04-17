@@ -175,7 +175,6 @@ const AthenaForm: FC<{
                             name="warehouse.accessKeyId"
                             label="AWS Access Key ID"
                             description="Your AWS access key ID."
-                            required
                             placeholder={
                                 disabled || !requireSecrets
                                     ? '**************'
@@ -188,7 +187,6 @@ const AthenaForm: FC<{
                             name="warehouse.secretAccessKey"
                             label="AWS Secret Access Key"
                             description="Your AWS secret access key."
-                            required
                             placeholder={
                                 disabled || !requireSecrets
                                     ? '**************'
