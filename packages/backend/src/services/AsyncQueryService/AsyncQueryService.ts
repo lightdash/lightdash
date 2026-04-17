@@ -4274,9 +4274,21 @@ export class AsyncQueryService extends ProjectService {
                 ? underlyingDataItem.showUnderlyingValues
                 : undefined;
 
-        const itemShowUnderlyingTable = isField(underlyingDataItem)
-            ? underlyingDataItem.table
-            : undefined;
+        const baseTableDefault =
+            explore.tables[explore.baseTable]?.defaultShowUnderlyingValues;
+
+        const effectiveShowUnderlyingValues =
+            itemShowUnderlyingValues ?? baseTableDefault;
+
+        // When using the base table default, scope unqualified names to the base table
+        let effectiveShowUnderlyingTable: string | undefined;
+        if (itemShowUnderlyingValues !== undefined) {
+            effectiveShowUnderlyingTable = isField(underlyingDataItem)
+                ? underlyingDataItem.table
+                : undefined;
+        } else if (baseTableDefault !== undefined) {
+            effectiveShowUnderlyingTable = explore.baseTable;
+        }
 
         const hasMissingParameters = (
             field:
@@ -4333,12 +4345,12 @@ export class AsyncQueryService extends ProjectService {
                 (isValidNonCustomDimension(dimension) ||
                     isCustomDimension(dimension));
             const hasExplicitColumnList =
-                itemShowUnderlyingValues !== undefined;
+                effectiveShowUnderlyingValues !== undefined;
             const isInExplicitColumnList =
                 hasExplicitColumnList &&
-                ((itemShowUnderlyingValues.includes(dimension.name) &&
-                    itemShowUnderlyingTable === dimension.table) ||
-                    itemShowUnderlyingValues.includes(
+                ((effectiveShowUnderlyingValues.includes(dimension.name) &&
+                    effectiveShowUnderlyingTable === dimension.table) ||
+                    effectiveShowUnderlyingValues.includes(
                         `${dimension.table}.${dimension.name}`,
                     ));
 
@@ -4360,12 +4372,12 @@ export class AsyncQueryService extends ProjectService {
         ).filter((metric) => {
             const isValid = availableTables.has(metric.table) && !metric.hidden;
             const hasExplicitColumnList =
-                itemShowUnderlyingValues !== undefined;
+                effectiveShowUnderlyingValues !== undefined;
             const isInExplicitColumnList =
                 hasExplicitColumnList &&
-                ((itemShowUnderlyingValues?.includes(metric.name) &&
-                    itemShowUnderlyingTable === metric.table) ||
-                    itemShowUnderlyingValues?.includes(
+                ((effectiveShowUnderlyingValues?.includes(metric.name) &&
+                    effectiveShowUnderlyingTable === metric.table) ||
+                    effectiveShowUnderlyingValues?.includes(
                         `${metric.table}.${metric.name}`,
                     ));
             if (isValid) {

@@ -106,12 +106,17 @@ const UnderlyingDataModalContent: FC = () => {
     );
 
     const showUnderlyingValues: string[] | undefined = useMemo(() => {
-        return underlyingDataConfig?.item !== undefined &&
+        if (
+            underlyingDataConfig?.item !== undefined &&
             isField(underlyingDataConfig.item) &&
-            isMetric(underlyingDataConfig.item)
-            ? underlyingDataConfig?.item.showUnderlyingValues
-            : undefined;
-    }, [underlyingDataConfig?.item]);
+            isMetric(underlyingDataConfig.item) &&
+            underlyingDataConfig.item.showUnderlyingValues !== undefined
+        ) {
+            return underlyingDataConfig.item.showUnderlyingValues;
+        }
+        // Fallback to base table's default for table calculations and custom metrics
+        return explore?.tables[explore.baseTable]?.defaultShowUnderlyingValues;
+    }, [underlyingDataConfig?.item, explore]);
 
     const sortByUnderlyingValues = useCallback(
         (columnA: TableColumn, columnB: TableColumn) => {
