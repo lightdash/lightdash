@@ -37,11 +37,12 @@ import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
-import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
+import '../../styles/droppable.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
+import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
@@ -136,36 +137,38 @@ const TabGridPanel = memo<TabGridPanelProps>(
                           }
                 }
             >
-                <ResponsiveGridLayout
-                    {...gridProps}
-                    className={locked ? 'locked' : ''}
-                    containerPadding={GRID_CONTAINER_PADDING}
-                    onDragStart={onDragStart}
-                    onDragStop={onDragStop}
-                    onResizeStart={onResizeStart}
-                    onResizeStop={onResizeStop}
-                    onBreakpointChange={onBreakpointChange}
-                    onWidthChange={onWidthChange}
-                    layouts={layouts}
-                >
-                    {tiles.map((tile, idx) => (
-                        <div key={tile.uuid} data-tile-uuid={tile.uuid}>
-                            <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                <StagedGridTile
-                                    stageIndex={idx}
-                                    locked={locked}
-                                    index={idx}
-                                    isEditMode={isEditMode}
-                                    tile={tile}
-                                    onDelete={onDeleteTile}
-                                    onEdit={onEditTile}
-                                    tabs={dashboardTabs}
-                                    onAddTiles={onAddTiles}
-                                />
-                            </TrackSection>
-                        </div>
-                    ))}
-                </ResponsiveGridLayout>
+                <ErrorBoundary>
+                    <ResponsiveGridLayout
+                        {...gridProps}
+                        className={locked ? 'locked' : ''}
+                        containerPadding={GRID_CONTAINER_PADDING}
+                        onDragStart={onDragStart}
+                        onDragStop={onDragStop}
+                        onResizeStart={onResizeStart}
+                        onResizeStop={onResizeStop}
+                        onBreakpointChange={onBreakpointChange}
+                        onWidthChange={onWidthChange}
+                        layouts={layouts}
+                    >
+                        {tiles.map((tile, idx) => (
+                            <div key={tile.uuid} data-tile-uuid={tile.uuid}>
+                                <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                    <StagedGridTile
+                                        stageIndex={idx}
+                                        locked={locked}
+                                        index={idx}
+                                        isEditMode={isEditMode}
+                                        tile={tile}
+                                        onDelete={onDeleteTile}
+                                        onEdit={onEditTile}
+                                        tabs={dashboardTabs}
+                                        onAddTiles={onAddTiles}
+                                    />
+                                </TrackSection>
+                            </div>
+                        ))}
+                    </ResponsiveGridLayout>
+                </ErrorBoundary>
             </div>
         </StagedMountProvider>
     ),
@@ -1151,82 +1154,86 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   ))
                                             : /* Single grid for non-tabbed dashboards */
                                               dashboardTiles && (
-                                                  <ResponsiveGridLayout
-                                                      {...gridProps}
-                                                      className={`${
-                                                          hasRequiredFiltersForCurrentTab
-                                                              ? 'locked'
-                                                              : ''
-                                                      }`}
-                                                      containerPadding={
-                                                          GRID_CONTAINER_PADDING
-                                                      }
-                                                      onDragStart={
-                                                          handleDragStart
-                                                      }
-                                                      onDragStop={
-                                                          handleDragStop
-                                                      }
-                                                      onResizeStart={
-                                                          handleResizeStart
-                                                      }
-                                                      onResizeStop={
-                                                          handleResizeStop
-                                                      }
-                                                      onBreakpointChange={
-                                                          handleBreakpointChange
-                                                      }
-                                                      onWidthChange={
-                                                          handleWidthChange
-                                                      }
-                                                      layouts={allTilesLayouts}
-                                                  >
-                                                      {dashboardTiles.map(
-                                                          (tile, idx) => (
-                                                              <div
-                                                                  key={
-                                                                      tile.uuid
-                                                                  }
-                                                                  data-tile-uuid={
-                                                                      tile.uuid
-                                                                  }
-                                                              >
-                                                                  <TrackSection
-                                                                      name={
-                                                                          SectionName.DASHBOARD_TILE
+                                                  <ErrorBoundary>
+                                                      <ResponsiveGridLayout
+                                                          {...gridProps}
+                                                          className={`${
+                                                              hasRequiredFiltersForCurrentTab
+                                                                  ? 'locked'
+                                                                  : ''
+                                                          }`}
+                                                          containerPadding={
+                                                              GRID_CONTAINER_PADDING
+                                                          }
+                                                          onDragStart={
+                                                              handleDragStart
+                                                          }
+                                                          onDragStop={
+                                                              handleDragStop
+                                                          }
+                                                          onResizeStart={
+                                                              handleResizeStart
+                                                          }
+                                                          onResizeStop={
+                                                              handleResizeStop
+                                                          }
+                                                          onBreakpointChange={
+                                                              handleBreakpointChange
+                                                          }
+                                                          onWidthChange={
+                                                              handleWidthChange
+                                                          }
+                                                          layouts={
+                                                              allTilesLayouts
+                                                          }
+                                                      >
+                                                          {dashboardTiles.map(
+                                                              (tile, idx) => (
+                                                                  <div
+                                                                      key={
+                                                                          tile.uuid
+                                                                      }
+                                                                      data-tile-uuid={
+                                                                          tile.uuid
                                                                       }
                                                                   >
-                                                                      <GridTile
-                                                                          locked={
-                                                                              hasRequiredFiltersForCurrentTab
+                                                                      <TrackSection
+                                                                          name={
+                                                                              SectionName.DASHBOARD_TILE
                                                                           }
-                                                                          index={
-                                                                              idx
-                                                                          }
-                                                                          isEditMode={
-                                                                              isEditMode
-                                                                          }
-                                                                          tile={
-                                                                              tile
-                                                                          }
-                                                                          onDelete={
-                                                                              handleDeleteTile
-                                                                          }
-                                                                          onEdit={
-                                                                              handleEditTile
-                                                                          }
-                                                                          tabs={
-                                                                              dashboardTabs
-                                                                          }
-                                                                          onAddTiles={
-                                                                              handleAddTiles
-                                                                          }
-                                                                      />
-                                                                  </TrackSection>
-                                                              </div>
-                                                          ),
-                                                      )}
-                                                  </ResponsiveGridLayout>
+                                                                      >
+                                                                          <GridTile
+                                                                              locked={
+                                                                                  hasRequiredFiltersForCurrentTab
+                                                                              }
+                                                                              index={
+                                                                                  idx
+                                                                              }
+                                                                              isEditMode={
+                                                                                  isEditMode
+                                                                              }
+                                                                              tile={
+                                                                                  tile
+                                                                              }
+                                                                              onDelete={
+                                                                                  handleDeleteTile
+                                                                              }
+                                                                              onEdit={
+                                                                                  handleEditTile
+                                                                              }
+                                                                              tabs={
+                                                                                  dashboardTabs
+                                                                              }
+                                                                              onAddTiles={
+                                                                                  handleAddTiles
+                                                                              }
+                                                                          />
+                                                                      </TrackSection>
+                                                                  </div>
+                                                              ),
+                                                          )}
+                                                      </ResponsiveGridLayout>
+                                                  </ErrorBoundary>
                                               )}
                                     </div>
                                 </Group>
