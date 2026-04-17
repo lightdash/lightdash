@@ -71,6 +71,7 @@ const BASE_ROLE_SCOPES = {
         'manage:PreAggregation',
         'manage:VirtualView',
         'manage:CustomSql',
+        'manage:CustomFields',
         'manage:SqlRunner',
         'manage:Validation',
         'manage:CompileProject',

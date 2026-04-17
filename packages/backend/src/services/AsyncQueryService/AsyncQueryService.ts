@@ -3360,7 +3360,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();

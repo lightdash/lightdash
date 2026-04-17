@@ -544,14 +544,21 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:SqlRunner',
-        description: 'Run SQL queries directly',
+        description: 'Run SQL queries and execute SQL charts',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:CustomSql',
-        description: 'Create custom SQL queries',
+        description: 'Save SQL charts and browse warehouse schema',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:CustomFields',
+        description: 'Create and edit custom dimensions',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,

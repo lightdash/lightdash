@@ -3106,7 +3106,7 @@ export class ProjectService extends BaseService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3417,7 +3417,7 @@ export class ProjectService extends BaseService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3725,7 +3725,7 @@ export class ProjectService extends BaseService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -7115,7 +7115,7 @@ export class ProjectService extends BaseService {
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -7265,7 +7265,7 @@ export class ProjectService extends BaseService {
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();

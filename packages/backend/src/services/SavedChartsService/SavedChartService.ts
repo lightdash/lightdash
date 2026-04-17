@@ -495,7 +495,7 @@ export class SavedChartService
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', {
+                subject('CustomFields', {
                     organizationUuid,
                     projectUuid,
                     uuid: savedChartUuid,

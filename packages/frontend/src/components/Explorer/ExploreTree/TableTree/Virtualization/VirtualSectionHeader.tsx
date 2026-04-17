@@ -53,9 +53,9 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
             : allCustomDimensions.filter(isCustomSqlDimension);
     }, [allCustomDimensions, isWriteBackCustomBinDimensionsEnabled]);
 
-    const canManageCustomSql = user.data?.ability?.can(
+    const canManageCustomFields = user.data?.ability?.can(
         'manage',
-        subject('CustomSql', {
+        subject('CustomFields', {
             organizationUuid: user.data.organizationUuid,
             projectUuid,
         }),
@@ -119,7 +119,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     }, [depth]);
 
     const showAddButton =
-        treeSection === TreeSection.Dimensions && canManageCustomSql;
+        treeSection === TreeSection.Dimensions && canManageCustomFields;
 
     const showWriteBackCustomMetrics =
         treeSection === TreeSection.CustomMetrics &&
