@@ -2,6 +2,7 @@ import {
     ApiCompiledQueryResults,
     ApiExecuteAsyncMetricQueryResults,
     QueryHistoryStatus,
+    type Explore,
 } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import { getConfig } from '../config';
@@ -25,23 +26,27 @@ type MetricQueryOptions = {
 const DEFAULT_LIMIT = 500;
 const DEFAULT_PAGE_SIZE = 500;
 
-// Field IDs in Lightdash are `{table}_{field}`. For single-table explores,
-// users can omit the prefix — we prepend the explore name automatically.
-function qualifyFieldId(fieldId: string, exploreName: string): string {
-    if (fieldId.startsWith(`${exploreName}_`)) {
-        return fieldId;
+function qualifyFieldId(
+    fieldId: string,
+    baseTable: string,
+    tableNames: Set<string>,
+): string {
+    for (const table of tableNames) {
+        if (fieldId.startsWith(`${table}_`)) {
+            return fieldId;
+        }
     }
-    return `${exploreName}_${fieldId}`;
+    return `${baseTable}_${fieldId}`;
 }
 
 function parseSorts(
     sorts: string[] | undefined,
-    exploreName: string,
+    baseTable: string,
+    tableNames: Set<string>,
 ): { fieldId: string; descending: boolean }[] {
     if (!sorts || sorts.length === 0) return [];
 
     return sorts.map((sort) => {
-        // Format: "fieldId:desc" or "fieldId:asc" or just "fieldId" (defaults to asc)
         const lastColon = sort.lastIndexOf(':');
         let rawFieldId: string;
         let descending = false;
@@ -54,16 +59,25 @@ function parseSorts(
                 descending = true;
             } else if (direction === 'asc') {
                 rawFieldId = sort.substring(0, lastColon);
-                descending = false;
             } else {
-                // Suffix isn't asc/desc — treat whole string as field name
                 rawFieldId = sort;
             }
         }
         return {
-            fieldId: qualifyFieldId(rawFieldId, exploreName),
+            fieldId: qualifyFieldId(rawFieldId, baseTable, tableNames),
             descending,
         };
+    });
+}
+
+async function fetchExplore(
+    projectUuid: string,
+    exploreName: string,
+): Promise<Explore> {
+    return lightdashApi<Explore>({
+        method: 'GET',
+        url: `/api/v1/projects/${projectUuid}/explores/${exploreName}`,
+        body: undefined,
     });
 }
 
@@ -80,25 +94,33 @@ export const metricQueryHandler = async (
         );
     }
 
+    const spinner = GlobalState.startSpinner(
+        `Fetching explore '${options.explore}'...`,
+    );
+
+    const explore = await fetchExplore(projectUuid, options.explore);
+    const { baseTable } = explore;
+    const tableNames = new Set(Object.keys(explore.tables));
+
+    GlobalState.debug(`> Base table: ${baseTable}`);
+    GlobalState.debug(`> Tables: ${[...tableNames].join(', ')}`);
+
     const metrics = options.metrics.map((m) =>
-        qualifyFieldId(m, options.explore),
+        qualifyFieldId(m, baseTable, tableNames),
     );
     const dimensions = options.dimensions.map((d) =>
-        qualifyFieldId(d, options.explore),
+        qualifyFieldId(d, baseTable, tableNames),
     );
-    const sorts = parseSorts(options.sort, options.explore);
+    const sorts = parseSorts(options.sort, baseTable, tableNames);
     const limit = options.limit ?? DEFAULT_LIMIT;
 
-    GlobalState.debug(`> Explore: ${options.explore}`);
     GlobalState.debug(`> Metrics: ${metrics.join(', ')}`);
     GlobalState.debug(`> Dimensions: ${dimensions.join(', ')}`);
     GlobalState.debug(`> Sorts: ${JSON.stringify(sorts)}`);
     GlobalState.debug(`> Limit: ${limit}`);
-    GlobalState.debug(`> Project: ${projectUuid}`);
 
     if (options.sql) {
-        // Compile query mode: just get the SQL without executing
-        const spinner = GlobalState.startSpinner('Compiling metric query...');
+        spinner.text = 'Compiling metric query...';
 
         const result = await lightdashApi<ApiCompiledQueryResults>({
             method: 'POST',
@@ -127,8 +149,7 @@ export const metricQueryHandler = async (
         return;
     }
 
-    // Execute query mode
-    const spinner = GlobalState.startSpinner('Executing metric query...');
+    spinner.text = 'Executing metric query...';
 
     const queryBody = {
         exploreName: options.explore,
