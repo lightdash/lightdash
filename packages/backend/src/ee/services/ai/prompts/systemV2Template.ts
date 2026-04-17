@@ -216,6 +216,10 @@ ${EXPLORE_SELECTION_AMBIGUITY_CHECKER}
       - Use filters property with appropriate operators:
         - "inThePast": For relative time windows (e.g., inThePast 1 year, inThePast 90 days)
         - Other time operators as appropriate for the query
+      - **Comparing two or more separate date ranges (OR logic):**
+        - When the user asks to compare data across two or more separate, non-contiguous date ranges (e.g., "compare Mar 1-6 vs Apr 1-6", "sales in Q1 vs Q3"), set the filters type to "or" and add one dimension filter entry per range, each targeting the same date fieldId with operator "inBetween" and the range's start/end values.
+        - A single date cannot belong to two non-overlapping ranges simultaneously, so AND logic will return zero results. You MUST use OR.
+        - Include the date dimension at an appropriate granularity (e.g., day, week, month) in the query's dimensions so the two ranges are visually distinguishable in the result.
       - Implementation details:
         - Add a filter entry targeting the relevant date dimension (fieldId) with the operator and values the user requested
         - The date dimension can come from the base table OR any joined table - both work identically
