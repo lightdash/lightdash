@@ -4,28 +4,15 @@
     flex-direction: column;
 }
 
-.editorRoot {
-    border: none;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.editorContent {
-    font-size: var(--mantine-font-size-sm);
-    font-family: monospace;
-}
-
 .editorWithPrefix {
     display: flex;
     align-items: flex-start;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
 }
 
 .equalsPrefix {
-    font-family: monospace;
+    font-family: var(--mantine-font-family-monospace);
     font-size: var(--mantine-font-size-sm);
     font-weight: 600;
     padding: var(--mantine-spacing-md) 0 0 var(--mantine-spacing-md);
@@ -41,41 +28,21 @@
     }
 }
 
-.editorContentInner {
+.editorInner {
     flex: 1;
     min-width: 0;
+    padding-top: var(--mantine-spacing-xs);
+    position: relative;
+}
 
-    :global(p.is-empty.is-editor-empty::before) {
-        @mixin light {
-            color: var(--mantine-color-ldDark-2) !important;
-        }
-
-        @mixin dark {
-            color: var(--mantine-color-ldGray-7) !important;
-        }
-    }
+.placeholderText {
+    pointer-events: none;
+    z-index: var(--mantine-z-index-overlay);
+    padding-left: var(--mantine-spacing-sm);
 }
 
 .errorText {
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-red-6);
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm) 0;
-}
-
-.mentionLabel {
-    font-weight: 500;
-    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xxs);
-    border-radius: var(--mantine-radius-sm);
-
-    @mixin light {
-        color: var(--mantine-color-foreground-0);
-        background-color: var(--mantine-color-ldGray-0);
-        border: 1px solid var(--mantine-color-ldGray-3);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-foreground-0);
-        background-color: var(--mantine-color-ldDark-4);
-        border: 1px solid var(--mantine-color-ldDark-5);
-    }
 }
