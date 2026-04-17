@@ -60,6 +60,12 @@ import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
+const EMPTY_LAYOUTS: { lg: Layout[]; md: Layout[]; sm: Layout[] } = {
+    lg: [],
+    md: [],
+    sm: [],
+};
+
 type TabGridPanelProps = {
     tabUuid: string;
     /** Key that resets the stagger cascade (changes on each tab activation). */
@@ -1094,11 +1100,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                               layouts={
                                                                   layoutsByTab.get(
                                                                       tab.uuid,
-                                                                  ) ?? {
-                                                                      lg: [],
-                                                                      md: [],
-                                                                      sm: [],
-                                                                  }
+                                                                  ) ??
+                                                                  EMPTY_LAYOUTS
                                                               }
                                                               isActive={
                                                                   activeTab?.uuid ===
