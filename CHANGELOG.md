@@ -1,3 +1,11 @@
+## [0.2761.4](https://github.com/lightdash/lightdash/compare/0.2761.3...0.2761.4) (2026-04-17)
+
+
+### Bug Fixes
+
+* serve placeholder when Slack unfurl preview object is lifecycle-deleted ([#22077](https://github.com/lightdash/lightdash/issues/22077)) ([9af06ed](https://github.com/lightdash/lightdash/commit/9af06edae172d682c7f4bd1028d99c14d35f9652)), closes [#22075](https://github.com/lightdash/lightdash/issues/22075) [#21586](https://github.com/lightdash/lightdash/issues/21586)
+* sort-only table calculations appearing as chart series ([#21965](https://github.com/lightdash/lightdash/issues/21965)) ([#22081](https://github.com/lightdash/lightdash/issues/22081)) ([1471167](https://github.com/lightdash/lightdash/commit/147116770cbe35ddf7bf151b019c7e857fb57245))
+
 ## [0.2761.3](https://github.com/lightdash/lightdash/compare/0.2761.2...0.2761.3) (2026-04-15)
 
 
