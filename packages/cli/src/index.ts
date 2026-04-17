@@ -1257,14 +1257,17 @@ program
     .command('metric-query')
     .description('Run a metric query against the semantic layer')
     .requiredOption('-e, --explore <explore>', 'Name of the explore to query')
-    .requiredOption('-m, --metrics <fields...>', 'Metric field IDs to include')
+    .requiredOption(
+        '-m, --metrics <fields...>',
+        'Metric field IDs. Names without the explore prefix are qualified automatically (e.g. `total_users` becomes `users_total_users` for the `users` explore)',
+    )
     .requiredOption(
         '-d, --dimensions <fields...>',
-        'Dimension field IDs to include',
+        'Dimension field IDs. Names without the explore prefix are qualified automatically',
     )
     .option(
         '-s, --sort <sorts...>',
-        'Sort fields (format: fieldId:asc or fieldId:desc)',
+        'Sort fields (format: fieldId:asc or fieldId:desc). Field names are qualified with the explore prefix if needed',
     )
     .option(
         '-l, --limit <number>',

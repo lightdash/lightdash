@@ -25,27 +25,45 @@ type MetricQueryOptions = {
 const DEFAULT_LIMIT = 500;
 const DEFAULT_PAGE_SIZE = 500;
 
+// Field IDs in Lightdash are `{table}_{field}`. For single-table explores,
+// users can omit the prefix — we prepend the explore name automatically.
+function qualifyFieldId(fieldId: string, exploreName: string): string {
+    if (fieldId.startsWith(`${exploreName}_`)) {
+        return fieldId;
+    }
+    return `${exploreName}_${fieldId}`;
+}
+
 function parseSorts(
     sorts: string[] | undefined,
+    exploreName: string,
 ): { fieldId: string; descending: boolean }[] {
     if (!sorts || sorts.length === 0) return [];
 
     return sorts.map((sort) => {
         // Format: "fieldId:desc" or "fieldId:asc" or just "fieldId" (defaults to asc)
         const lastColon = sort.lastIndexOf(':');
+        let rawFieldId: string;
+        let descending = false;
         if (lastColon === -1) {
-            return { fieldId: sort, descending: false };
+            rawFieldId = sort;
+        } else {
+            const direction = sort.substring(lastColon + 1).toLowerCase();
+            if (direction === 'desc') {
+                rawFieldId = sort.substring(0, lastColon);
+                descending = true;
+            } else if (direction === 'asc') {
+                rawFieldId = sort.substring(0, lastColon);
+                descending = false;
+            } else {
+                // Suffix isn't asc/desc — treat whole string as field name
+                rawFieldId = sort;
+            }
         }
-        const fieldId = sort.substring(0, lastColon);
-        const direction = sort.substring(lastColon + 1).toLowerCase();
-        if (direction === 'desc') {
-            return { fieldId, descending: true };
-        }
-        if (direction === 'asc') {
-            return { fieldId, descending: false };
-        }
-        // If the suffix isn't asc/desc, treat the whole string as a field name
-        return { fieldId: sort, descending: false };
+        return {
+            fieldId: qualifyFieldId(rawFieldId, exploreName),
+            descending,
+        };
     });
 }
 
@@ -62,12 +80,18 @@ export const metricQueryHandler = async (
         );
     }
 
-    const sorts = parseSorts(options.sort);
+    const metrics = options.metrics.map((m) =>
+        qualifyFieldId(m, options.explore),
+    );
+    const dimensions = options.dimensions.map((d) =>
+        qualifyFieldId(d, options.explore),
+    );
+    const sorts = parseSorts(options.sort, options.explore);
     const limit = options.limit ?? DEFAULT_LIMIT;
 
     GlobalState.debug(`> Explore: ${options.explore}`);
-    GlobalState.debug(`> Metrics: ${options.metrics.join(', ')}`);
-    GlobalState.debug(`> Dimensions: ${options.dimensions.join(', ')}`);
+    GlobalState.debug(`> Metrics: ${metrics.join(', ')}`);
+    GlobalState.debug(`> Dimensions: ${dimensions.join(', ')}`);
     GlobalState.debug(`> Sorts: ${JSON.stringify(sorts)}`);
     GlobalState.debug(`> Limit: ${limit}`);
     GlobalState.debug(`> Project: ${projectUuid}`);
@@ -81,8 +105,8 @@ export const metricQueryHandler = async (
             url: `/api/v1/projects/${projectUuid}/explores/${options.explore}/compileQuery`,
             body: JSON.stringify({
                 exploreName: options.explore,
-                dimensions: options.dimensions,
-                metrics: options.metrics,
+                dimensions,
+                metrics,
                 filters: {},
                 sorts,
                 limit,
@@ -108,8 +132,8 @@ export const metricQueryHandler = async (
 
     const queryBody = {
         exploreName: options.explore,
-        dimensions: options.dimensions,
-        metrics: options.metrics,
+        dimensions,
+        metrics,
         filters: {},
         sorts,
         limit,
