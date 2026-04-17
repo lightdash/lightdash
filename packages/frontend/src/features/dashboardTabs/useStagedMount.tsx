@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useMemo,
     useRef,
     useState,
     type FC,
@@ -67,8 +68,10 @@ export const StagedMountProvider: FC<StagedMountProviderProps> = ({
         };
     }, [waveKey, isActive, totalTiles]);
 
+    const contextValue = useMemo(() => ({ revealedCount }), [revealedCount]);
+
     return (
-        <StagedMountContext.Provider value={{ revealedCount }}>
+        <StagedMountContext.Provider value={contextValue}>
             {children}
         </StagedMountContext.Provider>
     );
