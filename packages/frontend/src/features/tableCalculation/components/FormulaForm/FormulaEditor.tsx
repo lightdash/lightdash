@@ -23,7 +23,6 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useDeepCompareEffect } from 'react-use';
 import { getLightdashMonacoTheme } from '../../../sqlRunner/utils/monaco';
 import '../../../../styles/monaco.css';
 import styles from './FormulaEditor.module.css';
@@ -112,9 +111,12 @@ export const FormulaEditor: FC<Props> = ({
     const [debouncedValue] = useDebouncedValue(localValue, 250);
     const [monaco, setMonaco] = useState<Monaco | null>(null);
 
-    // Keep latest onBlur accessible inside Monaco event listener
+    // Keep latest callbacks accessible without retriggering effects when the
+    // parent passes new function references on each render.
     const onBlurRef = useRef(onBlur);
     onBlurRef.current = onBlur;
+    const onTextChangeRef = useRef(onTextChange);
+    onTextChangeRef.current = onTextChange;
 
     useEffect(() => {
         if (initialContent !== undefined && initialContent !== localValue) {
@@ -125,8 +127,8 @@ export const FormulaEditor: FC<Props> = ({
     }, [initialContent]);
 
     useEffect(() => {
-        onTextChange?.(debouncedValue);
-    }, [debouncedValue, onTextChange]);
+        onTextChangeRef.current?.(debouncedValue);
+    }, [debouncedValue]);
 
     useEffect(() => {
         if (!monaco) return undefined;
@@ -144,11 +146,7 @@ export const FormulaEditor: FC<Props> = ({
         };
     }, [monaco, fieldItems, functionItems]);
 
-    const [monacoOptions, setMonacoOptions] = useState<
-        EditorProps['options'] | undefined
-    >();
-
-    useDeepCompareEffect(() => {
+    const monacoOptions = useMemo<EditorProps['options']>(() => {
         const containerId = 'monaco-overflow-container';
         let container = document.getElementById(containerId);
         if (!container) {
@@ -159,11 +157,11 @@ export const FormulaEditor: FC<Props> = ({
             wrapper.appendChild(container);
             document.getElementById('root')?.appendChild(wrapper);
         }
-        setMonacoOptions({
+        return {
             ...MONACO_OPTIONS,
             overflowWidgetsDomNode: container,
-        });
-    }, [monacoOptions]);
+        };
+    }, []);
 
     const beforeMount: BeforeMount = useCallback((m) => {
         registerFormulaLanguage(m);
