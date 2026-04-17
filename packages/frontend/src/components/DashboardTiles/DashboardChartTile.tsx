@@ -714,9 +714,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 projectUuid: chart.projectUuid,
             }),
         );
-        const userCanRunCustomSql = ability.can(
+        const userCanUseCustomFields = ability.can(
             'manage',
-            subject('CustomSql', {
+            subject('CustomFields', {
                 organizationUuid: chart.organizationUuid,
                 projectUuid: chart.projectUuid,
             }),
@@ -1001,7 +1001,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             [chart, metricQuery],
         );
         const cannotUseCustomDimensions =
-            !userCanRunCustomSql &&
+            !userCanUseCustomFields &&
             chartWithDashboardFilters.metricQuery?.customDimensions;
 
         const { pathname: chartPathname, search: chartSearch } = useMemo(() => {

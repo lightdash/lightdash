@@ -194,6 +194,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'CustomSql', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'CustomFields', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'SqlRunner', {
             projectUuid: member.projectUuid,
         });

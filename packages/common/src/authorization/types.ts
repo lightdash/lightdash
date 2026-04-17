@@ -28,6 +28,7 @@ export type CaslSubjectNames =
     | 'CompileProject'
     | 'ContentAsCode'
     | 'ContentVerification'
+    | 'CustomFields'
     | 'CustomSql'
     | 'DataApp'
     | 'Dashboard'
