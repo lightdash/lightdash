@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     ChartSourceType,
-    ContentType,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     ResourceViewItemType,
@@ -47,8 +46,6 @@ import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import MantineIcon from '../MantineIcon';
 import {
     ResourceViewItemAction,
@@ -105,36 +102,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { mutate: unverifyChart } = useUnverifyChartMutation();
     const { mutate: verifyDashboard } = useVerifyDashboardMutation();
     const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
-
-    const { track } = useTracking();
-    const handleVerificationToggle = () => {
-        if (!isChartOrDashboard || !projectUuid) return;
-        const contentId = item.data.uuid;
-        const isChart = isResourceViewItemChart(item);
-        track({
-            name: isVerified
-                ? EventName.CONTENT_UNVERIFIED_CLICKED
-                : EventName.CONTENT_VERIFIED_CLICKED,
-            properties: {
-                userId: user.data?.userUuid,
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                contentType: isChart ? ContentType.CHART : ContentType.DASHBOARD,
-                contentId,
-            },
-        });
-        if (isVerified) {
-            if (isChart) {
-                unverifyChart(contentId);
-            } else {
-                unverifyDashboard(contentId);
-            }
-        } else if (isChart) {
-            verifyChart(contentId);
-        } else {
-            verifyDashboard(contentId);
-        }
-    };
 
     const { mutate: promoteChart } = usePromoteMutation();
     const { mutate: promoteDashboard } = usePromoteDashboardMutation();
@@ -455,7 +422,35 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                                 <IconCircleCheck size={18} />
                                             )
                                         }
-                                        onClick={handleVerificationToggle}
+                                        onClick={() => {
+                                            if (isVerified) {
+                                                if (
+                                                    isResourceViewItemChart(
+                                                        item,
+                                                    )
+                                                ) {
+                                                    unverifyChart(
+                                                        item.data.uuid,
+                                                    );
+                                                } else {
+                                                    unverifyDashboard(
+                                                        item.data.uuid,
+                                                    );
+                                                }
+                                            } else {
+                                                if (
+                                                    isResourceViewItemChart(
+                                                        item,
+                                                    )
+                                                ) {
+                                                    verifyChart(item.data.uuid);
+                                                } else {
+                                                    verifyDashboard(
+                                                        item.data.uuid,
+                                                    );
+                                                }
+                                            }
+                                        }}
                                     >
                                         {isVerified
                                             ? 'Remove verification'

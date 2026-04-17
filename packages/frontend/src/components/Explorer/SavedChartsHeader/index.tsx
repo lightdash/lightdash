@@ -101,8 +101,7 @@ import {
 } from '../../../providers/Explorer/defaultState';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName, SectionName } from '../../../types/Events';
+import { SectionName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 const ChangeChartExploreModal = lazy(
@@ -375,7 +374,6 @@ const SavedChartsHeader: FC = () => {
 
     const { mutate: verifyChart } = useVerifyChartMutation();
     const { mutate: unverifyChart } = useUnverifyChartMutation();
-    const { track } = useTracking();
 
     const isChartVerified =
         savedChart?.verification !== null &&
@@ -833,23 +831,6 @@ const SavedChartsHeader: FC = () => {
                                                 )
                                             }
                                             onClick={() => {
-                                                track({
-                                                    name: isChartVerified
-                                                        ? EventName.CONTENT_UNVERIFIED_CLICKED
-                                                        : EventName.CONTENT_VERIFIED_CLICKED,
-                                                    properties: {
-                                                        userId: user.data
-                                                            ?.userUuid,
-                                                        organizationId:
-                                                            user.data
-                                                                ?.organizationUuid,
-                                                        projectId: projectUuid,
-                                                        contentType:
-                                                            ContentType.CHART,
-                                                        contentId:
-                                                            savedChart.uuid,
-                                                    },
-                                                });
                                                 if (isChartVerified) {
                                                     unverifyChart(
                                                         savedChart.uuid,

@@ -170,10 +170,4 @@ export enum EventName {
 
     // Dashboard UI Version Toggle
     DASHBOARD_UI_VERSION_TOGGLED = 'dashboard_ui_version.toggled',
-
-    // Content verification
-    CONTENT_VERIFIED_CLICKED = 'content_verified.clicked',
-    CONTENT_UNVERIFIED_CLICKED = 'content_unverified.clicked',
-    VERIFIED_CONTENT_PANEL_VIEWED = 'verified_content_panel.viewed',
-    VERIFIED_CONTENT_HOMEPAGE_SECTION_VIEWED = 'verified_content_homepage_section.viewed',
 }

@@ -24,7 +24,7 @@ import {
     useMantineReactTable,
     type MRT_ColumnDef,
 } from 'mantine-react-table';
-import { useCallback, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
     useUnverifyChartMutation,
@@ -32,9 +32,6 @@ import {
 } from '../../hooks/useContentVerification';
 import { useContentVerificationEnabled } from '../../hooks/useContentVerificationEnabled';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
-import useApp from '../../providers/App/useApp';
-import useTracking from '../../providers/Tracking/useTracking';
-import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -48,37 +45,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
     const { data: verifiedContent, isLoading } =
         useVerifiedContentList(projectUuid);
-
-    const { user } = useApp();
-    const { track } = useTracking();
-    const hasTrackedViewRef = useRef(false);
-    useEffect(() => {
-        if (
-            !isContentVerificationEnabled ||
-            isLoading ||
-            hasTrackedViewRef.current
-        ) {
-            return;
-        }
-        hasTrackedViewRef.current = true;
-        track({
-            name: EventName.VERIFIED_CONTENT_PANEL_VIEWED,
-            properties: {
-                userId: user.data?.userUuid,
-                organizationId: user.data?.organizationUuid,
-                projectId: projectUuid,
-                itemCount: verifiedContent?.length ?? 0,
-            },
-        });
-    }, [
-        isContentVerificationEnabled,
-        isLoading,
-        verifiedContent,
-        projectUuid,
-        track,
-        user.data?.userUuid,
-        user.data?.organizationUuid,
-    ]);
 
     const [
         unverifyModalOpened,

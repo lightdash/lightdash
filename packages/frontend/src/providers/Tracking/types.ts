@@ -1,5 +1,4 @@
 import {
-    type ContentType,
     type CustomFormatType,
     type SearchItemType,
     type TableCalculationType,
@@ -487,39 +486,6 @@ type DashboardUiVersionToggledEvent = {
     };
 };
 
-export type ContentVerificationClickedEvent = {
-    name:
-        | EventName.CONTENT_VERIFIED_CLICKED
-        | EventName.CONTENT_UNVERIFIED_CLICKED;
-    properties: {
-        userId: string | undefined;
-        organizationId: string | undefined;
-        projectId: string | undefined;
-        contentType: ContentType;
-        contentId: string;
-    };
-};
-
-export type VerifiedContentPanelViewedEvent = {
-    name: EventName.VERIFIED_CONTENT_PANEL_VIEWED;
-    properties: {
-        userId: string | undefined;
-        organizationId: string | undefined;
-        projectId: string;
-        itemCount: number;
-    };
-};
-
-export type VerifiedContentHomepageSectionViewedEvent = {
-    name: EventName.VERIFIED_CONTENT_HOMEPAGE_SECTION_VIEWED;
-    properties: {
-        userId: string | undefined;
-        organizationId: string | undefined;
-        projectId: string;
-        itemCount: number;
-    };
-};
-
 export type EventData =
     | GenericEvent
     | SetupStepClickedEvent
@@ -560,10 +526,7 @@ export type EventData =
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
-    | FormulaTableCalculationAiGenerateClickedEvent
-    | ContentVerificationClickedEvent
-    | VerifiedContentPanelViewedEvent
-    | VerifiedContentHomepageSectionViewedEvent;
+    | FormulaTableCalculationAiGenerateClickedEvent;
 
 export type IdentifyData = {
     id: string;

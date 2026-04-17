@@ -8,14 +8,12 @@ import {
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import MantineLinkButton from '../../common/MantineLinkButton';
 import ResourceView from '../../common/ResourceView';
@@ -28,41 +26,11 @@ interface Props {
 export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
-    const { health, user } = useApp();
+    const { health } = useApp();
     const isContentVerificationEnabled = useContentVerificationEnabled();
 
     const { data: verifiedContentData } =
         useVerifiedContentForHomepage(projectUuid);
-
-    const { track } = useTracking();
-    const hasTrackedVerifiedSectionRef = useRef(false);
-    useEffect(() => {
-        if (
-            !isContentVerificationEnabled ||
-            verifiedContentData === undefined ||
-            verifiedContentData.length === 0 ||
-            hasTrackedVerifiedSectionRef.current
-        ) {
-            return;
-        }
-        hasTrackedVerifiedSectionRef.current = true;
-        track({
-            name: EventName.VERIFIED_CONTENT_HOMEPAGE_SECTION_VIEWED,
-            properties: {
-                userId: user.data?.userUuid,
-                organizationId: user.data?.organizationUuid,
-                projectId: projectUuid,
-                itemCount: verifiedContentData.length,
-            },
-        });
-    }, [
-        isContentVerificationEnabled,
-        verifiedContentData,
-        projectUuid,
-        track,
-        user.data?.userUuid,
-        user.data?.organizationUuid,
-    ]);
 
     const allItems = useMemo(() => {
         const mostPopularItems =
