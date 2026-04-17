@@ -6,6 +6,7 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentType,
     DbtProjectType,
     getRequestMethod,
     LightdashInstallType,
@@ -1545,6 +1546,17 @@ export type AiAgentToolCallEvent = BaseTrack & {
     };
 };
 
+export type ContentVerificationEvent = BaseTrack & {
+    event: 'content_verification.created' | 'content_verification.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentType;
+        contentId: string;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -1700,6 +1712,7 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
+    | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;
 

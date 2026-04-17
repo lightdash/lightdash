@@ -914,6 +914,24 @@ const DashboardHeader = memo(
                                                     )
                                                 }
                                                 onClick={() => {
+                                                    track({
+                                                        name: isDashboardVerified
+                                                            ? EventName.CONTENT_UNVERIFIED_CLICKED
+                                                            : EventName.CONTENT_VERIFIED_CLICKED,
+                                                        properties: {
+                                                            userId: user.data
+                                                                ?.userUuid,
+                                                            organizationId:
+                                                                user.data
+                                                                    ?.organizationUuid,
+                                                            projectId:
+                                                                projectUuid,
+                                                            contentType:
+                                                                ContentType.DASHBOARD,
+                                                            contentId:
+                                                                dashboardUuid,
+                                                        },
+                                                    });
                                                     if (isDashboardVerified) {
                                                         unverifyDashboard(
                                                             dashboardUuid,
