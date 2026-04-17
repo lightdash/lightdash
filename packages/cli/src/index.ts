@@ -33,6 +33,7 @@ import {
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
+import { metricQueryHandler } from './handlers/metricQuery';
 import {
     previewHandler,
     startPreviewHandler,
@@ -1251,6 +1252,41 @@ program
     )
     .option('--verbose', 'Show detailed output', false)
     .action(runChartHandler);
+
+program
+    .command('metric-query')
+    .description('Run a metric query against the semantic layer')
+    .requiredOption('-e, --explore <explore>', 'Name of the explore to query')
+    .requiredOption(
+        '-m, --metrics <fields...>',
+        'Metric field IDs. Names without the explore prefix are qualified automatically (e.g. `total_users` becomes `users_total_users` for the `users` explore)',
+    )
+    .requiredOption(
+        '-d, --dimensions <fields...>',
+        'Dimension field IDs. Names without the explore prefix are qualified automatically',
+    )
+    .option(
+        '-s, --sort <sorts...>',
+        'Sort fields (format: fieldId:asc or fieldId:desc). Field names are qualified with the explore prefix if needed',
+    )
+    .option(
+        '-l, --limit <number>',
+        'Row limit (default: 500)',
+        parseIntArgument,
+    )
+    .option('-o, --output <file>', 'Output file path for CSV results')
+    .option(
+        '--sql',
+        'Output compiled SQL instead of executing the query',
+        false,
+    )
+    .option(
+        '--page-size <number>',
+        'Number of rows per page (default: 500)',
+        parseIntArgument,
+    )
+    .option('--verbose', 'Show detailed output', false)
+    .action(metricQueryHandler);
 
 program
     .command('set-warehouse')
