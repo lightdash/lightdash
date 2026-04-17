@@ -1,3 +1,10 @@
+# [0.2762.0](https://github.com/lightdash/lightdash/compare/0.2761.4...0.2762.0) (2026-04-17)
+
+
+### Features
+
+* split CustomSql scope into CustomFields for custom dimensions/metrics ([#22082](https://github.com/lightdash/lightdash/issues/22082)) ([840d989](https://github.com/lightdash/lightdash/commit/840d9898ba79b1c79bb9418eb1db21bff1d2fe3d))
+
 ## [0.2761.4](https://github.com/lightdash/lightdash/compare/0.2761.3...0.2761.4) (2026-04-17)
 
 
