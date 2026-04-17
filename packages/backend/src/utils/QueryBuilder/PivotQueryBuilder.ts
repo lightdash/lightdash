@@ -1435,8 +1435,19 @@ export class PivotQueryBuilder {
             this.pivotConfiguration.indexColumn,
         );
 
-        const { valuesColumns, groupByColumns, sortBy } =
-            this.pivotConfiguration;
+        const {
+            valuesColumns: displayColumns,
+            groupByColumns,
+            sortBy,
+            sortOnlyColumns,
+        } = this.pivotConfiguration;
+
+        // Merge sort-only columns into valuesColumns for SQL generation.
+        // These columns are needed for sort anchor CTEs but are excluded
+        // from pivotDetails downstream so they don't appear as chart series.
+        const valuesColumns = sortOnlyColumns?.length
+            ? [...displayColumns, ...sortOnlyColumns]
+            : displayColumns;
 
         // Validate that no groupBy column is also part of the index columns
         if (groupByColumns && groupByColumns.length > 0) {

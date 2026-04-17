@@ -1153,6 +1153,14 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 updatedAt: { dataType: 'datetime', required: true },
                 createdAt: { dataType: 'datetime', required: true },
+                slackChannelId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 enabledByUserUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -1174,6 +1182,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                slackChannelId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 scheduleCron: { dataType: 'string' },
                 enabled: { dataType: 'boolean' },
             },
@@ -1187,6 +1202,7 @@ const models: TsoaRoute.Models = {
             'flagged_stale',
             'soft_deleted',
             'flagged_broken',
+            'flagged_slow',
             'fixed_broken',
             'created_content',
             'insight',
@@ -5907,11 +5923,42 @@ const models: TsoaRoute.Models = {
         enums: ['virtual', 'default', 'pre_aggregate'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-Array_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'array',
+                array: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserAttributeValueMap: {
+        dataType: 'refAlias',
+        type: { ref: 'Record_string.string-Array_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PreAggregateMaterializationRole: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                attributes: { ref: 'UserAttributeValueMap', required: true },
+                email: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreAggregateDef: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                materializationRole: { ref: 'PreAggregateMaterializationRole' },
                 refresh: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: { cron: { dataType: 'string' } },
@@ -5919,6 +5966,10 @@ const models: TsoaRoute.Models = {
                 maxRows: { dataType: 'double' },
                 granularity: { ref: 'TimeFrames' },
                 timeDimension: { dataType: 'string' },
+                filters: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'MetricFilterRule' },
+                },
                 metrics: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -6150,6 +6201,11 @@ const models: TsoaRoute.Models = {
         enums: ['filter_dimension_not_in_pre_aggregate'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED': {
+        dataType: 'refEnum',
+        enums: ['pre_aggregate_filter_not_satisfied'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'PreAggregateMissReason.GRANULARITY_TOO_FINE': {
         dataType: 'refEnum',
         enums: ['granularity_too_fine'],
@@ -6240,6 +6296,16 @@ const models: TsoaRoute.Models = {
                         fieldId: { ref: 'FieldId', required: true },
                         reason: {
                             ref: 'PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        fieldId: { ref: 'FieldId', required: true },
+                        reason: {
+                            ref: 'PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED',
                             required: true,
                         },
                     },
@@ -8561,11 +8627,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8580,11 +8646,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8599,11 +8665,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8680,7 +8746,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                fieldType:
+                                                                                                tableName:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
@@ -8691,7 +8757,7 @@ const models: TsoaRoute.Models = {
                                                                                                         'string',
                                                                                                     required: true,
                                                                                                 },
-                                                                                                tableName:
+                                                                                                fieldType:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
@@ -8725,7 +8791,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                searchRank:
+                                                                                                joinedTables:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -8733,7 +8799,11 @@ const models: TsoaRoute.Models = {
                                                                                                             [
                                                                                                                 {
                                                                                                                     dataType:
-                                                                                                                        'double',
+                                                                                                                        'array',
+                                                                                                                    array: {
+                                                                                                                        dataType:
+                                                                                                                            'string',
+                                                                                                                    },
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -8748,7 +8818,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                joinedTables:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -8756,11 +8826,7 @@ const models: TsoaRoute.Models = {
                                                                                                             [
                                                                                                                 {
                                                                                                                     dataType:
-                                                                                                                        'array',
-                                                                                                                    array: {
-                                                                                                                        dataType:
-                                                                                                                            'string',
-                                                                                                                    },
+                                                                                                                        'double',
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -8812,11 +8878,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -8938,7 +9004,7 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
-                                                                                                    fieldType:
+                                                                                                    tableName:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
@@ -8949,7 +9015,7 @@ const models: TsoaRoute.Models = {
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
-                                                                                                    tableName:
+                                                                                                    fieldType:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
@@ -8986,11 +9052,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9005,11 +9071,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -10787,6 +10853,11 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                filters: {
+                    dataType: 'array',
+                    array: { dataType: 'refObject', ref: 'MetricFilterRule' },
+                    required: true,
+                },
                 metrics: {
                     dataType: 'array',
                     array: { dataType: 'string' },
@@ -10795,6 +10866,14 @@ const models: TsoaRoute.Models = {
                 dimensions: {
                     dataType: 'array',
                     array: { dataType: 'string' },
+                    required: true,
+                },
+                materializationRole: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PreAggregateMaterializationRole' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
                     required: true,
                 },
                 sourceExploreName: { dataType: 'string', required: true },
@@ -14924,6 +15003,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sortOnlyColumns: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
+                },
                 metricsAsRows: { dataType: 'boolean' },
                 sortBy: {
                     dataType: 'union',

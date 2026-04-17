@@ -607,7 +607,7 @@ describe('derivePivotConfigurationFromChart', () => {
     });
 
     describe('Sort by metric not in viz (PROD-6906)', () => {
-        it('includes sort-only metrics in valuesColumns for Cartesian charts', () => {
+        it('puts sort-only metrics in sortOnlyColumns for Cartesian charts', () => {
             const itemsWithExtraMetric: ItemsMap = {
                 ...mockItems,
                 orders_count: {
@@ -648,12 +648,15 @@ describe('derivePivotConfigurationFromChart', () => {
             );
 
             expect(result).toBeDefined();
-            // orders_count should be added to valuesColumns even though it's not in yField
+            // orders_count should NOT be in valuesColumns
             expect(result?.valuesColumns).toEqual([
                 {
                     reference: 'payments_total_revenue',
                     aggregation: VizAggregationOptions.ANY,
                 },
+            ]);
+            // orders_count should be in sortOnlyColumns
+            expect(result?.sortOnlyColumns).toEqual([
                 {
                     reference: 'orders_count',
                     aggregation: VizAggregationOptions.ANY,
@@ -668,7 +671,7 @@ describe('derivePivotConfigurationFromChart', () => {
             ]);
         });
 
-        it('includes sort-only table calculation in valuesColumns', () => {
+        it('puts sort-only table calculation in sortOnlyColumns', () => {
             const mockTableCalc: TableCalculation = {
                 name: 'revenue_per_order',
                 displayName: 'Revenue per Order',
@@ -712,6 +715,8 @@ describe('derivePivotConfigurationFromChart', () => {
                     reference: 'payments_total_revenue',
                     aggregation: VizAggregationOptions.ANY,
                 },
+            ]);
+            expect(result?.sortOnlyColumns).toEqual([
                 {
                     reference: 'revenue_per_order',
                     aggregation: VizAggregationOptions.ANY,

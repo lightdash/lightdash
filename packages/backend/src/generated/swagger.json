@@ -1199,6 +1199,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "enabledByUserUuid": {
                         "type": "string",
                         "nullable": true
@@ -1216,6 +1220,7 @@
                 "required": [
                     "updatedAt",
                     "createdAt",
+                    "slackChannelId",
                     "enabledByUserUuid",
                     "scheduleCron",
                     "enabled",
@@ -1225,6 +1230,10 @@
             },
             "UpdateManagedAgentSettings": {
                 "properties": {
+                    "slackChannelId": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "scheduleCron": {
                         "type": "string"
                     },
@@ -1239,6 +1248,7 @@
                     "flagged_stale",
                     "soft_deleted",
                     "flagged_broken",
+                    "flagged_slow",
                     "fixed_broken",
                     "created_content",
                     "insight"
@@ -7087,8 +7097,37 @@
                 "enum": ["virtual", "default", "pre_aggregate"],
                 "type": "string"
             },
+            "Record_string.string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "UserAttributeValueMap": {
+                "$ref": "#/components/schemas/Record_string.string-Array_"
+            },
+            "PreAggregateMaterializationRole": {
+                "properties": {
+                    "attributes": {
+                        "$ref": "#/components/schemas/UserAttributeValueMap"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["attributes", "email"],
+                "type": "object"
+            },
             "PreAggregateDef": {
                 "properties": {
+                    "materializationRole": {
+                        "$ref": "#/components/schemas/PreAggregateMaterializationRole"
+                    },
                     "refresh": {
                         "properties": {
                             "cron": {
@@ -7106,6 +7145,12 @@
                     },
                     "timeDimension": {
                         "type": "string"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
                     },
                     "metrics": {
                         "items": {
@@ -7406,6 +7451,10 @@
                 "enum": ["filter_dimension_not_in_pre_aggregate"],
                 "type": "string"
             },
+            "PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED": {
+                "enum": ["pre_aggregate_filter_not_satisfied"],
+                "type": "string"
+            },
             "PreAggregateMissReason.GRANULARITY_TOO_FINE": {
                 "enum": ["granularity_too_fine"],
                 "type": "string"
@@ -7496,6 +7545,18 @@
                             },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE"
+                            }
+                        },
+                        "required": ["fieldId", "reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED"
                             }
                         },
                         "required": ["fieldId", "reason"],
@@ -10020,19 +10081,6 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
@@ -10048,13 +10096,13 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -10062,9 +10110,9 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10074,16 +10122,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -10113,8 +10161,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10168,13 +10216,13 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "fieldType": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -10182,9 +10230,9 @@
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10212,8 +10260,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -11761,6 +11809,12 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
                     "metrics": {
                         "items": {
                             "type": "string"
@@ -11772,6 +11826,14 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "materializationRole": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PreAggregateMaterializationRole"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "sourceExploreName": {
                         "type": "string"
@@ -11794,8 +11856,10 @@
                     "refreshCron",
                     "granularity",
                     "timeDimension",
+                    "filters",
                     "metrics",
                     "dimensions",
+                    "materializationRole",
                     "sourceExploreName",
                     "preAggExploreName",
                     "preAggregateName",
@@ -15840,6 +15904,13 @@
             },
             "PivotConfiguration": {
                 "properties": {
+                    "sortOnlyColumns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValuesColumn"
+                        },
+                        "type": "array",
+                        "description": "Metrics/table calculations needed for sort anchor CTEs but not for display.\nThese are merged into valuesColumns for SQL generation in PivotQueryBuilder,\nbut excluded from pivotDetails so they don't appear as chart series."
+                    },
                     "metricsAsRows": {
                         "type": "boolean",
                         "description": "When true, metrics are displayed as rows instead of columns.\nThis affects column limit calculation - when metrics are rows,\nwe don't need to divide the column limit by the number of metrics.\nDefaults to false for backward compatibility (SQL runner behavior)."
@@ -30175,7 +30246,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2752.0",
+        "version": "0.2761.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
