@@ -1,4 +1,16 @@
 import {
+    DndContext,
+    DragOverlay,
+    MouseSensor,
+    TouchSensor,
+    useDraggable,
+    useDroppable,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
+import {
     type LightdashProjectParameter,
     type ParameterValue,
 } from '@lightdash/common';
@@ -9,10 +21,66 @@ import {
     Group,
     Popover,
     Text,
+    useMantineTheme,
 } from '@mantine-8/core';
-import { useCallback, useMemo, type FC } from 'react';
+import { IconGripVertical } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import MantineIcon from './common/MantineIcon';
+
+const DraggableItem: FC<{
+    id: string;
+    children: ReactNode;
+    disabled?: boolean;
+}> = ({ id, children, disabled }) => {
+    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+        id,
+        disabled,
+    });
+
+    const style = transform
+        ? ({
+              position: 'relative',
+              zIndex: 1,
+              transform: `translate(${transform.x}px, ${transform.y}px)`,
+              opacity: 0.8,
+          } as const)
+        : undefined;
+
+    return (
+        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+            {children}
+        </div>
+    );
+};
+
+const DroppableArea: FC<{
+    id: string;
+    children: ReactNode;
+    pinnedKeys: string[];
+}> = ({ id, children, pinnedKeys }) => {
+    const { active, isOver, over, setNodeRef } = useDroppable({ id });
+    const { colors } = useMantineTheme();
+
+    const placeholderStyle = useMemo(() => {
+        if (isOver && active && over && active.id !== over.id) {
+            const oldIndex = pinnedKeys.indexOf(String(active.id));
+            const newIndex = pinnedKeys.indexOf(String(over.id));
+            if (newIndex < oldIndex) {
+                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
+            } else if (newIndex > oldIndex) {
+                return { boxShadow: `8px 0px ${colors.blue[4]}` };
+            }
+        }
+    }, [isOver, active, over, pinnedKeys, colors]);
+
+    return (
+        <div ref={setNodeRef} style={placeholderStyle}>
+            {children}
+        </div>
+    );
+};
 
 interface PinnedParameterProps {
     parameterKey: string;
@@ -21,6 +89,7 @@ interface PinnedParameterProps {
     onChange: (key: string, value: ParameterValue | null) => void;
     onUnpin: (key: string) => void;
     isEditMode: boolean;
+    isDraggable?: boolean;
     projectUuid?: string;
 }
 
@@ -31,6 +100,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
     onChange,
     onUnpin,
     isEditMode,
+    isDraggable = false,
     projectUuid,
 }) => {
     const parameterValues = useDashboardContext((c) => c.parameterValues);
@@ -78,6 +148,15 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                             textOverflow: 'ellipsis',
                         },
                     }}
+                    leftSection={
+                        isDraggable && (
+                            <MantineIcon
+                                icon={IconGripVertical}
+                                cursor="grab"
+                                size="sm"
+                            />
+                        )
+                    }
                     rightSection={
                         isEditMode ? (
                             <CloseButton
@@ -139,8 +218,19 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
         (c) => c.parameterDefinitions,
     );
     const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
+    const setPinnedParameters = useDashboardContext(
+        (c) => c.setPinnedParameters,
+    );
 
     const pinnedParameterKeys = useDashboardContext((c) => c.pinnedParameters);
+
+    const mouseSensor = useSensor(MouseSensor, {
+        activationConstraint: { distance: 10 },
+    });
+    const touchSensor = useSensor(TouchSensor, {
+        activationConstraint: { delay: 250, tolerance: 5 },
+    });
+    const dragSensors = useSensors(mouseSensor, touchSensor);
 
     const handleParameterChange = useCallback(
         (key: string, value: ParameterValue | null) => {
@@ -154,6 +244,18 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
             toggleParameterPin(key);
         },
         [toggleParameterPin],
+    );
+
+    const handleDragEnd = useCallback(
+        (event: DragEndEvent) => {
+            const { active, over } = event;
+            if (!active || !over || active.id === over.id) return;
+            const oldIndex = pinnedParameterKeys.indexOf(String(active.id));
+            const newIndex = pinnedParameterKeys.indexOf(String(over.id));
+            const newOrder = arrayMove(pinnedParameterKeys, oldIndex, newIndex);
+            setPinnedParameters(newOrder);
+        },
+        [pinnedParameterKeys, setPinnedParameters],
     );
 
     if (!pinnedParameterKeys.length || !parameterDefinitions) {
@@ -172,20 +274,31 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
     }
 
     return (
-        <Group gap="xs">
-            {pinnedParametersList.map(({ key, parameter }) => (
-                <PinnedParameter
-                    key={key}
-                    parameterKey={key}
-                    parameter={parameter}
-                    value={parameterValues[key] ?? null}
-                    onChange={handleParameterChange}
-                    onUnpin={handleUnpin}
-                    isEditMode={isEditMode}
-                    projectUuid={dashboard?.projectUuid}
-                />
-            ))}
-        </Group>
+        <DndContext sensors={dragSensors} onDragEnd={handleDragEnd}>
+            <Group gap="xs">
+                {pinnedParametersList.map(({ key, parameter }) => (
+                    <DroppableArea
+                        key={key}
+                        id={key}
+                        pinnedKeys={pinnedParameterKeys}
+                    >
+                        <DraggableItem id={key} disabled={!isEditMode}>
+                            <PinnedParameter
+                                parameterKey={key}
+                                parameter={parameter}
+                                value={parameterValues[key] ?? null}
+                                onChange={handleParameterChange}
+                                onUnpin={handleUnpin}
+                                isEditMode={isEditMode}
+                                isDraggable={isEditMode}
+                                projectUuid={dashboard?.projectUuid}
+                            />
+                        </DraggableItem>
+                    </DroppableArea>
+                ))}
+            </Group>
+            <DragOverlay />
+        </DndContext>
     );
 };
 

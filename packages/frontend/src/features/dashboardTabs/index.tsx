@@ -213,6 +213,8 @@ type DashboardTabsProps = {
     onParameterChange: (key: string, value: ParameterValue | null) => void;
     onParameterClearAll: () => void;
     onParameterPin: (parameterKey: string) => void;
+    parameterOrder: string[];
+    onParameterReorder: (order: string[]) => void;
 };
 
 const DashboardTabs: FC<DashboardTabsProps> = ({
@@ -237,6 +239,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     onParameterChange,
     onParameterClearAll,
     onParameterPin,
+    parameterOrder,
+    onParameterReorder,
 }) => {
     const gridProps = useMemo(() => getResponsiveGridLayoutProps(), []);
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
@@ -1026,6 +1030,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     }
                                                     onParameterPin={
                                                         onParameterPin
+                                                    }
+                                                    parameterOrder={
+                                                        parameterOrder
+                                                    }
+                                                    onParameterReorder={
+                                                        onParameterReorder
                                                     }
                                                     isDateZoomDisabled={
                                                         isDateZoomDisabled
