@@ -1381,7 +1381,27 @@ export class UnfurlService extends BaseService {
                     };
 
                     // PDF-only output
+                    // Take a screenshot first to force the browser to fully
+                    // paint all canvas elements (e.g. ECharts).  page.pdf()
+                    // alone unreliably captures canvas content.  This matches
+                    // the IMAGE+withPdf path where screenshot precedes PDF.
                     if (outputFormat === 'pdf') {
+                        if (
+                            lightdashPage === LightdashPage.DASHBOARD ||
+                            lightdashPage === LightdashPage.EXPLORE
+                        ) {
+                            await page
+                                .locator(finalSelector)
+                                .screenshot({
+                                    animations: 'disabled',
+                                    timeout: RESPONSE_TIMEOUT_MS,
+                                });
+                        } else {
+                            await page.screenshot({
+                                fullPage: true,
+                                animations: 'disabled',
+                            });
+                        }
                         const pdfBuffer = await generatePdf();
                         return { pdfBuffer };
                     }
