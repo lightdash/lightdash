@@ -83,6 +83,10 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -90,7 +94,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build
         run: pnpm build
       - name: Run quality checks in parallel
@@ -347,6 +351,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -354,7 +362,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build
       - name: Create BigQuery credentials file
@@ -512,7 +520,7 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -571,7 +579,7 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -643,7 +651,7 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
