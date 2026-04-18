@@ -10,7 +10,7 @@ import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { PluginKey } from '@tiptap/pm/state';
-import { useEditor, type Editor } from '@tiptap/react';
+import { ReactNodeViewRenderer, useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, type FC } from 'react';
@@ -19,6 +19,7 @@ import {
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
+import { FunctionMentionView } from './FunctionMentionView';
 import {
     generateFunctionSuggestion,
     type FunctionSuggestionItem,
@@ -43,43 +44,98 @@ const MentionWithLabel = Mention.extend({
 
 /**
  * Convert plain formula text into TipTap JSON content,
- * replacing known field IDs with mention nodes.
+ * replacing known field IDs and function names with mention nodes.
  */
 function buildInitialContent(
     text: string,
     suggestions: FieldSuggestionItem[],
+    functions: FunctionSuggestionItem[],
+    functionTooltipMap: Map<string, string>,
 ): JSONContent {
-    if (!text || suggestions.length === 0) {
+    if (!text) {
+        return {
+            type: 'doc',
+            content: [{ type: 'paragraph', content: [] }],
+        };
+    }
+
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const fieldMap = new Map(suggestions.map((f) => [f.id, f]));
+    const sortedFieldIds = [...suggestions]
+        .sort((a, b) => b.id.length - a.id.length)
+        .map((f) => f.id);
+
+    const functionMap = new Map(functions.map((f) => [f.id, f]));
+    const sortedFunctionNames = [...functions]
+        .sort((a, b) => b.id.length - a.id.length)
+        .map((f) => f.id);
+
+    const fieldPattern = sortedFieldIds.length
+        ? `(?<field>${sortedFieldIds.map(escapeRegex).join('|')})`
+        : '';
+    // Match function names only when followed by `(` so plain words like "SUM"
+    // in a field name don't get wrapped as a function mention.
+    const functionPattern = sortedFunctionNames.length
+        ? `(?<func>\\b(?:${sortedFunctionNames.map(escapeRegex).join('|')})\\b)(?=\\s*\\()`
+        : '';
+
+    const patternStr = [fieldPattern, functionPattern]
+        .filter(Boolean)
+        .join('|');
+
+    if (!patternStr) {
         return {
             type: 'doc',
             content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
         };
     }
 
-    // Sort field IDs by length descending to match longest first
-    const sorted = [...suggestions].sort((a, b) => b.id.length - a.id.length);
+    const pattern = new RegExp(patternStr, 'g');
+    const inlineContent: JSONContent[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null = pattern.exec(text);
 
-    // Build a regex that matches any field ID as a whole word
-    const pattern = new RegExp(
-        `(${sorted.map((f) => f.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
-        'g',
-    );
+    while (match !== null) {
+        const { index } = match;
+        const groups = match.groups as
+            | { field?: string; func?: string }
+            | undefined;
 
-    const parts = text.split(pattern);
-    const fieldMap = new Map(sorted.map((f) => [f.id, f]));
+        if (index > lastIndex) {
+            inlineContent.push({
+                type: 'text',
+                text: text.slice(lastIndex, index),
+            });
+        }
 
-    const inlineContent: JSONContent[] = parts
-        .filter((part) => part.length > 0)
-        .map((part) => {
-            const field = fieldMap.get(part);
-            if (field) {
-                return {
-                    type: 'mention',
-                    attrs: { id: field.id, label: field.label },
-                };
-            }
-            return { type: 'text', text: part };
-        });
+        if (groups?.field && fieldMap.has(groups.field)) {
+            const field = fieldMap.get(groups.field)!;
+            inlineContent.push({
+                type: 'mention',
+                attrs: { id: field.id, label: field.label },
+            });
+        } else if (groups?.func && functionMap.has(groups.func)) {
+            const fn = functionMap.get(groups.func)!;
+            inlineContent.push({
+                type: 'functionMention',
+                attrs: {
+                    id: fn.id,
+                    label: fn.label,
+                    tooltip: functionTooltipMap.get(fn.id) ?? null,
+                },
+            });
+        } else {
+            inlineContent.push({ type: 'text', text: match[0] });
+        }
+
+        lastIndex = index + match[0].length;
+        match = pattern.exec(text);
+    }
+
+    if (lastIndex < text.length) {
+        inlineContent.push({ type: 'text', text: text.slice(lastIndex) });
+    }
 
     return {
         type: 'doc',
@@ -148,6 +204,17 @@ export const FormulaEditor: FC<Props> = ({
         [],
     );
 
+    const functionExampleMap = useMemo(
+        () =>
+            new Map(
+                functionSuggestions.map((fn) => [
+                    fn.id,
+                    `${fn.description}\ne.g. =${fn.definition.example}`,
+                ]),
+            ),
+        [functionSuggestions],
+    );
+
     const editor = useEditor({
         editorProps: {
             attributes: {
@@ -178,13 +245,36 @@ export const FormulaEditor: FC<Props> = ({
                     `${node.attrs.label ?? node.attrs.id}`,
                 ],
             }),
-            Mention.extend({ name: 'functionMention' }).configure({
+            Mention.extend({
+                name: 'functionMention',
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        tooltip: {
+                            default: null,
+                            parseHTML: (element: HTMLElement) =>
+                                element.getAttribute('data-tooltip'),
+                            renderHTML: (
+                                attributes: Record<string, string>,
+                            ) => {
+                                if (!attributes.tooltip) return {};
+                                return { 'data-tooltip': attributes.tooltip };
+                            },
+                        },
+                    };
+                },
+                addNodeView() {
+                    return ReactNodeViewRenderer(FunctionMentionView);
+                },
+            }).configure({
                 suggestion: {
-                    ...generateFunctionSuggestion(functionSuggestions),
+                    ...generateFunctionSuggestion(
+                        functionSuggestions,
+                        functionExampleMap,
+                    ),
                     pluginKey: new PluginKey('functionMention'),
                 },
                 renderText: ({ node }) => node.attrs.id ?? '',
-                renderHTML: ({ node }) => ['span', {}, node.attrs.id ?? ''],
             }),
             Placeholder.configure({
                 placeholder:
@@ -192,7 +282,12 @@ export const FormulaEditor: FC<Props> = ({
             }),
         ],
         content: initialContent
-            ? buildInitialContent(initialContent, fieldSuggestions)
+            ? buildInitialContent(
+                  initialContent,
+                  fieldSuggestions,
+                  functionSuggestions,
+                  functionExampleMap,
+              )
             : undefined,
         onUpdate: ({ editor: e }) => {
             if (onTextChange) {

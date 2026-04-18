@@ -62,6 +62,23 @@
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm) 0;
 }
 
+.functionLabelWrapper {
+    display: inline;
+}
+
+.functionLabel {
+    cursor: help;
+    font-weight: 500;
+
+    @mixin light {
+        color: var(--mantine-color-violet-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-violet-4);
+    }
+}
+
 .mentionLabel {
     font-weight: 500;
     padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xxs);
