@@ -100,6 +100,7 @@ module.exports = {
         {
             // Error on direct ability checks in fully migrated services
             files: [
+                'src/services/CatalogService/**/*.ts',
                 'src/services/ContentService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
