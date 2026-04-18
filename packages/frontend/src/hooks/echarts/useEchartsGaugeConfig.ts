@@ -78,7 +78,7 @@ const useEchartsGaugeConfig = ({
     lineSize,
     radius,
 }: Args) => {
-    const { visualizationConfig, itemsMap, resultsData, parameters } =
+    const { visualizationConfig, itemsMap, resultsData, parameters, minimal } =
         useVisualizationContext();
     const theme = useMantineTheme();
 
@@ -411,9 +411,9 @@ const useEchartsGaugeConfig = ({
                 ),
             },
             series: gaugeSeries,
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
         };
-    }, [chartConfig, gaugeSeries, isInDashboard, theme?.other?.chartFont]);
+    }, [chartConfig, gaugeSeries, isInDashboard, minimal, theme?.other?.chartFont]);
 
     if (!itemsMap) return;
     if (!eChartsOption) return;
