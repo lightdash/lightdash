@@ -2,4 +2,4 @@ packages:
     - 'packages/*'
     - 'packages/frontend/sdk'
 
-minimumReleaseAge: 2880 # 2 days — supply chain protection
+minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
