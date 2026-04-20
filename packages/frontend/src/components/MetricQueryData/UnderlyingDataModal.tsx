@@ -41,6 +41,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
+import { getZoomedDimFilter } from './dateZoomFilter';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -140,7 +141,7 @@ const UnderlyingDataModalContent: FC = () => {
 
     const filters = useMemo<Filters>(() => {
         if (!underlyingDataConfig) return {};
-        const { item, fieldValues, pivotReference, value } =
+        const { item, fieldValues, pivotReference, value, dateZoom } =
             underlyingDataConfig;
 
         if (item === undefined) return {};
@@ -149,6 +150,14 @@ const UnderlyingDataModalContent: FC = () => {
         const dimensionFilters = !isDimension(item)
             ? Object.entries(fieldValues).reduce((acc, r) => {
                   const [key, { raw }] = r;
+
+                  const isValidDimension = allDimensions.find(
+                      (dimension) => getItemId(dimension) === key,
+                  );
+                  if (!isValidDimension) return acc;
+
+                  const zoomedFilters = getZoomedDimFilter(key, raw, dateZoom);
+                  if (zoomedFilters) return [...acc, ...zoomedFilters];
 
                   const dimensionFilter: FilterRule = {
                       id: uuidv4(),
@@ -161,16 +170,9 @@ const UnderlyingDataModalContent: FC = () => {
                               : FilterOperator.EQUALS,
                       values: raw === null ? undefined : [raw],
                   };
-                  const isValidDimension = allDimensions.find(
-                      (dimension) => getItemId(dimension) === key,
-                  );
-
-                  if (isValidDimension) {
-                      return [...acc, dimensionFilter];
-                  }
-                  return acc;
+                  return [...acc, dimensionFilter];
               }, [] as FilterRule[])
-            : [
+            : (getZoomedDimFilter(getItemId(item), value.raw, dateZoom) ?? [
                   {
                       id: uuidv4(),
                       target: {
@@ -182,7 +184,7 @@ const UnderlyingDataModalContent: FC = () => {
                               : FilterOperator.EQUALS,
                       values: value.raw === null ? undefined : [value.raw],
                   },
-              ];
+              ]);
 
         const pivotFilter: FilterRule[] = (
             pivotReference?.pivotValues || []
