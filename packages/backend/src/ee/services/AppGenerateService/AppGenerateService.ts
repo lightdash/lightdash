@@ -4,7 +4,6 @@ import {
     S3Client,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
@@ -130,12 +129,14 @@ export class AppGenerateService extends BaseService {
         return extMap[mimeType] ?? 'png';
     }
 
-    async getImageUploadUrl(
+    async uploadImage(
         user: SessionUser,
         projectUuid: string,
         mimeType: string,
+        body: Readable,
+        contentLength: number | undefined,
         appUuid?: string,
-    ): Promise<{ uploadUrl: string; s3Key: string }> {
+    ): Promise<{ s3Key: string }> {
         await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
@@ -163,48 +164,29 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const { bucket } = this.getS3Client();
+        const maxSize = 10 * 1024 * 1024; // 10 MB
+        if (contentLength !== undefined && contentLength > maxSize) {
+            throw new ParameterError(
+                `Image too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
+            );
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
         const ext = AppGenerateService.mimeToExt(mimeType);
         const appDir = appUuid ?? uuidv4();
         const s3Key = `apps/${appDir}/images/${uuidv4()}.${ext}`;
 
-        // Use the public endpoint for presigned URLs so the browser can
-        // reach S3 directly. Falls back to the internal endpoint, which
-        // works in production where the endpoint is already public.
-        const s3Config = this.lightdashConfig.appRuntime.s3!;
-        const signingEndpoint =
-            s3Config.publicEndpoint || s3Config.endpoint || undefined;
+        await s3Client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: s3Key,
+                Body: body,
+                ContentLength: contentLength,
+                ContentType: mimeType,
+            }),
+        );
 
-        // Separate signing client with request checksums disabled.
-        // AWS SDK v3 adds x-amz-checksum-crc32 to presigned URLs by
-        // default, but browsers can't compute the matching checksum
-        // header when PUTting, causing signature mismatches.
-        const signingClientConfig: S3ClientConfig = {
-            region: s3Config.region,
-            endpoint: signingEndpoint,
-            forcePathStyle: s3Config.forcePathStyle ?? false,
-            requestChecksumCalculation: 'WHEN_REQUIRED',
-            responseChecksumValidation: 'WHEN_REQUIRED',
-        };
-        if (s3Config.accessKey && s3Config.secretKey) {
-            signingClientConfig.credentials = {
-                accessKeyId: s3Config.accessKey,
-                secretAccessKey: s3Config.secretKey,
-            };
-        }
-        const signingClient = new S3Client(signingClientConfig);
-
-        const command = new PutObjectCommand({
-            Bucket: bucket,
-            Key: s3Key,
-            ContentType: mimeType,
-        });
-
-        const uploadUrl = await getSignedUrl(signingClient, command, {
-            expiresIn: 300,
-        });
-
-        return { uploadUrl, s3Key };
+        return { s3Key };
     }
 
     private static truncateEnd(text: string, maxLength: number): string {

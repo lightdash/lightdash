@@ -6,14 +6,13 @@ export type ApiGenerateAppResponse = ApiSuccess<{
     version: number;
 }>;
 
-export type ApiAppImageUploadUrlResponse = ApiSuccess<{
-    uploadUrl: string;
+export type ApiAppImageUploadResponse = ApiSuccess<{
     s3Key: string;
 }>;
 
 /**
  * Image attached to a data app generation request.
- * The image is pre-uploaded to S3 via a presigned URL; the s3Key
+ * The image is uploaded to S3 via the backend proxy; the s3Key
  * references the uploaded object.
  */
 export type AppImageAttachment = {
