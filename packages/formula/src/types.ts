@@ -15,7 +15,8 @@ export type Dialect =
     | 'bigquery'
     | 'snowflake'
     | 'duckdb'
-    | 'databricks';
+    | 'databricks'
+    | 'clickhouse';
 
 export interface CompileOptions {
     dialect: Dialect;

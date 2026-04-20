@@ -9,17 +9,17 @@ describe('mapAdapterToFormulaDialect', () => {
         [SupportedDbtAdapter.SNOWFLAKE, 'snowflake'],
         [SupportedDbtAdapter.DUCKDB, 'duckdb'],
         [SupportedDbtAdapter.DATABRICKS, 'databricks'],
+        [SupportedDbtAdapter.CLICKHOUSE, 'clickhouse'],
     ] as const)('maps %s adapter to %s dialect', (adapter, expected) => {
         expect(mapAdapterToFormulaDialect(adapter)).toBe(expected);
     });
 
-    test.each([
-        SupportedDbtAdapter.TRINO,
-        SupportedDbtAdapter.ATHENA,
-        SupportedDbtAdapter.CLICKHOUSE,
-    ])('throws for unsupported adapter %s', (adapter) => {
-        expect(() => mapAdapterToFormulaDialect(adapter)).toThrow(
-            `Formula table calculations are not yet supported for ${adapter}`,
-        );
-    });
+    test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
+        'throws for unsupported adapter %s',
+        (adapter) => {
+            expect(() => mapAdapterToFormulaDialect(adapter)).toThrow(
+                `Formula table calculations are not yet supported for ${adapter}`,
+            );
+        },
+    );
 });

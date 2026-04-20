@@ -181,6 +181,63 @@ export async function createDatabricksConnection(
     };
 }
 
+export async function createClickhouseConnection(
+    config: WarehouseConfig['clickhouse'],
+): Promise<WarehouseConnection> {
+    if (!config.url) {
+        throw new Error(
+            'ClickHouse connection requires FORMULA_TEST_CH_URL (e.g. http://localhost:8123 or https://<instance>.clickhouse.cloud:8443)',
+        );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createClient } = require('@clickhouse/client');
+    const client = createClient({
+        url: config.url,
+        username: config.username,
+        password: config.password,
+        database: config.database,
+        // ClickHouse Cloud auto-suspends idle services. First query can take
+        // 15-30s to cold-start compute, which exceeds the default timeout
+        // and manifests as a generic "Timeout error" at seed time.
+        request_timeout: 120_000,
+    });
+
+    // Warm up the service before we try to seed. This lets the cold-start
+    // wait happen in a single short query rather than inside a multi-
+    // statement seed where the timeout is harder to reason about.
+    await client.command({ query: 'SELECT 1' });
+
+    const execute = async (sql: string): Promise<Record<string, any>[]> => {
+        const result = await client.query({
+            query: sql,
+            format: 'JSONEachRow',
+        });
+        return (await result.json()) as Record<string, any>[];
+    };
+
+    return {
+        dialect: 'clickhouse',
+        async execute(sql: string) {
+            return execute(sql);
+        },
+        async seed(sql: string) {
+            const statements = sql
+                .split(';')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0 && !s.startsWith('--'));
+            for (const stmt of statements) {
+                // Seed uses DDL/DML that doesn't return rows — use `command`
+                // so the client doesn't try to stream a result set.
+                await client.command({ query: stmt });
+            }
+        },
+        async close() {
+            await client.close();
+        },
+    };
+}
+
 export async function createBigQueryConnection(
     config: WarehouseConfig['bigquery'],
 ): Promise<WarehouseConnection> {
@@ -244,6 +301,8 @@ export async function createConnection(
             throw new Error('Snowflake connection not yet implemented');
         case 'databricks':
             return createDatabricksConnection(config.databricks);
+        case 'clickhouse':
+            return createClickhouseConnection(config.clickhouse);
         default: {
             const _exhaustive: never = warehouse;
             throw new Error(`Unknown warehouse: ${warehouse}`);

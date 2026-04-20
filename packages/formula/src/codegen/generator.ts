@@ -300,9 +300,19 @@ export class SqlGenerator {
                     'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
                 );
             case 'LAG':
-                return this.generateWindowFunction('LAG', args, node);
+                return this.generateWindowFunction(
+                    this.dialect.lagFunctionName ?? 'LAG',
+                    this.wrapLagLeadArgs(args),
+                    node,
+                    this.dialect.lagLeadFrameClause,
+                );
             case 'LEAD':
-                return this.generateWindowFunction('LEAD', args, node);
+                return this.generateWindowFunction(
+                    this.dialect.leadFunctionName ?? 'LEAD',
+                    this.wrapLagLeadArgs(args),
+                    node,
+                    this.dialect.lagLeadFrameClause,
+                );
             // TODO: unsafe cast — MOVING_SUM/MOVING_AVG assume second arg is a NumberLiteral
             // but the grammar accepts any Expression. Fix by adding a grammar rule that
             // enforces NumberLiteral in the second position (same pattern as BooleanExpression).
@@ -383,6 +393,13 @@ export class SqlGenerator {
             this.dialect.generateModulo?.(left, right) ??
             `MOD(${left}, ${right})`
         );
+    }
+
+    // Only the first (value) argument is wrapped; subsequent offset/default
+    // args stay as-is.
+    protected wrapLagLeadArgs(args: string[]): string[] {
+        if (!this.dialect.wrapLagLeadArg || args.length === 0) return args;
+        return [this.dialect.wrapLagLeadArg(args[0]), ...args.slice(1)];
     }
 
     // --- ANSI defaults shared across all dialects today ---
