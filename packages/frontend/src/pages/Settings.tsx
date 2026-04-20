@@ -134,10 +134,6 @@ const Settings: FC = () => {
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const { data: defaultUserSpacesFlag } = useServerFeatureFlag(
-        FeatureFlags.DefaultUserSpaces,
-    );
-
     const { data: dataAppsFlag } = useServerFeatureFlag(
         FeatureFlags.EnableDataApps,
     );
@@ -1011,18 +1007,16 @@ const Settings: FC = () => {
                                                 <MantineIcon icon={IconUsers} />
                                             }
                                         />
-                                        {defaultUserSpacesFlag?.enabled && (
-                                            <RouterNavLink
-                                                label="Default user spaces"
-                                                exact
-                                                to={`/generalSettings/projectManagement/${project.projectUuid}/defaultUserSpaces`}
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconFolders}
-                                                    />
-                                                }
-                                            />
-                                        )}
+                                        <RouterNavLink
+                                            label="Default user spaces"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/defaultUserSpaces`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconFolders}
+                                                />
+                                            }
+                                        />
                                     </Can>
 
                                     {user.ability.can(

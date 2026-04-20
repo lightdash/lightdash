@@ -220,7 +220,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         featureFlagModel: {
             get: jest.fn(async () => ({
                 id: '',
-                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
+                enabled: false,
             })),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
@@ -1273,27 +1273,7 @@ describe('ProjectService', () => {
     });
 
     describe('updateDefaultUserSpaces', () => {
-        test('should throw ForbiddenError when feature flag is disabled', async () => {
-            const serviceWithFeatureOff = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: false },
-            });
-
-            await expect(
-                serviceWithFeatureOff.updateDefaultUserSpaces(
-                    user,
-                    projectUuid,
-                    { hasDefaultUserSpaces: true },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-        });
-
         test('should throw ForbiddenError when user cannot manage the project', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const viewerUser: SessionUser = {
                 ...user,
                 userUuid: 'viewer-uuid',
@@ -1309,20 +1289,13 @@ describe('ProjectService', () => {
             };
 
             await expect(
-                serviceWithFeatureOn.updateDefaultUserSpaces(
-                    viewerUser,
-                    projectUuid,
-                    { hasDefaultUserSpaces: true },
-                ),
+                service.updateDefaultUserSpaces(viewerUser, projectUuid, {
+                    hasDefaultUserSpaces: true,
+                }),
             ).rejects.toThrowError(ForbiddenError);
         });
 
         test('should delegate to projectModel when admin enables the feature', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const adminUser: SessionUser = {
                 ...user,
                 role: OrganizationMemberRole.ADMIN,
@@ -1336,11 +1309,9 @@ describe('ProjectService', () => {
                 ),
             };
 
-            await serviceWithFeatureOn.updateDefaultUserSpaces(
-                adminUser,
-                projectUuid,
-                { hasDefaultUserSpaces: true },
-            );
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: true,
+            });
 
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
                 1,
@@ -1352,11 +1323,6 @@ describe('ProjectService', () => {
         });
 
         test('should delegate to projectModel when admin disables the feature', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const adminUser: SessionUser = {
                 ...user,
                 role: OrganizationMemberRole.ADMIN,
@@ -1370,11 +1336,9 @@ describe('ProjectService', () => {
                 ),
             };
 
-            await serviceWithFeatureOn.updateDefaultUserSpaces(
-                adminUser,
-                projectUuid,
-                { hasDefaultUserSpaces: false },
-            );
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: false,
+            });
 
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
                 1,

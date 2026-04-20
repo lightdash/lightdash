@@ -47,8 +47,6 @@ export class FeatureFlagModel {
                 this.getShowExecutionTimeEnabled.bind(this),
             [FeatureFlags.SavedMetricsTree]:
                 this.getSavedMetricsTreeEnabled.bind(this),
-            [FeatureFlags.DefaultUserSpaces]:
-                this.getDefaultUserSpacesEnabled.bind(this),
             [FeatureFlags.GoogleChatEnabled]:
                 this.getGoogleChatEnabled.bind(this),
             [FeatureFlags.UserImpersonation]:
@@ -235,32 +233,6 @@ export class FeatureFlagModel {
                       userUuid: user.userUuid,
                       organizationUuid: user.organizationUuid,
                   })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getDefaultUserSpacesEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.defaultUserSpaces.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.DefaultUserSpaces,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                          organizationName: user.organizationName,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
                 : false);
         return {
             id: featureFlagId,
