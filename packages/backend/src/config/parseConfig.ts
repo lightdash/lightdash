@@ -1256,9 +1256,6 @@ export type LightdashConfig = {
     savedMetricsTree: {
         enabled: boolean | undefined;
     };
-    defaultUserSpaces: {
-        enabled: boolean | undefined;
-    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
@@ -2270,12 +2267,6 @@ export const parseConfig = (): LightdashConfig => {
         savedMetricsTree: {
             enabled:
                 process.env.SAVED_METRICS_TREE_ENABLED === 'true'
-                    ? true
-                    : undefined,
-        },
-        defaultUserSpaces: {
-            enabled:
-                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true'
                     ? true
                     : undefined,
         },

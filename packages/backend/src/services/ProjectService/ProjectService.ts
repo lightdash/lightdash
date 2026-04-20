@@ -6291,17 +6291,6 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateDefaultUserSpaces,
     ): Promise<void> {
-        const { enabled: defaultUserSpacesEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.DefaultUserSpaces,
-            });
-        if (!defaultUserSpacesEnabled) {
-            throw new ForbiddenError(
-                'Default user spaces feature is not enabled',
-            );
-        }
-
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (

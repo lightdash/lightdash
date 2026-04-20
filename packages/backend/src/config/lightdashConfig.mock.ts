@@ -339,9 +339,6 @@ export const lightdashConfigMock: LightdashConfig = {
     savedMetricsTree: {
         enabled: undefined,
     },
-    defaultUserSpaces: {
-        enabled: undefined,
-    },
     persistentDownloadUrls: {
         enabled: false,
         expirationSeconds: 259200,

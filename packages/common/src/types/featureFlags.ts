@@ -73,11 +73,6 @@ export enum FeatureFlags {
     SavedMetricsTree = 'saved-metrics-tree',
 
     /**
-     * Enable default personal spaces for project members
-     */
-    DefaultUserSpaces = 'default-user-spaces',
-
-    /**
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
