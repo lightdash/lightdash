@@ -11,9 +11,12 @@ import type {
 
 export type Dialect = 'postgres' | 'bigquery' | 'snowflake' | 'duckdb';
 
+export type AggregateContext = 'bare' | 'window';
+
 export interface CompileOptions {
     dialect: Dialect;
     columns: Record<string, string>;
+    aggregateContext?: AggregateContext;
 }
 
 // AST Node Types

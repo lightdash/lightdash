@@ -73,6 +73,12 @@ export abstract class BaseSqlGenerator {
         }
     }
 
+    protected wrapAggregate(sql: string): string {
+        return this.options.aggregateContext === 'window'
+            ? `${sql} OVER ()`
+            : sql;
+    }
+
     protected generateBinaryOp(node: BinaryOpNode): string {
         const left = this.generate(node.left);
         const right = this.generate(node.right);
@@ -187,7 +193,7 @@ export abstract class BaseSqlGenerator {
             case 'ISNULL':
                 return `(${arg} IS NULL)`;
             case 'SUM':
-                return `SUM(${arg})`;
+                return this.wrapAggregate(`SUM(${arg})`);
             case 'AVERAGE':
             case 'AVG':
                 return `AVG(${arg})`;

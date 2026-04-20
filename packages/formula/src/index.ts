@@ -3,6 +3,7 @@ import { parse } from './compiler';
 import { FUNCTION_DEFINITIONS } from './functions';
 import type { FunctionDefinitionEntry } from './functions';
 import type {
+    AggregateContext,
     ASTNode,
     CompileOptions,
     Dialect,
@@ -11,6 +12,7 @@ import type {
 } from './types';
 
 export type {
+    AggregateContext,
     ASTNode,
     CompileOptions,
     Dialect,
