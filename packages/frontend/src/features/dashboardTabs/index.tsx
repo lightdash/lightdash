@@ -19,6 +19,7 @@ import {
     useMemo,
     useRef,
     useState,
+    useTransition,
     type FC,
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -236,6 +237,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
+    const [, startTabTransition] = useTransition();
+
     const keepTabsInMemory = useClientFeatureFlag(
         FeatureFlags.DashboardTabsInMemory,
     );
@@ -606,15 +609,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
 
         const newParams = new URLSearchParams(search);
-        void navigate(
-            {
-                pathname: isEditMode
-                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                search: newParams.toString(),
-            },
-            { replace: true },
-        );
+        startTabTransition(() => {
+            void navigate(
+                {
+                    pathname: isEditMode
+                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                    search: newParams.toString(),
+                },
+                { replace: true },
+            );
+        });
     };
 
     const maxTabsPerDashboard =
