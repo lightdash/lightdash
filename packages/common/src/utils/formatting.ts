@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import moment, { type MomentInput } from 'moment';
+import dayjsTimezone from 'dayjs/plugin/timezone';
+import moment, { type MomentInput } from 'moment-timezone';
 import {
     format as formatWithExpression,
     isDateFormat,
@@ -42,7 +42,7 @@ import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import { getItemType, isNumericItem } from './item';
 
-dayjs.extend(timezone);
+dayjs.extend(dayjsTimezone);
 
 export const currencies = [
     'USD',
@@ -135,8 +135,16 @@ export function formatDate(
     date: MomentInput,
     timeInterval: TimeFrames = TimeFrames.DAY,
     convertToUTC: boolean = false,
+    timezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    let momentDate;
+    if (timezone) {
+        momentDate = moment.utc(date).tz(timezone);
+    } else if (convertToUTC) {
+        momentDate = moment(date).utc();
+    } else {
+        momentDate = moment(date);
+    }
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -149,8 +157,16 @@ export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
+    timezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+    let momentDate;
+    if (timezone) {
+        momentDate = moment.utc(value).tz(timezone);
+    } else if (convertToUTC) {
+        momentDate = moment(value).utc();
+    } else {
+        momentDate = moment(value);
+    }
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -772,6 +788,7 @@ export function formatItemValue(
     value: unknown,
     convertToUTC?: boolean,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -838,6 +855,7 @@ export function formatItemValue(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
+                              timezone,
                           )
                         : 'NaT';
                 case DimensionType.TIMESTAMP:
@@ -848,6 +866,7 @@ export function formatItemValue(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
+                              timezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
@@ -857,6 +876,7 @@ export function formatItemValue(
                             value,
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
+                            timezone,
                         );
                     }
                     break;
