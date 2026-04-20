@@ -436,6 +436,22 @@ type RestoredSavedChartEvent = BaseTrack & {
     };
 };
 
+type FormulaTableCalculationSavedEvent = BaseTrack & {
+    event: 'formula_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        // `created` covers first-time chart creation AND duplication; `updated`
+        // covers saveVersion (the path that persists table-calc edits on an
+        // existing chart). The two together let us separate adopters from
+        // iterators in Lightdash analytics.
+        action: 'created' | 'updated';
+        formulaCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
 type ChartHistoryEvent = BaseTrack & {
     event: 'saved_chart_history.view';
     properties: {
@@ -1620,6 +1636,7 @@ type TypedEvent =
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
+    | FormulaTableCalculationSavedEvent
     | CreateSavedChartEvent
     | ChartHistoryEvent
     | ViewChartVersionEvent
