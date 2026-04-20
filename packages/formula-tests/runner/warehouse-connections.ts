@@ -80,6 +80,12 @@ export async function createRedshiftConnection(
     config: WarehouseConfig['redshift'],
 ): Promise<WarehouseConnection> {
     // Redshift is Postgres-wire-compatible, so `pg` works as the client.
+    // Redshift Serverless (and provisioned clusters in their default
+    // configuration) require TLS; without this the server rejects the
+    // connection with "no pg_hba.conf entry for host … SSL off".
+    // `rejectUnauthorized: false` keeps the channel encrypted while
+    // tolerating self-signed / corporate-MITM CA chains — acceptable for
+    // a test harness connecting to our own cluster.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { Pool } = require('pg');
     const pool = new Pool({
@@ -88,6 +94,7 @@ export async function createRedshiftConnection(
         database: config.database,
         user: config.user,
         password: config.password,
+        ssl: { rejectUnauthorized: false },
     });
 
     return {
