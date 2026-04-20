@@ -14,6 +14,13 @@ export type Dialect = 'postgres' | 'bigquery' | 'snowflake' | 'duckdb';
 export interface CompileOptions {
     dialect: Dialect;
     columns: Record<string, string>;
+    // Invoked with the bare SQL emitted for each aggregate call (SUM, SUMIF,
+    // COUNT, 1-arg MIN/MAX, AVG, AVERAGEIF, COUNTIF). Callers whose SQL lands
+    // in a context where bare aggregates are illegal (e.g. a post-aggregation
+    // SELECT alongside non-aggregate columns) can return `${inner} OVER ()`.
+    // Callers that compose their own GROUP BY around the output leave this
+    // unset. The formula package has no opinion on embedding context.
+    renderAggregate?: (innerSql: string) => string;
 }
 
 // AST Node Types

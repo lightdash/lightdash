@@ -1,5 +1,51 @@
+import { FUNCTION_DEFINITIONS } from './functions';
 import type { ASTNode } from './types';
 import { assertUnreachable } from './utils';
+
+const AGGREGATE_FUNCTION_NAMES: ReadonlySet<string> = new Set(
+    FUNCTION_DEFINITIONS.filter((f) => f.category === 'aggregate').map(
+        (f) => f.name,
+    ),
+);
+
+// Recognises AST nodes that represent an aggregate function call.
+// Used by the codegen dispatcher to decide whether to window-wrap output when
+// `aggregateContext === 'window'`. Centralising this in one place means new
+// aggregates added to `functions.ts` with category `'aggregate'` are picked up
+// automatically — the codegen can't silently forget to wrap them.
+// MIN/MAX are polymorphic (1-arg aggregate, 2-arg scalar LEAST/GREATEST) and
+// live under category `'math'`, so they're handled explicitly.
+export const isAggregateCall = (node: ASTNode): boolean => {
+    switch (node.type) {
+        case 'ConditionalAggregate':
+        case 'CountIf':
+            return true;
+        case 'SingleArgFn':
+        case 'ZeroOrOneArgFn':
+            return AGGREGATE_FUNCTION_NAMES.has(node.name);
+        case 'OneOrTwoArgFn':
+            return (
+                (node.name === 'MIN' || node.name === 'MAX') &&
+                node.args.length === 1
+            );
+        case 'BinaryOp':
+        case 'UnaryOp':
+        case 'If':
+        case 'ZeroArgFn':
+        case 'VariadicFn':
+        case 'WindowFn':
+        case 'ColumnRef':
+        case 'NumberLiteral':
+        case 'StringLiteral':
+        case 'BooleanLiteral':
+        case 'Comparison':
+        case 'Logical':
+        case 'WindowClause':
+            return false;
+        default:
+            return assertUnreachable(node, `Unknown AST node type`);
+    }
+};
 
 export const extractColumnRefs = (node: ASTNode): string[] => {
     switch (node.type) {

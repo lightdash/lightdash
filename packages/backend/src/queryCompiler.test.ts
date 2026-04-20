@@ -1136,3 +1136,79 @@ test('Should compile a formula that references another table calculation', () =>
     expect(formulaCalc?.compiledSql).toBe('("base_calc" * 2)');
     expect(formulaCalc?.dependsOn).toEqual(['base_calc']);
 });
+
+test('Should compile a formula aggregate as a window aggregate', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'formula_sum',
+                displayName: 'Formula Sum',
+                formula: '=SUM(table_3_metric_1)',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const formulaCalc = result.compiledTableCalculations.find(
+        (c) => c.name === 'formula_sum',
+    );
+
+    expect(formulaCalc?.compiledSql).toBe('SUM("table_3_metric_1") OVER ()');
+});
+
+test('Should throw error when formula aggregate references unknown column', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'bad_sum',
+                displayName: 'Bad Sum',
+                formula: '=SUM(nonexistent_field)',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    expect(() =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        }),
+    ).toThrow();
+});
+
+test('Should compile a formula SUMIF as a window aggregate', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'formula_sumif',
+                displayName: 'Formula SumIf',
+                formula: '=SUMIF(table_3_metric_1, table_3_metric_1 > 100)',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery,
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const formulaCalc = result.compiledTableCalculations.find(
+        (c) => c.name === 'formula_sumif',
+    );
+
+    expect(formulaCalc?.compiledSql).toBe(
+        'SUM(CASE WHEN ("table_3_metric_1" > 100) THEN "table_3_metric_1" END) OVER ()',
+    );
+});

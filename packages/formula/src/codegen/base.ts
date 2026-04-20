@@ -1,3 +1,4 @@
+import { isAggregateCall } from '../ast';
 import type {
     ASTNode,
     BinaryOpNode,
@@ -25,7 +26,22 @@ import { assertUnreachable } from '../utils';
 export abstract class BaseSqlGenerator {
     constructor(protected options: CompileOptions) {}
 
+    // Public entry point. Dispatches to the node-specific generator, then
+    // hands aggregate output to the caller-supplied `renderAggregate` callback
+    // (if any) so the caller decides how to embed the aggregate in their SQL
+    // context — e.g. window-wrap for post-aggregation SELECTs, pass through
+    // for GROUP BY contexts. Every recursive call from child arms goes back
+    // through `generate()`, so the hook is applied once per aggregate node
+    // anywhere in the tree.
     generate(node: ASTNode): string {
+        const sql = this.generateNode(node);
+        if (isAggregateCall(node) && this.options.renderAggregate) {
+            return this.options.renderAggregate(sql);
+        }
+        return sql;
+    }
+
+    protected generateNode(node: ASTNode): string {
         switch (node.type) {
             case 'BinaryOp':
                 return this.generateBinaryOp(node);
