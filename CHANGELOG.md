@@ -1,3 +1,10 @@
+# [0.2768.0](https://github.com/lightdash/lightdash/compare/0.2767.0...0.2768.0) (2026-04-20)
+
+
+### Features
+
+* **formula:** add ClickHouse dialect support ([#22119](https://github.com/lightdash/lightdash/issues/22119)) ([f7c62dd](https://github.com/lightdash/lightdash/commit/f7c62ddc879b1e1af167140cdc0d2f3ccd5003e3))
+
 # [0.2767.0](https://github.com/lightdash/lightdash/compare/0.2766.0...0.2767.0) (2026-04-20)
 
 
