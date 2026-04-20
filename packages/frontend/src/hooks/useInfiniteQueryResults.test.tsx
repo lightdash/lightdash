@@ -136,7 +136,7 @@ describe('useInfiniteQueryResults', () => {
         });
     });
 
-    it('falls back to a non-empty message when the backend error is empty (PROD-7014)', async () => {
+    it('falls back to a non-empty message when the backend error is empty (PROD-7011)', async () => {
         const errorResponse: ApiGetAsyncQueryResults = {
             queryUuid: 'q1',
             status: QueryHistoryStatus.ERROR,
@@ -155,8 +155,8 @@ describe('useInfiniteQueryResults', () => {
         });
 
         // Empty backend error must not surface as an empty message — the tile
-        // UI renders 'No data available' when the message is empty, masking
-        // the real failure. See PROD-7014.
+        // UI renders 'Error running query' when the message is empty, masking
+        // the real failure. See PROD-7011.
         expect(result.current.error?.error?.message).toBeTruthy();
     });
 
