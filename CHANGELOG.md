@@ -1,3 +1,10 @@
+## [0.2764.5](https://github.com/lightdash/lightdash/compare/0.2764.4...0.2764.5) (2026-04-20)
+
+
+### Bug Fixes
+
+* **formula:** aggregate functions in table calc formulas now emit valid SQL ([#22106](https://github.com/lightdash/lightdash/issues/22106)) ([4a9fc18](https://github.com/lightdash/lightdash/commit/4a9fc1889b4d1c78a263aa7ade20cae84345fb94))
+
 ## [0.2764.4](https://github.com/lightdash/lightdash/compare/0.2764.3...0.2764.4) (2026-04-20)
 
 
