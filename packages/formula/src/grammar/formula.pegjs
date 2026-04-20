@@ -34,10 +34,15 @@ BooleanAnd
     }
 
 BooleanAtom
-  = Comparison
-  / "NOT"i _ operand:BooleanAtom {
+  // NOT must be tried before Comparison: PEG is first-match-wins, and
+  // `NOT(expr)` otherwise falls through `Comparison → Arithmetic → Primary
+  // → InvalidFn`, which throws "Unknown function: NOT" before the unary
+  // NOT rule ever gets a chance. Trying NOT first lets both
+  // `=NOT A > 100` and `=NOT(A > 100)` parse.
+  = "NOT"i _ operand:BooleanAtom {
       return { type: "UnaryOp", op: "NOT", operand };
     }
+  / Comparison
   / BooleanFn
   / "(" _ expr:BooleanOr _ ")" { return expr; }
   / BooleanLiteral
