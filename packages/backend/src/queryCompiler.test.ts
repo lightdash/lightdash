@@ -1163,6 +1163,28 @@ test('Should compile a formula aggregate as a window aggregate', () => {
     expect(formulaCalc?.compiledSql).toBe('SUM("table_3_metric_1") OVER ()');
 });
 
+test('Should throw error when formula aggregate references unknown column', () => {
+    const metricQuery = {
+        ...METRIC_QUERY_NO_CALCS,
+        tableCalculations: [
+            {
+                name: 'bad_sum',
+                displayName: 'Bad Sum',
+                formula: '=SUM(nonexistent_field)',
+            } satisfies FormulaTableCalculation,
+        ],
+    };
+
+    expect(() =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        }),
+    ).toThrow();
+});
+
 test('Should compile a formula SUMIF as a window aggregate', () => {
     const metricQuery = {
         ...METRIC_QUERY_NO_CALCS,

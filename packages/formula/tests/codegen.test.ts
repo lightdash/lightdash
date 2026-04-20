@@ -279,5 +279,51 @@ describe('codegen aggregateContext', () => {
                 }),
             ).toBe('("revenue" / NULLIF(SUM("revenue") OVER (), 0))');
         });
+
+        it('wraps multiple aggregates in a single expression', () => {
+            expect(
+                compile('=SUM(revenue) - AVG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    aggregateContext: 'window',
+                }),
+            ).toBe('(SUM("revenue") OVER () - AVG("revenue") OVER ())');
+        });
+    });
+
+    describe('nested aggregates', () => {
+        it('wraps the aggregate, not the scalar function around it', () => {
+            expect(
+                compile('=ABS(SUM(revenue))', {
+                    dialect: 'postgres',
+                    columns,
+                    aggregateContext: 'window',
+                }),
+            ).toBe('ABS(SUM("revenue") OVER ())');
+        });
+
+        it('wraps the aggregate inside an IF branch', () => {
+            expect(
+                compile('=IF(revenue > 0, SUM(revenue), 0)', {
+                    dialect: 'postgres',
+                    columns,
+                    aggregateContext: 'window',
+                }),
+            ).toBe(
+                'CASE WHEN ("revenue" > 0) THEN SUM("revenue") OVER () ELSE 0 END',
+            );
+        });
+
+        it('does not double-wrap a native window function', () => {
+            expect(
+                compile('=RUNNING_TOTAL(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    aggregateContext: 'window',
+                }),
+            ).toBe(
+                'SUM("revenue") OVER ( ROWS UNBOUNDED PRECEDING)',
+            );
+        });
     });
 });
