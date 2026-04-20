@@ -184,10 +184,15 @@ const compileTableCalculation = (
                     columns[dep.name] = dep.name;
                 }
             }
+            // Table calcs land in a post-aggregation SELECT alongside non-
+            // aggregate dimension columns, so bare SQL aggregates would be
+            // rejected by the warehouse. Wrapping as `AGG(x) OVER ()` turns
+            // them into window aggregates — legal in that context and
+            // preserving Sheets-like whole-result-set semantics.
             const compiledSql = compileFormula(tableCalculation.formula, {
                 dialect,
                 columns,
-                aggregateContext: 'window',
+                renderAggregate: (inner) => `${inner} OVER ()`,
             });
             return {
                 ...tableCalculation,

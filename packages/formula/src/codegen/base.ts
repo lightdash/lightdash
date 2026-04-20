@@ -27,18 +27,16 @@ export abstract class BaseSqlGenerator {
     constructor(protected options: CompileOptions) {}
 
     // Public entry point. Dispatches to the node-specific generator, then
-    // centrally applies the aggregate-context wrap. Every recursive call from
-    // child arms goes back through `generate()`, so the wrap decision is made
-    // once per node, in exactly one place. New aggregate functions introduced
-    // via `functions.ts` (or via new AST shapes via `isAggregateCall`) inherit
-    // window-wrapping automatically — no individual arm has to remember.
+    // hands aggregate output to the caller-supplied `renderAggregate` callback
+    // (if any) so the caller decides how to embed the aggregate in their SQL
+    // context — e.g. window-wrap for post-aggregation SELECTs, pass through
+    // for GROUP BY contexts. Every recursive call from child arms goes back
+    // through `generate()`, so the hook is applied once per aggregate node
+    // anywhere in the tree.
     generate(node: ASTNode): string {
         const sql = this.generateNode(node);
-        if (
-            this.options.aggregateContext === 'window' &&
-            isAggregateCall(node)
-        ) {
-            return `${sql} OVER ()`;
+        if (isAggregateCall(node) && this.options.renderAggregate) {
+            return this.options.renderAggregate(sql);
         }
         return sql;
     }
