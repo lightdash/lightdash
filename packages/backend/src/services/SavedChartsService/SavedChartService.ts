@@ -18,7 +18,6 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -79,7 +78,6 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -108,7 +106,6 @@ type SavedChartServiceArguments = {
     userService: UserService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    featureFlagService: FeatureFlagService;
 };
 
 export class SavedChartService
@@ -151,8 +148,6 @@ export class SavedChartService
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -173,19 +168,6 @@ export class SavedChartService
         this.userService = args.userService;
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
-        this.featureFlagService = args.featureFlagService;
-    }
-
-    private async assertContentVerificationEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<void> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ContentVerification,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Content verification is not enabled');
-        }
     }
 
     private async checkUpdateAccess(
@@ -1038,7 +1020,6 @@ export class SavedChartService
         user: SessionUser,
         chartUuid: string,
     ): Promise<ContentVerificationInfo> {
-        await this.assertContentVerificationEnabled(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
@@ -1088,7 +1069,6 @@ export class SavedChartService
     }
 
     async unverifyChart(user: SessionUser, chartUuid: string): Promise<void> {
-        await this.assertContentVerificationEnabled(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 

@@ -367,7 +367,6 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -739,7 +738,6 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -1071,7 +1069,6 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

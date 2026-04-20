@@ -13,7 +13,6 @@ import {
     DashboardTileTypes,
     DashboardVersionedFields,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -74,7 +73,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -101,7 +99,6 @@ type DashboardServiceArguments = {
     catalogModel: CatalogModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    featureFlagService: FeatureFlagService;
 };
 
 export class DashboardService
@@ -140,8 +137,6 @@ export class DashboardService
 
     contentVerificationModel: ContentVerificationModel;
 
-    featureFlagService: FeatureFlagService;
-
     constructor({
         lightdashConfig,
         analytics,
@@ -159,7 +154,6 @@ export class DashboardService
         catalogModel,
         spacePermissionService,
         contentVerificationModel,
-        featureFlagService,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -178,26 +172,12 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
-        this.featureFlagService = featureFlagService;
-    }
-
-    private async assertContentVerificationEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<void> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ContentVerification,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Content verification is not enabled');
-        }
     }
 
     async verifyDashboard(
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<ContentVerificationInfo> {
-        await this.assertContentVerificationEnabled(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid } = dashboard;
@@ -251,7 +231,6 @@ export class DashboardService
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<void> {
-        await this.assertContentVerificationEnabled(user);
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid } = dashboard;

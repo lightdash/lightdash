@@ -14,7 +14,6 @@ import {
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
-import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import AttributeCount from './ResourceAttributeCount';
@@ -104,8 +103,7 @@ const ResourceVerifiedIndicator = ({
     verification,
     children,
 }: ResourceVerifiedIndicatorProps) => {
-    const isContentVerificationEnabled = useContentVerificationEnabled();
-    if (!isContentVerificationEnabled || !verification) {
+    if (!verification) {
         return children;
     }
 
