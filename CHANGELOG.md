@@ -1,3 +1,10 @@
+# [0.2767.0](https://github.com/lightdash/lightdash/compare/0.2766.0...0.2767.0) (2026-04-20)
+
+
+### Features
+
+* **formula:** add Databricks dialect support ([#22114](https://github.com/lightdash/lightdash/issues/22114)) ([355848a](https://github.com/lightdash/lightdash/commit/355848a92d9e43a07871f70b290c3e1b97f3b456))
+
 # [0.2766.0](https://github.com/lightdash/lightdash/compare/0.2765.1...0.2766.0) (2026-04-20)
 
 
