@@ -2012,7 +2012,7 @@ export const GenericDashboardChartTile: FC<
                     title={tileTitle}
                     description={
                         getDashboardTileErrorMessage(error) ||
-                        'No data available'
+                        'Error running query'
                     }
                 />
             </TileBase>

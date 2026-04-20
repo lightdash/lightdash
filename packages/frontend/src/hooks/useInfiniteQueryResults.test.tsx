@@ -136,6 +136,30 @@ describe('useInfiniteQueryResults', () => {
         });
     });
 
+    it('falls back to a non-empty message when the backend error is empty (PROD-7014)', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: '',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        // Empty backend error must not surface as an empty message — the tile
+        // UI renders 'No data available' when the message is empty, masking
+        // the real failure. See PROD-7014.
+        expect(result.current.error?.error?.message).toBeTruthy();
+    });
+
     it('resets pages when queryUuid changes', async () => {
         const page1Q1 = makeReadyPage(1, { queryUuid: 'q1', rows: 5 });
         const page1Q2 = makeReadyPage(1, { queryUuid: 'q2', rows: 3 });
