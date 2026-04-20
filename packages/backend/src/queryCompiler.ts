@@ -187,6 +187,7 @@ const compileTableCalculation = (
             const compiledSql = compileFormula(tableCalculation.formula, {
                 dialect,
                 columns,
+                aggregateContext: 'window',
             });
             return {
                 ...tableCalculation,
