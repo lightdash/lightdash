@@ -722,7 +722,15 @@ export class AppGenerateService extends BaseService {
         return { durationMs, responseText };
     }
 
-    private async runBuild(sandbox: Sandbox, appUuid: string): Promise<number> {
+    private async runBuild(
+        sandbox: Sandbox,
+        appUuid: string,
+    ): Promise<{
+        durationMs: number;
+        exitCode: number;
+        stdout: string;
+        stderr: string;
+    }> {
         const start = performance.now();
         const result = await sandbox.commands.run('pnpm build', {
             cwd: '/app',
@@ -741,12 +749,122 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: Vite build completed (exit=${result.exitCode}, ${durationMs}ms)`,
         );
 
-        if (result.exitCode !== 0) {
+        return {
+            durationMs,
+            exitCode: result.exitCode,
+            stdout: result.stdout,
+            stderr: result.stderr,
+        };
+    }
+
+    private static readonly MAX_BUILD_FIX_ATTEMPTS = 2;
+
+    /**
+     * Run `pnpm build` and, on failure, feed the build output back to Claude
+     * so it can fix the compilation errors. Retries up to
+     * MAX_BUILD_FIX_ATTEMPTS times before giving up and throwing.
+     */
+    private async runBuildWithAutoFix(
+        sandbox: Sandbox,
+        appUuid: string,
+        version: number,
+        anthropicApiKey: string,
+    ): Promise<{
+        buildMs: number;
+        fixAttempts: number;
+        fixGenerationMs: number;
+    }> {
+        let buildMs = 0;
+        let fixGenerationMs = 0;
+        let fixAttempts = 0;
+
+        let lastResult = await this.runBuild(sandbox, appUuid);
+        buildMs += lastResult.durationMs;
+
+        while (
+            lastResult.exitCode !== 0 &&
+            fixAttempts < AppGenerateService.MAX_BUILD_FIX_ATTEMPTS
+        ) {
+            // Each iteration depends on the previous one: Claude's fix must
+            // complete before the next build, and we need the build outcome
+            // to decide whether to keep retrying.
+            /* eslint-disable no-await-in-loop */
+            fixAttempts += 1;
+
+            this.logger.info(
+                `App ${appUuid}: build failed (exit ${lastResult.exitCode}), asking Claude to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
+            );
+
+            try {
+                await this.appModel.updateStatusMessage(
+                    appUuid,
+                    version,
+                    'Fixing build errors',
+                );
+            } catch (e) {
+                this.logger.warn(
+                    `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                );
+            }
+
+            const errorOutput = AppGenerateService.truncateEnd(
+                `${lastResult.stderr}\n${lastResult.stdout}`.trim(),
+                8000,
+            );
+            const fixPrompt =
+                `The code you just produced failed to build with \`pnpm build\`. ` +
+                `Analyze the build output below, identify the compilation errors, ` +
+                `and fix the code so it builds cleanly. Do not ask questions — ` +
+                `apply the fix directly.\n\n` +
+                `Build output:\n${errorOutput}`;
+            // Remove the previous prompt file first — after the Claude CLI
+            // ran, it may be owned by a different user and writing would
+            // fail with EPERM. Same reason as in writeCatalogAndPrompt.
+            await sandbox.commands.run(
+                'rm -f /tmp/prompt.txt 2>/dev/null; true',
+                { timeoutMs: 5_000 },
+            );
+            await sandbox.files.write('/tmp/prompt.txt', `${fixPrompt}\n`);
+
+            const generation = await this.runClaudeGeneration(
+                sandbox,
+                appUuid,
+                version,
+                true, // --continue: keep conversation context from generation
+                anthropicApiKey,
+            );
+            fixGenerationMs += generation.durationMs;
+
+            try {
+                await this.appModel.updateStatusMessage(
+                    appUuid,
+                    version,
+                    'Rebuilding',
+                );
+            } catch (e) {
+                this.logger.warn(
+                    `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                );
+            }
+
+            lastResult = await this.runBuild(sandbox, appUuid);
+            buildMs += lastResult.durationMs;
+            /* eslint-enable no-await-in-loop */
+        }
+
+        if (lastResult.exitCode !== 0) {
             throw new Error(
-                `Build failed (exit ${result.exitCode}): ${result.stderr}`,
+                `Build failed after ${fixAttempts} auto-fix attempt(s) (exit ${lastResult.exitCode}): ${lastResult.stderr}`,
             );
         }
-        return durationMs;
+
+        if (fixAttempts > 0) {
+            this.logger.info(
+                `App ${appUuid}: build recovered after ${fixAttempts} auto-fix attempt(s)`,
+            );
+        }
+
+        return { buildMs, fixAttempts, fixGenerationMs };
     }
 
     private async packageArtifacts(
@@ -1087,7 +1205,17 @@ export class AppGenerateService extends BaseService {
                     'building',
                     'Packaging your app',
                 );
-                durations.buildMs = await this.runBuild(sandbox, appUuid);
+                const buildResult = await this.runBuildWithAutoFix(
+                    sandbox,
+                    appUuid,
+                    version,
+                    anthropicApiKey,
+                );
+                durations.buildMs = buildResult.buildMs;
+                if (buildResult.fixAttempts > 0) {
+                    durations.buildFixMs = buildResult.fixGenerationMs;
+                    durations.buildFixAttempts = buildResult.fixAttempts;
+                }
             } catch (error) {
                 const totalMs = AppGenerateService.elapsed(overallStart);
                 this.logger.error(
