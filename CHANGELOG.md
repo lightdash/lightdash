@@ -1,3 +1,12 @@
+# [0.2766.0](https://github.com/lightdash/lightdash/compare/0.2765.1...0.2766.0) (2026-04-20)
+
+
+### Features
+
+* auto-fix data app build errors by feeding them back to Claude ([#22134](https://github.com/lightdash/lightdash/issues/22134)) ([74e1fc1](https://github.com/lightdash/lightdash/commit/74e1fc13a205a5be0edb882fdd8356694e06cc82))
+* bring defer tab-switch nav with useTransition back ([#22133](https://github.com/lightdash/lightdash/issues/22133)) ([0de2a36](https://github.com/lightdash/lightdash/commit/0de2a361648a8188b7c7201e92a830b43fbc15b2)), closes [#21708](https://github.com/lightdash/lightdash/issues/21708) [#22130](https://github.com/lightdash/lightdash/issues/22130)
+* **formula:** add Redshift dialect support ([#22112](https://github.com/lightdash/lightdash/issues/22112)) ([4ca4d07](https://github.com/lightdash/lightdash/commit/4ca4d07548dc3670d0210431b71c428f19102692))
+
 ## [0.2765.1](https://github.com/lightdash/lightdash/compare/0.2765.0...0.2765.1) (2026-04-20)
 
 
