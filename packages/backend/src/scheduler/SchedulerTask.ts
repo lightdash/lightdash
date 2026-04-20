@@ -2768,6 +2768,7 @@ export default class SchedulerTask {
                         account,
                         projectUuid: chart.projectUuid,
                         chartUuid: savedChartUuid,
+                        invalidateCache: true,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
@@ -2934,6 +2935,7 @@ export default class SchedulerTask {
                                 dashboardUuid,
                                 dashboardFilters,
                                 dashboardSorts: [],
+                                invalidateCache: true,
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                                 pivotResults: shouldPivotChart,
