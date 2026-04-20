@@ -8,6 +8,7 @@ describe('mapAdapterToFormulaDialect', () => {
         [SupportedDbtAdapter.BIGQUERY, 'bigquery'],
         [SupportedDbtAdapter.SNOWFLAKE, 'snowflake'],
         [SupportedDbtAdapter.DUCKDB, 'duckdb'],
+        [SupportedDbtAdapter.DATABRICKS, 'databricks'],
     ] as const)('maps %s adapter to %s dialect', (adapter, expected) => {
         expect(mapAdapterToFormulaDialect(adapter)).toBe(expected);
     });
@@ -16,7 +17,6 @@ describe('mapAdapterToFormulaDialect', () => {
         SupportedDbtAdapter.TRINO,
         SupportedDbtAdapter.ATHENA,
         SupportedDbtAdapter.CLICKHOUSE,
-        SupportedDbtAdapter.DATABRICKS,
     ])('throws for unsupported adapter %s', (adapter) => {
         expect(() => mapAdapterToFormulaDialect(adapter)).toThrow(
             `Formula table calculations are not yet supported for ${adapter}`,
