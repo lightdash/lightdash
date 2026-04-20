@@ -1,3 +1,10 @@
+## [0.2764.6](https://github.com/lightdash/lightdash/compare/0.2764.5...0.2764.6) (2026-04-20)
+
+
+### Bug Fixes
+
+* parse date strings as UTC in formatDate/formatTimestamp to prevent 1-day offset in stacked bar tooltip ([#21974](https://github.com/lightdash/lightdash/issues/21974)) ([d3131cf](https://github.com/lightdash/lightdash/commit/d3131cf6f43e620b0b034a280d0d226bb44ec908))
+
 ## [0.2764.5](https://github.com/lightdash/lightdash/compare/0.2764.4...0.2764.5) (2026-04-20)
 
 
