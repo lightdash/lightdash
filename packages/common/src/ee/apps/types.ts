@@ -1,6 +1,31 @@
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type KnexPaginateArgs } from '../../types/knex-paginate';
 
+/**
+ * Ordered pipeline stages. Index position determines progression — used to
+ * skip completed stages when a build is retried after a worker crash.
+ * 'ready' is included as the final stage; 'error' is terminal but not a
+ * stage (not reachable through normal progression).
+ */
+export const APP_VERSION_STAGE_ORDER = [
+    'pending',
+    'sandbox',
+    'catalog',
+    'generating',
+    'building',
+    'packaging',
+    'ready',
+] as const;
+
+export const APP_VERSION_TERMINAL_STATUSES = ['ready', 'error'] as const;
+
+export type AppVersionStatus =
+    | (typeof APP_VERSION_STAGE_ORDER)[number]
+    | 'error';
+
+export const isAppVersionInProgress = (status: AppVersionStatus): boolean =>
+    !(APP_VERSION_TERMINAL_STATUSES as readonly string[]).includes(status);
+
 export type ApiGenerateAppResponse = ApiSuccess<{
     appUuid: string;
     version: number;
@@ -34,7 +59,7 @@ export type ApiPreviewTokenResponse = ApiSuccess<{
 export type ApiAppVersionSummary = {
     version: number;
     prompt: string;
-    status: string;
+    status: AppVersionStatus;
     statusMessage: string | null;
     createdAt: Date;
 };
@@ -69,7 +94,7 @@ export type ApiAppSummary = {
     projectName: string;
     createdAt: Date;
     lastVersionNumber: number | null;
-    lastVersionStatus: string | null;
+    lastVersionStatus: AppVersionStatus | null;
 };
 
 export type ApiMyAppsResponse = ApiSuccess<{

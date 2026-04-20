@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     FeatureFlags,
+    isAppVersionInProgress,
     type ApiAppVersionSummary,
     type AppImageAttachment,
 } from '@lightdash/common';
@@ -255,7 +256,8 @@ const AppGenerate: FC = () => {
     const latestBuildingVersion = useMemo(() => {
         if (!appData?.pages?.[0]) return null;
         const latest = appData.pages[0].versions[0];
-        if (latest?.status === 'building') return latest;
+        if (latest?.status && isAppVersionInProgress(latest.status))
+            return latest;
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;

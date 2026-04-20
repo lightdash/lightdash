@@ -183,6 +183,12 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: () => ({}),
+    [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
 } as const;
 
 // Generic accessor function
