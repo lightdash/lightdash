@@ -115,11 +115,31 @@ export async function createRedshiftConnection(
 export async function createDatabricksConnection(
     config: WarehouseConfig['databricks'],
 ): Promise<WarehouseConnection> {
+    // Fail loudly here rather than letting the underlying client produce a
+    // cryptic "Invalid URL" when env vars aren't set.
+    const missing: string[] = [];
+    if (!config.serverHostname) missing.push('FORMULA_TEST_DB_HOSTNAME');
+    if (!config.httpPath) missing.push('FORMULA_TEST_DB_HTTP_PATH');
+    if (!config.token) missing.push('FORMULA_TEST_DB_TOKEN');
+    if (!config.catalog) missing.push('FORMULA_TEST_DB_CATALOG');
+    if (missing.length > 0) {
+        throw new Error(
+            `Databricks connection requires the following env vars: ${missing.join(', ')}`,
+        );
+    }
+
+    // Normalise the hostname: strip any protocol prefix and trailing slashes
+    // so users can copy-paste the full workspace URL from the browser without
+    // hitting a cryptic "Invalid URL" / doubled-protocol error from the SDK.
+    const host = config.serverHostname
+        .replace(/^https?:\/\//, '')
+        .replace(/\/+$/, '');
+
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { DBSQLClient } = require('@databricks/sql');
     const client = new DBSQLClient();
     await client.connect({
-        host: config.serverHostname,
+        host,
         path: config.httpPath,
         token: config.token,
     });
