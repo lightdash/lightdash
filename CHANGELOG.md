@@ -1,3 +1,10 @@
+## [0.2764.1](https://github.com/lightdash/lightdash/compare/0.2764.0...0.2764.1) (2026-04-20)
+
+
+### Bug Fixes
+
+* use date range filter for zoomed x-axis dimension in underlying data modal ([#22099](https://github.com/lightdash/lightdash/issues/22099)) ([82c20d6](https://github.com/lightdash/lightdash/commit/82c20d6a2f47ef62a5200c791cc08c32a1454062))
+
 # [0.2764.0](https://github.com/lightdash/lightdash/compare/0.2763.0...0.2764.0) (2026-04-17)
 
 
