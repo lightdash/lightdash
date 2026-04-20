@@ -209,7 +209,7 @@ export class SqlGenerator {
                 return `SUM(${arg})`;
             case 'AVERAGE':
             case 'AVG':
-                return `AVG(${arg})`;
+                return this.generateAvg(arg);
             default:
                 return assertUnreachable(
                     node.name,
@@ -286,33 +286,28 @@ export class SqlGenerator {
                 );
             case 'NTILE':
                 return this.generateWindowFunction('NTILE', [args[0]], node);
+            // FIRST_VALUE and LAST_VALUE both get an explicit
+            // `UNBOUNDED PRECEDING..UNBOUNDED FOLLOWING` frame. For
+            // LAST_VALUE it's required — the ANSI default frame ends at
+            // CURRENT ROW, so without this LAST_VALUE returns the current
+            // row (not the last). For FIRST_VALUE it's a semantic no-op
+            // (the first row of the partition is the first row regardless
+            // of the frame's upper bound) but required on Redshift, which
+            // rejects aggregate-style windows with ORDER BY and no frame.
             case 'FIRST':
+            case 'LAST': {
+                const sqlFn =
+                    node.name === 'FIRST' ? 'FIRST_VALUE' : 'LAST_VALUE';
                 return this.generateWindowFunction(
-                    'FIRST_VALUE',
-                    [args[0]],
-                    node,
-                );
-            case 'LAST':
-                return this.generateWindowFunction(
-                    'LAST_VALUE',
+                    sqlFn,
                     [args[0]],
                     node,
                     'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
                 );
+            }
             case 'LAG':
-                return this.generateWindowFunction(
-                    this.dialect.lagFunctionName ?? 'LAG',
-                    this.wrapLagLeadArgs(args),
-                    node,
-                    this.dialect.lagLeadFrameClause,
-                );
             case 'LEAD':
-                return this.generateWindowFunction(
-                    this.dialect.leadFunctionName ?? 'LEAD',
-                    this.wrapLagLeadArgs(args),
-                    node,
-                    this.dialect.lagLeadFrameClause,
-                );
+                return this.dispatchLagLead(node.name, args, node);
             // TODO: unsafe cast — MOVING_SUM/MOVING_AVG assume second arg is a NumberLiteral
             // but the grammar accepts any Expression. Fix by adding a grammar rule that
             // enforces NumberLiteral in the second position (same pattern as BooleanExpression).
@@ -327,9 +322,11 @@ export class SqlGenerator {
             }
             case 'MOVING_AVG': {
                 const preceding = (node.args[1] as NumberLiteralNode).value;
-                return this.generateWindowFunction(
-                    'AVG',
-                    [args[0]],
+                // Route through generateAvg so dialects that need to
+                // preserve precision across the AVG division (Redshift)
+                // can inject a cast on the value argument.
+                return this.appendOverClause(
+                    this.generateAvg(args[0]),
                     node,
                     `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
                 );
@@ -395,18 +392,47 @@ export class SqlGenerator {
         );
     }
 
-    // Only the first (value) argument is wrapped; subsequent offset/default
-    // args stay as-is.
-    protected wrapLagLeadArgs(args: string[]): string[] {
-        if (!this.dialect.wrapLagLeadArg || args.length === 0) return args;
-        return [this.dialect.wrapLagLeadArg(args[0]), ...args.slice(1)];
+    // LAG / LEAD dispatch: hand off to the dialect's `generateLagLead` if
+    // present, otherwise use the ANSI-compatible default (bare LAG/LEAD
+    // with default frame, variadic args). The dialect callback receives
+    // an `emitWindow` bound to this node's window clause so dialects don't
+    // have to own PARTITION BY / ORDER BY plumbing.
+    protected dispatchLagLead(
+        sqlFunc: 'LAG' | 'LEAD',
+        args: string[],
+        node: { windowClause?: WindowClauseNode | null },
+    ): string {
+        const emitWindow = (
+            fn: string,
+            funcArgs: string[],
+            frameClause?: string,
+        ) => this.generateWindowFunction(fn, funcArgs, node, frameClause);
+
+        if (this.dialect.generateLagLead) {
+            return this.dialect.generateLagLead({
+                sqlFunc,
+                args,
+                emitWindow,
+            });
+        }
+        return emitWindow(sqlFunc, args);
     }
 
     // --- ANSI defaults shared across all dialects today ---
     // Promote to DialectConfig fields when a real dialect first diverges.
 
     protected generateConcat(args: string[]): string {
+        if (this.dialect.generateConcat) {
+            return this.dialect.generateConcat(args);
+        }
         return `CONCAT(${args.join(', ')})`;
+    }
+
+    protected generateAvg(arg: string): string {
+        if (this.dialect.generateAvg) {
+            return this.dialect.generateAvg(arg);
+        }
+        return `AVG(${arg})`;
     }
 
     protected generateLength(expr: string): string {
@@ -425,16 +451,15 @@ export class SqlGenerator {
         return `EXTRACT(${part} FROM ${expr})`;
     }
 
-    protected generateWindowFunction(
-        sqlFunc: string,
-        funcArgs: string[],
+    // Attach an OVER (…) clause to a pre-built function-call string. Lets
+    // callers that need per-function argument transforms (e.g. AVG's
+    // precision-preserving cast on Redshift) build the call via their own
+    // emitter and still share the PARTITION BY / ORDER BY / frame plumbing.
+    protected appendOverClause(
+        funcCall: string,
         node: { windowClause?: WindowClauseNode | null },
         frameClause?: string,
     ): string {
-        const funcCall =
-            funcArgs.length > 0
-                ? `${sqlFunc}(${funcArgs.join(', ')})`
-                : `${sqlFunc}()`;
         const overParts: string[] = [];
 
         const wc = node.windowClause;
@@ -449,7 +474,19 @@ export class SqlGenerator {
         }
 
         const framePart = frameClause ? ` ${frameClause}` : '';
-
         return `${funcCall} OVER (${overParts.join(' ')}${framePart})`;
+    }
+
+    protected generateWindowFunction(
+        sqlFunc: string,
+        funcArgs: string[],
+        node: { windowClause?: WindowClauseNode | null },
+        frameClause?: string,
+    ): string {
+        const funcCall =
+            funcArgs.length > 0
+                ? `${sqlFunc}(${funcArgs.join(', ')})`
+                : `${sqlFunc}()`;
+        return this.appendOverClause(funcCall, node, frameClause);
     }
 }

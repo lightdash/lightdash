@@ -1,37 +1,54 @@
 import type { Dialect, StringLiteralNode } from '../types';
 
-// Per-dialect SQL emission overrides. Any field that's unset uses the
-// ANSI-standard default implemented directly in SqlGenerator (see
-// generator.ts). Adding a new warehouse = a single record in DIALECTS below.
-// No new files, no subclasses, no factory updates.
+// Per-dialect SQL emission overrides. Every field is a full replacement for
+// the ANSI default implemented in SqlGenerator (see generator.ts). Adding a
+// new warehouse = one record in DIALECTS below — no subclasses, no factory
+// updates.
 //
-// Keep the surface minimal: only add a field here the first time a real
-// dialect actually diverges. The escape-hatch philosophy is "pay for what
-// you use" — we don't preempt divergences that haven't happened yet.
+// Design principle: each field is one cohesive emitter, not a flag / partial
+// transform / string knob. If two concerns always move together (e.g. LAG's
+// function name + its frame clause + its default-arg handling) they belong
+// in one hook, not three. "Pay for what you use" applies at the emitter
+// granularity — dialects only override the emitters they actually diverge
+// on.
 export interface DialectConfig {
     quoteIdentifier: (name: string) => string;
     generateStringLiteral?: (node: StringLiteralNode) => string;
     generateModulo?: (left: string, right: string) => string;
-    // Dialect-specific transform for the value argument of LAG/LEAD. Needed
-    // for ClickHouse, which returns the type-default (0 for numbers, empty
-    // string, etc.) instead of NULL at partition boundaries unless the
-    // argument is Nullable. Other dialects leave this unset and follow
-    // ANSI LAG/LEAD semantics without help.
-    wrapLagLeadArg?: (arg: string) => string;
-    // Override the SQL function name emitted for LAG / LEAD. ClickHouse
-    // needs `lagInFrame` / `leadInFrame`, which work against the user's
-    // ORDER BY correctly; the plain `LAG`/`LEAD` silently use the default
-    // RANGE frame that excludes future rows, making `LEAD` return NULL
-    // everywhere. Other dialects leave these unset and use the ANSI names.
-    lagFunctionName?: string;
-    leadFunctionName?: string;
-    // Explicit frame clause attached to LAG/LEAD. ClickHouse's default
-    // frame is `ROWS UNBOUNDED PRECEDING` which excludes future rows, so
-    // `leadInFrame` returns NULL for every row. Setting an explicit
-    // `UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` frame lets LEAD see
-    // future rows. Other dialects leave this unset and rely on the ANSI
-    // default frame.
-    lagLeadFrameClause?: string;
+    generateConcat?: (args: string[]) => string;
+    generateLagLead?: (ctx: LagLeadContext) => string;
+    // AVG emission. Covers both the aggregate `=AVG(A)` and the windowed
+    // `=MOVING_AVG(A, N, …)` (which fans out to `AVG(...) OVER (…)`).
+    // Set for Postgres / Redshift to widen the argument to DOUBLE
+    // PRECISION, matching `PostgresWarehouseClient.getMetricSql` (case
+    // AVERAGE). Unset for BigQuery, Snowflake, DuckDB, Databricks, and
+    // ClickHouse, whose production clients also defer to the base
+    // `getDefaultMetricSql` that returns plain `AVG(arg)`.
+    generateAvg?: (arg: string) => string;
+}
+
+// Everything a dialect needs to emit `LAG(...) OVER (...)` or
+// `LEAD(...) OVER (...)` without owning the windowing boilerplate.
+//
+// `sqlFunc` is the ANSI name ('LAG' | 'LEAD') — dialects that need a
+// different SQL-level function (ClickHouse's `lagInFrame`) swap it when
+// they call `emitWindow`.
+//
+// `args` is the already-generated SQL strings for the user's arguments:
+// `[value]`, `[value, offset]`, or `[value, offset, default]`.
+//
+// `emitWindow(sqlFunc, funcArgs, frameClause?)` produces the full
+// `sqlFunc(funcArgs) OVER (…)` string with the current node's PARTITION BY
+// / ORDER BY already attached. This keeps the window-clause machinery out
+// of the dialect and lets the dialect focus on argument shape + frame.
+interface LagLeadContext {
+    sqlFunc: 'LAG' | 'LEAD';
+    args: string[];
+    emitWindow: (
+        sqlFunc: string,
+        funcArgs: string[],
+        frameClause?: string,
+    ) => string;
 }
 
 // --- Shared emitters ---
@@ -47,12 +64,12 @@ const backslashEscapedStringLiteral = (node: StringLiteralNode): string => {
 };
 
 // ANSI-doubled single quotes for quote-escape PLUS backslash-escape for
-// backslashes. Used by engines (ClickHouse) whose string parser interprets
-// both conventions — doubling alone silently loses backslashes because
-// ClickHouse unescapes `\\` to `\`. Matches the defensive approach in
-// `ClickhouseSqlBuilder.escapeString` (packages/warehouses) so a single
-// query produced by MetricQueryBuilder + the formula package has one
-// consistent string-literal style.
+// backslashes. Required for engines whose string parser interprets both
+// conventions — ClickHouse unescapes `\\` → `\`, and Redshift interprets
+// `\'` as an escaped quote even with `standard_conforming_strings` on
+// (letting a user value like `\';DROP TABLE …` break out of the literal).
+// Doubling alone is unsafe on those engines. Matches the defensive
+// approach in `ClickhouseSqlBuilder.escapeString` (packages/warehouses).
 const ansiQuoteWithEscapedBackslashesStringLiteral = (
     node: StringLiteralNode,
 ): string => {
@@ -65,14 +82,71 @@ const infixPercentModulo = (left: string, right: string): string =>
 
 // --- Dialect configs ---
 
-// Postgres and Redshift share identically: double-quoted identifiers, `%`
-// modulo, doubled-quote string escaping, EXTRACT-style date parts, ANSI
-// window-aggregate syntax. Redshift is effectively PostgreSQL 8.x with
-// columnar storage — every SQL construct the formula package emits is
-// valid on both. Defined once and referenced twice from DIALECTS.
-const POSTGRES_LIKE_CONFIG: DialectConfig = {
+// Shared Postgres-family emitters. These match, byte-for-byte, the
+// behaviour of `PostgresWarehouseClient` in `packages/warehouses` so that
+// a formula-mode table calculation and a metric-level expression over the
+// same column produce SQL with identical runtime semantics on any
+// Postgres-compatible warehouse (Postgres, Redshift). If you change one,
+// change the other — the two live in separate packages on purpose (formula
+// is intentionally zero-runtime-dep and does not import `@lightdash/common`)
+// but they MUST stay in sync. See also `packages/warehouses/src/
+// warehouseClients/PostgresWarehouseClient.ts`.
+//
+// AVG: widened to DOUBLE PRECISION so the division inside AVG never
+// truncates to the input DECIMAL scale. On Redshift that truncation
+// silently drops the fractional part (650/3 → 216.66 instead of
+// 216.666…); on Postgres it's a no-op. Matches
+// `PostgresWarehouseClient.getMetricSql` case AVERAGE.
+const postgresStyleAvg = (arg: string): string =>
+    `AVG(${arg}::DOUBLE PRECISION)`;
+// CONCAT: infix `||` rather than variadic `CONCAT(...)`. Sidesteps
+// Redshift's two-argument CONCAT limit and its strict overload resolution
+// against untyped `'literal'` values in one stroke, and matches Postgres's
+// native concatenation operator exactly. Matches
+// `PostgresWarehouseClient.concatString`.
+// NOTE: `||` is NULL-propagating (`a || NULL || b` is NULL), whereas
+// `CONCAT(a, NULL, b)` returns `ab`. This matches production behaviour on
+// Postgres-family warehouses; callers wanting NULL-ignoring concatenation
+// should COALESCE the inputs at the call site.
+const postgresStyleConcat = (args: string[]): string =>
+    `(${args.join(' || ')})`;
+
+const POSTGRES_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateModulo: infixPercentModulo,
+    generateAvg: postgresStyleAvg,
+    generateConcat: postgresStyleConcat,
+};
+
+// Redshift is Postgres-wire-compatible and inherits every Postgres-family
+// emitter above (AVG double-precision cast, `||` concatenation, `%`
+// modulo, double-quoted identifiers). It adds two SECURITY- and
+// SEMANTICS-critical divergences not shared with Postgres:
+//   1. String literals — `\'` escapes the quote in Redshift even with
+//      `standard_conforming_strings` on, so the naive doubled-quote
+//      escape Postgres gets away with would let a user value containing
+//      `\';DROP TABLE …` break out of its literal. Uses the same
+//      backslash-also-escaped approach as
+//      `PostgresWarehouseClient.escapeString` (which `RedshiftSqlBuilder`
+//      inherits — the production client has been applying this defence
+//      on Redshift for years).
+//   2. LAG / LEAD — Redshift rejects the 3-arg `(col, offset, default)`
+//      form with "Default parameter not be supported for window function
+//      lag". Wrapping `LAG(col, offset)` in COALESCE preserves the
+//      surface behaviour without the 3-arg call.
+const REDSHIFT_CONFIG: DialectConfig = {
+    ...POSTGRES_CONFIG,
+    generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
+    generateLagLead: ({ sqlFunc, args, emitWindow }) => {
+        if (args.length >= 3) {
+            const [value, offset, defaultValue] = args;
+            return `COALESCE(${emitWindow(sqlFunc, [
+                value,
+                offset,
+            ])}, ${defaultValue})`;
+        }
+        return emitWindow(sqlFunc, args);
+    },
 };
 
 const SNOWFLAKE_CONFIG: DialectConfig = {
@@ -82,6 +156,11 @@ const SNOWFLAKE_CONFIG: DialectConfig = {
 const DUCKDB_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateModulo: infixPercentModulo,
+    // DuckDB's production client (`DuckdbWarehouseClient.concatString`)
+    // uses the same `(a || b || c)` infix form as the Postgres family,
+    // so share the emitter. Keeps formula-package and warehouse-package
+    // SQL byte-identical on DuckDB.
+    generateConcat: postgresStyleConcat,
 };
 
 const BIGQUERY_CONFIG: DialectConfig = {
@@ -106,42 +185,46 @@ const DATABRICKS_CONFIG: DialectConfig = {
     // `MOD(a, b)` (the ANSI default) is valid Spark SQL with no type casts.
 };
 
+// ClickHouse has four dialect quirks the formula package cares about:
+//   1. Identifier quoting — ClickHouse accepts both backticks and double
+//      quotes. Use double quotes to match `ClickhouseSqlBuilder` so every
+//      identifier in a query produced by MetricQueryBuilder + the formula
+//      package looks alike.
+//   2. String literals — doubling quotes alone silently halves backslashes
+//      because ClickHouse unescapes `\\` → `\`. Matches the quote-double
+//      + backslash-escape used by `ClickhouseSqlBuilder.escapeString`.
+//   3. `Decimal(10,2) % Int32` silently truncates to `0` — ClickHouse
+//      picks the Int side's scale. Casting both operands to `Float64`
+//      preserves precision and matches every other dialect (integer
+//      modulo returns Float, absorbed by the runner's tolerance).
+//   4. LAG / LEAD — the bare names inherit the default RANGE frame
+//      (UNBOUNDED PRECEDING..CURRENT ROW) which excludes future rows, so
+//      `LEAD` returns NULL for every row. The `lagInFrame` / `leadInFrame`
+//      variants work against the user's ORDER BY once given an explicit
+//      `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` frame.
+//      Additionally, ClickHouse returns type-default (e.g. 0 for numbers)
+//      at partition boundaries instead of NULL unless the value arg is
+//      wrapped with `toNullable()`.
 const CLICKHOUSE_CONFIG: DialectConfig = {
-    // ClickHouse accepts both backticks and double quotes for identifiers.
-    // Use double quotes to match the convention in ClickhouseSqlBuilder
-    // (packages/warehouses) — that way identifiers in a single query
-    // produced by MetricQueryBuilder + the formula package all look alike.
     quoteIdentifier: doubleQuoteIdentifier,
-    // ClickHouse `Decimal(10,2) % Int32` silently truncates to `0` (it
-    // picks the Int side's scale, not the Decimal's). `Decimal % Decimal`
-    // or `Float % *` preserves precision. Casting both operands to
-    // `Float64` gives cross-type behaviour that matches every other
-    // dialect, at the cost of an integer-only `a % b` returning a Float
-    // (`0` → `0.0`) — the runner's tolerance comparison absorbs that.
+    generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
     generateModulo: (left, right) =>
         `(toFloat64(${left}) % toFloat64(${right}))`,
-    // Doubled single quotes for quote-escape AND backslash-on-backslash
-    // — ClickHouse interprets both. Doubling alone silently halves any
-    // backslashes in the value (ClickHouse unescapes `\\` to `\`). Same
-    // approach as ClickhouseSqlBuilder.escapeString for consistency.
-    generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
-    // ClickHouse LAG/LEAD return the type default (e.g. 0 for numbers) at
-    // partition boundaries unless the input is Nullable. Wrapping with
-    // `toNullable()` makes the boundary rows return NULL like every other
-    // dialect.
-    wrapLagLeadArg: (arg) => `toNullable(${arg})`,
-    // Use ClickHouse's purpose-built frame-aware variants. The plain
-    // `LAG`/`LEAD` inherit the default RANGE frame (UNBOUNDED PRECEDING to
-    // CURRENT ROW) which excludes future rows, silently breaking LEAD.
-    lagFunctionName: 'lagInFrame',
-    leadFunctionName: 'leadInFrame',
-    lagLeadFrameClause:
-        'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
+    generateLagLead: ({ sqlFunc, args, emitWindow }) => {
+        const chFunc = sqlFunc === 'LAG' ? 'lagInFrame' : 'leadInFrame';
+        const [value, ...rest] = args;
+        const wrapped = [`toNullable(${value})`, ...rest];
+        return emitWindow(
+            chFunc,
+            wrapped,
+            'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
+        );
+    },
 };
 
 export const DIALECTS: Record<Dialect, DialectConfig> = {
-    postgres: POSTGRES_LIKE_CONFIG,
-    redshift: POSTGRES_LIKE_CONFIG,
+    postgres: POSTGRES_CONFIG,
+    redshift: REDSHIFT_CONFIG,
     bigquery: BIGQUERY_CONFIG,
     snowflake: SNOWFLAKE_CONFIG,
     duckdb: DUCKDB_CONFIG,
