@@ -4,7 +4,8 @@ export type WarehouseType =
     | 'bigquery'
     | 'snowflake'
     | 'duckdb'
-    | 'databricks';
+    | 'databricks'
+    | 'clickhouse';
 
 export const ALL_WAREHOUSES: WarehouseType[] = [
     'duckdb',
@@ -13,6 +14,7 @@ export const ALL_WAREHOUSES: WarehouseType[] = [
     'bigquery',
     'snowflake',
     'databricks',
+    'clickhouse',
 ];
 
 export type Tier = 'fast' | 'tier1' | 'tier2' | 'all';
@@ -20,13 +22,13 @@ export type Tier = 'fast' | 'tier1' | 'tier2' | 'all';
 // Redshift runs in tier1 alongside Postgres: it shares the formula-package
 // codegen with Postgres (empty subclass — zero overrides), so a tier1 run
 // catches shared-path regressions without waiting for cloud-warehouse tiers.
-// Databricks runs in tier2 alongside BigQuery and Snowflake: it's a
-// cloud-warehouse with higher connection latency and shared infrastructure
-// cost considerations.
+// Databricks and ClickHouse run in tier2 alongside BigQuery and Snowflake:
+// cloud / self-hosted warehouses with their own connection latency and
+// infrastructure considerations.
 export const TIER_WAREHOUSES: Record<Tier, WarehouseType[]> = {
     fast: ['duckdb'],
     tier1: ['duckdb', 'postgres', 'redshift'],
-    tier2: ['bigquery', 'snowflake', 'databricks'],
+    tier2: ['bigquery', 'snowflake', 'databricks', 'clickhouse'],
     all: ALL_WAREHOUSES,
 };
 
@@ -67,6 +69,12 @@ export interface WarehouseConfig {
         catalog: string;
         schema: string;
     };
+    clickhouse: {
+        url: string;
+        username: string;
+        password: string;
+        database: string;
+    };
 }
 
 export function getWarehouseConfig(): WarehouseConfig {
@@ -106,6 +114,12 @@ export function getWarehouseConfig(): WarehouseConfig {
             token: process.env.FORMULA_TEST_DB_TOKEN ?? '',
             catalog: process.env.FORMULA_TEST_DB_CATALOG ?? '',
             schema: process.env.FORMULA_TEST_DB_SCHEMA ?? 'formula_tests',
+        },
+        clickhouse: {
+            url: process.env.FORMULA_TEST_CH_URL ?? 'http://localhost:8123',
+            username: process.env.FORMULA_TEST_CH_USERNAME ?? 'default',
+            password: process.env.FORMULA_TEST_CH_PASSWORD ?? '',
+            database: process.env.FORMULA_TEST_CH_DATABASE ?? 'formula_tests',
         },
     };
 }

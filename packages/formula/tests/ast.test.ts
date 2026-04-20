@@ -122,5 +122,25 @@ describe('SQL Code Generation', () => {
                 `CASE WHEN (\`category\` = 'O\\'Brien') THEN 1 ELSE 0 END`,
             );
         });
+
+        it('uses backtick quoting for ClickHouse', () => {
+            const sql = compile('=A + B', { dialect: 'clickhouse', columns });
+            expect(sql).toBe('(`order_amount` + `tax`)');
+        });
+
+        it('casts to Float64 for ClickHouse modulo (preserves decimal precision)', () => {
+            const sql = compile('=A % B', { dialect: 'clickhouse', columns });
+            expect(sql).toBe('(toFloat64(`order_amount`) % toFloat64(`tax`))');
+        });
+
+        it('uses backslash string escaping for ClickHouse (matches its unescaping rules)', () => {
+            const sql = compile(`=IF(C = "O'Brien", 1, 0)`, {
+                dialect: 'clickhouse',
+                columns,
+            });
+            expect(sql).toBe(
+                `CASE WHEN (\`category\` = 'O\\'Brien') THEN 1 ELSE 0 END`,
+            );
+        });
     });
 });

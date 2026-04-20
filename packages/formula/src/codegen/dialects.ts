@@ -12,6 +12,26 @@ export interface DialectConfig {
     quoteIdentifier: (name: string) => string;
     generateStringLiteral?: (node: StringLiteralNode) => string;
     generateModulo?: (left: string, right: string) => string;
+    // Dialect-specific transform for the value argument of LAG/LEAD. Needed
+    // for ClickHouse, which returns the type-default (0 for numbers, empty
+    // string, etc.) instead of NULL at partition boundaries unless the
+    // argument is Nullable. Other dialects leave this unset and follow
+    // ANSI LAG/LEAD semantics without help.
+    wrapLagLeadArg?: (arg: string) => string;
+    // Override the SQL function name emitted for LAG / LEAD. ClickHouse
+    // needs `lagInFrame` / `leadInFrame`, which work against the user's
+    // ORDER BY correctly; the plain `LAG`/`LEAD` silently use the default
+    // RANGE frame that excludes future rows, making `LEAD` return NULL
+    // everywhere. Other dialects leave these unset and use the ANSI names.
+    lagFunctionName?: string;
+    leadFunctionName?: string;
+    // Explicit frame clause attached to LAG/LEAD. ClickHouse's default
+    // frame is `ROWS UNBOUNDED PRECEDING` which excludes future rows, so
+    // `leadInFrame` returns NULL for every row. Setting an explicit
+    // `UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` frame lets LEAD see
+    // future rows. Other dialects leave this unset and rely on the ANSI
+    // default frame.
+    lagLeadFrameClause?: string;
 }
 
 // --- Shared emitters ---
@@ -72,6 +92,39 @@ const DATABRICKS_CONFIG: DialectConfig = {
     // `MOD(a, b)` (the ANSI default) is valid Spark SQL with no type casts.
 };
 
+const CLICKHOUSE_CONFIG: DialectConfig = {
+    // ClickHouse accepts both backticks and double quotes for identifiers.
+    // We pick backticks to mirror the idiomatic ClickHouse style, and escape
+    // inner backticks by doubling — matching ClickHouse's own convention
+    // (same as Databricks / Hive).
+    quoteIdentifier: (name) => `\`${name.replace(/`/g, '``')}\``,
+    // ClickHouse `Decimal(10,2) % Int32` silently truncates to `0` (it
+    // picks the Int side's scale, not the Decimal's). `Decimal % Decimal`
+    // or `Float % *` preserves precision. Casting both operands to
+    // `Float64` gives cross-type behaviour that matches every other
+    // dialect, at the cost of an integer-only `a % b` returning a Float
+    // (`0` → `0.0`) — the runner's tolerance comparison absorbs that.
+    generateModulo: (left, right) =>
+        `(toFloat64(${left}) % toFloat64(${right}))`,
+    // ClickHouse unescapes `\\` inside string literals as a single
+    // backslash, so the ANSI doubled-quote scheme silently halves every
+    // backslash in user-provided strings. Backslash escaping (same as
+    // Spark/BigQuery) is the only way to round-trip backslashes faithfully.
+    generateStringLiteral: backslashEscapedStringLiteral,
+    // ClickHouse LAG/LEAD return the type default (e.g. 0 for numbers) at
+    // partition boundaries unless the input is Nullable. Wrapping with
+    // `toNullable()` makes the boundary rows return NULL like every other
+    // dialect.
+    wrapLagLeadArg: (arg) => `toNullable(${arg})`,
+    // Use ClickHouse's purpose-built frame-aware variants. The plain
+    // `LAG`/`LEAD` inherit the default RANGE frame (UNBOUNDED PRECEDING to
+    // CURRENT ROW) which excludes future rows, silently breaking LEAD.
+    lagFunctionName: 'lagInFrame',
+    leadFunctionName: 'leadInFrame',
+    lagLeadFrameClause:
+        'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
+};
+
 export const DIALECTS: Record<Dialect, DialectConfig> = {
     postgres: POSTGRES_LIKE_CONFIG,
     redshift: POSTGRES_LIKE_CONFIG,
@@ -79,4 +132,5 @@ export const DIALECTS: Record<Dialect, DialectConfig> = {
     snowflake: SNOWFLAKE_CONFIG,
     duckdb: DUCKDB_CONFIG,
     databricks: DATABRICKS_CONFIG,
+    clickhouse: CLICKHOUSE_CONFIG,
 };

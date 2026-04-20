@@ -876,6 +876,9 @@ importers:
 
   packages/formula-tests:
     dependencies:
+      '@clickhouse/client':
+        specifier: 1.11.1
+        version: 1.11.1
       '@databricks/sql':
         specifier: 1.10.0
         version: 1.10.0(encoding@0.1.13)
@@ -2175,8 +2178,15 @@ packages:
     peerDependencies:
       storybook: ^0.0.0-0 || ^10.1.0 || ^10.1.0-0 || ^10.2.0-0 || ^10.3.0-0 || ^10.4.0-0
 
+  '@clickhouse/client-common@1.11.1':
+    resolution: {integrity: sha512-bme0le2yhDSAh13d2fxhSW5ZrNoVqZ3LTyac8jK6hNH0qkksXnjYkLS6KQalPU6NMpffxHmpI4+/Gi2MnX0NCA==}
+
   '@clickhouse/client-common@1.12.1':
     resolution: {integrity: sha512-ccw1N6hB4+MyaAHIaWBwGZ6O2GgMlO99FlMj0B0UEGfjxM9v5dYVYql6FpP19rMwrVAroYs/IgX2vyZEBvzQLg==}
+
+  '@clickhouse/client@1.11.1':
+    resolution: {integrity: sha512-u9h++h72SmWystijNqfNvMkfA+5+Y1LNfmLL/odCL3VgI3oyAPP9ubSw/Yrt2zRZkLKehMMD1kuOej0QHbSoBA==}
+    engines: {node: '>=16'}
 
   '@clickhouse/client@1.12.1':
     resolution: {integrity: sha512-7ORY85rphRazqHzImNXMrh4vsaPrpetFoTWpZYueCO2bbO6PXYDXp/GQ4DgxnGIqbWB/Di1Ai+Xuwq2o7DJ36A==}
@@ -16325,7 +16335,13 @@ snapshots:
       - '@chromatic-com/cypress'
       - '@chromatic-com/playwright'
 
+  '@clickhouse/client-common@1.11.1': {}
+
   '@clickhouse/client-common@1.12.1': {}
+
+  '@clickhouse/client@1.11.1':
+    dependencies:
+      '@clickhouse/client-common': 1.11.1
 
   '@clickhouse/client@1.12.1':
     dependencies:

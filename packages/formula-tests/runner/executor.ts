@@ -36,6 +36,17 @@ function valuesMatch(expected: any, actual: any): boolean {
         return Math.abs(normExpected - normActual) < 0.01;
     }
 
+    // Warehouses differ on how they serialize BOOLEAN — Postgres/DuckDB
+    // return true/false, ClickHouse returns 0/1 (UInt8). Treat these as
+    // equivalent so tests don't have to care which side of the wire it came
+    // back on.
+    if (typeof normExpected === 'boolean' && typeof normActual === 'number') {
+        return normExpected === (normActual !== 0);
+    }
+    if (typeof normActual === 'boolean' && typeof normExpected === 'number') {
+        return normActual === (normExpected !== 0);
+    }
+
     return normExpected === normActual;
 }
 

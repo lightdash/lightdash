@@ -291,6 +291,39 @@ describe('codegen', () => {
         });
     });
 
+    describe('ClickHouse dialect', () => {
+        it('emits bare aggregates with backtick quoting by default', () => {
+            expect(
+                compile('=SUMIF(revenue, region = "EU")', {
+                    dialect: 'clickhouse',
+                    columns,
+                }),
+            ).toBe(`SUM(CASE WHEN (\`region\` = 'EU') THEN \`revenue\` END)`);
+        });
+
+        it('window-wraps aggregates when renderAggregate is provided', () => {
+            expect(
+                compile('=SUMIF(revenue, region = "EU")', {
+                    dialect: 'clickhouse',
+                    columns,
+                    renderAggregate: (inner) => `${inner} OVER ()`,
+                }),
+            ).toBe(
+                `SUM(CASE WHEN (\`region\` = 'EU') THEN \`revenue\` END) OVER ()`,
+            );
+        });
+
+        it('handles mixed aggregate and row-level expressions', () => {
+            expect(
+                compile('=revenue - AVG(revenue)', {
+                    dialect: 'clickhouse',
+                    columns,
+                    renderAggregate: (inner) => `${inner} OVER ()`,
+                }),
+            ).toBe('(`revenue` - AVG(`revenue`) OVER ())');
+        });
+    });
+
     describe('renderAggregate invocation protocol', () => {
         // Identity renderer used to observe invocation count and order
         // without changing the generated SQL.
