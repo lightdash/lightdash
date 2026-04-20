@@ -12,15 +12,20 @@ describe('codegen', () => {
         });
 
         it('AVG', () => {
+            // Postgres-family dialects wrap AVG in a ::DOUBLE PRECISION
+            // cast to match production's `PostgresWarehouseClient
+            // .getMetricSql` (case AVERAGE) and to prevent Redshift's
+            // DECIMAL-truncation quirk from silently dropping fractional
+            // values inside the AVG division.
             expect(
                 compile('=AVG(revenue)', { dialect: 'postgres', columns }),
-            ).toBe('AVG("revenue")');
+            ).toBe('AVG("revenue"::DOUBLE PRECISION)');
         });
 
         it('AVERAGE (alias of AVG)', () => {
             expect(
                 compile('=AVERAGE(revenue)', { dialect: 'postgres', columns }),
-            ).toBe('AVG("revenue")');
+            ).toBe('AVG("revenue"::DOUBLE PRECISION)');
         });
 
         it('COUNT with arg', () => {
@@ -208,7 +213,7 @@ describe('codegen', () => {
                     columns,
                     renderAggregate: asWindowAggregate,
                 }),
-            ).toBe('("revenue" - AVG("revenue") OVER ())');
+            ).toBe('("revenue" - AVG("revenue"::DOUBLE PRECISION) OVER ())');
         });
 
         it('lets callers express any embedding (demonstration)', () => {
@@ -247,14 +252,22 @@ describe('codegen', () => {
             );
         });
 
-        it('handles mixed aggregate and row-level expressions', () => {
+        it('widens AVG argument to DOUBLE PRECISION to avoid truncation', () => {
+            // Redshift's AVG over DECIMAL truncates to the input scale —
+            // `AVG(DECIMAL(10,2))` of 200/150/300 returns 216.66 rather
+            // than 216.666…, silently dropping the fractional cents.
+            // The `::DOUBLE PRECISION` cast preserves precision through
+            // the division and matches, byte-for-byte, what
+            // `PostgresWarehouseClient.getMetricSql` emits for AVERAGE
+            // metrics — so a formula AVG and a metric AVG over the same
+            // column produce the same value on Redshift.
             expect(
                 compile('=revenue - AVG(revenue)', {
                     dialect: 'redshift',
                     columns,
                     renderAggregate: (inner) => `${inner} OVER ()`,
                 }),
-            ).toBe('("revenue" - AVG("revenue") OVER ())');
+            ).toBe('("revenue" - AVG("revenue"::DOUBLE PRECISION) OVER ())');
         });
     });
 
@@ -341,7 +354,7 @@ describe('codegen', () => {
             });
             expect(calls).toEqual([
                 'SUM("revenue")',
-                'AVG("revenue")',
+                'AVG("revenue"::DOUBLE PRECISION)',
                 'SUM("revenue")',
             ]);
         });
