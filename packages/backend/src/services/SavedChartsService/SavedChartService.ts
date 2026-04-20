@@ -26,6 +26,7 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
     isUserWithOrg,
@@ -416,6 +417,36 @@ export class SavedChartService
         return eventProperties;
     }
 
+    static getFormulaTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              formulaCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const formulaCount = tableCalculations.filter(
+            isFormulaTableCalculation,
+        ).length;
+        if (formulaCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            formulaCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
@@ -506,6 +537,19 @@ export class SavedChartService
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
+
+        const formulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (formulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: formulaProperties,
+            });
+        }
 
         SavedChartService.getConditionalFormattingEventProperties(
             savedChart,
@@ -1208,6 +1252,19 @@ export class SavedChartService
             },
         });
 
+        const createFormulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createFormulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createFormulaProperties,
+            });
+        }
+
         SavedChartService.getConditionalFormattingEventProperties(
             newSavedChart,
         )?.forEach((properties) => {
@@ -1331,6 +1388,19 @@ export class SavedChartService
                 duplicateOfSavedQueryId: chartUuid,
             },
         });
+
+        const duplicateFormulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateFormulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateFormulaProperties,
+            });
+        }
 
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
