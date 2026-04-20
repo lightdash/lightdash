@@ -1,3 +1,10 @@
+## [0.2764.10](https://github.com/lightdash/lightdash/compare/0.2764.9...0.2764.10) (2026-04-20)
+
+
+### Bug Fixes
+
+* remove experimental explore cache ([#22123](https://github.com/lightdash/lightdash/issues/22123)) ([4de86a5](https://github.com/lightdash/lightdash/commit/4de86a52308880d8de0415dc956c5bbf0d53c3c9))
+
 ## [0.2764.9](https://github.com/lightdash/lightdash/compare/0.2764.8...0.2764.9) (2026-04-20)
 
 
