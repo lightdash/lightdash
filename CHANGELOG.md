@@ -1,3 +1,10 @@
+## [0.2764.9](https://github.com/lightdash/lightdash/compare/0.2764.8...0.2764.9) (2026-04-20)
+
+
+### Bug Fixes
+
+* show non-empty error message on failed dashboard tile queries ([#22121](https://github.com/lightdash/lightdash/issues/22121)) ([500b55a](https://github.com/lightdash/lightdash/commit/500b55a9c42538bb86f099c84e372efd977bac7c))
+
 ## [0.2764.8](https://github.com/lightdash/lightdash/compare/0.2764.7...0.2764.8) (2026-04-20)
 
 
