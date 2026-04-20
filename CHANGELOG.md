@@ -1,3 +1,10 @@
+## [0.2764.4](https://github.com/lightdash/lightdash/compare/0.2764.3...0.2764.4) (2026-04-20)
+
+
+### Bug Fixes
+
+* force cache invalidation for scheduled Google Sheets sync ([#22107](https://github.com/lightdash/lightdash/issues/22107)) ([7f93d78](https://github.com/lightdash/lightdash/commit/7f93d78eb3cbf9d2fcf42d5c1c3689abef73be9f)), closes [#20851](https://github.com/lightdash/lightdash/issues/20851) [#22074](https://github.com/lightdash/lightdash/issues/22074)
+
 ## [0.2764.3](https://github.com/lightdash/lightdash/compare/0.2764.2...0.2764.3) (2026-04-20)
 
 
