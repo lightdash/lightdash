@@ -1,3 +1,10 @@
+## [0.2765.1](https://github.com/lightdash/lightdash/compare/0.2765.0...0.2765.1) (2026-04-20)
+
+
+### Bug Fixes
+
+* Revert "feat: cascade tile rendering on dashboard tab switch ([#21708](https://github.com/lightdash/lightdash/issues/21708))" ([#22130](https://github.com/lightdash/lightdash/issues/22130)) ([841492f](https://github.com/lightdash/lightdash/commit/841492f4b787b715aa0724d0f7fd5d26dab0b235))
+
 # [0.2765.0](https://github.com/lightdash/lightdash/compare/0.2764.10...0.2765.0) (2026-04-20)
 
 
