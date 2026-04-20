@@ -1,3 +1,10 @@
+## [0.2764.3](https://github.com/lightdash/lightdash/compare/0.2764.2...0.2764.3) (2026-04-20)
+
+
+### Bug Fixes
+
+* guard pg-protocol Parser against unknown Redshift auth codes crashing the process ([#22101](https://github.com/lightdash/lightdash/issues/22101)) ([39360d8](https://github.com/lightdash/lightdash/commit/39360d885644515541a2e72981891dafea9987d1)), closes [#150](https://github.com/lightdash/lightdash/issues/150) [#22098](https://github.com/lightdash/lightdash/issues/22098)
+
 ## [0.2764.2](https://github.com/lightdash/lightdash/compare/0.2764.1...0.2764.2) (2026-04-20)
 
 
