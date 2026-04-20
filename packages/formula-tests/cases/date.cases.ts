@@ -1,3 +1,4 @@
+import { ALL_WAREHOUSES } from '../config';
 import type { TestCase } from '../types';
 
 export const dateCases: TestCase[] = [
@@ -20,7 +21,7 @@ export const dateCases: TestCase[] = [
             { result: 2024 },
             { result: 2024 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['date'],
     },
@@ -43,7 +44,7 @@ export const dateCases: TestCase[] = [
             { result: 9 },
             { result: 10 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['date'],
     },
@@ -66,7 +67,7 @@ export const dateCases: TestCase[] = [
             { result: 14 },
             { result: 1 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['date'],
     },
@@ -89,7 +90,7 @@ export const dateCases: TestCase[] = [
             { result: 202409 },
             { result: 202410 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['date', 'arithmetic'],
     },
@@ -112,7 +113,7 @@ export const dateCases: TestCase[] = [
             { result: 'early' },
             { result: 'early' },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['date', 'logical'],
     },

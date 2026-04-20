@@ -76,6 +76,35 @@ export async function createPostgresConnection(
     };
 }
 
+export async function createRedshiftConnection(
+    config: WarehouseConfig['redshift'],
+): Promise<WarehouseConnection> {
+    // Redshift is Postgres-wire-compatible, so `pg` works as the client.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Pool } = require('pg');
+    const pool = new Pool({
+        host: config.host,
+        port: config.port,
+        database: config.database,
+        user: config.user,
+        password: config.password,
+    });
+
+    return {
+        dialect: 'redshift',
+        async execute(sql: string) {
+            const result = await pool.query(sql);
+            return result.rows;
+        },
+        async seed(sql: string) {
+            await pool.query(sql);
+        },
+        async close() {
+            await pool.end();
+        },
+    };
+}
+
 export async function createBigQueryConnection(
     config: WarehouseConfig['bigquery'],
 ): Promise<WarehouseConnection> {
@@ -131,6 +160,8 @@ export async function createConnection(
             return createDuckDBConnection();
         case 'postgres':
             return createPostgresConnection(config.postgres);
+        case 'redshift':
+            return createRedshiftConnection(config.redshift);
         case 'bigquery':
             return createBigQueryConnection(config.bigquery);
         case 'snowflake':
