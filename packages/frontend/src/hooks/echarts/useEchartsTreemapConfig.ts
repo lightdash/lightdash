@@ -26,6 +26,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         colorPalette,
         parameters,
         isTouchDevice,
+        minimal,
     } = useVisualizationContext();
     const theme = useMantineTheme();
 
@@ -206,12 +207,13 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 trigger: 'item' as const, //Even though this is the default, tooltips will not show up if this is not set.
             },
             series: [treemapSeriesOption],
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
         };
     }, [
         chartConfig,
         treemapSeriesOption,
         isInDashboard,
+        minimal,
         theme?.other?.chartFont,
         isTouchDevice,
     ]);

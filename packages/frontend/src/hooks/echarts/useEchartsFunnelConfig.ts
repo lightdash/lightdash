@@ -61,6 +61,7 @@ const useEchartsFunnelConfig = (
         colorPalette,
         parameters,
         isTouchDevice,
+        minimal,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -244,7 +245,7 @@ const useEchartsFunnelConfig = (
                 trigger: 'item' as const,
             },
             series: [funnelSeriesOptions],
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
         };
 
         return {
@@ -256,6 +257,7 @@ const useEchartsFunnelConfig = (
         funnelSeriesOptions,
         seriesData,
         isInDashboard,
+        minimal,
         theme,
         legendConfigWithTooltip,
         isTouchDevice,
