@@ -112,6 +112,55 @@ export async function createRedshiftConnection(
     };
 }
 
+export async function createDatabricksConnection(
+    config: WarehouseConfig['databricks'],
+): Promise<WarehouseConnection> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { DBSQLClient } = require('@databricks/sql');
+    const client = new DBSQLClient();
+    await client.connect({
+        host: config.serverHostname,
+        path: config.httpPath,
+        token: config.token,
+    });
+    const session = await client.openSession({
+        initialCatalog: config.catalog,
+        initialSchema: config.schema,
+    });
+
+    const execute = async (sql: string): Promise<Record<string, any>[]> => {
+        const operation = await session.executeStatement(sql, {
+            runAsync: true,
+        });
+        try {
+            const rows = await operation.fetchAll();
+            return rows as Record<string, any>[];
+        } finally {
+            await operation.close();
+        }
+    };
+
+    return {
+        dialect: 'databricks',
+        async execute(sql: string) {
+            return execute(sql);
+        },
+        async seed(sql: string) {
+            const statements = sql
+                .split(';')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0 && !s.startsWith('--'));
+            for (const stmt of statements) {
+                await execute(stmt);
+            }
+        },
+        async close() {
+            await session.close();
+            await client.close();
+        },
+    };
+}
+
 export async function createBigQueryConnection(
     config: WarehouseConfig['bigquery'],
 ): Promise<WarehouseConnection> {
@@ -173,6 +222,8 @@ export async function createConnection(
             return createBigQueryConnection(config.bigquery);
         case 'snowflake':
             throw new Error('Snowflake connection not yet implemented');
+        case 'databricks':
+            return createDatabricksConnection(config.databricks);
         default: {
             const _exhaustive: never = warehouse;
             throw new Error(`Unknown warehouse: ${warehouse}`);
