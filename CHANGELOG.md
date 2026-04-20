@@ -1,3 +1,10 @@
+## [0.2764.7](https://github.com/lightdash/lightdash/compare/0.2764.6...0.2764.7) (2026-04-20)
+
+
+### Bug Fixes
+
+* **formula:** accept NOT(expr) function-call syntax in addition to NOT expr ([#22120](https://github.com/lightdash/lightdash/issues/22120)) ([e39e846](https://github.com/lightdash/lightdash/commit/e39e846ea03f31fa9c2203ccd51cd9f4e8570359))
+
 ## [0.2764.6](https://github.com/lightdash/lightdash/compare/0.2764.5...0.2764.6) (2026-04-20)
 
 
