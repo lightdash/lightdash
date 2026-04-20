@@ -123,23 +123,23 @@ describe('SQL Code Generation', () => {
             );
         });
 
-        it('uses backtick quoting for ClickHouse', () => {
+        it('uses double-quote for ClickHouse (matches ClickhouseSqlBuilder)', () => {
             const sql = compile('=A + B', { dialect: 'clickhouse', columns });
-            expect(sql).toBe('(`order_amount` + `tax`)');
+            expect(sql).toBe('("order_amount" + "tax")');
         });
 
         it('casts to Float64 for ClickHouse modulo (preserves decimal precision)', () => {
             const sql = compile('=A % B', { dialect: 'clickhouse', columns });
-            expect(sql).toBe('(toFloat64(`order_amount`) % toFloat64(`tax`))');
+            expect(sql).toBe('(toFloat64("order_amount") % toFloat64("tax"))');
         });
 
-        it('uses backslash string escaping for ClickHouse (matches its unescaping rules)', () => {
+        it('uses doubled single-quote + backslash-escaped backslashes for ClickHouse strings', () => {
             const sql = compile(`=IF(C = "O'Brien", 1, 0)`, {
                 dialect: 'clickhouse',
                 columns,
             });
             expect(sql).toBe(
-                `CASE WHEN (\`category\` = 'O\\'Brien') THEN 1 ELSE 0 END`,
+                `CASE WHEN ("category" = 'O''Brien') THEN 1 ELSE 0 END`,
             );
         });
     });

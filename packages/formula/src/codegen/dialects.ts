@@ -46,6 +46,20 @@ const backslashEscapedStringLiteral = (node: StringLiteralNode): string => {
     return `'${escaped}'`;
 };
 
+// ANSI-doubled single quotes for quote-escape PLUS backslash-escape for
+// backslashes. Used by engines (ClickHouse) whose string parser interprets
+// both conventions — doubling alone silently loses backslashes because
+// ClickHouse unescapes `\\` to `\`. Matches the defensive approach in
+// `ClickhouseSqlBuilder.escapeString` (packages/warehouses) so a single
+// query produced by MetricQueryBuilder + the formula package has one
+// consistent string-literal style.
+const ansiQuoteWithEscapedBackslashesStringLiteral = (
+    node: StringLiteralNode,
+): string => {
+    const escaped = node.value.replace(/\\/g, '\\\\').replace(/'/g, "''");
+    return `'${escaped}'`;
+};
+
 const infixPercentModulo = (left: string, right: string): string =>
     `(${left} % ${right})`;
 
@@ -94,10 +108,10 @@ const DATABRICKS_CONFIG: DialectConfig = {
 
 const CLICKHOUSE_CONFIG: DialectConfig = {
     // ClickHouse accepts both backticks and double quotes for identifiers.
-    // We pick backticks to mirror the idiomatic ClickHouse style, and escape
-    // inner backticks by doubling — matching ClickHouse's own convention
-    // (same as Databricks / Hive).
-    quoteIdentifier: (name) => `\`${name.replace(/`/g, '``')}\``,
+    // Use double quotes to match the convention in ClickhouseSqlBuilder
+    // (packages/warehouses) — that way identifiers in a single query
+    // produced by MetricQueryBuilder + the formula package all look alike.
+    quoteIdentifier: doubleQuoteIdentifier,
     // ClickHouse `Decimal(10,2) % Int32` silently truncates to `0` (it
     // picks the Int side's scale, not the Decimal's). `Decimal % Decimal`
     // or `Float % *` preserves precision. Casting both operands to
@@ -106,11 +120,11 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
     // (`0` → `0.0`) — the runner's tolerance comparison absorbs that.
     generateModulo: (left, right) =>
         `(toFloat64(${left}) % toFloat64(${right}))`,
-    // ClickHouse unescapes `\\` inside string literals as a single
-    // backslash, so the ANSI doubled-quote scheme silently halves every
-    // backslash in user-provided strings. Backslash escaping (same as
-    // Spark/BigQuery) is the only way to round-trip backslashes faithfully.
-    generateStringLiteral: backslashEscapedStringLiteral,
+    // Doubled single quotes for quote-escape AND backslash-on-backslash
+    // — ClickHouse interprets both. Doubling alone silently halves any
+    // backslashes in the value (ClickHouse unescapes `\\` to `\`). Same
+    // approach as ClickhouseSqlBuilder.escapeString for consistency.
+    generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
     // ClickHouse LAG/LEAD return the type default (e.g. 0 for numbers) at
     // partition boundaries unless the input is Nullable. Wrapping with
     // `toNullable()` makes the boundary rows return NULL like every other

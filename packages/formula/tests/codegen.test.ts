@@ -292,13 +292,13 @@ describe('codegen', () => {
     });
 
     describe('ClickHouse dialect', () => {
-        it('emits bare aggregates with backtick quoting by default', () => {
+        it('emits bare aggregates with double-quoted identifiers by default', () => {
             expect(
                 compile('=SUMIF(revenue, region = "EU")', {
                     dialect: 'clickhouse',
                     columns,
                 }),
-            ).toBe(`SUM(CASE WHEN (\`region\` = 'EU') THEN \`revenue\` END)`);
+            ).toBe(`SUM(CASE WHEN ("region" = 'EU') THEN "revenue" END)`);
         });
 
         it('window-wraps aggregates when renderAggregate is provided', () => {
@@ -309,7 +309,7 @@ describe('codegen', () => {
                     renderAggregate: (inner) => `${inner} OVER ()`,
                 }),
             ).toBe(
-                `SUM(CASE WHEN (\`region\` = 'EU') THEN \`revenue\` END) OVER ()`,
+                `SUM(CASE WHEN ("region" = 'EU') THEN "revenue" END) OVER ()`,
             );
         });
 
@@ -320,7 +320,7 @@ describe('codegen', () => {
                     columns,
                     renderAggregate: (inner) => `${inner} OVER ()`,
                 }),
-            ).toBe('(`revenue` - AVG(`revenue`) OVER ())');
+            ).toBe('("revenue" - AVG("revenue") OVER ())');
         });
     });
 
