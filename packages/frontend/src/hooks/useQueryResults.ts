@@ -417,7 +417,7 @@ export const useInfiniteQueryResults = (
                         error: {
                             name: 'Error',
                             statusCode: 500,
-                            message: results.error ?? 'Query failed',
+                            message: results.error || 'Query failed',
                             data: {},
                         },
                     };
