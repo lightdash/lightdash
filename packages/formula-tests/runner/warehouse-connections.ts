@@ -33,12 +33,7 @@ export async function createDuckDBConnection(): Promise<WarehouseConnection> {
         dialect: 'duckdb',
         execute,
         async seed(sql: string) {
-            // Split on semicolons and execute each statement
-            const statements = sql
-                .split(';')
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0 && !s.startsWith('--'));
-            for (const stmt of statements) {
+            for (const stmt of splitSqlStatements(sql)) {
                 await run(stmt);
             }
         },
@@ -46,6 +41,26 @@ export async function createDuckDBConnection(): Promise<WarehouseConnection> {
             db.close();
         },
     };
+}
+
+// Split a multi-statement SQL blob on `;` and remove leading `--` comment
+// lines from each chunk. Naive "filter out statements that start with --"
+// would silently drop valid statements like
+//   -- comment explaining the next DDL
+//   DROP TABLE IF EXISTS foo;
+// because the `--` line ends up prefixed to the DROP after the split. We
+// keep the statement but peel off its leading comment lines.
+function splitSqlStatements(sql: string): string[] {
+    return sql
+        .split(';')
+        .map((s) =>
+            s
+                .split('\n')
+                .filter((line) => !line.trim().startsWith('--'))
+                .join('\n')
+                .trim(),
+        )
+        .filter((s) => s.length > 0);
 }
 
 export async function createPostgresConnection(
@@ -95,16 +110,32 @@ export async function createRedshiftConnection(
         user: config.user,
         password: config.password,
         ssl: { rejectUnauthorized: false },
+        // Force a single connection so one failed query can't leave a
+        // sibling pool member in an aborted-transaction state that silently
+        // cascades into "relation does not exist" errors on later tests.
+        max: 1,
     });
 
     return {
         dialect: 'redshift',
         async execute(sql: string) {
             const result = await pool.query(sql);
-            return result.rows;
+            // Guard against unusual pg result shapes on Redshift: for some
+            // queries `result.rows` comes back undefined rather than `[]`,
+            // which crashes the comparator downstream with a useless
+            // "Cannot read properties of undefined" error. Normalise to
+            // an empty array so the caller sees a consistent shape.
+            return (result as { rows?: Record<string, any>[] }).rows ?? [];
         },
         async seed(sql: string) {
-            await pool.query(sql);
+            // Redshift's simple query protocol does not accept multiple
+            // statements in a single `pool.query()` call the way Postgres
+            // does — it fails without a useful error. Split on `;` and run
+            // each statement individually, matching the Databricks /
+            // ClickHouse approach.
+            for (const stmt of splitSqlStatements(sql)) {
+                await pool.query(stmt);
+            }
         },
         async close() {
             await pool.end();
@@ -166,11 +197,7 @@ export async function createDatabricksConnection(
             return execute(sql);
         },
         async seed(sql: string) {
-            const statements = sql
-                .split(';')
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0 && !s.startsWith('--'));
-            for (const stmt of statements) {
+            for (const stmt of splitSqlStatements(sql)) {
                 await execute(stmt);
             }
         },
@@ -222,11 +249,7 @@ export async function createClickhouseConnection(
             return execute(sql);
         },
         async seed(sql: string) {
-            const statements = sql
-                .split(';')
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0 && !s.startsWith('--'));
-            for (const stmt of statements) {
+            for (const stmt of splitSqlStatements(sql)) {
                 // Seed uses DDL/DML that doesn't return rows — use `command`
                 // so the client doesn't try to stream a result set.
                 await client.command({ query: stmt });
@@ -268,11 +291,7 @@ export async function createBigQueryConnection(
             return rows;
         },
         async seed(sql: string) {
-            const statements = sql
-                .split(';')
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0 && !s.startsWith('--'));
-            for (const stmt of statements) {
+            for (const stmt of splitSqlStatements(sql)) {
                 await client.query({ query: stmt, defaultDataset });
             }
             // BigQuery CREATE TABLE needs a moment before tables are queryable
