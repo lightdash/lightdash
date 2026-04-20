@@ -1,3 +1,15 @@
+# [0.2769.0](https://github.com/lightdash/lightdash/compare/0.2768.0...0.2769.0) (2026-04-20)
+
+
+### Bug Fixes
+
+* **formula-tests:** harden seed harness ([#22131](https://github.com/lightdash/lightdash/issues/22131)) ([6f4fd0b](https://github.com/lightdash/lightdash/commit/6f4fd0ba03563e7342757e4297f8c09a990382c1))
+
+
+### Features
+
+* **analytics:** track formula table calculation saves ([#22122](https://github.com/lightdash/lightdash/issues/22122)) ([b66dfd8](https://github.com/lightdash/lightdash/commit/b66dfd82ed10e9f3480543b538863324d720fca4))
+
 # [0.2768.0](https://github.com/lightdash/lightdash/compare/0.2767.0...0.2768.0) (2026-04-20)
 
 
