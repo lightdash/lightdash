@@ -39,7 +39,7 @@ import { v4 as uuid4 } from 'uuid';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
-import { useAppImageUploadUrl } from '../features/apps/hooks/useAppImageUploadUrl';
+import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
@@ -199,7 +199,7 @@ const AppGenerate: FC = () => {
     const { mutate: updateAppMutate } = useUpdateApp();
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
-    const { mutateAsync: getUploadUrl } = useAppImageUploadUrl();
+    const { mutateAsync: uploadImage } = useAppImageUpload();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -458,25 +458,15 @@ const AppGenerate: FC = () => {
         const newAppUuid = activeAppUuid ? undefined : uuid4();
         const targetAppUuid = activeAppUuid ?? newAppUuid;
 
-        // Upload image to S3 via presigned URL, then reference by key
+        // Upload image via backend proxy, then reference by S3 key
         let image: AppImageAttachment | undefined;
         if (imageAttachment) {
             try {
-                const { uploadUrl, s3Key } = await getUploadUrl({
+                const { s3Key } = await uploadImage({
                     projectUuid: projectUuid!,
-                    mimeType: imageAttachment.file.type,
+                    file: imageAttachment.file,
                     appUuid: targetAppUuid,
                 });
-                const uploadResponse = await fetch(uploadUrl, {
-                    method: 'PUT',
-                    body: imageAttachment.file,
-                    headers: { 'Content-Type': imageAttachment.file.type },
-                });
-                if (!uploadResponse.ok) {
-                    throw new Error(
-                        `Image upload failed: ${uploadResponse.status}`,
-                    );
-                }
                 image = {
                     s3Key,
                     mimeType: imageAttachment.file.type,

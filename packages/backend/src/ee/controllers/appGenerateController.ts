@@ -1,6 +1,6 @@
 import {
     ApiErrorPayload,
-    type ApiAppImageUploadUrlResponse,
+    type ApiAppImageUploadResponse,
     type ApiCancelAppVersionResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
@@ -61,24 +61,35 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
-     * Get a presigned URL for uploading an image to S3.
-     * @summary Get image upload URL
+     * Upload an image for a data app generation request.
+     * Send raw image bytes with the appropriate Content-Type header.
+     * The request body is streamed directly to S3 without buffering.
+     * @summary Upload app image
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/upload-url')
-    @OperationId('getAppImageUploadUrl')
-    async getImageUploadUrl(
+    @Post('/upload-image')
+    @OperationId('uploadAppImage')
+    async uploadImage(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: { mimeType: string; appUuid?: string },
-    ): Promise<ApiAppImageUploadUrlResponse> {
+        @Query() appUuid?: string,
+    ): Promise<ApiAppImageUploadResponse> {
         this.setStatus(200);
-        const result = await this.getAppGenerateService().getImageUploadUrl(
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new Error('Content-Type header is required');
+        }
+        const contentLength = req.headers['content-length']
+            ? parseInt(req.headers['content-length'], 10)
+            : undefined;
+        const result = await this.getAppGenerateService().uploadImage(
             req.user!,
             projectUuid,
-            body.mimeType,
-            body.appUuid,
+            mimeType,
+            req,
+            contentLength,
+            appUuid,
         );
         return {
             status: 'ok',
