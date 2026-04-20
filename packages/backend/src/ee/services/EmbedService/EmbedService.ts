@@ -1191,7 +1191,7 @@ export class EmbedService extends BaseService {
 
         const isTimezoneSupportEnabled =
             await this.projectService.isTimezoneSupportEnabled({
-                userUuid: account.user.id,
+                userUuid: user?.userUuid ?? account.user.id,
                 organizationUuid,
             });
         const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
