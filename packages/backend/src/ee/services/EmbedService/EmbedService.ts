@@ -1189,6 +1189,13 @@ export class EmbedService extends BaseService {
             projectTimezone,
         );
 
+        const isTimezoneSupportEnabled =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid,
+            });
+        const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
+
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
             metricQuery: metricQueryWithDashboardOverrides,
@@ -1217,7 +1224,13 @@ export class EmbedService extends BaseService {
                 access: [],
             },
             explore,
-            rows: formatRows(rows, fields),
+            rows: formatRows(
+                rows,
+                fields,
+                undefined,
+                undefined,
+                displayTimezone,
+            ),
             cacheMetadata,
             metricQuery: metricQueryWithDashboardOverrides,
             fields,

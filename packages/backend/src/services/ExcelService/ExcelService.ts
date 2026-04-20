@@ -119,6 +119,7 @@ export class ExcelService {
         maxColumnLimit,
         pivotDetails,
         enableImprovedExcelDates = false,
+        timezone,
     }: {
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
@@ -129,8 +130,15 @@ export class ExcelService {
         maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         enableImprovedExcelDates?: boolean;
+        timezone?: string;
     }): Promise<Excel.Buffer> {
-        const formattedRows = formatRows(rows, itemMap);
+        const formattedRows = formatRows(
+            rows,
+            itemMap,
+            undefined,
+            undefined,
+            timezone,
+        );
 
         if (!enableImprovedExcelDates) {
             return ExcelService.downloadPivotTableXlsxLegacy({

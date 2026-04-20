@@ -734,6 +734,21 @@ export class AsyncQueryService extends ProjectService {
             throw new ResultsExpiredError();
         }
 
+        const projectTimezone = queryHistory.projectUuid
+            ? await this.getQueryTimezoneForProject(queryHistory.projectUuid)
+            : 'UTC';
+        const resolvedTimezone = resolveQueryTimezone(
+            queryHistory.metricQuery,
+            projectTimezone,
+        );
+        const isTimezoneSupportEnabled = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const displayTimezone = isTimezoneSupportEnabled
+            ? resolvedTimezone
+            : undefined;
+
         const defaultedPageSize =
             pageSize ??
             queryHistory.defaultPageSize ??
@@ -751,6 +766,8 @@ export class AsyncQueryService extends ProjectService {
                 row,
                 queryHistory.fields,
                 queryHistory.pivotValuesColumns,
+                undefined,
+                displayTimezone,
             );
 
         const {
@@ -854,6 +871,7 @@ export class AsyncQueryService extends ProjectService {
             page,
             nextPage,
             previousPage,
+            resolvedTimezone,
             metadata: {
                 performance: {
                     initialQueryExecutionMs:

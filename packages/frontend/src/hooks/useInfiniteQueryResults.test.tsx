@@ -72,6 +72,7 @@ function makeReadyPage(
             },
         },
         pivotDetails: null,
+        resolvedTimezone: 'UTC',
         totalResults: opts?.totalResults ?? rowCount,
     };
 }
