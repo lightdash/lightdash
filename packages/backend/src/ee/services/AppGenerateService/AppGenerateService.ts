@@ -141,12 +141,90 @@ export class AppGenerateService extends BaseService {
         return extMap[mimeType] ?? 'png';
     }
 
+    /**
+     * Magic-byte signatures for each allowed image MIME type.
+     * Checked against the first bytes of the upload stream to ensure
+     * the content matches the declared Content-Type.
+     */
+    private static readonly IMAGE_SIGNATURES: Record<
+        string,
+        { offset: number; bytes: number[] }[]
+    > = {
+        'image/png': [{ offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47] }],
+        'image/jpeg': [{ offset: 0, bytes: [0xff, 0xd8, 0xff] }],
+        'image/gif': [
+            { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] }, // GIF87a
+            { offset: 0, bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] }, // GIF89a
+        ],
+        'image/webp': [
+            {
+                offset: 0,
+                bytes: [0x52, 0x49, 0x46, 0x46], // RIFF
+            },
+            {
+                offset: 8,
+                bytes: [0x57, 0x45, 0x42, 0x50], // WEBP
+            },
+        ],
+    };
+
+    private static readonly SIGNATURE_PREFIX_SIZE = 12;
+
+    /**
+     * Read the first few bytes of a stream, validate image magic bytes,
+     * then return a new Readable that replays those bytes followed by
+     * the rest of the original stream.
+     */
+    private static async validateAndPrependMagicBytes(
+        stream: Readable,
+        mimeType: string,
+    ): Promise<Readable> {
+        const prefix = await new Promise<Buffer>((resolve, reject) => {
+            const chunks: Buffer[] = [];
+            let collected = 0;
+            const onData = (chunk: Buffer) => {
+                chunks.push(chunk);
+                collected += chunk.length;
+                if (collected >= AppGenerateService.SIGNATURE_PREFIX_SIZE) {
+                    stream.removeListener('data', onData);
+                    stream.pause();
+                    resolve(Buffer.concat(chunks));
+                }
+            };
+            stream.on('data', onData);
+            stream.on('error', reject);
+            stream.on('end', () => resolve(Buffer.concat(chunks)));
+        });
+
+        if (prefix.length === 0) {
+            throw new ParameterError('Upload body is empty');
+        }
+
+        const signatures = AppGenerateService.IMAGE_SIGNATURES[mimeType];
+        if (signatures) {
+            const matchesAll = signatures.every((sig) =>
+                sig.bytes.every((byte, i) => prefix[sig.offset + i] === byte),
+            );
+            if (!matchesAll) {
+                throw new ParameterError(
+                    `File content does not match declared Content-Type: ${mimeType}`,
+                );
+            }
+        }
+
+        // Rebuild a stream: prefix bytes first, then the remainder
+        const rebuilt = new PassThrough();
+        rebuilt.write(prefix);
+        stream.pipe(rebuilt);
+        return rebuilt;
+    }
+
     async uploadImage(
         user: SessionUser,
         projectUuid: string,
         mimeType: string,
         body: Readable,
-        contentLength: number | undefined,
+        contentLength: number,
         appUuid?: string,
     ): Promise<{ s3Key: string }> {
         await this.assertDataAppsEnabled(user);
@@ -164,6 +242,10 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        if (appUuid !== undefined && !isValidUuid(appUuid)) {
+            throw new ParameterError(`Invalid appUuid: must be a valid UUID`);
+        }
+
         const validTypes = [
             'image/png',
             'image/jpeg',
@@ -177,11 +259,17 @@ export class AppGenerateService extends BaseService {
         }
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
-        if (contentLength !== undefined && contentLength > maxSize) {
+        if (contentLength > maxSize) {
             throw new ParameterError(
                 `Image too large: ${contentLength} bytes. Maximum: ${maxSize} bytes`,
             );
         }
+
+        const validatedBody =
+            await AppGenerateService.validateAndPrependMagicBytes(
+                body,
+                mimeType,
+            );
 
         const { client: s3Client, bucket } = this.getS3Client();
         const ext = AppGenerateService.mimeToExt(mimeType);
@@ -192,7 +280,7 @@ export class AppGenerateService extends BaseService {
             new PutObjectCommand({
                 Bucket: bucket,
                 Key: s3Key,
-                Body: body,
+                Body: validatedBody,
                 ContentLength: contentLength,
                 ContentType: mimeType,
             }),

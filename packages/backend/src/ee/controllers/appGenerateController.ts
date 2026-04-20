@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    ParameterError,
     type ApiAppImageUploadResponse,
     type ApiCancelAppVersionResponse,
     type ApiGenerateAppResponse,
@@ -78,11 +79,17 @@ export class AppGenerateController extends BaseController {
         this.setStatus(200);
         const mimeType = req.headers['content-type'];
         if (!mimeType) {
-            throw new Error('Content-Type header is required');
+            throw new ParameterError('Content-Type header is required');
         }
-        const contentLength = req.headers['content-length']
-            ? parseInt(req.headers['content-length'], 10)
-            : undefined;
+        if (!req.headers['content-length']) {
+            throw new ParameterError('Content-Length header is required');
+        }
+        const contentLength = parseInt(req.headers['content-length'], 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
         const result = await this.getAppGenerateService().uploadImage(
             req.user!,
             projectUuid,
