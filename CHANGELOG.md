@@ -1,3 +1,11 @@
+## [0.2764.8](https://github.com/lightdash/lightdash/compare/0.2764.7...0.2764.8) (2026-04-20)
+
+
+### Bug Fixes
+
+* disable ECharts animations in minimal mode for funnel, treemap, and gauge charts ([#22010](https://github.com/lightdash/lightdash/issues/22010)) ([d744a69](https://github.com/lightdash/lightdash/commit/d744a6983c8e76ad499d27a84a5fc81ab424f751))
+* take screenshot before page.pdf() in PDF-only path to ensure canvas rendering ([#22008](https://github.com/lightdash/lightdash/issues/22008)) ([1fe6f21](https://github.com/lightdash/lightdash/commit/1fe6f214d5310a7bafa0ade2e3eb9f2cd3b96ce3)), closes [#21950](https://github.com/lightdash/lightdash/issues/21950)
+
 ## [0.2764.7](https://github.com/lightdash/lightdash/compare/0.2764.6...0.2764.7) (2026-04-20)
 
 
