@@ -22,9 +22,16 @@ import type {
     ZeroOrOneArgFnNode,
 } from '../types';
 import { assertUnreachable } from '../utils';
+import type { DialectConfig } from './dialects';
 
-export abstract class BaseSqlGenerator {
-    constructor(protected options: CompileOptions) {}
+// Generic AST-to-SQL generator. All dialect-specific behaviour lives in
+// the DialectConfig passed to the constructor — there are no subclasses.
+// Fields the config doesn't set fall back to ANSI-standard defaults.
+export class SqlGenerator {
+    constructor(
+        protected options: CompileOptions,
+        protected dialect: DialectConfig,
+    ) {}
 
     // Public entry point. Dispatches to the node-specific generator, then
     // hands aggregate output to the caller-supplied `renderAggregate` callback
@@ -110,10 +117,6 @@ export abstract class BaseSqlGenerator {
                     `Unknown operator: ${node.op}`,
                 );
         }
-    }
-
-    protected generateModulo(left: string, right: string): string {
-        return `MOD(${left}, ${right})`;
     }
 
     protected generateUnaryOp(node: UnaryOpNode): string {
@@ -343,11 +346,6 @@ export abstract class BaseSqlGenerator {
         return String(node.value);
     }
 
-    protected generateStringLiteral(node: StringLiteralNode): string {
-        const escaped = node.value.replace(/'/g, "''");
-        return `'${escaped}'`;
-    }
-
     protected generateBooleanLiteral(node: BooleanLiteralNode): string {
         return node.value ? 'TRUE' : 'FALSE';
     }
@@ -364,8 +362,31 @@ export abstract class BaseSqlGenerator {
         return `(${left} ${node.op} ${right})`;
     }
 
-    // Dialect-specific methods to override
-    protected abstract quoteIdentifier(name: string): string;
+    // --- Dialect-configurable emission ---
+    // These methods consult the DialectConfig and fall back to ANSI-standard
+    // defaults when the dialect doesn't override.
+
+    protected quoteIdentifier(name: string): string {
+        return this.dialect.quoteIdentifier(name);
+    }
+
+    protected generateStringLiteral(node: StringLiteralNode): string {
+        if (this.dialect.generateStringLiteral) {
+            return this.dialect.generateStringLiteral(node);
+        }
+        const escaped = node.value.replace(/'/g, "''");
+        return `'${escaped}'`;
+    }
+
+    protected generateModulo(left: string, right: string): string {
+        return (
+            this.dialect.generateModulo?.(left, right) ??
+            `MOD(${left}, ${right})`
+        );
+    }
+
+    // --- ANSI defaults shared across all dialects today ---
+    // Promote to DialectConfig fields when a real dialect first diverges.
 
     protected generateConcat(args: string[]): string {
         return `CONCAT(${args.join(', ')})`;
