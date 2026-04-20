@@ -135,9 +135,13 @@ export abstract class BaseSqlGenerator {
         const condition = this.generate(node.condition);
         switch (node.name) {
             case 'SUMIF':
-                return `SUM(CASE WHEN ${condition} THEN ${value} END)`;
+                return this.wrapAggregate(
+                    `SUM(CASE WHEN ${condition} THEN ${value} END)`,
+                );
             case 'AVERAGEIF':
-                return `AVG(CASE WHEN ${condition} THEN ${value} END)`;
+                return this.wrapAggregate(
+                    `AVG(CASE WHEN ${condition} THEN ${value} END)`,
+                );
             default:
                 return assertUnreachable(
                     node.name,
@@ -148,7 +152,7 @@ export abstract class BaseSqlGenerator {
 
     protected generateCountIf(node: CountIfNode): string {
         const condition = this.generate(node.condition);
-        return `COUNT(CASE WHEN ${condition} THEN 1 END)`;
+        return this.wrapAggregate(`COUNT(CASE WHEN ${condition} THEN 1 END)`);
     }
 
     protected generateZeroArgFn(node: ZeroArgFnNode): string {
@@ -196,7 +200,7 @@ export abstract class BaseSqlGenerator {
                 return this.wrapAggregate(`SUM(${arg})`);
             case 'AVERAGE':
             case 'AVG':
-                return `AVG(${arg})`;
+                return this.wrapAggregate(`AVG(${arg})`);
             default:
                 return assertUnreachable(
                     node.name,
@@ -212,11 +216,11 @@ export abstract class BaseSqlGenerator {
                 return `ROUND(${args[0]}${args[1] !== undefined ? `, ${args[1]}` : ''})`;
             case 'MIN':
                 return args.length === 1
-                    ? `MIN(${args[0]})`
+                    ? this.wrapAggregate(`MIN(${args[0]})`)
                     : `LEAST(${args.join(', ')})`;
             case 'MAX':
                 return args.length === 1
-                    ? `MAX(${args[0]})`
+                    ? this.wrapAggregate(`MAX(${args[0]})`)
                     : `GREATEST(${args.join(', ')})`;
             default:
                 return assertUnreachable(
@@ -229,9 +233,9 @@ export abstract class BaseSqlGenerator {
     protected generateZeroOrOneArgFn(node: ZeroOrOneArgFnNode): string {
         switch (node.name) {
             case 'COUNT':
-                return node.arg
-                    ? `COUNT(${this.generate(node.arg)})`
-                    : 'COUNT(*)';
+                return this.wrapAggregate(
+                    node.arg ? `COUNT(${this.generate(node.arg)})` : 'COUNT(*)',
+                );
             default:
                 return assertUnreachable(
                     node.name,
