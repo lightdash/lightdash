@@ -224,4 +224,49 @@ describe('codegen', () => {
             ).toBe('/*agg*/SUM("revenue")');
         });
     });
+
+    describe('renderAggregate invocation protocol', () => {
+        // Identity renderer used to observe invocation count and order
+        // without changing the generated SQL.
+        const track = (calls: string[]) => (inner: string) => {
+            calls.push(inner);
+            return inner;
+        };
+
+        it('invokes the callback once per aggregate node, in recursion order, with bare SQL', () => {
+            const calls: string[] = [];
+            compile('=SUM(revenue) + AVG(revenue) - SUM(revenue)', {
+                dialect: 'postgres',
+                columns,
+                renderAggregate: track(calls),
+            });
+            expect(calls).toEqual([
+                'SUM("revenue")',
+                'AVG("revenue")',
+                'SUM("revenue")',
+            ]);
+        });
+
+        it('invokes the callback exactly once for a ConditionalAggregate, with the full CASE WHEN as input', () => {
+            const calls: string[] = [];
+            compile('=SUMIF(revenue, region = "EU")', {
+                dialect: 'postgres',
+                columns,
+                renderAggregate: track(calls),
+            });
+            expect(calls).toEqual([
+                `SUM(CASE WHEN ("region" = 'EU') THEN "revenue" END)`,
+            ]);
+        });
+
+        it('does not invoke the callback for formulas with no aggregates', () => {
+            const calls: string[] = [];
+            compile('=revenue * 2 + IF(region = "EU", 1, 0)', {
+                dialect: 'postgres',
+                columns,
+                renderAggregate: track(calls),
+            });
+            expect(calls).toEqual([]);
+        });
+    });
 });
