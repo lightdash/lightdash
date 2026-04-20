@@ -19,6 +19,7 @@ import { edgeCases } from './cases/edge-cases.cases';
 import { windowCases } from './cases/window.cases';
 import { conditionalAggCases } from './cases/conditional-agg.cases';
 import { securityCases } from './cases/security.cases';
+import { parenthesesCases } from './cases/parentheses.cases';
 
 const ALL_CASES: TestCase[] = [
     ...arithmeticCases,
@@ -32,6 +33,7 @@ const ALL_CASES: TestCase[] = [
     ...windowCases,
     ...conditionalAggCases,
     ...securityCases,
+    ...parenthesesCases,
 ];
 
 function parseTier(args: string[]): Tier {
