@@ -21,6 +21,7 @@ import { Writable } from 'stream';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import { normalizeUnicode } from '../utils/sql';
+import './pgProtocolGuard';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
