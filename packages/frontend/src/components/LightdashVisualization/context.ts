@@ -56,6 +56,8 @@ type VisualizationContext = {
     isEditMode?: boolean;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
+    // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
+    resolvedTimezone?: string;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);

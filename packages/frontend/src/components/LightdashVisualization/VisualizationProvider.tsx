@@ -327,6 +327,14 @@ const VisualizationProvider: FC<
     // This helps us avoid appendTo: 'body' on touch devices where drag-to-scroll
     // causes tooltip positioning issues.
     // Related: https://github.com/apache/echarts/issues/12776
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const resolvedTimezone = useMemo(() => {
+        if (!(timezoneSupportFlag?.enabled ?? false)) return undefined;
+        return resultsData?.resolvedTimezone;
+    }, [timezoneSupportFlag?.enabled, resultsData?.resolvedTimezone]);
+
     const isTouchDevice = useMemo(() => {
         return (
             'ontouchstart' in window ||
@@ -364,6 +372,7 @@ const VisualizationProvider: FC<
         isDashboard,
         isEditMode,
         isTouchDevice,
+        resolvedTimezone,
     };
 
     switch (chartConfig.type) {

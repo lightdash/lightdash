@@ -286,7 +286,12 @@ const getResultsPage = async (
 export type InfiniteQueryResults = Partial<
     Pick<
         ReadyQueryResultsPage,
-        'queryUuid' | 'totalResults' | 'metadata' | 'pivotDetails' | 'columns'
+        | 'queryUuid'
+        | 'totalResults'
+        | 'metadata'
+        | 'pivotDetails'
+        | 'columns'
+        | 'resolvedTimezone'
     >
 > & {
     projectUuid?: string;
