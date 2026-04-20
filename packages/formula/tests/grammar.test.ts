@@ -229,6 +229,44 @@ describe('Formula Grammar', () => {
             });
         });
 
+        it('parses function-call-style NOT(expr) — Excel/Sheets idiom', () => {
+            const ast = parse('=NOT(A > 100)');
+            expect(ast).toEqual({
+                type: 'UnaryOp',
+                op: 'NOT',
+                operand: {
+                    type: 'Comparison',
+                    op: '>',
+                    left: { type: 'ColumnRef', name: 'A' },
+                    right: { type: 'NumberLiteral', value: 100 },
+                },
+            });
+        });
+
+        it('parses NOT wrapping a parenthesised boolean OR', () => {
+            const ast = parse('=NOT(A > 0 OR B < 0)');
+            expect(ast).toEqual({
+                type: 'UnaryOp',
+                op: 'NOT',
+                operand: {
+                    type: 'Logical',
+                    op: 'OR',
+                    left: {
+                        type: 'Comparison',
+                        op: '>',
+                        left: { type: 'ColumnRef', name: 'A' },
+                        right: { type: 'NumberLiteral', value: 0 },
+                    },
+                    right: {
+                        type: 'Comparison',
+                        op: '<',
+                        left: { type: 'ColumnRef', name: 'B' },
+                        right: { type: 'NumberLiteral', value: 0 },
+                    },
+                },
+            });
+        });
+
         it('rejects bare column refs in AND', () => {
             expect(() => parse('=A AND B')).toThrow();
         });
