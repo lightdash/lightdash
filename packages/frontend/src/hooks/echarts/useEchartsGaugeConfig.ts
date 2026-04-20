@@ -413,7 +413,13 @@ const useEchartsGaugeConfig = ({
             series: gaugeSeries,
             animation: !(isInDashboard || minimal),
         };
-    }, [chartConfig, gaugeSeries, isInDashboard, minimal, theme?.other?.chartFont]);
+    }, [
+        chartConfig,
+        gaugeSeries,
+        isInDashboard,
+        minimal,
+        theme?.other?.chartFont,
+    ]);
 
     if (!itemsMap) return;
     if (!eChartsOption) return;
