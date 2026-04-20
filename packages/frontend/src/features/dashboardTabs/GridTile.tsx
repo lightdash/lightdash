@@ -4,7 +4,7 @@ import {
     type DashboardTab,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Box, Skeleton } from '@mantine-8/core';
+import { Box } from '@mantine-8/core';
 import { memo, type FC } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
@@ -13,7 +13,6 @@ import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile'
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
 import TileBase from '../../components/DashboardTiles/TileBase';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
-import { useStagedMount } from './stagedMountContext';
 
 type GridTileProps = Pick<
     React.ComponentProps<typeof TileBase>,
@@ -71,23 +70,6 @@ const GridTile: FC<GridTileProps> = (props) => (
     <ErrorBoundary wrapper={{ h: '100%', w: '100%' }}>
         <GridTileInner {...props} />
     </ErrorBoundary>
-);
-
-/**
- * Wrapper that defers rendering of the real GridTile until the staged
- * mount cascade reaches this tile's index. Shows a skeleton placeholder
- * until then, matching the tile's dimensions via the grid layout.
- */
-export const StagedGridTile: FC<GridTileProps & { stageIndex: number }> = memo(
-    ({ stageIndex, ...props }) => {
-        const { isReady } = useStagedMount(stageIndex);
-
-        if (!isReady) {
-            return <Skeleton h="100%" w="100%" radius="sm" />;
-        }
-
-        return <GridTile {...props} />;
-    },
 );
 
 export default GridTile;

@@ -16,11 +16,9 @@ import {
     Activity,
     memo,
     useCallback,
-    useEffect,
     useMemo,
     useRef,
     useState,
-    useTransition,
     type FC,
 } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -47,7 +45,7 @@ import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
-import GridTile, { StagedGridTile } from './GridTile';
+import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
     getReactGridLayoutConfig,
@@ -57,7 +55,6 @@ import {
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
 import { useGridStyles } from './useGridStyles';
-import { StagedMountProvider } from './useStagedMount';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -69,8 +66,6 @@ const EMPTY_LAYOUTS: { lg: Layout[]; md: Layout[]; sm: Layout[] } = {
 
 type TabGridPanelProps = {
     tabUuid: string;
-    /** Key that resets the stagger cascade (changes on each tab activation). */
-    waveKey: string;
     tiles: DashboardTile[];
     layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
     isActive: boolean;
@@ -99,7 +94,6 @@ type TabGridPanelProps = {
 const TabGridPanel = memo<TabGridPanelProps>(
     ({
         tabUuid,
-        waveKey,
         tiles,
         layouts,
         isActive,
@@ -117,68 +111,59 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onEditTile,
         onAddTiles,
     }) => (
-        <StagedMountProvider
-            waveKey={waveKey}
-            totalTiles={tiles.length}
-            isActive={isActive}
+        <div
+            key={tabUuid}
+            data-tab-uuid={tabUuid}
+            style={
+                isActive
+                    ? { position: 'relative' }
+                    : {
+                          contentVisibility: 'hidden',
+                          containIntrinsicSize: 'auto 1px auto 1px',
+                          position: 'absolute' as const,
+                          width: '100%',
+                          pointerEvents: 'none' as const,
+                      }
+            }
         >
-            <div
-                key={tabUuid}
-                data-tab-uuid={tabUuid}
-                style={
-                    isActive
-                        ? { position: 'relative' }
-                        : {
-                              contentVisibility: 'hidden',
-                              containIntrinsicSize: 'auto 1px auto 1px',
-                              position: 'absolute' as const,
-                              width: '100%',
-                              pointerEvents: 'none' as const,
-                          }
-                }
-            >
-                <ErrorBoundary>
-                    <ResponsiveGridLayout
-                        {...gridProps}
-                        className={locked ? 'locked' : ''}
-                        containerPadding={GRID_CONTAINER_PADDING}
-                        onDragStart={onDragStart}
-                        onDragStop={onDragStop}
-                        onResizeStart={onResizeStart}
-                        onResizeStop={onResizeStop}
-                        onBreakpointChange={onBreakpointChange}
-                        onWidthChange={onWidthChange}
-                        layouts={layouts}
-                    >
-                        {tiles.map((tile, idx) => (
-                            <div key={tile.uuid} data-tile-uuid={tile.uuid}>
-                                <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                    <StagedGridTile
-                                        stageIndex={idx}
-                                        locked={locked}
-                                        index={idx}
-                                        isEditMode={isEditMode}
-                                        tile={tile}
-                                        onDelete={onDeleteTile}
-                                        onEdit={onEditTile}
-                                        tabs={dashboardTabs}
-                                        onAddTiles={onAddTiles}
-                                    />
-                                </TrackSection>
-                            </div>
-                        ))}
-                    </ResponsiveGridLayout>
-                </ErrorBoundary>
-            </div>
-        </StagedMountProvider>
+            <ErrorBoundary>
+                <ResponsiveGridLayout
+                    {...gridProps}
+                    className={locked ? 'locked' : ''}
+                    containerPadding={GRID_CONTAINER_PADDING}
+                    onDragStart={onDragStart}
+                    onDragStop={onDragStop}
+                    onResizeStart={onResizeStart}
+                    onResizeStop={onResizeStop}
+                    onBreakpointChange={onBreakpointChange}
+                    onWidthChange={onWidthChange}
+                    layouts={layouts}
+                >
+                    {tiles.map((tile, idx) => (
+                        <div key={tile.uuid} data-tile-uuid={tile.uuid}>
+                            <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                <GridTile
+                                    locked={locked}
+                                    index={idx}
+                                    isEditMode={isEditMode}
+                                    tile={tile}
+                                    onDelete={onDeleteTile}
+                                    onEdit={onEditTile}
+                                    tabs={dashboardTabs}
+                                    onAddTiles={onAddTiles}
+                                />
+                            </TrackSection>
+                        </div>
+                    ))}
+                </ResponsiveGridLayout>
+            </ErrorBoundary>
+        </div>
     ),
     (prevProps, nextProps) => {
         // Re-render when becoming active/inactive (visibility toggle)
         if (prevProps.isActive !== nextProps.isActive) return false;
         if (prevProps.isEditMode !== nextProps.isEditMode) return false;
         if (prevProps.locked !== nextProps.locked) return false;
-        // Re-render when wave key changes (stagger cascade reset)
-        if (prevProps.waveKey !== nextProps.waveKey) return false;
         if (prevProps.tiles.length !== nextProps.tiles.length) return false;
 
         // Check if tile identities changed (added/removed/reordered)
@@ -251,8 +236,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
-    const [, startTabTransition] = useTransition();
-
     const keepTabsInMemory = useClientFeatureFlag(
         FeatureFlags.DashboardTabsInMemory,
     );
@@ -371,21 +354,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     }
     const visitedTabs = visitedTabsRef.current;
-
-    // Track how many times each tab has been activated so we can reset
-    // the stagger cascade on re-entry (keepTabsInMemory mode).
-    // Mutation is in useEffect (not render) to avoid concurrent mode issues
-    // where abandoned/retried renders would increment the counter multiple times.
-    const tabActivationCountRef = useRef(new Map<string, number>());
-    const [activeTabWaveCount, setActiveTabWaveCount] = useState(0);
-    useEffect(() => {
-        if (activeTab) {
-            const prev = tabActivationCountRef.current.get(activeTab.uuid) ?? 0;
-            const next = prev + 1;
-            tabActivationCountRef.current.set(activeTab.uuid, next);
-            setActiveTabWaveCount(next);
-        }
-    }, [activeTab?.uuid]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Group tiles by their tab UUID for per-tab grid rendering.
     // Only used when tabs are enabled. Tiles with stale/missing tab
@@ -638,17 +606,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
 
         const newParams = new URLSearchParams(search);
-        startTabTransition(() => {
-            void navigate(
-                {
-                    pathname: isEditMode
-                        ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
-                        : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
-                    search: newParams.toString(),
-                },
-                { replace: true },
-            );
-        });
+        void navigate(
+            {
+                pathname: isEditMode
+                    ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${tab?.uuid}`
+                    : `/projects/${projectUuid}/dashboards/${dashboardUuid}/view/tabs/${tab?.uuid}`,
+                search: newParams.toString(),
+            },
+            { replace: true },
+        );
     };
 
     const maxTabsPerDashboard =
@@ -1089,12 +1055,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                           <TabGridPanel
                                                               key={tab.uuid}
                                                               tabUuid={tab.uuid}
-                                                              waveKey={
-                                                                  activeTab?.uuid ===
-                                                                  tab.uuid
-                                                                      ? `${tab.uuid}-${activeTabWaveCount}`
-                                                                      : tab.uuid
-                                                              }
                                                               tiles={
                                                                   tilesByTab.get(
                                                                       tab.uuid,
