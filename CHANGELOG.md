@@ -1,3 +1,15 @@
+# [0.2765.0](https://github.com/lightdash/lightdash/compare/0.2764.10...0.2765.0) (2026-04-20)
+
+
+### Bug Fixes
+
+* move app generation pipeline to Graphile Worker for deploy resilience ([#21740](https://github.com/lightdash/lightdash/issues/21740)) ([3bff37d](https://github.com/lightdash/lightdash/commit/3bff37decb0f57abed5468ee554e90c4b423f154))
+
+
+### Features
+
+* GA content verification by removing feature flag ([#22124](https://github.com/lightdash/lightdash/issues/22124)) ([2cc2f20](https://github.com/lightdash/lightdash/commit/2cc2f200e574dd25bd44bb9a59274ab3b056c224))
+
 ## [0.2764.10](https://github.com/lightdash/lightdash/compare/0.2764.9...0.2764.10) (2026-04-20)
 
 
