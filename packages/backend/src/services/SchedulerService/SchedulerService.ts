@@ -1341,7 +1341,7 @@ export class SchedulerService extends BaseService {
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { uuid: projectUuid },
                 }),
             )
         ) {
@@ -1433,7 +1433,7 @@ export class SchedulerService extends BaseService {
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { uuid: projectUuid },
                 }),
             )
         ) {

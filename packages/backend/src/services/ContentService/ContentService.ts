@@ -107,8 +107,10 @@ export class ContentService extends BaseService {
                     subject('Project', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
-                        uuid: project.projectUuid,
-                        name: project.name,
+                        metadata: {
+                            uuid: project.projectUuid,
+                            name: project.name,
+                        },
                     }),
                 ),
             )
@@ -213,8 +215,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { uuid: projectUuid, name: projectName },
                 }),
             )
         ) {
@@ -309,8 +310,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { uuid: projectUuid, name: projectName },
                 }),
             )
         ) {
@@ -396,8 +396,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { uuid: projectUuid, name: projectName },
                 }),
             )
         ) {
@@ -453,8 +452,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { uuid: projectUuid, name: projectName },
                 }),
             )
         ) {
@@ -504,8 +502,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { uuid: projectUuid, name: projectName },
                 }),
             )
         ) {

@@ -36,9 +36,11 @@ export type AuditableUser = Pick<
 
 type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
     organizationUuid: string;
-    uuid?: string;
-    name?: string;
     projectUuid?: string;
+    metadata?: {
+        uuid?: string;
+        name?: string;
+    };
 };
 
 type AuditableCaslSubject = AuditableCaslSubjectObject | CaslSubjectNames;
@@ -138,8 +140,8 @@ const createResourceFromSubject = (
     }
     return {
         type: subjectArg.__caslSubjectType__ || 'unknown',
-        uuid: subjectArg.uuid,
-        name: subjectArg.name,
+        uuid: subjectArg.metadata?.uuid,
+        name: subjectArg.metadata?.name,
         organizationUuid: subjectArg.organizationUuid || 'unknown',
         projectUuid: subjectArg.projectUuid,
     };

@@ -191,8 +191,7 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: savedChart.uuid,
-                    name: savedChart.name,
+                    metadata: { uuid: savedChart.uuid, name: savedChart.name },
                 }),
             )
         ) {
@@ -216,8 +215,7 @@ export class SavedChartService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedChart.uuid,
-                    name: savedChart.name,
+                    metadata: { uuid: savedChart.uuid, name: savedChart.name },
                 }),
             )
         ) {
@@ -497,7 +495,7 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: savedChartUuid,
+                    metadata: { uuid: savedChartUuid },
                 }),
             )
         ) {
@@ -511,7 +509,7 @@ export class SavedChartService
                 subject('CustomFields', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedChartUuid,
+                    metadata: { uuid: savedChartUuid },
                 }),
             )
         ) {
@@ -620,8 +618,7 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: savedChartUuid,
-                    name,
+                    metadata: { uuid: savedChartUuid, name },
                 }),
             )
         ) {
@@ -692,7 +689,7 @@ export class SavedChartService
                 subject('PinnedItems', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedChartUuid,
+                    metadata: { uuid: savedChartUuid },
                 }),
             )
         ) {
@@ -758,7 +755,7 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: chart.uuid,
+                    metadata: { uuid: chart.uuid },
                 }),
             );
         });
@@ -832,7 +829,7 @@ export class SavedChartService
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: resolvedUuid,
+                        metadata: { uuid: resolvedUuid },
                     }),
                 )
             ) {
@@ -911,8 +908,7 @@ export class SavedChartService
                         projectUuid: chart.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: savedChartUuid,
-                        name: chart.name,
+                        metadata: { uuid: savedChartUuid, name: chart.name },
                     }),
                 )
             ) {
@@ -955,6 +951,7 @@ export class SavedChartService
                     ...savedChart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { uuid: savedChart.uuid, name: savedChart.name },
                 }),
             )
         ) {
@@ -1006,6 +1003,7 @@ export class SavedChartService
                     ...savedChart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { uuid: savedChart.uuid, name: savedChart.name },
                 }),
             )
         ) {
@@ -1075,7 +1073,7 @@ export class SavedChartService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { uuid: projectUuid },
                 }),
             )
         ) {
@@ -1124,7 +1122,7 @@ export class SavedChartService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { uuid: projectUuid },
                 }),
             )
         ) {
@@ -1320,6 +1318,7 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { uuid: chart.uuid, name: chart.name },
                 }),
             )
         ) {
@@ -1581,6 +1580,7 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { uuid: chart.uuid, name: chart.name },
                 }),
             )
         ) {
@@ -1623,6 +1623,7 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { uuid: chart.uuid, name: chart.name },
                 }),
             )
         ) {
@@ -1888,7 +1889,7 @@ export class SavedChartService
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { uuid: projectUuid },
                 }),
             )
         ) {
@@ -1901,7 +1902,7 @@ export class SavedChartService
             subject('DeletedContent', {
                 organizationUuid,
                 projectUuid,
-                uuid: projectUuid,
+                metadata: { uuid: projectUuid },
             }),
         );
 
@@ -1947,7 +1948,7 @@ export class SavedChartService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { uuid: projectUuid },
                     }),
                 )
             ) {
@@ -1959,7 +1960,7 @@ export class SavedChartService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: chartUuid,
+                    metadata: { uuid: chartUuid },
                 }),
             );
 
@@ -2025,7 +2026,7 @@ export class SavedChartService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { uuid: projectUuid },
                     }),
                 )
             ) {
@@ -2037,7 +2038,7 @@ export class SavedChartService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: chartUuid,
+                    metadata: { uuid: chartUuid },
                 }),
             );
 

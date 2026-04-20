@@ -11,15 +11,15 @@ import {
 // Test subjects
 const createDashboard = (uuid: string, attributes: AnyObject = {}) =>
     subject('Dashboard', {
-        uuid,
         organizationUuid: 'test-org-uuid',
+        metadata: { uuid },
         ...attributes,
     });
 
 const createSavedChart = (uuid: string, attributes: AnyObject = {}) =>
     subject('SavedChart', {
-        uuid,
         organizationUuid: 'test-org-uuid',
+        metadata: { uuid },
         ...attributes,
     });
 
@@ -409,6 +409,39 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.resource.uuid).toBeUndefined();
             expect(loggedEvent.resource.type).toBe('Dashboard');
             expect(loggedEvent.resource.organizationUuid).toBe('test-org-uuid');
+        });
+    });
+
+    describe('createResourceFromSubject behavior', () => {
+        it('should use metadata.uuid and metadata.name', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            const s = subject('Dashboard', {
+                organizationUuid: 'test-org-uuid',
+                metadata: { uuid: 'meta-uuid', name: 'meta-name' },
+            });
+
+            wrapper.can('read', s);
+
+            const { resource } = mockLogger.mock.calls[0][0];
+            expect(resource.uuid).toBe('meta-uuid');
+            expect(resource.name).toBe('meta-name');
+        });
+
+        it('should have undefined uuid and name when metadata is absent', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            const s = subject('Dashboard', {
+                organizationUuid: 'test-org-uuid',
+            });
+
+            wrapper.can('read', s);
+
+            const { resource } = mockLogger.mock.calls[0][0];
+            expect(resource.uuid).toBeUndefined();
+            expect(resource.name).toBeUndefined();
         });
     });
 

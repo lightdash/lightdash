@@ -200,10 +200,12 @@ export class SpaceService
             auditedAbility.cannot(
                 'create',
                 subject('Space', {
-                    uuid: '' /* resource doesn't exist yet */,
-                    name: space.name,
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        uuid: '' /* resource doesn't exist yet */,
+                        name: space.name,
+                    },
                 }),
             )
         ) {
@@ -640,10 +642,9 @@ export class SpaceService
             const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
-                    uuid: spaceUuid,
-                    name: space.name,
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
+                    metadata: { uuid: spaceUuid, name: space.name },
                 }),
             );
 
@@ -736,10 +737,9 @@ export class SpaceService
                 auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
-                        uuid: spaceUuid,
-                        name: space.name,
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
+                        metadata: { uuid: spaceUuid, name: space.name },
                     }),
                 )
             ) {
@@ -828,10 +828,9 @@ export class SpaceService
             auditedAbility.cannot(
                 'manage',
                 subject('PinnedItems', {
-                    uuid: spaceUuid,
-                    name: existingSpace.name,
                     projectUuid,
                     organizationUuid,
+                    metadata: { uuid: spaceUuid, name: existingSpace.name },
                 }),
             )
         ) {

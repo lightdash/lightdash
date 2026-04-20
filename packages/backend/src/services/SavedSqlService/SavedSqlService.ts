@@ -182,7 +182,7 @@ export class SavedSqlService
                 action,
                 subject('SavedChart', {
                     ...ctx[spaceUuid],
-                    uuid: resource.savedSqlUuid ?? '',
+                    metadata: { uuid: resource.savedSqlUuid ?? '' },
                 }),
             )
         ) {
@@ -197,7 +197,7 @@ export class SavedSqlService
                     action,
                     subject('SavedChart', {
                         ...ctx[resource.spaceUuid!],
-                        uuid: resource.savedSqlUuid ?? '',
+                        metadata: { uuid: resource.savedSqlUuid ?? '' },
                     }),
                 )
             ) {
@@ -270,7 +270,7 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
+                    metadata: { uuid: '' },
                 }),
             )
         ) {
@@ -334,7 +334,7 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { uuid: savedSqlUuid },
                 }),
             )
         ) {
@@ -490,7 +490,7 @@ export class SavedSqlService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { uuid: projectUuid },
                     }),
                 )
             ) {
@@ -502,7 +502,7 @@ export class SavedSqlService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { uuid: savedSqlUuid },
                 }),
             );
 
@@ -552,7 +552,7 @@ export class SavedSqlService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { uuid: projectUuid },
                     }),
                 )
             ) {
@@ -564,7 +564,7 @@ export class SavedSqlService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { uuid: savedSqlUuid },
                 }),
             );
 
@@ -593,7 +593,7 @@ export class SavedSqlService
                 subject('Job', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
+                    metadata: { uuid: '' },
                 }),
             ) ||
             auditedAbility.cannot(
@@ -601,7 +601,7 @@ export class SavedSqlService
                 subject('SqlRunner', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
+                    metadata: { uuid: '' },
                 }),
             )
         ) {
@@ -654,7 +654,7 @@ export class SavedSqlService
                     subject('Job', {
                         organizationUuid,
                         projectUuid,
-                        uuid: '',
+                        metadata: { uuid: '' },
                     }),
                 ) ||
                 auditedAbility.cannot(
@@ -662,7 +662,7 @@ export class SavedSqlService
                     subject('SqlRunner', {
                         organizationUuid,
                         projectUuid,
-                        uuid: '',
+                        metadata: { uuid: '' },
                     }),
                 )
             ) {
@@ -811,7 +811,7 @@ export class SavedSqlService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { uuid: savedSqlUuid },
                 }),
             )
         ) {
@@ -839,7 +839,7 @@ export class SavedSqlService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { uuid: savedSqlUuid },
                 }),
             )
         ) {
