@@ -115,7 +115,6 @@ import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
 import { ChangesetModel } from '../ChangesetModel';
-import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -182,14 +181,11 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
-    private readonly exploreCache: ExploreCache;
-
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.changesetModel = args.changesetModel;
         this.encryptionUtil = args.encryptionUtil;
-        this.exploreCache = new ExploreCache();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -1104,19 +1100,6 @@ export class ProjectModel {
                         projectUuid,
                     );
 
-                // Try to get from cache first
-                const cachedExplores = this.exploreCache?.getExplores(
-                    projectUuid,
-                    exploreNames,
-                    applyChangeset ? changeset?.updatedAt : undefined,
-                );
-                // NOTE: Explores are cached with the name key, so we don't need to return the cached explores if the key is uuid
-                if (cachedExplores && key === 'name') {
-                    span.setAttribute('cacheHit', true);
-                    // Return cached explores
-                    return cachedExplores;
-                }
-                // If not in cache, get from database
                 const query = this.database(CachedExploreTableName)
                     .select('explore', 'cached_explore_uuid')
                     .where('project_uuid', projectUuid);
@@ -1152,13 +1135,6 @@ export class ProjectModel {
                         finalExplores,
                     );
                 }
-
-                this.exploreCache?.setExplores(
-                    projectUuid,
-                    exploreNames,
-                    applyChangeset ? changeset?.updatedAt : undefined,
-                    finalExplores,
-                );
 
                 return finalExplores;
             },
