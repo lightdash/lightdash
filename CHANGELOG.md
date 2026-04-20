@@ -1,3 +1,10 @@
+## [0.2764.2](https://github.com/lightdash/lightdash/compare/0.2764.1...0.2764.2) (2026-04-20)
+
+
+### Bug Fixes
+
+* table calculations and custom metrics now use default_show_underlying_values ([#22094](https://github.com/lightdash/lightdash/issues/22094)) ([66b99c7](https://github.com/lightdash/lightdash/commit/66b99c7b1abe87b2af6eb27689f6a9ae55bca6ca))
+
 ## [0.2764.1](https://github.com/lightdash/lightdash/compare/0.2764.0...0.2764.1) (2026-04-20)
 
 
