@@ -14,7 +14,8 @@ export type Dialect =
     | 'redshift'
     | 'bigquery'
     | 'snowflake'
-    | 'duckdb';
+    | 'duckdb'
+    | 'databricks';
 
 export interface CompileOptions {
     dialect: Dialect;

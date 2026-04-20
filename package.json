@@ -79,6 +79,7 @@
         "formula:test:tier1": "pnpm -F formula-tests test:tier1",
         "formula:test:tier2": "pnpm -F formula-tests test:tier2",
         "formula:test:all": "pnpm -F formula-tests test:all",
+        "formula:test:warehouse": "pnpm -F formula-tests exec tsx run.ts --tier all --warehouse",
         "common-dev": "pnpm -F common dev",
         "common-build": "pnpm -F common build",
         "common-lint": "pnpm -F common lint",

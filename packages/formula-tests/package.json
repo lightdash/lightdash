@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@lightdash/formula": "workspace:*",
+    "@databricks/sql": "1.10.0",
     "@google-cloud/bigquery": "7.9.2",
     "duckdb": "1.4.2",
     "pg": "8.13.1",

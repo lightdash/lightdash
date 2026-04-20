@@ -112,6 +112,75 @@ export async function createRedshiftConnection(
     };
 }
 
+export async function createDatabricksConnection(
+    config: WarehouseConfig['databricks'],
+): Promise<WarehouseConnection> {
+    // Fail loudly here rather than letting the underlying client produce a
+    // cryptic "Invalid URL" when env vars aren't set.
+    const missing: string[] = [];
+    if (!config.serverHostname) missing.push('FORMULA_TEST_DB_HOSTNAME');
+    if (!config.httpPath) missing.push('FORMULA_TEST_DB_HTTP_PATH');
+    if (!config.token) missing.push('FORMULA_TEST_DB_TOKEN');
+    if (!config.catalog) missing.push('FORMULA_TEST_DB_CATALOG');
+    if (missing.length > 0) {
+        throw new Error(
+            `Databricks connection requires the following env vars: ${missing.join(', ')}`,
+        );
+    }
+
+    // Normalise the hostname: strip any protocol prefix and trailing slashes
+    // so users can copy-paste the full workspace URL from the browser without
+    // hitting a cryptic "Invalid URL" / doubled-protocol error from the SDK.
+    const host = config.serverHostname
+        .replace(/^https?:\/\//, '')
+        .replace(/\/+$/, '');
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { DBSQLClient } = require('@databricks/sql');
+    const client = new DBSQLClient();
+    await client.connect({
+        host,
+        path: config.httpPath,
+        token: config.token,
+    });
+    const session = await client.openSession({
+        initialCatalog: config.catalog,
+        initialSchema: config.schema,
+    });
+
+    const execute = async (sql: string): Promise<Record<string, any>[]> => {
+        const operation = await session.executeStatement(sql, {
+            runAsync: true,
+        });
+        try {
+            const rows = await operation.fetchAll();
+            return rows as Record<string, any>[];
+        } finally {
+            await operation.close();
+        }
+    };
+
+    return {
+        dialect: 'databricks',
+        async execute(sql: string) {
+            return execute(sql);
+        },
+        async seed(sql: string) {
+            const statements = sql
+                .split(';')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0 && !s.startsWith('--'));
+            for (const stmt of statements) {
+                await execute(stmt);
+            }
+        },
+        async close() {
+            await session.close();
+            await client.close();
+        },
+    };
+}
+
 export async function createBigQueryConnection(
     config: WarehouseConfig['bigquery'],
 ): Promise<WarehouseConnection> {
@@ -173,6 +242,8 @@ export async function createConnection(
             return createBigQueryConnection(config.bigquery);
         case 'snowflake':
             throw new Error('Snowflake connection not yet implemented');
+        case 'databricks':
+            return createDatabricksConnection(config.databricks);
         default: {
             const _exhaustive: never = warehouse;
             throw new Error(`Unknown warehouse: ${warehouse}`);

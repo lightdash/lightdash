@@ -18,11 +18,12 @@ export const mapAdapterToFormulaDialect = (
             return 'snowflake';
         case SupportedDbtAdapter.DUCKDB:
             return 'duckdb';
+        case SupportedDbtAdapter.DATABRICKS:
+            return 'databricks';
         // TODO(ZAP-324): add support for these remaining warehouses
         case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.CLICKHOUSE:
-        case SupportedDbtAdapter.DATABRICKS:
             throw new Error(
                 `Formula table calculations are not yet supported for ${adapter}`,
             );

@@ -61,10 +61,22 @@ const BIGQUERY_CONFIG: DialectConfig = {
         `MOD(CAST(${left} AS NUMERIC), CAST(${right} AS NUMERIC))`,
 };
 
+const DATABRICKS_CONFIG: DialectConfig = {
+    // Databricks runs Spark SQL. Identifier backticks are escaped by
+    // doubling (Hive/Spark convention: `a``b` → the identifier `a`b`),
+    // which differs from BigQuery's backslash escaping.
+    quoteIdentifier: (name) => `\`${name.replace(/`/g, '``')}\``,
+    // Spark SQL rejects doubled single quotes as a quote escape; uses the
+    // same backslash style as BigQuery.
+    generateStringLiteral: backslashEscapedStringLiteral,
+    // `MOD(a, b)` (the ANSI default) is valid Spark SQL with no type casts.
+};
+
 export const DIALECTS: Record<Dialect, DialectConfig> = {
     postgres: POSTGRES_LIKE_CONFIG,
     redshift: POSTGRES_LIKE_CONFIG,
     bigquery: BIGQUERY_CONFIG,
     snowflake: SNOWFLAKE_CONFIG,
     duckdb: DUCKDB_CONFIG,
+    databricks: DATABRICKS_CONFIG,
 };
