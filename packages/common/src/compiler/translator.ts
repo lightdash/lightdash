@@ -1007,6 +1007,12 @@ export const convertTable = (
                   },
               }
             : {}),
+        ...(meta.default_show_underlying_values
+            ? {
+                  defaultShowUnderlyingValues:
+                      meta.default_show_underlying_values,
+              }
+            : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
