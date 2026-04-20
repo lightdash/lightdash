@@ -3,12 +3,15 @@ import type { BaseSqlGenerator } from './base';
 import { BigQuerySqlGenerator } from './bigquery';
 import { DuckDBSqlGenerator } from './duckdb';
 import { PostgresSqlGenerator } from './postgres';
+import { RedshiftSqlGenerator } from './redshift';
 import { SnowflakeSqlGenerator } from './snowflake';
 
 export function createGenerator(options: CompileOptions): BaseSqlGenerator {
     switch (options.dialect) {
         case 'postgres':
             return new PostgresSqlGenerator(options);
+        case 'redshift':
+            return new RedshiftSqlGenerator(options);
         case 'bigquery':
             return new BigQuerySqlGenerator(options);
         case 'snowflake':

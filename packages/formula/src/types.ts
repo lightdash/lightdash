@@ -9,7 +9,12 @@ import type {
     ZeroOrOneArgFnName,
 } from './functions';
 
-export type Dialect = 'postgres' | 'bigquery' | 'snowflake' | 'duckdb';
+export type Dialect =
+    | 'postgres'
+    | 'redshift'
+    | 'bigquery'
+    | 'snowflake'
+    | 'duckdb';
 
 export interface CompileOptions {
     dialect: Dialect;

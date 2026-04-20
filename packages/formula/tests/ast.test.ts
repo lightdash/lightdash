@@ -92,5 +92,15 @@ describe('SQL Code Generation', () => {
             const sql = compile('=A + B', { dialect: 'duckdb', columns });
             expect(sql).toBe('("order_amount" + "tax")');
         });
+
+        it('uses double-quote for Redshift', () => {
+            const sql = compile('=A + B', { dialect: 'redshift', columns });
+            expect(sql).toBe('("order_amount" + "tax")');
+        });
+
+        it('uses `%` modulo for Redshift (Postgres-compatible)', () => {
+            const sql = compile('=A % B', { dialect: 'redshift', columns });
+            expect(sql).toBe('("order_amount" % "tax")');
+        });
     });
 });
