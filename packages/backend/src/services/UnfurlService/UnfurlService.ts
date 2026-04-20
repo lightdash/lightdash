@@ -1390,12 +1390,10 @@ export class UnfurlService extends BaseService {
                             lightdashPage === LightdashPage.DASHBOARD ||
                             lightdashPage === LightdashPage.EXPLORE
                         ) {
-                            await page
-                                .locator(finalSelector)
-                                .screenshot({
-                                    animations: 'disabled',
-                                    timeout: RESPONSE_TIMEOUT_MS,
-                                });
+                            await page.locator(finalSelector).screenshot({
+                                animations: 'disabled',
+                                timeout: RESPONSE_TIMEOUT_MS,
+                            });
                         } else {
                             await page.screenshot({
                                 fullPage: true,
