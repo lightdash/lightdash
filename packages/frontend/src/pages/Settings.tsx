@@ -76,7 +76,6 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
-import { useContentVerificationEnabled } from '../hooks/useContentVerificationEnabled';
 import { useProject } from '../hooks/useProject';
 import {
     useClientFeatureFlag,
@@ -108,8 +107,6 @@ const Settings: FC = () => {
     const isServiceAccountFeatureFlagEnabled = useClientFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
-
-    const isContentVerificationEnabled = useContentVerificationEnabled();
 
     const {
         health: {
@@ -1095,8 +1092,7 @@ const Settings: FC = () => {
                                         />
                                     ) : null}
 
-                                    {isContentVerificationEnabled &&
-                                    user.ability?.can(
+                                    {user.ability?.can(
                                         'manage',
                                         subject('ContentVerification', {
                                             organizationUuid:

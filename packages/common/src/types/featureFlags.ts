@@ -101,11 +101,6 @@ export enum FeatureFlags {
     LargeChartPerformance = 'large-chart-performance',
 
     /**
-     * Enable content verification (verified seal for charts and dashboards)
-     */
-    ContentVerification = 'content-verification',
-
-    /**
      * Enable show/hide N rows from start/end of chart data
      */
     ShowHideRows = 'show-hide-rows',

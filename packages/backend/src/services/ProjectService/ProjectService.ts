@@ -6507,15 +6507,6 @@ export class ProjectService extends BaseService {
             return [];
         }
 
-        const { enabled: contentVerificationEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ContentVerification,
-            });
-        if (!contentVerificationEnabled) {
-            return [];
-        }
-
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
