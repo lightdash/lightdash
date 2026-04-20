@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { getWarehouseConfig, TIER_WAREHOUSES } from './config';
+import { ALL_WAREHOUSES, getWarehouseConfig, TIER_WAREHOUSES } from './config';
 import type { Tier, WarehouseType } from './config';
 import type { TestCase, TestResult } from './types';
 import { createConnection } from './runner/warehouse-connections';
@@ -45,6 +45,19 @@ function parseTier(args: string[]): Tier {
     return tier;
 }
 
+function parseWarehouseFilter(args: string[]): WarehouseType | null {
+    const idx = args.indexOf('--warehouse');
+    if (idx === -1 || idx + 1 >= args.length) return null;
+    const wh = args[idx + 1] as WarehouseType;
+    if (!ALL_WAREHOUSES.includes(wh)) {
+        console.error(
+            `Unknown warehouse: ${wh}. Valid: ${ALL_WAREHOUSES.join(', ')}`,
+        );
+        process.exit(1);
+    }
+    return wh;
+}
+
 async function seedWarehouse(
     warehouse: ReturnType<typeof createConnection> extends Promise<infer T> ? T : never,
 ): Promise<void> {
@@ -69,10 +82,24 @@ async function seedWarehouse(
 
 async function main() {
     const tier = parseTier(process.argv);
-    const warehouses = TIER_WAREHOUSES[tier];
+    const warehouseFilter = parseWarehouseFilter(process.argv);
+    let warehouses = TIER_WAREHOUSES[tier];
+    if (warehouseFilter) {
+        warehouses = warehouses.filter((w) => w === warehouseFilter);
+        if (warehouses.length === 0) {
+            console.error(
+                `Warehouse "${warehouseFilter}" is not part of tier "${tier}". ` +
+                    `Tier "${tier}" includes: ${TIER_WAREHOUSES[tier].join(', ')}. ` +
+                    `Use --tier all to include every warehouse.`,
+            );
+            process.exit(1);
+        }
+    }
     const config = getWarehouseConfig();
 
-    console.log(`Running formula tests — tier: ${tier} — warehouses: ${warehouses.join(', ')}`);
+    console.log(
+        `Running formula tests — tier: ${tier} — warehouses: ${warehouses.join(', ')}`,
+    );
 
     const results: TestResult[] = [];
 
