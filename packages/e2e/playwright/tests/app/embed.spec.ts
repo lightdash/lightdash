@@ -90,7 +90,9 @@ test.describe('Embedded dashboard', () => {
             ),
         ).toBeVisible(); // markdown
 
-        await expect(page.getByText('Payments total revenue')).toBeVisible(); // big number tile
+        await expect(
+            page.getByText('Payments total revenue', { exact: true }),
+        ).toBeVisible(); // big number tile
 
         await expect(
             page.getByText(`What's the average spend per customer?`),

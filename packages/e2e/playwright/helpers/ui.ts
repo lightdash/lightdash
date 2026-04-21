@@ -38,19 +38,17 @@ export async function scrollTreeToItem(
     const container = page.getByTestId('virtualized-tree-scroll-container');
     await expect(container).toBeVisible({ timeout: 10000 });
 
-    const found = await container.evaluate((el, text) => {
-        const maxScroll = el.scrollHeight;
-        const viewportHeight = el.clientHeight;
-        // eslint-disable-next-line no-param-reassign
-        el.scrollTop = 0;
+    // Scroll incrementally from top to bottom, yielding to the event loop
+    // after each step so React's virtualiser gets a chance to render the
+    // items for the new scroll position before we look for them.
+    const found = await container.evaluate(async (el, text) => {
+        const nextFrame = () =>
+            new Promise<void>((resolve) => {
+                requestAnimationFrame(() => resolve());
+            });
 
-        // Try to find the item by scrolling incrementally
-        let scrollPosition = 0;
-        while (scrollPosition < maxScroll) {
-            // eslint-disable-next-line no-param-reassign
-            el.scrollTop = scrollPosition;
-            const elements = Array.from(el.querySelectorAll('*'));
-            const match = elements.find((element) => {
+        const matchesInDom = () =>
+            Array.from(el.querySelectorAll('*')).some((element) => {
                 const elementText = element.textContent?.trim() || '';
                 const childTexts = Array.from(element.children)
                     .map((child) => child.textContent?.trim() || '')
@@ -65,21 +63,36 @@ export async function scrollTreeToItem(
                 );
             });
 
-            if (match) {
-                return true;
-            }
+        const maxScroll = el.scrollHeight;
+        const viewportHeight = el.clientHeight;
+        // eslint-disable-next-line no-param-reassign
+        el.scrollTop = 0;
+        await nextFrame();
+        await nextFrame();
+        if (matchesInDom()) return true;
 
+        let scrollPosition = 0;
+        while (scrollPosition < maxScroll) {
             scrollPosition += viewportHeight * 0.5;
+            // eslint-disable-next-line no-param-reassign
+            el.scrollTop = scrollPosition;
+            // eslint-disable-next-line no-await-in-loop
+            await nextFrame();
+            // eslint-disable-next-line no-await-in-loop
+            await nextFrame();
+            if (matchesInDom()) return true;
         }
 
-        // Final check at bottom
         // eslint-disable-next-line no-param-reassign
         el.scrollTop = maxScroll;
-        return false;
+        await nextFrame();
+        await nextFrame();
+        return matchesInDom();
     }, itemText);
 
     if (!found) {
-        // Fall back to looking for the text directly
+        // Fall back to Playwright's retrying visibility expect, which will
+        // keep checking while the virtualiser settles.
         await expect(container.getByText(itemText)).toBeVisible();
     }
 }

@@ -41,15 +41,15 @@ test.describe('Settings - Invites', () => {
         await page.getByPlaceholder('Your password').blur();
         await page.locator('[data-cy="signup-button"]').click();
 
+        // Mantine PinInput doesn't respond to `fill()` — it only updates its
+        // internal state via keyboard events. Focus the first slot and type
+        // the OTP (PR/DEV mode accepts "000000").
         const pinInputs = page.getByTestId('pin-input').locator('input');
-        const count = await pinInputs.count();
-        for (let i = 0; i < count; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            await pinInputs.nth(i).fill('0');
-        }
+        await pinInputs.first().focus();
+        await page.keyboard.type('000000');
 
-        await page.getByText('Submit').click();
-        await page.getByText('Continue').click();
+        await page.getByRole('button', { name: 'Submit' }).click();
+        await page.getByRole('button', { name: 'Continue' }).click();
         await expect(page.getByTestId('user-avatar')).toContainText('MG');
     });
 
