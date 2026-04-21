@@ -3940,7 +3940,8 @@ export default class SchedulerTask {
                                     `Failed to fetch CSV for chart "${r.value.chartName}" from presigned URL: ${e instanceof Error ? e.message : String(e)}`,
                                     {
                                         chartName: r.value.chartName,
-                                        fileUrl: r.value.fileUrl,
+                                        // Strip query params — they contain auth signatures
+                                        fileUrl: r.value.fileUrl.split('?')[0],
                                         cause:
                                             cause instanceof Error
                                                 ? {
