@@ -45,3 +45,8 @@
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-red-6);
 }
+
+.helpHint {
+    flex-shrink: 0;
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xxs) 0;
+}

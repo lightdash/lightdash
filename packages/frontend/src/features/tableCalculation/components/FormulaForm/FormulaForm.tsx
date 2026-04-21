@@ -3,8 +3,10 @@ import {
     type GeneratedFormulaTableCalculation,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box, Flex, Text } from '@mantine-8/core';
+import { Anchor, Box, Flex, Group, Text } from '@mantine-8/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import { AiFormulaTableCalculationInput } from '../../../../ee/features/ambientAi/components/tableCalculation';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { useFormulaValidation } from '../../hooks/useFormulaValidation';
@@ -60,11 +62,32 @@ export const FormulaForm: FC<Props> = ({
                 />
             </Box>
             {error && <Text className={classes.errorText}>{error}</Text>}
-            {isAmbientAiEnabled && onAiApply && (
+            {isAmbientAiEnabled && onAiApply ? (
                 <AiFormulaTableCalculationInput
                     currentFormula={formula || undefined}
                     onApply={onAiApply}
                 />
+            ) : (
+                <Group gap={6} wrap="nowrap" className={classes.helpHint}>
+                    <MantineIcon
+                        icon={IconInfoCircle}
+                        color="var(--mantine-color-dimmed)"
+                        size="sm"
+                    />
+                    <Text fz="xs" c="dimmed">
+                        New to formulas?{' '}
+                        <Anchor
+                            target="_blank"
+                            href="https://docs.lightdash.com/guides/formula-table-calculations"
+                            rel="noreferrer"
+                            fz="xs"
+                            c="dimmed"
+                            underline="always"
+                        >
+                            Check out the formula guide
+                        </Anchor>
+                    </Text>
+                </Group>
             )}
         </Flex>
     );
