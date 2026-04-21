@@ -8177,13 +8177,6 @@
             },
             "CalculateTotalFromQuery": {
                 "properties": {
-                    "savedChartUuid": {
-                        "type": "string",
-                        "description": "UUID of the saved chart this query was loaded from, when applicable."
-                    },
-                    "invalidateCache": {
-                        "type": "boolean"
-                    },
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap"
                     },
@@ -8275,58 +8268,19 @@
             "ApiGenerateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
-            "DataAppTemplate": {
-                "type": "string",
-                "enum": ["dashboard", "slideshow", "pdf", "custom"]
-            },
-            "AppChartReference": {
-                "properties": {
-                    "includeSampleData": {
-                        "type": "boolean"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["includeSampleData", "uuid"],
-                "type": "object",
-                "description": "A saved-chart reference attached to a generation request.\n`includeSampleData` is opt-in per chart: when true the backend runs the\nunderlying metric query and inlines a small sample of rows into the\nsandbox so Claude can see actual values (e.g. \"season 2026 only\")."
-            },
-            "AppDashboardReference": {
-                "properties": {
-                    "includeSampleData": {
-                        "type": "boolean"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["includeSampleData", "uuid"],
-                "type": "object",
-                "description": "A dashboard reference attached to a generation request. The dashboard is\nexpanded server-side into its chart tiles. When `includeSampleData` is\ntrue, every resolved chart in the dashboard receives a sample."
-            },
             "GenerateAppRequestBody": {
                 "properties": {
-                    "dashboard": {
-                        "$ref": "#/components/schemas/AppDashboardReference"
-                    },
-                    "charts": {
+                    "chartUuids": {
                         "items": {
-                            "$ref": "#/components/schemas/AppChartReference"
+                            "type": "string"
                         },
                         "type": "array"
                     },
                     "appUuid": {
                         "type": "string"
                     },
-                    "imageIds": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "template": {
-                        "$ref": "#/components/schemas/DataAppTemplate"
+                    "imageId": {
+                        "type": "string"
                     },
                     "prompt": {
                         "type": "string"
@@ -8358,11 +8312,6 @@
             "ApiAppImageUploadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
             },
-            "Exclude_DataAppTemplate.custom_": {
-                "type": "string",
-                "enum": ["dashboard", "slideshow", "pdf"],
-                "description": "Exclude from T those types that are assignable to U"
-            },
             "AppVersionStatus": {
                 "type": "string",
                 "enum": [
@@ -8376,63 +8325,8 @@
                     "error"
                 ]
             },
-            "AppVersionImageResource": {
-                "properties": {
-                    "imageId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["imageId"],
-                "type": "object"
-            },
-            "AppVersionChartResource": {
-                "properties": {
-                    "chartKind": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "chartName": {
-                        "type": "string"
-                    },
-                    "chartUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["chartKind", "chartName", "chartUuid"],
-                "type": "object"
-            },
-            "AppVersionResources": {
-                "properties": {
-                    "dashboardName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "charts": {
-                        "items": {
-                            "$ref": "#/components/schemas/AppVersionChartResource"
-                        },
-                        "type": "array"
-                    },
-                    "images": {
-                        "items": {
-                            "$ref": "#/components/schemas/AppVersionImageResource"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": ["dashboardName", "charts", "images"],
-                "type": "object"
-            },
             "ApiAppVersionSummary": {
                 "properties": {
-                    "resources": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AppVersionResources"
-                            }
-                        ],
-                        "nullable": true
-                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -8453,7 +8347,6 @@
                     }
                 },
                 "required": [
-                    "resources",
                     "createdAt",
                     "statusMessage",
                     "status",
@@ -8462,7 +8355,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -8474,23 +8367,6 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
-                            },
-                            "pinnedListOrder": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "pinnedListUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "template": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/Exclude_DataAppTemplate.custom_"
-                                    }
-                                ],
-                                "nullable": true
                             },
                             "spaceUuid": {
                                 "type": "string",
@@ -8512,9 +8388,6 @@
                         "required": [
                             "hasMore",
                             "versions",
-                            "pinnedListOrder",
-                            "pinnedListUuid",
-                            "template",
                             "spaceUuid",
                             "createdByUserUuid",
                             "description",
@@ -8533,7 +8406,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
@@ -8578,46 +8451,6 @@
                 },
                 "type": "object"
             },
-            "ApiDeleteAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccessEmpty"
-            },
-            "TogglePinnedItemInfo": {
-                "properties": {
-                    "isPinned": {
-                        "type": "boolean"
-                    },
-                    "spaceUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "pinnedListUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "isPinned",
-                    "spaceUuid",
-                    "projectUuid",
-                    "pinnedListUuid"
-                ],
-                "type": "object"
-            },
-            "ApiTogglePinnedItem": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/TogglePinnedItemInfo"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
             "ApiSuccess__token-string__": {
                 "properties": {
                     "results": {
@@ -8641,29 +8474,6 @@
             "ApiPreviewTokenResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__token-string__"
             },
-            "ApiSuccess__imageUrl-string__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "imageUrl": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["imageUrl"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAppImageUrlResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__imageUrl-string__"
-            },
             "ApiAppSummary": {
                 "properties": {
                     "lastVersionStatus": {
@@ -8682,14 +8492,6 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "spaceName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "spaceUuid": {
-                        "type": "string",
-                        "nullable": true
                     },
                     "projectName": {
                         "type": "string"
@@ -8711,8 +8513,6 @@
                     "lastVersionStatus",
                     "lastVersionNumber",
                     "createdAt",
-                    "spaceName",
-                    "spaceUuid",
                     "projectName",
                     "projectUuid",
                     "description",
@@ -9243,7 +9043,7 @@
                 "required": ["fieldsContext", "prompt"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -9325,6 +9125,9 @@
                     "enableSelfImprovement": {
                         "type": "boolean"
                     },
+                    "enableReasoning": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -9347,13 +9150,14 @@
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
+                    "enableReasoning",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -9411,7 +9215,7 @@
             "ApiUpdateUserAgentPreferences": {
                 "$ref": "#/components/schemas/AiAgentUserPreferences"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -9493,6 +9297,9 @@
                     "enableSelfImprovement": {
                         "type": "boolean"
                     },
+                    "enableReasoning": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -9515,13 +9322,14 @@
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
+                    "enableReasoning",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -9833,7 +9641,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_": {
+            "Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -9899,6 +9707,9 @@
                         "type": "boolean"
                     },
                     "enableSelfImprovement": {
+                        "type": "boolean"
+                    },
+                    "enableReasoning": {
                         "type": "boolean"
                     },
                     "version": {
@@ -9919,15 +9730,16 @@
                     "spaceAccess",
                     "enableDataAccess",
                     "enableSelfImprovement",
+                    "enableReasoning",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ApiCreateAiAgent": {
-                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_"
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -9995,6 +9807,9 @@
                     "enableSelfImprovement": {
                         "type": "boolean"
                     },
+                    "enableReasoning": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -10006,7 +9821,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-version__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version__"
                     },
                     {
                         "properties": {
@@ -10369,36 +10184,20 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -10406,14 +10205,17 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10462,8 +10264,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10507,18 +10309,15 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -10526,14 +10325,17 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10561,8 +10363,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10632,7 +10434,7 @@
                     },
                     "artifactType": {
                         "type": "string",
-                        "enum": ["dashboard", "chart"]
+                        "enum": ["chart", "dashboard"]
                     }
                 },
                 "required": [
@@ -11003,7 +10805,7 @@
                     },
                     "artifactType": {
                         "type": "string",
-                        "enum": ["dashboard", "chart"]
+                        "enum": ["chart", "dashboard"]
                     },
                     "threadUuid": {
                         "type": "string"
@@ -11978,10 +11780,6 @@
             },
             "TilePreAggregateAuditMiss": {
                 "properties": {
-                    "missFieldLabel": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "miss": {
                         "$ref": "#/components/schemas/PreAggregateMatchMiss"
                     },
@@ -12007,7 +11805,6 @@
                     }
                 },
                 "required": [
-                    "missFieldLabel",
                     "miss",
                     "exploreName",
                     "savedChartUuid",
@@ -12149,14 +11946,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiRunDashboardPreAggregateAuditBody": {
-                "properties": {
-                    "dashboardFilters": {
-                        "$ref": "#/components/schemas/DashboardFilters"
-                    }
-                },
                 "type": "object"
             },
             "PreAggregateMaterializationWarning": {
@@ -15645,18 +15434,6 @@
             },
             "ServiceAccountAuth": {
                 "properties": {
-                    "attributedUserEmail": {
-                        "type": "string"
-                    },
-                    "attributedUserUuid": {
-                        "type": "string"
-                    },
-                    "serviceAccountDescription": {
-                        "type": "string"
-                    },
-                    "serviceAccountUuid": {
-                        "type": "string"
-                    },
                     "source": {
                         "type": "string"
                     },
@@ -15666,13 +15443,7 @@
                         "nullable": false
                     }
                 },
-                "required": [
-                    "attributedUserUuid",
-                    "serviceAccountDescription",
-                    "serviceAccountUuid",
-                    "source",
-                    "type"
-                ],
+                "required": ["source", "type"],
                 "type": "object"
             },
             "PersonalAccessTokenAuth": {
@@ -15726,21 +15497,6 @@
                 "required": ["scopes", "clientId", "token", "source", "type"],
                 "type": "object"
             },
-            "AccountRequestContext": {
-                "properties": {
-                    "requestId": {
-                        "type": "string"
-                    },
-                    "userAgent": {
-                        "type": "string"
-                    },
-                    "ip": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "description": "Per-request metadata captured by the auth middleware. Used by the audit log\nto record the IP, user agent and request id alongside permission checks."
-            },
             "Pick_Account.Exclude_keyofAccount.user-or-keyofAccountHelpers__": {
                 "properties": {
                     "organization": {
@@ -15764,9 +15520,6 @@
                                 "$ref": "#/components/schemas/OauthAuth"
                             }
                         ]
-                    },
-                    "requestContext": {
-                        "$ref": "#/components/schemas/AccountRequestContext"
                     }
                 },
                 "required": ["organization", "authentication"],
@@ -16051,17 +15804,11 @@
                                 },
                                 {
                                     "properties": {
-                                        "dashboardUuid": {
-                                            "type": "string"
-                                        },
                                         "dashboardName": {
                                             "type": "string"
                                         }
                                     },
-                                    "required": [
-                                        "dashboardUuid",
-                                        "dashboardName"
-                                    ],
+                                    "required": ["dashboardName"],
                                     "type": "object"
                                 }
                             ]
@@ -16203,6 +15950,92 @@
                     }
                 },
                 "required": ["status", "results"],
+                "type": "object"
+            },
+            "UnusedContentItem": {
+                "properties": {
+                    "viewsCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    },
+                    "contentName": {
+                        "type": "string"
+                    },
+                    "contentUuid": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdByUserName": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "lastViewedByUserName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastViewedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "lastViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "viewsCount",
+                    "contentType",
+                    "contentName",
+                    "contentUuid",
+                    "createdAt",
+                    "createdByUserName",
+                    "createdByUserUuid",
+                    "lastViewedByUserName",
+                    "lastViewedByUserUuid",
+                    "lastViewedAt"
+                ],
+                "type": "object"
+            },
+            "UnusedContent": {
+                "properties": {
+                    "dashboards": {
+                        "items": {
+                            "$ref": "#/components/schemas/UnusedContentItem"
+                        },
+                        "type": "array"
+                    },
+                    "charts": {
+                        "items": {
+                            "$ref": "#/components/schemas/UnusedContentItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboards", "charts"],
+                "type": "object"
+            },
+            "ApiUnusedContent": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UnusedContent"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -16379,31 +16212,14 @@
                 },
                 "type": "array"
             },
-            "SortOnlyDimension": {
-                "properties": {
-                    "reference": {
-                        "type": "string"
-                    }
-                },
-                "required": ["reference"],
-                "type": "object",
-                "description": "A dimension referenced only via sortBy — not a row-axis index, not a pivot\ngroup-by, not a metric. Carried through group_by_query to drive\ncolumn_index ORDER BY without affecting row layout."
-            },
             "PivotConfiguration": {
                 "properties": {
                     "sortOnlyColumns": {
                         "items": {
-                            "anyOf": [
-                                {
-                                    "$ref": "#/components/schemas/ValuesColumn"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/SortOnlyDimension"
-                                }
-                            ]
+                            "$ref": "#/components/schemas/ValuesColumn"
                         },
                         "type": "array",
-                        "description": "Fields referenced only via sortBy that aren't on any axis or in pivot\ncolumns. Items with `aggregation` are metrics/table calculations merged\ninto valuesColumns for sort-anchor CTEs; items without `aggregation`\nare dimensions that ride through group_by_query to drive column_index\nORDER BY. Both are excluded from pivotDetails so they don't appear as\nchart series."
+                        "description": "Metrics/table calculations needed for sort anchor CTEs but not for display.\nThese are merged into valuesColumns for SQL generation in PivotQueryBuilder,\nbut excluded from pivotDetails so they don't appear as chart series."
                     },
                     "metricsAsRows": {
                         "type": "boolean",
@@ -17285,10 +17101,6 @@
                                 "type": "string",
                                 "format": "date-time"
                             },
-                            "appCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "childSpaceCount": {
                                 "type": "number",
                                 "format": "double"
@@ -17303,7 +17115,6 @@
                             }
                         },
                         "required": [
-                            "appCount",
                             "childSpaceCount",
                             "dashboardCount",
                             "chartCount"
@@ -19180,10 +18991,6 @@
             },
             "SpaceDeleteImpact": {
                 "properties": {
-                    "appCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "dashboardCount": {
                         "type": "number",
                         "format": "double"
@@ -19191,22 +18998,6 @@
                     "chartCount": {
                         "type": "number",
                         "format": "double"
-                    },
-                    "apps": {
-                        "items": {
-                            "properties": {
-                                "spaceUuid": {
-                                    "type": "string",
-                                    "nullable": true
-                                },
-                                "uuid": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["spaceUuid", "uuid"],
-                            "type": "object"
-                        },
-                        "type": "array"
                     },
                     "dashboards": {
                         "items": {
@@ -19247,10 +19038,6 @@
                     "spaces": {
                         "items": {
                             "properties": {
-                                "appCount": {
-                                    "type": "number",
-                                    "format": "double"
-                                },
                                 "dashboardCount": {
                                     "type": "number",
                                     "format": "double"
@@ -19271,7 +19058,6 @@
                                 }
                             },
                             "required": [
-                                "appCount",
                                 "dashboardCount",
                                 "chartCount",
                                 "parentSpaceUuid",
@@ -19284,10 +19070,8 @@
                     }
                 },
                 "required": [
-                    "appCount",
                     "dashboardCount",
                     "chartCount",
-                    "apps",
                     "dashboards",
                     "charts",
                     "spaces"
@@ -22423,22 +22207,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -22793,22 +22577,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -24045,10 +23829,6 @@
                             },
                             {
                                 "properties": {
-                                    "appCount": {
-                                        "type": "number",
-                                        "format": "double"
-                                    },
                                     "childSpaceCount": {
                                         "type": "number",
                                         "format": "double"
@@ -24073,7 +23853,6 @@
                                     }
                                 },
                                 "required": [
-                                    "appCount",
                                     "childSpaceCount",
                                     "chartCount",
                                     "dashboardCount",
@@ -24091,113 +23870,6 @@
                 "required": ["data", "type"],
                 "type": "object"
             },
-            "ResourceViewItemType.DATA_APP": {
-                "enum": ["data_app"],
-                "type": "string"
-            },
-            "ResourceViewDataAppItem": {
-                "properties": {
-                    "category": {
-                        "$ref": "#/components/schemas/ResourceItemCategory"
-                    },
-                    "data": {
-                        "properties": {
-                            "pinnedListOrder": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "pinnedListUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "latestVersionStatus": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/AppVersionStatus"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "latestVersionNumber": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "firstViewedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "nullable": true
-                            },
-                            "views": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "updatedByUser": {
-                                "properties": {
-                                    "lastName": {
-                                        "type": "string"
-                                    },
-                                    "firstName": {
-                                        "type": "string"
-                                    },
-                                    "userUuid": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "lastName",
-                                    "firstName",
-                                    "userUuid"
-                                ],
-                                "type": "object",
-                                "nullable": true
-                            },
-                            "updatedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "createdByUserUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "spaceUuid": {
-                                "type": "string",
-                                "nullable": true
-                            },
-                            "description": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "pinnedListOrder",
-                            "pinnedListUuid",
-                            "latestVersionStatus",
-                            "latestVersionNumber",
-                            "firstViewedAt",
-                            "views",
-                            "updatedByUser",
-                            "updatedAt",
-                            "createdByUserUuid",
-                            "spaceUuid",
-                            "name",
-                            "uuid"
-                        ],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ResourceViewItemType.DATA_APP"
-                    }
-                },
-                "required": ["data", "type"],
-                "type": "object"
-            },
             "PinnedItems": {
                 "items": {
                     "anyOf": [
@@ -24209,9 +23881,6 @@
                         },
                         {
                             "$ref": "#/components/schemas/ResourceViewSpaceItem"
-                        },
-                        {
-                            "$ref": "#/components/schemas/ResourceViewDataAppItem"
                         }
                     ]
                 },
@@ -24235,7 +23904,7 @@
                 "enum": ["chart", "dashboard", "space", "data_app"],
                 "type": "string"
             },
-            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_": {
+            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data.uuid-or-pinnedListOrder_": {
                 "properties": {
                     "uuid": {
                         "type": "string"
@@ -24253,7 +23922,7 @@
             "UpdatePinnedItemOrder": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data.uuid-or-pinnedListOrder_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType"
@@ -26210,6 +25879,96 @@
                     "timestampFieldId",
                     "exploreName"
                 ],
+                "type": "object"
+            },
+            "ResourceViewItemType.DATA_APP": {
+                "enum": ["data_app"],
+                "type": "string"
+            },
+            "ResourceViewDataAppItem": {
+                "properties": {
+                    "category": {
+                        "$ref": "#/components/schemas/ResourceItemCategory"
+                    },
+                    "data": {
+                        "properties": {
+                            "latestVersionStatus": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AppVersionStatus"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "latestVersionNumber": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "firstViewedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            },
+                            "views": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "updatedByUser": {
+                                "properties": {
+                                    "lastName": {
+                                        "type": "string"
+                                    },
+                                    "firstName": {
+                                        "type": "string"
+                                    },
+                                    "userUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "lastName",
+                                    "firstName",
+                                    "userUuid"
+                                ],
+                                "type": "object",
+                                "nullable": true
+                            },
+                            "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "spaceUuid": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "latestVersionStatus",
+                            "latestVersionNumber",
+                            "firstViewedAt",
+                            "views",
+                            "updatedByUser",
+                            "updatedAt",
+                            "spaceUuid",
+                            "name",
+                            "uuid"
+                        ],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ResourceViewItemType.DATA_APP"
+                    }
+                },
+                "required": ["data", "type"],
                 "type": "object"
             },
             "FavoriteItems": {
@@ -28671,19 +28430,6 @@
                                     "originalColumns": {
                                         "$ref": "#/components/schemas/ResultColumns"
                                     },
-                                    "sortOnlyColumns": {
-                                        "items": {
-                                            "anyOf": [
-                                                {
-                                                    "$ref": "#/components/schemas/ValuesColumn"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/SortOnlyDimension"
-                                                }
-                                            ]
-                                        },
-                                        "type": "array"
-                                    },
                                     "sortBy": {
                                         "$ref": "#/components/schemas/SortBy"
                                     },
@@ -28897,8 +28643,7 @@
                     "api",
                     "cli",
                     "metricsExplorer",
-                    "preAggregateMaterialization",
-                    "dataAppSample"
+                    "preAggregateMaterialization"
                 ],
                 "type": "string"
             },
@@ -29023,10 +28768,6 @@
                     },
                     {
                         "properties": {
-                            "savedChartUuid": {
-                                "type": "string",
-                                "description": "UUID of the saved chart this query was loaded from, when applicable.\nUsed by permission checks to exempt unchanged SQL-authored fields\nfrom the `manage:CustomFields` gate."
-                            },
                             "pivotConfiguration": {
                                 "$ref": "#/components/schemas/PivotConfiguration"
                             },
@@ -30333,10 +30074,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "appCount": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "parentSpaceUuid": {
                         "type": "string",
                         "nullable": true
@@ -30372,7 +30109,6 @@
                     "dashboardCount",
                     "chartCount",
                     "childSpaceCount",
-                    "appCount",
                     "parentSpaceUuid",
                     "path",
                     "access"
@@ -30481,15 +30217,11 @@
                     },
                     "pinnedList": {
                         "properties": {
-                            "order": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "uuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["order", "uuid"],
+                        "required": ["uuid"],
                         "type": "object",
                         "nullable": true
                     },
@@ -30980,17 +30712,13 @@
                 ],
                 "type": "object"
             },
-            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_": {
+            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/DeletedSpaceContentSummary"
                     },
                     {
                         "properties": {
-                            "appCount": {
-                                "type": "number",
-                                "format": "double"
-                            },
                             "nestedSpaceCount": {
                                 "type": "number",
                                 "format": "double"
@@ -30999,92 +30727,24 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "dashboardCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             }
                         },
                         "required": [
-                            "appCount",
                             "nestedSpaceCount",
                             "schedulerCount",
-                            "chartCount",
-                            "dashboardCount"
+                            "dashboardCount",
+                            "chartCount"
                         ],
                         "type": "object"
                     }
                 ]
-            },
-            "DeletedDataAppContentSummary": {
-                "properties": {
-                    "organizationUuid": {
-                        "type": "string"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    },
-                    "spaceName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "spaceUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "deletedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object",
-                        "nullable": true
-                    },
-                    "deletedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "contentType": {
-                        "$ref": "#/components/schemas/ContentType.DATA_APP"
-                    },
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "uuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "organizationUuid",
-                    "projectUuid",
-                    "spaceName",
-                    "spaceUuid",
-                    "deletedBy",
-                    "deletedAt",
-                    "contentType",
-                    "description",
-                    "name",
-                    "uuid"
-                ],
-                "type": "object"
-            },
-            "WithDescendantCounts_DeletedDataAppContentSummary.never_": {
-                "$ref": "#/components/schemas/DeletedDataAppContentSummary"
             },
             "DeletedContentWithDescendants": {
                 "anyOf": [
@@ -31098,10 +30758,7 @@
                         "$ref": "#/components/schemas/WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_"
                     },
                     {
-                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedDataAppContentSummary.never_"
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_"
                     }
                 ]
             },
@@ -31185,18 +30842,6 @@
                         "properties": {
                             "contentType": {
                                 "$ref": "#/components/schemas/ContentType.SPACE"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["contentType", "uuid"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contentType": {
-                                "$ref": "#/components/schemas/ContentType.DATA_APP"
                             },
                             "uuid": {
                                 "type": "string"
@@ -31293,7 +30938,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2847.0",
+        "version": "0.2795.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -32825,63 +32470,6 @@
                         }
                     }
                 ]
-            },
-            "post": {
-                "operationId": "runDashboardPreAggregateAudit",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiGetDashboardPreAggregateAuditResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Audit pre-aggregate hit/miss coverage with runtime filter overrides",
-                "summary": "Run dashboard pre-aggregate audit",
-                "tags": ["v2", "Pre-Aggregates"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "dashboardUuidOrSlug",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiRunDashboardPreAggregateAuditBody"
-                            }
-                        }
-                    }
-                }
             }
         },
         "/api/v2/projects/{projectUuid}/pre-aggregates/materializations": {
@@ -35042,6 +34630,47 @@
                 },
                 "description": "Download user activity as CSV",
                 "summary": "Download user activity CSV",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/analytics/user-activity/{projectUuid}/unused-content": {
+            "get": {
+                "operationId": "getUnusedContent",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUnusedContent"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get unused content for a project showing charts and dashboards with little to no usage",
+                "summary": "Get unused content",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -39612,6 +39241,57 @@
                         "required": false,
                         "schema": {
                             "type": "boolean"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/charts-by-explore-name": {
+            "get": {
+                "operationId": "GetChartsByExploreName",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiChartSummaryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List chart summaries visible to the requesting user in a project that reference a given explore in their latest version",
+                "summary": "List charts by explore name",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The explore name to filter charts by",
+                        "in": "query",
+                        "name": "exploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]
@@ -47280,7 +46960,6 @@
                 "description": "Create an edge in the metrics tree",
                 "summary": "Create metrics tree edge",
                 "tags": ["Catalog"],
-                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -47770,7 +47449,6 @@
                 "description": "Get the metrics tree structure",
                 "summary": "Get metrics tree",
                 "tags": ["Catalog"],
-                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -47822,7 +47500,6 @@
                 "description": "Delete an edge from the metrics tree",
                 "summary": "Delete metrics tree edge",
                 "tags": ["Catalog"],
-                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
