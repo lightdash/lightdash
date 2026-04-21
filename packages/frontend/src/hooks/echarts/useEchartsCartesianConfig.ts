@@ -3137,6 +3137,7 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
+                timezone: resolvedTimezone,
             }),
         };
     }, [
@@ -3153,6 +3154,7 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
+        resolvedTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid
