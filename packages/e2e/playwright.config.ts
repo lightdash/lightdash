@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'fs';
 const { load: loadYaml } = require('js-yaml');
 
 // Allow configuring retries via environment variable
-const retries = parseInt(process.env.PLAYWRIGHT_RETRIES ?? '2', 10);
+const retries = parseInt(process.env.PLAYWRIGHT_RETRIES ?? '1', 10);
 
 // Count dbt models and read thread count so CLI tests can
 // scale timeouts dynamically based on parallel execution.
@@ -41,9 +41,9 @@ export default defineConfig({
     fullyParallel: false,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? retries : 0,
-    // Two workers keeps in-file ordering (via fullyParallel: false) while
-    // letting two spec files run in parallel within a shard.
-    workers: process.env.CI ? 2 : undefined,
+    // Four workers keeps in-file ordering (via fullyParallel: false) while
+    // letting up to four spec files run in parallel within a shard.
+    workers: process.env.CI ? 4 : undefined,
     reporter: process.env.CI
         ? [['html', { open: 'never' }], ['list']]
         : [['list']],
