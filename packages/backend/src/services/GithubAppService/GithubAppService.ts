@@ -210,11 +210,13 @@ export class GithubAppService extends BaseService {
         // This endpoint is also used for developers on projects
         // when using the sql runner, so we should allow access
         // However github app is an organization property, so we can't check projects
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { organizationUuid: user.organizationUuid },
                 }),
             )
         ) {
@@ -236,11 +238,13 @@ export class GithubAppService extends BaseService {
         if (!user || !isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { organizationUuid: user.organizationUuid },
                 }),
             )
         ) {
@@ -327,11 +331,13 @@ export class GithubAppService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('GitIntegration', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { organizationUuid: user.organizationUuid },
                 }),
             )
         ) {
