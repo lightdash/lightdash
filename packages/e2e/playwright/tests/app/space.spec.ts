@@ -161,7 +161,7 @@ test.describe('Space', () => {
         await editorPage.getByText('Next').click();
 
         // Don't show private spaces in navbar
-        await editorPage.getByText('Browse').click();
+        await editorPage.getByRole('button', { name: 'Browse' }).click();
         await expect(editorPage.getByText('Private space')).toHaveCount(0);
 
         // Don't show private spaces in spaces page

@@ -177,10 +177,12 @@ test.describe('Dashboard', () => {
             .fill('Title');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByText('Next').click();
-        // Step 2 requires picking a space before Create enables.
+        // Step 2 is a space picker. Click the Jaffle shop row (rendered as
+        // a treeitem, not a button) so Create becomes enabled.
         await page
             .getByRole('dialog')
-            .getByRole('button', { name: 'Jaffle shop' })
+            .getByText('Jaffle shop', { exact: true })
+            .first()
             .click();
         await page
             .getByText('Create', { exact: true })

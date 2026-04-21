@@ -22,11 +22,11 @@ test.describe('Dashboard List', () => {
             .fill('Untitled dashboard');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByRole('button', { name: 'Next' }).click();
-        // Step 2 requires picking a space before Create enables.
-        await page
-            .getByRole('dialog')
-            .getByRole('button', { name: 'Jaffle shop' })
-            .click();
+        // Step 2 is a space picker. If no space is auto-selected the Create
+        // button is disabled; click the Jaffle shop row first. The tree
+        // renders spaces as treeitems (not buttons), so match by text.
+        const dialog = page.getByRole('dialog');
+        await dialog.getByText('Jaffle shop', { exact: true }).first().click();
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
         await expect(page).toHaveURL(
