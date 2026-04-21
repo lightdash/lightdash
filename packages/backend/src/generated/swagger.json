@@ -8227,19 +8227,29 @@
             "ApiGenerateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
+            "AppImageAttachment": {
+                "properties": {
+                    "filename": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "s3Key": {
+                        "type": "string"
+                    }
+                },
+                "required": ["filename", "mimeType", "s3Key"],
+                "type": "object",
+                "description": "Image attached to a data app generation request.\nThe image is uploaded to S3 via the backend proxy; the s3Key\nreferences the uploaded object."
+            },
             "GenerateAppRequestBody": {
                 "properties": {
-                    "chartUuids": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
                     "appUuid": {
                         "type": "string"
                     },
-                    "imageId": {
-                        "type": "string"
+                    "image": {
+                        "$ref": "#/components/schemas/AppImageAttachment"
                     },
                     "prompt": {
                         "type": "string"
@@ -8248,15 +8258,15 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiSuccess__imageId-string__": {
+            "ApiSuccess__s3Key-string__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "imageId": {
+                            "s3Key": {
                                 "type": "string"
                             }
                         },
-                        "required": ["imageId"],
+                        "required": ["s3Key"],
                         "type": "object"
                     },
                     "status": {
@@ -8269,7 +8279,7 @@
                 "type": "object"
             },
             "ApiAppImageUploadResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
+                "$ref": "#/components/schemas/ApiSuccess__s3Key-string__"
             },
             "AppVersionStatus": {
                 "type": "string",
@@ -10091,23 +10101,33 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -10115,14 +10135,17 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10171,8 +10194,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10216,18 +10239,15 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -10235,14 +10255,17 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10270,8 +10293,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -25628,6 +25651,88 @@
                 "required": ["contentUuid", "contentType"],
                 "type": "object"
             },
+            "NonNullable_Explore-at-warnings_": {
+                "allOf": [
+                    {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "properties": {},
+                        "type": "object"
+                    }
+                ],
+                "description": "Exclude null and undefined from T"
+            },
+            "ExploreWarningSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Explore.name_"
+                    },
+                    {
+                        "properties": {
+                            "warnings": {
+                                "$ref": "#/components/schemas/NonNullable_Explore-at-warnings_"
+                            }
+                        },
+                        "required": ["warnings"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ExploreWarningReport": {
+                "properties": {
+                    "exploresWithWarnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/ExploreWarningSummary"
+                        },
+                        "type": "array"
+                    },
+                    "warningExploreCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "warningCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "exploresWithWarnings",
+                    "warningExploreCount",
+                    "warningCount"
+                ],
+                "type": "object"
+            },
+            "ApiDeployExploresResults": {
+                "properties": {
+                    "warnings": {
+                        "$ref": "#/components/schemas/ExploreWarningReport"
+                    },
+                    "exploreCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["warnings", "exploreCount"],
+                "type": "object"
+            },
+            "ApiSetExploresResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiDeployExploresResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
                     "name": {
@@ -27976,6 +28081,9 @@
                             "status": {
                                 "$ref": "#/components/schemas/QueryHistoryStatus.READY"
                             },
+                            "resolvedTimezone": {
+                                "type": "string"
+                            },
                             "metadata": {
                                 "$ref": "#/components/schemas/QueryResultsMetadata"
                             },
@@ -27995,6 +28103,7 @@
                         "required": [
                             "pivotDetails",
                             "status",
+                            "resolvedTimezone",
                             "metadata",
                             "rows",
                             "columns",
@@ -29074,17 +29183,20 @@
             "ApiFinalizeDeployResponse": {
                 "properties": {
                     "results": {
-                        "properties": {
-                            "status": {
-                                "$ref": "#/components/schemas/DeploySessionStatus"
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiDeployExploresResults"
                             },
-                            "exploreCount": {
-                                "type": "number",
-                                "format": "double"
+                            {
+                                "properties": {
+                                    "status": {
+                                        "$ref": "#/components/schemas/DeploySessionStatus"
+                                    }
+                                },
+                                "required": ["status"],
+                                "type": "object"
                             }
-                        },
-                        "required": ["status", "exploreCount"],
-                        "type": "object"
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -30258,7 +30370,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2775.0",
+        "version": "0.2775.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -44279,7 +44391,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                    "$ref": "#/components/schemas/ApiSetExploresResponse"
                                 }
                             }
                         }

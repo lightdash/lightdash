@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    calculateExploreWarningReport,
     DeploySessionStatus,
     Explore,
     ExploreError,
@@ -7,6 +8,7 @@ import {
     NotFoundError,
     ProjectType,
     SessionUser,
+    type ApiDeployExploresResults,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -173,7 +175,7 @@ export class DeployService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sessionUuid: string,
-    ): Promise<{ exploreCount: number; status: DeploySessionStatus }> {
+    ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
         const session = await this.deploySessionModel.getSession(sessionUuid);
 
         // Validate ownership
@@ -244,6 +246,7 @@ export class DeployService extends BaseService {
 
             return {
                 exploreCount: explores.length,
+                warnings: calculateExploreWarningReport({ explores }),
                 status: DeploySessionStatus.COMPLETED,
             };
         } catch (error) {

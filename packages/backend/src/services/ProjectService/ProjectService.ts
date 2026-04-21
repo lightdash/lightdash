@@ -7,6 +7,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
+    ApiDeployExploresResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
     ApiSqlQueryResults,
@@ -17,6 +18,7 @@ import {
     BigqueryAuthenticationType,
     CacheMetadata,
     calculateCompilationReport,
+    calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
     CompiledDimension,
@@ -2151,7 +2153,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         explores: (Explore | ExploreError)[],
-    ): Promise<void> {
+    ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
 
@@ -2195,6 +2197,13 @@ export class ProjectService extends BaseService {
             context: 'cli',
             organizationUuid: project.organizationUuid,
         });
+
+        return {
+            exploreCount: exploresWithPreAggregates.length,
+            warnings: calculateExploreWarningReport({
+                explores: exploresWithPreAggregates,
+            }),
+        };
     }
 
     /* When editing a project, most fields are optional
