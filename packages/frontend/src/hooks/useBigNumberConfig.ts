@@ -133,7 +133,9 @@ const getItemPriority = (item: ItemsMap[string]): number => {
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
-    resultsData: InfiniteQueryResults | undefined,
+    resultsData:
+        | (InfiniteQueryResults & { resolvedTimezone?: string })
+        | undefined,
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
     parameters?: ParametersValuesMap,

@@ -26,6 +26,7 @@ type VisualizationContext = {
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined;
     isLoading: boolean;

@@ -289,7 +289,6 @@ export type InfiniteQueryResults = Partial<
         'queryUuid' | 'totalResults' | 'metadata' | 'pivotDetails' | 'columns'
     >
 > & {
-    resolvedTimezone?: string;
     projectUuid?: string;
     queryStatus?: QueryHistoryStatus;
     rows: ResultRow[];

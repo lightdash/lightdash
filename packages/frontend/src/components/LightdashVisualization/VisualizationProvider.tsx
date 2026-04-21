@@ -63,6 +63,7 @@ export type VisualizationProviderProps = {
     resultsData: InfiniteQueryResults & {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
+        resolvedTimezone?: string;
     };
     parameters?: ParametersValuesMap;
     isLoading: boolean;
@@ -145,7 +146,11 @@ const VisualizationProvider: FC<
         };
     }, [setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] = useState<
-        InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
+        InfiniteQueryResults & {
+            metricQuery?: MetricQuery;
+            fields?: ItemsMap;
+            resolvedTimezone?: string;
+        }
     >();
 
     const { data: useSqlPivotResults } = useServerFeatureFlag(
