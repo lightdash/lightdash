@@ -1,3 +1,10 @@
+## [0.2770.1](https://github.com/lightdash/lightdash/compare/0.2770.0...0.2770.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **formatting:** don't apply timezone shift to truncated TIMESTAMP dimensions ([#22145](https://github.com/lightdash/lightdash/issues/22145)) ([56b855f](https://github.com/lightdash/lightdash/commit/56b855f57c18a6a962254ddf906ac19651713339))
+
 # [0.2770.0](https://github.com/lightdash/lightdash/compare/0.2769.1...0.2770.0) (2026-04-21)
 
 
