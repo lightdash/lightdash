@@ -695,7 +695,6 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     columns: ResultColumns;
     rows: ResultRow[];
     metadata: QueryResultsMetadata;
-    resolvedTimezone: string;
     status: QueryHistoryStatus.READY;
     pivotDetails: {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over maxColumnLimit

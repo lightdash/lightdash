@@ -56,6 +56,7 @@ const formatComparisonValue = (
     value: number | string,
     bigNumberComparisonStyle: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
+    timezone?: string,
 ) => {
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
@@ -78,6 +79,7 @@ const formatComparisonValue = (
                     value,
                     false,
                     parameters,
+                    timezone,
                 )}`;
             }
 
@@ -90,12 +92,18 @@ const formatComparisonValue = (
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value, false, parameters);
+                : formatItemValue(item, value, false, parameters, timezone);
 
             return `${prefix}${formattedValue}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
-                return formatItemValue(item, value, false, parameters);
+                return formatItemValue(
+                    item,
+                    value,
+                    false,
+                    parameters,
+                    timezone,
+                );
             }
             return bigNumberComparisonStyle
                 ? applyCustomFormat(
@@ -106,7 +114,7 @@ const formatComparisonValue = (
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value, false, parameters);
+                : formatItemValue(item, value, false, parameters, timezone);
     }
 };
 
@@ -308,13 +316,25 @@ const useBigNumberConfig = (
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
         } else if (item !== undefined && isTableCalculation(item)) {
-            return formatItemValue(item, firstRowValueRaw, false, parameters);
+            return formatItemValue(
+                item,
+                firstRowValueRaw,
+                false,
+                parameters,
+                resultsData?.resolvedTimezone,
+            );
         } else if (
             item !== undefined &&
             hasValidFormatExpression(item) &&
             !bigNumberStyle // If the big number has a comparison style, don't use the format expression returned by the backend
         ) {
-            return formatItemValue(item, firstRowValueRaw, false, parameters);
+            return formatItemValue(
+                item,
+                firstRowValueRaw,
+                false,
+                parameters,
+                resultsData?.resolvedTimezone,
+            );
         } else if (item !== undefined && hasFormatOptions(item)) {
             // Custom metrics case
 
@@ -402,6 +422,7 @@ const useBigNumberConfig = (
                   unformattedValue,
                   bigNumberComparisonStyle,
                   parameters,
+                  resultsData?.resolvedTimezone,
               );
     }, [
         comparisonFormat,
@@ -411,6 +432,7 @@ const useBigNumberConfig = (
         secondRowValueFormatted,
         bigNumberComparisonStyle,
         parameters,
+        resultsData?.resolvedTimezone,
     ]);
 
     const comparisonTooltip = useMemo(() => {

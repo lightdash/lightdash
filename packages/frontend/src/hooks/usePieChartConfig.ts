@@ -303,6 +303,7 @@ const usePieChartConfig: PieChartConfigFn = (
                             value,
                             false,
                             parameters,
+                            resultsData?.resolvedTimezone,
                         ),
                         raw: value,
                     },
