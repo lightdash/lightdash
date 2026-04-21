@@ -1,3 +1,10 @@
+## [0.2769.1](https://github.com/lightdash/lightdash/compare/0.2769.0...0.2769.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **formatting:** remove timezone param from formatDate ([#22142](https://github.com/lightdash/lightdash/issues/22142)) ([73997ad](https://github.com/lightdash/lightdash/commit/73997ad7f6999cd465b1d78f1850ac675a7b4116)), closes [#22108](https://github.com/lightdash/lightdash/issues/22108)
+
 # [0.2769.0](https://github.com/lightdash/lightdash/compare/0.2768.0...0.2769.0) (2026-04-20)
 
 
