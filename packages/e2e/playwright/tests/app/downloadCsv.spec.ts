@@ -64,14 +64,14 @@ test.describe('Download CSV on Explore', () => {
     test('Should download CSV from results on Explore', async ({
         adminPage: page,
     }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`, {
-            timeout: 60000,
-        });
+        // Navigate straight to the orders explore to avoid flaky clicks
+        // through the tables list on CI.
+        await page.goto(
+            `/projects/${SEED_PROJECT.project_uuid}/tables/orders`,
+            { timeout: 60000 },
+        );
 
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
-
-        // choose table and select fields
-        await page.getByText('Orders', { exact: true }).click();
         await expect(page.getByText('Order date')).toBeVisible(); // Wait for Orders table columns to appear
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();

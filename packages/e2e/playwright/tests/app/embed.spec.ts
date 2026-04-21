@@ -77,7 +77,7 @@ test.describe('Embedded dashboard', () => {
         const respBody = await resp.json();
 
         // make sure we are logged out and rely on embed token
-        await logout(page.request);
+        await logout(page);
 
         // visit embed url
         await page.goto(respBody.results.url);
@@ -150,7 +150,7 @@ test.describe('Embedded dashboard', () => {
         const respBody = await resp.json();
 
         // make sure we are logged out and rely on embed token
-        await logout(page.request);
+        await logout(page);
 
         // visit embed url
         await page.goto(respBody.results.url);
@@ -229,7 +229,7 @@ test.describe('Embedded dashboard', () => {
         });
         const respBody = await resp.json();
 
-        await logout(page.request);
+        await logout(page);
         await page.goto(respBody.results.url);
 
         // Wait for dashboard to load
@@ -282,7 +282,7 @@ test.describe('Embedded dashboard', () => {
         });
         const respBody = await resp.json();
 
-        await logout(page.request);
+        await logout(page);
 
         // Construct filter override to set isComplete to false
         const filterOverride = {
@@ -342,7 +342,7 @@ test.describe('Embedded dashboard', () => {
         });
         const respBody = await resp.json();
 
-        await logout(page.request);
+        await logout(page);
         await page.goto(respBody.results.url);
 
         // Wait for dashboard to load

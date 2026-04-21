@@ -96,11 +96,17 @@ export async function addProjectPermission(
 }
 
 /**
- * Logout the current session.
- * Equivalent to cy.logout()
+ * Clear the current browser context's cookies so that subsequent requests
+ * are made as an anonymous user.
+ *
+ * We intentionally DO NOT hit `GET api/v1/logout` here: that would destroy
+ * the shared server-side admin session (the one saved in admin.json during
+ * global-setup), so every other test that loads admin.json in the same
+ * shard would then receive 401. Clearing cookies client-side gives this
+ * context a fresh anonymous state without affecting sibling tests.
  */
-export async function logout(request: APIRequestContext): Promise<void> {
-    await request.get('api/v1/logout');
+export async function logout(page: Page): Promise<void> {
+    await page.context().clearCookies();
 }
 
 type ProjectPermission = {

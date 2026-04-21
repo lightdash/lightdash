@@ -24,7 +24,7 @@ test.describe('Settings - Invites', () => {
         const inviteLinkInput = page.locator('#invite-link-input');
         const value = await inviteLinkInput.inputValue();
 
-        await logout(page.request);
+        await logout(page);
         await page.goto(value);
 
         await expect(page.locator('[data-cy="welcome-user"]')).toBeVisible();

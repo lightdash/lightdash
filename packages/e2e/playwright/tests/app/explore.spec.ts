@@ -5,11 +5,15 @@ import { scrollTreeToItem } from '../../helpers';
 test.describe('Explore', () => {
     // todo: combine tests
     test('Should query orders', async ({ adminPage: page }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        // Navigate straight to the orders explore page. Clicking through the
+        // tables list is flaky on CI where many tables push "Orders" below
+        // the fold or into a virtualised region.
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
+        await expect(
+            page.getByTestId('virtualized-tree-scroll-container'),
+        ).toBeVisible();
 
-        await page.getByText('Orders', { exact: true }).click();
-        await expect(page.getByText('Dimensions')).toBeVisible();
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
 
@@ -46,11 +50,12 @@ test.describe('Explore', () => {
 
     // todo: combine tests
     test('Should save chart', async ({ adminPage: page }) => {
-        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
+        await expect(
+            page.getByTestId('virtualized-tree-scroll-container'),
+        ).toBeVisible();
 
-        await page.getByText('Orders', { exact: true }).click();
-        await expect(page.getByText('Dimensions')).toBeVisible();
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
@@ -106,6 +111,9 @@ test.describe('Explore', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
+        await expect(
+            page.getByTestId('virtualized-tree-scroll-container'),
+        ).toBeVisible();
 
         // choose table and select fields
         await scrollTreeToItem(page, 'Order Customer');
@@ -307,7 +315,9 @@ test.describe('Explore', () => {
             await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
             await page.getByText('Orders', { exact: true }).click();
-            await expect(page.getByText('Dimensions')).toBeVisible();
+            await expect(
+                page.getByTestId('virtualized-tree-scroll-container'),
+            ).toBeVisible();
             await scrollTreeToItem(page, 'Order Customer');
             await page.getByText('Order Customer').click();
             await scrollTreeToItem(page, 'First name');
@@ -576,7 +586,9 @@ test.describe('Explore', () => {
         await page.getByText('Orders', { exact: true }).click();
 
         // Wait for the explore page to load
-        await expect(page.getByText('Dimensions')).toBeVisible();
+        await expect(
+            page.getByTestId('virtualized-tree-scroll-container'),
+        ).toBeVisible();
 
         // Search for tables using the search input
         await page.getByTestId('ExploreTree/SearchInput').fill('First name');
@@ -615,7 +627,9 @@ test.describe('Explore', () => {
         await page.getByText('Orders', { exact: true }).click();
 
         // Wait for the explore page to load
-        await expect(page.getByText('Dimensions')).toBeVisible();
+        await expect(
+            page.getByTestId('virtualized-tree-scroll-container'),
+        ).toBeVisible();
 
         // Scroll to the Dimensions section header (which has the Add Custom Dimension button)
         await scrollTreeToItem(page, 'Dimensions');

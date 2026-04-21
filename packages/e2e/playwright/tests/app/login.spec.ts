@@ -7,7 +7,7 @@ import { logout } from '../../helpers';
 
 test.describe('Login', () => {
     test('Should login successfully', async ({ adminPage: page }) => {
-        await logout(page.request);
+        await logout(page);
         await page.goto('/login');
         await page
             .getByPlaceholder('Your email address')
@@ -24,7 +24,7 @@ test.describe('Login', () => {
     test.skip('Should display error message when credentials are invalid or not recognised', async ({
         adminPage: page,
     }) => {
-        await logout(page.request);
+        await logout(page);
         await page.goto('/login');
         await page.getByPlaceholder('Your email address').fill('test-email');
         await page.getByText('Continue').click();

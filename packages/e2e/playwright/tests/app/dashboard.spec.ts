@@ -8,7 +8,11 @@ test.describe('Dashboard', () => {
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
 
-        await page.locator('a').filter({ hasText: 'Jaffle dashboard' }).click();
+        await page
+            .locator('a')
+            .filter({ hasText: 'Jaffle dashboard' })
+            .first()
+            .click();
 
         const grid = page.locator('.react-grid-layout');
         await expect(
@@ -46,7 +50,11 @@ test.describe('Dashboard', () => {
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
 
-        await page.locator('a').filter({ hasText: 'Jaffle dashboard' }).click();
+        await page
+            .locator('a')
+            .filter({ hasText: 'Jaffle dashboard' })
+            .first()
+            .click();
 
         const grid = page.locator('.react-grid-layout');
         await expect(grid.getByText('How much revenue')).toBeVisible();
@@ -118,7 +126,11 @@ test.describe('Dashboard', () => {
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
 
-        await page.locator('a').filter({ hasText: 'Jaffle dashboard' }).click();
+        await page
+            .locator('a')
+            .filter({ hasText: 'Jaffle dashboard' })
+            .first()
+            .click();
 
         const grid = page.locator('.react-grid-layout');
         await expect(
@@ -209,9 +221,14 @@ test.describe('Dashboard', () => {
         await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Unique payment count').click();
         await page.getByRole('button', { name: 'Save chart' }).click();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill(`What's the number of unique payments per payment method?`);
+        const chartNameInput1 = page.getByTestId('ChartCreateModal/NameInput');
+        await chartNameInput1.click();
+        await chartNameInput1.fill(
+            `What's the number of unique payments per payment method?`,
+        );
+        await expect(chartNameInput1).toHaveValue(
+            `What's the number of unique payments per payment method?`,
+        );
         await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(
             page.getByText(
@@ -270,9 +287,14 @@ test.describe('Dashboard', () => {
         await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Total revenue').click();
         await page.getByRole('button', { name: 'Save chart' }).click();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill(`What's the total revenue per payment method?`);
+        const chartNameInput2 = page.getByTestId('ChartCreateModal/NameInput');
+        await chartNameInput2.click();
+        await chartNameInput2.fill(
+            `What's the total revenue per payment method?`,
+        );
+        await expect(chartNameInput2).toHaveValue(
+            `What's the total revenue per payment method?`,
+        );
         await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(
             page.getByText(
@@ -345,9 +367,12 @@ test.describe('Dashboard', () => {
         await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Amount').click();
         await page.getByRole('button', { name: 'Save chart' }).click();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill(`Stg Payments (payment method x amount)?`);
+        const stgNameInput = page.getByTestId('ChartCreateModal/NameInput');
+        await stgNameInput.click();
+        await stgNameInput.fill(`Stg Payments (payment method x amount)?`);
+        await expect(stgNameInput).toHaveValue(
+            `Stg Payments (payment method x amount)?`,
+        );
         await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(
             page.getByText(
@@ -433,9 +458,14 @@ test.describe('Dashboard', () => {
         await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Unique payment count').click();
         await page.getByRole('button', { name: 'Save chart' }).click();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill(`What's the number of unique payments per payment method?`);
+        const chartNameInput3 = page.getByTestId('ChartCreateModal/NameInput');
+        await chartNameInput3.click();
+        await chartNameInput3.fill(
+            `What's the number of unique payments per payment method?`,
+        );
+        await expect(chartNameInput3).toHaveValue(
+            `What's the number of unique payments per payment method?`,
+        );
         await page.getByRole('button', { name: 'Save', exact: true }).click();
 
         await page.getByText('Save changes').click();

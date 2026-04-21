@@ -115,18 +115,21 @@ test.describe('Minimal pages', () => {
     }) => {
         // Uses hardcoded dashboard from seed: 08_scheduled_delivery_edge_cases_dashboard.ts
         // Contains: 1 bar chart, 1 orphan tile, 1 empty results table, 1 table with invalid metric
+        // The minimal dashboard fires 4 warehouse queries (including an
+        // intentionally failing one), so give the full test extra headroom
+        // on CI where queries run slower.
+        test.setTimeout(60000);
         const edgeCasesDashboardUuid = '4f34f5a2-93df-4e5b-a6f1-b6167b19a8ba';
 
         await page.goto(
             `/minimal/projects/${SEED_PROJECT.project_uuid}/dashboards/${edgeCasesDashboardUuid}`,
         );
 
-        // Wait for screenshot ready indicator to appear (max 30s for slow
-        // queries). The indicator is aria-hidden="true" by design (it only
-        // exists as a signal for the headless browser), so we check that it
-        // is attached rather than visible.
+        // Wait for screenshot ready indicator to appear. The indicator is
+        // aria-hidden="true" by design (it exists as a signal for the headless
+        // browser), so we check that it is attached rather than visible.
         const indicator = page.locator(`#${SCREENSHOT_READY_INDICATOR_ID}`);
-        await expect(indicator).toBeAttached({ timeout: 30000 });
+        await expect(indicator).toBeAttached({ timeout: 45000 });
 
         // Verify the indicator has expected data attributes
         await expect(indicator).toHaveAttribute('data-tiles-total', '4');

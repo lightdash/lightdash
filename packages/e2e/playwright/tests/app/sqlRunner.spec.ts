@@ -287,7 +287,8 @@ test.describe('SQL Runner (new)', () => {
         await page.getByText('SQL', { exact: true }).click();
         await expect(page.locator('.monaco-editor')).toBeVisible();
         await page.locator('.monaco-editor').click();
-        await page.keyboard.press('Meta+a');
+        // ControlOrMeta so the shortcut works on both Linux CI and macOS dev
+        await page.keyboard.press('ControlOrMeta+a');
         await page.keyboard.press('Backspace');
         await page.keyboard.type(`SELECT * FROM "${schema}"."jaffle"."orders"`);
         await page.waitForTimeout(1000);

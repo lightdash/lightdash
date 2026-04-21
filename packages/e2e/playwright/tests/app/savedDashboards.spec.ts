@@ -67,6 +67,6 @@ test.describe('Dashboard List', () => {
         await page.getByRole('button', { name: 'Delete' }).click();
         // We technically should look for one, but we don't reset the DB before tests
         // It looks like we have multiple Jaffle Dashboards in CI
-        await expect(page.getByText('Jaffle dashboard')).toBeVisible(); // still exists
+        await expect(page.getByText('Jaffle dashboard').first()).toBeVisible(); // still exists
     });
 });

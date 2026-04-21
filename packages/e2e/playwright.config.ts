@@ -41,7 +41,9 @@ export default defineConfig({
     fullyParallel: false,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? retries : 0,
-    workers: process.env.CI ? 1 : undefined,
+    // Two workers keeps in-file ordering (via fullyParallel: false) while
+    // letting two spec files run in parallel within a shard.
+    workers: process.env.CI ? 2 : undefined,
     reporter: process.env.CI
         ? [['html', { open: 'never' }], ['list']]
         : [['list']],
