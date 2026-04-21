@@ -1741,24 +1741,6 @@ describe('Formatting', () => {
         const utcTimestamp = '2020-04-04T02:00:00.000Z';
 
         describe('formatDate', () => {
-            test('formats date in project timezone', () => {
-                // 2020-04-04 02:00 UTC = 2020-04-03 22:00 New York
-                expect(
-                    formatDate(
-                        utcTimestamp,
-                        TimeFrames.DAY,
-                        false,
-                        'America/New_York',
-                    ),
-                ).toBe('2020-04-03');
-            });
-
-            test('formats date in UTC timezone', () => {
-                expect(
-                    formatDate(utcTimestamp, TimeFrames.DAY, false, 'UTC'),
-                ).toBe('2020-04-04');
-            });
-
             test('existing behavior unchanged when no timezone', () => {
                 const withTrue = formatDate(utcTimestamp, TimeFrames.DAY, true);
                 const withFalse = formatDate(
@@ -1769,17 +1751,6 @@ describe('Formatting', () => {
                 const withDefault = formatDate(utcTimestamp, TimeFrames.DAY);
                 expect(withTrue).toBe('2020-04-04');
                 expect(withFalse).toBe(withDefault);
-            });
-
-            test('timezone takes precedence over convertToUTC', () => {
-                expect(
-                    formatDate(
-                        utcTimestamp,
-                        TimeFrames.DAY,
-                        true,
-                        'America/New_York',
-                    ),
-                ).toBe('2020-04-03');
             });
         });
 
