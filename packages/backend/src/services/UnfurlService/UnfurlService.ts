@@ -680,14 +680,19 @@ export class UnfurlService extends BaseService {
             pageType: LightdashPage.DASHBOARD,
         };
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Dashboard', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: name,
+                    },
                 }),
             )
         ) {
@@ -729,14 +734,19 @@ export class UnfurlService extends BaseService {
                 chart.spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {

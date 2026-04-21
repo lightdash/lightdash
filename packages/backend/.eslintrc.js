@@ -103,10 +103,13 @@ module.exports = {
                 'src/services/CatalogService/**/*.ts',
                 'src/services/ContentService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
+                'src/services/FavoritesService/**/*.ts',
+                'src/services/PinningService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
                 'src/services/SchedulerService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
+                'src/services/UnfurlService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',
