@@ -62,7 +62,11 @@ const buildExploreUrl = (
                 (query.sorts as CreateSavedChartVersion['metricQuery']['sorts']) ??
                 [],
             limit: query.limit,
-            tableCalculations: [],
+            tableCalculations: query.tableCalculations.map((tc) => ({
+                name: tc.name,
+                displayName: tc.displayName,
+                sql: tc.sql,
+            })),
         },
         chartConfig: {
             type: ChartType.TABLE,
@@ -138,6 +142,18 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
                                 Metrics
                             </Text>
                             <Text size="xs">{query.metrics.join(', ')}</Text>
+                        </Box>
+                    )}
+                    {query.tableCalculations.length > 0 && (
+                        <Box>
+                            <Text size="xs" fw={600} c="dimmed">
+                                Table Calculations
+                            </Text>
+                            <Text size="xs">
+                                {query.tableCalculations
+                                    .map((tc) => tc.displayName)
+                                    .join(', ')}
+                            </Text>
                         </Box>
                     )}
                     {query.error && (

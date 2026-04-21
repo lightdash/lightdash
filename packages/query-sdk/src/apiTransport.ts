@@ -201,7 +201,7 @@ export function createApiTransport(
                         descending: s.descending,
                     })),
                     limit: query.limit,
-                    tableCalculations: [],
+                    tableCalculations: query.tableCalculations,
                 },
             };
 
