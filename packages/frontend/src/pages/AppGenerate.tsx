@@ -58,10 +58,16 @@ import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
 
+type ChatChart = {
+    name: string;
+    uuid: string;
+};
+
 type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     imagePreviewUrl: string | null;
+    charts: ChatChart[];
     appUuid: string | null;
     version: number | null;
 };
@@ -169,6 +175,8 @@ const AppGenerate: FC = () => {
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
     const sentImagesByPrompt = useRef(new Map<string, string>());
+    // Maps prompt text → chart names so they survive the local→server transition
+    const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
     // Track appUuid in local state so polling starts immediately after creation
     // (before the URL param updates via replaceState)
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
@@ -294,6 +302,7 @@ const AppGenerate: FC = () => {
                     content: v.prompt,
                     imagePreviewUrl:
                         sentImagesByPrompt.current.get(v.prompt) ?? null,
+                    charts: sentChartsByPrompt.current.get(v.prompt) ?? [],
                     appUuid: null,
                     version: null,
                 },
@@ -307,6 +316,7 @@ const AppGenerate: FC = () => {
                             ? 'Your app is ready!'
                             : `Version ${v.version} is ready!`),
                     imagePreviewUrl: null,
+                    charts: [],
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
@@ -317,6 +327,7 @@ const AppGenerate: FC = () => {
                         v.statusMessage ??
                         'Generation failed. Please try again.',
                     imagePreviewUrl: null,
+                    charts: [],
                     appUuid: null,
                     version: null,
                 });
@@ -504,6 +515,13 @@ const AppGenerate: FC = () => {
         if (sentImageUrl) {
             sentImagesByPrompt.current.set(trimmed, sentImageUrl);
         }
+        const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
+            name: c.name,
+            uuid: c.uuid,
+        }));
+        if (sentCharts.length > 0) {
+            sentChartsByPrompt.current.set(trimmed, sentCharts);
+        }
 
         setLocalMessages((prev) => [
             ...prev,
@@ -511,6 +529,7 @@ const AppGenerate: FC = () => {
                 role: 'user',
                 content: trimmed,
                 imagePreviewUrl: sentImageUrl,
+                charts: sentCharts,
                 appUuid: null,
                 version: null,
             },
@@ -545,6 +564,7 @@ const AppGenerate: FC = () => {
                                 ? err.message
                                 : 'Failed to generate app',
                         imagePreviewUrl: null,
+                        charts: [],
                         appUuid: null,
                         version: null,
                     },
@@ -670,6 +690,46 @@ const AppGenerate: FC = () => {
                                                     }
                                                 >
                                                     {msg.content}
+                                                    {msg.charts.length > 0 && (
+                                                        <Box mt="xs">
+                                                            <Text
+                                                                size="sm"
+                                                                fw={700}
+                                                            >
+                                                                Included queries
+                                                            </Text>
+                                                            <ul
+                                                                style={{
+                                                                    margin: 0,
+                                                                    paddingLeft: 20,
+                                                                }}
+                                                            >
+                                                                {msg.charts.map(
+                                                                    (chart) => (
+                                                                        <li
+                                                                            key={
+                                                                                chart.uuid
+                                                                            }
+                                                                        >
+                                                                            <Text
+                                                                                size="sm"
+                                                                                component="span"
+                                                                            >
+                                                                                {
+                                                                                    chart.name
+                                                                                }{' '}
+                                                                                (id:{' '}
+                                                                                {
+                                                                                    chart.uuid
+                                                                                }
+                                                                                )
+                                                                            </Text>
+                                                                        </li>
+                                                                    ),
+                                                                )}
+                                                            </ul>
+                                                        </Box>
+                                                    )}
                                                     {msg.imagePreviewUrl && (
                                                         <Image
                                                             src={
