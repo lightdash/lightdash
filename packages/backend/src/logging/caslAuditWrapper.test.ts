@@ -419,7 +419,10 @@ describe('CaslAuditWrapper', () => {
 
             const s = subject('Dashboard', {
                 organizationUuid: 'test-org-uuid',
-                metadata: { dashboardUuid: 'meta-uuid', name: 'meta-name' },
+                metadata: {
+                    dashboardUuid: 'meta-uuid',
+                    dashboardName: 'meta-name',
+                },
             });
 
             wrapper.can('read', s);
@@ -427,7 +430,7 @@ describe('CaslAuditWrapper', () => {
             const { resource } = mockLogger.mock.calls[0][0];
             expect(resource.metadata).toEqual({
                 dashboardUuid: 'meta-uuid',
-                name: 'meta-name',
+                dashboardName: 'meta-name',
             });
         });
 

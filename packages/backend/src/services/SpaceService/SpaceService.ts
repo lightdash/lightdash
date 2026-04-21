@@ -202,10 +202,7 @@ export class SpaceService
                 subject('Space', {
                     organizationUuid,
                     projectUuid,
-                    metadata: {
-                        uuid: '' /* resource doesn't exist yet */,
-                        name: space.name,
-                    },
+                    metadata: { spaceName: space.name },
                 }),
             )
         ) {
@@ -632,7 +629,7 @@ export class SpaceService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                metadata: { spaceUuid, name: space.name },
+                metadata: { spaceUuid, spaceName: space.name },
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
             });
@@ -643,7 +640,7 @@ export class SpaceService
                 subject('DeletedContent', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
-                    metadata: { spaceUuid, name: space.name },
+                    metadata: { spaceUuid, spaceName: space.name },
                 }),
             );
 
@@ -651,7 +648,7 @@ export class SpaceService
                 if (space.deletedBy?.userUuid === user.userUuid) {
                     this.logBypassEvent(user, 'manage', {
                         type: 'DeletedContent',
-                        metadata: { spaceUuid, name: space.name },
+                        metadata: { spaceUuid, spaceName: space.name },
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
                     });
@@ -737,7 +734,7 @@ export class SpaceService
                     subject('DeletedContent', {
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
-                        metadata: { spaceUuid, name: space.name },
+                        metadata: { spaceUuid, spaceName: space.name },
                     }),
                 )
             ) {
@@ -828,7 +825,7 @@ export class SpaceService
                 subject('PinnedItems', {
                     projectUuid,
                     organizationUuid,
-                    metadata: { spaceUuid, name: existingSpace.name },
+                    metadata: { spaceUuid, spaceName: existingSpace.name },
                 }),
             )
         ) {

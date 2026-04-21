@@ -193,7 +193,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         savedChartUuid: savedChart.uuid,
-                        name: savedChart.name,
+                        savedChartName: savedChart.name,
                     },
                 }),
             )
@@ -220,7 +220,7 @@ export class SavedChartService
                     projectUuid,
                     metadata: {
                         savedChartUuid: savedChart.uuid,
-                        name: savedChart.name,
+                        savedChartName: savedChart.name,
                     },
                 }),
             )
@@ -624,7 +624,7 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    metadata: { savedChartUuid, name },
+                    metadata: { savedChartUuid, savedChartName: name },
                 }),
             )
         ) {
@@ -914,7 +914,10 @@ export class SavedChartService
                         projectUuid: chart.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        metadata: { savedChartUuid, name: chart.name },
+                        metadata: {
+                            savedChartUuid,
+                            savedChartName: chart.name,
+                        },
                     }),
                 )
             ) {
@@ -959,7 +962,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         savedChartUuid: savedChart.uuid,
-                        name: savedChart.name,
+                        savedChartName: savedChart.name,
                     },
                 }),
             )
@@ -1014,7 +1017,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         savedChartUuid: savedChart.uuid,
-                        name: savedChart.name,
+                        savedChartName: savedChart.name,
                     },
                 }),
             )
@@ -1330,7 +1333,10 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
-                    metadata: { savedChartUuid: chart.uuid, name: chart.name },
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1592,7 +1598,10 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
-                    metadata: { savedChartUuid: chart.uuid, name: chart.name },
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1635,7 +1644,10 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
-                    metadata: { savedChartUuid: chart.uuid, name: chart.name },
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {

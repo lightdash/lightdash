@@ -187,12 +187,13 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
-const findUuidInMetadata = (
+const findStringBySuffix = (
     metadata: Record<string, unknown> | undefined,
+    suffix: string,
 ): string | undefined => {
     if (!metadata) return undefined;
     for (const [key, val] of Object.entries(metadata)) {
-        if (key.endsWith('Uuid') && typeof val === 'string' && val) {
+        if (key.endsWith(suffix) && typeof val === 'string' && val) {
             return val;
         }
     }
@@ -201,10 +202,10 @@ const findUuidInMetadata = (
 
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
-    const name = resource.metadata?.name;
-    const uuid = findUuidInMetadata(resource.metadata);
+    const name = findStringBySuffix(resource.metadata, 'Name');
+    const uuid = findStringBySuffix(resource.metadata, 'Uuid');
 
-    if (typeof name === 'string' && name) {
+    if (name) {
         return `${typePart} "${name}"`;
     }
     if (

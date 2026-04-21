@@ -109,7 +109,7 @@ describe('formatAuditResource', () => {
                 type: 'Dashboard',
                 metadata: {
                     dashboardUuid: 'dash-uuid',
-                    name: 'Sales Overview',
+                    dashboardName: 'Sales Overview',
                 },
                 organizationUuid: 'org-uuid',
             }),
@@ -192,7 +192,10 @@ describe('formatAuditMessage', () => {
         action: 'update',
         resource: {
             type: 'Dashboard',
-            metadata: { dashboardUuid: 'dash-uuid', name: 'Sales Overview' },
+            metadata: {
+                dashboardUuid: 'dash-uuid',
+                dashboardName: 'Sales Overview',
+            },
             organizationUuid: 'org-uuid',
             projectUuid: 'proj-uuid',
         },
@@ -248,7 +251,10 @@ describe('formatAuditMessage', () => {
                 action: 'manage',
                 resource: {
                     type: 'Group',
-                    metadata: { groupUuid: 'group-uuid', name: 'Engineering' },
+                    metadata: {
+                        groupUuid: 'group-uuid',
+                        groupName: 'Engineering',
+                    },
                     organizationUuid: 'org-uuid',
                 },
             }),

@@ -108,8 +108,8 @@ export class ContentService extends BaseService {
                         organizationUuid,
                         projectUuid: project.projectUuid,
                         metadata: {
-                            uuid: project.projectUuid,
-                            name: project.name,
+                            projectUuid: project.projectUuid,
+                            projectName: project.name,
                         },
                     }),
                 ),
@@ -215,7 +215,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { projectUuid, name: projectName },
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -310,7 +310,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { projectUuid, name: projectName },
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -396,7 +396,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { projectUuid, name: projectName },
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -452,7 +452,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { projectUuid, name: projectName },
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -502,7 +502,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { projectUuid, name: projectName },
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {

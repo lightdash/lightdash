@@ -476,7 +476,7 @@ export class DashboardService
                     ...dashboard,
                     metadata: {
                         dashboardUuid: dashboard.uuid,
-                        name: dashboard.name,
+                        dashboardName: dashboard.name,
                     },
                 }),
             )
@@ -629,7 +629,7 @@ export class DashboardService
                     ...dashboard,
                     metadata: {
                         dashboardUuid: dashboard.uuid,
-                        name: dashboard.name,
+                        dashboardName: dashboard.name,
                     },
                 }),
             )
@@ -1036,8 +1036,8 @@ export class DashboardService
                 subject('Dashboard', {
                     ...existingDashboard,
                     metadata: {
-                        uuid: existingDashboard.uuid,
-                        name: existingDashboard.name,
+                        dashboardUuid: existingDashboard.uuid,
+                        dashboardName: existingDashboard.name,
                     },
                 }),
             )
@@ -1559,7 +1559,7 @@ export class DashboardService
                     ...dashboard,
                     metadata: {
                         dashboardUuid: dashboard.uuid,
-                        name: dashboard.name,
+                        dashboardName: dashboard.name,
                     },
                 }),
             )
@@ -1658,8 +1658,8 @@ export class DashboardService
                     inheritsFromOrgOrProject,
                     access,
                     metadata: {
-                        uuid: dashboardDao.uuid,
-                        name: dashboardDao.name,
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
                     },
                 }),
             )
@@ -1706,8 +1706,8 @@ export class DashboardService
                     inheritsFromOrgOrProject,
                     access,
                     metadata: {
-                        uuid: dashboardDao.uuid,
-                        name: dashboardDao.name,
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
                     },
                 }),
             )
@@ -1852,8 +1852,8 @@ export class DashboardService
                     inheritsFromOrgOrProject,
                     access,
                     metadata: {
-                        uuid: dashboardDao.uuid,
-                        name: dashboardDao.name,
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
                     },
                 }),
             )
