@@ -20526,6 +20526,7 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
+                        verified: { dataType: 'boolean' },
                         downloadedAt: { dataType: 'datetime' },
                         spaceSlug: { dataType: 'string', required: true },
                         contentType: { ref: 'ContentAsCodeType.CHART' },
@@ -20962,6 +20963,7 @@ const models: TsoaRoute.Models = {
                                 { dataType: 'enum', enums: [null] },
                             ],
                         },
+                        verified: { dataType: 'boolean' },
                         filters: {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
@@ -21213,6 +21215,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                verified: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -21508,6 +21517,13 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'datetime' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    verified: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
                             { dataType: 'undefined' },
                         ],
                     },
