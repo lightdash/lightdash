@@ -410,7 +410,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Node, PNPM, and Playwright
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+        uses: ./.github/workflows/_setup_node_pnpm_playwright
       - name: Build packages/common module
         run: pnpm common-build
       - name: create-json
@@ -467,7 +467,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Node, PNPM, and Playwright
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+        uses: ./.github/workflows/_setup_node_pnpm_playwright
       - name: Build packages/common module
         run: pnpm common-build
       - name: create-json
@@ -506,7 +506,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Node, PNPM, and Playwright
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+        uses: ./.github/workflows/_setup_node_pnpm_playwright
       - name: Build packages/common module
         run: pnpm common-build
       - name: Build packages/warehouses module
@@ -538,7 +538,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Node, PNPM, and Playwright
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+        uses: ./.github/workflows/_setup_node_pnpm_playwright
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
@@ -603,7 +603,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Node, PNPM, and Playwright
-        uses: ./.github/workflows/_setup_node_pnpm_cypress
+        uses: ./.github/workflows/_setup_node_pnpm_playwright
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"

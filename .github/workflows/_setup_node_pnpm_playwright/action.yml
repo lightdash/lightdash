@@ -27,6 +27,11 @@ runs:
           shell: bash
 
         - name: Install Playwright Browsers
-          run: sfw pnpm exec playwright install --with-deps chromium
+          run: |
+              if [ "$(id -u)" = "0" ] || command -v sudo >/dev/null 2>&1; then
+                  sfw pnpm exec playwright install --with-deps chromium
+              else
+                  sfw pnpm exec playwright install chromium
+              fi
           working-directory: packages/e2e
           shell: bash

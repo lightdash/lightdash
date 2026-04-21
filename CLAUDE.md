@@ -36,7 +36,7 @@ Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST 
 -   `packages/frontend/` - React web application with Vite build system
 -   `packages/warehouses/` - Data warehouse client adapters (BigQuery, Snowflake, Postgres, etc.)
 -   `packages/cli/` - Command-line interface for dbt project management
--   `packages/e2e/` - Cypress end-to-end tests
+-   `packages/e2e/` - Playwright end-to-end tests
 
 ### Key Technologies
 

@@ -38,7 +38,7 @@ process.env.DBT_THREADS = String(threads);
 export default defineConfig({
     testDir: './playwright/tests',
     outputDir: './test-results',
-    fullyParallel: true,
+    fullyParallel: false,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? retries : 0,
     workers: process.env.CI ? 1 : undefined,

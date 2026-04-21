@@ -18,7 +18,6 @@
             "core-js",
             "core-js-pure",
             "cpu-features",
-            "cypress",
             "duckdb",
             "esbuild",
             "lz4",
@@ -131,9 +130,9 @@
         "frontend-typecheck": "pnpm -F frontend typecheck",
         "sdk-typecheck": "pnpm -F frontend typecheck-sdk",
         "sdk-build": "pnpm common-build && pnpm frontend-build-sdk",
-        "e2e-open": "pnpm -F e2e cypress:open",
-        "e2e-open-native": "pnpm -F e2e cypress:open:native",
-        "e2e-run": "pnpm -F e2e cypress:run",
+        "e2e-open": "pnpm -F e2e test:ui",
+        "e2e-open-native": "pnpm -F e2e test:headed",
+        "e2e-run": "pnpm -F e2e test",
         "e2e-lint": "pnpm -F e2e lint",
         "e2e-format": "pnpm -F e2e format",
         "e2e-fix-lint": "pnpm -F e2e fix-lint",
@@ -208,7 +207,7 @@
             "pnpm -F common run linter --fix",
             "pnpm -F common run formatter"
         ],
-        "packages/e2e/cypress/**/*.(ts|json)": [
+        "packages/e2e/playwright/**/*.(ts|json)": [
             "pnpm -F e2e run linter --fix",
             "pnpm -F e2e run formatter"
         ],

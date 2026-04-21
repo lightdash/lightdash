@@ -12,7 +12,7 @@ Both approaches are supported for backward compatibility.
 
 ## Test Coverage
 
-### 1. Dashboard Tests (`cypress/e2e/app/dashboard.cy.ts`)
+### 1. Dashboard Tests (`playwright/tests/app/dashboard.spec.ts`)
 
 Added 5 new test cases:
 
@@ -36,7 +36,7 @@ Added 5 new test cases:
 - **Coverage**: Verifies proper error messages for non-existent slugs
 - **Key Assertions**: Error message displays appropriately
 
-### 2. Chart Tests (`cypress/e2e/app/chartSlugs.cy.ts`)
+### 2. Chart Tests (`playwright/tests/app/chartSlugs.spec.ts`)
 
 Created a new test file with 10 comprehensive test cases:
 
@@ -53,7 +53,7 @@ Created a new test file with 10 comprehensive test cases:
 8. **CSV Export**: Export chart data when accessed by slug
 9. **Dashboard Integration**: Add slug-accessed charts to dashboards
 
-### 3. API Tests (`cypress/e2e/api/slugs.cy.ts`)
+### 3. API Tests (`playwright/tests/api/slugs.spec.ts`)
 
 Created a comprehensive API test suite with 16 test cases organized into 5 sections:
 
@@ -80,7 +80,7 @@ Created a comprehensive API test suite with 16 test cases organized into 5 secti
 14. Verify slugs are included in dashboard list
 15. Verify slugs are included in chart summaries
 
-### 4. Extended Dashboard API Tests (`cypress/e2e/api/dashboard.cy.ts`)
+### 4. Extended Dashboard API Tests (`playwright/tests/api/dashboard.spec.ts`)
 
 Added 3 new test cases to the existing API test suite:
 
@@ -147,14 +147,14 @@ describe('useDashboardQuery with slug', () => {
 ```
 
 ### 4. Search Functionality
-**Location**: `packages/e2e/cypress/e2e/api/search.cy.ts`
+**Location**: `packages/e2e/playwright/tests/api/search.spec.ts`
 
 Consider adding:
 - Search results should include slugs
 - Clicking search result should navigate to slug URL
 
 ### 5. Embedding Tests
-**Location**: `packages/e2e/cypress/e2e/app/embed.cy.ts` (if exists)
+**Location**: `packages/e2e/playwright/tests/app/embed.spec.ts` (if exists)
 
 Consider adding:
 - Embedded dashboards accessible via slug
@@ -168,7 +168,7 @@ Consider adding:
 - Dashboard/chart resolution in scheduler uses slugs
 
 ### 7. Content as Code Tests
-**Location**: `packages/e2e/cypress/e2e/api/contentAsCode.cy.ts`
+**Location**: `packages/e2e/playwright/tests/api/contentAsCode.spec.ts`
 
 Already has some slug tests! Consider expanding:
 - Upload content using slugs
@@ -218,16 +218,16 @@ Consider adding:
 ### Run all slug-related tests
 ```bash
 # Dashboard tests
-pnpm test:e2e --spec "cypress/e2e/app/dashboard.cy.ts"
+pnpm test:e2e --spec "playwright/tests/app/dashboard.spec.ts"
 
 # Chart slug tests
-pnpm test:e2e --spec "cypress/e2e/app/chartSlugs.cy.ts"
+pnpm test:e2e --spec "playwright/tests/app/chartSlugs.spec.ts"
 
 # API slug tests
-pnpm test:e2e --spec "cypress/e2e/api/slugs.cy.ts"
+pnpm test:e2e --spec "playwright/tests/api/slugs.spec.ts"
 
 # Extended dashboard API tests
-pnpm test:e2e --spec "cypress/e2e/api/dashboard.cy.ts"
+pnpm test:e2e --spec "playwright/tests/api/dashboard.spec.ts"
 ```
 
 ### Run all E2E tests
