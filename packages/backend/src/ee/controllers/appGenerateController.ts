@@ -54,6 +54,7 @@ export class AppGenerateController extends BaseController {
             body.prompt,
             body.image,
             body.appUuid,
+            body.chartUuids,
         );
         return {
             status: 'ok',
@@ -153,6 +154,7 @@ export class AppGenerateController extends BaseController {
             appUuid,
             body.prompt,
             body.image,
+            body.chartUuids,
         );
         return {
             status: 'ok',

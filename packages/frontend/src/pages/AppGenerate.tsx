@@ -467,14 +467,11 @@ const AppGenerate: FC = () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
-        // Append chart references block if any charts are selected
-        let finalPrompt = trimmed;
-        if (selectedCharts.length > 0) {
-            const chartLines = selectedCharts
-                .map((c) => `- ${c.name} (id: ${c.uuid})`)
-                .join('\n');
-            finalPrompt = `${trimmed}\n\n---\nCharts to include:\n${chartLines}`;
-        }
+        // Collect chart UUIDs to send as structured data (resolved server-side)
+        const chartUuids =
+            selectedCharts.length > 0
+                ? selectedCharts.map((c) => c.uuid)
+                : undefined;
 
         // For new apps, pre-generate the UUID so the image upload and
         // the generate request both use the same app-scoped S3 path.
@@ -506,12 +503,6 @@ const AppGenerate: FC = () => {
         const sentImageUrl = imageAttachment?.previewUrl ?? null;
         if (sentImageUrl) {
             sentImagesByPrompt.current.set(trimmed, sentImageUrl);
-            // Also key by finalPrompt (with chart block) since the server
-            // stores the enriched prompt and that's what we match against
-            // when rebuilding messages from version history.
-            if (finalPrompt !== trimmed) {
-                sentImagesByPrompt.current.set(finalPrompt, sentImageUrl);
-            }
         }
 
         setLocalMessages((prev) => [
@@ -566,8 +557,9 @@ const AppGenerate: FC = () => {
                 {
                     projectUuid,
                     appUuid: activeAppUuid,
-                    prompt: finalPrompt,
+                    prompt: trimmed,
                     image,
+                    chartUuids,
                 },
                 callbacks,
             );
@@ -575,9 +567,10 @@ const AppGenerate: FC = () => {
             generateMutate(
                 {
                     projectUuid,
-                    prompt: finalPrompt,
+                    prompt: trimmed,
                     image,
                     appUuid: newAppUuid,
+                    chartUuids,
                 },
                 callbacks,
             );

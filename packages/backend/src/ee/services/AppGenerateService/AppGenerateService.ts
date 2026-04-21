@@ -1685,13 +1685,10 @@ export class AppGenerateService extends BaseService {
      * any that resolve.
      */
     private async resolveChartReferences(
-        prompt: string,
+        chartUuids: string[],
         user: SessionUser,
     ): Promise<ChartReference[]> {
-        const UUID_REGEX =
-            /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
-        const uuids = [...new Set(prompt.match(UUID_REGEX) ?? [])];
-
+        const uuids = [...new Set(chartUuids)];
         if (uuids.length === 0) return [];
 
         const account = fromSession(user);
@@ -1716,7 +1713,7 @@ export class AppGenerateService extends BaseService {
 
         if (references.length > 0) {
             this.logger.info(
-                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s) in prompt`,
+                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s)`,
             );
         }
 
@@ -1729,6 +1726,7 @@ export class AppGenerateService extends BaseService {
         prompt: string,
         image?: AppImageAttachment,
         preGeneratedAppUuid?: string,
+        chartUuids?: string[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         if (
@@ -1784,7 +1782,10 @@ export class AppGenerateService extends BaseService {
             },
         });
 
-        const chartReferences = await this.resolveChartReferences(prompt, user);
+        const chartReferences = await this.resolveChartReferences(
+            chartUuids ?? [],
+            user,
+        );
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
@@ -1808,6 +1809,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         prompt: string,
         image?: AppImageAttachment,
+        chartUuids?: string[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         if (
@@ -1868,7 +1870,10 @@ export class AppGenerateService extends BaseService {
             },
         });
 
-        const chartReferences = await this.resolveChartReferences(prompt, user);
+        const chartReferences = await this.resolveChartReferences(
+            chartUuids ?? [],
+            user,
+        );
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
