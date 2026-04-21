@@ -8,6 +8,7 @@ import {
     NumberSeparator,
     TableCalculationType,
     type CustomFormat,
+    type GeneratedFormulaTableCalculation,
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
@@ -264,16 +265,37 @@ const TableCalculationModal: FC<Props> = ({
     );
 
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
+    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
+    // Tiptap reads `initialContent` once at mount — when the AI replaces the
+    // formula we bump this key to force a remount so the new content renders.
+    const [formulaKey, setFormulaKey] = useState(0);
 
     useEffect(() => {
         if (opened) {
             setSqlGeneratedByAi(false);
+            setFormulaGeneratedByAi(false);
         }
     }, [opened]);
 
     const handleSqlAiApplied = useCallback(() => {
         setSqlGeneratedByAi(true);
     }, []);
+
+    const handleFormulaAiApply = useCallback(
+        (result: GeneratedFormulaTableCalculation) => {
+            form.setFieldValue('formula', result.formula);
+            form.setFieldValue('name', result.displayName);
+            if (result.type) {
+                form.setFieldValue('type', result.type);
+            }
+            if (result.format) {
+                form.setFieldValue('format', result.format);
+            }
+            setFormulaKey((k) => k + 1);
+            setFormulaGeneratedByAi(true);
+        },
+        [form],
+    );
 
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
@@ -335,7 +357,7 @@ const TableCalculationModal: FC<Props> = ({
                     },
                     {
                         mode: 'formula',
-                        generatedByAi: false,
+                        generatedByAi: formulaGeneratedByAi,
                     },
                 );
             } else {
@@ -367,6 +389,7 @@ const TableCalculationModal: FC<Props> = ({
         tableCalculations,
         editedTemplate,
         sqlGeneratedByAi,
+        formulaGeneratedByAi,
         onSave,
         addToastError,
     ]);
@@ -599,6 +622,7 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
+                                key={formulaKey}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
@@ -608,6 +632,7 @@ const TableCalculationModal: FC<Props> = ({
                                 onChange={(text) =>
                                     form.setFieldValue('formula', text)
                                 }
+                                onAiApply={handleFormulaAiApply}
                                 onValidationChange={setFormulaParseError}
                                 isFullScreen={isExpanded}
                             />
