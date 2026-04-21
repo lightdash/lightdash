@@ -214,6 +214,7 @@ export default class SchedulerApp {
 
     private async initServer(worker: SchedulerWorker) {
         const app = express();
+        app.use(this.prometheusMetrics.httpServerRequestMetricsMiddleware());
         const server = http.createServer(app);
 
         createTerminus(server, {
