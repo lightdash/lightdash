@@ -381,6 +381,8 @@ export type TableChart = {
     showResultsTotal?: boolean;
     /** Show subtotal rows */
     showSubtotals?: boolean;
+    /** Whether subtotal rows default to expanded (true) or collapsed (false) */
+    showSubtotalsExpanded?: boolean;
     /** Column-specific configuration */
     columns?: Record<string, ColumnProperties>;
     /** Conditional formatting rules */

@@ -32,6 +32,7 @@ import {
     getCoreRowModel,
     getExpandedRowModel,
     useReactTable,
+    type ExpandedState,
     type GroupingState,
     type Row,
 } from '@tanstack/react-table';
@@ -122,6 +123,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
+        showSubtotalsExpanded?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
         isMinimal: boolean;
         isDashboard?: boolean;
@@ -137,6 +139,7 @@ const PivotTable: FC<PivotTableProps> = ({
     getField,
     className,
     showSubtotals = false,
+    showSubtotalsExpanded = false,
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
@@ -146,6 +149,9 @@ const PivotTable: FC<PivotTableProps> = ({
     const { colorScheme } = useMantineColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
+    const [expanded, setExpanded] = React.useState<ExpandedState>(
+        showSubtotals && showSubtotalsExpanded ? true : {},
+    );
 
     const { handleResizeStart, resizeHandleClassName } = useColumnResize({
         onColumnWidthChange,
@@ -345,12 +351,14 @@ const PivotTable: FC<PivotTableProps> = ({
         columns: columns,
         state: {
             grouping,
+            expanded,
             columnOrder: columnOrder,
             columnPinning: {
                 left: [ROW_NUMBER_COLUMN_ID],
             },
         },
         onGroupingChange: setGrouping,
+        onExpandedChange: setExpanded,
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
         getCoreRowModel: getCoreRowModel(),
@@ -638,6 +646,10 @@ const PivotTable: FC<PivotTableProps> = ({
     const cellsCountWithRowNumber = useMemo(() => {
         return (hideRowNumbers ? 0 : 1) + data.cellsCount;
     }, [hideRowNumbers, data.cellsCount]);
+
+    useEffect(() => {
+        setExpanded(showSubtotals && showSubtotalsExpanded ? true : {});
+    }, [showSubtotals, showSubtotalsExpanded]);
 
     useEffect(() => {
         // TODO: Remove code duplicated from non-pivot table version.
