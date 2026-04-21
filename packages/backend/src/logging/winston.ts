@@ -187,32 +187,14 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
-const findStringBySuffix = (
-    metadata: Record<string, unknown> | undefined,
-    suffix: string,
-): string | undefined => {
-    if (!metadata) return undefined;
-    for (const [key, val] of Object.entries(metadata)) {
-        if (key.endsWith(suffix) && typeof val === 'string' && val) {
-            return val;
-        }
-    }
-    return undefined;
-};
-
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
-    const name = findStringBySuffix(resource.metadata, 'Name');
-    const uuid = findStringBySuffix(resource.metadata, 'Uuid');
 
-    if (name) {
-        return `${typePart} "${name}"`;
-    }
-    if (
-        uuid &&
-        (uuid !== resource.projectUuid || resource.type === 'Project')
-    ) {
-        return `${typePart} ${uuid}`;
+    if (resource.metadata) {
+        const parts = Object.entries(resource.metadata)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+        return `${typePart} -> ${parts}`;
     }
     // Permission-type subjects (CustomSql, UnderlyingData, Explore, Project, etc.)
     // with no meaningful unique identifier — fall back to project/org context
