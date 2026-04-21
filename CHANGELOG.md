@@ -1,3 +1,10 @@
+## [0.2772.5](https://github.com/lightdash/lightdash/compare/0.2772.4...0.2772.5) (2026-04-21)
+
+
+### Bug Fixes
+
+* **tooltip:** don't re-format already-formatted header in tuple mode ([#22174](https://github.com/lightdash/lightdash/issues/22174)) ([4ba1a19](https://github.com/lightdash/lightdash/commit/4ba1a195991efd06f0126a3fba8f036a3c0bfb55)), closes [#19335](https://github.com/lightdash/lightdash/issues/19335)
+
 ## [0.2772.4](https://github.com/lightdash/lightdash/compare/0.2772.3...0.2772.4) (2026-04-21)
 
 
