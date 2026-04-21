@@ -24,6 +24,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         parameters,
         isTouchDevice,
         minimal,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -126,6 +127,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                             params.value,
                             false,
                             parameters,
+                            resolvedTimezone,
                         );
                         const source = stripStepSuffix(params.data.source);
                         const target = stripStepSuffix(params.data.target);
@@ -163,6 +165,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         isTouchDevice,
         visualizationConfig,
         parameters,
+        resolvedTimezone,
     ]);
 
     if (!eChartsOptions) return;

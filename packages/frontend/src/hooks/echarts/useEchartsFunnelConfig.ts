@@ -39,13 +39,21 @@ const getValueAndPercentage = ({
     value,
     maxValue,
     parameters,
+    timezone,
 }: {
     field?: TableCalculation | Metric;
     value: any;
     maxValue: number;
     parameters?: Record<string, unknown>;
+    timezone?: string;
 }) => {
-    const formattedValue = formatItemValue(field, value, false, parameters);
+    const formattedValue = formatItemValue(
+        field,
+        value,
+        false,
+        parameters,
+        timezone,
+    );
 
     const percentOfMax = round((Number(value) / maxValue) * 100, 2);
     return { formattedValue, percentOfMax };
@@ -62,6 +70,7 @@ const useEchartsFunnelConfig = (
         parameters,
         isTouchDevice,
         minimal,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -133,6 +142,7 @@ const useEchartsFunnelConfig = (
                             value,
                             maxValue: chartConfig.maxValue,
                             parameters,
+                            timezone: resolvedTimezone,
                         });
 
                     const colorIndicator = formatColorIndicator(
@@ -168,6 +178,7 @@ const useEchartsFunnelConfig = (
                             value,
                             maxValue: chartConfig.maxValue,
                             parameters,
+                            timezone: resolvedTimezone,
                         });
 
                     const percentString = labels?.showPercentage
@@ -193,6 +204,7 @@ const useEchartsFunnelConfig = (
         seriesData,
         parameters,
         theme.colors.foreground,
+        resolvedTimezone,
     ]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();

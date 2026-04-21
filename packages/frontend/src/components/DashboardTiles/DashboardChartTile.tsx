@@ -344,11 +344,15 @@ const ValidDashboardChartTile: FC<{
                 metricQuery:
                     dashboardChartReadyQuery.executeQueryResponse.metricQuery,
                 fields: dashboardChartReadyQuery.executeQueryResponse.fields,
+                resolvedTimezone:
+                    dashboardChartReadyQuery.executeQueryResponse
+                        .resolvedTimezone ?? undefined,
             }),
             [
                 resultsData,
                 dashboardChartReadyQuery.executeQueryResponse.metricQuery,
                 dashboardChartReadyQuery.executeQueryResponse.fields,
+                dashboardChartReadyQuery.executeQueryResponse.resolvedTimezone,
             ],
         );
 
@@ -489,11 +493,15 @@ const ValidDashboardChartTileMinimal: FC<{
             metricQuery:
                 dashboardChartReadyQuery.executeQueryResponse.metricQuery,
             fields: dashboardChartReadyQuery.executeQueryResponse.fields,
+            resolvedTimezone:
+                dashboardChartReadyQuery.executeQueryResponse
+                    .resolvedTimezone ?? undefined,
         }),
         [
             resultsData,
             dashboardChartReadyQuery.executeQueryResponse.metricQuery,
             dashboardChartReadyQuery.executeQueryResponse.fields,
+            dashboardChartReadyQuery.executeQueryResponse.resolvedTimezone,
         ],
     );
 

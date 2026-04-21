@@ -871,7 +871,6 @@ export class AsyncQueryService extends ProjectService {
             page,
             nextPage,
             previousPage,
-            resolvedTimezone,
             metadata: {
                 performance: {
                     initialQueryExecutionMs:
