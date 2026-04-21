@@ -17,7 +17,6 @@ import {
     BigqueryAuthenticationType,
     CacheMetadata,
     calculateCompilationReport,
-    CalculateTotalFromQuery,
     ChartSourceType,
     ChartSummary,
     CompiledDimension,
@@ -58,13 +57,8 @@ import {
     ExploreType,
     FeatureFlags,
     FilterableDimension,
-    FilterGroupItem,
-    FilterOperator,
-    findFieldByIdInExplore,
     findReplaceableCustomMetrics,
-    flattenFilterGroup,
     ForbiddenError,
-    formatRawRows,
     formatRows,
     getAllDimensionsMap,
     getAvailableParametersFromTables,
@@ -86,10 +80,8 @@ import {
     isCartesianChartConfig,
     isCustomSqlDimension,
     isDateItem,
-    isDimension,
     isExploreError,
     isFilterableDimension,
-    isFilterRule,
     isJwtUser,
     isNotNull,
     isStandardDateGranularity,
@@ -113,7 +105,6 @@ import {
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
     NotFoundError,
-    NotSupportedError,
     OpenIdIdentityIssuerType,
     ParameterError,
     PivotChartData,
@@ -136,7 +127,6 @@ import {
     ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
-    resolveBaseDimension,
     resolveQueryTimezone,
     resolveToBaseTimeDimension,
     ResultRow,
@@ -163,9 +153,7 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
-    ValuesColumn,
     VizColumn,
-    VizIndexType,
     WarehouseClient,
     WarehouseConnectionError,
     WarehouseCredentials,
@@ -173,7 +161,6 @@ import {
     WarehouseTableSchema,
     WarehouseTypes,
     type ApiCreateProjectResults,
-    type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
     type Metric,
     type ParameterDefinitions,
@@ -6782,517 +6769,6 @@ export class ProjectService extends BaseService {
                     spaces,
                 );
             },
-        );
-    }
-
-    static async _getCalculateTotalQuery(
-        timezone: string,
-        userAttributes: UserAttributeValueMap,
-        intrinsicUserAttributes: IntrinsicUserAttributes,
-        explore: Explore,
-        metricQuery: MetricQuery,
-        warehouseClient: WarehouseClient,
-        availableParameterDefinitions: ParameterDefinitions,
-        parameters?: ParametersValuesMap,
-        useTimezoneAwareDateTrunc?: boolean,
-        dataTimezone?: string,
-    ) {
-        const totalQuery: MetricQuery = {
-            ...metricQuery,
-            limit: 1,
-            tableCalculations: [],
-            sorts: [],
-            dimensions: [],
-            customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
-        };
-
-        const hasMetricFilters =
-            !!totalQuery.filters.metrics &&
-            flattenFilterGroup(totalQuery.filters.metrics).length > 0;
-        const hasTableCalculationFilters =
-            !!totalQuery.filters.tableCalculations &&
-            flattenFilterGroup(totalQuery.filters.tableCalculations).length > 0;
-
-        if (hasMetricFilters || hasTableCalculationFilters) {
-            throw new NotSupportedError(
-                'Totals cannot be correctly calculated with metric filters or table calculation filters',
-            );
-        }
-
-        const { query } = await ProjectService._compileQuery({
-            metricQuery: totalQuery,
-            explore,
-            warehouseSqlBuilder: warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            parameters,
-            availableParameterDefinitions,
-            useTimezoneAwareDateTrunc,
-            dataTimezone,
-        });
-
-        return { query, totalQuery };
-    }
-
-    async _calculateTotal(
-        account: Account,
-        projectUuid: string,
-        explore: Explore,
-        metricQuery: MetricQuery,
-        organizationUuid: string,
-        parameters?: ParametersValuesMap,
-    ) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
-        );
-
-        const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
-
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        const projectTimezone =
-            await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
-        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
-            userUuid: account.user.id,
-            organizationUuid: account.organization.organizationUuid,
-        });
-
-        try {
-            const { query } = await ProjectService._getCalculateTotalQuery(
-                timezone,
-                userAttributes,
-                intrinsicUserAttributes,
-                explore,
-                metricQuery,
-                warehouseClient,
-                availableParameterDefinitions,
-                parameters,
-                useTimezoneAwareDateTrunc,
-                warehouseClient.credentials.dataTimezone,
-            );
-
-            const queryTags: RunQueryTags = {
-                ...this.getUserQueryTags(account),
-                organization_uuid: account.organization.organizationUuid,
-                project_uuid: projectUuid,
-                explore_name: explore.name,
-                query_context: QueryExecutionContext.CALCULATE_TOTAL,
-            };
-
-            const { rows } = await warehouseClient.runQuery(query, queryTags);
-            await sshTunnel.disconnect();
-            return { row: rows[0] };
-        } catch (e) {
-            if (e instanceof NotSupportedError) {
-                this.logger.warn(e.message);
-                return { row: {} }; // no totals
-            }
-            throw e;
-        }
-    }
-
-    async _calculateTotalFromCacheOrWarehouse(
-        account: Account,
-        projectUuid: string,
-        explore: Explore,
-        metricQuery: MetricQuery,
-        invalidateCache: boolean,
-        organizationUuid: string,
-        parameters?: ParametersValuesMap,
-    ) {
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            warehouseCredentials,
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
-        );
-
-        const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
-
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        const projectTimezone =
-            await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
-        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
-            userUuid: account.user.id,
-            organizationUuid: account.organization.organizationUuid,
-        });
-
-        try {
-            const { query, totalQuery } =
-                await ProjectService._getCalculateTotalQuery(
-                    timezone,
-                    userAttributes,
-                    intrinsicUserAttributes,
-                    explore,
-                    metricQuery,
-                    warehouseClient,
-                    availableParameterDefinitions,
-                    parameters,
-                    useTimezoneAwareDateTrunc,
-                    warehouseClient.credentials.dataTimezone,
-                );
-
-            const queryTags: RunQueryTags = {
-                ...this.getUserQueryTags(account),
-                organization_uuid: organizationUuid,
-                project_uuid: projectUuid,
-                explore_name: explore.name,
-                query_context: QueryExecutionContext.CALCULATE_TOTAL,
-            };
-
-            const userUuid = getCacheUserUuid(
-                warehouseCredentials,
-                account.user.id,
-            );
-            const { rows, cacheMetadata } =
-                await this.getResultsFromCacheOrWarehouse({
-                    projectUuid,
-                    userUuid,
-                    context: QueryExecutionContext.CALCULATE_TOTAL,
-                    warehouseClient,
-                    metricQuery: totalQuery,
-                    query,
-                    queryTags,
-                    invalidateCache,
-                });
-            await sshTunnel.disconnect();
-            return { row: rows[0], cacheMetadata };
-        } catch (e) {
-            if (e instanceof NotSupportedError) {
-                this.logger.warn(e.message);
-                return { row: {} }; // no totals
-            }
-            throw e;
-        }
-    }
-
-    async calculateTotalFromSavedChart(
-        account: Account,
-        chartUuid: string,
-        dashboardFilters?: DashboardFilters,
-        invalidateCache: boolean = false,
-        parameters?: ParametersValuesMap,
-    ) {
-        assertIsAccountWithOrg(account);
-
-        const savedChart = await this.savedChartModel.get(
-            chartUuid,
-            undefined, // VersionUuid
-        );
-        const { organizationUuid, projectUuid } = savedChart;
-
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            savedChart.tableName,
-            organizationUuid,
-        );
-        const availableFieldIds = [
-            ...getDimensions(explore)
-                .filter((f) => isFilterableDimension(f) && !f.hidden)
-                .map(getItemId),
-            ...getMetrics(explore)
-                .filter((f) => !f.hidden)
-                .map(getItemId),
-        ];
-
-        const appliedDashboardFilters = dashboardFilters
-            ? {
-                  dimensions: getDashboardFilterRulesForTables(
-                      availableFieldIds,
-                      dashboardFilters.dimensions,
-                  ),
-                  metrics: getDashboardFilterRulesForTables(
-                      availableFieldIds,
-                      dashboardFilters.metrics,
-                  ),
-                  tableCalculations: getDashboardFilterRulesForTables(
-                      availableFieldIds,
-                      dashboardFilters.tableCalculations,
-                  ),
-              }
-            : undefined;
-
-        const metricQuery: MetricQuery = appliedDashboardFilters
-            ? addDashboardFiltersToMetricQuery(
-                  savedChart.metricQuery,
-                  appliedDashboardFilters,
-              )
-            : savedChart.metricQuery;
-
-        const spaceCtx =
-            await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                savedChart.spaceUuid,
-            );
-
-        if (
-            account.user.ability.cannot(
-                'view',
-                subject('SavedChart', spaceCtx),
-            ) ||
-            account.user.ability.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
-            savedChart.parameters,
-        );
-
-        const results = await this._calculateTotalFromCacheOrWarehouse(
-            account,
-            projectUuid,
-            explore,
-            metricQuery,
-            invalidateCache,
-            savedChart.organizationUuid,
-            combinedParameters,
-        );
-        return results.row;
-    }
-
-    async calculateTotalFromQuery(
-        account: Account,
-        projectUuid: string,
-        data: CalculateTotalFromQuery,
-    ) {
-        assertIsAccountWithOrg(account);
-
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-
-        if (
-            account.user.ability.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
-                'manage',
-                subject('CustomFields', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            data.explore,
-            organizationUuid,
-        );
-
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            data.parameters,
-        );
-
-        const results = await this._calculateTotal(
-            account,
-            projectUuid,
-            explore,
-            data.metricQuery,
-            organizationUuid,
-            combinedParameters,
-        );
-        return results.row;
-    }
-
-    async _calculateSubtotals(
-        account: Account,
-        projectUuid: string,
-        data: CalculateSubtotalsFromQuery,
-        explore: Explore,
-        organizationUuid: string,
-        parameters?: ParametersValuesMap,
-    ) {
-        const {
-            explore: exploreName,
-            metricQuery,
-            columnOrder,
-            pivotDimensions,
-            dateZoom,
-        } = data;
-
-        // Use the shared utility to prepare dimension groups
-        const { dimensionGroupsToSubtotal, analyticsData } =
-            SubtotalsCalculator.prepareDimensionGroups(
-                metricQuery,
-                columnOrder,
-                pivotDimensions,
-            );
-
-        this.analytics.trackAccount(account, {
-            event: 'query.subtotal',
-            properties: {
-                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                exploreName,
-                ...analyticsData,
-            },
-        });
-
-        const queryTags: RunQueryTags = {
-            ...this.getUserQueryTags(account),
-            organization_uuid: account.organization.organizationUuid,
-            project_uuid: projectUuid,
-            explore_name: exploreName,
-            query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
-        };
-
-        // Run the query for each dimension group and format the raw rows, this is needed because we apply raw formatting to date dimensions, and we need to compare values in the same format in the frontend
-        const runQueryAndFormatRaw = async (
-            subtotalMetricQuery: MetricQuery,
-        ) => {
-            const { rows, fields } = await this.runMetricQuery({
-                account,
-                metricQuery: subtotalMetricQuery,
-                explore,
-                queryTags,
-                projectUuid,
-                exploreName,
-                context: QueryExecutionContext.CALCULATE_SUBTOTAL,
-                csvLimit: null,
-                chartUuid: undefined,
-                parameters,
-                dateZoom,
-            });
-
-            return formatRawRows(rows, fields);
-        };
-
-        const subtotalsPromises = dimensionGroupsToSubtotal.map<
-            Promise<[string, Record<string, unknown>[]]>
-        >(async (subtotalDimensions) => {
-            let subtotals: Record<string, unknown>[] = [];
-
-            try {
-                // Use utility to create properly configured subtotal query
-                const { metricQuery: subtotalMetricQuery } =
-                    SubtotalsCalculator.createSubtotalQueryConfig(
-                        metricQuery,
-                        subtotalDimensions,
-                        pivotDimensions,
-                    );
-
-                subtotals = await runQueryAndFormatRaw(subtotalMetricQuery);
-            } catch (e) {
-                this.logger.error(
-                    `Error running subtotal query for dimensions ${subtotalDimensions.join(
-                        ',',
-                    )}`,
-                );
-            }
-
-            return [
-                SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
-                subtotals,
-            ] satisfies [string, Record<string, unknown>[]];
-        });
-
-        const subtotalsEntries = await Promise.all(subtotalsPromises);
-        return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
-    }
-
-    async calculateSubtotalsFromQuery(
-        account: Account,
-        projectUuid: string,
-        data: CalculateSubtotalsFromQuery,
-    ) {
-        assertIsAccountWithOrg(account);
-
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-
-        if (
-            account.user.ability.cannot(
-                'manage',
-                subject('Explore', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            account.user.ability.cannot(
-                'manage',
-                subject('CustomFields', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
-        const explore = await this.getExplore(
-            account,
-            projectUuid,
-            data.explore,
-            organizationUuid,
-        );
-
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            data.parameters,
-        );
-
-        // Reuse the _calculateTotal method by passing the explore, metricQuery, and organizationUuid
-        return this._calculateSubtotals(
-            account,
-            projectUuid,
-            data,
-            explore,
-            organizationUuid,
-            combinedParameters,
         );
     }
 
