@@ -195,6 +195,43 @@ Each preview response includes a strict CSP header:
 
 ---
 
+## Image Uploads
+
+Users can attach images (screenshots, mockups, diagrams) to their prompts. These images are uploaded to S3 and passed
+to Claude as context during code generation.
+
+### Upload Flow
+
+```mermaid
+flowchart LR
+    A["1. User attaches\nimage in chat UI"] --> B["2. POST raw bytes\nto backend"]
+    B --> C["3. Backend streams\nto S3 (no buffering)"]
+    C --> D["4. Return s3Key"]
+    D --> E["5. Include s3Key in\ngenerate/iterate request"]
+```
+
+1. **User attaches image** — The chat UI lets users add an image file. A local preview is shown immediately.
+
+2. **Upload to backend** — The frontend sends the raw file bytes directly to the backend via
+   `POST /api/v1/ee/projects/{projectUuid}/apps/upload-image?appUuid={appUuid}` with the image's MIME type as the
+   `Content-Type` header. This is a plain `fetch` call (not `lightdashApi`) because the body is raw binary, not JSON.
+
+3. **Stream to S3** — The backend streams the request body directly to S3 via `PutObjectCommand` without buffering the
+   entire file in memory. The image is stored at `apps/{appDir}/images/{uuid}.{ext}`.
+
+4. **Return s3Key** — The backend returns `{ s3Key }` — the S3 object key where the image was stored.
+
+5. **Attach to prompt** — When the user submits their prompt, the s3Key is included as an `AppImageAttachment` in the
+   generate or iterate request body. The pipeline reads the image from S3 and provides it to Claude.
+
+### Constraints
+
+- **Allowed MIME types**: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
+- **Max size**: 10 MB (validated via `Content-Length` header before streaming)
+- **Permission**: Requires `manage:DataApp` scope (same as all app operations)
+
+---
+
 ## Frontend Architecture
 
 ### Pages
