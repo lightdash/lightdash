@@ -1,5 +1,6 @@
 .container {
     width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
 }
@@ -54,12 +55,6 @@
             color: var(--mantine-color-ldGray-7) !important;
         }
     }
-}
-
-.errorText {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-red-6);
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm) 0;
 }
 
 .mentionLabel {

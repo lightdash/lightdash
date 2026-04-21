@@ -419,11 +419,7 @@ const TableCalculationModal: FC<Props> = ({
             return (
                 <Group gap="xs" wrap="nowrap">
                     <Box className={classes.typeOptionIcon}>
-                        <MantineIcon
-                            icon={meta.icon}
-                            size="sm"
-                            color="ldGray.6"
-                        />
+                        <MantineIcon icon={meta.icon} size="sm" />
                     </Box>
                     <Text size="sm" fw={500}>
                         {meta.label}
@@ -553,7 +549,7 @@ const TableCalculationModal: FC<Props> = ({
                             <MantineIcon
                                 icon={selectedTypeMeta.icon}
                                 size="sm"
-                                color="ldGray.6"
+                                className={classes.typeInputIcon}
                             />
                         }
                         renderOption={renderTypeOption}

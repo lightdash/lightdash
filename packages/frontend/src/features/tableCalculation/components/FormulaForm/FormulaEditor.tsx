@@ -5,7 +5,7 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { listFunctions } from '@lightdash/formula';
-import { Box, Text } from '@mantine-8/core';
+import { Box } from '@mantine-8/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -93,7 +93,6 @@ type Props = {
     initialContent?: string;
     onTextChange?: (text: string) => void;
     onBlur?: () => void;
-    parseError?: string | null;
     editorRef?: React.MutableRefObject<Editor | null>;
     isFullScreen?: boolean;
 };
@@ -104,7 +103,6 @@ export const FormulaEditor: FC<Props> = ({
     initialContent,
     onTextChange,
     onBlur,
-    parseError,
     editorRef,
     isFullScreen,
 }) => {
@@ -188,7 +186,7 @@ export const FormulaEditor: FC<Props> = ({
             }),
             Placeholder.configure({
                 placeholder:
-                    'Use @ to reference fields, # for functions. e.g. IF(@Revenue > 1000, "high", "low")',
+                    'Type @ for fields or # for functions. Example: IF(@Revenue > 1000, "high", "low")',
             }),
         ],
         content: initialContent
@@ -242,9 +240,6 @@ export const FormulaEditor: FC<Props> = ({
                     />
                 </Box>
             </RichTextEditor>
-            {parseError && (
-                <Text className={styles.errorText}>{parseError}</Text>
-            )}
         </Box>
     );
 };
