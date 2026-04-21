@@ -31,7 +31,9 @@ test.describe('Dashboard', () => {
 
         await expect(page.locator('.echarts-for-react')).toHaveCount(3); // Charts
 
-        await expect(grid.getByText('Payments total revenue')).toBeVisible(); // BigNumber chart
+        await expect(
+            grid.getByText('Payments total revenue', { exact: true }),
+        ).toBeVisible(); // BigNumber chart
         await expect(grid.locator('thead th')).toHaveCount(6); // Table chart
     });
 
@@ -187,7 +189,10 @@ test.describe('Dashboard', () => {
             .getByRole('dialog')
             .locator('.mantine-MultiSelect-input')
             .click(); // Close dropdown
-        await page.getByText('Add').click();
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Add', exact: true })
+            .click();
         await expect(
             page.getByText('How much revenue do we have per payment method?'),
         ).toBeVisible();
@@ -200,14 +205,14 @@ test.describe('Dashboard', () => {
         await expect(
             page.getByText('You are creating this chart from within "Title"'),
         ).toBeVisible();
-        await page.getByText('Payments').click();
-        await page.getByText('Payment method').click();
+        await page.getByText('Payments', { exact: true }).click();
+        await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Unique payment count').click();
-        await page.getByText('Save chart').click();
+        await page.getByRole('button', { name: 'Save chart' }).click();
         await page
             .getByTestId('ChartCreateModal/NameInput')
             .fill(`What's the number of unique payments per payment method?`);
-        await page.getByText('Save').click();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(
             page.getByText(
                 `Success! What's the number of unique payments per payment method? was added to Title`,
@@ -230,22 +235,25 @@ test.describe('Dashboard', () => {
                 '[data-combobox-option="true"][value="payments_payment_method"]',
             )
             .click();
-        // using force click here because this is a mantine switch and the actual checkbox is hidden
-        await page.getByLabel('Provide default value').click({ force: true });
+        // Mantine Switch keeps its <input> visually hidden, so click the
+        // associated <label> text instead of the input itself.
+        await page.getByText('Provide default value').click();
         await page
             .getByPlaceholder('Start typing to filter results')
             .fill('credit_card');
         await page.getByRole('option', { name: 'credit_card' }).click();
-        await page
-            .getByRole('button', { name: 'Apply' })
-            .click({ force: true });
+        // Close the multi-value combobox so the Apply button becomes enabled
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Apply' }).click();
 
         // Filter should be applied and no other payment methods should be visible in the charts
         await expect(page.getByText('bank_transfer')).toHaveCount(0);
 
         // Save dashboard so that the filter persists across navigations
         await page.getByText('Save changes').click();
-        await expect(page.getByText('Dashboard was updated')).toBeVisible();
+        await expect(
+            page.getByText('Dashboard was updated').first(),
+        ).toBeVisible();
 
         // Re-enter edit mode
         await page.getByLabel('Edit dashboard').click();
@@ -258,14 +266,14 @@ test.describe('Dashboard', () => {
         await expect(
             page.getByText('You are creating this chart from within "Title"'),
         ).toBeVisible();
-        await page.getByText('Payments').click();
-        await page.getByText('Payment method').click();
+        await page.getByText('Payments', { exact: true }).click();
+        await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Total revenue').click();
-        await page.getByText('Save chart').click();
+        await page.getByRole('button', { name: 'Save chart' }).click();
         await page
             .getByTestId('ChartCreateModal/NameInput')
             .fill(`What's the total revenue per payment method?`);
-        await page.getByText('Save').click();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(
             page.getByText(
                 `Success! What's the total revenue per payment method? was added to Title`,
@@ -317,7 +325,9 @@ test.describe('Dashboard', () => {
 
         // Save dashboard so that the filter target change persists across navigations
         await page.getByText('Save changes').click();
-        await expect(page.getByText('Dashboard was updated')).toBeVisible();
+        await expect(
+            page.getByText('Dashboard was updated').first(),
+        ).toBeVisible();
 
         // Re-enter edit mode
         await page.getByLabel('Edit dashboard').click();
@@ -332,13 +342,13 @@ test.describe('Dashboard', () => {
         ).toBeVisible();
         await page.getByText('staging').click();
         await page.getByText('Stg payments').click();
-        await page.getByText('Payment method').click();
+        await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Amount').click();
-        await page.getByText('Save chart').click();
+        await page.getByRole('button', { name: 'Save chart' }).click();
         await page
             .getByTestId('ChartCreateModal/NameInput')
             .fill(`Stg Payments (payment method x amount)?`);
-        await page.getByText('Save').click();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(
             page.getByText(
                 `Success! Stg Payments (payment method x amount)? was added to Title`,
@@ -383,16 +393,19 @@ test.describe('Dashboard', () => {
         await page
             .getByRole('menuitem', { name: 'Markdown' })
             .click({ force: true });
-        await page.getByLabel('Title').fill('Title');
+        const addTileForm = page.getByTestId('add-tile-form');
+        await addTileForm.getByRole('textbox', { name: 'Title' }).fill('Title');
+        await addTileForm.locator('textarea').fill('Content');
         await page
-            .getByTestId('add-tile-form')
-            .locator('textarea')
-            .fill('Content');
-        await page.getByText('Add').click();
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Add', exact: true })
+            .click();
 
         await page.getByText('Save changes').click();
 
-        await expect(page.getByText('Dashboard was updated')).toBeVisible();
+        await expect(
+            page.getByText('Dashboard was updated').first(),
+        ).toBeVisible();
 
         await expect(page.getByText('Loading chart')).toHaveCount(0); // Finish loading
         await expect(page.getByText('No chart available')).toHaveCount(0);
@@ -416,18 +429,20 @@ test.describe('Dashboard', () => {
         await expect(
             page.getByText('You are creating this chart from within "Small"'),
         ).toBeVisible();
-        await page.getByText('Payments').click();
-        await page.getByText('Payment method').click();
+        await page.getByText('Payments', { exact: true }).click();
+        await page.getByText('Payment method', { exact: true }).click();
         await page.getByText('Unique payment count').click();
-        await page.getByText('Save chart').click();
+        await page.getByRole('button', { name: 'Save chart' }).click();
         await page
             .getByTestId('ChartCreateModal/NameInput')
             .fill(`What's the number of unique payments per payment method?`);
-        await page.getByText('Save').click();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
 
         await page.getByText('Save changes').click();
 
-        await expect(page.getByText('Dashboard was updated')).toBeVisible();
+        await expect(
+            page.getByText('Dashboard was updated').first(),
+        ).toBeVisible();
 
         await page.waitForTimeout(2000);
 

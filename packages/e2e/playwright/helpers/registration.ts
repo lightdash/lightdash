@@ -3,7 +3,7 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
 } from '@lightdash/common';
 import type { APIRequestContext, Browser, Page } from '@playwright/test';
-import { expect } from '@playwright/test';
+import { expect, request as playwrightRequest } from '@playwright/test';
 
 /**
  * Register a new user with a unique email.
@@ -111,40 +111,51 @@ type ProjectPermission = {
 /**
  * Login as admin, create a user with specific permissions, and return the email.
  * Equivalent to cy.loginWithPermissions(orgRole, projectPermissions)
+ *
+ * The `request` argument is accepted for API symmetry but we run the admin
+ * logins and invite calls inside a fresh, isolated APIRequestContext so that
+ * passport's session regeneration on /login does not invalidate the caller's
+ * admin session (including the one saved in global-setup's storage state).
  */
 export async function loginWithPermissions(
-    request: APIRequestContext,
+    _unused: APIRequestContext,
     orgRole: string,
     projectPermissions: ProjectPermission[],
 ): Promise<string> {
-    // Login as admin first
-    const loginResponse = await request.post('api/v1/login', {
-        data: {
-            email: SEED_ORG_1_ADMIN_EMAIL.email,
-            password: SEED_ORG_1_ADMIN_PASSWORD.password,
-        },
-    });
-    expect(loginResponse.status()).toBe(200);
+    const baseURL = process.env.BASE_URL ?? 'http://localhost:3000';
+    const request = await playwrightRequest.newContext({ baseURL });
+    try {
+        // Login as admin first
+        const loginResponse = await request.post('api/v1/login', {
+            data: {
+                email: SEED_ORG_1_ADMIN_EMAIL.email,
+                password: SEED_ORG_1_ADMIN_PASSWORD.password,
+            },
+        });
+        expect(loginResponse.status()).toBe(200);
 
-    const email = `demo+${orgRole}-${Date.now()}@lightdash.com`;
+        const email = `demo+${orgRole}-${Date.now()}@lightdash.com`;
 
-    const inviteCode = await invite(request, email, orgRole);
+        const inviteCode = await invite(request, email, orgRole);
 
-    // eslint-disable-next-line no-restricted-syntax
-    for (const projectPermission of projectPermissions) {
-        // eslint-disable-next-line no-await-in-loop
-        await addProjectPermission(
-            request,
-            email,
-            projectPermission.role,
-            projectPermission.projectUuid,
-        );
+        // eslint-disable-next-line no-restricted-syntax
+        for (const projectPermission of projectPermissions) {
+            // eslint-disable-next-line no-await-in-loop
+            await addProjectPermission(
+                request,
+                email,
+                projectPermission.role,
+                projectPermission.projectUuid,
+            );
+        }
+
+        await registerWithCode(request, inviteCode);
+        await verifyEmail(request);
+
+        return email;
+    } finally {
+        await request.dispose();
     }
-
-    await registerWithCode(request, inviteCode);
-    await verifyEmail(request);
-
-    return email;
 }
 
 /**

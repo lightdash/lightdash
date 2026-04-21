@@ -12,15 +12,16 @@ test.describe('Pivot Tables', () => {
         );
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
-        // Create a pivot table
-        await expect(page.getByText('placed')).toBeVisible();
-        await expect(page.getByText('shipped')).toBeVisible();
+        // These strings appear both in the pivot header and in the raw
+        // results table, so scope the assertions to the first match.
+        await expect(page.getByText('placed').first()).toBeVisible();
+        await expect(page.getByText('shipped').first()).toBeVisible();
 
-        await expect(page.getByText('False')).toBeVisible();
-        await expect(page.getByText('2025-06-09')).toBeVisible();
-        await expect(page.getByText('$1.00')).toBeVisible();
+        await expect(page.getByText('False').first()).toBeVisible();
+        await expect(page.getByText('2025-06-09').first()).toBeVisible();
+        await expect(page.getByText('$1.00').first()).toBeVisible();
     });
 
     test('Can create a pivot table chart on explore', async ({
@@ -32,7 +33,7 @@ test.describe('Pivot Tables', () => {
         );
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         await expect(page.getByText('Tables')).toBeVisible(); // Ensure the sidebar has loaded before clicking configure below
         await page.getByText('Configure').click();

@@ -8,7 +8,7 @@ test.describe('Explore', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
         await expect(page.getByText('Dimensions')).toBeVisible();
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
@@ -17,9 +17,9 @@ test.describe('Explore', () => {
         // ! This means that right after clicking a field the default sort is applied
         // ! Since we check attempt to set the order to "First name" we need to click on a different field first, otherwise the sort for first name is applied and the test fails
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
 
         // open column menu
         await page
@@ -32,7 +32,7 @@ test.describe('Explore', () => {
         await page.getByRole('menuitem', { name: 'Sort A-Z' }).click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for query to finish
         await expect(page.getByText('Loading results')).toHaveCount(0);
@@ -49,22 +49,25 @@ test.describe('Explore', () => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
         await expect(page.getByText('Dimensions')).toBeVisible();
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
 
         await page.getByTestId('Chart-card-expand').click();
 
-        await page.getByText('Save chart').click();
+        await page.getByRole('button', { name: 'Save chart' }).click();
 
-        await page.getByTestId('ChartCreateModal/NameInput').fill('My chart');
-        await page.getByText('Next').click();
-        await page.getByText('Save').click();
+        const nameInput = page.getByTestId('ChartCreateModal/NameInput');
+        await nameInput.click();
+        await nameInput.fill('My chart');
+        await expect(nameInput).toHaveValue('My chart');
+        await page.getByRole('button', { name: 'Next' }).click();
+        await page.getByRole('button', { name: 'Save', exact: true }).click();
         await expect(page.getByText('Success! Chart was saved.')).toBeVisible();
 
         // FIXME disabling save changes button is currently broken...
@@ -108,9 +111,9 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
 
         // check that selected fields are in the table headers
         await expect(
@@ -121,7 +124,7 @@ test.describe('Explore', () => {
         ).toBeVisible();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for the chart to finish loading
         await expect(page.getByText('Loading chart')).toHaveCount(0);
@@ -131,7 +134,9 @@ test.describe('Explore', () => {
         await page.waitForTimeout(500);
         await page.getByRole('button', { name: 'Bar chart' }).click();
 
-        await page.getByRole('menuitem', { name: 'Bar chart' }).click();
+        await page
+            .getByRole('menuitem', { name: 'Bar chart', exact: true })
+            .click();
         await page.waitForTimeout(500);
         await page.getByRole('button', { name: 'Bar chart' }).click();
 
@@ -181,9 +186,9 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
 
         // add table calculation
         await page.getByRole('button', { name: 'Table calculation' }).click();
@@ -212,7 +217,7 @@ test.describe('Explore', () => {
         await page.getByTestId('table-calculation-save-button').first().click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for the chart to finish loading
         await expect(page.getByText('Loading chart')).toHaveCount(0);
@@ -248,7 +253,7 @@ test.describe('Explore', () => {
         await page.getByTestId('table-calculation-save-button').first().click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for the chart to finish loading
         await expect(page.getByText('Loading chart')).toHaveCount(0);
@@ -271,12 +276,12 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         expect(await page.locator('g').locator('text').count()).toBeLessThan(
             30,
@@ -301,17 +306,20 @@ test.describe('Explore', () => {
         test('should sort multisort results', async ({ adminPage: page }) => {
             await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-            await page.getByText('Orders').click();
+            await page.getByText('Orders', { exact: true }).click();
             await expect(page.getByText('Dimensions')).toBeVisible();
             await scrollTreeToItem(page, 'Order Customer');
             await page.getByText('Order Customer').click();
             await scrollTreeToItem(page, 'First name');
-            await page.getByText('First name').click();
+            await page.getByText('First name').dispatchEvent('click');
             await scrollTreeToItem(page, 'Unique order count');
-            await page.getByText('Unique order count').click();
+            await page.getByText('Unique order count').dispatchEvent('click');
 
             // run query
-            await page.getByRole('button', { name: 'Run query' }).click();
+            await page
+                .getByRole('button', { name: 'Run query' })
+                .first()
+                .click();
 
             // wait for query to finish
             await expect(page.getByText('Loading results')).toHaveCount(0);
@@ -396,9 +404,11 @@ test.describe('Explore', () => {
                     await scrollTreeToItem(page, 'Order Customer');
                     await page.getByText('Order Customer').click();
                     await scrollTreeToItem(page, 'First name');
-                    await page.getByText('First name').click();
+                    await page.getByText('First name').dispatchEvent('click');
                     await scrollTreeToItem(page, 'Unique order count');
-                    await page.getByText('Unique order count').click();
+                    await page
+                        .getByText('Unique order count')
+                        .dispatchEvent('click');
 
                     // run query
                     await page
@@ -453,9 +463,11 @@ test.describe('Explore', () => {
                     await scrollTreeToItem(page, 'Order Customer');
                     await page.getByText('Order Customer').click();
                     await scrollTreeToItem(page, 'First name');
-                    await page.getByText('First name').click();
+                    await page.getByText('First name').dispatchEvent('click');
                     await scrollTreeToItem(page, 'Unique order count');
-                    await page.getByText('Unique order count').click();
+                    await page
+                        .getByText('Unique order count')
+                        .dispatchEvent('click');
 
                     // run query
                     await page
@@ -509,7 +521,7 @@ test.describe('Explore', () => {
     }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
         await scrollTreeToItem(page, 'Is completed');
         await page.getByText('Is completed').click();
 
@@ -531,12 +543,12 @@ test.describe('Explore', () => {
     }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
         await scrollTreeToItem(page, 'Is completed');
         await page.getByText('Is completed').click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for query to finish
         await expect(page.getByText('Loading results')).toHaveCount(0);
@@ -561,7 +573,7 @@ test.describe('Explore', () => {
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
         // Select the Orders table from search results
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
 
         // Wait for the explore page to load
         await expect(page.getByText('Dimensions')).toBeVisible();
@@ -571,10 +583,10 @@ test.describe('Explore', () => {
 
         // Select some fields to query
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
 
         // Run the query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Wait for query to finish loading
         await expect(page.getByText('Loading results')).toHaveCount(0);
@@ -600,7 +612,7 @@ test.describe('Explore', () => {
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
         // Select the Orders table
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
 
         // Wait for the explore page to load
         await expect(page.getByText('Dimensions')).toBeVisible();

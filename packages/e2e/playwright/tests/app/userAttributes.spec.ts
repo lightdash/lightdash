@@ -30,7 +30,7 @@ test.describe('User attributes sql_filter', () => {
         await page.getByText('First name').click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         await expect(page.getByText('Error loading results')).toBeVisible();
 
@@ -45,11 +45,11 @@ test.describe('User attributes sql_filter', () => {
         await page.getByText('Add new attribute').click();
 
         await page.locator('input[name="name"]').fill('customer_id');
-        await page.getByText('Add user').click();
+        await page.getByRole('button', { name: 'Add user' }).click();
         await page.getByPlaceholder('E.g. test@lightdash.com').fill('demo');
         await page.getByText('demo@lightdash.com').click();
         await page.locator('input[name="users.0.value"]').fill('20');
-        await page.getByText('Add').click();
+        await page.getByRole('button', { name: 'Add', exact: true }).click();
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 
@@ -63,7 +63,7 @@ test.describe('User attributes sql_filter', () => {
         await page.getByText('First name').click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('Anna')).toBeVisible();
     });
 
@@ -75,7 +75,7 @@ test.describe('User attributes sql_filter', () => {
         await page.getByText('Edit').click();
         await page.locator('input[name="users.0.value"]').clear();
         await page.locator('input[name="users.0.value"]').fill('30');
-        await page.getByText('Update').click();
+        await page.getByRole('button', { name: 'Update' }).click();
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 
@@ -89,7 +89,7 @@ test.describe('User attributes sql_filter', () => {
         await page.getByText('First name').click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('Christina')).toBeVisible({
             timeout: 30000,
         });
@@ -146,11 +146,11 @@ test.describe('User attributes dimension required_attribute', () => {
         await page.getByText('Add new attribute').click();
 
         await page.locator('input[name="name"]').fill('is_admin');
-        await page.getByText('Add user').click();
+        await page.getByRole('button', { name: 'Add user' }).click();
         await page.getByPlaceholder('E.g. test@lightdash.com').fill('demo');
         await page.getByText('demo@lightdash.com').click();
         await page.locator('input[name="users.0.value"]').fill('true');
-        await page.getByText('Add').click();
+        await page.getByRole('button', { name: 'Add', exact: true }).click();
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 
@@ -162,7 +162,7 @@ test.describe('User attributes dimension required_attribute', () => {
         await page.getByText('Last name').click();
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('W.')).toBeVisible({ timeout: 30000 });
     });
 
@@ -174,7 +174,7 @@ test.describe('User attributes dimension required_attribute', () => {
         await page.getByText('Edit').click();
         await page.locator('input[name="users.0.value"]').clear();
         await page.locator('input[name="users.0.value"]').fill('false');
-        await page.getByText('Update').click();
+        await page.getByRole('button', { name: 'Update' }).click();
         await expect(page.getByText('Success')).toBeVisible({ timeout: 10000 });
     });
 

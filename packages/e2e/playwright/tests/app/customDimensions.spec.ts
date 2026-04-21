@@ -33,7 +33,7 @@ test.describe.skip('Custom dimensions', () => {
         await scrollTreeToItem(page, 'Total order amount');
         await page.getByText('Total order amount').click();
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check valid results
         await expect(page.getByText('0 - 11')).toBeVisible();
@@ -81,7 +81,7 @@ test.describe.skip('Custom dimensions', () => {
         await scrollTreeToItem(page, 'Total revenue');
         await page.getByText('Total revenue').click();
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Show SQL
         await page.getByTestId('Chart-card-expand').click(); // Close chart
@@ -123,7 +123,7 @@ test.describe.skip('Custom dimensions', () => {
         await scrollTreeToItem(page, 'Total revenue');
         await page.getByText('Total revenue').click();
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check results
         await expect(page.getByText('payment_credit_card')).toBeVisible();
@@ -182,7 +182,7 @@ test.describe.skip('Custom dimensions', () => {
         await scrollTreeToItem(page, 'discounted amount');
         await treeContainer.getByText('discounted amount').click();
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check results
         await expect(page.getByText('bank_transfer')).toBeVisible();

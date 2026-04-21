@@ -28,7 +28,7 @@ test.describe('Settings - Invites', () => {
         await page.goto(value);
 
         await expect(page.locator('[data-cy="welcome-user"]')).toBeVisible();
-        await page.getByText('Join your team').click();
+        await page.getByRole('button', { name: 'Join your team' }).click();
         await page.getByPlaceholder('Your first name').fill('Mary');
         await page.getByPlaceholder('Your last name').fill('Green');
         await expect(

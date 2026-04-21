@@ -8,6 +8,7 @@ test.describe('Minimal pages', () => {
         const response = await page.request.get(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
+        expect(response.status()).toBe(200);
         const body = await response.json();
         const savedChart = body.results.find(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,6 +29,7 @@ test.describe('Minimal pages', () => {
         const response = await page.request.get(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
+        expect(response.status()).toBe(200);
         const body = await response.json();
         const savedChart = body.results.find(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,6 +52,7 @@ test.describe('Minimal pages', () => {
         const response = await page.request.get(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
         );
+        expect(response.status()).toBe(200);
         const body = await response.json();
         const savedChart = body.results.find(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,6 +73,7 @@ test.describe('Minimal pages', () => {
         const response = await page.request.get(
             `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/dashboards`,
         );
+        expect(response.status()).toBe(200);
         const body = await response.json();
         const dashboard = body.results.find(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,9 +121,12 @@ test.describe('Minimal pages', () => {
             `/minimal/projects/${SEED_PROJECT.project_uuid}/dashboards/${edgeCasesDashboardUuid}`,
         );
 
-        // Wait for screenshot ready indicator to appear (max 30s for slow queries)
+        // Wait for screenshot ready indicator to appear (max 30s for slow
+        // queries). The indicator is aria-hidden="true" by design (it only
+        // exists as a signal for the headless browser), so we check that it
+        // is attached rather than visible.
         const indicator = page.locator(`#${SCREENSHOT_READY_INDICATOR_ID}`);
-        await expect(indicator).toBeVisible({ timeout: 30000 });
+        await expect(indicator).toBeAttached({ timeout: 30000 });
 
         // Verify the indicator has expected data attributes
         await expect(indicator).toHaveAttribute('data-tiles-total', '4');

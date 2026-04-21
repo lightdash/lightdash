@@ -163,7 +163,7 @@ test.describe('Date tests', () => {
         await page.goto(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('SQL')).toBeVisible();
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 
@@ -205,9 +205,10 @@ test.describe('Date tests', () => {
         }
 
         await page.getByTestId('SQL-card-expand').click();
-        await expect(
-            page.getByText(`("events".timestamp_tz) = ('2020-08-11 22:58:00')`),
-        ).toBeVisible(); // SQL
+        const sql = await getMonacoEditorText(page);
+        expect(sql).toContain(
+            `("events".timestamp_tz) = ('2020-08-11 22:58:00+00:00')`,
+        );
     });
 
     // todo: move to unit test
@@ -219,7 +220,7 @@ test.describe('Date tests', () => {
         await page.goto(
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('SQL')).toBeVisible();
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 
@@ -227,7 +228,7 @@ test.describe('Date tests', () => {
         await page.getByTestId('SQL-card-expand').click();
         await page.getByTestId('Chart-card-expand').click(); // Close chart
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         // Filter by year
         await page
             .locator('.mantine-Card-root tbody > :nth-child(1) > :nth-child(5)')
@@ -294,14 +295,14 @@ test.describe('Date tests', () => {
         await page.goto(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('SQL')).toBeVisible();
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 
         await page.getByTestId('Filters-card-expand').click();
         await page.getByTestId('SQL-card-expand').click();
         await page.getByTestId('Chart-card-expand').click(); // Close chart
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Filter by raw
         await page
@@ -485,7 +486,7 @@ test.describe('Date tests', () => {
         ).toBeDisabled(); // Wait until it finishes loading the button
         await expect(page.getByText('Filters')).toBeVisible();
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('Loading chart')).toHaveCount(0);
 
         // Filter by day
@@ -538,13 +539,13 @@ test.describe('Date tests', () => {
             `/projects/${SEED_PROJECT.project_uuid}/tables/orders${exploreStateUrlParams}`,
         );
 
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
         await page.getByTestId('Chart-card-expand').click(); // Close chart
 
         await expect(page.getByText('Search Jaffle shop')).toBeVisible(); // Wait until it finishes loading the nav bar
         await expect(page.getByText('Save chart')).toBeVisible(); // Wait until it finishes loading the button
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
         await expect(page.getByText('Results may be incomplete')).toBeVisible();
 
         await expect(page.getByText('Filters')).toBeVisible();

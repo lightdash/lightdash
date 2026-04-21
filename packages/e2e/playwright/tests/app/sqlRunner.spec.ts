@@ -23,7 +23,10 @@ test.describe('SQL Runner (new)', () => {
     }) => {
         // Verify the autocomplete SQL query
         await expect(page.locator('.monaco-editor')).toBeVisible();
-        await page.getByText('jaffle').click();
+        await page
+            .getByTestId('common-sidebar')
+            .getByRole('button', { name: 'jaffle' })
+            .click();
         await page.waitForTimeout(500);
         await page.getByText(/^orders$/).click();
         await expect(page.locator('.monaco-editor')).toContainText(
@@ -84,7 +87,10 @@ test.describe('SQL Runner (new)', () => {
 
         // Verify that the query is run
         await expect(page.locator('.monaco-editor')).toBeVisible();
-        await page.getByText('jaffle').click();
+        await page
+            .getByTestId('common-sidebar')
+            .getByRole('button', { name: 'jaffle' })
+            .click();
         await page.waitForTimeout(500);
         await page.getByText(/^customers$/).click();
         await expect(page.locator('.monaco-editor')).toContainText(
@@ -96,7 +102,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that the chart is ready to be configured
-        await page.getByLabel('Chart').click();
+        await page.getByText('Chart', { exact: true }).click();
         await expect(
             page
                 .locator('.echarts-for-react')
@@ -155,7 +161,10 @@ test.describe('SQL Runner (new)', () => {
 
         // Verify that the query is run
         await expect(page.locator('.monaco-editor')).toBeVisible();
-        await page.getByText('jaffle').click();
+        await page
+            .getByTestId('common-sidebar')
+            .getByRole('button', { name: 'jaffle' })
+            .click();
         await page.waitForTimeout(500);
         await page.getByText(/^customers$/).click();
         await expect(page.locator('.monaco-editor')).toContainText(
@@ -167,7 +176,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that the chart is ready to be configured
-        await page.getByLabel('Chart').click();
+        await page.getByText('Chart', { exact: true }).click();
         await expect(
             page
                 .locator('.echarts-for-react')
@@ -224,7 +233,10 @@ test.describe('SQL Runner (new)', () => {
 
         // Verify that the query is run
         await expect(page.locator('.monaco-editor')).toBeVisible();
-        await page.getByText('jaffle').click();
+        await page
+            .getByTestId('common-sidebar')
+            .getByRole('button', { name: 'jaffle' })
+            .click();
         await page.waitForTimeout(500);
         await page.getByText(/^customers$/).click();
         await expect(page.locator('.monaco-editor')).toContainText(
@@ -235,8 +247,9 @@ test.describe('SQL Runner (new)', () => {
             'customer_id',
         );
 
-        // View chart
-        await page.getByLabel('Chart').click();
+        // View chart. The Chart tab is a Mantine SegmentedControl whose
+        // <input> is visually hidden, so click the label text directly.
+        await page.getByText('Chart', { exact: true }).click();
 
         // Verify that the chart is saved
         await page.getByText('Save').click();
@@ -271,7 +284,7 @@ test.describe('SQL Runner (new)', () => {
             page.locator('div[data-testid="chart-data-table"]'),
         ).toContainText('age_sum');
 
-        await page.getByLabel('SQL').click();
+        await page.getByText('SQL', { exact: true }).click();
         await expect(page.locator('.monaco-editor')).toBeVisible();
         await page.locator('.monaco-editor').click();
         await page.keyboard.press('Meta+a');
@@ -284,7 +297,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that there are errors to be fixed and fix them
-        await page.getByLabel('Chart').click();
+        await page.getByText('Chart', { exact: true }).click();
         await expect(
             page.getByText('Column "created" does not exist. Choose another'),
         ).toBeVisible();
@@ -341,7 +354,10 @@ test.describe('SQL Runner (new)', () => {
 
         // Verify that the query is run
         await expect(page.locator('.monaco-editor')).toBeVisible();
-        await page.getByText('jaffle').click();
+        await page
+            .getByTestId('common-sidebar')
+            .getByRole('button', { name: 'jaffle' })
+            .click();
         await page.waitForTimeout(500);
         await page.getByText(/^customers$/).click();
         await expect(page.locator('.monaco-editor')).toContainText(
@@ -353,7 +369,7 @@ test.describe('SQL Runner (new)', () => {
         );
 
         // Verify that the chart is ready to be configured
-        await page.getByLabel('Chart').click();
+        await page.getByText('Chart', { exact: true }).click();
         await expect(
             page
                 .locator('.echarts-for-react')

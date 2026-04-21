@@ -52,14 +52,19 @@ test.describe('Space', () => {
         await expect(page.getByText('Chart name')).toBeVisible();
 
         await expect(
-            page.locator('.mantine-8-Modal-body').locator('button'),
+            page
+                .locator('.mantine-8-Modal-body')
+                .getByRole('button', { name: 'Next' }),
         ).toBeDisabled();
-        await page
-            .getByTestId('ChartCreateModal/NameInput')
-            .fill(`Private chart ${timestamp}`);
+        const chartNameInput = page.getByTestId('ChartCreateModal/NameInput');
+        await chartNameInput.click();
+        await chartNameInput.fill(`Private chart ${timestamp}`);
+        await expect(chartNameInput).toHaveValue(`Private chart ${timestamp}`);
         await expect(
-            page.getByTestId('ChartCreateModal/NameInput'),
-        ).toHaveValue(`Private chart ${timestamp}`);
+            page
+                .locator('.mantine-8-Modal-body')
+                .getByRole('button', { name: 'Next' }),
+        ).toBeEnabled();
 
         // Saves to space by default
         await page
@@ -83,8 +88,8 @@ test.describe('Space', () => {
         await page
             .getByPlaceholder('eg. KPI Dashboard')
             .fill(`Private dashboard ${timestamp}`);
-        await page.getByText('Next').click();
-        await page.getByText('Create').click();
+        await page.getByRole('button', { name: 'Next' }).click();
+        await page.getByRole('button', { name: 'Create', exact: true }).click();
 
         // Go back to space using url
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
@@ -162,7 +167,7 @@ test.describe('Space', () => {
         // Don't show private spaces in spaces page
         await editorPage.getByText('All Spaces').click();
         await expect(
-            editorPage.getByText(JAFFLE_SHOP_SPACE_NAME),
+            editorPage.getByText(JAFFLE_SHOP_SPACE_NAME).first(),
         ).toBeVisible();
         await expect(editorPage.getByText('Private space')).toHaveCount(0);
 
@@ -199,7 +204,7 @@ test.describe('Admin access to spaces', () => {
             ...TREE_1_ROOT_SPACE_NAMES,
         ]) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
     });
 
@@ -216,7 +221,7 @@ test.describe('Admin access to spaces', () => {
             ...TREE_2_ROOT_SPACE_NAMES,
         ]) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
     });
 
@@ -244,7 +249,7 @@ test.describe('Admin access to spaces', () => {
         await page.getByTestId('DashboardCreateModal/Next').click();
         for (const spaceName of TREE_1_ROOT_SPACE_NAMES) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
 
         await page.getByText('Admin Content View').click();
@@ -254,7 +259,7 @@ test.describe('Admin access to spaces', () => {
             ...TREE_2_ROOT_SPACE_NAMES,
         ]) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
 
         await page.getByText('Parent Space 4').click();
@@ -277,7 +282,7 @@ test.describe('Editor access to spaces', () => {
 
         for (const spaceName of EDITOR_ROOT_SPACE_NAMES) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
 
         await expect(page.getByText('Parent Space 2')).toHaveCount(0);
@@ -305,7 +310,7 @@ test.describe('Editor access to spaces', () => {
         await page.getByTestId('DashboardCreateModal/Next').click();
         for (const spaceName of EDITOR_ROOT_SPACE_NAMES) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
 
         await page.getByText('Parent Space 4').click();
@@ -323,7 +328,7 @@ test.describe('Viewer access to spaces', () => {
 
         for (const spaceName of VIEWER_ROOT_SPACE_NAMES) {
             // eslint-disable-next-line no-await-in-loop
-            await expect(page.getByText(spaceName)).toBeVisible();
+            await expect(page.getByText(spaceName).first()).toBeVisible();
         }
 
         await expect(page.getByText('Parent Space 2')).toHaveCount(0);

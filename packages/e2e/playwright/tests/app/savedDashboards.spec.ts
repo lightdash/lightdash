@@ -21,8 +21,8 @@ test.describe('Dashboard List', () => {
             .getByLabel('Name your dashboard *')
             .fill('Untitled dashboard');
         await page.getByLabel('Dashboard description').fill('Description');
-        await page.getByText('Next').click();
-        await page.getByText('Create').click();
+        await page.getByRole('button', { name: 'Next' }).click();
+        await page.getByRole('button', { name: 'Create', exact: true }).click();
 
         await expect(page).toHaveURL(
             /.*\/projects\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/dashboards\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,

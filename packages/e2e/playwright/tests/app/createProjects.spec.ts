@@ -72,8 +72,11 @@ const configurePostgresWarehouse = async (
         .fill(config.password);
     await page.locator('input[name="warehouse.dbname"]').fill(config.database);
 
+    // There are separate Advanced configuration sections for warehouse and
+    // dbt; the first one corresponds to the warehouse block above.
     await page
         .getByRole('button', { name: 'Advanced configuration options' })
+        .first()
         .click();
 
     await page.locator('input[name="warehouse.port"]').clear();
@@ -530,7 +533,7 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page.getByRole('button', { name: "I've defined them!" }).click();
+        await page.getByRole('button', { name: /I.?ve defined them!/ }).click();
 
         await page.locator('[name="name"]').clear();
         await page
@@ -556,7 +559,7 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page.getByRole('button', { name: "I've defined them!" }).click();
+        await page.getByRole('button', { name: /I.?ve defined them!/ }).click();
 
         await page.locator('[name="name"]').clear();
         await page.locator('[name="name"]').fill(warehouseConfig.redshift.name);
@@ -582,7 +585,7 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page.getByRole('button', { name: "I've defined them!" }).click();
+        await page.getByRole('button', { name: /I.?ve defined them!/ }).click();
 
         await page.locator('[name="name"]').clear();
         await page.locator('[name="name"]').fill(warehouseConfig.bigQuery.name);
@@ -635,7 +638,7 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page.getByRole('button', { name: "I've defined them!" }).click();
+        await page.getByRole('button', { name: /I.?ve defined them!/ }).click();
 
         await page.locator('[name="name"]').clear();
         await page.locator('[name="name"]').fill(warehouseConfig.trino.name);
@@ -690,7 +693,7 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page.getByRole('button', { name: "I've defined them!" }).click();
+        await page.getByRole('button', { name: /I.?ve defined them!/ }).click();
 
         await page.locator('[name="name"]').clear();
         await page
@@ -745,7 +748,7 @@ test.describe('Create projects', () => {
             .locator('[role="button"]')
             .filter({ hasText: 'Manually' })
             .click();
-        await page.getByRole('button', { name: "I've defined them!" }).click();
+        await page.getByRole('button', { name: /I.?ve defined them!/ }).click();
 
         await page.locator('[name="name"]').clear();
         await page

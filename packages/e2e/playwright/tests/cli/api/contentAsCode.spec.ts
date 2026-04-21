@@ -87,8 +87,10 @@ test.describe('Content as Code CLI', () => {
         const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
         const updateSedDescription = `s/description: .*/description: Updated description from CLI test ${date1MinuteAgo}/`;
         // Update the chart description
+        // `sed -i.bak` is the portable syntax (works on both BSD sed on macOS
+        // and GNU sed on Linux CI). We delete the .bak afterwards.
         const sedResult = exec(
-            `sed -i "" "${updateSedDescription}" ${chartFilePath}`,
+            `sed -i.bak "${updateSedDescription}" ${chartFilePath} && rm ${chartFilePath}.bak`,
         );
         expect(sedResult.code).toBe(0);
 
@@ -113,7 +115,7 @@ test.describe('Content as Code CLI', () => {
         // so needsUpdating defaults to true and the upload triggers a create.
         const updateSedSlug = `s/slug: .*/slug: jaffle-dashboard-${new Date().getTime()}/`;
         const sedResult = exec(
-            `sed -i "" "${updateSedSlug}" ${dashboardFilePath}`,
+            `sed -i.bak "${updateSedSlug}" ${dashboardFilePath} && rm ${dashboardFilePath}.bak`,
         );
         expect(sedResult.code).toBe(0);
 
@@ -246,8 +248,9 @@ downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
         const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
         const updateSedDescription = `s/description: .*/description: Updated description from CLI test/`;
         const updateSedDownloadedAt = `s/downloadedAt: .*/downloadedAt: ${date1MinuteAgo}/`;
+        const sqlChartPath = `${lightdashDir}/charts/${sqlChartSlug}.sql.yml`;
         const sedResult = exec(
-            `sed -i "" "${updateSedDescription}" ${lightdashDir}/charts/${sqlChartSlug}.sql.yml && sed -i "" "${updateSedDownloadedAt}" ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
+            `sed -i.bak "${updateSedDescription}" ${sqlChartPath} && sed -i.bak "${updateSedDownloadedAt}" ${sqlChartPath} && rm ${sqlChartPath}.bak`,
         );
         expect(sedResult.code).toBe(0);
 

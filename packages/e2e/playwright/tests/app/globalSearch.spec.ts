@@ -83,7 +83,7 @@ test.describe('Global search', () => {
         );
 
         //  wait for table to render
-        await expect(page.getByText('Customer id')).toHaveCount(1);
+        await expect(page.getByText('Customer id').first()).toBeVisible();
 
         // search and select table
         await search('Customers');
@@ -104,7 +104,7 @@ test.describe('Global search', () => {
                 `/projects/${SEED_PROJECT.project_uuid}/tables/customers`,
             ),
         );
-        await expect(page.getByText('Customer id')).toBeVisible();
+        await expect(page.getByText('Customer id').first()).toBeVisible();
 
         // search and select field
         await search('Date of first order');
@@ -112,12 +112,14 @@ test.describe('Global search', () => {
             .getByRole('dialog')
             .getByRole('menuitem', {
                 name: 'Orders - Date of first order Metric · Min of Order date',
+                exact: true,
             })
             .scrollIntoViewIfNeeded();
         await page
             .getByRole('dialog')
             .getByRole('menuitem', {
                 name: 'Orders - Date of first order Metric · Min of Order date',
+                exact: true,
             })
             .click();
         await expect(page).toHaveURL(

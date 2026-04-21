@@ -71,17 +71,20 @@ test.describe('Download CSV on Explore', () => {
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
         // choose table and select fields
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
         await expect(page.getByText('Order date')).toBeVisible(); // Wait for Orders table columns to appear
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
+        // The virtualized tree recycles DOM nodes, which detaches elements
+        // during click() -> scrollIntoView. dispatchEvent skips scrolling
+        // and the stability check so the click lands on the resolved node.
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for the chart to finish loading
         await expect(page.getByText('Loading chart')).toHaveCount(0);
@@ -144,17 +147,20 @@ test.describe('Download CSV on Explore', () => {
         await expect(page.getByTestId('page-spinner')).toHaveCount(0);
 
         // choose table and select fields
-        await page.getByText('Orders').click();
+        await page.getByText('Orders', { exact: true }).click();
         await expect(page.getByText('Order date')).toBeVisible(); // Wait for Orders table columns to appear
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
+        // The virtualized tree recycles DOM nodes, which detaches elements
+        // during click() -> scrollIntoView. dispatchEvent skips scrolling
+        // and the stability check so the click lands on the resolved node.
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').click();
+        await page.getByText('First name').dispatchEvent('click');
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').click();
+        await page.getByText('Unique order count').dispatchEvent('click');
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // wait for chart to be expanded and configure button to be available, then change chart type to Table
         const configureText = page.getByText('Configure');

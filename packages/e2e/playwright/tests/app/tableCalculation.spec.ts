@@ -106,7 +106,7 @@ test.describe.skip('Table calculations', () => {
         await page.locator('form').getByText('Create').click({ force: true });
 
         // Run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check valid results
         await expect(page.getByText('rank_1')).toBeVisible();
@@ -127,7 +127,7 @@ test.describe.skip('Table calculations', () => {
         await page.getByText('Add "rank_1"').click();
 
         // Run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check valid results
         await expect(page.getByText('rank_1')).toBeVisible();
@@ -161,7 +161,7 @@ test.describe.skip('Table calculations', () => {
         await page.locator('form').getByText('Create').click({ force: true });
 
         // Run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check valid results
         await expect(page.getByText('100')).toBeVisible();
@@ -183,7 +183,7 @@ test.describe.skip('Table calculations', () => {
         await page.getByPlaceholder('Enter value(s)').clear();
         await page.getByPlaceholder('Enter value(s)').fill('2000');
         await page.waitForTimeout(350); // Wait for FilterNumberInput debounce (300ms) to complete
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         // Check valid results
         await expect(page.getByText('2200')).toBeVisible();

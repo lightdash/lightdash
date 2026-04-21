@@ -89,7 +89,7 @@ test.describe.skip('Explore', () => {
         );
 
         // run query
-        await page.getByRole('button', { name: 'Run query' }).click();
+        await page.getByRole('button', { name: 'Run query' }).first().click();
 
         const headers = [
             'In eur',
