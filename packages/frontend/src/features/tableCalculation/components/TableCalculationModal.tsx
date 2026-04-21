@@ -458,7 +458,7 @@ const TableCalculationModal: FC<Props> = ({
                         <Text span inherit>
                             Formula
                         </Text>
-                        <Tooltip label="Formula table calculations are in beta — please share feedback!">
+                        <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
                             <Badge
                                 color="indigo"
                                 radius="sm"
