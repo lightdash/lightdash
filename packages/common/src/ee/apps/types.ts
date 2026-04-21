@@ -51,6 +51,7 @@ export type GenerateAppRequestBody = {
     prompt: string;
     image?: AppImageAttachment;
     appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
+    chartUuids?: string[]; // saved chart UUIDs to resolve and pass as structured metric queries
 };
 
 export type ApiPreviewTokenResponse = ApiSuccess<{
