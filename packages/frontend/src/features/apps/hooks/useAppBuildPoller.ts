@@ -1,6 +1,11 @@
-import { APP_VERSION_TERMINAL_STATUSES } from '@lightdash/common';
+import {
+    APP_VERSION_TERMINAL_STATUSES,
+    type ApiGetAppResponse,
+} from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+
+type GetAppResult = ApiGetAppResponse['results'];
 
 // Inline Web Worker that polls the API in the background.
 // Dedicated Workers continue running even when the parent tab is throttled/frozen.
@@ -62,22 +67,33 @@ export function useAppBuildPoller(
 
         worker.onmessage = (e: MessageEvent) => {
             if (e.data.type === 'data' && e.data.results) {
+                const poll: GetAppResult = e.data.results;
                 queryClient.setQueryData(
                     ['app', projectUuid, appUuid],
                     (
                         old:
-                            | { pages: unknown[]; pageParams: unknown[] }
+                            | {
+                                  pages: GetAppResult[];
+                                  pageParams: unknown[];
+                              }
                             | undefined,
                     ) => ({
+                        // The poll uses limit=1, so its `hasMore` reflects that
+                        // limit rather than the original page size. Keep the
+                        // first page's `hasMore` so pagination stays accurate.
                         pages: [
-                            e.data.results,
+                            {
+                                ...poll,
+                                hasMore:
+                                    old?.pages?.[0]?.hasMore ?? poll.hasMore,
+                            },
                             ...(old?.pages?.slice(1) ?? []),
                         ],
                         pageParams: old?.pageParams ?? [undefined],
                     }),
                 );
 
-                const latest = e.data.results.versions?.[0];
+                const latest = poll.versions?.[0];
                 if (
                     latest &&
                     (
