@@ -1,3 +1,10 @@
+## [0.2772.2](https://github.com/lightdash/lightdash/compare/0.2772.1...0.2772.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* route sum_distinct refs through dd CTE when fanout protection is active (SPK-333) ([#22150](https://github.com/lightdash/lightdash/issues/22150)) ([1493c10](https://github.com/lightdash/lightdash/commit/1493c10ea1f52c7c5c63deba3aee8a50d4f43649))
+
 ## [0.2772.1](https://github.com/lightdash/lightdash/compare/0.2772.0...0.2772.1) (2026-04-21)
 
 
