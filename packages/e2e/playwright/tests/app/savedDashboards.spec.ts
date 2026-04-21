@@ -22,12 +22,16 @@ test.describe('Dashboard List', () => {
             .fill('Untitled dashboard');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByRole('button', { name: 'Next' }).click();
-        // Step 2 is a space picker. If no space is auto-selected the Create
-        // button is disabled; click the Jaffle shop row first. The tree
-        // renders spaces as treeitems (not buttons), so match by text.
+        // Step 2 is a space picker. Click the Jaffle shop treeitem so the
+        // Create button becomes enabled (form.values.spaceUuid is required).
         const dialog = page.getByRole('dialog');
-        await dialog.getByText('Jaffle shop', { exact: true }).first().click();
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await dialog.getByRole('treeitem', { name: /^Jaffle shop$/ }).click();
+        const createButton = page.getByRole('button', {
+            name: 'Create',
+            exact: true,
+        });
+        await expect(createButton).toBeEnabled();
+        await createButton.click();
 
         await expect(page).toHaveURL(
             /.*\/projects\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/dashboards\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,

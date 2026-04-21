@@ -8,11 +8,12 @@ test.describe('Dashboard', () => {
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
 
-        await page
+        const jaffleDashboardLink = page
             .locator('a')
             .filter({ hasText: 'Jaffle dashboard' })
-            .first()
-            .click();
+            .first();
+        await expect(jaffleDashboardLink).toBeVisible({ timeout: 15000 });
+        await jaffleDashboardLink.click();
 
         const grid = page.locator('.react-grid-layout');
         await expect(
@@ -50,11 +51,12 @@ test.describe('Dashboard', () => {
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
 
-        await page
+        const jaffleDashboardLink = page
             .locator('a')
             .filter({ hasText: 'Jaffle dashboard' })
-            .first()
-            .click();
+            .first();
+        await expect(jaffleDashboardLink).toBeVisible({ timeout: 15000 });
+        await jaffleDashboardLink.click();
 
         const grid = page.locator('.react-grid-layout');
         await expect(grid.getByText('How much revenue')).toBeVisible();
@@ -126,11 +128,12 @@ test.describe('Dashboard', () => {
         // wait for the dashboard to load
         await expect(page.getByText('Loading dashboards')).toHaveCount(0);
 
-        await page
+        const jaffleDashboardLink = page
             .locator('a')
             .filter({ hasText: 'Jaffle dashboard' })
-            .first()
-            .click();
+            .first();
+        await expect(jaffleDashboardLink).toBeVisible({ timeout: 15000 });
+        await jaffleDashboardLink.click();
 
         const grid = page.locator('.react-grid-layout');
         await expect(
@@ -177,16 +180,15 @@ test.describe('Dashboard', () => {
             .fill('Title');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByText('Next').click();
-        // Step 2 is a space picker. Click the Jaffle shop row (rendered as
-        // a treeitem, not a button) so Create becomes enabled.
+        // Step 2 is a space picker. Click the Jaffle shop treeitem so the
+        // Create button becomes enabled (form.values.spaceUuid is required).
         await page
             .getByRole('dialog')
-            .getByText('Jaffle shop', { exact: true })
-            .first()
+            .getByRole('treeitem', { name: /^Jaffle shop$/ })
             .click();
-        await page
-            .getByText('Create', { exact: true })
-            .click({ timeout: 10000 });
+        const createDashButton = page.getByText('Create', { exact: true });
+        await expect(createDashButton).toBeEnabled();
+        await createDashButton.click({ timeout: 10000 });
 
         // Add Saved Chart
         await page.getByRole('button', { name: 'Add tile' }).first().click();
