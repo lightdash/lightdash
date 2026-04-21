@@ -401,8 +401,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shardIndex: [1, 2, 3, 4, 5]
-        shardTotal: [5]
+        shardIndex: [1, 2]
+        shardTotal: [2]
     name: "E2E: App (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
