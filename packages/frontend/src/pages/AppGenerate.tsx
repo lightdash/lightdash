@@ -329,6 +329,14 @@ const AppGenerate: FC = () => {
         [historyMessages, localMessages],
     );
 
+    // `hasNextPage` reflects the server's "more pages exist" signal, but we
+    // accumulate versions across fetches in `versionCacheRef` — so even if the
+    // server thinks more exist, we may already have them all. Versions are
+    // 1-indexed and contiguous, so seeing version 1 means we've loaded
+    // everything and the "Load earlier messages" button is misleading.
+    const hasUnloadedEarlierVersions =
+        hasNextPage && !allVersions.some((v) => v.version === 1);
+
     // Stable reference for the preview — only updates when a new version
     // becomes ready, preventing iframe reloads during status polling.
     const latestReadyPreview = useMemo(() => {
@@ -594,7 +602,7 @@ const AppGenerate: FC = () => {
                 <Panel defaultSize={30} minSize={20} maxSize={50}>
                     <Box className={classes.chatPanel}>
                         <Box className={classes.chatMessages}>
-                            {hasNextPage && (
+                            {hasUnloadedEarlierVersions && (
                                 <Group
                                     gap="xs"
                                     justify="center"
