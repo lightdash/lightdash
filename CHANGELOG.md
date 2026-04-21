@@ -1,3 +1,10 @@
+## [0.2772.1](https://github.com/lightdash/lightdash/compare/0.2772.0...0.2772.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **data-apps:** hide "Load earlier messages" button when all versions are loaded ([#22155](https://github.com/lightdash/lightdash/issues/22155)) ([c0d722e](https://github.com/lightdash/lightdash/commit/c0d722ed96fde42e7c9ee12313961d66a6e8470c))
+
 # [0.2772.0](https://github.com/lightdash/lightdash/compare/0.2771.0...0.2772.0) (2026-04-21)
 
 
