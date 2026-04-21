@@ -222,6 +222,9 @@ export class SqlGenerator {
         const args = node.args.map((a) => this.generate(a));
         switch (node.name) {
             case 'ROUND':
+                if (this.dialect.generateRound) {
+                    return this.dialect.generateRound(args[0], args[1]);
+                }
                 return `ROUND(${args[0]}${args[1] !== undefined ? `, ${args[1]}` : ''})`;
             case 'MIN':
                 return args.length === 1
