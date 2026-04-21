@@ -1,3 +1,11 @@
+## [0.2772.3](https://github.com/lightdash/lightdash/compare/0.2772.2...0.2772.3) (2026-04-21)
+
+
+### Bug Fixes
+
+* **explorer:** inherit fz/lh on the Filter-by item label ([#22161](https://github.com/lightdash/lightdash/issues/22161)) ([453bc05](https://github.com/lightdash/lightdash/commit/453bc05113c719c2a98162942a126df245fee4e7))
+* improve error logging for dashboard CSV export fetch failures ([#22163](https://github.com/lightdash/lightdash/issues/22163)) ([a76282c](https://github.com/lightdash/lightdash/commit/a76282c54615b2781891257ba3647eae49bc3f6a))
+
 ## [0.2772.2](https://github.com/lightdash/lightdash/compare/0.2772.1...0.2772.2) (2026-04-21)
 
 
