@@ -107,8 +107,10 @@ describe('formatAuditResource', () => {
         expect(
             formatAuditResource({
                 type: 'Dashboard',
-                uuid: 'dash-uuid',
-                name: 'Sales Overview',
+                metadata: {
+                    dashboardUuid: 'dash-uuid',
+                    name: 'Sales Overview',
+                },
                 organizationUuid: 'org-uuid',
             }),
         ).toBe('Dashboard "Sales Overview"');
@@ -118,7 +120,7 @@ describe('formatAuditResource', () => {
         expect(
             formatAuditResource({
                 type: 'Dashboard',
-                uuid: 'dash-uuid',
+                metadata: { dashboardUuid: 'dash-uuid' },
                 organizationUuid: 'org-uuid',
             }),
         ).toBe('Dashboard dash-uuid');
@@ -128,7 +130,7 @@ describe('formatAuditResource', () => {
         expect(
             formatAuditResource({
                 type: 'Project',
-                uuid: 'proj-uuid',
+                metadata: { projectUuid: 'proj-uuid' },
                 organizationUuid: 'org-uuid',
                 projectUuid: 'proj-uuid',
             }),
@@ -139,7 +141,7 @@ describe('formatAuditResource', () => {
         expect(
             formatAuditResource({
                 type: 'Project',
-                uuid: 'proj-uuid',
+                metadata: { projectUuid: 'proj-uuid' },
                 organizationUuid: 'org-uuid',
             }),
         ).toBe('Project proj-uuid');
@@ -190,8 +192,7 @@ describe('formatAuditMessage', () => {
         action: 'update',
         resource: {
             type: 'Dashboard',
-            uuid: 'dash-uuid',
-            name: 'Sales Overview',
+            metadata: { dashboardUuid: 'dash-uuid', name: 'Sales Overview' },
             organizationUuid: 'org-uuid',
             projectUuid: 'proj-uuid',
         },
@@ -247,8 +248,7 @@ describe('formatAuditMessage', () => {
                 action: 'manage',
                 resource: {
                     type: 'Group',
-                    uuid: 'group-uuid',
-                    name: 'Engineering',
+                    metadata: { groupUuid: 'group-uuid', name: 'Engineering' },
                     organizationUuid: 'org-uuid',
                 },
             }),

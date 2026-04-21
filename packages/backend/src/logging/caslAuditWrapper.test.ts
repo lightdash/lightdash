@@ -12,14 +12,14 @@ import {
 const createDashboard = (uuid: string, attributes: AnyObject = {}) =>
     subject('Dashboard', {
         organizationUuid: 'test-org-uuid',
-        metadata: { uuid },
+        metadata: { dashboardUuid: uuid },
         ...attributes,
     });
 
 const createSavedChart = (uuid: string, attributes: AnyObject = {}) =>
     subject('SavedChart', {
         organizationUuid: 'test-org-uuid',
-        metadata: { uuid },
+        metadata: { savedChartUuid: uuid },
         ...attributes,
     });
 
@@ -130,7 +130,7 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.actor.uuid).toBe(mockUser.userUuid);
             expect(loggedEvent.action).toBe('update');
             expect(loggedEvent.resource.type).toBe('Dashboard');
-            expect(loggedEvent.resource.uuid).toBe('2');
+            expect(loggedEvent.resource.metadata?.dashboardUuid).toBe('2');
             expect(loggedEvent.status).toBe('allowed');
             expect(loggedEvent.context.ip).toBe('127.0.0.1');
             expect(loggedEvent.context.userAgent).toBe('test-agent');
@@ -154,7 +154,7 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.actor.uuid).toBe(mockUser.userUuid);
             expect(loggedEvent.action).toBe('read');
             expect(loggedEvent.resource.type).toBe('Dashboard');
-            expect(loggedEvent.resource.uuid).toBe('3');
+            expect(loggedEvent.resource.metadata?.dashboardUuid).toBe('3');
             expect(loggedEvent.status).toBe('denied');
         });
 
@@ -266,7 +266,7 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.actor.uuid).toBe(mockUser.userUuid);
             expect(loggedEvent.action).toBe('read');
             expect(loggedEvent.resource.type).toBe('Dashboard');
-            expect(loggedEvent.resource.uuid).toBe('3');
+            expect(loggedEvent.resource.metadata?.dashboardUuid).toBe('3');
             expect(loggedEvent.status).toBe('denied');
         });
 
@@ -406,30 +406,32 @@ describe('CaslAuditWrapper', () => {
 
             expect(mockLogger).toHaveBeenCalledTimes(1);
             const loggedEvent = mockLogger.mock.calls[0][0];
-            expect(loggedEvent.resource.uuid).toBeUndefined();
+            expect(loggedEvent.resource.metadata).toBeUndefined();
             expect(loggedEvent.resource.type).toBe('Dashboard');
             expect(loggedEvent.resource.organizationUuid).toBe('test-org-uuid');
         });
     });
 
     describe('createResourceFromSubject behavior', () => {
-        it('should use metadata.uuid and metadata.name', () => {
+        it('should forward metadata object directly', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
 
             const s = subject('Dashboard', {
                 organizationUuid: 'test-org-uuid',
-                metadata: { uuid: 'meta-uuid', name: 'meta-name' },
+                metadata: { dashboardUuid: 'meta-uuid', name: 'meta-name' },
             });
 
             wrapper.can('read', s);
 
             const { resource } = mockLogger.mock.calls[0][0];
-            expect(resource.uuid).toBe('meta-uuid');
-            expect(resource.name).toBe('meta-name');
+            expect(resource.metadata).toEqual({
+                dashboardUuid: 'meta-uuid',
+                name: 'meta-name',
+            });
         });
 
-        it('should have undefined uuid and name when metadata is absent', () => {
+        it('should have undefined metadata when absent on the subject', () => {
             const mockLogger = createMockLogger();
             const wrapper = createWrapper(mockLogger);
 
@@ -440,8 +442,7 @@ describe('CaslAuditWrapper', () => {
             wrapper.can('read', s);
 
             const { resource } = mockLogger.mock.calls[0][0];
-            expect(resource.uuid).toBeUndefined();
-            expect(resource.name).toBeUndefined();
+            expect(resource.metadata).toBeUndefined();
         });
     });
 
@@ -476,8 +477,7 @@ describe('CaslAuditWrapper', () => {
             const loggedEvent = mockLogger.mock.calls[0][0];
             expect(loggedEvent.resource.type).toBe('Dashboard');
             expect(loggedEvent.resource.organizationUuid).toBe('unknown');
-            expect(loggedEvent.resource.uuid).toBeUndefined();
-            expect(loggedEvent.resource.name).toBeUndefined();
+            expect(loggedEvent.resource.metadata).toBeUndefined();
             expect(loggedEvent.resource.projectUuid).toBeUndefined();
         });
 

@@ -490,7 +490,7 @@ export class SpaceService
         } else {
             this.logBypassEvent(user, 'delete', {
                 type: 'Space',
-                uuid: spaceUuid,
+                metadata: { spaceUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         }
@@ -538,7 +538,7 @@ export class SpaceService
         } else {
             this.logBypassEvent(user, 'delete', {
                 type: 'Space',
-                uuid: spaceUuid,
+                metadata: { spaceUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         }
@@ -632,8 +632,7 @@ export class SpaceService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: spaceUuid,
-                name: space.name,
+                metadata: { spaceUuid, name: space.name },
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
             });
@@ -644,7 +643,7 @@ export class SpaceService
                 subject('DeletedContent', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
-                    metadata: { uuid: spaceUuid, name: space.name },
+                    metadata: { spaceUuid, name: space.name },
                 }),
             );
 
@@ -652,8 +651,7 @@ export class SpaceService
                 if (space.deletedBy?.userUuid === user.userUuid) {
                     this.logBypassEvent(user, 'manage', {
                         type: 'DeletedContent',
-                        uuid: spaceUuid,
-                        name: space.name,
+                        metadata: { spaceUuid, name: space.name },
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
                     });
@@ -725,7 +723,7 @@ export class SpaceService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: spaceUuid,
+                metadata: { spaceUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -739,7 +737,7 @@ export class SpaceService
                     subject('DeletedContent', {
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
-                        metadata: { uuid: spaceUuid, name: space.name },
+                        metadata: { spaceUuid, name: space.name },
                     }),
                 )
             ) {
@@ -830,7 +828,7 @@ export class SpaceService
                 subject('PinnedItems', {
                     projectUuid,
                     organizationUuid,
-                    metadata: { uuid: spaceUuid, name: existingSpace.name },
+                    metadata: { spaceUuid, name: existingSpace.name },
                 }),
             )
         ) {

@@ -190,7 +190,7 @@ export class DashboardService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { uuid: projectUuid },
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -243,7 +243,7 @@ export class DashboardService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    metadata: { uuid: projectUuid },
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -435,7 +435,7 @@ export class DashboardService
                 'view',
                 subject('Dashboard', {
                     ...spaceContext,
-                    metadata: { uuid: dashboard.uuid },
+                    metadata: { dashboardUuid: dashboard.uuid },
                 }),
             );
             return includePrivate
@@ -474,7 +474,10 @@ export class DashboardService
                 'view',
                 subject('Dashboard', {
                     ...dashboard,
-                    metadata: { uuid: dashboard.uuid, name: dashboard.name },
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        name: dashboard.name,
+                    },
                 }),
             )
         ) {
@@ -624,7 +627,10 @@ export class DashboardService
                 'create',
                 subject('Dashboard', {
                     ...dashboard,
-                    metadata: { uuid: dashboard.uuid, name: dashboard.name },
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        name: dashboard.name,
+                    },
                 }),
             )
         ) {
@@ -791,7 +797,7 @@ export class DashboardService
             'update',
             subject('Dashboard', {
                 ...currentSpace,
-                metadata: { uuid: existingDashboardDao.uuid },
+                metadata: { dashboardUuid: existingDashboardDao.uuid },
             }),
         );
 
@@ -812,7 +818,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...newSpace,
-                        metadata: { uuid: existingDashboardDao.uuid },
+                        metadata: { dashboardUuid: existingDashboardDao.uuid },
                     }),
                 );
                 if (!canUpdateDashboardInNewSpace) {
@@ -1017,7 +1023,7 @@ export class DashboardService
                 subject('PinnedItems', {
                     projectUuid,
                     organizationUuid,
-                    metadata: { uuid: existingDashboard.uuid },
+                    metadata: { dashboardUuid: existingDashboard.uuid },
                 }),
             )
         ) {
@@ -1099,7 +1105,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...currentSpaceContext,
-                        metadata: { uuid: dashboard.uuid },
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 );
                 const newSpaceContext =
@@ -1111,7 +1117,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...newSpaceContext,
-                        metadata: { uuid: dashboardToUpdate.uuid },
+                        metadata: { dashboardUuid: dashboardToUpdate.uuid },
                     }),
                 );
                 return (
@@ -1189,7 +1195,7 @@ export class DashboardService
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        metadata: { uuid: dashboardUuid },
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1278,7 +1284,7 @@ export class DashboardService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'Dashboard',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -1298,7 +1304,7 @@ export class DashboardService
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        metadata: { uuid: dashboardUuid },
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1337,7 +1343,7 @@ export class DashboardService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
             });
@@ -1349,7 +1355,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        metadata: { uuid: dashboardUuid },
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1387,7 +1393,7 @@ export class DashboardService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -1402,7 +1408,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        metadata: { uuid: dashboardUuid },
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1551,7 +1557,10 @@ export class DashboardService
                 'view',
                 subject('Dashboard', {
                     ...dashboard,
-                    metadata: { uuid: dashboard.uuid, name: dashboard.name },
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        name: dashboard.name,
+                    },
                 }),
             )
         ) {
@@ -1593,7 +1602,7 @@ export class DashboardService
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access,
-                metadata: { uuid: dashboard.uuid },
+                metadata: { dashboardUuid: dashboard.uuid },
             }),
         );
 
@@ -1617,7 +1626,7 @@ export class DashboardService
                     projectUuid: actor.projectUuid,
                     inheritsFromOrgOrProject: newSpace.inheritsFromOrgOrProject,
                     access: newSpace.access,
-                    metadata: { uuid: dashboard.uuid },
+                    metadata: { dashboardUuid: dashboard.uuid },
                 }),
             );
 

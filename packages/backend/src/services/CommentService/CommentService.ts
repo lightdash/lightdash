@@ -347,7 +347,7 @@ export class CommentService extends BaseService {
                 type: 'DashboardComments',
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { name: dashboard.name },
             });
         }
 

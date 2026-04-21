@@ -859,7 +859,7 @@ export class SchedulerService extends BaseService {
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'ScheduledDeliveries',
-                uuid: chartUuid,
+                metadata: { savedChartUuid: chartUuid },
                 organizationUuid: context.organizationUuid,
                 projectUuid: context.projectUuid,
             });
@@ -915,7 +915,7 @@ export class SchedulerService extends BaseService {
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'ScheduledDeliveries',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: context.organizationUuid,
                 projectUuid: context.projectUuid,
             });
@@ -970,7 +970,7 @@ export class SchedulerService extends BaseService {
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'ScheduledDeliveries',
-                uuid: chartUuid,
+                metadata: { savedChartUuid: chartUuid },
                 organizationUuid: context.organizationUuid,
                 projectUuid: context.projectUuid,
             });
@@ -1021,7 +1021,7 @@ export class SchedulerService extends BaseService {
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'ScheduledDeliveries',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: context.organizationUuid,
                 projectUuid: context.projectUuid,
             });
@@ -1341,7 +1341,7 @@ export class SchedulerService extends BaseService {
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    metadata: { uuid: projectUuid },
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1433,7 +1433,7 @@ export class SchedulerService extends BaseService {
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    metadata: { uuid: projectUuid },
+                    metadata: { projectUuid },
                 }),
             )
         ) {

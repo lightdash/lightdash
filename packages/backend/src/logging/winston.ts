@@ -187,17 +187,31 @@ export const formatAuditActor = (actor: AuditActor): string => {
     return actor.uuid;
 };
 
+const findUuidInMetadata = (
+    metadata: Record<string, unknown> | undefined,
+): string | undefined => {
+    if (!metadata) return undefined;
+    for (const [key, val] of Object.entries(metadata)) {
+        if (key.endsWith('Uuid') && typeof val === 'string' && val) {
+            return val;
+        }
+    }
+    return undefined;
+};
+
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
+    const name = resource.metadata?.name;
+    const uuid = findUuidInMetadata(resource.metadata);
 
-    if (resource.name) {
-        return `${typePart} "${resource.name}"`;
+    if (typeof name === 'string' && name) {
+        return `${typePart} "${name}"`;
     }
     if (
-        resource.uuid &&
-        (resource.uuid !== resource.projectUuid || resource.type === 'Project')
+        uuid &&
+        (uuid !== resource.projectUuid || resource.type === 'Project')
     ) {
-        return `${typePart} ${resource.uuid}`;
+        return `${typePart} ${uuid}`;
     }
     // Permission-type subjects (CustomSql, UnderlyingData, Explore, Project, etc.)
     // with no meaningful unique identifier — fall back to project/org context
