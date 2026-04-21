@@ -125,12 +125,6 @@ export enum FeatureFlags {
     ShowHideColumns = 'show-hide-columns',
 
     /**
-     * Enable Google Sheets-like formula editor in Table Calculations modal.
-     * When enabled, a "Formula" tab appears alongside SQL and Template tabs.
-     */
-    FormulaTableCalculations = 'table-calculations-spreadsheet-formulas',
-
-    /**
      * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED
      * env var — data apps are enabled if either this flag or the env var
      * is true. Disabled by default.

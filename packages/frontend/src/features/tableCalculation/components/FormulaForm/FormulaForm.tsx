@@ -3,7 +3,7 @@ import {
     type GeneratedFormulaTableCalculation,
     type MetricQuery,
 } from '@lightdash/common';
-import { Box, Flex } from '@mantine-8/core';
+import { Box, Flex, Text } from '@mantine-8/core';
 import { useEffect, type FC } from 'react';
 import { AiFormulaTableCalculationInput } from '../../../../ee/features/ambientAi/components/tableCalculation';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
@@ -43,19 +43,23 @@ export const FormulaForm: FC<Props> = ({
         <Flex
             direction="column"
             h="100%"
-            className={`${classes.container} ${error ? classes.containerError : ''}`}
+            gap="xxs"
+            className={classes.container}
         >
-            <Box flex={1}>
+            <Box
+                flex={1}
+                className={`${classes.editorFrame} ${error ? classes.editorFrameError : ''}`}
+            >
                 <FormulaEditor
                     explore={explore}
                     metricQuery={metricQuery}
                     initialContent={initialFormula}
                     onTextChange={onChange}
                     onBlur={validate}
-                    parseError={error}
                     isFullScreen={isFullScreen}
                 />
             </Box>
+            {error && <Text className={classes.errorText}>{error}</Text>}
             {isAmbientAiEnabled && onAiApply && (
                 <AiFormulaTableCalculationInput
                     currentFormula={formula || undefined}
