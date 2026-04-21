@@ -1,3 +1,11 @@
+## [0.2772.4](https://github.com/lightdash/lightdash/compare/0.2772.3...0.2772.4) (2026-04-21)
+
+
+### Bug Fixes
+
+* **formula:** cast ROUND value to numeric on Postgres-family dialects ([#22160](https://github.com/lightdash/lightdash/issues/22160)) ([4abe9d2](https://github.com/lightdash/lightdash/commit/4abe9d2eb77f7934fb1145043d82547da9054fe4))
+* sanitize presigned S3 URL in CSV export error logs ([#22165](https://github.com/lightdash/lightdash/issues/22165)) ([fc25885](https://github.com/lightdash/lightdash/commit/fc258855ea8c61cbe0dde45c51f6500de0efc327))
+
 ## [0.2772.3](https://github.com/lightdash/lightdash/compare/0.2772.2...0.2772.3) (2026-04-21)
 
 
