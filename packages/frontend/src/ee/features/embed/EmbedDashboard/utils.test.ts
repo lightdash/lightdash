@@ -5,7 +5,10 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { convertSdkFilterToDashboardFilter } from './utils';
+import {
+    convertSdkFilterToDashboardFilter,
+    shouldDeferSdkFilters,
+} from './utils';
 
 const makeDimension = (
     table: string,
@@ -122,5 +125,53 @@ describe('convertSdkFilterToDashboardFilter', () => {
                 tableName: 'payments',
             },
         });
+    });
+});
+
+describe('shouldDeferSdkFilters', () => {
+    it('defers when chart tile metadata has not loaded yet', () => {
+        // Tiles haven't arrived from POST /dashboard yet, so we cannot know
+        // whether to wait on the available-filters query or not.
+        expect(shouldDeferSdkFilters(undefined, undefined)).toBe(true);
+    });
+
+    it('proceeds when there are no filterable chart tiles', () => {
+        // Dashboard has only markdown / non-chart tiles. There is nothing
+        // for the available-filters query to fetch (it stays disabled), so
+        // there is nothing to wait for. Apply with empty tileTargets.
+        expect(shouldDeferSdkFilters([], undefined)).toBe(false);
+    });
+
+    it('defers when chart tiles exist but available filters have not resolved', () => {
+        // useDashboardsAvailableFilters reports isInitialLoading=false for
+        // disabled queries, so we must gate on the data itself, not the
+        // loading flag. Without filterableFieldsByTileUuid we cannot build
+        // cross-explore tileTargets and would silently drop the filter
+        // from tiles on other explores.
+        expect(
+            shouldDeferSdkFilters(
+                [{ tileUuid: 't1', savedChartUuid: 'c1' }],
+                undefined,
+            ),
+        ).toBe(true);
+    });
+
+    it('proceeds once chart tiles and available filters are both ready', () => {
+        expect(
+            shouldDeferSdkFilters([{ tileUuid: 't1', savedChartUuid: 'c1' }], {
+                t1: [makeDimension('payments', 'payment_method')],
+            }),
+        ).toBe(false);
+    });
+
+    it('proceeds when available filters resolved to an empty mapping', () => {
+        // Edge case: query succeeded but returned no filterable fields for
+        // any tile. We treat that as "ready" so we don't deadlock the load.
+        expect(
+            shouldDeferSdkFilters(
+                [{ tileUuid: 't1', savedChartUuid: 'c1' }],
+                {},
+            ),
+        ).toBe(false);
     });
 });
