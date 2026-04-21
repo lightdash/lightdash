@@ -1,0 +1,72 @@
+version: 2
+updates:
+  # ============================================================================
+  # npm / pnpm dependencies across the monorepo
+  # ============================================================================
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    # Supply-chain cooldown — refuses versions published less than 3 days ago.
+    # Mirrors pnpm-workspace.yaml `minimumReleaseAge` and .npmrc `min-release-age`.
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+    commit-message:
+      prefix: 'chore'
+      include: 'scope'
+    # Group related ecosystem bumps into single PRs rather than one-per-package.
+    # Renovate's `group:monorepos` preset has no Dependabot equivalent — groups
+    # must be enumerated manually. Add new ecosystems here as they're adopted.
+    groups:
+      types:
+        patterns: ['@types/*']
+      mantine:
+        patterns: ['@mantine/*']
+      tiptap:
+        patterns: ['@tiptap/*']
+      sentry:
+        patterns: ['@sentry/*', '@sentry-internal/*']
+      octokit:
+        patterns: ['@octokit/*']
+      aws-sdk:
+        patterns: ['@aws-sdk/*']
+      testing-library:
+        patterns: ['@testing-library/*']
+      tanstack:
+        patterns: ['@tanstack/*']
+      ai-sdk:
+        patterns: ['@ai-sdk/*']
+      storybook:
+        patterns: ['@storybook/*', 'storybook']
+      slack:
+        patterns: ['@slack/*']
+      dnd-kit:
+        patterns: ['@dnd-kit/*']
+      typescript-eslint:
+        patterns: ['@typescript-eslint/*', 'eslint', 'eslint-*']
+      langchain:
+        patterns: ['@langchain/*', 'langchain']
+      react:
+        patterns: ['react', 'react-dom']
+
+  # ============================================================================
+  # GitHub Actions — keep SHA pins on third-party actions current
+  # ============================================================================
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 5
+    labels:
+      - 'dependencies'
+      - 'ci'
+    commit-message:
+      prefix: 'chore'
+      include: 'scope'
