@@ -700,6 +700,16 @@ const scopes: Scope[] = [
 
     // Data Apps
     {
+        name: 'view:DataApp',
+        description: 'View data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
+            addAccessCondition(context),
+        ],
+    },
+    {
         name: 'manage:DataApp',
         description: 'Create and manage data apps',
         isEnterprise: false,

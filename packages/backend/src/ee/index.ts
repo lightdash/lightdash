@@ -83,9 +83,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogModel: models.getCatalogModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    projectModel: models.getProjectModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     savedChartService: repository.getSavedChartService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

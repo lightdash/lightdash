@@ -13,6 +13,7 @@ export enum ContentTypePriority {
     SPACE = 1,
     DASHBOARD = 2,
     CHART = 3,
+    DATA_APP = 4,
 }
 
 export type ContentFilters = {
