@@ -8,13 +8,13 @@ import {
     NumberSeparator,
     TableCalculationType,
     type CustomFormat,
-    type GeneratedFormulaTableCalculation,
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
 import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -25,12 +25,18 @@ import {
     Text,
     TextInput,
     Tooltip,
+    type ComboboxItem,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    Icon123,
+    IconAbc,
+    IconCalendar,
     IconCalculator,
+    IconClockHour4,
     IconMaximize,
     IconMinimize,
+    IconToggleLeft,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -44,7 +50,6 @@ import {
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
-import { BetaBadge } from '../../../components/common/BetaBadge';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
@@ -96,6 +101,32 @@ enum EditMode {
     FORMULA = 'formula',
 }
 
+const tableCalculationTypeMeta = {
+    [TableCalculationType.NUMBER]: {
+        label: 'Number',
+        icon: Icon123,
+    },
+    [TableCalculationType.STRING]: {
+        label: 'String',
+        icon: IconAbc,
+    },
+    [TableCalculationType.DATE]: {
+        label: 'Date',
+        icon: IconCalendar,
+    },
+    [TableCalculationType.TIMESTAMP]: {
+        label: 'Timestamp',
+        icon: IconClockHour4,
+    },
+    [TableCalculationType.BOOLEAN]: {
+        label: 'Boolean',
+        icon: IconToggleLeft,
+    },
+} as const satisfies Record<
+    TableCalculationType,
+    { label: string; icon: typeof Icon123 }
+>;
+
 const TableCalculationModal: FC<Props> = ({
     opened,
     tableCalculation,
@@ -136,6 +167,12 @@ const TableCalculationModal: FC<Props> = ({
           ? EditMode.FORMULA
           : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
+
+    useEffect(() => {
+        if (isNewCalculation && isFormulaSupported) {
+            setEditMode(EditMode.FORMULA);
+        }
+    }, [isNewCalculation, isFormulaSupported]);
 
     const { addToastError } = useToaster();
 
@@ -226,14 +263,10 @@ const TableCalculationModal: FC<Props> = ({
         null,
     );
 
-    const [formulaKey, setFormulaKey] = useState(0);
-
-    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
 
     useEffect(() => {
         if (opened) {
-            setFormulaGeneratedByAi(false);
             setSqlGeneratedByAi(false);
         }
     }, [opened]);
@@ -302,7 +335,7 @@ const TableCalculationModal: FC<Props> = ({
                     },
                     {
                         mode: 'formula',
-                        generatedByAi: formulaGeneratedByAi,
+                        generatedByAi: false,
                     },
                 );
             } else {
@@ -333,7 +366,6 @@ const TableCalculationModal: FC<Props> = ({
         tableCalculation,
         tableCalculations,
         editedTemplate,
-        formulaGeneratedByAi,
         sqlGeneratedByAi,
         onSave,
         addToastError,
@@ -360,24 +392,45 @@ const TableCalculationModal: FC<Props> = ({
         [],
     );
 
-    const handleFormulaAiApply = useCallback(
-        (result: GeneratedFormulaTableCalculation) => {
-            form.setFieldValue('formula', result.formula);
-            form.setFieldValue('name', result.displayName);
-            if (result.type) {
-                form.setFieldValue('type', result.type);
-            }
-            if (result.format) {
-                form.setFieldValue('format', result.format);
-            }
-            setFormulaKey((k) => k + 1);
-            setFormulaGeneratedByAi(true);
-        },
-        [form],
+    const tableCalculationTypeValues = useMemo(
+        () => Object.values(TableCalculationType),
+        [],
     );
 
     const tableCalculationTypeOptions = useMemo(
-        () => Object.values(TableCalculationType),
+        () =>
+            tableCalculationTypeValues.map((value) => ({
+                value,
+                label: tableCalculationTypeMeta[value].label,
+            })),
+        [tableCalculationTypeValues],
+    );
+
+    const selectedTableCalculationType =
+        form.values.type ?? TableCalculationType.NUMBER;
+    const selectedTypeMeta =
+        tableCalculationTypeMeta[selectedTableCalculationType];
+
+    const renderTypeOption = useCallback(
+        ({ option }: { option: ComboboxItem }) => {
+            const meta =
+                tableCalculationTypeMeta[option.value as TableCalculationType];
+
+            return (
+                <Group gap="xs" wrap="nowrap">
+                    <Box className={classes.typeOptionIcon}>
+                        <MantineIcon
+                            icon={meta.icon}
+                            size="sm"
+                            color="ldGray.6"
+                        />
+                    </Box>
+                    <Text size="sm" fw={500}>
+                        {meta.label}
+                    </Text>
+                </Group>
+            );
+        },
         [],
     );
 
@@ -385,14 +438,14 @@ const TableCalculationModal: FC<Props> = ({
         (value: string | null) => {
             if (
                 value &&
-                tableCalculationTypeOptions.includes(
+                tableCalculationTypeValues.includes(
                     value as TableCalculationType,
                 )
             ) {
                 form.setFieldValue('type', value as TableCalculationType);
             }
         },
-        [form, tableCalculationTypeOptions],
+        [form, tableCalculationTypeValues],
     );
 
     const editModeOptions = useMemo(
@@ -400,9 +453,24 @@ const TableCalculationModal: FC<Props> = ({
             {
                 value: EditMode.FORMULA,
                 label: (
-                    <Group gap={6} wrap="nowrap" justify="center">
-                        <Text span>Formula</Text>
-                        <BetaBadge tooltipLabel="Formula table calculations are in beta — please share feedback!" />
+                    <Group
+                        gap={4}
+                        wrap="nowrap"
+                        justify="center"
+                        className={classes.inputModeFormulaLabel}
+                    >
+                        <Text span inherit>
+                            Formula
+                        </Text>
+                        <Tooltip label="Formula table calculations are in beta — please share feedback!">
+                            <Badge
+                                color="indigo"
+                                radius="sm"
+                                className={classes.inputModeBadge}
+                            >
+                                Beta
+                            </Badge>
+                        </Tooltip>
                     </Group>
                 ),
             },
@@ -410,6 +478,12 @@ const TableCalculationModal: FC<Props> = ({
         ],
         [],
     );
+
+    const saveButtonLabel = tableCalculation
+        ? 'Save changes'
+        : editMode === EditMode.FORMULA
+          ? 'Create formula'
+          : 'Create SQL calculation';
 
     return (
         <MantineModal
@@ -441,7 +515,7 @@ const TableCalculationModal: FC<Props> = ({
                         isFormulaInvalid
                     }
                 >
-                    {tableCalculation ? 'Save changes' : 'Create'}
+                    {saveButtonLabel}
                 </Button>
             }
             cancelLabel="Cancel"
@@ -474,22 +548,42 @@ const TableCalculationModal: FC<Props> = ({
                         {...form.getInputProps('type')}
                         onChange={handleTypeChange}
                         data={tableCalculationTypeOptions}
+                        allowDeselect={false}
+                        leftSection={
+                            <MantineIcon
+                                icon={selectedTypeMeta.icon}
+                                size="sm"
+                                color="ldGray.6"
+                            />
+                        }
+                        renderOption={renderTypeOption}
+                        checkIconPosition="right"
                     />
                 </Group>
 
                 <Stack gap="xs">
-                    <Text fz="sm" fw={600}>
-                        Input
-                    </Text>
-
-                    {isNewCalculation && isFormulaSupported && (
-                        <SegmentedControl
-                            value={editMode}
-                            onChange={(value) => setEditMode(value as EditMode)}
-                            data={editModeOptions}
-                            size="xs"
-                        />
-                    )}
+                    <Group className={classes.inputModeHeader}>
+                        <Text fz="sm" fw={600}>
+                            Input mode
+                        </Text>
+                        {isNewCalculation && isFormulaSupported && (
+                            <SegmentedControl
+                                classNames={{
+                                    root: classes.inputModeControl,
+                                    indicator:
+                                        classes.inputModeControlIndicator,
+                                    control: classes.inputModeControlItem,
+                                    label: classes.inputModeControlLabel,
+                                }}
+                                value={editMode}
+                                onChange={(value) =>
+                                    setEditMode(value as EditMode)
+                                }
+                                data={editModeOptions}
+                                size="xs"
+                            />
+                        )}
+                    </Group>
 
                     <Box
                         key={editMode}
@@ -509,7 +603,6 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
-                                key={formulaKey}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
@@ -520,7 +613,6 @@ const TableCalculationModal: FC<Props> = ({
                                     form.setFieldValue('formula', text)
                                 }
                                 onValidationChange={setFormulaParseError}
-                                onAiApply={handleFormulaAiApply}
                                 isFullScreen={isExpanded}
                             />
                         ) : (

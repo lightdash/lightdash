@@ -17,6 +17,84 @@
     min-height: 0;
 }
 
+.inputModeHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+}
+
+.inputModeControl {
+    width: 220px;
+    padding: 2px;
+    background-color: var(--mantine-color-ldGray-1);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-6);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.inputModeControlIndicator {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: calc(var(--mantine-radius-md) - 2px);
+    box-shadow: var(--mantine-shadow-xs);
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-5);
+        border-color: var(--mantine-color-ldDark-3);
+    }
+}
+
+.inputModeControlItem {
+    min-width: 108px;
+}
+
+.inputModeControlLabel {
+    min-height: 24px;
+    padding-inline: var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+    line-height: 24px;
+}
+
+.inputModeFormulaLabel {
+    height: 100%;
+}
+
+.inputModeBadge {
+    height: 16px;
+    padding-inline: 5px;
+    font-size: 10px;
+    letter-spacing: 0;
+    line-height: 16px;
+    text-transform: none;
+}
+
+.typeOptionIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: var(--mantine-color-ldGray-6);
+    background-color: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-1);
+        background-color: var(--mantine-color-ldDark-6);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
 .sqlEditorBorder {
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
@@ -35,4 +113,19 @@
     justify-content: center;
     min-height: 250px;
     gap: var(--mantine-spacing-sm);
+}
+
+@media (max-width: 48em) {
+    .inputModeHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .inputModeControl {
+        width: 100%;
+    }
+
+    .inputModeControlItem {
+        min-width: 0;
+    }
 }

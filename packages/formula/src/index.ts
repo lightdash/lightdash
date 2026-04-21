@@ -27,9 +27,7 @@ export { extractColumnRefs } from './ast';
 export { FUNCTION_CATALOG, FUNCTION_DEFINITIONS } from './functions';
 
 // Dialects the formula package can compile to. Consumers (backend mapper,
-// frontend UI gating) use this as the single source of truth. Adding a
-// dialect to the Dialect union without adding it here — or vice versa —
-// is a compile error thanks to `as const satisfies`.
+// frontend UI gating) use this as the single source of truth.
 export const SUPPORTED_DIALECTS = [
     'postgres',
     'redshift',
@@ -39,6 +37,15 @@ export const SUPPORTED_DIALECTS = [
     'databricks',
     'clickhouse',
 ] as const satisfies readonly Dialect[];
+
+type MissingSupportedDialect = Exclude<
+    Dialect,
+    (typeof SUPPORTED_DIALECTS)[number]
+>;
+const supportedDialectsAreExhaustive: MissingSupportedDialect extends never
+    ? true
+    : MissingSupportedDialect = true;
+void supportedDialectsAreExhaustive;
 
 export function compile(formula: string, options: CompileOptions): string {
     const ast = parse(formula);
