@@ -384,7 +384,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             ) &&
             ability.cannot(
@@ -392,8 +392,8 @@ export class AsyncQueryService extends ProjectService {
                 subject('Explore', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
                     exploreNames: [exploreName],
+                    metadata: { projectUuid, exploreName },
                 }),
             );
 
@@ -417,7 +417,7 @@ export class AsyncQueryService extends ProjectService {
                 subject('PreAggregation', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {

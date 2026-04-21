@@ -182,7 +182,7 @@ export class SavedSqlService
                 action,
                 subject('SavedChart', {
                     ...ctx[spaceUuid],
-                    uuid: resource.savedSqlUuid ?? '',
+                    metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                 }),
             )
         ) {
@@ -197,7 +197,7 @@ export class SavedSqlService
                     action,
                     subject('SavedChart', {
                         ...ctx[resource.spaceUuid!],
-                        uuid: resource.savedSqlUuid ?? '',
+                        metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                     }),
                 )
             ) {
@@ -270,7 +270,6 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             )
         ) {
@@ -334,7 +333,7 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             )
         ) {
@@ -404,7 +403,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: savedChart.organization.organizationUuid,
                 projectUuid,
             });
@@ -446,7 +445,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -478,7 +477,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid,
                 projectUuid,
             });
@@ -490,7 +489,7 @@ export class SavedSqlService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { projectUuid },
                     }),
                 )
             ) {
@@ -502,7 +501,7 @@ export class SavedSqlService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             );
 
@@ -534,7 +533,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -552,7 +551,7 @@ export class SavedSqlService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { projectUuid },
                     }),
                 )
             ) {
@@ -564,7 +563,7 @@ export class SavedSqlService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             );
 
@@ -593,7 +592,6 @@ export class SavedSqlService
                 subject('Job', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             ) ||
             auditedAbility.cannot(
@@ -601,7 +599,6 @@ export class SavedSqlService
                 subject('SqlRunner', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             )
         ) {
@@ -654,7 +651,6 @@ export class SavedSqlService
                     subject('Job', {
                         organizationUuid,
                         projectUuid,
-                        uuid: '',
                     }),
                 ) ||
                 auditedAbility.cannot(
@@ -662,7 +658,6 @@ export class SavedSqlService
                     subject('SqlRunner', {
                         organizationUuid,
                         projectUuid,
-                        uuid: '',
                     }),
                 )
             ) {
@@ -767,7 +762,7 @@ export class SavedSqlService
         } else {
             this.logBypassEvent(user, 'update', {
                 type: 'SavedChart',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         }
@@ -811,7 +806,7 @@ export class SavedSqlService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             )
         ) {
@@ -839,7 +834,7 @@ export class SavedSqlService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             )
         ) {

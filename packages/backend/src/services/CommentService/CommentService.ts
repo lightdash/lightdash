@@ -165,7 +165,7 @@ export class CommentService extends BaseService {
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    name: dashboard.name,
+                    metadata: { dashboardName: dashboard.name },
                 }),
             )
         ) {
@@ -234,7 +234,7 @@ export class CommentService extends BaseService {
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    name: dashboard.name,
+                    metadata: { dashboardName: dashboard.name },
                 }),
             )
         ) {
@@ -252,7 +252,7 @@ export class CommentService extends BaseService {
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { dashboardName: dashboard.name },
             }),
         );
 
@@ -279,7 +279,7 @@ export class CommentService extends BaseService {
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    name: dashboard.name,
+                    metadata: { dashboardName: dashboard.name },
                 }),
             )
         ) {
@@ -331,7 +331,7 @@ export class CommentService extends BaseService {
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { dashboardName: dashboard.name },
             }),
         );
 
@@ -347,7 +347,7 @@ export class CommentService extends BaseService {
                 type: 'DashboardComments',
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { dashboardName: dashboard.name },
             });
         }
 

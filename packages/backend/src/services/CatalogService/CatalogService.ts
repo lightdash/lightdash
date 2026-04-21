@@ -702,8 +702,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -764,8 +763,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -851,8 +849,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -897,8 +894,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -951,8 +947,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1065,8 +1060,7 @@ export class CatalogService<
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid: tagOrganizationUuid,
-                    uuid: tag.tagUuid,
-                    name: tag.name,
+                    metadata: { tagUuid: tag.tagUuid, tagName: tag.name },
                 }),
             )
         ) {
@@ -1113,8 +1107,7 @@ export class CatalogService<
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid: tagOrganizationUuid,
-                    uuid: tag.tagUuid,
-                    name: tag.name,
+                    metadata: { tagUuid: tag.tagUuid, tagName: tag.name },
                 }),
             )
         ) {
@@ -1181,8 +1174,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1452,8 +1444,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1517,8 +1508,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1591,8 +1581,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1647,8 +1636,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1733,8 +1721,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1759,8 +1746,7 @@ export class CatalogService<
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -1811,7 +1797,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
-                    uuid: metricsTreeUuidOrSlug,
+                    metadata: { metricsTreeUuidOrSlug },
                 }),
             )
         ) {
@@ -1881,7 +1867,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
-                    uuid: metricsTreeUuid,
+                    metadata: { metricsTreeUuid },
                 }),
             )
         ) {
@@ -1911,7 +1897,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
-                    uuid: metricsTreeUuid,
+                    metadata: { metricsTreeUuid },
                 }),
             )
         ) {
@@ -1939,7 +1925,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
-                    uuid: metricsTreeUuid,
+                    metadata: { metricsTreeUuid },
                 }),
             )
         ) {
@@ -1965,7 +1951,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
-                    uuid: metricsTreeUuid,
+                    metadata: { metricsTreeUuid },
                 }),
             )
         ) {
@@ -2014,7 +2000,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
-                    uuid: metricsTreeUuid,
+                    metadata: { metricsTreeUuid },
                 }),
             )
         ) {

@@ -59,8 +59,7 @@ export type CallStackEntry = {
 
 export const AuditResourceSchema = z.object({
     type: z.string(),
-    uuid: z.string().optional(),
-    name: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
     organizationUuid: z.string(),
     projectUuid: z.string().optional(),
 });
