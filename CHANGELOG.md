@@ -1,3 +1,10 @@
+# [0.2771.0](https://github.com/lightdash/lightdash/compare/0.2770.1...0.2771.0) (2026-04-21)
+
+
+### Features
+
+* thread resolved timezone through backend formatting paths ([#22109](https://github.com/lightdash/lightdash/issues/22109)) ([2693cbf](https://github.com/lightdash/lightdash/commit/2693cbf88ab3b13ad190ee2788c9ad4e0aed1cd0))
+
 ## [0.2770.1](https://github.com/lightdash/lightdash/compare/0.2770.0...0.2770.1) (2026-04-21)
 
 
