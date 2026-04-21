@@ -1,3 +1,10 @@
+# [0.2772.0](https://github.com/lightdash/lightdash/compare/0.2771.0...0.2772.0) (2026-04-21)
+
+
+### Features
+
+* **formula:** GA formula table calculations by warehouse support ([#22147](https://github.com/lightdash/lightdash/issues/22147)) ([59e598c](https://github.com/lightdash/lightdash/commit/59e598c596665769fa1012fed9a458337e09b6c5))
+
 # [0.2771.0](https://github.com/lightdash/lightdash/compare/0.2770.1...0.2771.0) (2026-04-21)
 
 
