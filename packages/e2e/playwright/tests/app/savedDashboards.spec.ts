@@ -22,6 +22,11 @@ test.describe('Dashboard List', () => {
             .fill('Untitled dashboard');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByRole('button', { name: 'Next' }).click();
+        // Step 2 requires picking a space before Create enables.
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Jaffle shop' })
+            .click();
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
         await expect(page).toHaveURL(

@@ -177,6 +177,11 @@ test.describe('Dashboard', () => {
             .fill('Title');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByText('Next').click();
+        // Step 2 requires picking a space before Create enables.
+        await page
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Jaffle shop' })
+            .click();
         await page
             .getByText('Create', { exact: true })
             .click({ timeout: 10000 });

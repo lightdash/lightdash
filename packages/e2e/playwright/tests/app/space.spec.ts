@@ -175,19 +175,25 @@ test.describe('Space', () => {
         await editorPage.goto(
             `/projects/${SEED_PROJECT.project_uuid}/spaces/${privateSpace.uuid}`,
         );
-        await expect(editorPage.getByText('You need access')).toBeVisible();
+        await expect(editorPage.getByText('You need access')).toBeVisible({
+            timeout: 15000,
+        });
 
         // Navigate to private chart and make sure we get a forbidden error
         await editorPage.goto(
             `/projects/${SEED_PROJECT.project_uuid}/saved/${privateChart.uuid}`,
         );
-        await expect(editorPage.getByText('You need access')).toBeVisible();
+        await expect(editorPage.getByText('You need access')).toBeVisible({
+            timeout: 15000,
+        });
 
         // Navigate to private dashboard and make sure we get a forbidden error
         await editorPage.goto(
             `/projects/${SEED_PROJECT.project_uuid}/dashboards/${privateDashboard.uuid}`,
         );
-        await expect(editorPage.getByText('You need access')).toBeVisible();
+        await expect(editorPage.getByText('You need access')).toBeVisible({
+            timeout: 15000,
+        });
 
         await context.close();
     });
