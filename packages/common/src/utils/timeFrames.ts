@@ -79,51 +79,77 @@ type WarehouseConfig = {
     ) => string;
 };
 
-/** Per-warehouse SQL to convert timestamps to the project timezone before DATE_TRUNC.
- *  BigQuery is a no-op — TIMESTAMP_TRUNC accepts timezone natively. */
+/** Per-warehouse SQL to round-trip a timestamp through the project timezone.
+ *  `toProjectTz` shifts into project-local wall-clock (naive/NTZ for most adapters)
+ *  before DATE_TRUNC. `toUTC` converts the truncated naive value back into a proper
+ *  UTC instant (timestamptz) so downstream consumers see an honest instant rather
+ *  than a wall-clock stamped with a misleading Z. BigQuery is a no-op in both
+ *  directions — TIMESTAMP_TRUNC accepts the timezone natively and already
+ *  preserves the UTC instant. */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string) => string;
+    toUTC: (sql: string, tz: string) => string;
 };
 
 const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
 > = {
-    // BigQuery: no-op — TIMESTAMP_TRUNC accepts timezone natively
+    // BigQuery: no-op — TIMESTAMP_TRUNC accepts timezone natively and returns
+    // a UTC-grounded TIMESTAMP.
     [SupportedDbtAdapter.BIGQUERY]: {
         toProjectTz: (sql) => sql,
+        toUTC: (sql) => sql,
     },
-    // Snowflake: CONVERT_TIMEZONE from UTC to project TZ
+    // Snowflake: CONVERT_TIMEZONE from UTC to project TZ, then back.
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz) => `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
+        toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
     },
-    // Postgres: cast to timestamptz (session TZ), then AT TIME ZONE to project TZ
+    // Postgres: cast to timestamptz (session TZ), then AT TIME ZONE to project
+    // TZ (which yields naive NTZ). Going back: AT TIME ZONE reinterprets the
+    // naive value as project-local and returns a timestamptz.
     [SupportedDbtAdapter.POSTGRES]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.DUCKDB]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
-    // Databricks: normalize to UTC via session TZ, then to project TZ
+    // Databricks: normalize to UTC via session TZ, then to project TZ. Going
+    // back: to_utc_timestamp reinterprets a local NTZ as the given TZ's wall-
+    // clock and returns the equivalent UTC timestamp.
     [SupportedDbtAdapter.DATABRICKS]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
     },
-    // Trino/Athena: cast to timestamptz, AT TIME ZONE, then cast back to NTZ
+    // Trino/Athena: cast to timestamptz, AT TIME ZONE, then cast back to NTZ.
+    // Going back: cast the NTZ to a tz-tagged timestamp and let the engine
+    // compute the UTC representation.
     [SupportedDbtAdapter.TRINO]: {
         toProjectTz: (sql, tz) =>
             `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+        toUTC: (sql, tz) =>
+            `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
             `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+        toUTC: (sql, tz) =>
+            `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
     },
-    // ClickHouse: toTimeZone changes the display timezone
+    // ClickHouse: toTimeZone is a display-only reinterpretation — the
+    // underlying DateTime is always stored as UTC, so both directions are
+    // no-ops from a value-preservation perspective.
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
+        toUTC: (sql) => sql,
     },
 };
 
