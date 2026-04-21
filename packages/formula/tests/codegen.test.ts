@@ -230,6 +230,76 @@ describe('codegen', () => {
         });
     });
 
+    describe('ROUND', () => {
+        it('emits bare ROUND on dialects that accept floatish inputs', () => {
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'bigquery',
+                    columns,
+                }),
+            ).toBe('ROUND(`revenue`, 2)');
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'snowflake',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue", 2)');
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'duckdb',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue", 2)');
+        });
+
+        it('casts value to numeric on Postgres for the 2-arg form', () => {
+            // Postgres has no `round(double precision, int)` overload,
+            // only `round(numeric, int)`. Any 2-arg ROUND over a
+            // Lightdash AVG metric (which PostgresWarehouseClient casts
+            // to DOUBLE PRECISION) would otherwise fail with
+            // "function round(double precision, integer) does not exist".
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('ROUND(("revenue")::numeric, 2)');
+        });
+
+        it('casts value to numeric on Redshift for the 2-arg form', () => {
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'redshift',
+                    columns,
+                }),
+            ).toBe('ROUND(("revenue")::numeric, 2)');
+        });
+
+        it('leaves the 1-arg form uncast on Postgres', () => {
+            // `round(double precision)` and `round(numeric)` both exist
+            // on Postgres, so no cast is needed for the single-arg form.
+            expect(
+                compile('=ROUND(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue")');
+        });
+
+        it('casts the AVG result on Postgres, preserving both fixes', () => {
+            // The common failure path from production: ROUND(AVG(x), n).
+            // AVG widens to DOUBLE PRECISION (existing Postgres behavior),
+            // and the 2-arg ROUND casts its value back to numeric so the
+            // outer call resolves to round(numeric, int).
+            expect(
+                compile('=ROUND(AVG(revenue), 2)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('ROUND((AVG("revenue"::DOUBLE PRECISION))::numeric, 2)');
+        });
+    });
+
     describe('Redshift dialect', () => {
         it('emits bare aggregates by default (Postgres-equivalent output)', () => {
             expect(
