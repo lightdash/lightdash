@@ -1752,6 +1752,39 @@ describe('Formatting', () => {
                 expect(withTrue).toBe('2020-04-04');
                 expect(withFalse).toBe(withDefault);
             });
+
+            test('shifts UTC instant into project TZ for positive offsets (Tokyo)', () => {
+                // Tokyo midnight Jan 14 = UTC Jan 13 15:00
+                const tokyoMidnight = '2024-01-13T15:00:00.000Z';
+                expect(
+                    formatDate(
+                        tokyoMidnight,
+                        TimeFrames.DAY,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-01-14');
+            });
+
+            test('shifts UTC instant into project TZ for negative offsets (Pago_Pago)', () => {
+                // Pago_Pago midnight Jan 14 = UTC Jan 14 11:00
+                const ppMidnight = '2024-01-14T11:00:00.000Z';
+                expect(
+                    formatDate(
+                        ppMidnight,
+                        TimeFrames.DAY,
+                        false,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toBe('2024-01-14');
+            });
+
+            test('UTC project TZ is a no-op', () => {
+                const utcMidnight = '2024-01-14T00:00:00.000Z';
+                expect(
+                    formatDate(utcMidnight, TimeFrames.DAY, false, 'UTC'),
+                ).toBe('2024-01-14');
+            });
         });
 
         describe('formatTimestamp', () => {
@@ -1786,58 +1819,45 @@ describe('Formatting', () => {
             });
         });
 
-        describe('formatItemValue TIMESTAMP double-shift prevention', () => {
-            // Truncated TIMESTAMP values arrive from SQL's DATE_TRUNC(..., AT
-            // TIME ZONE tz) already wall-clock-shifted into the project TZ
-            // (stamped UTC by the pg driver). Re-applying .tz() at format time
-            // double-shifts. formatItemValue should suppress that second shift
-            // for truncated intervals only, leaving raw/undefined intervals
-            // alone so genuine timestamptz columns still display in the
-            // project TZ.
-            const truncatedBase = {
+        describe('formatItemValue uniform timezone shift', () => {
+            const tsBase = {
                 ...dimension,
                 type: DimensionType.TIMESTAMP,
             };
 
-            test('truncated HOUR does not double-shift when timezone supplied', () => {
-                const value = new Date('2024-01-14T15:00:00.000Z');
+            test('truncated HOUR shifts into project TZ (negative offset)', () => {
+                // Pago_Pago 15:00 Jan 14 = UTC Jan 15 02:00
+                const value = new Date('2024-01-15T02:00:00.000Z');
                 expect(
                     formatItemValue(
-                        { ...truncatedBase, timeInterval: TimeFrames.HOUR },
+                        { ...tsBase, timeInterval: TimeFrames.HOUR },
                         value,
                         false,
                         undefined,
                         'Pacific/Pago_Pago',
                     ),
-                ).toBe('2024-01-14, 15 (+00:00)');
+                ).toBe('2024-01-14, 15 (-11:00)');
             });
 
-            test.each([
-                TimeFrames.MILLISECOND,
-                TimeFrames.SECOND,
-                TimeFrames.MINUTE,
-                TimeFrames.HOUR,
-            ])(
-                '%s-truncated TIMESTAMP formats as UTC when timezone supplied',
-                (ti) => {
-                    const value = new Date('2024-01-14T15:00:00.000Z');
-                    const result = formatItemValue(
-                        { ...truncatedBase, timeInterval: ti },
+            test('truncated HOUR shifts into project TZ (positive offset)', () => {
+                // Tokyo 11:00 Jan 15 = UTC Jan 15 02:00
+                const value = new Date('2024-01-15T02:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        { ...tsBase, timeInterval: TimeFrames.HOUR },
                         value,
                         false,
                         undefined,
-                        'Pacific/Pago_Pago',
-                    );
-                    expect(result).toContain('2024-01-14');
-                    expect(result).toContain('(+00:00)');
-                },
-            );
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-01-15, 11 (+09:00)');
+            });
 
-            test('RAW TIMESTAMP still applies project timezone shift', () => {
-                const value = new Date('2024-01-14T15:00:00.000Z');
+            test('RAW TIMESTAMP shifts into project TZ', () => {
+                const value = new Date('2024-01-15T02:00:00.000Z');
                 expect(
                     formatItemValue(
-                        { ...truncatedBase, timeInterval: TimeFrames.RAW },
+                        { ...tsBase, timeInterval: TimeFrames.RAW },
                         value,
                         false,
                         undefined,
@@ -1846,10 +1866,28 @@ describe('Formatting', () => {
                 ).toContain('(-11:00)');
             });
 
-            test('flag-off (no timezone) is byte-identical for truncated TIMESTAMP', () => {
-                const value = new Date('2024-01-14T15:00:00.000Z');
+            test('DATE DAY shifts into project TZ (positive offset canary)', () => {
+                // Tokyo midnight Jan 14 = UTC Jan 13 15:00
+                const value = new Date('2024-01-13T15:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        {
+                            ...dimension,
+                            type: DimensionType.DATE,
+                            timeInterval: TimeFrames.DAY,
+                        },
+                        value,
+                        false,
+                        undefined,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-01-14');
+            });
+
+            test('no timezone is byte-identical to default', () => {
+                const value = new Date('2024-01-15T02:00:00.000Z');
                 const hourItem = {
-                    ...truncatedBase,
+                    ...tsBase,
                     timeInterval: TimeFrames.HOUR,
                 };
                 expect(formatItemValue(hourItem, value)).toBe(
