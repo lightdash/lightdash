@@ -1,3 +1,10 @@
+# [0.2770.0](https://github.com/lightdash/lightdash/compare/0.2769.1...0.2770.0) (2026-04-21)
+
+
+### Features
+
+* **analytics:** add event tracking to data apps pipeline ([#22146](https://github.com/lightdash/lightdash/issues/22146)) ([9f0085a](https://github.com/lightdash/lightdash/commit/9f0085a5f1c1e766e810362d4b9a1ca0b3e634b8))
+
 ## [0.2769.1](https://github.com/lightdash/lightdash/compare/0.2769.0...0.2769.1) (2026-04-21)
 
 
