@@ -103,6 +103,9 @@ lightdash upload --force
 
 # Upload specific items
 lightdash upload --charts my-chart --dashboards my-dashboard
+
+# Upload a dashboard and all its charts automatically
+lightdash upload --dashboards my-dashboard --include-charts
 ```
 
 ## Delete Content
