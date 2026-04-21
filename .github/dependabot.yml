@@ -6,8 +6,7 @@ updates:
   - package-ecosystem: 'npm'
     directory: '/'
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: 'daily'
     # Supply-chain cooldown — refuses versions published less than 3 days ago.
     # Mirrors pnpm-workspace.yaml `minimumReleaseAge` and .npmrc `min-release-age`.
     cooldown:
@@ -59,8 +58,7 @@ updates:
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
-      interval: 'weekly'
-      day: 'monday'
+      interval: 'daily'
     cooldown:
       default-days: 3
     open-pull-requests-limit: 2
