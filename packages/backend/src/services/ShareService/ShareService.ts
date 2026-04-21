@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     isUserWithOrg,
+    NotFoundError,
     SessionUser,
     ShareUrl,
 } from '@lightdash/common';
@@ -46,12 +47,17 @@ export class ShareService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const shareUrl = await this.shareModel.getSharedUrl(nanoid);
+        if (!shareUrl.organizationUuid) {
+            throw new NotFoundError('Shared link does not exist');
+        }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('OrganizationMemberProfile', {
                     organizationUuid: shareUrl.organizationUuid,
+                    metadata: { shareNanoid: shareUrl.nanoid },
                 }),
             )
         ) {
