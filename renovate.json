@@ -12,34 +12,7 @@
     "prConcurrentLimit": 5,
     "prHourlyLimit": 2,
     "labels": ["dependencies"],
-    "packageRules": [
-        {
-            "description": "Auto-merge low-risk updates: patch bumps, repins, and SHA digest bumps",
-            "matchUpdateTypes": ["patch", "pin", "digest"],
-            "automerge": true
-        },
-        {
-            "description": "Auto-merge devDependencies on minor + patch (lower blast radius than runtime deps)",
-            "matchDepTypes": ["devDependencies"],
-            "matchUpdateTypes": ["minor", "patch"],
-            "automerge": true
-        },
-        {
-            "description": "Hold framework majors for human review",
-            "matchPackageNames": [
-                "typescript",
-                "react",
-                "react-dom",
-                "node",
-                "pnpm",
-                "vite",
-                "express"
-            ],
-            "automerge": false
-        }
-    ],
     "vulnerabilityAlerts": {
-        "labels": ["security"],
-        "automerge": false
+        "labels": ["security"]
     }
 }
