@@ -98,7 +98,7 @@
         "formula:test:all": "pnpm -F formula-tests test:all",
         "formula:test:warehouse": "pnpm -F formula-tests exec tsx run.ts --tier all --warehouse",
         "common-dev": "pnpm -F common dev",
-        "common-build": "pnpm -F common build",
+        "common-build": "turbo run build --filter=@lightdash/common",
         "common-lint": "pnpm -F common lint",
         "common-format": "pnpm -F common format",
         "common-fix-lint": "pnpm -F common fix-lint",

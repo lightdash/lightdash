@@ -52,10 +52,10 @@ test.describe('CLI YAML-only project', () => {
     test.describe('deploy', () => {
         let projectToDelete: string | undefined;
 
-        test.afterAll(async ({ browser }) => {
+        test.afterAll(async ({ browser, adminState }) => {
             if (projectToDelete) {
                 const context = await browser.newContext({
-                    storageState: 'playwright/.auth/admin.json',
+                    storageState: JSON.parse(adminState),
                 });
                 const page = await context.newPage();
                 await page.request.delete(

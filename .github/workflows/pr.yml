@@ -16,6 +16,14 @@ permissions:
   issues: write
   packages: write
 
+# Share the Depot-hosted Turbo remote cache across every job, so
+# `pnpm common-build` (and any other turbo task) hits the cache from the
+# `build-and-test` job instead of rebuilding from scratch in each test job.
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_API: https://cache.depot.dev
+
 jobs:
   # ============================================================================
   # Stage 0: Fast checks (no install needed)
@@ -77,9 +85,7 @@ jobs:
     name: Build & Test
     runs-on: depot-ubuntu-24.04-8
     env:
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-      TURBO_API: https://cache.depot.dev
+      # TURBO_* are inherited from the workflow-level env.
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6

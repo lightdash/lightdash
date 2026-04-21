@@ -472,10 +472,10 @@ test.describe('Create projects', () => {
     // which the jaffle-shop demo needs well over the default 30s for.
     test.setTimeout(240000);
 
-    test.beforeAll(async ({ browser }) => {
+    test.beforeAll(async ({ browser, adminState }) => {
         // clean previous e2e projects
         const context = await browser.newContext({
-            storageState: 'playwright/.auth/admin.json',
+            storageState: JSON.parse(adminState),
         });
         const page = await context.newPage();
         const projectNames = Object.values(warehouseConfig).map<string>(

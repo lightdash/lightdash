@@ -61,17 +61,11 @@ export default defineConfig({
     },
     projects: [
         {
-            name: 'setup',
-            testDir: './playwright',
-            testMatch: /global-setup\.ts/,
-        },
-        {
             name: 'chromium',
             use: {
                 ...devices['Desktop Chrome'],
                 viewport: { width: 1920, height: 1080 },
             },
-            dependencies: ['setup'],
         },
     ],
     /* Block third-party hosts that were blocked in Cypress config */

@@ -22,10 +22,10 @@ function exec(
 }
 
 test.describe('Content as Code CLI', () => {
-    test.beforeAll(async ({ browser }) => {
+    test.beforeAll(async ({ browser, adminState }) => {
         // Login and get API token for CLI authentication
         const context = await browser.newContext({
-            storageState: 'playwright/.auth/admin.json',
+            storageState: JSON.parse(adminState),
         });
         const page = await context.newPage();
         const apiToken = await getApiToken(page.request);
