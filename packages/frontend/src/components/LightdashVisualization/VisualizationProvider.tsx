@@ -152,6 +152,10 @@ const VisualizationProvider: FC<
         FeatureFlags.UseSqlPivotResults,
     );
 
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
         useSqlPivotResults?.enabled
@@ -236,6 +240,17 @@ const VisualizationProvider: FC<
         if (!resultsData) return;
         setLastValidResultsData(resultsData);
     }, [resultsData]);
+
+    // Strip `resolvedTimezone` when the EnableTimezoneSupport flag is off so
+    // every downstream consumer — context reads and child hooks that receive
+    // resultsData directly (BigNumber, Pie) — sees the same gated value.
+    const gatedResultsData = useMemo(() => {
+        if (!lastValidResultsData) return undefined;
+        if (timezoneSupportFlag?.enabled) return lastValidResultsData;
+        if (lastValidResultsData.resolvedTimezone === undefined)
+            return lastValidResultsData;
+        return { ...lastValidResultsData, resolvedTimezone: undefined };
+    }, [lastValidResultsData, timezoneSupportFlag?.enabled]);
 
     /**
      * Gets a shared color for a given group name.
@@ -327,14 +342,6 @@ const VisualizationProvider: FC<
     // This helps us avoid appendTo: 'body' on touch devices where drag-to-scroll
     // causes tooltip positioning issues.
     // Related: https://github.com/apache/echarts/issues/12776
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const resolvedTimezone = useMemo(() => {
-        if (!(timezoneSupportFlag?.enabled ?? false)) return undefined;
-        return resultsData?.resolvedTimezone;
-    }, [timezoneSupportFlag?.enabled, resultsData?.resolvedTimezone]);
-
     const isTouchDevice = useMemo(() => {
         return (
             'ontouchstart' in window ||
@@ -352,7 +359,7 @@ const VisualizationProvider: FC<
         pivotDimensions: validPivotDimensions,
         chartRef,
         leafletMapRef,
-        resultsData: lastValidResultsData,
+        resultsData: gatedResultsData,
         isLoading,
         apiErrorDetail,
         columnOrder: defaultColumnOrder,
@@ -372,7 +379,7 @@ const VisualizationProvider: FC<
         isDashboard,
         isEditMode,
         isTouchDevice,
-        resolvedTimezone,
+        resolvedTimezone: gatedResultsData?.resolvedTimezone,
     };
 
     switch (chartConfig.type) {
@@ -380,7 +387,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationCartesianConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     validPivotDimensions={validPivotDimensions}
                     columnOrder={defaultColumnOrder}
                     initialChartConfig={chartConfig.config}
@@ -405,7 +412,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationPieConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
@@ -425,7 +432,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationConfigFunnel
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
@@ -445,7 +452,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationBigNumberConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     tableCalculationsMetadata={tableCalculationsMetadata}
@@ -464,7 +471,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationTreemapConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
@@ -482,7 +489,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationGaugeConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
@@ -500,7 +507,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationMapConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
@@ -518,7 +525,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationTableConfig
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     columnOrder={defaultColumnOrder}
                     validPivotDimensions={validPivotDimensions}
                     pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
@@ -542,7 +549,7 @@ const VisualizationProvider: FC<
         case ChartType.CUSTOM:
             return (
                 <VisualizationCustomConfig
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     itemsMap={itemsMap}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
@@ -560,7 +567,7 @@ const VisualizationProvider: FC<
             return (
                 <VisualizationConfigSankey
                     itemsMap={itemsMap}
-                    resultsData={lastValidResultsData}
+                    resultsData={gatedResultsData}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     colorPalette={colorPalette}
