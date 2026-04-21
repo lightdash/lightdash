@@ -1,5 +1,6 @@
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type KnexPaginateArgs } from '../../types/knex-paginate';
+import { type MetricQuery } from '../../types/metricQuery';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -95,6 +96,13 @@ export type ApiAppSummary = {
     createdAt: Date;
     lastVersionNumber: number | null;
     lastVersionStatus: AppVersionStatus | null;
+};
+
+export type ChartReference = {
+    chartName: string;
+    chartDescription: string;
+    exploreName: string;
+    metricQuery: MetricQuery;
 };
 
 export type ApiMyAppsResponse = ApiSuccess<{
