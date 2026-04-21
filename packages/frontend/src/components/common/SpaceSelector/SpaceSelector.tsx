@@ -57,12 +57,18 @@ const SpaceSelector = ({
         switch (selectedAdminContentType) {
             case 'all':
                 return spaces;
-            case 'shared':
-                return spaces.filter(
-                    (space) =>
+            case 'shared': {
+                // Instead of dropping inaccessible spaces, keep them in the
+                // tree as non-selectable placeholders so hierarchy is preserved
+                // and same-named children remain visually distinguishable.
+                return spaces.map((space) => {
+                    const isAccessible =
                         space.inheritsFromOrgOrProject ||
-                        space.access.includes(user.data.userUuid),
-                );
+                        space.access.includes(user.data.userUuid);
+                    if (isAccessible) return space;
+                    return { ...space, restricted: true };
+                });
+            }
             default:
                 return assertUnreachable(
                     selectedAdminContentType,
