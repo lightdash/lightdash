@@ -230,6 +230,11 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
 
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -251,7 +256,7 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         # Force reinstall so pnpm includes optional DuckDB native bindings
         # needed to build both macOS pkg targets from a single runner.
-        run: pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force
+        run: sfw pnpm install --filter @lightdash/cli --filter @lightdash/common --filter @lightdash/warehouses --frozen-lockfile --prefer-offline --prod=false --force
 
       - name: Cache common build
         id: cache-common
