@@ -41,6 +41,7 @@ import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import { getItemType, isNumericItem } from './item';
+import { truncatableTimeFrames } from './timeFrames';
 
 dayjs.extend(dayjsTimezone);
 
@@ -856,12 +857,23 @@ export function formatItemValue(
                 case DimensionType.TIMESTAMP:
                 case MetricType.TIMESTAMP:
                 case TableCalculationType.TIMESTAMP:
+                    const timeInterval = isDimension(item)
+                        ? item.timeInterval
+                        : undefined;
+
+                    // SQL's DATE_TRUNC(... AT TIME ZONE tz) already shifted the
+                    // wall-clock; don't shift again.
+                    const isTruncated =
+                        timezone &&
+                        timeInterval &&
+                        truncatableTimeFrames.has(timeInterval);
+
                     return isMomentInput(value)
                         ? formatTimestamp(
                               value,
-                              isDimension(item) ? item.timeInterval : undefined,
-                              convertToUTC,
-                              timezone,
+                              timeInterval,
+                              isTruncated ? true : convertToUTC,
+                              isTruncated ? undefined : timezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
