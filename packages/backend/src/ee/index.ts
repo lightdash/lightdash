@@ -76,7 +76,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            appGenerateService: ({ context, models, clients }) =>
+            appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -85,6 +85,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
+                    savedChartService: repository.getSavedChartService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

@@ -81,6 +81,39 @@ Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK 
 
 When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.
 
+## Referenced metric queries
+
+The user may reference saved charts from their project by pasting chart UUIDs in their
+prompt. When they do, structured metric query files are available at
+`/tmp/metric-queries/*.json`.
+
+Each file contains:
+- `chartName` / `chartDescription` — what the chart shows and why
+- `exploreName` — which explore (dbt model) the query targets
+- `metricQuery.dimensions` — dimension field IDs used for grouping
+- `metricQuery.metrics` — metric field IDs used for aggregation
+- `metricQuery.filters` — filter rules applied to the query
+- `metricQuery.sorts` — sort order
+- `metricQuery.limit` — row limit
+
+**How to use these:**
+1. Read the JSON file(s) to understand what data the user wants in their app
+2. Cross-reference the field IDs against the dbt YAML catalog at
+   `/tmp/dbt-repo/models/schema.yml` for field descriptions, types, and relationships
+   between fields — this helps you understand how the referenced charts connect to the
+   user's overall prompt
+3. Map fields to SDK calls:
+   - `metricQuery.dimensions` → `query(exploreName).dimensions([...])`
+   - `metricQuery.metrics` → `query(exploreName).metrics([...])`
+   - `metricQuery.filters` → `query(exploreName).filters([...])`
+   - `metricQuery.sorts` → `query(exploreName).sorts([...])`
+4. These are starting points — adapt them based on the user's prompt. You may combine
+   multiple referenced queries, add/remove fields, or adjust filters as needed.
+
+**Important:** The field IDs in metric queries use qualified names (e.g.,
+`orders_total_revenue`), but the SDK uses short names (e.g., `total_revenue`). Strip the
+explore name prefix when mapping to SDK calls.
+
 ## SDK Reference
 
 The client and provider are already set up in `main.jsx`. Import `query` and `useLightdash` — that's it.

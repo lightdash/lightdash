@@ -2,6 +2,7 @@ import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
     type AppImageAttachment,
+    type ChartReference,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
     type SlackPromptJobPayload,
@@ -41,6 +42,7 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     prompt: string;
     image?: AppImageAttachment;
     isIteration: boolean;
+    chartReferences?: ChartReference[];
 };
 
 export const EE_SCHEDULER_TASKS = {

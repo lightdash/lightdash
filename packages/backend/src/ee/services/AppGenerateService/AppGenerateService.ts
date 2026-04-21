@@ -13,6 +13,7 @@ import {
     ParameterError,
     type AppGeneratePipelineJobPayload,
     type AppImageAttachment,
+    type ChartReference,
     type SessionUser,
 } from '@lightdash/common';
 import { ALL_TRAFFIC, Sandbox } from 'e2b';
@@ -21,6 +22,7 @@ import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -34,6 +36,7 @@ import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
+import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
 type AppGenerateServiceDeps = {
@@ -43,6 +46,7 @@ type AppGenerateServiceDeps = {
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
+    savedChartService: SavedChartService;
 };
 
 type GenerateAppResult = {
@@ -63,6 +67,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly savedChartService: SavedChartService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -70,6 +76,7 @@ export class AppGenerateService extends BaseService {
         appModel,
         featureFlagModel,
         schedulerClient,
+        savedChartService,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -78,6 +85,7 @@ export class AppGenerateService extends BaseService {
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
+        this.savedChartService = savedChartService;
     }
 
     private getAnthropicApiKey(): string {
@@ -582,6 +590,60 @@ export class AppGenerateService extends BaseService {
         return { sandbox: createResult.sandbox, wasResumed: false, durations };
     }
 
+    /**
+     * Write resolved chart references as individual JSON files in the sandbox.
+     * Returns a summary string to prepend to the prompt, or empty string if
+     * no references were provided.
+     */
+    private async writeChartReferences(
+        sandbox: Sandbox,
+        appUuid: string,
+        chartReferences: ChartReference[],
+    ): Promise<string> {
+        if (chartReferences.length === 0) return '';
+
+        await sandbox.commands.run('mkdir -p /tmp/metric-queries', {
+            timeoutMs: 5_000,
+        });
+
+        const slugCounts = new Map<string, number>();
+        const fileEntries: string[] = [];
+
+        for (const ref of chartReferences) {
+            // Generate slug from chart name
+            let slug = ref.chartName
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-|-$/g, '');
+            if (!slug) slug = 'chart';
+
+            // Handle duplicate slugs
+            const count = (slugCounts.get(slug) ?? 0) + 1;
+            slugCounts.set(slug, count);
+            const filename =
+                count > 1 ? `${slug}-${count}.json` : `${slug}.json`;
+
+            const json = JSON.stringify(ref, null, 2);
+            // Each file write is independent — loop is fine here since writes
+            // are small and sequential ordering doesn't matter for correctness.
+            // eslint-disable-next-line no-await-in-loop
+            await sandbox.files.write(`/tmp/metric-queries/${filename}`, json);
+
+            fileEntries.push(
+                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})`,
+            );
+        }
+
+        this.logger.info(
+            `App ${appUuid}: wrote ${chartReferences.length} chart reference(s) to /tmp/metric-queries/`,
+        );
+
+        return (
+            `[Referenced saved charts — metric queries available at /tmp/metric-queries/]\n` +
+            `${fileEntries.join('\n')}\n\n`
+        );
+    }
+
     private async writeCatalogAndPrompt(
         sandbox: Sandbox,
         appUuid: string,
@@ -590,6 +652,7 @@ export class AppGenerateService extends BaseService {
         image: AppImageAttachment | undefined,
         s3Client: S3Client,
         bucket: string,
+        chartReferences: ChartReference[] | undefined,
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -607,14 +670,24 @@ export class AppGenerateService extends BaseService {
         // different ownership (e.g. root-owned after Claude CLI execution),
         // which would cause a permission error on write.
         await sandbox.commands.run(
-            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images 2>/dev/null; true',
+            'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
             { timeoutMs: 5_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
 
-        // Write image to sandbox and prepend path reference to prompt
+        // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
+        if (chartReferences && chartReferences.length > 0) {
+            const referenceBlock = await this.writeChartReferences(
+                sandbox,
+                appUuid,
+                chartReferences,
+            );
+            finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Write image to sandbox and prepend path reference to prompt
         if (image) {
             const imagePath = await this.writeImageToSandbox(
                 sandbox,
@@ -623,7 +696,7 @@ export class AppGenerateService extends BaseService {
                 s3Client,
                 bucket,
             );
-            finalPrompt = `[Design reference image at ${imagePath} — use the Read tool to view it]\n\n${prompt}`;
+            finalPrompt = `[Design reference image at ${imagePath} — use the Read tool to view it]\n\n${finalPrompt}`;
         }
 
         // Write only the latest prompt — Claude is stateless between runs, but
@@ -828,7 +901,7 @@ export class AppGenerateService extends BaseService {
             `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                 `--model sonnet ` +
                 `--verbose --output-format stream-json ` +
-                `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
+                `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
                 `--append-system-prompt-file /app/skill.md`,
             {
                 cwd: '/app',
@@ -1141,7 +1214,14 @@ export class AppGenerateService extends BaseService {
      * completed stages. `claude --continue` resumes the conversation.
      */
     async runPipeline(payload: AppGeneratePipelineJobPayload): Promise<void> {
-        const { appUuid, version, projectUuid, image, isIteration } = payload;
+        const {
+            appUuid,
+            version,
+            projectUuid,
+            image,
+            isIteration,
+            chartReferences,
+        } = payload;
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -1297,6 +1377,7 @@ export class AppGenerateService extends BaseService {
                 wasResumed,
                 anthropicApiKey,
                 image,
+                chartReferences,
             );
         } finally {
             await this.pauseSandbox(sandbox, appUuid);
@@ -1314,6 +1395,7 @@ export class AppGenerateService extends BaseService {
         wasResumed: boolean,
         anthropicApiKey: string,
         image: AppImageAttachment | undefined,
+        chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt } = payload;
         const durations: Record<string, number> = { ...extraDurations };
@@ -1349,6 +1431,7 @@ export class AppGenerateService extends BaseService {
                     image,
                     s3Client,
                     bucket,
+                    chartReferences,
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -1596,6 +1679,50 @@ export class AppGenerateService extends BaseService {
         });
     }
 
+    /**
+     * Extract UUID v4 patterns from the prompt, attempt to resolve each as a
+     * saved chart (permission-checked), and return structured references for
+     * any that resolve.
+     */
+    private async resolveChartReferences(
+        prompt: string,
+        user: SessionUser,
+    ): Promise<ChartReference[]> {
+        const UUID_REGEX =
+            /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+        const uuids = [...new Set(prompt.match(UUID_REGEX) ?? [])];
+
+        if (uuids.length === 0) return [];
+
+        const account = fromSession(user);
+
+        const results = await Promise.allSettled(
+            uuids.map((uuid) => this.savedChartService.get(uuid, account)),
+        );
+
+        const references: ChartReference[] = [];
+        for (const result of results) {
+            if (result.status === 'fulfilled') {
+                const chart = result.value;
+                references.push({
+                    chartName: chart.name,
+                    chartDescription: chart.description ?? '',
+                    exploreName: chart.tableName,
+                    metricQuery: chart.metricQuery,
+                });
+            }
+            // Rejected = not a chart UUID, no access, or deleted — skip silently
+        }
+
+        if (references.length > 0) {
+            this.logger.info(
+                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s) in prompt`,
+            );
+        }
+
+        return references;
+    }
+
     async generateApp(
         user: SessionUser,
         projectUuid: string,
@@ -1657,6 +1784,8 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        const chartReferences = await this.resolveChartReferences(prompt, user);
+
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
             version,
@@ -1666,6 +1795,8 @@ export class AppGenerateService extends BaseService {
             prompt,
             image,
             isIteration: false,
+            chartReferences:
+                chartReferences.length > 0 ? chartReferences : undefined,
         });
 
         return { appUuid, version };
@@ -1737,6 +1868,8 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        const chartReferences = await this.resolveChartReferences(prompt, user);
+
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
             version: newVersion,
@@ -1746,6 +1879,8 @@ export class AppGenerateService extends BaseService {
             prompt,
             image,
             isIteration: true,
+            chartReferences:
+                chartReferences.length > 0 ? chartReferences : undefined,
         });
 
         return { appUuid, version: newVersion };
