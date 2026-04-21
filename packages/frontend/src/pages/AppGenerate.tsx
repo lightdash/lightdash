@@ -20,7 +20,6 @@ import {
     IconAppWindow,
     IconArrowUp,
     IconExternalLink,
-    IconPhoto,
     IconPlayerStop,
     IconSparkles,
 } from '@tabler/icons-react';
@@ -39,6 +38,10 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import AppResourcePicker, {
+    SelectedChartPills,
+    type SelectedChart,
+} from '../features/apps/AppResourcePicker';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
@@ -126,6 +129,7 @@ const AppGenerate: FC = () => {
         previewUrl: string;
     } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
     const handleQueryEvent = useCallback((event: QueryEvent) => {
         setTrackedQueries((prev) => {
@@ -455,6 +459,15 @@ const AppGenerate: FC = () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
+        // Append chart references block if any charts are selected
+        let finalPrompt = trimmed;
+        if (selectedCharts.length > 0) {
+            const chartLines = selectedCharts
+                .map((c) => `- ${c.name} (id: ${c.uuid})`)
+                .join('\n');
+            finalPrompt = `${trimmed}\n\n---\nCharts to include:\n${chartLines}`;
+        }
+
         // For new apps, pre-generate the UUID so the image upload and
         // the generate request both use the same app-scoped S3 path.
         const newAppUuid = activeAppUuid ? undefined : uuid4();
@@ -485,6 +498,12 @@ const AppGenerate: FC = () => {
         const sentImageUrl = imageAttachment?.previewUrl ?? null;
         if (sentImageUrl) {
             sentImagesByPrompt.current.set(trimmed, sentImageUrl);
+            // Also key by finalPrompt (with chart block) since the server
+            // stores the enriched prompt and that's what we match against
+            // when rebuilding messages from version history.
+            if (finalPrompt !== trimmed) {
+                sentImagesByPrompt.current.set(finalPrompt, sentImageUrl);
+            }
         }
 
         setLocalMessages((prev) => [
@@ -500,6 +519,7 @@ const AppGenerate: FC = () => {
         setPrompt('');
         // Don't revoke the object URL since it's now referenced by the message
         setImageAttachment(null);
+        setSelectedCharts([]);
         resetGenerate();
         resetIterate();
 
@@ -538,7 +558,7 @@ const AppGenerate: FC = () => {
                 {
                     projectUuid,
                     appUuid: activeAppUuid,
-                    prompt: trimmed,
+                    prompt: finalPrompt,
                     image,
                 },
                 callbacks,
@@ -547,7 +567,7 @@ const AppGenerate: FC = () => {
             generateMutate(
                 {
                     projectUuid,
-                    prompt: trimmed,
+                    prompt: finalPrompt,
                     image,
                     appUuid: newAppUuid,
                 },
@@ -764,21 +784,6 @@ const AppGenerate: FC = () => {
                                             wrapper: classes.textareaWrapper,
                                         }}
                                     />
-                                    {imageAttachment && (
-                                        <Box className={classes.imagePreview}>
-                                            <Image
-                                                src={imageAttachment.previewUrl}
-                                                className={
-                                                    classes.imagePreviewThumbnail
-                                                }
-                                                alt="Attached image"
-                                            />
-                                            <CloseButton
-                                                size="xs"
-                                                onClick={clearImage}
-                                            />
-                                        </Box>
-                                    )}
                                 </Box>
                                 {isBuilding ? (
                                     <ActionIcon
@@ -794,22 +799,17 @@ const AppGenerate: FC = () => {
                                     </ActionIcon>
                                 ) : (
                                     <Group gap={4} wrap="nowrap">
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="subtle"
-                                            color="gray"
-                                            onClick={() =>
+                                        <AppResourcePicker
+                                            onImageClick={() =>
                                                 fileInputRef.current?.click()
                                             }
-                                            disabled={
+                                            imageDisabled={
                                                 isLoading || !!imageAttachment
                                             }
-                                            className={
-                                                classes.imagePickerButton
-                                            }
-                                        >
-                                            <IconPhoto size={16} />
-                                        </ActionIcon>
+                                            selectedCharts={selectedCharts}
+                                            onChartsChange={setSelectedCharts}
+                                            disabled={isLoading}
+                                        />
                                         <ActionIcon
                                             size="sm"
                                             radius="xl"
@@ -829,6 +829,40 @@ const AppGenerate: FC = () => {
                                     </Group>
                                 )}
                             </Box>
+                            {(imageAttachment || selectedCharts.length > 0) && (
+                                <Group
+                                    gap="xs"
+                                    wrap="wrap"
+                                    align="center"
+                                    pt={4}
+                                >
+                                    {imageAttachment && (
+                                        <Box className={classes.imagePreview}>
+                                            <Image
+                                                src={imageAttachment.previewUrl}
+                                                className={
+                                                    classes.imagePreviewThumbnail
+                                                }
+                                                alt="Attached image"
+                                            />
+                                            <CloseButton
+                                                size="xs"
+                                                onClick={clearImage}
+                                            />
+                                        </Box>
+                                    )}
+                                    <SelectedChartPills
+                                        charts={selectedCharts}
+                                        onRemove={(uuid) =>
+                                            setSelectedCharts((prev) =>
+                                                prev.filter(
+                                                    (c) => c.uuid !== uuid,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </Group>
+                            )}
                         </Box>
                     </Box>
                 </Panel>
