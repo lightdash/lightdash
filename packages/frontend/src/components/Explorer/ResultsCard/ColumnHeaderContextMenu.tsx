@@ -290,7 +290,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     }}
                 >
                     Filter by{' '}
-                    <Text span fw={500}>
+                    <Text span fz="inherit" lh="inherit" fw="semibold">
                         {getItemLabelWithoutTableName(item)}
                     </Text>
                 </Menu.Item>
