@@ -1,3 +1,10 @@
+## [0.2774.1](https://github.com/lightdash/lightdash/compare/0.2774.0...0.2774.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* update query-sdk to support table calculations ([#22187](https://github.com/lightdash/lightdash/issues/22187)) ([7f1fa9b](https://github.com/lightdash/lightdash/commit/7f1fa9b0d0149bbb8dfc5319b277b3323224532a))
+
 # [0.2774.0](https://github.com/lightdash/lightdash/compare/0.2773.0...0.2774.0) (2026-04-21)
 
 
