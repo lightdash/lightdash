@@ -4,7 +4,7 @@ import {
     ChartType,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { Button, Group, Menu } from '@mantine-8/core';
+import { Button, Menu } from '@mantine-8/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -23,7 +23,6 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
-import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import {
     isBigNumberVisualizationConfig,
@@ -184,7 +183,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 };
             case ChartType.MAP:
                 return {
-                    text: 'Map (Beta)',
+                    text: 'Map',
                     icon: <MantineIcon icon={IconMap} color="ldGray" />,
                 };
             case ChartType.CUSTOM:
@@ -194,7 +193,7 @@ const VisualizationCardOptions: FC = memo(() => {
                 };
             case ChartType.SANKEY:
                 return {
-                    text: 'Sankey (Beta)',
+                    text: 'Sankey',
                     icon: <MantineIcon icon={IconGitMerge} color="ldGray" />,
                 };
             default: {
@@ -436,10 +435,7 @@ const VisualizationCardOptions: FC = memo(() => {
                         setChartType(ChartType.SANKEY);
                     }}
                 >
-                    <Group gap="xs">
-                        Sankey
-                        <BetaBadge />
-                    </Group>
+                    Sankey
                 </Menu.Item>
 
                 <Menu.Item
@@ -456,10 +452,7 @@ const VisualizationCardOptions: FC = memo(() => {
                         setChartType(ChartType.MAP);
                     }}
                 >
-                    <Group gap="xs">
-                        Map
-                        <BetaBadge />
-                    </Group>
+                    Map
                 </Menu.Item>
 
                 <Menu.Item
