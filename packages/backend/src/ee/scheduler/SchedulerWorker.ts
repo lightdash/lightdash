@@ -207,6 +207,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                             e,
                             'Build timed out. Please try again.',
                         );
+                        this.appGenerateService.trackTimeoutFailure(payload, e);
                     },
                 );
             },

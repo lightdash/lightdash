@@ -1127,6 +1127,131 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export type DataAppCreatedEvent = BaseTrack & {
+    event: 'data_app.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        promptLength: number;
+        hasImage: boolean;
+        imageMimeType?: string;
+    };
+};
+
+export type DataAppIteratedEvent = BaseTrack & {
+    event: 'data_app.iterated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        iterationNumber: number;
+        promptLength: number;
+        hasImage: boolean;
+        imageMimeType?: string;
+        previousVersionStatus: string | null;
+        msSinceLastVersion: number | null;
+    };
+};
+
+export type DataAppVersionCancelledEvent = BaseTrack & {
+    event: 'data_app.version.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        stageAtCancellation: string;
+        msElapsedBeforeCancel: number;
+    };
+};
+
+export type DataAppVersionCompletedEvent = BaseTrack & {
+    event: 'data_app.version.completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        isIteration: boolean;
+        wasResumed: boolean;
+        totalDurationMs: number;
+        sandboxMs?: number;
+        resumeMs?: number;
+        restoreMs?: number;
+        catalogMs?: number;
+        generateMs?: number;
+        buildMs?: number;
+        packageMs?: number;
+        uploadMs?: number;
+        buildFixAttempts: number;
+        buildFixGenerationMs: number;
+        toolCallCount: number;
+        catalogTableCount: number;
+        catalogDimensionCount: number;
+        catalogMetricCount: number;
+        catalogYamlBytes: number;
+        distBytes: number;
+        sourceBytes: number;
+    };
+};
+
+export type DataAppVersionFailedEvent = BaseTrack & {
+    event: 'data_app.version.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        isIteration: boolean;
+        failureStage:
+            | 'sandbox'
+            | 'catalog'
+            | 'generating'
+            | 'building'
+            | 'packaging'
+            | 'db'
+            | 'config'
+            | 'timeout';
+        errorMessage: string;
+        buildFixAttempts: number;
+        totalDurationMs: number;
+        sandboxMs?: number;
+        resumeMs?: number;
+        restoreMs?: number;
+        catalogMs?: number;
+        generateMs?: number;
+        buildMs?: number;
+    };
+};
+
+export type DataAppImageUploadedEvent = BaseTrack & {
+    event: 'data_app.image_uploaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid?: string;
+        mimeType: string;
+        sizeBytes?: number;
+    };
+};
+
+export type DataAppEvent =
+    | DataAppCreatedEvent
+    | DataAppIteratedEvent
+    | DataAppVersionCancelledEvent
+    | DataAppVersionCompletedEvent
+    | DataAppVersionFailedEvent
+    | DataAppImageUploadedEvent;
+
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
     userId: string;
@@ -1685,6 +1810,7 @@ type TypedEvent =
     | SchedulerRestoredEvent
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
+    | DataAppEvent
     | PinnedListUpdated
     | FavoriteToggled
     | DownloadCsv

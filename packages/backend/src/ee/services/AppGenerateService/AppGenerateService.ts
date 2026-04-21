@@ -20,6 +20,7 @@ import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
+import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -37,6 +38,7 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
@@ -51,6 +53,8 @@ type GenerateAppResult = {
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly catalogModel: CatalogModel;
 
     private readonly appModel: AppModel;
@@ -61,6 +65,7 @@ export class AppGenerateService extends BaseService {
 
     constructor({
         lightdashConfig,
+        analytics,
         catalogModel,
         appModel,
         featureFlagModel,
@@ -68,6 +73,7 @@ export class AppGenerateService extends BaseService {
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
@@ -286,6 +292,18 @@ export class AppGenerateService extends BaseService {
             }),
         );
 
+        this.analytics.track({
+            event: 'data_app.image_uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                mimeType,
+                sizeBytes: contentLength,
+            },
+        });
+
         return { s3Key };
     }
 
@@ -296,6 +314,58 @@ export class AppGenerateService extends BaseService {
 
     private static elapsed(start: number): number {
         return Math.round(performance.now() - start);
+    }
+
+    trackTimeoutFailure(
+        payload: AppGeneratePipelineJobPayload,
+        error: unknown,
+    ): void {
+        this.trackVersionFailed(payload, 'timeout', error, {}, null, 0);
+    }
+
+    private trackVersionFailed(
+        payload: AppGeneratePipelineJobPayload,
+        failureStage:
+            | 'sandbox'
+            | 'catalog'
+            | 'generating'
+            | 'building'
+            | 'packaging'
+            | 'db'
+            | 'config'
+            | 'timeout',
+        error: unknown,
+        durations: Record<string, number>,
+        overallStart: number | null,
+        buildFixAttempts: number,
+    ): void {
+        this.analytics.track({
+            event: 'data_app.version.failed',
+            userId: payload.userUuid,
+            properties: {
+                organizationId: payload.organizationUuid,
+                projectId: payload.projectUuid,
+                appUuid: payload.appUuid,
+                version: payload.version,
+                isIteration: payload.isIteration,
+                failureStage,
+                errorMessage: AppGenerateService.truncateEnd(
+                    getErrorMessage(error),
+                    500,
+                ),
+                buildFixAttempts,
+                totalDurationMs:
+                    overallStart !== null
+                        ? AppGenerateService.elapsed(overallStart)
+                        : 0,
+                sandboxMs: durations.sandboxMs,
+                resumeMs: durations.resumeMs,
+                restoreMs: durations.restoreMs,
+                catalogMs: durations.catalogMs,
+                generateMs: durations.generateMs,
+                buildMs: durations.buildMs,
+            },
+        });
     }
 
     async markError(
@@ -520,7 +590,13 @@ export class AppGenerateService extends BaseService {
         image: AppImageAttachment | undefined,
         s3Client: S3Client,
         bucket: string,
-    ): Promise<number> {
+    ): Promise<{
+        durationMs: number;
+        tableCount: number;
+        dimensionCount: number;
+        metricCount: number;
+        yamlBytes: number;
+    }> {
         const start = performance.now();
 
         const catalogItems =
@@ -576,7 +652,13 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: model context written (tables=${tableCount}, dimensions=${totalDimensions}, metrics=${totalMetrics}, yamlBytes=${modelYaml.length}, ${durationMs}ms)`,
         );
-        return durationMs;
+        return {
+            durationMs,
+            tableCount,
+            dimensionCount: totalDimensions,
+            metricCount: totalMetrics,
+            yamlBytes: modelYaml.length,
+        };
     }
 
     /**
@@ -727,7 +809,11 @@ export class AppGenerateService extends BaseService {
         version: number,
         continueSession: boolean,
         anthropicApiKey: string,
-    ): Promise<{ durationMs: number; responseText: string | null }> {
+    ): Promise<{
+        durationMs: number;
+        responseText: string | null;
+        toolCallCount: number;
+    }> {
         const start = performance.now();
         let stdoutBuffer = '';
         let toolCallCount = 0;
@@ -807,7 +893,7 @@ export class AppGenerateService extends BaseService {
                 `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
             );
         }
-        return { durationMs, responseText };
+        return { durationMs, responseText, toolCallCount };
     }
 
     private async runBuild(
@@ -1055,8 +1141,7 @@ export class AppGenerateService extends BaseService {
      * completed stages. `claude --continue` resumes the conversation.
      */
     async runPipeline(payload: AppGeneratePipelineJobPayload): Promise<void> {
-        const { appUuid, version, projectUuid, prompt, image, isIteration } =
-            payload;
+        const { appUuid, version, projectUuid, image, isIteration } = payload;
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -1085,6 +1170,7 @@ export class AppGenerateService extends BaseService {
                 error,
                 'Something went wrong. Please try again.',
             );
+            this.trackVersionFailed(payload, 'config', error, {}, null, 0);
             return;
         }
 
@@ -1138,17 +1224,36 @@ export class AppGenerateService extends BaseService {
                     error,
                     'Failed to set up build environment. Please try again.',
                 );
+                this.trackVersionFailed(
+                    payload,
+                    'sandbox',
+                    error,
+                    durations,
+                    overallStart,
+                    0,
+                );
                 return;
             }
         } else {
             // Resuming past sandbox stage — reconnect
             const app = await this.appModel.getApp(appUuid, projectUuid);
             if (!app.sandbox_id) {
+                const missingSandboxError = new Error(
+                    'No sandbox_id found for resume',
+                );
                 await this.markError(
                     appUuid,
                     version,
-                    new Error('No sandbox_id found for resume'),
+                    missingSandboxError,
                     'Failed to resume build environment. Please try again.',
+                );
+                this.trackVersionFailed(
+                    payload,
+                    'sandbox',
+                    missingSandboxError,
+                    durations,
+                    overallStart,
+                    0,
                 );
                 return;
             }
@@ -1168,6 +1273,14 @@ export class AppGenerateService extends BaseService {
                     error,
                     'Failed to resume build environment. Please try again.',
                 );
+                this.trackVersionFailed(
+                    payload,
+                    'sandbox',
+                    error,
+                    durations,
+                    overallStart,
+                    0,
+                );
                 return;
             }
         }
@@ -1175,10 +1288,7 @@ export class AppGenerateService extends BaseService {
         try {
             await this.runPipelineStages(
                 sandbox,
-                appUuid,
-                version,
-                projectUuid,
-                prompt,
+                payload,
                 s3Client,
                 bucket,
                 durations,
@@ -1195,10 +1305,7 @@ export class AppGenerateService extends BaseService {
 
     private async runPipelineStages(
         sandbox: Sandbox,
-        appUuid: string,
-        version: number,
-        projectUuid: string,
-        prompt: string,
+        payload: AppGeneratePipelineJobPayload,
         s3Client: S3Client,
         bucket: string,
         extraDurations: Record<string, number>,
@@ -1208,9 +1315,22 @@ export class AppGenerateService extends BaseService {
         anthropicApiKey: string,
         image: AppImageAttachment | undefined,
     ): Promise<void> {
+        const { appUuid, version, projectUuid, prompt } = payload;
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
+
+        let catalogStats = {
+            tableCount: 0,
+            dimensionCount: 0,
+            metricCount: 0,
+            yamlBytes: 0,
+        };
+        let toolCallCount = 0;
+        let buildFixAttempts = 0;
+        let buildFixGenerationMs = 0;
+        let distBytes = 0;
+        let sourceBytes = 0;
 
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
@@ -1221,7 +1341,7 @@ export class AppGenerateService extends BaseService {
                     'catalog',
                     'Loading your data models',
                 );
-                durations.catalogMs = await this.writeCatalogAndPrompt(
+                const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
                     projectUuid,
@@ -1230,6 +1350,13 @@ export class AppGenerateService extends BaseService {
                     s3Client,
                     bucket,
                 );
+                durations.catalogMs = catalogResult.durationMs;
+                catalogStats = {
+                    tableCount: catalogResult.tableCount,
+                    dimensionCount: catalogResult.dimensionCount,
+                    metricCount: catalogResult.metricCount,
+                    yamlBytes: catalogResult.yamlBytes,
+                };
             } catch (error) {
                 const totalMs = AppGenerateService.elapsed(overallStart);
                 this.logger.error(
@@ -1240,6 +1367,14 @@ export class AppGenerateService extends BaseService {
                     version,
                     error,
                     'Failed to load your data models. Please try again.',
+                );
+                this.trackVersionFailed(
+                    payload,
+                    'catalog',
+                    error,
+                    durations,
+                    overallStart,
+                    buildFixAttempts,
                 );
                 return;
             }
@@ -1269,6 +1404,7 @@ export class AppGenerateService extends BaseService {
                 );
                 durations.generateMs = generation.durationMs;
                 responseText = generation.responseText;
+                toolCallCount = generation.toolCallCount;
             } catch (error) {
                 const totalMs = AppGenerateService.elapsed(overallStart);
                 this.logger.error(
@@ -1279,6 +1415,14 @@ export class AppGenerateService extends BaseService {
                     version,
                     error,
                     'Failed to generate app code. Try rephrasing your request.',
+                );
+                this.trackVersionFailed(
+                    payload,
+                    'generating',
+                    error,
+                    durations,
+                    overallStart,
+                    buildFixAttempts,
                 );
                 return;
             }
@@ -1300,6 +1444,8 @@ export class AppGenerateService extends BaseService {
                     anthropicApiKey,
                 );
                 durations.buildMs = buildResult.buildMs;
+                buildFixAttempts = buildResult.fixAttempts;
+                buildFixGenerationMs = buildResult.fixGenerationMs;
                 if (buildResult.fixAttempts > 0) {
                     durations.buildFixMs = buildResult.fixGenerationMs;
                     durations.buildFixAttempts = buildResult.fixAttempts;
@@ -1314,6 +1460,14 @@ export class AppGenerateService extends BaseService {
                     version,
                     error,
                     "The generated code couldn't be compiled. Try again or simplify your request.",
+                );
+                this.trackVersionFailed(
+                    payload,
+                    'building',
+                    error,
+                    durations,
+                    overallStart,
+                    buildFixAttempts,
                 );
                 return;
             }
@@ -1330,6 +1484,8 @@ export class AppGenerateService extends BaseService {
                 );
                 const artifacts = await this.packageArtifacts(sandbox, appUuid);
                 durations.packageMs = artifacts.durationMs;
+                distBytes = artifacts.distTar.length;
+                sourceBytes = artifacts.sourceTar.length;
 
                 durations.uploadMs = await this.uploadToS3(
                     s3Client,
@@ -1349,6 +1505,14 @@ export class AppGenerateService extends BaseService {
                     version,
                     error,
                     'Failed to deploy your app. Please try again.',
+                );
+                this.trackVersionFailed(
+                    payload,
+                    'packaging',
+                    error,
+                    durations,
+                    overallStart,
+                    buildFixAttempts,
                 );
                 return;
             }
@@ -1380,6 +1544,14 @@ export class AppGenerateService extends BaseService {
                 error,
                 'Something went wrong. Please try again.',
             );
+            this.trackVersionFailed(
+                payload,
+                'db',
+                error,
+                durations,
+                overallStart,
+                buildFixAttempts,
+            );
             return;
         }
 
@@ -1391,6 +1563,37 @@ export class AppGenerateService extends BaseService {
                 .map(([k, v]) => `${k}=${v}ms`)
                 .join(', ')})`,
         );
+
+        this.analytics.track({
+            event: 'data_app.version.completed',
+            userId: payload.userUuid,
+            properties: {
+                organizationId: payload.organizationUuid,
+                projectId: projectUuid,
+                appUuid,
+                version,
+                isIteration: payload.isIteration,
+                wasResumed,
+                totalDurationMs: totalMs,
+                sandboxMs: durations.sandboxMs,
+                resumeMs: durations.resumeMs,
+                restoreMs: durations.restoreMs,
+                catalogMs: durations.catalogMs,
+                generateMs: durations.generateMs,
+                buildMs: durations.buildMs,
+                packageMs: durations.packageMs,
+                uploadMs: durations.uploadMs,
+                buildFixAttempts,
+                buildFixGenerationMs,
+                toolCallCount,
+                catalogTableCount: catalogStats.tableCount,
+                catalogDimensionCount: catalogStats.dimensionCount,
+                catalogMetricCount: catalogStats.metricCount,
+                catalogYamlBytes: catalogStats.yamlBytes,
+                distBytes,
+                sourceBytes,
+            },
+        });
     }
 
     async generateApp(
@@ -1439,6 +1642,20 @@ export class AppGenerateService extends BaseService {
             );
             throw error;
         }
+
+        this.analytics.track({
+            event: 'data_app.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                version,
+                promptLength: prompt.length,
+                hasImage: image !== undefined,
+                imageMimeType: image?.mimeType,
+            },
+        });
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
@@ -1501,6 +1718,25 @@ export class AppGenerateService extends BaseService {
             user.userUuid,
         );
 
+        this.analytics.track({
+            event: 'data_app.iterated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                version: newVersion,
+                iterationNumber: newVersion - 1,
+                promptLength: prompt.length,
+                hasImage: image !== undefined,
+                imageMimeType: image?.mimeType,
+                previousVersionStatus: latestVersion?.status ?? null,
+                msSinceLastVersion: latestVersion?.created_at
+                    ? Date.now() - latestVersion.created_at.getTime()
+                    : null,
+            },
+        });
+
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
             version: newVersion,
@@ -1538,6 +1774,10 @@ export class AppGenerateService extends BaseService {
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
 
+        // Read the version before updating it so we can capture the stage
+        // it was at when the cancel hit.
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+
         // Atomically mark the version as cancelled (only if still building)
         const updated = await this.appModel.updateVersionStatusIfInProgress(
             appUuid,
@@ -1553,6 +1793,22 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: version ${version} cancelled by user ${user.userUuid}`,
         );
+
+        if (versionRow) {
+            this.analytics.track({
+                event: 'data_app.version.cancelled',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid!,
+                    projectId: projectUuid,
+                    appUuid,
+                    version,
+                    stageAtCancellation: versionRow.status,
+                    msElapsedBeforeCancel:
+                        Date.now() - versionRow.created_at.getTime(),
+                },
+            });
+        }
 
         // Pause the sandbox to interrupt any running commands while keeping
         // it resumable for the next iteration.
