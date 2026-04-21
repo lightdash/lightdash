@@ -41,9 +41,11 @@ export default defineConfig({
     fullyParallel: false,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? retries : 0,
-    // Four workers keeps in-file ordering (via fullyParallel: false) while
-    // letting up to four spec files run in parallel within a shard.
-    workers: process.env.CI ? 4 : undefined,
+    // Two workers keeps in-file ordering (via fullyParallel: false) while
+    // letting two spec files run in parallel within a shard. Four workers
+    // overloaded the single-process backend and produced visibility timeouts
+    // in dates/dateZoom/embed/explore.
+    workers: process.env.CI ? 2 : undefined,
     reporter: process.env.CI
         ? [['html', { open: 'never' }], ['list']]
         : [['list']],

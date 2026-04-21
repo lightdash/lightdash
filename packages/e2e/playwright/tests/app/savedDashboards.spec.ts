@@ -27,17 +27,23 @@ test.describe('Dashboard List', () => {
         await expect(page).toHaveURL(
             /.*\/projects\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/dashboards\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
         );
-        await expect(page.getByText('Untitled dashboard')).toBeVisible();
+        // Retry runs from previous CI attempts can leave orphan "Untitled
+        // dashboard" entries in the container's DB, so we tolerate multiple
+        // matches here.
+        await expect(
+            page.getByText('Untitled dashboard').first(),
+        ).toBeVisible();
     });
 
     test('Should update dashboards', async ({ adminPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/home`);
         await page.getByRole('button', { name: 'Browse' }).click();
         await page.getByRole('menuitem', { name: 'All dashboards' }).click();
-        // open actions menu
+        // open actions menu on the first matching row (see note above)
         await page
             .locator('tr')
             .filter({ hasText: 'Untitled dashboard' })
+            .first()
             .locator('button')
             .click();
         // click on rename
@@ -48,17 +54,18 @@ test.describe('Dashboard List', () => {
         await page.getByRole('button', { name: 'Save' }).click();
 
         // verify dashboard name has been updated in the list
-        await expect(page.getByText('e2e dashboard')).toBeVisible();
+        await expect(page.getByText('e2e dashboard').first()).toBeVisible();
     });
 
     test('Should delete dashboards', async ({ adminPage: page }) => {
         await page.goto(`/projects/${SEED_PROJECT.project_uuid}/home`);
         await page.getByRole('button', { name: 'Browse' }).click();
         await page.getByRole('menuitem', { name: 'All dashboards' }).click();
-        // open actions menu
+        // open actions menu on the first matching row
         await page
             .locator('tr')
             .filter({ hasText: 'e2e dashboard' })
+            .first()
             .locator('button')
             .click();
         // click on delete
