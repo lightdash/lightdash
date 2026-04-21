@@ -38,7 +38,10 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
-import { convertSdkFilterToDashboardFilter } from '../../ee/features/embed/EmbedDashboard/utils';
+import {
+    convertSdkFilterToDashboardFilter,
+    shouldDeferSdkFilters,
+} from '../../ee/features/embed/EmbedDashboard/utils';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
@@ -673,11 +676,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             const sdkFilters =
                 embed.mode === 'sdk' && embed.filters ? embed.filters : [];
             if (sdkFilters.length > 0) {
-                // Wait for available filters query to finish (success or error)
-                // so we can build cross-explore tileTargets.
-                // If the query failed, filterableFieldsByTileUuid will be
-                // undefined and we gracefully fall back to tileTargets: {}
-                if (isLoadingDashboardFilters) return;
+                // Wait until we have the data needed to build cross-explore
+                // tileTargets. `isLoadingDashboardFilters` alone is not
+                // enough because the available-filters query is disabled
+                // until tile metadata loads, and React Query reports a
+                // disabled query as not loading.
+                if (
+                    shouldDeferSdkFilters(
+                        savedChartUuidsAndTileUuids,
+                        filterableFieldsByTileUuid,
+                    )
+                ) {
+                    return;
+                }
 
                 updatedDashboardFilters.dimensions = sdkFilters.map(
                     (sdkFilter) =>
@@ -734,7 +745,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         overridesForSavedDashboardFilters,
         embed,
         applyInteractivityFiltering,
-        isLoadingDashboardFilters,
+        savedChartUuidsAndTileUuids,
         filterableFieldsByTileUuid,
     ]);
 
