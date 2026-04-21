@@ -101,12 +101,16 @@ module.exports = {
             // Error on direct ability checks in fully migrated services
             files: [
                 'src/services/CatalogService/**/*.ts',
+                'src/services/ChangesetService.ts',
                 'src/services/ContentService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
+                'src/services/OAuthService/**/*.ts',
+                'src/services/PersonalAccessTokenService.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
                 'src/services/SchedulerService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
+                'src/services/UserAttributesService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',

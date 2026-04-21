@@ -52,10 +52,14 @@ export class UserAttributesService extends BaseService {
         context: RequestMethod,
     ): Promise<UserAttribute[]> {
         const organizationUuid = user.organizationUuid!;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', {
+                    organizationUuid,
+                    metadata: { organizationUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -83,11 +87,18 @@ export class UserAttributesService extends BaseService {
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         const organizationUuid = user.organizationUuid!;
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('Organization', { organizationUuid }),
+                subject('Organization', {
+                    organizationUuid,
+                    metadata: {
+                        organizationUuid,
+                        userAttributeName: orgAttribute.name,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -116,12 +127,18 @@ export class UserAttributesService extends BaseService {
     ): Promise<UserAttribute> {
         const savedAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
                     organizationUuid: savedAttribute.organizationUuid,
+                    metadata: {
+                        organizationUuid: savedAttribute.organizationUuid,
+                        userAttributeUuid: orgAttributeUuid,
+                        userAttributeName: savedAttribute.name,
+                    },
                 }),
             )
         ) {
@@ -148,11 +165,17 @@ export class UserAttributesService extends BaseService {
     async delete(user: SessionUser, orgAttributeUuid: string): Promise<void> {
         const orgAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
                     organizationUuid: orgAttribute.organizationUuid,
+                    metadata: {
+                        organizationUuid: orgAttribute.organizationUuid,
+                        userAttributeUuid: orgAttributeUuid,
+                        userAttributeName: orgAttribute.name,
+                    },
                 }),
             )
         ) {
