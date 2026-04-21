@@ -3913,21 +3913,47 @@ export default class SchedulerTask {
                     // Fetch all CSVs from presigned URLs in parallel
                     const csvStreams = await Promise.all(
                         successfulResults.map(async (r) => {
-                            const csvResponse = await fetch(r.value.fileUrl);
-                            if (!csvResponse.ok || !csvResponse.body) {
-                                Logger.warn(
-                                    `Failed to fetch CSV for ${r.value.chartName} from presigned URL`,
+                            try {
+                                const csvResponse = await fetch(
+                                    r.value.fileUrl,
+                                );
+                                if (!csvResponse.ok || !csvResponse.body) {
+                                    Logger.warn(
+                                        `Failed to fetch CSV for ${r.value.chartName} from presigned URL: HTTP ${csvResponse.status} ${csvResponse.statusText}`,
+                                    );
+                                    return null;
+                                }
+                                return {
+                                    filename: r.value.filename,
+                                    stream: Readable.fromWeb(
+                                        csvResponse.body as Parameters<
+                                            typeof Readable.fromWeb
+                                        >[0],
+                                    ),
+                                };
+                            } catch (e) {
+                                const cause =
+                                    e instanceof Error && e.cause
+                                        ? e.cause
+                                        : undefined;
+                                Logger.error(
+                                    `Failed to fetch CSV for chart "${r.value.chartName}" from presigned URL: ${e instanceof Error ? e.message : String(e)}`,
+                                    {
+                                        chartName: r.value.chartName,
+                                        fileUrl: r.value.fileUrl,
+                                        cause:
+                                            cause instanceof Error
+                                                ? {
+                                                      message: cause.message,
+                                                      code: (
+                                                          cause as NodeJS.ErrnoException
+                                                      ).code,
+                                                  }
+                                                : cause,
+                                    },
                                 );
                                 return null;
                             }
-                            return {
-                                filename: r.value.filename,
-                                stream: Readable.fromWeb(
-                                    csvResponse.body as Parameters<
-                                        typeof Readable.fromWeb
-                                    >[0],
-                                ),
-                            };
                         }),
                     );
 
