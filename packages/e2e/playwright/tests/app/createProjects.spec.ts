@@ -181,17 +181,18 @@ const configureSnowflakeWarehouse = async (
 };
 
 const testCompile = async (page: Page): Promise<string> => {
-    // Compile
+    // Compile. The jaffle-shop demo has enough models that a cold dbt
+    // compile comfortably exceeds 60s on CI, so give each step 2 minutes.
     await page.getByText('Test & deploy project').click();
     await expect(page.getByText('Step 1/3')).toBeVisible({
-        timeout: 60000,
+        timeout: 120000,
     });
     await expect(page.getByText('Step 2/3')).toBeVisible({
-        timeout: 60000,
+        timeout: 120000,
     });
     await expect(
         page.getByText('Successfully synced dbt project!'),
-    ).toBeVisible({ timeout: 60000 });
+    ).toBeVisible({ timeout: 120000 });
 
     await expect(page.getByText(/selected \d+ models/)).toBeVisible();
     // Configure
@@ -467,6 +468,10 @@ const testCustomDimensions = async (page: Page, projectUuid: string) => {
 };
 
 test.describe('Create projects', () => {
+    // Creating a project runs a full dbt compile against the warehouse,
+    // which the jaffle-shop demo needs well over the default 30s for.
+    test.setTimeout(240000);
+
     test.beforeAll(async ({ browser }) => {
         // clean previous e2e projects
         const context = await browser.newContext({
@@ -575,6 +580,14 @@ test.describe('Create projects', () => {
     });
 
     test('Should create a Bigquery project', async ({ adminPage: page }) => {
+        // Skip when the BigQuery keyfile isn't available (e.g. on PRs from
+        // forks that can't access the secret).
+        const { existsSync } = await import('fs');
+        test.skip(
+            !existsSync(warehouseConfig.bigQuery.keyFile),
+            `${warehouseConfig.bigQuery.keyFile} not found`,
+        );
+
         await page.goto(`/createProject`);
 
         await page
@@ -738,6 +751,15 @@ test.describe('Create projects', () => {
     });
 
     test('Should create a Snowflake project', async ({ adminPage: page }) => {
+        // Skip when Snowflake credentials aren't set (e.g. on PRs from forks
+        // that can't access the secret).
+        test.skip(
+            !warehouseConfig.snowflake.account ||
+                !warehouseConfig.snowflake.user ||
+                !warehouseConfig.snowflake.password,
+            'Snowflake credentials not configured',
+        );
+
         await page.goto(`/createProject`);
 
         await page
