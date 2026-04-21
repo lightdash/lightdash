@@ -1,5 +1,11 @@
 import { useCallback, useEffect, type RefObject } from 'react';
 
+export type QueryEventTableCalculation = {
+    name: string;
+    displayName: string;
+    sql: string;
+};
+
 export type QueryEvent = {
     id: string;
     timestamp: number;
@@ -9,6 +15,7 @@ export type QueryEvent = {
     metrics: string[];
     filters: unknown;
     sorts: unknown[];
+    tableCalculations: QueryEventTableCalculation[];
     limit: number;
     queryUuid: string | null;
     status: 'pending' | 'running' | 'ready' | 'error';
@@ -107,6 +114,9 @@ export function useAppSdkBridge(
                         metrics: (query.metrics as string[]) ?? [],
                         filters: query.filters ?? {},
                         sorts: (query.sorts as unknown[]) ?? [],
+                        tableCalculations:
+                            (query.tableCalculations as QueryEventTableCalculation[]) ??
+                            [],
                         limit: (query.limit as number) ?? 0,
                         queryUuid: null,
                         status: 'pending',
@@ -148,6 +158,9 @@ export function useAppSdkBridge(
                             metrics: json.results?.metricQuery?.metrics ?? [],
                             filters: json.results?.metricQuery?.filters ?? {},
                             sorts: json.results?.metricQuery?.sorts ?? [],
+                            tableCalculations:
+                                json.results?.metricQuery?.tableCalculations ??
+                                [],
                             limit: json.results?.metricQuery?.limit ?? 0,
                             queryUuid: json.results.queryUuid,
                             status: 'running',
@@ -170,6 +183,7 @@ export function useAppSdkBridge(
                                 metrics: [],
                                 filters: {},
                                 sorts: [],
+                                tableCalculations: [],
                                 limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
@@ -192,6 +206,7 @@ export function useAppSdkBridge(
                                 metrics: [],
                                 filters: {},
                                 sorts: [],
+                                tableCalculations: [],
                                 limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'error',

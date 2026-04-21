@@ -173,6 +173,29 @@ query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).l
 
 **Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
 
+### Table calculations
+
+Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+
+```ts
+query('orders')
+    .label('Revenue with Running Total')
+    .dimensions(['order_date'])
+    .metrics(['total_revenue'])
+    .tableCalculations([
+        {
+            name: 'running_total',
+            displayName: 'Running Total',
+            sql: 'SUM(${orders.total_revenue}) OVER (ORDER BY ${orders.order_date})',
+        },
+    ])
+```
+
+Each table calculation needs:
+- `name` — internal field ID (used in results, must be unique within the query)
+- `displayName` — human-readable label shown in the UI
+- `sql` — SQL expression; reference other fields with `${table.field}` syntax
+
 ### `useLightdash(query)` return value
 
 | Field | Type | Use for |
