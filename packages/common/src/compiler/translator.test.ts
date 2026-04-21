@@ -56,6 +56,7 @@ import {
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DIMENSION_AI_HINT,
     MODEL_WITH_DIMENSION_AI_HINT_ARRAY,
+    MODEL_WITH_DUPLICATE_METRIC_ACROSS_COLUMNS,
     MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME,
     MODEL_WITH_GROUP_LABEL,
     MODEL_WITH_GROUPS_BLOCK,
@@ -469,6 +470,29 @@ describe('convert tables from dbt models', () => {
         expect(result.dimensions).toHaveProperty('user_id2');
         expect(result.metrics).not.toHaveProperty('user_id');
         expect(result.metrics).not.toHaveProperty('user_id2');
+    });
+    it('should warn when the same metric name is defined on multiple columns', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_DUPLICATE_METRIC_ACROSS_COLUMNS,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.metrics).toHaveProperty('revenue');
+        expect(
+            Object.keys(result.metrics).filter((n) => n === 'revenue'),
+        ).toHaveLength(1);
+        const duplicateWarnings = (result.warnings ?? []).filter(
+            (w) => w.type === InlineErrorType.DUPLICATE_FIELD_NAME,
+        );
+        expect(duplicateWarnings).toHaveLength(1);
+        expect(duplicateWarnings[0].message).toContain('revenue');
+        expect(duplicateWarnings[0].message).toContain(
+            'column "amount" meta.metrics',
+        );
+        expect(duplicateWarnings[0].message).toContain(
+            'column "total" meta.metrics',
+        );
     });
 
     it('should convert dbt model with group label', async () => {

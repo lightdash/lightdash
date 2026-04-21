@@ -923,6 +923,34 @@ export const convertTable = (
         ]),
     );
 
+    // Detect metric names defined in multiple sources on the same model.
+    // The aggregation below silently overwrites collisions; warn the user instead.
+    const metricNameSources: Record<string, string[]> = {};
+    const recordMetricSource = (name: string, source: string) => {
+        if (!metricNameSources[name]) metricNameSources[name] = [];
+        metricNameSources[name].push(source);
+    };
+    dbtMetrics.forEach((m) => recordMetricSource(m.name, 'dbt metric'));
+    Object.keys(meta.metrics || {}).forEach((name) =>
+        recordMetricSource(name, 'model meta.metrics'),
+    );
+    Object.values(model.columns).forEach((column) => {
+        const colMeta = merge({}, column.meta, column.config?.meta);
+        Object.keys(colMeta.metrics || {}).forEach((name) =>
+            recordMetricSource(name, `column "${column.name}" meta.metrics`),
+        );
+    });
+    Object.entries(metricNameSources).forEach(([name, sources]) => {
+        if (sources.length > 1) {
+            tableWarnings.push({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: `Metric "${name}" is defined multiple times on model "${model.name}" (in ${sources.join(
+                    ', ',
+                )}). Only one definition will be used.`,
+            });
+        }
+    });
+
     const allMetrics: Record<string, Metric> = Object.values({
         ...convertedDbtMetrics,
         ...modelMetrics,

@@ -781,6 +781,30 @@ export const MODEL_WITH_WRONG_METRICS: DbtModelNode = {
     },
 };
 
+export const MODEL_WITH_DUPLICATE_METRIC_ACROSS_COLUMNS: DbtModelNode = {
+    ...model,
+    columns: {
+        amount: {
+            name: 'amount',
+            data_type: DimensionType.NUMBER,
+            meta: {
+                metrics: {
+                    revenue: { type: MetricType.SUM },
+                },
+            },
+        },
+        total: {
+            name: 'total',
+            data_type: DimensionType.NUMBER,
+            meta: {
+                metrics: {
+                    revenue: { type: MetricType.SUM },
+                },
+            },
+        },
+    },
+};
+
 export const LIGHTDASH_TABLE_WITH_METRICS: Omit<Table, 'lineageGraph'> = {
     ...BASE_LIGHTDASH_TABLE,
     description: MODEL_WITH_METRIC.description,
