@@ -1,6 +1,5 @@
 import {
     CustomFormatType,
-    FeatureFlags,
     getErrorMessage,
     getItemId,
     isFormulaTableCalculation,
@@ -13,9 +12,9 @@ import {
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
+import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
     Group,
@@ -42,8 +41,10 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
+import { BetaBadge } from '../../../components/common/BetaBadge';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
@@ -56,7 +57,7 @@ import {
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useProject } from '../../../hooks/useProject';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
@@ -103,24 +104,36 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isExpanded, toggleExpanded] = useToggle(false);
 
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(projectUuid);
+
+    // Formula support is pinned to what the formula package can compile for
+    // this warehouse. The backend mapper throws for unsupported adapters, so
+    // we must not offer the input mode here either.
+    const isFormulaSupported =
+        !!project?.warehouseConnection &&
+        (SUPPORTED_DIALECTS as readonly string[]).includes(
+            project.warehouseConnection.type as Dialect,
+        );
+
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
     const hasFormula = tableCalculation
         ? isFormulaTableCalculation(tableCalculation)
         : false;
+    // Default for new calcs: Formula when the warehouse supports it, SQL
+    // otherwise. Editing an existing calc: keep the calc's own mode.
     const defaultMode = hasFormula
         ? EditMode.FORMULA
         : hasTemplate
           ? EditMode.TEMPLATE
-          : EditMode.SQL;
+          : isFormulaSupported
+            ? EditMode.FORMULA
+            : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
 
     const { addToastError } = useToaster();
-
-    const isFormulaEnabled = useClientFeatureFlag(
-        FeatureFlags.FormulaTableCalculations,
-    );
 
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -380,28 +393,18 @@ const TableCalculationModal: FC<Props> = ({
 
     const editModeOptions = useMemo(
         () => [
-            { value: EditMode.SQL, label: 'SQL' },
             {
                 value: EditMode.FORMULA,
-                label: isFormulaEnabled ? (
-                    'Formula'
-                ) : (
+                label: (
                     <Group gap={6} wrap="nowrap" justify="center">
                         <Text span>Formula</Text>
-                        <Badge
-                            size="xs"
-                            variant="filled"
-                            color="indigo"
-                            radius="sm"
-                        >
-                            Coming soon
-                        </Badge>
+                        <BetaBadge tooltipLabel="Formula table calculations are in beta — please share feedback!" />
                     </Group>
                 ),
-                disabled: !isFormulaEnabled,
             },
+            { value: EditMode.SQL, label: 'SQL' },
         ],
-        [isFormulaEnabled],
+        [],
     );
 
     return (
@@ -475,7 +478,7 @@ const TableCalculationModal: FC<Props> = ({
                         Input
                     </Text>
 
-                    {!hasTemplate && (
+                    {!hasTemplate && isFormulaSupported && (
                         <SegmentedControl
                             value={editMode}
                             onChange={(value) => setEditMode(value as EditMode)}
