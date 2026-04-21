@@ -139,7 +139,7 @@ jobs:
     needs: files-changed
     steps:
       - name: Post comment with test selection info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const marker = '<!-- test-selection-comment -->';
@@ -272,7 +272,7 @@ jobs:
           environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
 
       - name: Comment PR with preview info
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const marker = '<!-- preview-environment-comment -->';
