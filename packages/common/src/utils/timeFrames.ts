@@ -87,7 +87,7 @@ type DateTruncTimezoneConversion = {
     toUTC: (sql: string, tz: string) => string;
 };
 
-const dateTruncTimezoneConversions: Record<
+export const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
 > = {
