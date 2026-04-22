@@ -361,6 +361,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -452,6 +453,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -552,6 +554,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -647,6 +650,7 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -738,6 +742,7 @@ describe('AsyncQueryService', () => {
                         'missing_param',
                         'another_missing_param',
                     ],
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -815,6 +820,7 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -884,6 +890,7 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
                 },
                 {
                     query: {
@@ -963,6 +970,7 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
                 },
                 {
                     query: {
@@ -1043,6 +1051,7 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
@@ -1685,6 +1694,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
+                    displayTimezone: null,
                 },
                 { query: metricQueryMock },
             );
