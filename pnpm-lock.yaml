@@ -1394,6 +1394,12 @@ importers:
 
   packages/frontend/sdk:
     dependencies:
+      moment:
+        specifier: 2.29.4
+        version: 2.29.4
+      moment-timezone:
+        specifier: 0.5.45
+        version: 0.5.45
       react:
         specifier: ^18.x || ^19.x
         version: 19.0.0
